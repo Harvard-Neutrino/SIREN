@@ -110,6 +110,7 @@ bool BooleanGeometry::equal(const Geometry& geometry) const
 bool BooleanGeometry::less(const Geometry& geometry) const
 {
     const BooleanGeometry* bg = dynamic_cast<const BooleanGeometry*>(&geometry);
+    if(!bg) return false;
 
     if(op_ != bg->op_)
         return op_ < bg->op_;
@@ -163,77 +164,119 @@ void BooleanGeometry::print(std::ostream& os) const
 std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
         siren::math::Vector3D const & position,
         siren::math::Vector3D const & direction) const {
-    // Collect child intersections into a fixed-size tagged array.
-    // Each child produces at most ~8 intersections for typical shapes;
-    // 32 total handles deeply nested CSG.
+    // Collect child intersections into a tagged array.
+    // Use a fixed-size stack buffer for typical cases; fall back to
+    // heap allocation when deeply nested CSG produces many hits.
     struct TaggedHit {
         double distance;
         Intersection isect;
         int child; // 0 = left, 1 = right
     };
 
-    TaggedHit all[32];
+    static constexpr int STACK_CAPACITY = 32;
+    TaggedHit stack_all[STACK_CAPACITY];
+    std::vector<TaggedHit> heap_all;
     int n_all = 0;
+    bool using_heap_all = false;
+
+    auto add_tagged = [&](Intersection const & h, int child) {
+        TaggedHit th;
+        th.distance = h.distance;
+        th.isect = h;
+        th.child = child;
+        if(!using_heap_all) {
+            if(n_all < STACK_CAPACITY) {
+                stack_all[n_all++] = th;
+            } else {
+                using_heap_all = true;
+                heap_all.assign(stack_all, stack_all + STACK_CAPACITY);
+                heap_all.push_back(th);
+                n_all++;
+            }
+        } else {
+            heap_all.push_back(th);
+            n_all++;
+        }
+    };
 
     if(left_) {
         auto left_hits = left_->Intersections(position, direction);
         for(auto & h : left_hits) {
-            if(n_all < 32) {
-                all[n_all].distance = h.distance;
-                all[n_all].isect = h;
-                all[n_all].child = 0;
-                n_all++;
-            }
+            add_tagged(h, 0);
         }
     }
 
     if(right_) {
         auto right_hits = right_->Intersections(position, direction);
         for(auto & h : right_hits) {
-            if(n_all < 32) {
-                all[n_all].distance = h.distance;
-                all[n_all].isect = h;
-                all[n_all].child = 1;
-                n_all++;
-            }
+            add_tagged(h, 1);
         }
     }
 
     if(n_all == 0) return {};
 
-    std::sort(all, all + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+    auto tag_cmp = [](TaggedHit const & a, TaggedHit const & b) {
         return a.distance < b.distance;
-    });
+    };
+    if(using_heap_all) {
+        std::sort(heap_all.begin(), heap_all.end(), tag_cmp);
+    } else {
+        std::sort(stack_all, stack_all + n_all, tag_cmp);
+    }
+
+    TaggedHit* all_ptr = using_heap_all ? heap_all.data() : stack_all;
 
     // Walk from t=-infinity: both children start "outside"
     bool in_left = false;
     bool in_right = false;
     bool was_inside = IsInsideResult(op_, in_left, in_right);
 
-    Intersection result[32];
+    Intersection stack_result[STACK_CAPACITY];
+    std::vector<Intersection> heap_result;
     int n_result = 0;
+    bool using_heap_result = false;
+
+    auto add_result = [&](Intersection const & isect) {
+        if(!using_heap_result) {
+            if(n_result < STACK_CAPACITY) {
+                stack_result[n_result++] = isect;
+            } else {
+                using_heap_result = true;
+                heap_result.assign(stack_result, stack_result + STACK_CAPACITY);
+                heap_result.push_back(isect);
+                n_result++;
+            }
+        } else {
+            heap_result.push_back(isect);
+            n_result++;
+        }
+    };
 
     for(int i = 0; i < n_all; ++i) {
-        if(all[i].child == 0) {
-            in_left = all[i].isect.entering;
+        if(all_ptr[i].child == 0) {
+            in_left = all_ptr[i].isect.entering;
         } else {
-            in_right = all[i].isect.entering;
+            in_right = all_ptr[i].isect.entering;
         }
 
         bool now_inside = IsInsideResult(op_, in_left, in_right);
 
-        if(was_inside != now_inside && n_result < 32) {
-            result[n_result].distance = all[i].isect.distance;
-            result[n_result].position = all[i].isect.position;
-            result[n_result].hierarchy = all[i].isect.hierarchy;
-            result[n_result].entering = now_inside;
-            n_result++;
+        if(was_inside != now_inside) {
+            Intersection r;
+            r.distance = all_ptr[i].isect.distance;
+            r.position = all_ptr[i].isect.position;
+            r.hierarchy = all_ptr[i].isect.hierarchy;
+            r.entering = now_inside;
+            add_result(r);
         }
 
         was_inside = now_inside;
     }
 
-    return {result, result + n_result};
+    if(using_heap_result) {
+        return heap_result;
+    }
+    return {stack_result, stack_result + n_result};
 }
 
 // ------------------------------------------------------------------------- //

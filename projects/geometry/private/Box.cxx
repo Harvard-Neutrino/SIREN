@@ -106,7 +106,7 @@ Box& Box::operator=(const Geometry& geometry)
         const Box* box = dynamic_cast<const Box*>(&geometry);
         if (!box)
         {
-            //log_warn("Cannot assign Sphere!");
+            //log_warn("Cannot assign Box!");
             return *this;
         }
 
@@ -156,10 +156,6 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
     double dx = direction.GetX(), dy = direction.GetY(), dz = direction.GetZ();
 
     double hx = 0.5 * x_, hy = 0.5 * y_, hz = 0.5 * z_;
-
-    // At most 2 intersections for a convex shape; use a fixed-size local array
-    Intersection hits[2];
-    int n_hits = 0;
 
     // Use the slab method: find the ray parameter ranges where the ray is
     // inside each pair of parallel planes, then intersect the three ranges.

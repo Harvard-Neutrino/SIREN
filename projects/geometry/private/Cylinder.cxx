@@ -119,7 +119,7 @@ Cylinder& Cylinder::operator=(const Geometry& geometry)
         const Cylinder* cylinder = dynamic_cast<const Cylinder*>(&geometry);
         if (!cylinder)
         {
-            //log_warn("Cannot assign Sphere!");
+            //log_warn("Cannot assign Cylinder!");
             return *this;
         }
         Cylinder tmp(*cylinder);

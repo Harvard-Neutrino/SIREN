@@ -195,8 +195,33 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
 
     int np = planes_.size();
 
-    Intersection hits[64];
+    static constexpr int STACK_CAPACITY = 64;
+    Intersection stack_hits[STACK_CAPACITY];
+    std::vector<Intersection> heap_hits;
     int n_hits = 0;
+    bool using_heap = false;
+
+    auto add_hit = [&](double dist, int hierarchy, bool entering,
+                       double hx, double hy, double hz) {
+        Intersection isect;
+        isect.distance = dist;
+        isect.hierarchy = hierarchy;
+        isect.entering = entering;
+        isect.position = siren::math::Vector3D(hx, hy, hz);
+        if(!using_heap) {
+            if(n_hits < STACK_CAPACITY) {
+                stack_hits[n_hits++] = isect;
+            } else {
+                using_heap = true;
+                heap_hits.assign(stack_hits, stack_hits + STACK_CAPACITY);
+                heap_hits.push_back(isect);
+                n_hits++;
+            }
+        } else {
+            heap_hits.push_back(isect);
+            n_hits++;
+        }
+    };
 
     for(int k = 0; k + 1 < Nz; ++k) {
         double zk = zsections_[k].zpos;
@@ -273,27 +298,43 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
 
         if(missed || t_enter >= t_exit - GEOMETRY_PRECISION) continue;
 
-        if(n_hits + 2 <= 64) {
-            hits[n_hits].distance = t_enter;
-            hits[n_hits].hierarchy = 0;
-            hits[n_hits].entering = true;
-            hits[n_hits].position = siren::math::Vector3D(
+        add_hit(t_enter, 0, true,
                 px + dx * t_enter, py + dy * t_enter, pz + dz * t_enter);
-            n_hits++;
-
-            hits[n_hits].distance = t_exit;
-            hits[n_hits].hierarchy = 0;
-            hits[n_hits].entering = false;
-            hits[n_hits].position = siren::math::Vector3D(
+        add_hit(t_exit, 0, false,
                 px + dx * t_exit, py + dy * t_exit, pz + dz * t_exit);
-            n_hits++;
-        }
     }
 
-    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
+    auto cmp = [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    });
-    return {hits, hits + n_hits};
+    };
+
+    // Sort, then remove consecutive pairs at the same distance where the
+    // entering flags differ. These arise at shared z-section boundaries
+    // where adjacent sections each produce an intersection at the same t.
+    auto dedup = [](Intersection* arr, int& count) {
+        int write = 0;
+        for(int read = 0; read < count; ) {
+            if(read + 1 < count
+               && arr[read].entering != arr[read + 1].entering
+               && std::fabs(arr[read].distance - arr[read + 1].distance) < GEOMETRY_PRECISION) {
+                read += 2;
+            } else {
+                arr[write++] = arr[read++];
+            }
+        }
+        count = write;
+    };
+
+    if(using_heap) {
+        std::sort(heap_hits.begin(), heap_hits.end(), cmp);
+        int sz = (int)heap_hits.size();
+        dedup(heap_hits.data(), sz);
+        heap_hits.resize(sz);
+        return heap_hits;
+    }
+    std::sort(stack_hits, stack_hits + n_hits, cmp);
+    dedup(stack_hits, n_hits);
+    return {stack_hits, stack_hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //

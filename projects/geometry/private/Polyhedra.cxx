@@ -296,12 +296,34 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
-    // Fixed-size hit buffer to avoid heap allocation.
-    // Max theoretical hits = 2*(num_sides*num_segments + num_segments+1),
-    // but realistic polyhedra produce far fewer.
-    static constexpr int MAX_HITS = 64;
-    Intersection hits[MAX_HITS];
+    // Stack buffer for typical cases; heap fallback for complex polyhedra.
+    static constexpr int STACK_CAPACITY = 64;
+    Intersection stack_hits[STACK_CAPACITY];
+    std::vector<Intersection> heap_hits;
     int n_hits = 0;
+    bool using_heap = false;
+
+    auto add_hit = [&](double dist, int hierarchy, bool entering,
+                       double hx, double hy, double hz) {
+        Intersection isect;
+        isect.distance = dist;
+        isect.hierarchy = hierarchy;
+        isect.entering = entering;
+        isect.position = siren::math::Vector3D(hx, hy, hz);
+        if(!using_heap) {
+            if(n_hits < STACK_CAPACITY) {
+                stack_hits[n_hits++] = isect;
+            } else {
+                using_heap = true;
+                heap_hits.assign(stack_hits, stack_hits + STACK_CAPACITY);
+                heap_hits.push_back(isect);
+                n_hits++;
+            }
+        } else {
+            heap_hits.push_back(isect);
+            n_hits++;
+        }
+    };
 
     double intersection_x;
     double intersection_y;
@@ -408,13 +430,7 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                         }
 
                         if(inside_face) {
-                            if(n_hits < MAX_HITS) {
-                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                                hits[n_hits].distance = t;
-                                hits[n_hits].hierarchy = 0;
-                                hits[n_hits].entering = (n_dot_d < 0);
-                                ++n_hits;
-                            }
+                            add_hit(t, 0, (n_dot_d < 0), intersection_x, intersection_y, intersection_z);
                         }
                     }
                 }
@@ -478,13 +494,7 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                         }
 
                         if(inside_face) {
-                            if(n_hits < MAX_HITS) {
-                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                                hits[n_hits].distance = t;
-                                hits[n_hits].hierarchy = 0;
-                                hits[n_hits].entering = (n_dot_d > 0);
-                                ++n_hits;
-                            }
+                            add_hit(t, 0, (n_dot_d > 0), intersection_x, intersection_y, intersection_z);
                         }
                     }
                 }
@@ -510,13 +520,7 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                PointInAnnularPolygon(intersection_x, intersection_y,
                                        num_sides_, cp, sp,
                                        rmin_.front(), rmax_.front())) {
-                if(n_hits < MAX_HITS) {
-                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                    hits[n_hits].distance = t;
-                    hits[n_hits].hierarchy = 0;
-                    hits[n_hits].entering = (dz > 0);
-                    ++n_hits;
-                }
+                add_hit(t, 0, (dz > 0), intersection_x, intersection_y, intersection_z);
             }
         }
 
@@ -536,39 +540,39 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                PointInAnnularPolygon(intersection_x, intersection_y,
                                        num_sides_, cp, sp,
                                        rmin_.back(), rmax_.back())) {
-                if(n_hits < MAX_HITS) {
-                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                    hits[n_hits].distance = t;
-                    hits[n_hits].hierarchy = 0;
-                    hits[n_hits].entering = (dz < 0);
-                    ++n_hits;
-                }
+                add_hit(t, 0, (dz < 0), intersection_x, intersection_y, intersection_z);
             }
         }
     }
 
-    // ---- Internal annular caps at each intermediate z-plane ----
-    // These arise where the radii change discontinuously between sections.
-    // Skip caps where adjacent sections have continuous radii.
+    // ---- Internal caps for step changes in radius ----
+    // These arise at z-planes where consecutive entries share the same z
+    // but have different radii (step discontinuity). We group consecutive
+    // z-planes at the same z-value and compare radii across the group.
     if(std::fabs(dz) > GEOMETRY_PRECISION) {
-        for(size_t i = 1; i + 1 < n; ++i) {
-            // Check if the section below and above are both valid (non-degenerate)
-            bool below_valid = (z_planes_[i] > z_planes_[i - 1]);
-            bool above_valid = (z_planes_[i + 1] > z_planes_[i]);
+        size_t i = 1; // skip first z-plane (endcap handles it)
+        while(i + 1 < n) { // skip last z-plane
+            double z_here = z_planes_[i];
 
-            // Get the radii from the section below (at its top) and above (at its bottom)
-            double rmin_below = below_valid ? rmin_[i] : 0;
-            double rmax_below = below_valid ? rmax_[i] : 0;
-            double rmin_above = above_valid ? rmin_[i] : 0;
-            double rmax_above = above_valid ? rmax_[i] : 0;
+            // Find the extent of z-planes at the same z
+            size_t j = i;
+            while(j + 1 < n - 1 && z_planes_[j + 1] == z_here) {
+                j++;
+            }
 
-            // For continuous radii these are equal, so skip
-            if(rmax_below == rmax_above && rmin_below == rmin_above && below_valid && above_valid) {
+            // Radii at the top of the section below this group = values at index i
+            // Radii at the bottom of the section above this group = values at index j
+            double rmin_below = rmin_[i];
+            double rmax_below = rmax_[i];
+            double rmin_above = rmin_[j];
+            double rmax_above = rmax_[j];
+
+            if(rmax_below == rmax_above && rmin_below == rmin_above) {
+                i = j + 1;
                 continue;
             }
 
-            double z_cap = z_planes_[i];
-            double t = (z_cap - pz) / dz;
+            double t = (z_here - pz) / dz;
 
             if(t > 0 && t < GEOMETRY_PRECISION)
                 t = 0;
@@ -577,30 +581,44 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_y = py + t * dy;
             intersection_z = pz + t * dz;
 
-            if(rmax_[i] >= GEOMETRY_PRECISION &&
-               PointInAnnularPolygon(intersection_x, intersection_y,
-                                       num_sides_, cp, sp,
-                                       rmin_[i], rmax_[i])) {
-                // Determine entering based on step direction
-                bool step_faces_up = (rmax_above > rmax_below) || (rmin_above < rmin_below);
-                bool cap_entering = step_faces_up ? (dz < 0) : (dz > 0);
-                if(n_hits < MAX_HITS) {
-                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                    hits[n_hits].distance = t;
-                    hits[n_hits].hierarchy = 0;
-                    hits[n_hits].entering = cap_entering;
-                    ++n_hits;
+            // Outer annulus: region where rmax changed
+            if(rmax_below != rmax_above) {
+                double rlo = std::min(rmax_below, rmax_above);
+                double rhi = std::max(rmax_below, rmax_above);
+                if(rhi >= GEOMETRY_PRECISION &&
+                   PointInAnnularPolygon(intersection_x, intersection_y,
+                                           num_sides_, cp, sp, rlo, rhi)) {
+                    bool entering = (rmax_above > rmax_below) ? (dz > 0) : (dz < 0);
+                    add_hit(t, 0, entering, intersection_x, intersection_y, intersection_z);
                 }
             }
+
+            // Inner annulus: region where rmin changed
+            if(rmin_below != rmin_above) {
+                double rlo = std::min(rmin_below, rmin_above);
+                double rhi = std::max(rmin_below, rmin_above);
+                if(rhi >= GEOMETRY_PRECISION &&
+                   PointInAnnularPolygon(intersection_x, intersection_y,
+                                           num_sides_, cp, sp, rlo, rhi)) {
+                    bool entering = (rmin_above > rmin_below) ? (dz < 0) : (dz > 0);
+                    add_hit(t, 0, entering, intersection_x, intersection_y, intersection_z);
+                }
+            }
+
+            i = j + 1;
         }
     }
 
-    // Sort hits by distance using a plain lambda (no std::function overhead)
-    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
+    // Sort hits by distance
+    auto cmp = [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    });
-
-    return std::vector<Intersection>(hits, hits + n_hits);
+    };
+    if(using_heap) {
+        std::sort(heap_hits.begin(), heap_hits.end(), cmp);
+        return heap_hits;
+    }
+    std::sort(stack_hits, stack_hits + n_hits, cmp);
+    return {stack_hits, stack_hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //

@@ -34,6 +34,9 @@ Cone::Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z)
     , rmin2_(rmin2)
     , rmax2_(rmax2)
       , z_(z) {
+    if(z_ <= 0) {
+        throw std::invalid_argument("Cone height must be positive!");
+    }
     if(rmin1_ > rmax1_) {
         std::swap(rmin1_, rmax1_);
     }
@@ -59,6 +62,9 @@ Cone::Cone(Placement const & placement, double rmin1, double rmax1, double rmin2
     , rmin2_(rmin2)
     , rmax2_(rmax2)
       , z_(z) {
+    if(z_ <= 0) {
+        throw std::invalid_argument("Cone height must be positive!");
+    }
     if(rmin1_ > rmax1_) {
         std::swap(rmin1_, rmax1_);
     }
