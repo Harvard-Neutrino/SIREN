@@ -4,6 +4,7 @@
 
 #include <map>                                      // for map
 #include <set>                                      // for set
+#include <mutex>                                    // for mutex
 #include <array>                                    // for array
 #include <atomic>                                   // for atomic
 #include <memory>                                   // for shared_ptr
@@ -85,6 +86,7 @@ friend siren::detector::Path;
     // Indices into sectors_ for volumes excluded from BVH (e.g. infinite UNIVERSE)
     mutable std::vector<unsigned int> bvh_excluded_sectors_;
     mutable std::atomic<bool> bvh_dirty_{true};
+    mutable std::mutex bvh_mutex_;
 
     void RebuildBVH() const;
     int BuildBVHRecursive(std::vector<unsigned int> & indices, std::vector<geometry::AABB> const & aabbs, int begin, int end) const;

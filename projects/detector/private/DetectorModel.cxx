@@ -643,12 +643,17 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
 
     // Recursive helper to resolve a material component to its elemental PDG fractions.
     // Returns map of PDG code -> fraction.
+    std::set<std::string> resolve_visited;
     std::function<std::map<int,double>(std::string const &, double)> resolve_component;
     resolve_component = [&](std::string const & comp_name, double weight) -> std::map<int,double> {
         std::map<int,double> result;
         if(!data.materials.count(comp_name)) {
             throw std::runtime_error("GDML error: material component '" + comp_name + "' not found");
         }
+        if(resolve_visited.count(comp_name)) {
+            throw std::runtime_error("GDML error: circular material composition involving '" + comp_name + "'");
+        }
+        resolve_visited.insert(comp_name);
         GDMLMaterial const & comp = data.materials.at(comp_name);
         if(!comp.composition.empty()) {
             // This component is itself a composite -- recurse
@@ -667,6 +672,7 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
                 result[pdg] += weight;
             }
         }
+        resolve_visited.erase(comp_name);
         return result;
     };
 
@@ -1374,8 +1380,7 @@ void DetectorModel::FindContainingSectorBVH(
 
 DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const & p0) const {
     if(bvh_dirty_.load(std::memory_order_acquire)) {
-        static std::mutex bvh_rebuild_mutex;
-        std::lock_guard<std::mutex> lock(bvh_rebuild_mutex);
+        std::lock_guard<std::mutex> lock(bvh_mutex_);
         if(bvh_dirty_.load(std::memory_order_relaxed)) {
             RebuildBVH();
         }
@@ -1576,8 +1581,7 @@ static inline void AppendSectorIntersections(
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
     // Lazy BVH rebuild when sectors have changed
     if(bvh_dirty_.load(std::memory_order_acquire)) {
-        static std::mutex bvh_rebuild_mutex;
-        std::lock_guard<std::mutex> lock(bvh_rebuild_mutex);
+        std::lock_guard<std::mutex> lock(bvh_mutex_);
         if(bvh_dirty_.load(std::memory_order_relaxed)) {
             RebuildBVH();
         }
@@ -1607,10 +1611,17 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
         static constexpr int BVH_STACK_CAPACITY = 64;
         int stack[BVH_STACK_CAPACITY];
         int stack_top = 0;
+        std::vector<int> heap_stack;
         stack[stack_top++] = 0; // root
 
-        while(stack_top > 0) {
-            int node_idx = stack[--stack_top];
+        while(stack_top > 0 || !heap_stack.empty()) {
+            int node_idx;
+            if(!heap_stack.empty()) {
+                node_idx = heap_stack.back();
+                heap_stack.pop_back();
+            } else {
+                node_idx = stack[--stack_top];
+            }
             BVHNode const & node = bvh_nodes_[node_idx];
 
             if(!geometry::RayAABBIntersect(p0, inv_dir, node.bounds))
@@ -1636,11 +1647,17 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
                     intersections.intersections[j].matID = sector.material_id;
                 }
             } else {
-                // Internal: push children (with overflow guard)
-                if(node.left_child >= 0 && stack_top < BVH_STACK_CAPACITY)
-                    stack[stack_top++] = node.left_child;
-                if(node.right_child >= 0 && stack_top < BVH_STACK_CAPACITY)
-                    stack[stack_top++] = node.right_child;
+                // Internal: push children; fall back to heap if stack is full
+                auto push = [&](int child) {
+                    if(child < 0) return;
+                    if(stack_top < BVH_STACK_CAPACITY) {
+                        stack[stack_top++] = child;
+                    } else {
+                        heap_stack.push_back(child);
+                    }
+                };
+                push(node.left_child);
+                push(node.right_child);
             }
         }
     }
