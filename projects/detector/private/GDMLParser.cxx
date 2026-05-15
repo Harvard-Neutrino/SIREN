@@ -225,34 +225,34 @@ double LengthScale(const char* unit) {
 }
 
 // Convert a GDML angle value+unit to radians
-// GDML default angle unit is radians
+// GDML default angle unit is degrees
 double ParseAngle(const char* value, const char* unit,
                   std::map<std::string, double> const & constants = {}) {
     if(!value || value[0] == '\0') return 0.0;
     double val = EvalExpression(std::string(value), constants);
 
     if(!unit || unit[0] == '\0') {
-        // GDML default is radians
-        return val;
+        // GDML default angle unit is degrees
+        return val * PI / 180.0;
     }
 
     std::string u(unit);
     if(u == "deg") return val * PI / 180.0;
     if(u == "rad") return val;
 
-    // Unknown unit, assume radians
-    return val;
+    // Unknown unit, assume degrees
+    return val * PI / 180.0;
 }
 
 // Get the angle scale factor for a given unit string
 double AngleScale(const char* unit) {
     if(!unit || unit[0] == '\0') {
-        return 1.0; // GDML default is radians
+        return PI / 180.0; // GDML default angle unit is degrees
     }
     std::string u(unit);
     if(u == "deg") return PI / 180.0;
     if(u == "rad") return 1.0;
-    return 1.0; // fallback to radians
+    return PI / 180.0; // fallback to degrees
 }
 
 // Build a quaternion from GDML rotation convention:
@@ -588,7 +588,22 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             }
         }
         else if(tag == "polyhedra") {
-            int numSide = std::stoi(std::string(SafeAttrVal(node, "numsides")));
+            int numSide = 0;
+            {
+                std::string ns_str(SafeAttrVal(node, "numsides"));
+                if(!ns_str.empty()) {
+                    try {
+                        numSide = std::stoi(ns_str);
+                    } catch(std::invalid_argument &) {
+                        numSide = 0;
+                    } catch(std::out_of_range &) {
+                        numSide = 0;
+                    }
+                }
+            }
+
+            if(numSide <= 0) return nullptr;
+
             double startphi = SafeParseDouble(SafeAttrVal(node, "startphi"), data.constants) * ascale;
 
             std::vector<double> z_planes;
@@ -733,17 +748,27 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
         }
     }
 
-    // Second pass: parse boolean solids (operands now all available)
-    for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
-        std::string tag(node->name());
-        if(tag != "subtraction" && tag != "union" && tag != "intersection") continue;
+    // Iterative boolean passes: keep resolving until no new solids are added.
+    // This handles arbitrary nesting depth (a boolean whose operand is
+    // another boolean that appears later in document order).
+    bool made_progress = true;
+    while(made_progress) {
+        made_progress = false;
+        for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
+            std::string tag(node->name());
+            if(tag != "subtraction" && tag != "union" && tag != "intersection") continue;
 
-        std::string name = SafeAttrVal(node, "name");
-        if(name.empty()) continue;
+            std::string name = SafeAttrVal(node, "name");
+            if(name.empty()) continue;
 
-        auto geo = parseBoolean(node);
-        if(geo) {
-            data.solids[name] = geo;
+            // Skip if already resolved
+            if(data.solids.find(name) != data.solids.end()) continue;
+
+            auto geo = parseBoolean(node);
+            if(geo) {
+                data.solids[name] = geo;
+                made_progress = true;
+            }
         }
     }
 }
@@ -787,9 +812,9 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
             auto* pos = pv->first_node("position");
             if(pos) {
                 const char* punit = SafeAttrVal(pos, "unit");
-                double px = ParseLength(SafeAttrVal(pos, "x"), punit);
-                double py = ParseLength(SafeAttrVal(pos, "y"), punit);
-                double pz = ParseLength(SafeAttrVal(pos, "z"), punit);
+                double px = ParseLength(SafeAttrVal(pos, "x"), punit, data.constants);
+                double py = ParseLength(SafeAttrVal(pos, "y"), punit, data.constants);
+                double pz = ParseLength(SafeAttrVal(pos, "z"), punit, data.constants);
                 physvol.position = Vector3D(px, py, pz);
             }
             auto* posref = pv->first_node("positionref");
@@ -805,9 +830,9 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
             auto* rot = pv->first_node("rotation");
             if(rot) {
                 const char* runit = SafeAttrVal(rot, "unit");
-                double rx = ParseAngle(SafeAttrVal(rot, "x"), runit);
-                double ry = ParseAngle(SafeAttrVal(rot, "y"), runit);
-                double rz = ParseAngle(SafeAttrVal(rot, "z"), runit);
+                double rx = ParseAngle(SafeAttrVal(rot, "x"), runit, data.constants);
+                double ry = ParseAngle(SafeAttrVal(rot, "y"), runit, data.constants);
+                double rz = ParseAngle(SafeAttrVal(rot, "z"), runit, data.constants);
                 physvol.rotation = QuatFromGDMLRotation(rx, ry, rz);
             }
             auto* rotref = pv->first_node("rotationref");
