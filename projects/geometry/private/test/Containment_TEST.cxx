@@ -567,3 +567,114 @@ TEST(Containment, BooleanSubtractionFromInside) {
         return in_sphere && !in_box;
     }, 10, 10000, "BooleanSubtractionFromInside");
 }
+
+// =========================================================================
+// Polycone with step-change in radius (fix #8)
+// =========================================================================
+TEST(Containment, PolyconeStepChange) {
+    // z-planes with consecutive equal z to represent a radius step:
+    // cylinder r=0.03 from z=-0.05 to z=0.05, then steps to r=0.05 from z=0.05 to z=0.15
+    std::vector<double> zp = {-0.05, 0.05, 0.05, 0.15};
+    std::vector<double> rmin = {0, 0, 0, 0};
+    std::vector<double> rmax = {0.03, 0.03, 0.05, 0.05};
+    Placement pl(Vector3D(0, 0, 0));
+    Polycone pc(pl, zp, rmin, rmax);
+    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+        double pz = p.GetZ();
+        double rxy2 = p.GetX()*p.GetX() + p.GetY()*p.GetY();
+        // First segment: z in (-0.05, 0.05), r < 0.03
+        if(pz > -0.05 && pz < 0.05) {
+            return rxy2 < 0.03*0.03;
+        }
+        // Second segment: z in (0.05, 0.15), r < 0.05
+        if(pz > 0.05 && pz < 0.15) {
+            return rxy2 < 0.05*0.05;
+        }
+        return false;
+    }, 0.2, 10000, "PolyconeStepChange");
+}
+
+// =========================================================================
+// Hollow cylinder with rotation (identified gap)
+// =========================================================================
+TEST(Containment, CylinderHollowRotated) {
+    double r_out = 6, r_in = 2, z = 10;
+    Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
+    Placement pl(Vector3D(1, -1, 2), q);
+    Cylinder cyl(pl, r_out, r_in, z);
+    ValidateContainment(cyl, pl, [=](Vector3D const & p) {
+        return InsideCylinder(p, r_out, r_in, z);
+    }, 20, 10000, "CylinderHollowRotated");
+}
+
+// =========================================================================
+// ExtrPoly with non-zero offset in z-sections (identified gap)
+// =========================================================================
+TEST(Containment, ExtrPolyWithOffset) {
+    std::vector<std::vector<double>> polygon = {{-2,-2},{2,-2},{2,2},{-2,2}};
+    double off_bot[2] = {0, 0};
+    double off_top[2] = {1, 1};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-3, off_bot, 1.0),
+        ExtrPoly::ZSection(3, off_top, 1.0)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        // At height z, the polygon center is offset by interpolated (ox, oy)
+        double frac = (p.GetZ() + 3.0) / 6.0;
+        double ox = 1.0 * frac;
+        double oy = 1.0 * frac;
+        return std::fabs(p.GetX() - ox) < 2.0
+            && std::fabs(p.GetY() - oy) < 2.0
+            && p.GetZ() > -3.0 && p.GetZ() < 3.0;
+    }, 8, 10000, "ExtrPolyWithOffset");
+}
+
+// =========================================================================
+// ExtrPoly with 3+ z-sections (identified gap)
+// =========================================================================
+TEST(Containment, ExtrPolyMultiSection) {
+    std::vector<std::vector<double>> polygon = {{-2,-2},{2,-2},{2,2},{-2,2}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-4, off, 1.0),
+        ExtrPoly::ZSection(0, off, 1.5),
+        ExtrPoly::ZSection(4, off, 0.8)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        double pz = p.GetZ();
+        if(pz <= -4.0 || pz >= 4.0) return false;
+        double s;
+        if(pz < 0.0) {
+            // Between z=-4 (scale=1.0) and z=0 (scale=1.5)
+            double frac = (pz + 4.0) / 4.0;
+            s = 1.0 + (1.5 - 1.0) * frac;
+        } else {
+            // Between z=0 (scale=1.5) and z=4 (scale=0.8)
+            double frac = pz / 4.0;
+            s = 1.5 + (0.8 - 1.5) * frac;
+        }
+        return std::fabs(p.GetX()) < 2.0 * s
+            && std::fabs(p.GetY()) < 2.0 * s;
+    }, 8, 10000, "ExtrPolyMultiSection");
+}
+
+// =========================================================================
+// Cone with zero height throws (fix #6)
+// =========================================================================
+TEST(Containment, ConeZeroHeightThrows) {
+    EXPECT_THROW(Cone(0, 5, 0, 3, 0), std::invalid_argument);
+}
+
+// =========================================================================
+// BooleanGeometry less-than null safety (fix #2)
+// =========================================================================
+TEST(Containment, BooleanLessNullSafety) {
+    auto bg = BooleanGeometry(BooleanOperation::UNION, Sphere(5, 0).create(), Box(4, 4, 4).create());
+    Box box(10, 10, 10);
+    EXPECT_NO_THROW(bool result = bg < box; (void)result);
+    EXPECT_NO_THROW(bool result = box < bg; (void)result);
+}

@@ -144,6 +144,35 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"Sphere(r=5)_MC", Sphere(5, 0).create(), 2, M_PI * 25, 8});
     // Box has known cross-section along z-axis: x*y = 10*8 = 80
     shapes.push_back({"Box(10,8,6)_MC", Box(10, 8, 6).create(), 2, 80, 8});
+    // Cylinder cross-section along z-axis: pi*r^2 = pi*16
+    shapes.push_back({"Cylinder(r=4,z=10)_MC", Cylinder(4, 0, 10).create(), 2, M_PI * 16, 8});
+
+    // Polycone with step-change (#8)
+    shapes.push_back({"PolyconeStep", Polycone({-0.05, 0.05, 0.05, 0.15}, {0, 0, 0, 0}, {0.03, 0.03, 0.05, 0.05}).create(), -1, -1, 0});
+
+    // ExtrPoly with offset
+    {
+        std::vector<std::vector<double>> polygon = {{-2,-2},{2,-2},{2,2},{-2,2}};
+        double off_bot[2] = {0, 0};
+        double off_top[2] = {1, 1};
+        std::vector<ExtrPoly::ZSection> zsecs = {
+            ExtrPoly::ZSection(-3, off_bot, 1.0),
+            ExtrPoly::ZSection(3, off_top, 1.0)
+        };
+        shapes.push_back({"ExtrPoly(offset)", ExtrPoly(polygon, zsecs).create(), 2, -1, 0});
+    }
+
+    // ExtrPoly with multiple z-sections
+    {
+        std::vector<std::vector<double>> polygon = {{-2,-2},{2,-2},{2,2},{-2,2}};
+        double off[2] = {0, 0};
+        std::vector<ExtrPoly::ZSection> zsecs = {
+            ExtrPoly::ZSection(-4, off, 1.0),
+            ExtrPoly::ZSection(0, off, 1.5),
+            ExtrPoly::ZSection(4, off, 0.8)
+        };
+        shapes.push_back({"ExtrPoly(multiZ)", ExtrPoly(polygon, zsecs).create(), -1, -1, 0});
+    }
 
     return shapes;
 }
@@ -515,5 +544,63 @@ TEST(ShapeInvariants, AxisAlignedRays) {
                 }
             }
         }
+    }
+}
+
+// =========================================================================
+// Test 10: Tangent rays on curved surfaces (identified gap)
+// =========================================================================
+TEST(ShapeInvariants, TangentRays) {
+    double eps = 1e-9;
+
+    // --- Sphere of radius 5 ---
+    auto sphere = Sphere(5, 0).create();
+    {
+        // Tangent ray at y=5 going in x-direction
+        Vector3D tangent_pos(0, 5, 0);
+        Vector3D tangent_dir(1, 0, 0);
+        auto isects = sphere->Intersections(tangent_pos, tangent_dir);
+        // Tangent: 0 or 2 intersections, both valid
+        EXPECT_TRUE(isects.size() == 0 || isects.size() == 2)
+            << "Sphere tangent ray: expected 0 or 2, got " << isects.size();
+        EXPECT_EQ(isects.size() % 2, 0u) << "Sphere tangent: odd count";
+
+        // Ray just outside (y = 5 + eps): should miss
+        Vector3D outside_pos(0, 5 + eps, 0);
+        auto outside_isects = sphere->Intersections(outside_pos, tangent_dir);
+        EXPECT_EQ(outside_isects.size(), 0u)
+            << "Sphere outside tangent: expected 0, got " << outside_isects.size();
+
+        // Ray just inside (y = 5 - eps): should hit
+        Vector3D inside_pos(0, 5 - eps, 0);
+        auto inside_isects = sphere->Intersections(inside_pos, tangent_dir);
+        EXPECT_EQ(inside_isects.size(), 2u)
+            << "Sphere inside tangent: expected 2, got " << inside_isects.size();
+        EXPECT_EQ(inside_isects.size() % 2, 0u) << "Sphere inside tangent: odd count";
+    }
+
+    // --- Cylinder of radius 4 ---
+    auto cyl = Cylinder(4, 0, 10).create();
+    {
+        // Tangent ray at y=4, z=0 going in x-direction
+        Vector3D tangent_pos(0, 4, 0);
+        Vector3D tangent_dir(1, 0, 0);
+        auto isects = cyl->Intersections(tangent_pos, tangent_dir);
+        EXPECT_TRUE(isects.size() == 0 || isects.size() == 2)
+            << "Cylinder tangent ray: expected 0 or 2, got " << isects.size();
+        EXPECT_EQ(isects.size() % 2, 0u) << "Cylinder tangent: odd count";
+
+        // Ray just outside (y = 4 + eps): should miss
+        Vector3D outside_pos(0, 4 + eps, 0);
+        auto outside_isects = cyl->Intersections(outside_pos, tangent_dir);
+        EXPECT_EQ(outside_isects.size(), 0u)
+            << "Cylinder outside tangent: expected 0, got " << outside_isects.size();
+
+        // Ray just inside (y = 4 - eps): should hit
+        Vector3D inside_pos(0, 4 - eps, 0);
+        auto inside_isects = cyl->Intersections(inside_pos, tangent_dir);
+        EXPECT_EQ(inside_isects.size(), 2u)
+            << "Cylinder inside tangent: expected 2, got " << inside_isects.size();
+        EXPECT_EQ(inside_isects.size() % 2, 0u) << "Cylinder inside tangent: odd count";
     }
 }

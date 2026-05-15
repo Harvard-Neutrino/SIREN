@@ -16,12 +16,16 @@
 using namespace siren::geometry;
 using namespace siren::math;
 
+namespace {
+
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
 
 double RandomDouble() {
     return uniform_distribution(rng_);
 }
+
+} // namespace
 
 // Replaces the removed DistanceToBorder method.
 std::pair<double, double> DistanceToBorder(

@@ -342,3 +342,463 @@ TEST(GDMLParser, CircularVolumeReference) {
         << "LoadGDML should handle circular volume references without crashing";
     std::remove(tmpfile.c_str());
 }
+
+
+// =========================================================================
+// Physvol inline position using defined constants
+// =========================================================================
+TEST(GDMLParser, PhysvolConstantsPosition) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="offset" value="500"/>
+  </define>
+  <materials>
+    <element name="Hydrogen" Z="1">
+      <atom value="1.008"/>
+    </element>
+    <element name="Oxygen" Z="8">
+      <atom value="15.999"/>
+    </element>
+    <material name="Water">
+      <D value="1.0" unit="g/cm3"/>
+      <fraction ref="Hydrogen" n="0.112"/>
+      <fraction ref="Oxygen" n="0.888"/>
+    </material>
+    <material name="Iron" Z="26">
+      <D value="7.874" unit="g/cm3"/>
+      <atom value="55.845"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="child_box" x="200" y="200" z="200" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Child">
+      <materialref ref="Iron"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="Water"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Child"/>
+        <position x="offset" unit="mm"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    // Verify via ParseGDMLString that the physvol position resolved the constant
+    GDMLData data = ParseGDMLString(gdml);
+
+    ASSERT_TRUE(data.volumes.count("World") > 0);
+    auto const & world = data.volumes["World"];
+    ASSERT_GE(world.children.size(), 1u);
+    // offset=500, unit=mm -> 500mm = 0.5m
+    double tol = 1e-9;
+    EXPECT_NEAR(world.children[0].position.GetX(), 0.5, tol)
+        << "Physvol position should resolve constant 'offset' to 500mm = 0.5m";
+    EXPECT_NEAR(world.children[0].position.GetY(), 0.0, tol);
+    EXPECT_NEAR(world.children[0].position.GetZ(), 0.0, tol);
+
+    // Also verify via LoadGDML that the sector is placed correctly
+    std::string tmpfile = "/tmp/siren_gdml_physvol_const_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    // A point at (0.5, 0, 0) meters should be inside the Iron child
+    auto sector = dm.GetContainingSector(
+        DetectorPosition(siren::math::Vector3D(0.5, 0.0, 0.0)));
+    std::string mat_name = dm.GetMaterials().GetMaterialName(sector.material_id);
+    EXPECT_EQ(mat_name, "Iron")
+        << "Point at (0.5,0,0) should be in Iron child placed at offset=500mm";
+}
+
+
+// =========================================================================
+// GDML default angle unit is degrees
+// =========================================================================
+TEST(GDMLParser, DefaultAngleUnitDegrees) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <rotation name="rot_nounit" z="90"/>
+    <rotation name="rot_deg" z="90" unit="deg"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    ASSERT_TRUE(data.rotations.count("rot_nounit") > 0);
+    ASSERT_TRUE(data.rotations.count("rot_deg") > 0);
+
+    auto const & q_nounit = data.rotations["rot_nounit"];
+    auto const & q_deg = data.rotations["rot_deg"];
+
+    double tol = 1e-9;
+    // Both should produce the same quaternion (default unit is degrees)
+    EXPECT_NEAR(q_nounit.GetX(), q_deg.GetX(), tol);
+    EXPECT_NEAR(q_nounit.GetY(), q_deg.GetY(), tol);
+    EXPECT_NEAR(q_nounit.GetZ(), q_deg.GetZ(), tol);
+    EXPECT_NEAR(q_nounit.GetW(), q_deg.GetW(), tol);
+
+    // A z-rotation of 90 degrees = pi/2 radians.
+    // Quaternion for z-rotation by angle a: (0, 0, sin(a/2), cos(a/2))
+    // For a = pi/2: (0, 0, sin(pi/4), cos(pi/4)) = (0, 0, sqrt(2)/2, sqrt(2)/2)
+    double s = std::sqrt(2.0) / 2.0;
+    EXPECT_NEAR(q_nounit.GetX(), 0.0, tol);
+    EXPECT_NEAR(q_nounit.GetY(), 0.0, tol);
+    EXPECT_NEAR(q_nounit.GetZ(), s, tol)
+        << "90-degree z-rotation should have z = sqrt(2)/2, not a radian-based value";
+    EXPECT_NEAR(q_nounit.GetW(), s, tol);
+}
+
+
+// =========================================================================
+// Length unit conversion: mm, cm, m all representing the same size
+// =========================================================================
+TEST(GDMLParser, LengthUnitConversion) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="box_mm" x="100" y="100" z="100" lunit="mm"/>
+    <box name="box_cm" x="10" y="10" z="10" lunit="cm"/>
+    <box name="box_m" x="0.1" y="0.1" z="0.1" lunit="m"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="box_mm"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    ASSERT_TRUE(data.solids.count("box_mm") > 0);
+    ASSERT_TRUE(data.solids.count("box_cm") > 0);
+    ASSERT_TRUE(data.solids.count("box_m") > 0);
+
+    auto bb_mm = data.solids["box_mm"]->GetBoundingBox();
+    auto bb_cm = data.solids["box_cm"]->GetBoundingBox();
+    auto bb_m  = data.solids["box_m"]->GetBoundingBox();
+
+    // GDML <box> x,y,z are HALF-widths. All three boxes specify the same half-width:
+    // 100mm = 10cm = 0.1m. In SIREN meters, bounding box max_corner = 0.1m.
+    double tol = 1e-9;
+    double expected = 0.1; // half-width in meters
+
+    // All three should produce the same bounding box
+    EXPECT_NEAR(bb_mm.max_corner.GetX(), expected, tol);
+    EXPECT_NEAR(bb_mm.max_corner.GetY(), expected, tol);
+    EXPECT_NEAR(bb_mm.max_corner.GetZ(), expected, tol);
+
+    EXPECT_NEAR(bb_cm.max_corner.GetX(), expected, tol);
+    EXPECT_NEAR(bb_cm.max_corner.GetY(), expected, tol);
+    EXPECT_NEAR(bb_cm.max_corner.GetZ(), expected, tol);
+
+    EXPECT_NEAR(bb_m.max_corner.GetX(), expected, tol);
+    EXPECT_NEAR(bb_m.max_corner.GetY(), expected, tol);
+    EXPECT_NEAR(bb_m.max_corner.GetZ(), expected, tol);
+}
+
+
+// =========================================================================
+// All solid types parse correctly
+// =========================================================================
+TEST(GDMLParser, AllSolidTypes) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="b1" x="100" y="100" z="100" lunit="mm"/>
+    <sphere name="s1" rmax="50" lunit="mm"/>
+    <tube name="t1" rmin="0" rmax="50" z="100" deltaphi="360" aunit="deg" lunit="mm"/>
+    <cone name="c1" rmin1="0" rmax1="50" rmin2="0" rmax2="30" z="100" deltaphi="360" aunit="deg" lunit="mm"/>
+    <polycone name="pc1" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="50" z="-50"/>
+      <zplane rmin="0" rmax="30" z="50"/>
+    </polycone>
+    <polyhedra name="ph1" numsides="6" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="50" z="-40"/>
+      <zplane rmin="0" rmax="50" z="40"/>
+    </polyhedra>
+    <trd name="trd1" x1="60" x2="40" y1="80" y2="50" z="100" lunit="mm"/>
+    <xtru name="xt1" lunit="mm">
+      <twoDimVertex x="-50" y="-50"/>
+      <twoDimVertex x="50" y="-50"/>
+      <twoDimVertex x="50" y="50"/>
+      <twoDimVertex x="-50" y="50"/>
+      <section zOrder="0" zPosition="-40" xOffset="0" yOffset="0" scalingFactor="1"/>
+      <section zOrder="1" zPosition="40" xOffset="0" yOffset="0" scalingFactor="1"/>
+    </xtru>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="b1"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    std::vector<std::string> names = {"b1", "s1", "t1", "c1", "pc1", "ph1", "trd1", "xt1"};
+    for(auto const & name : names) {
+        ASSERT_TRUE(data.solids.count(name) > 0)
+            << "Solid '" << name << "' should be parsed";
+        auto bb = data.solids[name]->GetBoundingBox();
+        EXPECT_TRUE(bb.IsValid())
+            << "Solid '" << name << "' should have a valid bounding box";
+        EXPECT_TRUE(std::isfinite(bb.max_corner.GetX()))
+            << "Solid '" << name << "' bounding box should have finite dimensions";
+        EXPECT_TRUE(std::isfinite(bb.max_corner.GetY()))
+            << "Solid '" << name << "' bounding box should have finite dimensions";
+        EXPECT_TRUE(std::isfinite(bb.max_corner.GetZ()))
+            << "Solid '" << name << "' bounding box should have finite dimensions";
+    }
+}
+
+
+// =========================================================================
+// Nested boolean solid resolution (forward references, multiple levels)
+// =========================================================================
+TEST(GDMLParser, NestedBooleanSolids) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <union name="final">
+      <first ref="inner_sub"/>
+      <second ref="some_box"/>
+    </union>
+    <subtraction name="inner_sub">
+      <first ref="big_sphere"/>
+      <second ref="small_sphere"/>
+    </subtraction>
+    <sphere name="big_sphere" rmax="100" lunit="mm"/>
+    <sphere name="small_sphere" rmax="50" lunit="mm"/>
+    <box name="some_box" x="40" y="40" z="40" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="final"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // All composite/primitive solids should exist
+    ASSERT_TRUE(data.solids.count("final") > 0)
+        << "Outer union 'final' should be parsed despite nested forward references";
+    ASSERT_TRUE(data.solids.count("inner_sub") > 0)
+        << "Inner subtraction 'inner_sub' should be parsed";
+    ASSERT_TRUE(data.solids.count("big_sphere") > 0);
+    ASSERT_TRUE(data.solids.count("small_sphere") > 0);
+    ASSERT_TRUE(data.solids.count("some_box") > 0);
+
+    // Verify the boolean solids have valid bounding boxes
+    auto bb_final = data.solids["final"]->GetBoundingBox();
+    auto bb_inner = data.solids["inner_sub"]->GetBoundingBox();
+    EXPECT_TRUE(bb_final.IsValid())
+        << "Nested boolean 'final' should have a valid bounding box";
+    EXPECT_TRUE(bb_inner.IsValid())
+        << "Nested boolean 'inner_sub' should have a valid bounding box";
+}
+
+
+// =========================================================================
+// Duplicate volume names: same logical volume placed twice
+// =========================================================================
+TEST(GDMLParser, DuplicateVolumeNames) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Iron" Z="26">
+      <D value="7.874" unit="g/cm3"/>
+      <atom value="55.845"/>
+    </material>
+    <material name="Air" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.007"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="child_box" x="200" y="200" z="200" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Child">
+      <materialref ref="Iron"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Child"/>
+        <position x="100" unit="mm"/>
+      </physvol>
+      <physvol>
+        <volumeref ref="Child"/>
+        <position x="-100" unit="mm"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_dupvol_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    // World + 2 children + UNIVERSE = at least 4 sectors
+    auto const & sectors = dm.GetSectors();
+    EXPECT_GE(sectors.size(), 4u)
+        << "Detector model should have at least 4 sectors (UNIVERSE + world + 2 duplicate children)";
+
+    // Both child positions should resolve to Iron
+    auto sector_pos = dm.GetContainingSector(
+        DetectorPosition(siren::math::Vector3D(0.1, 0.0, 0.0)));
+    std::string mat_pos = dm.GetMaterials().GetMaterialName(sector_pos.material_id);
+    EXPECT_EQ(mat_pos, "Iron")
+        << "Point at (0.1,0,0) should be in first Iron child";
+
+    auto sector_neg = dm.GetContainingSector(
+        DetectorPosition(siren::math::Vector3D(-0.1, 0.0, 0.0)));
+    std::string mat_neg = dm.GetMaterials().GetMaterialName(sector_neg.material_id);
+    EXPECT_EQ(mat_neg, "Iron")
+        << "Point at (-0.1,0,0) should be in second Iron child";
+}
+
+
+// =========================================================================
+// Rotation handling: child volume placed with rotation
+// =========================================================================
+TEST(GDMLParser, RotationHandling) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Iron" Z="26">
+      <D value="7.874" unit="g/cm3"/>
+      <atom value="55.845"/>
+    </material>
+    <material name="Air" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.007"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="child_box" x="400" y="100" z="100" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Child">
+      <materialref ref="Iron"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Child"/>
+        <position x="200" unit="mm"/>
+        <rotation z="90" unit="deg"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_rotation_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    // The child box is 400x100x100 mm (half-widths: 0.4x0.1x0.1 m)
+    // Placed at x=200mm=0.2m with z-rotation of 90 degrees.
+    // After 90-deg z-rotation, the long axis (originally x) becomes the y axis.
+    // So the child occupies roughly: x in [0.1, 0.3], y in [-0.4, 0.4]
+
+    // The child sector should exist
+    auto const & sectors = dm.GetSectors();
+    EXPECT_GE(sectors.size(), 3u)
+        << "Should have at least 3 sectors (UNIVERSE + world + rotated child)";
+
+    // A point at the child center (0.2, 0, 0) should be Iron
+    auto sector_center = dm.GetContainingSector(
+        DetectorPosition(siren::math::Vector3D(0.2, 0.0, 0.0)));
+    std::string mat_center = dm.GetMaterials().GetMaterialName(sector_center.material_id);
+    EXPECT_EQ(mat_center, "Iron")
+        << "Center of rotated child at (0.2,0,0) should be Iron";
+
+    // After rotation, the long axis is along y. A point at (0.2, 0.3, 0) should
+    // still be inside (within the rotated half-width of 0.4 along y).
+    auto sector_along_y = dm.GetContainingSector(
+        DetectorPosition(siren::math::Vector3D(0.2, 0.3, 0.0)));
+    std::string mat_along_y = dm.GetMaterials().GetMaterialName(sector_along_y.material_id);
+    EXPECT_EQ(mat_along_y, "Iron")
+        << "Point at (0.2, 0.3, 0) should be inside the rotated child (long axis now along y)";
+
+    // A point far from the child should be in Air
+    auto sector_far = dm.GetContainingSector(
+        DetectorPosition(siren::math::Vector3D(1.0, 1.0, 0.0)));
+    std::string mat_far = dm.GetMaterials().GetMaterialName(sector_far.material_id);
+    EXPECT_EQ(mat_far, "Air")
+        << "Point at (1.0,1.0,0) should be in Air (outside rotated child)";
+}
