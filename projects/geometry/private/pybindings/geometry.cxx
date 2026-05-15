@@ -10,6 +10,7 @@
 #include "../../public/SIREN/geometry/Polycone.h"
 #include "../../public/SIREN/geometry/Polyhedra.h"
 #include "../../public/SIREN/geometry/Trd.h"
+#include "../../public/SIREN/geometry/Torus.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 
 #include <pybind11/pybind11.h>
@@ -101,6 +102,18 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Rmin2",&Cone::GetRmin2)
         .def_property_readonly("Rmax2",&Cone::GetRmax2)
         .def_property_readonly("Z",&Cone::GetZ);
+
+    // Torus
+
+    class_<Torus, std::shared_ptr<Torus>, Geometry>(m, "Torus")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<const Torus&>())
+        .def_property_readonly("MajorRadius",&Torus::GetMajorRadius)
+        .def_property_readonly("MinorRadius",&Torus::GetMinorRadius)
+        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius);
 
     // Polycone
 
