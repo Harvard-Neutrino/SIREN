@@ -133,6 +133,7 @@ bool Cone::equal(const Geometry& geometry) const
 bool Cone::less(const Geometry& geometry) const
 {
     const Cone* cone = dynamic_cast<const Cone*>(&geometry);
+    if(!cone) return false;
 
     return
         std::tie(rmin1_, rmax1_, rmin2_, rmax2_, z_)

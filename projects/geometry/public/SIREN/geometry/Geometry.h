@@ -184,7 +184,7 @@ public:
 
     Placement GetPlacement() const { return placement_; }
 
-    void SetPlacement(Placement const & placement) { placement_ = placement; }
+    void SetPlacement(Placement const & placement) { placement_ = placement; world_aabb_valid_ = false; }
 
     //void SetPosition(const math::Vector3D& position) { position_ = position; };
 
@@ -209,6 +209,8 @@ protected:
 
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
     Placement placement_;
+    mutable AABB cached_world_aabb_;
+    mutable bool world_aabb_valid_ = false;
 
 public:
     math::Vector3D LocalToGlobalPosition(math::Vector3D const & p) const;

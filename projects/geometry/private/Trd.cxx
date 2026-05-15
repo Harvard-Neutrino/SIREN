@@ -124,6 +124,7 @@ bool Trd::equal(const Geometry& geometry) const
 bool Trd::less(const Geometry& geometry) const
 {
     const Trd* trd = dynamic_cast<const Trd*>(&geometry);
+    if(!trd) return false;
 
     return
         std::tie(dx1_, dx2_, dy1_, dy2_, dz_)

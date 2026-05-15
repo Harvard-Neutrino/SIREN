@@ -64,6 +64,8 @@ void Geometry::swap(Geometry& geometry)
 {
     name_.swap(geometry.name_);
     placement_.swap(geometry.placement_);
+    world_aabb_valid_ = false;
+    geometry.world_aabb_valid_ = false;
 }
 
 
@@ -71,10 +73,10 @@ void Geometry::swap(Geometry& geometry)
 // ------------------------------------------------------------------------- //
 Geometry& Geometry::operator=(const Geometry& geometry)
 {
-    if (this != &geometry)
-    {
+    if(this != &geometry) {
         name_     = geometry.name_;
         placement_     = geometry.placement_;
+        world_aabb_valid_ = false;
     }
 
     return *this;
@@ -163,6 +165,8 @@ siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D con
 }
 
 AABB Geometry::GetWorldBoundingBox() const {
+    if(world_aabb_valid_) return cached_world_aabb_;
+
     AABB local_box = GetBoundingBox();
     // Generate the 8 corners of the local AABB
     double x0 = local_box.min_corner.GetX();
@@ -183,7 +187,9 @@ AABB Geometry::GetWorldBoundingBox() const {
     world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z0)));
     world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z1)));
 
-    return world_box;
+    cached_world_aabb_ = world_box;
+    world_aabb_valid_ = true;
+    return cached_world_aabb_;
 }
 
 std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
