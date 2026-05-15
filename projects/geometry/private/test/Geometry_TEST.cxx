@@ -13,6 +13,8 @@
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Cylinder.h"
+#include "SIREN/geometry/Cone.h"
+#include "SIREN/geometry/Trd.h"
 
 using namespace siren::geometry;
 using namespace siren::math;
@@ -1290,6 +1292,87 @@ TEST(DistanceTo, Box)
             EXPECT_EQ(distance.second, -1);
         }
     }
+}
+
+// =========================================================================
+// Fix 1: operator< uses dynamic type, not pointer type
+// Before the fix, typeid(this) compared pointer types (always equal),
+// so cross-type ordering fell through to name comparison.
+// After the fix, typeid(*this) compares the actual dynamic types.
+// =========================================================================
+TEST(Ordering, CrossTypeOrdering) {
+    // Different geometry types must have a consistent total order
+    Box box(10, 8, 6);
+    Sphere sphere(5, 0);
+    Cylinder cyl(4, 0, 10);
+
+    // The key property: for different types, exactly one of a<b or b<a is true
+    // (strict weak ordering requires this for non-equal elements of different types)
+    bool box_lt_sphere = box < sphere;
+    bool sphere_lt_box = sphere < box;
+    EXPECT_NE(box_lt_sphere, sphere_lt_box)
+        << "Cross-type comparison must be asymmetric (one true, one false)";
+
+    bool box_lt_cyl = box < cyl;
+    bool cyl_lt_box = cyl < box;
+    EXPECT_NE(box_lt_cyl, cyl_lt_box)
+        << "Cross-type comparison must be asymmetric";
+
+    bool sphere_lt_cyl = sphere < cyl;
+    bool cyl_lt_sphere = cyl < sphere;
+    EXPECT_NE(sphere_lt_cyl, cyl_lt_sphere)
+        << "Cross-type comparison must be asymmetric";
+
+    // Transitivity: if a < b and b < c then a < c
+    // Sort three objects and verify the order is consistent
+    std::vector<Geometry const *> geos = {&box, &sphere, &cyl};
+    std::sort(geos.begin(), geos.end(), [](Geometry const * a, Geometry const * b) {
+        return *a < *b;
+    });
+    // After sorting: geos[0] < geos[1] < geos[2]
+    EXPECT_TRUE(*geos[0] < *geos[1]);
+    EXPECT_TRUE(*geos[1] < *geos[2]);
+    EXPECT_TRUE(*geos[0] < *geos[2]) << "Transitivity violated";
+}
+
+TEST(Ordering, SameTypeDifferentParams) {
+    // Two spheres with different radii
+    Sphere small_sphere(3, 0);
+    Sphere big_sphere(10, 0);
+
+    bool s_lt_b = small_sphere < big_sphere;
+    bool b_lt_s = big_sphere < small_sphere;
+    // They are not equal, so exactly one must be true
+    EXPECT_NE(s_lt_b, b_lt_s);
+    // Irreflexivity
+    EXPECT_FALSE(small_sphere < small_sphere);
+    EXPECT_FALSE(big_sphere < big_sphere);
+}
+
+TEST(Ordering, SameTypeEqualParams) {
+    Sphere a(5, 2);
+    Sphere b(5, 2);
+    // Equal objects: neither is less than the other
+    EXPECT_FALSE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+// =========================================================================
+// Fix 10: Degenerate shape validation
+// =========================================================================
+TEST(Validation, ConeZeroOuterRadii) {
+    // Both outer radii zero should throw
+    EXPECT_THROW(Cone(0, 0, 0, 0, 10), std::invalid_argument);
+    // One positive outer radius is fine
+    EXPECT_NO_THROW(Cone(0, 5, 0, 0, 8));
+    EXPECT_NO_THROW(Cone(0, 0, 0, 5, 8));
+}
+
+TEST(Validation, TrdZeroHeight) {
+    EXPECT_THROW(Trd(5, 3, 4, 2, 0), std::invalid_argument);
+    EXPECT_THROW(Trd(5, 3, 4, 2, -1), std::invalid_argument);
+    // Positive height is fine
+    EXPECT_NO_THROW(Trd(5, 3, 4, 2, 6));
 }
 
 int main(int argc, char** argv)

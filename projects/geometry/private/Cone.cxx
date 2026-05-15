@@ -43,6 +43,9 @@ Cone::Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z)
     if(rmin2_ > rmax2_) {
         std::swap(rmin2_, rmax2_);
     }
+    if(rmax1_ <= 0 && rmax2_ <= 0) {
+        throw std::invalid_argument("Cone must have at least one positive outer radius!");
+    }
 }
 
 Cone::Cone(Placement const & placement)
@@ -70,6 +73,9 @@ Cone::Cone(Placement const & placement, double rmin1, double rmax1, double rmin2
     }
     if(rmin2_ > rmax2_) {
         std::swap(rmin2_, rmax2_);
+    }
+    if(rmax1_ <= 0 && rmax2_ <= 0) {
+        throw std::invalid_argument("Cone must have at least one positive outer radius!");
     }
 }
 

@@ -217,8 +217,10 @@ void Polyhedra::print(std::ostream& os) const
 // Helper: check if a point (px, py) lies inside a convex polygon defined
 // by vertices (vx[], vy[]) with nv vertices, listed in order.
 // Uses the cross-product sign test for convex polygons.
+// Tolerance eps matches PointInConvexFace3D for consistent boundary handling.
 static bool PointInConvexPolygon(double px, double py,
                                  const double* vx, const double* vy, int nv) {
+    static constexpr double eps = Geometry::GEOMETRY_PRECISION;
     bool has_pos = false;
     bool has_neg = false;
     for(int i = 0; i < nv; ++i) {
@@ -226,8 +228,8 @@ static bool PointInConvexPolygon(double px, double py,
         double ex = vx[j] - vx[i];
         double ey = vy[j] - vy[i];
         double cross = ex * (py - vy[i]) - ey * (px - vx[i]);
-        if(cross > 0) has_pos = true;
-        if(cross < 0) has_neg = true;
+        if(cross > eps) has_pos = true;
+        if(cross < -eps) has_neg = true;
         if(has_pos && has_neg) return false;
     }
     return true;
@@ -345,8 +347,11 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             continue;
         }
 
-        // Horizontal ray cannot hit lateral faces outside its z-plane
-        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz <= z_lo || pz >= z_hi)) {
+        // Horizontal ray cannot hit lateral faces outside its z-range.
+        // Use half-open interval [z_lo, z_hi) so each boundary belongs to
+        // exactly one section and horizontal rays at internal z-planes are
+        // not skipped by both adjacent sections.
+        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz < z_lo || pz >= z_hi)) {
             continue;
         }
 

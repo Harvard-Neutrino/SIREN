@@ -34,7 +34,9 @@ Trd::Trd(double dx1, double dx2, double dy1, double dy2, double dz)
     , dy1_(dy1)
     , dy2_(dy2)
       , dz_(dz) {
-    // Do nothing here
+    if(dz_ <= 0) {
+        throw std::invalid_argument("Trd half-height dz must be positive!");
+    }
 }
 
 Trd::Trd(Placement const & placement)
@@ -54,7 +56,9 @@ Trd::Trd(Placement const & placement, double dx1, double dx2, double dy1, double
     , dy1_(dy1)
     , dy2_(dy2)
       , dz_(dz) {
-    // Do nothing here
+    if(dz_ <= 0) {
+        throw std::invalid_argument("Trd half-height dz must be positive!");
+    }
 }
 
 Trd::Trd(const Trd& trd)

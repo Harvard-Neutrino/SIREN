@@ -228,8 +228,11 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             continue;
         }
 
-        // Horizontal ray cannot hit barrel surfaces outside its z-plane
-        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz <= z_lo || pz >= z_hi)) {
+        // Horizontal ray cannot hit barrel surfaces outside its z-range.
+        // Use half-open interval [z_lo, z_hi) so each boundary belongs to
+        // exactly one section and horizontal rays at internal z-planes are
+        // not skipped by both adjacent sections.
+        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz < z_lo || pz >= z_hi)) {
             continue;
         }
 
