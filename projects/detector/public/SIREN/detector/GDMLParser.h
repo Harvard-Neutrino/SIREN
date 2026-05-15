@@ -38,6 +38,13 @@ struct GDMLVolume {
     std::vector<GDMLPhysVol> children;
 };
 
+// Options controlling GDML parse behavior
+struct GDMLParseOptions {
+    // If true, any warning condition throws std::runtime_error instead of
+    // collecting a warning and continuing. Useful for validating GDML files.
+    bool strict = false;
+};
+
 struct GDMLData {
     // Defined positions and rotations (resolved to SIREN units)
     std::map<std::string, math::Vector3D> positions;
@@ -55,10 +62,17 @@ struct GDMLData {
 
     // World volume name (from <setup>)
     std::string world_volume;
+
+    // Warnings collected during parsing (unsupported features, skipped solids, etc.)
+    // In strict mode this stays empty since warnings throw instead.
+    std::vector<std::string> warnings;
 };
 
-// Parse a GDML file and return the parsed data
-GDMLData ParseGDML(std::string const & filename);
+// Parse a GDML file and return the parsed data.
+// Accepts any root element (e.g. <gdml>, <gdml_simple_extension>) as long as
+// it contains the standard GDML child sections (define, materials, solids, etc.).
+// Multiple <solids>/<structure>/<define>/<materials> sections are merged.
+GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & options = {});
 
 } // namespace detector
 } // namespace siren

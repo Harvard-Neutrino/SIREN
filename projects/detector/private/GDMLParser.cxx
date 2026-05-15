@@ -29,6 +29,7 @@ namespace rapidxml = cereal::rapidxml;
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/Polyhedra.h"
+#include "SIREN/geometry/Torus.h"
 #include "SIREN/geometry/BooleanGeometry.h"
 
 using namespace siren::math;
@@ -95,7 +96,7 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
         if(is_name) {
             auto it = constants.find(s);
             if(it != constants.end()) return it->second;
-            return 0.0; // Unknown constant
+            throw std::runtime_error("GDML expression error: unknown constant '" + s + "'");
         }
     }
 
@@ -165,11 +166,12 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
         double left = EvalExpression(s.substr(0, splitPos), constants);
         double right = EvalExpression(s.substr(splitPos + 1), constants);
         if(s[splitPos] == '*') return left * right;
-        else return (right != 0.0) ? left / right : 0.0;
+        if(right == 0.0) throw std::runtime_error("GDML expression error: division by zero in '" + s + "'");
+        return left / right;
     }
 
-    // Could not parse -- return 0
-    return 0.0;
+    // Could not parse
+    throw std::runtime_error("GDML expression error: failed to parse '" + s + "'");
 }
 
 // Parse a double from a string, returning 0 if empty.
@@ -208,8 +210,8 @@ double ParseLength(const char* value, const char* unit,
     if(u == "cm") return val * 0.01;
     if(u == "m")  return val * 1.0;
 
-    // Unknown unit, assume mm
-    return val * 0.001;
+    // Unknown unit
+    throw std::runtime_error("GDML error: unrecognized length unit '" + std::string(unit) + "'");
 }
 
 // Get the length scale factor for a given unit string
@@ -221,7 +223,7 @@ double LengthScale(const char* unit) {
     if(u == "mm") return 0.001;
     if(u == "cm") return 0.01;
     if(u == "m")  return 1.0;
-    return 0.001; // fallback to mm
+    throw std::runtime_error("GDML error: unrecognized length unit '" + u + "'");
 }
 
 // Convert a GDML angle value+unit to radians
@@ -240,8 +242,8 @@ double ParseAngle(const char* value, const char* unit,
     if(u == "deg") return val * PI / 180.0;
     if(u == "rad") return val;
 
-    // Unknown unit, assume degrees
-    return val * PI / 180.0;
+    // Unknown unit
+    throw std::runtime_error("GDML error: unrecognized angle unit '" + std::string(unit) + "'");
 }
 
 // Get the angle scale factor for a given unit string
@@ -252,7 +254,7 @@ double AngleScale(const char* unit) {
     std::string u(unit);
     if(u == "deg") return PI / 180.0;
     if(u == "rad") return 1.0;
-    return PI / 180.0; // fallback to degrees
+    throw std::runtime_error("GDML error: unrecognized angle unit '" + u + "'");
 }
 
 // Build a quaternion from GDML rotation convention:
@@ -267,13 +269,22 @@ Quaternion QuatFromGDMLRotation(double rx, double ry, double rz) {
     return qz * qy * qx;
 }
 
+// Record a warning. In strict mode, throws instead of continuing.
+void EmitWarning(GDMLData & data, GDMLParseOptions const & options, std::string const & msg) {
+    if(options.strict) {
+        throw std::runtime_error("GDML error (strict mode): " + msg);
+    }
+    data.warnings.push_back(msg);
+    std::cerr << "GDML warning: " << msg << std::endl;
+}
+
 } // anonymous namespace
 
 
 // ---- Section parsers ----
 
 // Parse the <define> section: constants, positions, rotations
-static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
+static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDMLParseOptions const & options) {
     if(!define_node) return;
 
     for(auto* node = define_node->first_node(); node; node = node->next_sibling()) {
@@ -283,6 +294,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
             if(!name.empty()) {
+                if(data.constants.find(name) != data.constants.end()) {
+                    EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                }
                 data.constants[name] = value;
             }
         }
@@ -290,6 +304,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
             if(!name.empty()) {
+                if(data.constants.find(name) != data.constants.end()) {
+                    EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                }
                 data.constants[name] = value;
             }
         }
@@ -300,6 +317,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
             double y = ParseLength(SafeAttrVal(node, "y"), unit, data.constants);
             double z = ParseLength(SafeAttrVal(node, "z"), unit, data.constants);
             if(!name.empty()) {
+                if(data.positions.find(name) != data.positions.end()) {
+                    EmitWarning(data, options, "duplicate position name '" + name + "', overwriting");
+                }
                 data.positions[name] = Vector3D(x, y, z);
             }
         }
@@ -310,6 +330,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
             double ry = ParseAngle(SafeAttrVal(node, "y"), unit, data.constants);
             double rz = ParseAngle(SafeAttrVal(node, "z"), unit, data.constants);
             if(!name.empty()) {
+                if(data.rotations.find(name) != data.rotations.end()) {
+                    EmitWarning(data, options, "duplicate rotation name '" + name + "', overwriting");
+                }
                 data.rotations[name] = QuatFromGDMLRotation(rx, ry, rz);
             }
         }
@@ -320,6 +343,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
             if(!name.empty()) {
+                if(data.constants.find(name) != data.constants.end()) {
+                    EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                }
                 data.constants[name] = value;
             }
         }
@@ -328,7 +354,7 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data) {
 
 
 // Parse the <materials> section: elements and materials
-static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data) {
+static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data, GDMLParseOptions const & options) {
     if(!materials_node) return;
 
     for(auto* node = materials_node->first_node(); node; node = node->next_sibling()) {
@@ -349,6 +375,9 @@ static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data
             }
 
             if(!mat.name.empty()) {
+                if(data.materials.find(mat.name) != data.materials.end()) {
+                    EmitWarning(data, options, "duplicate material name '" + mat.name + "', overwriting");
+                }
                 data.materials[mat.name] = mat;
             }
         }
@@ -376,6 +405,9 @@ static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data
             }
 
             if(!mat.name.empty()) {
+                if(data.materials.find(mat.name) != data.materials.end()) {
+                    EmitWarning(data, options, "duplicate material name '" + mat.name + "', overwriting");
+                }
                 data.materials[mat.name] = mat;
             }
         }
@@ -401,9 +433,7 @@ static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data
                     } else if(du == "g/cm3") {
                         // No conversion needed
                     } else {
-                        std::cerr << "GDML warning: unrecognized density unit '"
-                                  << du << "' for material '" << mat.name
-                                  << "', assuming g/cm3" << std::endl;
+                        EmitWarning(data, options, "unrecognized density unit '" + du + "' for material '" + mat.name + "', assuming g/cm3");
                     }
                 }
                 // If unit is missing, assume g/cm3 (no conversion)
@@ -434,6 +464,9 @@ static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data
             }
 
             if(!mat.name.empty()) {
+                if(data.materials.find(mat.name) != data.materials.end()) {
+                    EmitWarning(data, options, "duplicate material name '" + mat.name + "', overwriting");
+                }
                 data.materials[mat.name] = mat;
             }
         }
@@ -441,11 +474,19 @@ static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data
 }
 
 
-// Parse the <solids> section: convert GDML solids to SIREN Geometry objects.
-// Uses two passes: first non-boolean solids, then boolean solids so that
-// forward references to operands are resolved correctly.
-static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
-    if(!solids_node) return;
+// Parse all <solids> sections: convert GDML solids to SIREN Geometry objects.
+// Iterates all <solids> children of root_node, running the primitive parse pass
+// for each section first, then performing iterative boolean resolution across
+// all sections.
+static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDMLParseOptions const & options) {
+    if(!root_node) return;
+
+    // Collect all <solids> section nodes
+    std::vector<rapidxml::xml_node<>*> solids_sections;
+    for(auto* node = root_node->first_node("solids"); node; node = node->next_sibling("solids")) {
+        solids_sections.push_back(node);
+    }
+    if(solids_sections.empty()) return;
 
     // Tolerance for comparing angular values to full-rotation defaults
     static const double ANG_TOL = 1e-6;
@@ -487,14 +528,16 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
                (dt_val[0] != '\0' && std::fabs(deltatheta - PI) > ANG_TOL) ||
                (sp_val[0] != '\0' && std::fabs(startphi) > ANG_TOL) ||
                (dp_val[0] != '\0' && std::fabs(deltaphi - 2.0 * PI) > ANG_TOL)) {
-                std::cerr << "GDML warning: sphere '" << name
-                          << "' has non-full-rotation angular parameters"
-                          << " (starttheta=" << starttheta
-                          << " deltatheta=" << deltatheta
-                          << " startphi=" << startphi
-                          << " deltaphi=" << deltaphi
-                          << "); SIREN does not support partial spheres,"
-                          << " creating full sphere" << std::endl;
+                std::ostringstream oss;
+                oss << "sphere '" << name
+                    << "' has non-full-rotation angular parameters"
+                    << " (starttheta=" << starttheta
+                    << " deltatheta=" << deltatheta
+                    << " startphi=" << startphi
+                    << " deltaphi=" << deltaphi
+                    << "); SIREN does not support partial spheres,"
+                    << " creating full sphere";
+                EmitWarning(data, options, oss.str());
             }
 
             geo = Sphere(rmax, rmin).create();
@@ -509,15 +552,19 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             // GDML <tube> z is HALF-height; SIREN Cylinder takes full height
             double hz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
 
-            // Check deltaphi for partial tube
+            // Check angular extent for partial tube
+            const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') {
+                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
+                if(std::fabs(startphi) > ANG_TOL) {
+                    EmitWarning(data, options, std::string(tag) + " '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
+                }
+            }
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
                 if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
-                    std::cerr << "GDML warning: " << tag << " '" << name
-                              << "' has deltaphi=" << deltaphi
-                              << " (not 2*pi); SIREN does not support partial tubes,"
-                              << " creating full cylinder" << std::endl;
+                    EmitWarning(data, options, std::string(tag) + " '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
 
@@ -531,15 +578,19 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             // GDML <cone> z is HALF-height; SIREN Cone takes full height
             double hz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
 
-            // Check deltaphi for partial cone
+            // Check angular extent for partial cone
+            const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') {
+                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
+                if(std::fabs(startphi) > ANG_TOL) {
+                    EmitWarning(data, options, "cone '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
+                }
+            }
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
                 if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
-                    std::cerr << "GDML warning: cone '" << name
-                              << "' has deltaphi=" << deltaphi
-                              << " (not 2*pi); SIREN does not support partial cones,"
-                              << " creating full cone" << std::endl;
+                    EmitWarning(data, options, "cone '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
 
@@ -555,18 +606,19 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             geo = Trd(dx1, dx2, dy1, dy2, dz).create();
         }
         else if(tag == "polycone") {
-            double startphi = SafeParseDouble(SafeAttrVal(node, "startphi"), data.constants) * ascale;
-            (void)startphi;
-
-            // Check deltaphi for partial polycone
+            // Check angular extent for partial polycone
+            const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') {
+                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
+                if(std::fabs(startphi) > ANG_TOL) {
+                    EmitWarning(data, options, "polycone '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
+                }
+            }
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
                 if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
-                    std::cerr << "GDML warning: polycone '" << name
-                              << "' has deltaphi=" << deltaphi
-                              << " (not 2*pi); SIREN does not support partial polycones,"
-                              << " creating full polycone" << std::endl;
+                    EmitWarning(data, options, "polycone '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
 
@@ -605,6 +657,15 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             if(numSide <= 0) return nullptr;
 
             double startphi = SafeParseDouble(SafeAttrVal(node, "startphi"), data.constants) * ascale;
+
+            // Check deltaphi for partial polyhedra
+            const char* dp_val = SafeAttrVal(node, "deltaphi");
+            if(dp_val[0] != '\0') {
+                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
+                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                    EmitWarning(data, options, "polyhedra '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
+                }
+            }
 
             std::vector<double> z_planes;
             std::vector<double> rmin_vec;
@@ -649,6 +710,34 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             if(!polygon.empty() && !zsections.empty()) {
                 geo = ExtrPoly(polygon, zsections).create();
             }
+        }
+        else if(tag == "torus") {
+            double rmin_t = SafeParseDouble(SafeAttrVal(node, "rmin"), data.constants) * lscale;
+            double rmax_t = SafeParseDouble(SafeAttrVal(node, "rmax"), data.constants) * lscale;
+            double rtor = SafeParseDouble(SafeAttrVal(node, "rtor"), data.constants) * lscale;
+
+            // Check angular extent for partial torus
+            const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') {
+                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
+                if(std::fabs(startphi) > ANG_TOL) {
+                    EmitWarning(data, options, "torus '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
+                }
+            }
+            const char* dp_val = SafeAttrVal(node, "deltaphi");
+            if(dp_val[0] != '\0') {
+                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
+                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                    EmitWarning(data, options, "torus '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
+                }
+            }
+
+            if(rtor > 0 && rmax_t > 0) {
+                geo = Torus(rtor, rmax_t, rmin_t).create();
+            }
+        }
+        else if(!tag.empty()) {
+            EmitWarning(data, options, "unsupported solid type '" + tag + "' (name='" + name + "'), skipping");
         }
 
         return geo;
@@ -734,40 +823,49 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
             std::const_pointer_cast<const Geometry>(right));
     };
 
-    // First pass: parse all non-boolean solids
-    for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
-        std::string tag(node->name());
-        if(tag == "subtraction" || tag == "union" || tag == "intersection") continue;
-
-        std::string name = SafeAttrVal(node, "name");
-        if(name.empty()) continue;
-
-        auto geo = parsePrimitive(node);
-        if(geo) {
-            data.solids[name] = geo;
-        }
-    }
-
-    // Iterative boolean passes: keep resolving until no new solids are added.
-    // This handles arbitrary nesting depth (a boolean whose operand is
-    // another boolean that appears later in document order).
-    bool made_progress = true;
-    while(made_progress) {
-        made_progress = false;
+    // First pass over all sections: parse all non-boolean solids
+    for(auto* solids_node : solids_sections) {
         for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
             std::string tag(node->name());
-            if(tag != "subtraction" && tag != "union" && tag != "intersection") continue;
+            if(tag == "subtraction" || tag == "union" || tag == "intersection") continue;
 
             std::string name = SafeAttrVal(node, "name");
             if(name.empty()) continue;
 
-            // Skip if already resolved
-            if(data.solids.find(name) != data.solids.end()) continue;
+            if(data.solids.find(name) != data.solids.end()) {
+                EmitWarning(data, options, "duplicate solid name '" + name + "', overwriting");
+            }
 
-            auto geo = parseBoolean(node);
+            auto geo = parsePrimitive(node);
             if(geo) {
                 data.solids[name] = geo;
-                made_progress = true;
+            }
+        }
+    }
+
+    // Iterative boolean passes across all sections: keep resolving until
+    // no new solids are added. This handles arbitrary nesting depth
+    // (a boolean whose operand is another boolean that appears later in
+    // document order or in a different section).
+    bool made_progress = true;
+    while(made_progress) {
+        made_progress = false;
+        for(auto* solids_node : solids_sections) {
+            for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
+                std::string tag(node->name());
+                if(tag != "subtraction" && tag != "union" && tag != "intersection") continue;
+
+                std::string name = SafeAttrVal(node, "name");
+                if(name.empty()) continue;
+
+                // Skip if already resolved
+                if(data.solids.find(name) != data.solids.end()) continue;
+
+                auto geo = parseBoolean(node);
+                if(geo) {
+                    data.solids[name] = geo;
+                    made_progress = true;
+                }
             }
         }
     }
@@ -775,7 +873,7 @@ static void ParseSolids(rapidxml::xml_node<>* solids_node, GDMLData & data) {
 
 
 // Parse the <structure> section: volumes and physical volumes
-static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data) {
+static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data, GDMLParseOptions const & options) {
     if(!structure_node) return;
 
     for(auto* vol_node = structure_node->first_node("volume"); vol_node;
@@ -848,6 +946,9 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
         }
 
         if(!vol.name.empty()) {
+            if(data.volumes.find(vol.name) != data.volumes.end()) {
+                EmitWarning(data, options, "duplicate volume name '" + vol.name + "', overwriting");
+            }
             data.volumes[vol.name] = vol;
         }
     }
@@ -855,7 +956,8 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
 
 
 // Parse the <setup> section to find the world volume
-static void ParseSetup(rapidxml::xml_node<>* setup_node, GDMLData & data) {
+static void ParseSetup(rapidxml::xml_node<>* setup_node, GDMLData & data, GDMLParseOptions const & options) {
+    (void)options;
     if(!setup_node) return;
 
     auto* world_node = setup_node->first_node("world");
@@ -866,7 +968,7 @@ static void ParseSetup(rapidxml::xml_node<>* setup_node, GDMLData & data) {
 
 
 // Main parser function
-GDMLData ParseGDML(std::string const & filename) {
+GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & options) {
     // Read the file into a mutable buffer (rapidxml modifies in-place)
     std::ifstream file(filename.c_str(), std::ios::binary);
     if(!file.is_open()) {
@@ -890,20 +992,37 @@ GDMLData ParseGDML(std::string const & filename) {
         throw std::runtime_error(std::string("GDML XML parse error: ") + e.what());
     }
 
-    // Find the root <gdml> node
-    auto* gdml_node = doc.first_node("gdml");
-    if(!gdml_node) {
-        throw std::runtime_error("No <gdml> root element found in: " + filename);
-    }
-
     GDMLData data;
 
-    // Parse sections in order
-    ParseDefine(gdml_node->first_node("define"), data);
-    ParseMaterials(gdml_node->first_node("materials"), data);
-    ParseSolids(gdml_node->first_node("solids"), data);
-    ParseStructure(gdml_node->first_node("structure"), data);
-    ParseSetup(gdml_node->first_node("setup"), data);
+    // Find root node: accept <gdml> or any root element
+    auto* gdml_node = doc.first_node("gdml");
+    if(!gdml_node) {
+        gdml_node = doc.first_node();
+        if(!gdml_node) {
+            throw std::runtime_error("GDML error: empty document: " + filename);
+        }
+        std::string root_tag(gdml_node->name());
+        EmitWarning(data, options, "non-standard root element <" + root_tag + "> in " + filename + ", treating as <gdml>");
+    }
+
+    // Parse all <define> sections
+    for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
+        ParseDefine(node, data, options);
+    }
+    // Parse all <materials> sections
+    for(auto* node = gdml_node->first_node("materials"); node; node = node->next_sibling("materials")) {
+        ParseMaterials(node, data, options);
+    }
+    // Parse all <solids> sections (with cross-section boolean resolution)
+    ParseAllSolids(gdml_node, data, options);
+    // Parse all <structure> sections
+    for(auto* node = gdml_node->first_node("structure"); node; node = node->next_sibling("structure")) {
+        ParseStructure(node, data, options);
+    }
+    // Parse all <setup> sections (last wins)
+    for(auto* node = gdml_node->first_node("setup"); node; node = node->next_sibling("setup")) {
+        ParseSetup(node, data, options);
+    }
 
     return data;
 }

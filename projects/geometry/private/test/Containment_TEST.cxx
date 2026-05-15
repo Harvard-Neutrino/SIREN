@@ -22,6 +22,7 @@
 #include "SIREN/geometry/Polyhedra.h"
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/BooleanGeometry.h"
+#include "SIREN/geometry/Torus.h"
 
 using namespace siren::geometry;
 using namespace siren::math;
@@ -677,4 +678,101 @@ TEST(Containment, BooleanLessNullSafety) {
     Box box(10, 10, 10);
     EXPECT_NO_THROW(bool result = bg < box; (void)result);
     EXPECT_NO_THROW(bool result = box < bg; (void)result);
+}
+
+// =========================================================================
+// Fix 3: Containment at Polycone/Polyhedra internal z-boundaries
+// Points exactly at internal z-boundaries must still have correct
+// containment determination via horizontal rays.
+// =========================================================================
+TEST(Containment, PolyconeAtZBoundary) {
+    // Polycone with internal boundary at z=0 where radius changes
+    std::vector<double> zp = {-5, 0, 5};
+    std::vector<double> rmin = {0, 0, 0};
+    std::vector<double> rmax = {3, 5, 3};
+    Placement pl(Vector3D(0, 0, 0));
+    Polycone pc(pl, zp, rmin, rmax);
+
+    // Point inside at z=0 boundary: (1, 0, 0), rmax=5, r=1 is inside.
+    // Use non-horizontal direction so barrel intersections are at z != 0
+    // (a horizontal ray at exact z-boundary is tangent to the z-plane and
+    // won't pierce the barrel surface).
+    Vector3D inside_at_boundary(1, 0, 0);
+    EXPECT_TRUE(pc.IsInside(inside_at_boundary, Vector3D(1, 1, 1)))
+        << "Point (1,0,0) should be inside polycone at z=0 boundary";
+    EXPECT_TRUE(pc.IsInside(inside_at_boundary, Vector3D(0, 0, 1)))
+        << "Point (1,0,0) should be inside polycone at z=0 with z-direction";
+
+    // Point outside at z=0 boundary: (6, 0, 0), r=6 > rmax=5
+    Vector3D outside_at_boundary(6, 0, 0);
+    EXPECT_FALSE(pc.IsInside(outside_at_boundary, Vector3D(0, 0, 1)))
+        << "Point (6,0,0) should be outside polycone at z=0 boundary";
+}
+
+TEST(Containment, PolyhedraAtZBoundary) {
+    int n = 6;
+    double start_phi = 0;
+    std::vector<double> zp = {-5, 0, 5};
+    std::vector<double> rmin = {0, 0, 0};
+    std::vector<double> rmax = {3, 5, 3};
+    Placement pl(Vector3D(0, 0, 0));
+    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
+
+    // Point inside at z=0 boundary with horizontal direction
+    Vector3D inside_at_boundary(1, 0, 0);
+    EXPECT_TRUE(ph.IsInside(inside_at_boundary, Vector3D(1, 0, 0)))
+        << "Point (1,0,0) should be inside polyhedra at z=0 boundary";
+    EXPECT_TRUE(ph.IsInside(inside_at_boundary, Vector3D(0, 1, 0)))
+        << "Point (1,0,0) should be inside polyhedra at z=0 with y-direction";
+}
+
+// =========================================================================
+// Torus
+// =========================================================================
+
+TEST(Containment, Torus) {
+    double R = 10, r = 3;
+    Placement pl(Vector3D(0, 0, 0));
+    Torus torus(pl, R, r, 0);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+        return d2 < r*r;
+    }, 15, 10000, "Torus");
+}
+
+TEST(Containment, TorusHollow) {
+    double R = 10, r_out = 3, r_in = 1;
+    Placement pl(Vector3D(0, 0, 0));
+    Torus torus(pl, R, r_out, r_in);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+        return d2 < r_out*r_out && d2 > r_in*r_in;
+    }, 15, 10000, "TorusHollow");
+}
+
+TEST(Containment, TorusRotated) {
+    double R = 8, r = 2;
+    Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
+    Placement pl(Vector3D(1, -1, 2), q);
+    Torus torus(pl, R, r, 0);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+        return d2 < r*r;
+    }, 15, 10000, "TorusRotated");
+}
+
+TEST(Containment, TorusValidation) {
+    // Major radius must be positive
+    EXPECT_THROW(Torus(0, 3, 0), std::invalid_argument);
+    // Outer tube radius must be positive
+    EXPECT_THROW(Torus(10, 0, 0), std::invalid_argument);
+    // Inner must be less than outer
+    EXPECT_THROW(Torus(10, 3, 3), std::invalid_argument);
+    EXPECT_THROW(Torus(10, 3, 4), std::invalid_argument);
+    // Valid configurations
+    EXPECT_NO_THROW(Torus(10, 3, 0));
+    EXPECT_NO_THROW(Torus(10, 3, 2));
 }

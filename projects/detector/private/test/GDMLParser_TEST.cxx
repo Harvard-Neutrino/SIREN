@@ -802,3 +802,552 @@ TEST(GDMLParser, RotationHandling) {
     EXPECT_EQ(mat_far, "Air")
         << "Point at (1.0,1.0,0) should be in Air (outside rotated child)";
 }
+
+
+// =========================================================================
+// GDML error handling: unknown constant throws
+// =========================================================================
+TEST(GDMLParser, UnknownConstantThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="bad" value="nonexistent_name"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error);
+}
+
+// =========================================================================
+// GDML error handling: unknown length unit throws
+// =========================================================================
+TEST(GDMLParser, UnknownLengthUnitThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="test_box" x="100" y="100" z="100" lunit="furlongs"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="test_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error);
+}
+
+// =========================================================================
+// GDML error handling: unknown angle unit throws
+// =========================================================================
+TEST(GDMLParser, UnknownAngleUnitThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <rotation name="r1" x="45" y="0" z="0" unit="gradians"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error);
+}
+
+// =========================================================================
+// GDML error handling: unsupported solid type in strict mode throws
+// =========================================================================
+TEST(GDMLParser, UnsupportedSolidStrictThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <hype name="h" rmin="1" rmax="2" inst="0.1" outst="0.2" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="h"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    // Strict mode: throws on unsupported solid
+    std::string tmpfile = "/tmp/siren_gdml_test_strict.gdml";
+    { std::ofstream f(tmpfile); f << gdml; }
+    GDMLParseOptions strict_opts;
+    strict_opts.strict = true;
+    EXPECT_THROW(ParseGDML(tmpfile, strict_opts), std::runtime_error);
+    std::remove(tmpfile.c_str());
+}
+
+// =========================================================================
+// GDML: unsupported solid skipped with warning in default mode
+// =========================================================================
+TEST(GDMLParser, UnsupportedSolidSkipsWithWarning) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="good_box" x="100" y="100" z="100" lunit="mm"/>
+    <hype name="h" rmin="1" rmax="2" inst="0.1" outst="0.2" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="good_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    // The box should have parsed, the hype should have been skipped
+    EXPECT_EQ(data.solids.count("good_box"), 1u);
+    EXPECT_EQ(data.solids.count("h"), 0u);
+    // Warning should be recorded
+    ASSERT_GE(data.warnings.size(), 1u);
+    bool found_hype_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("hype") != std::string::npos) found_hype_warning = true;
+    }
+    EXPECT_TRUE(found_hype_warning) << "Expected warning about unsupported hype solid";
+}
+
+// =========================================================================
+// GDML error handling: unparseable expression throws
+// =========================================================================
+TEST(GDMLParser, UnparseableExpressionThrows) {
+    // Use custom delimiter to avoid )" in sin(3.14)" closing the raw string
+    std::string gdml = R"GDML(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="bad" value="sin(3.14)"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)GDML";
+
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error);
+}
+
+// =========================================================================
+// GDML: valid units should still work
+// =========================================================================
+TEST(GDMLParser, ValidUnitsStillWork) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <rotation name="r1" x="1.57" y="0" z="0" unit="rad"/>
+    <position name="p1" x="10" y="20" z="30" unit="cm"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="box_mm" x="100" y="100" z="100" lunit="mm"/>
+    <box name="box_cm" x="10" y="10" z="10" lunit="cm"/>
+    <box name="box_m" x="0.1" y="0.1" z="0.1" lunit="m"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="box_mm"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data;
+    EXPECT_NO_THROW(data = ParseGDMLString(gdml));
+    // All three boxes should have the same size (0.1m half-width = 0.2m full)
+    double tol = 1e-9;
+    ASSERT_TRUE(data.solids.count("box_mm") > 0);
+    ASSERT_TRUE(data.solids.count("box_cm") > 0);
+    ASSERT_TRUE(data.solids.count("box_m") > 0);
+    EXPECT_NEAR(data.solids["box_mm"]->GetBoundingBox().max_corner.GetX(),
+                data.solids["box_cm"]->GetBoundingBox().max_corner.GetX(), tol);
+    EXPECT_NEAR(data.solids["box_mm"]->GetBoundingBox().max_corner.GetX(),
+                data.solids["box_m"]->GetBoundingBox().max_corner.GetX(), tol);
+}
+
+
+// =========================================================================
+// Flexible root tag: <gdml_simple_extension> is accepted
+// =========================================================================
+TEST(GDMLParser, FlexibleRootTag) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml_simple_extension xmlns:gdml="http://www.example.org">
+  <define/>
+  <materials/>
+  <solids>
+    <box name="test_box" x="100" y="200" z="300" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="test_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml_simple_extension>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("test_box") > 0);
+    double tol = 1e-9;
+    // 100mm half-width = 0.1m, full width = 0.2m, AABB half = 0.1m
+    EXPECT_NEAR(data.solids["test_box"]->GetBoundingBox().max_corner.GetX(), 0.1, tol);
+    // Should have a warning about non-standard root tag
+    ASSERT_GE(data.warnings.size(), 1u);
+    bool found_root_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("non-standard root element") != std::string::npos) found_root_warning = true;
+    }
+    EXPECT_TRUE(found_root_warning) << "Expected warning about non-standard root element";
+}
+
+
+// =========================================================================
+// Multiple <solids> sections: all are parsed
+// =========================================================================
+TEST(GDMLParser, MultipleSolidsSections) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="box_a" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <solids>
+    <box name="box_b" x="200" y="200" z="200" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="box_a"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_EQ(data.solids.count("box_a"), 1u) << "box_a from first section should be parsed";
+    EXPECT_EQ(data.solids.count("box_b"), 1u) << "box_b from second section should be parsed";
+}
+
+
+// =========================================================================
+// Multiple sections: boolean references across sections
+// =========================================================================
+TEST(GDMLParser, MultipleSectionsBoolean) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="base_box" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <solids>
+    <box name="cut_box" x="50" y="50" z="200" lunit="mm"/>
+    <subtraction name="cut_result">
+      <first ref="base_box"/>
+      <second ref="cut_box"/>
+    </subtraction>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="cut_result"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_EQ(data.solids.count("base_box"), 1u);
+    EXPECT_EQ(data.solids.count("cut_box"), 1u);
+    EXPECT_EQ(data.solids.count("cut_result"), 1u)
+        << "Boolean solid referencing operand from different section should resolve";
+}
+
+
+// =========================================================================
+// Multiple <define> sections: constants from all sections available
+// =========================================================================
+TEST(GDMLParser, MultipleDefineSections) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="half_x" value="50"/>
+  </define>
+  <define>
+    <constant name="half_y" value="100"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="test_box" x="half_x" y="half_y" z="200" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="test_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants["half_x"], 50.0, 1e-9);
+    EXPECT_NEAR(data.constants["half_y"], 100.0, 1e-9);
+    ASSERT_TRUE(data.solids.count("test_box") > 0);
+}
+
+
+// =========================================================================
+// Duplicate solid name: warns and overwrites
+// =========================================================================
+TEST(GDMLParser, DuplicateNameWarning) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="mybox" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <solids>
+    <box name="mybox" x="200" y="200" z="200" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="mybox"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    // Last wins: mybox should be the 200mm version
+    ASSERT_TRUE(data.solids.count("mybox") > 0);
+    double tol = 1e-9;
+    EXPECT_NEAR(data.solids["mybox"]->GetBoundingBox().max_corner.GetX(), 0.2, tol)
+        << "Duplicate name should use last definition (200mm half-width = 0.2m)";
+    // Should have a warning about duplicate
+    bool found_dup_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("duplicate") != std::string::npos && w.find("mybox") != std::string::npos) {
+            found_dup_warning = true;
+        }
+    }
+    EXPECT_TRUE(found_dup_warning) << "Expected warning about duplicate solid name";
+}
+
+
+// =========================================================================
+// Duplicate name in strict mode: throws
+// =========================================================================
+TEST(GDMLParser, DuplicateNameStrictThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="mybox" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <solids>
+    <box name="mybox" x="200" y="200" z="200" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="mybox"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_test_dupstrict.gdml";
+    { std::ofstream f(tmpfile); f << gdml; }
+    GDMLParseOptions strict_opts;
+    strict_opts.strict = true;
+    EXPECT_THROW(ParseGDML(tmpfile, strict_opts), std::runtime_error);
+    std::remove(tmpfile.c_str());
+}
+
+
+// =========================================================================
+// Multiple <structure> sections: all volumes parsed
+// =========================================================================
+TEST(GDMLParser, MultipleStructureSections) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="box_a" x="100" y="100" z="100" lunit="mm"/>
+    <box name="box_b" x="200" y="200" z="200" lunit="mm"/>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="VolA">
+      <materialref ref=""/>
+      <solidref ref="box_a"/>
+    </volume>
+  </structure>
+  <structure>
+    <volume name="VolB">
+      <materialref ref=""/>
+      <solidref ref="box_b"/>
+    </volume>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="VolA"/>
+      </physvol>
+      <physvol>
+        <volumeref ref="VolB"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_EQ(data.volumes.count("VolA"), 1u) << "VolA from first structure should be parsed";
+    EXPECT_EQ(data.volumes.count("VolB"), 1u) << "VolB from second structure should be parsed";
+    EXPECT_EQ(data.volumes.count("World"), 1u) << "World from second structure should be parsed";
+}
+
+
+// =========================================================================
+// Torus integration: full-rotation torus parses correctly
+// =========================================================================
+TEST(GDMLParser, TorusIntegration) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <torus name="my_torus" rmin="10" rmax="20" rtor="100" startphi="0" deltaphi="360" lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="my_torus"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("my_torus") > 0);
+    // Verify bounding box: rtor=100mm=0.1m, rmax=20mm=0.02m
+    // xy extent = rtor + rmax = 0.12m, z extent = rmax = 0.02m
+    double tol = 1e-6;
+    auto bb = data.solids["my_torus"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.12, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.02, tol);
+    // No warnings for a full-rotation torus
+    for(auto const & w : data.warnings) {
+        EXPECT_TRUE(w.find("torus") == std::string::npos)
+            << "Unexpected torus warning: " << w;
+    }
+}
+
+// =========================================================================
+// Torus: partial deltaphi emits warning
+// =========================================================================
+TEST(GDMLParser, PartialTorusWarning) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <torus name="elbow" rmin="10" rmax="20" rtor="100" startphi="0" deltaphi="90" lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="elbow"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    // Should still parse (creates full torus) with a warning
+    ASSERT_TRUE(data.solids.count("elbow") > 0);
+    bool found_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("torus") != std::string::npos && w.find("deltaphi") != std::string::npos) {
+            found_warning = true;
+        }
+    }
+    EXPECT_TRUE(found_warning) << "Expected warning about partial torus angular extent";
+}

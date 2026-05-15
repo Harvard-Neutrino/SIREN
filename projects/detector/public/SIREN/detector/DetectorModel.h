@@ -309,7 +309,7 @@ private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
 public:
-    void LoadGDML(std::string const & filename);
+    std::vector<std::string> LoadGDML(std::string const & filename, bool strict = false);
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 
     double GetTargetMass(siren::dataclasses::ParticleType target) const;

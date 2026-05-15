@@ -1,5 +1,6 @@
 #include "SIREN/detector/DetectorModel.h"
 
+#include <mutex>
 #include <tuple>
 #include <cmath>
 #include <cctype>
@@ -631,8 +632,10 @@ void DetectorModel::LoadMaterialModel(std::string const & material_model) {
     materials_.AddModelFile(material_model);
 }
 
-void DetectorModel::LoadGDML(std::string const & filename) {
-    GDMLData data = ParseGDML(filename);
+std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, bool strict) {
+    GDMLParseOptions options;
+    options.strict = strict;
+    GDMLData data = ParseGDML(filename, options);
 
     ClearSectors();
     LoadDefaultMaterials();
@@ -643,7 +646,9 @@ void DetectorModel::LoadGDML(std::string const & filename) {
     std::function<std::map<int,double>(std::string const &, double)> resolve_component;
     resolve_component = [&](std::string const & comp_name, double weight) -> std::map<int,double> {
         std::map<int,double> result;
-        if(!data.materials.count(comp_name)) return result;
+        if(!data.materials.count(comp_name)) {
+            throw std::runtime_error("GDML error: material component '" + comp_name + "' not found");
+        }
         GDMLMaterial const & comp = data.materials.at(comp_name);
         if(!comp.composition.empty()) {
             // This component is itself a composite -- recurse
@@ -762,6 +767,8 @@ void DetectorModel::LoadGDML(std::string const & filename) {
     ctx.BuildVolume(data.world_volume, Placement());
 
     bvh_dirty_.store(true, std::memory_order_release);
+
+    return data.warnings;
 }
 
 
@@ -1367,7 +1374,11 @@ void DetectorModel::FindContainingSectorBVH(
 
 DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const & p0) const {
     if(bvh_dirty_.load(std::memory_order_acquire)) {
-        RebuildBVH();
+        static std::mutex bvh_rebuild_mutex;
+        std::lock_guard<std::mutex> lock(bvh_rebuild_mutex);
+        if(bvh_dirty_.load(std::memory_order_relaxed)) {
+            RebuildBVH();
+        }
     }
 
     int best_level = std::numeric_limits<int>::min();
@@ -1375,7 +1386,7 @@ DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const &
 
     // BVH-excluded sectors (infinite bounds, e.g. UNIVERSE) always contain all points.
     // Rather than calling IsInside on an infinite geometry (which involves inf arithmetic),
-    // unconditionally accept them — any finite point is inside an infinite volume.
+    // unconditionally accept them -- any finite point is inside an infinite volume.
     // Use >= because UNIVERSE has level == INT_MIN which equals best_level's initial value.
     for(unsigned int idx : bvh_excluded_sectors_) {
         DetectorSector const & sector = sectors_[idx];
@@ -1388,15 +1399,9 @@ DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const &
     // Traverse BVH for finite-bounds sectors
     if(!bvh_nodes_.empty()) {
         FindContainingSectorBVH(0, p0, best_level, best_sector);
-    } else if(bvh_excluded_sectors_.empty()) {
-        // No BVH at all: linear scan fallback
-        for(auto const & sector : sectors_) {
-            if(sector.level > best_level && sector.geo->IsInside(p0)) {
-                best_level = sector.level;
-                best_sector = sector;
-            }
-        }
     }
+    // No fallback: every sector is either in the BVH or in bvh_excluded_sectors_.
+    // If both are empty, there are no sectors and best_sector stays default.
 
     return best_sector;
 }
@@ -1571,7 +1576,11 @@ static inline void AppendSectorIntersections(
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
     // Lazy BVH rebuild when sectors have changed
     if(bvh_dirty_.load(std::memory_order_acquire)) {
-        RebuildBVH();
+        static std::mutex bvh_rebuild_mutex;
+        std::lock_guard<std::mutex> lock(bvh_rebuild_mutex);
+        if(bvh_dirty_.load(std::memory_order_relaxed)) {
+            RebuildBVH();
+        }
     }
 
     Geometry::IntersectionList intersections;
@@ -1579,64 +1588,59 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
     intersections.direction = direction;
     intersections.intersections.reserve(32);
 
-    if(bvh_nodes_.empty() && bvh_excluded_sectors_.empty()) {
-        // No sectors at all: fall back to linear scan
-        for(auto const & sector : sectors_) {
-            AppendSectorIntersections(sector, p0, direction, intersections);
-        }
-    } else {
-        // Test sectors excluded from BVH (infinite bounds, e.g. UNIVERSE)
-        for(unsigned int idx : bvh_excluded_sectors_) {
-            AppendSectorIntersections(sectors_[idx], p0, direction, intersections);
-        }
+    // Test sectors excluded from BVH (infinite bounds, e.g. UNIVERSE)
+    for(unsigned int idx : bvh_excluded_sectors_) {
+        AppendSectorIntersections(sectors_[idx], p0, direction, intersections);
+    }
 
-        // Iterative BVH traversal using an explicit stack
-        if(!bvh_nodes_.empty()) {
-            Vector3D dir = direction;
-            Vector3D inv_dir(
-                1.0 / dir.GetX(),
-                1.0 / dir.GetY(),
-                1.0 / dir.GetZ()
-            );
+    // Iterative BVH traversal using an explicit stack.
+    // Every finite-bounds sector is in the BVH; no linear scan fallback.
+    if(!bvh_nodes_.empty()) {
+        Vector3D dir = direction;
+        Vector3D inv_dir(
+            1.0 / dir.GetX(),
+            1.0 / dir.GetY(),
+            1.0 / dir.GetZ()
+        );
 
-            // Stack of node indices to visit (max depth ~30 for millions of sectors)
-            int stack[64];
-            int stack_top = 0;
-            stack[stack_top++] = 0; // root
+        // Stack of node indices to visit (max depth ~30 for millions of sectors)
+        static constexpr int BVH_STACK_CAPACITY = 64;
+        int stack[BVH_STACK_CAPACITY];
+        int stack_top = 0;
+        stack[stack_top++] = 0; // root
 
-            while(stack_top > 0) {
-                int node_idx = stack[--stack_top];
-                BVHNode const & node = bvh_nodes_[node_idx];
+        while(stack_top > 0) {
+            int node_idx = stack[--stack_top];
+            BVHNode const & node = bvh_nodes_[node_idx];
 
-                if(!geometry::RayAABBIntersect(p0, inv_dir, node.bounds))
+            if(!geometry::RayAABBIntersect(p0, inv_dir, node.bounds))
+                continue;
+
+            if(node.sector_index >= 0) {
+                // Leaf: transform ray to local once, pre-filter with
+                // tight local AABB, then intersect without re-transforming.
+                DetectorSector const & sector = sectors_[node.sector_index];
+                Vector3D lp = sector.geo->GlobalToLocalPosition(p0);
+                Vector3D ld = sector.geo->GlobalToLocalDirection(dir);
+                Vector3D li(1.0 / ld.GetX(), 1.0 / ld.GetY(), 1.0 / ld.GetZ());
+                if(!geometry::RayAABBIntersect(lp, li, sector.geo->GetBoundingBox()))
                     continue;
 
-                if(node.sector_index >= 0) {
-                    // Leaf: transform ray to local once, pre-filter with
-                    // tight local AABB, then intersect without re-transforming.
-                    DetectorSector const & sector = sectors_[node.sector_index];
-                    Vector3D lp = sector.geo->GlobalToLocalPosition(p0);
-                    Vector3D ld = sector.geo->GlobalToLocalDirection(dir);
-                    Vector3D li(1.0 / ld.GetX(), 1.0 / ld.GetY(), 1.0 / ld.GetZ());
-                    if(!geometry::RayAABBIntersect(lp, li, sector.geo->GetBoundingBox()))
-                        continue;
-
-                    // Pass pre-transformed local coords via tagged types
-                    std::vector<Geometry::Intersection> hits = sector.geo->Intersections(
-                        geometry::LocalPosition(lp), geometry::LocalDirection(ld));
-                    size_t prev_size = intersections.intersections.size();
-                    intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
-                    for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
-                        intersections.intersections[j].hierarchy = sector.level;
-                        intersections.intersections[j].matID = sector.material_id;
-                    }
-                } else {
-                    // Internal: push children
-                    if(node.right_child >= 0)
-                        stack[stack_top++] = node.right_child;
-                    if(node.left_child >= 0)
-                        stack[stack_top++] = node.left_child;
+                // Pass pre-transformed local coords via tagged types
+                std::vector<Geometry::Intersection> hits = sector.geo->Intersections(
+                    geometry::LocalPosition(lp), geometry::LocalDirection(ld));
+                size_t prev_size = intersections.intersections.size();
+                intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
+                for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+                    intersections.intersections[j].hierarchy = sector.level;
+                    intersections.intersections[j].matID = sector.material_id;
                 }
+            } else {
+                // Internal: push children (with overflow guard)
+                if(node.left_child >= 0 && stack_top < BVH_STACK_CAPACITY)
+                    stack[stack_top++] = node.left_child;
+                if(node.right_child >= 0 && stack_top < BVH_STACK_CAPACITY)
+                    stack[stack_top++] = node.right_child;
             }
         }
     }

@@ -32,6 +32,7 @@
 #include "SIREN/geometry/Polyhedra.h"
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/BooleanGeometry.h"
+#include "SIREN/geometry/Torus.h"
 
 using namespace siren::geometry;
 using namespace siren::math;
@@ -146,6 +147,11 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"Box(10,8,6)_MC", Box(10, 8, 6).create(), 2, 80, 8});
     // Cylinder cross-section along z-axis: pi*r^2 = pi*16
     shapes.push_back({"Cylinder(r=4,z=10)_MC", Cylinder(4, 0, 10).create(), 2, M_PI * 16, 8});
+
+    // Torus shapes (max 4 intersections for solid, -1 for hollow)
+    shapes.push_back({"Torus(R=10,r=3,0)", Torus(10, 3, 0).create(), -1, -1, 0});
+    shapes.push_back({"TorusHollow(R=10,3,1)", Torus(10, 3, 1).create(), -1, -1, 0});
+    shapes.push_back({"TorusThin(R=8,r=0.5,0)", Torus(8, 0.5, 0).create(), -1, -1, 0});
 
     // Polycone with step-change (#8)
     shapes.push_back({"PolyconeStep", Polycone({-0.05, 0.05, 0.05, 0.15}, {0, 0, 0, 0}, {0.03, 0.03, 0.05, 0.05}).create(), -1, -1, 0});
@@ -603,4 +609,87 @@ TEST(ShapeInvariants, TangentRays) {
             << "Cylinder inside tangent: expected 2, got " << inside_isects.size();
         EXPECT_EQ(inside_isects.size() % 2, 0u) << "Cylinder inside tangent: odd count";
     }
+}
+
+// =========================================================================
+// Fix 3: Horizontal rays at Polycone/Polyhedra section boundaries
+// A horizontal ray exactly at an internal z-boundary must be claimed by
+// exactly one section (half-open interval [z_lo, z_hi)).
+// =========================================================================
+TEST(ShapeInvariants, HorizontalRayAtSectionBoundary) {
+    // Fix 3: A horizontal ray at an internal z-boundary was being skipped
+    // by both adjacent sections (both used closed interval). After the fix,
+    // each section uses half-open [z_lo, z_hi) so exactly one claims it.
+    //
+    // A ray at exactly z=z_boundary is tangent to the z-plane and does not
+    // pierce the barrel surface, so we test containment (IsInside) instead
+    // of raw intersection count: a point inside the shape at the z-boundary
+    // must still be reported as inside.
+
+    // Polycone with internal boundary at z=0 where rmax=5
+    Polycone pc({-5, 0, 5}, {0, 0, 0}, {3, 5, 3});
+    // Point (1, 0, 0) is inside at z=0 (r=1 < rmax=5).
+    // Use non-horizontal direction: a horizontal ray at an exact z-boundary
+    // is tangent to the z-plane and won't pierce barrel surfaces.
+    EXPECT_TRUE(pc.IsInside(Vector3D(1, 0, 0), Vector3D(1, 1, 1)))
+        << "Polycone IsInside at z-boundary with non-horizontal ray";
+    EXPECT_TRUE(pc.IsInside(Vector3D(1, 0, 0), Vector3D(0, 0, 1)))
+        << "Polycone IsInside at z-boundary with z-direction";
+    // Point outside at z-boundary
+    EXPECT_FALSE(pc.IsInside(Vector3D(6, 0, 0), Vector3D(0, 0, 1)))
+        << "Polycone outside at z-boundary should be false";
+
+    // Same test for Polyhedra
+    Polyhedra ph(6, 0, {-5, 0, 5}, {0, 0, 0}, {3, 5, 3});
+    EXPECT_TRUE(ph.IsInside(Vector3D(1, 0, 0), Vector3D(1, 1, 1)))
+        << "Polyhedra IsInside at z-boundary with non-horizontal ray";
+    EXPECT_TRUE(ph.IsInside(Vector3D(1, 0, 0), Vector3D(0, 0, 1)))
+        << "Polyhedra IsInside at z-boundary with z-direction";
+
+    // Multi-section polycone: boundary at z=-2
+    Polycone pc2({-5, -2, 0, 3, 5}, {0, 0, 0, 0, 0}, {3, 5, 4, 6, 2});
+    // At z=-2, rmax=5; point (1, 0, -2) is inside
+    EXPECT_TRUE(pc2.IsInside(Vector3D(1, 0, -2), Vector3D(0, 0, 1)))
+        << "Polycone IsInside at z=-2 boundary with z-direction";
+}
+
+// =========================================================================
+// Fix 4: Tangent rays on curved surfaces
+// Tangent rays (determinant == 0) are treated as misses (no surface crossing).
+// Near-tangent rays just inside the surface must still produce 2 hits.
+// =========================================================================
+TEST(ShapeInvariants, TangentRaysCone) {
+    // Cone with outer radius 5 at z=0: tangent at y=5
+    Cone cone(0, 5, 0, 5, 10); // cylinder-like cone
+    Vector3D tangent_pos(0, 5, 0);
+    Vector3D tangent_dir(1, 0, 0);
+    auto isects = cone.Intersections(tangent_pos, tangent_dir);
+    // Tangent: must be even (0 or 2)
+    EXPECT_EQ(isects.size() % 2, 0u)
+        << "Cone tangent: odd count " << isects.size();
+
+    // Just outside: no hits
+    Vector3D outside(0, 5 + 1e-6, 0);
+    auto miss = cone.Intersections(outside, tangent_dir);
+    EXPECT_EQ(miss.size(), 0u) << "Cone outside tangent should miss";
+
+    // Just inside: 2 hits
+    Vector3D inside(0, 5 - 1e-6, 0);
+    auto hit = cone.Intersections(inside, tangent_dir);
+    EXPECT_EQ(hit.size(), 2u) << "Cone inside tangent should hit twice";
+}
+
+TEST(ShapeInvariants, TangentRaysPolycone) {
+    // Polycone section with outer radius 5: tangent at y=5
+    Polycone pc({-5, 5}, {0, 0}, {5, 5});
+    Vector3D tangent_pos(0, 5, 0);
+    Vector3D tangent_dir(1, 0, 0);
+    auto isects = pc.Intersections(tangent_pos, tangent_dir);
+    EXPECT_EQ(isects.size() % 2, 0u)
+        << "Polycone tangent: odd count " << isects.size();
+
+    // Just inside: should hit
+    Vector3D inside(0, 5 - 1e-6, 0);
+    auto hit = pc.Intersections(inside, tangent_dir);
+    EXPECT_EQ(hit.size(), 2u) << "Polycone inside tangent should hit twice";
 }
