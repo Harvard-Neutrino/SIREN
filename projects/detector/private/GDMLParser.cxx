@@ -58,120 +58,264 @@ std::string TrimWhitespace(std::string const & s) {
     return s.substr(start, end - start + 1);
 }
 
-// Evaluate a GDML expression string that may contain:
-//   - numeric literals: "3.14"
-//   - constant references: "det_length"
-//   - simple binary ops: "3.14/2", "det_length+10"
-//   - negation: "-det_length"
-//   - parenthesized sub-expressions: "(a+b)*2"
-// Operators handled: +, -, *, /
-// Precedence: * and / bind tighter than + and -
+// Iterative expression evaluator using the shunting-yard algorithm.
+// Tokenizes the input, converts infix to postfix (RPN), and evaluates
+// the RPN with an explicit value stack. No recursion, O(1) call-stack depth.
+
+enum class TokenKind { NUMBER, OP, LPAREN, RPAREN, COMMA, FUNC, UNARY_NEG };
+
+struct Token {
+    TokenKind kind;
+    double value;
+    char op;
+    std::string name;
+    int argc;
+};
+
+static int OpPrecedence(char op) {
+    if(op == '+' || op == '-') return 1;
+    if(op == '*' || op == '/') return 2;
+    return 0;
+}
+
+static bool IsIdentStart(char c) {
+    return std::isalpha(static_cast<unsigned char>(c)) || c == '_';
+}
+
+static bool IsIdentChar(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+static double ApplyFunc(std::string const & name, double const * args, int argc, std::string const & expr) {
+    if(argc == 1) {
+        double a = args[0];
+        if(name == "sin") return std::sin(a);
+        if(name == "cos") return std::cos(a);
+        if(name == "tan") return std::tan(a);
+        if(name == "asin") return std::asin(a);
+        if(name == "acos") return std::acos(a);
+        if(name == "atan") return std::atan(a);
+        if(name == "exp") return std::exp(a);
+        if(name == "log") return std::log(a);
+        if(name == "sqrt") return std::sqrt(a);
+        if(name == "abs") return std::fabs(a);
+    } else if(argc == 2) {
+        double a = args[0], b = args[1];
+        if(name == "pow") return std::pow(a, b);
+        if(name == "atan2") return std::atan2(a, b);
+        if(name == "min") return std::min(a, b);
+        if(name == "max") return std::max(a, b);
+    }
+    throw std::runtime_error("GDML expression error: unknown function '" + name + "' in '" + expr + "'");
+}
+
+static std::vector<Token> Tokenize(std::string const & s, std::map<std::string, double> const & constants, std::string const & expr) {
+    std::vector<Token> tokens;
+    size_t i = 0;
+    while(i < s.size()) {
+        char c = s[i];
+        if(c == ' ' || c == '\t' || c == '\n' || c == '\r') { ++i; continue; }
+
+        if(c == '(') { tokens.push_back({TokenKind::LPAREN}); ++i; continue; }
+        if(c == ')') { tokens.push_back({TokenKind::RPAREN}); ++i; continue; }
+        if(c == ',') { tokens.push_back({TokenKind::COMMA}); ++i; continue; }
+
+        if(c == '+' || c == '-' || c == '*' || c == '/') {
+            bool is_unary = (c == '-' || c == '+') &&
+                (tokens.empty() || tokens.back().kind == TokenKind::LPAREN ||
+                 tokens.back().kind == TokenKind::OP || tokens.back().kind == TokenKind::COMMA ||
+                 tokens.back().kind == TokenKind::UNARY_NEG);
+            if(is_unary && c == '-') {
+                tokens.push_back({TokenKind::UNARY_NEG});
+            } else if(is_unary && c == '+') {
+                // unary plus: skip
+            } else {
+                Token t; t.kind = TokenKind::OP; t.op = c;
+                tokens.push_back(t);
+            }
+            ++i; continue;
+        }
+
+        if(std::isdigit(static_cast<unsigned char>(c)) || c == '.') {
+            size_t pos = 0;
+            double val = std::stod(s.substr(i), &pos);
+            Token t; t.kind = TokenKind::NUMBER; t.value = val;
+            tokens.push_back(t);
+            i += pos; continue;
+        }
+
+        if(IsIdentStart(c)) {
+            size_t start = i;
+            while(i < s.size() && IsIdentChar(s[i])) ++i;
+            std::string name = s.substr(start, i - start);
+            size_t j = i;
+            while(j < s.size() && (s[j] == ' ' || s[j] == '\t')) ++j;
+            if(j < s.size() && s[j] == '(') {
+                Token t; t.kind = TokenKind::FUNC; t.name = name; t.argc = 1;
+                tokens.push_back(t);
+            } else {
+                auto it = constants.find(name);
+                if(it == constants.end()) {
+                    throw std::runtime_error("GDML expression error: unknown constant '" + name + "' in '" + expr + "'");
+                }
+                Token t; t.kind = TokenKind::NUMBER; t.value = it->second;
+                tokens.push_back(t);
+            }
+            continue;
+        }
+
+        throw std::runtime_error("GDML expression error: unexpected character '" + std::string(1, c) + "' in '" + expr + "'");
+    }
+    return tokens;
+}
+
 double EvalExpression(std::string const & expr, std::map<std::string, double> const & constants) {
     std::string s = TrimWhitespace(expr);
     if(s.empty()) return 0.0;
 
-    // Try simple numeric literal first (fast path)
+    // Fast path: bare number
     {
         size_t pos = 0;
         try {
             double val = std::stod(s, &pos);
             if(pos == s.size()) return val;
         } catch(std::invalid_argument &) {
-            // Not a simple number, continue to expression parsing
         } catch(std::out_of_range &) {
             return 0.0;
         }
     }
 
-    // Try constant lookup for bare names (no operators)
+    // Fast path: bare constant name
     {
-        bool is_name = true;
+        bool bare = true;
         for(size_t i = 0; i < s.size(); ++i) {
-            char c = s[i];
-            if(!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
-                is_name = false;
-                break;
-            }
+            if(!IsIdentChar(s[i])) { bare = false; break; }
         }
-        if(is_name) {
+        if(bare && IsIdentStart(s[0])) {
             auto it = constants.find(s);
             if(it != constants.end()) return it->second;
             throw std::runtime_error("GDML expression error: unknown constant '" + s + "'");
         }
     }
 
-    // Handle unary negation at the start: "-expr"
-    if(s[0] == '-' && s.size() > 1) {
-        // Check if this is just a negative number (already handled above via stod)
-        // so this must be negation of an expression like "-det_length"
-        return -EvalExpression(s.substr(1), constants);
+    std::vector<Token> tokens = Tokenize(s, constants, expr);
+
+    // Shunting-yard: convert to RPN
+    std::vector<Token> output;
+    std::vector<Token> op_stack;
+    output.reserve(tokens.size());
+    op_stack.reserve(tokens.size());
+
+    for(size_t i = 0; i < tokens.size(); ++i) {
+        Token const & tok = tokens[i];
+        switch(tok.kind) {
+        case TokenKind::NUMBER:
+            output.push_back(tok);
+            break;
+        case TokenKind::FUNC:
+            op_stack.push_back(tok);
+            break;
+        case TokenKind::COMMA:
+            while(!op_stack.empty() && op_stack.back().kind != TokenKind::LPAREN) {
+                output.push_back(op_stack.back());
+                op_stack.pop_back();
+            }
+            if(!op_stack.empty() && op_stack.size() >= 2) {
+                Token & func_below = op_stack[op_stack.size() - 2];
+                if(func_below.kind == TokenKind::FUNC) func_below.argc++;
+            }
+            break;
+        case TokenKind::OP:
+            while(!op_stack.empty() && op_stack.back().kind == TokenKind::OP &&
+                  OpPrecedence(op_stack.back().op) >= OpPrecedence(tok.op)) {
+                output.push_back(op_stack.back());
+                op_stack.pop_back();
+            }
+            op_stack.push_back(tok);
+            break;
+        case TokenKind::UNARY_NEG:
+            op_stack.push_back(tok);
+            break;
+        case TokenKind::LPAREN:
+            op_stack.push_back(tok);
+            break;
+        case TokenKind::RPAREN:
+            while(!op_stack.empty() && op_stack.back().kind != TokenKind::LPAREN) {
+                output.push_back(op_stack.back());
+                op_stack.pop_back();
+            }
+            if(op_stack.empty()) {
+                throw std::runtime_error("GDML expression error: mismatched parentheses in '" + expr + "'");
+            }
+            op_stack.pop_back(); // pop LPAREN
+            if(!op_stack.empty() && op_stack.back().kind == TokenKind::FUNC) {
+                output.push_back(op_stack.back());
+                op_stack.pop_back();
+            }
+            break;
+        }
     }
-    if(s[0] == '+' && s.size() > 1) {
-        return EvalExpression(s.substr(1), constants);
+    while(!op_stack.empty()) {
+        if(op_stack.back().kind == TokenKind::LPAREN) {
+            throw std::runtime_error("GDML expression error: mismatched parentheses in '" + expr + "'");
+        }
+        output.push_back(op_stack.back());
+        op_stack.pop_back();
     }
 
-    // Strip outer parentheses if they match
-    if(s.front() == '(' && s.back() == ')') {
-        int depth = 0;
-        bool matched = true;
-        for(size_t i = 0; i < s.size(); ++i) {
-            if(s[i] == '(') ++depth;
-            else if(s[i] == ')') --depth;
-            if(depth == 0 && i < s.size() - 1) {
-                matched = false;
+    // Evaluate RPN
+    std::vector<double> val_stack;
+    val_stack.reserve(output.size());
+    for(auto const & tok : output) {
+        switch(tok.kind) {
+        case TokenKind::NUMBER:
+            val_stack.push_back(tok.value);
+            break;
+        case TokenKind::OP: {
+            if(val_stack.size() < 2) {
+                throw std::runtime_error("GDML expression error: malformed expression '" + expr + "'");
+            }
+            double b = val_stack.back(); val_stack.pop_back();
+            double a = val_stack.back(); val_stack.pop_back();
+            switch(tok.op) {
+            case '+': val_stack.push_back(a + b); break;
+            case '-': val_stack.push_back(a - b); break;
+            case '*': val_stack.push_back(a * b); break;
+            case '/':
+                if(b == 0.0) throw std::runtime_error("GDML expression error: division by zero in '" + expr + "'");
+                val_stack.push_back(a / b);
                 break;
             }
+            break;
         }
-        if(matched) {
-            return EvalExpression(s.substr(1, s.size() - 2), constants);
-        }
-    }
-
-    // Find the lowest-precedence operator not inside parentheses.
-    // Scan right-to-left for + or - (lowest precedence, left-associative),
-    // then for * or / if no + or - found.
-    auto findSplitOp = [&](std::string const & ops) -> int {
-        int depth = 0;
-        for(int i = static_cast<int>(s.size()) - 1; i >= 0; --i) {
-            if(s[i] == ')') ++depth;
-            else if(s[i] == '(') --depth;
-            if(depth != 0) continue;
-
-            for(char op : ops) {
-                if(s[i] == op) {
-                    // Don't split on a unary +/- at position 0
-                    if(i == 0) continue;
-                    // Don't split on +/- after another operator (e.g. "3*-2")
-                    char prev = s[i - 1];
-                    if(prev == '+' || prev == '-' || prev == '*' || prev == '/') continue;
-                    return i;
-                }
+        case TokenKind::UNARY_NEG: {
+            if(val_stack.empty()) {
+                throw std::runtime_error("GDML expression error: malformed expression '" + expr + "'");
             }
+            val_stack.back() = -val_stack.back();
+            break;
         }
-        return -1;
-    };
-
-    // Try + and - first (lowest precedence)
-    int splitPos = findSplitOp("+-");
-    if(splitPos > 0) {
-        double left = EvalExpression(s.substr(0, splitPos), constants);
-        double right = EvalExpression(s.substr(splitPos + 1), constants);
-        if(s[splitPos] == '+') return left + right;
-        else return left - right;
+        case TokenKind::FUNC: {
+            int argc = tok.argc;
+            if(static_cast<int>(val_stack.size()) < argc) {
+                throw std::runtime_error("GDML expression error: not enough arguments for '" + tok.name + "' in '" + expr + "'");
+            }
+            double args[2];
+            for(int j = argc - 1; j >= 0; --j) {
+                args[j] = val_stack.back();
+                val_stack.pop_back();
+            }
+            val_stack.push_back(ApplyFunc(tok.name, args, argc, expr));
+            break;
+        }
+        default:
+            throw std::runtime_error("GDML expression error: unexpected token in RPN for '" + expr + "'");
+        }
     }
-
-    // Try * and /
-    splitPos = findSplitOp("*/");
-    if(splitPos > 0) {
-        double left = EvalExpression(s.substr(0, splitPos), constants);
-        double right = EvalExpression(s.substr(splitPos + 1), constants);
-        if(s[splitPos] == '*') return left * right;
-        if(right == 0.0) throw std::runtime_error("GDML expression error: division by zero in '" + s + "'");
-        return left / right;
+    if(val_stack.size() != 1) {
+        throw std::runtime_error("GDML expression error: malformed expression '" + expr + "'");
     }
-
-    // Could not parse
-    throw std::runtime_error("GDML expression error: failed to parse '" + s + "'");
+    return val_stack[0];
 }
 
 // Parse a double from a string, returning 0 if empty.
