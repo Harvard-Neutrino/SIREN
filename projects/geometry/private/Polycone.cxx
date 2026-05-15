@@ -175,33 +175,8 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
-    static constexpr int STACK_CAPACITY = 128;
-    Intersection stack_hits[STACK_CAPACITY];
-    std::vector<Intersection> heap_hits;
+    Intersection hits[32];
     int n_hits = 0;
-    bool using_heap = false;
-
-    auto add_hit = [&](double dist, int hierarchy, bool entering,
-                       double hx, double hy, double hz) {
-        Intersection isect;
-        isect.distance = dist;
-        isect.hierarchy = hierarchy;
-        isect.entering = entering;
-        isect.position = siren::math::Vector3D(hx, hy, hz);
-        if(!using_heap) {
-            if(n_hits < STACK_CAPACITY) {
-                stack_hits[n_hits++] = isect;
-            } else {
-                using_heap = true;
-                heap_hits.assign(stack_hits, stack_hits + STACK_CAPACITY);
-                heap_hits.push_back(isect);
-                n_hits++;
-            }
-        } else {
-            heap_hits.push_back(isect);
-            n_hits++;
-        }
-    };
 
     double intersection_x;
     double intersection_y;
@@ -274,7 +249,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = entering_cone(a_outer, b_outer);
-                                add_hit(t1, 0, entering, intersection_x, intersection_y, intersection_z);
+                                if(n_hits < 32) { hits[n_hits].distance = t1; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                             }
                         }
 
@@ -285,7 +260,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = entering_cone(a_outer, b_outer);
-                                add_hit(t2, 0, entering, intersection_x, intersection_y, intersection_z);
+                                if(n_hits < 32) { hits[n_hits].distance = t2; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                             }
                         }
                     }
@@ -302,7 +277,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = entering_cone(a_outer, b_outer);
-                            add_hit(t1, 0, entering, intersection_x, intersection_y, intersection_z);
+                            if(n_hits < 32) { hits[n_hits].distance = t1; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                         }
                     }
                 }
@@ -342,7 +317,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = !entering_cone(a_inner, b_inner);
-                                add_hit(t1, 0, entering, intersection_x, intersection_y, intersection_z);
+                                if(n_hits < 32) { hits[n_hits].distance = t1; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                             }
                         }
 
@@ -353,7 +328,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = !entering_cone(a_inner, b_inner);
-                                add_hit(t2, 0, entering, intersection_x, intersection_y, intersection_z);
+                                if(n_hits < 32) { hits[n_hits].distance = t2; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                             }
                         }
                     }
@@ -369,7 +344,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = !entering_cone(a_inner, b_inner);
-                            add_hit(t1, 0, entering, intersection_x, intersection_y, intersection_z);
+                            if(n_hits < 32) { hits[n_hits].distance = t1; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                         }
                     }
                 }
@@ -395,7 +370,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             double rmin_cap = rmin_.front();
             if(r2_hit <= rmax_cap * rmax_cap && r2_hit >= rmin_cap * rmin_cap) {
                 intersection_z = pz + t * dz;
-                add_hit(t, 0, dz > 0, intersection_x, intersection_y, intersection_z);
+                if(n_hits < 32) { hits[n_hits].distance = t; hits[n_hits].hierarchy = 0; hits[n_hits].entering = dz > 0; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
             }
         }
 
@@ -415,7 +390,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             double rmin_cap = rmin_.back();
             if(r2_hit <= rmax_cap * rmax_cap && r2_hit >= rmin_cap * rmin_cap) {
                 intersection_z = pz + t * dz;
-                add_hit(t, 0, dz < 0, intersection_x, intersection_y, intersection_z);
+                if(n_hits < 32) { hits[n_hits].distance = t; hits[n_hits].hierarchy = 0; hits[n_hits].entering = dz < 0; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
             }
         }
     }
@@ -466,7 +441,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                     // Material exists on the side with larger rmax
                     // entering = moving into material
                     bool entering = (rmax_above > rmax_below) ? (dz > 0) : (dz < 0);
-                    add_hit(t, 0, entering, intersection_x, intersection_y, intersection_z);
+                    if(n_hits < 32) { hits[n_hits].distance = t; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                 }
             }
 
@@ -478,7 +453,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                     // Hole grows on the side with larger rmin,
                     // so material exists on the side with smaller rmin
                     bool entering = (rmin_above > rmin_below) ? (dz < 0) : (dz > 0);
-                    add_hit(t, 0, entering, intersection_x, intersection_y, intersection_z);
+                    if(n_hits < 32) { hits[n_hits].distance = t; hits[n_hits].hierarchy = 0; hits[n_hits].entering = entering; hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z); n_hits++; }
                 }
             }
 
@@ -486,15 +461,11 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
         }
     }
 
-    auto cmp = [](Intersection const & a, Intersection const & b) {
+    if(n_hits == 0) return {};
+    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    };
-    if(using_heap) {
-        std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-        return heap_hits;
-    }
-    std::sort(stack_hits, stack_hits + n_hits, cmp);
-    return {stack_hits, stack_hits + n_hits};
+    });
+    return {hits, hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //
