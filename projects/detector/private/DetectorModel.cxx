@@ -638,24 +638,45 @@ void DetectorModel::LoadGDML(std::string const & filename) {
     LoadDefaultMaterials();
     LoadDefaultSectors();
 
+    // Recursive helper to resolve a material component to its elemental PDG fractions.
+    // Returns map of PDG code -> fraction.
+    std::function<std::map<int,double>(std::string const &, double)> resolve_component;
+    resolve_component = [&](std::string const & comp_name, double weight) -> std::map<int,double> {
+        std::map<int,double> result;
+        if(!data.materials.count(comp_name)) return result;
+        GDMLMaterial const & comp = data.materials.at(comp_name);
+        if(!comp.composition.empty()) {
+            // This component is itself a composite -- recurse
+            for(auto const & sub : comp.composition) {
+                auto sub_result = resolve_component(sub.first, weight * sub.second);
+                for(auto const & p : sub_result) {
+                    result[p.first] += p.second;
+                }
+            }
+        } else {
+            // Simple element
+            int Z = (int)comp.Z;
+            int A = (int)std::round(comp.A);
+            if(Z > 0 && A > 0) {
+                int pdg = 1000000000 + Z * 10000 + A * 10;
+                result[pdg] += weight;
+            }
+        }
+        return result;
+    };
+
     // Add GDML materials to MaterialModel
     for(auto const & mat_pair : data.materials) {
         std::string const & mat_name = mat_pair.first;
         GDMLMaterial const & mat = mat_pair.second;
         if(!materials_.HasMaterial(mat_name)) {
             if(!mat.composition.empty()) {
-                // Composite material: convert element fractions to PDG codes
+                // Composite material: recursively resolve to elemental PDG codes
                 std::map<int, double> pdg_fracs;
-                // Map Z to PDG nuclear code: 1000000000 + Z*10000 + A*10
                 for(auto const & comp_pair : mat.composition) {
-                    std::string const & comp_name = comp_pair.first;
-                    double frac = comp_pair.second;
-                    if(data.materials.count(comp_name)) {
-                        GDMLMaterial const & comp = data.materials.at(comp_name);
-                        int Z = (int)comp.Z;
-                        int A = (int)std::round(comp.A);
-                        int pdg = 1000000000 + Z * 10000 + A * 10;
-                        pdg_fracs[pdg] = frac;
+                    auto resolved = resolve_component(comp_pair.first, comp_pair.second);
+                    for(auto const & p : resolved) {
+                        pdg_fracs[p.first] += p.second;
                     }
                 }
                 if(!pdg_fracs.empty()) {
@@ -673,26 +694,32 @@ void DetectorModel::LoadGDML(std::string const & filename) {
         }
     }
 
-    // Flatten volume tree into sectors and build volume tree simultaneously.
-    // Uses a recursive helper to maintain parent-child relationships.
-    volume_tree_nodes_.clear();
-    volume_tree_root_ = -1;
-
+    // Flatten GDML volume hierarchy into sectors.
+    // Uses a recursive helper to walk the tree.
     struct BuildContext {
         DetectorModel & dm;
         GDMLData const & data;
         int level;
+        std::set<std::string> visited; // cycle detection
         BuildContext(DetectorModel & dm_, GDMLData const & data_) : dm(dm_), data(data_), level(0) {}
 
-        // Returns the volume tree node index, or -1 if the volume was not found
-        int BuildVolume(std::string const & volume_name, Placement const & global_placement) {
+        void BuildVolume(std::string const & volume_name, Placement const & global_placement) {
+            if(visited.count(volume_name)) {
+                std::cerr << "Warning: circular volume reference detected for '" << volume_name << "', skipping" << std::endl;
+                return;
+            }
             auto it = data.volumes.find(volume_name);
-            if(it == data.volumes.end()) return -1;
+            if(it == data.volumes.end()) return;
+
+            visited.insert(volume_name);
 
             GDMLVolume const & vol = it->second;
             auto solid_it = data.solids.find(vol.solid_ref);
             auto mat_it = data.materials.find(vol.material_ref);
-            if(solid_it == data.solids.end() || mat_it == data.materials.end()) return -1;
+            if(solid_it == data.solids.end() || mat_it == data.materials.end()) {
+                visited.erase(volume_name);
+                return;
+            }
 
             // Create sector
             DetectorSector sector;
@@ -716,12 +743,7 @@ void DetectorModel::LoadGDML(std::string const & filename) {
             }
             sector.density = ConstantDensityDistribution(mat_it->second.density).create();
 
-            int sector_idx = (int)dm.sectors_.size();
             dm.AddSector(sector);
-
-            // Create tree node
-            int node_idx = (int)dm.volume_tree_nodes_.size();
-            dm.volume_tree_nodes_.push_back(VolumeTreeNode{sector_idx, {}});
 
             // Recurse into children
             for(auto const & child : vol.children) {
@@ -729,18 +751,15 @@ void DetectorModel::LoadGDML(std::string const & filename) {
                 Quaternion child_rot = global_placement.GetQuaternion() * child.rotation;
                 Placement child_global(child_pos, child_rot);
 
-                int child_node = BuildVolume(child.volume_ref, child_global);
-                if(child_node >= 0) {
-                    dm.volume_tree_nodes_[node_idx].children.push_back(child_node);
-                }
+                BuildVolume(child.volume_ref, child_global);
             }
 
-            return node_idx;
+            visited.erase(volume_name);
         }
     };
 
     BuildContext ctx(*this, data);
-    volume_tree_root_ = ctx.BuildVolume(data.world_volume, Placement());
+    ctx.BuildVolume(data.world_volume, Placement());
 
     bvh_dirty_ = true;
 }
@@ -1530,19 +1549,6 @@ int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices,
     return node_idx;
 }
 
-// ---------------------------------------------------------------------------
-// BVH traversal
-// ---------------------------------------------------------------------------
-
-// TraverseBVH is now inlined into GetIntersections as an iterative traversal.
-// Kept as a no-op to satisfy the header declaration.
-void DetectorModel::TraverseBVH(
-    int /*node_idx*/,
-    math::Vector3D const & /*position*/,
-    math::Vector3D const & /*direction*/,
-    math::Vector3D const & /*inv_direction*/,
-    Geometry::IntersectionList & /*intersections*/) const {}
-
 // Helper: append a sector's intersections into the output list
 static inline void AppendSectorIntersections(
     siren::detector::DetectorSector const & sector,
@@ -1640,72 +1646,6 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
     return intersections;
 }
 
-// ---------------------------------------------------------------------------
-// Volume tree traversal: only test children when parent is hit
-// ---------------------------------------------------------------------------
-
-void DetectorModel::TraverseVolumeTree(
-    int node_idx,
-    math::Vector3D const & position,
-    math::Vector3D const & direction,
-    Geometry::IntersectionList & intersections) const {
-    VolumeTreeNode const & node = volume_tree_nodes_[node_idx];
-    DetectorSector const & sector = sectors_[node.sector_index];
-
-    // Test this volume's geometry
-    std::vector<Geometry::Intersection> hits = sector.geo->Intersections(position, direction);
-
-    if(hits.empty()) {
-        // Ray misses this volume entirely -- skip all descendants
-        return;
-    }
-
-    // Record this volume's intersections
-    size_t prev_size = intersections.intersections.size();
-    intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
-    for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
-        intersections.intersections[j].hierarchy = sector.level;
-        intersections.intersections[j].matID = sector.material_id;
-    }
-
-    // Recurse into children
-    for(int child_idx : node.children) {
-        TraverseVolumeTree(child_idx, position, direction, intersections);
-    }
-}
-
-Geometry::IntersectionList DetectorModel::GetIntersectionsTree(GeometryPosition const & p0, GeometryDirection const & direction) const {
-    Geometry::IntersectionList intersections;
-    intersections.position = p0;
-    intersections.direction = direction;
-
-    // Always test excluded sectors (infinite UNIVERSE)
-    if(bvh_dirty_) {
-        RebuildBVH(); // need bvh_excluded_sectors_ list
-    }
-    for(unsigned int idx : bvh_excluded_sectors_) {
-        DetectorSector const & sector = sectors_[idx];
-        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
-        size_t prev_size = intersections.intersections.size();
-        intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
-        for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
-            intersections.intersections[j].hierarchy = sector.level;
-            intersections.intersections[j].matID = sector.material_id;
-        }
-    }
-
-    // Traverse volume tree from root
-    if(volume_tree_root_ >= 0) {
-        TraverseVolumeTree(volume_tree_root_, p0, direction, intersections);
-    }
-
-    SortIntersections(intersections);
-    return intersections;
-}
-
-Geometry::IntersectionList DetectorModel::GetIntersectionsTree(DetectorPosition const & p0, DetectorDirection const & direction) const {
-    return GetIntersectionsTree(ToGeo(p0), ToGeo(direction));
-}
 
 void DetectorModel::SortIntersections(Geometry::IntersectionList & intersections) {
     SortIntersections(intersections.intersections);
@@ -1768,7 +1708,13 @@ Geometry::IntersectionList DetectorModel::GetOuterBounds(GeometryPosition const 
 }
 
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(GeometryPosition const & vertex) const {
-    int matID = GetContainingSectorDirect(vertex).material_id;
+    DetectorSector sector = GetContainingSectorDirect(vertex);
+    if(!sector.density) {
+        Vector3D direction(1,0,0);
+        Geometry::IntersectionList intersections = GetIntersections(vertex, GeometryDirection(direction));
+        return GetAvailableTargets(intersections, vertex);
+    }
+    int matID = sector.material_id;
     std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
     return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
 }
