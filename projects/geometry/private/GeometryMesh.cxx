@@ -132,6 +132,7 @@ bool TriangularMesh::equal(const Geometry& geometry) const
 bool TriangularMesh::less(const Geometry& geometry) const
 {
     const TriangularMesh* tmesh = dynamic_cast<const TriangularMesh*>(&geometry);
+    if(!tmesh) return false;
 
     return mesh < tmesh->mesh;
 }

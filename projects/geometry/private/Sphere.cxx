@@ -246,6 +246,7 @@ bool Sphere::equal(const Geometry& geometry) const
 bool Sphere::less(const Geometry& geometry) const
 {
     const Sphere* sphere = dynamic_cast<const Sphere*>(&geometry);
+    if(!sphere) return false;
 
     return std::tie(inner_radius_, radius_, start_phi_, delta_phi_, start_theta_, delta_theta_)
          < std::tie(sphere->inner_radius_, sphere->radius_, sphere->start_phi_, sphere->delta_phi_, sphere->start_theta_, sphere->delta_theta_);

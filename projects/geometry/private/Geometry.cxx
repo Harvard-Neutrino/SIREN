@@ -8,6 +8,7 @@
 #include <typeinfo>
 #include <typeindex>
 #include <algorithm>
+#include <unordered_map>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/AABB.h"
@@ -168,12 +169,16 @@ siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D con
 // Per-instance mutex for GetWorldBoundingBox() double-checked locking.
 // Stored externally to avoid adding non-trivial members to Geometry
 // (which would break implicit copy/assignment in the many derived classes).
+// Uses a map keyed by pointer so different instances don't serialize each other.
 static std::recursive_mutex & GetWorldAABBMutex(Geometry const * geo) {
-    static std::recursive_mutex global_mtx;
     // Recursive mutex needed because BooleanGeometry::GetBoundingBox() calls
     // GetWorldBoundingBox() on its children while the parent's lock is held.
-    (void)geo;
-    return global_mtx;
+    static std::mutex map_mtx;
+    static std::unordered_map<Geometry const *, std::unique_ptr<std::recursive_mutex>> map;
+    std::lock_guard<std::mutex> guard(map_mtx);
+    auto & ptr = map[geo];
+    if(!ptr) ptr = std::make_unique<std::recursive_mutex>();
+    return *ptr;
 }
 
 AABB Geometry::GetWorldBoundingBox() const {
