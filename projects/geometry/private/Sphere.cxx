@@ -270,22 +270,28 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
     double pp = px*px + py*py + pz*pz;
     double pd = px*dx + py*dy + pz*dz;
 
-    // Max intersections: 4 (sphere surfaces) + 4 (phi planes) + 8 (theta cones) = 16
-    Intersection hits[16];
-    int n_hits = 0;
-
-    auto add_hit = [&](double t, bool entering) {
-        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
-        hits[n_hits].distance = t;
-        hits[n_hits].hierarchy = 0;
-        hits[n_hits].entering = entering;
-        hits[n_hits].position = siren::math::Vector3D(px + t*dx, py + t*dy, pz + t*dz);
-        n_hits++;
+    // The sphere with angular cuts is treated as:
+    //   (spherical shell) AND (phi wedge) AND (theta band)
+    // Each component produces independent enter/exit pairs. A CSG intersection
+    // walk combines them without tolerance-dependent filtering or heuristics.
+    // Source tags: 0 = shell, 1 = phi wedge, 2 = theta band
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source;
     };
 
-    // ---- Spherical surface intersections ----
-    // For each shell (outer, inner), solve the quadratic and filter by angular range.
+    TaggedHit all_hits[16]; // max: 4 shell + 4 phi planes + 8 theta cones
+    int n_all = 0;
 
+    auto add_hit = [&](double t, bool entering, int source) {
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+        all_hits[n_all] = {t, siren::math::Vector3D(px + t*dx, py + t*dy, pz + t*dz), entering, source};
+        n_all++;
+    };
+
+    // ---- Shell intersections (no angular filtering) ----
     auto solve_shell = [&](double r, bool is_outer) {
         double A = pp - r * r;
         double det = pd * pd - A;
@@ -295,12 +301,8 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
         double t2 = -pd + sq;
         for(int k = 0; k < 2; ++k) {
             double t = (k == 0) ? t1 : t2;
-            double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
-            // Angular filter
-            if(has_phi_cut_ && !PhiInRange(hx, hy, start_phi_, delta_phi_)) continue;
-            if(has_theta_cut_ && !ThetaInRange(hx, hy, hz, start_theta_, delta_theta_)) continue;
             bool entering = is_outer ? (k == 0) : (k == 1);
-            add_hit(t, entering);
+            add_hit(t, entering, 0);
         }
     };
 
@@ -309,75 +311,43 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
         solve_shell(inner_radius_, false);
     }
 
-    // ---- Phi boundary planes ----
+    // ---- Infinite phi wedge (no radial/theta bounds) ----
     if(has_phi_cut_) {
-        double r2_outer = radius_ * radius_;
-        double r2_inner = inner_radius_ * inner_radius_;
-        // Two planes at start_phi and start_phi + delta_phi
         for(int face = 0; face < 2; ++face) {
             double alpha = start_phi_ + face * delta_phi_;
             double ca = std::cos(alpha), sa = std::sin(alpha);
-            // Outward-pointing normal (away from the phi range interior).
-            // Face 0 (start_phi boundary): outward = clockwise from radial = (sin(alpha), -cos(alpha), 0)
-            // Face 1 (end_phi boundary): outward = counter-clockwise from radial = (-sin(alpha), cos(alpha), 0)
             double nx, ny;
-            if(face == 0) {
-                nx = sa; ny = -ca;
-            } else {
-                nx = -sa; ny = ca;
-            }
+            if(face == 0) { nx = sa; ny = -ca; }
+            else { nx = -sa; ny = ca; }
             double n_dot_d = nx*dx + ny*dy;
-            if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue; // parallel
+            if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
             double n_dot_p = nx*px + ny*py;
             double t = -n_dot_p / n_dot_d;
-            if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
-
-            double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
-            // Must be on outward side of z-axis (the half-plane, not the full plane)
+            double hx = px + t*dx, hy = py + t*dy;
+            // Must be on the correct half-plane (outward from z-axis)
             if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
-            // Radial bounds
-            double r2_hit = hx*hx + hy*hy + hz*hz;
-            if(r2_hit > r2_outer + GEOMETRY_PRECISION) continue;
-            if(r2_hit < r2_inner - GEOMETRY_PRECISION) continue;
-            // Theta filter
-            if(has_theta_cut_ && !ThetaInRange(hx, hy, hz, start_theta_, delta_theta_)) continue;
-            // Entering: ray crosses into the phi range
             bool entering = (n_dot_d < 0);
-            add_hit(t, entering);
+            add_hit(t, entering, 1);
         }
     }
 
-    // ---- Theta boundary cones ----
+    // ---- Infinite theta band boundaries (no radial/phi bounds) ----
     if(has_theta_cut_) {
-        double r2_outer = radius_ * radius_;
-        double r2_inner = inner_radius_ * inner_radius_;
-        // Two cones at start_theta and start_theta + delta_theta
         for(int face = 0; face < 2; ++face) {
             double theta0 = start_theta_ + face * delta_theta_;
-
-            // Special case: theta0 ~ 0 or theta0 ~ pi => degenerate cone (z-axis)
+            // Degenerate cone at theta=0 or theta=pi (z-axis): skip
             if(theta0 < 1e-12 || std::fabs(theta0 - M_PI) < 1e-12) continue;
 
-            // Special case: theta0 ~ pi/2 => flat disk at z = 0
             if(std::fabs(theta0 - M_PI / 2.0) < 1e-12) {
-                if(std::fabs(dz) < GEOMETRY_PRECISION) continue; // parallel to disk
+                // theta = pi/2 is the z=0 plane
+                if(std::fabs(dz) < GEOMETRY_PRECISION) continue;
                 double t = -pz / dz;
-                if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
-                double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
-                double r2_hit = hx*hx + hy*hy + hz*hz;
-                if(r2_hit > r2_outer + GEOMETRY_PRECISION) continue;
-                if(r2_hit < r2_inner - GEOMETRY_PRECISION) continue;
-                if(has_phi_cut_ && !PhiInRange(hx, hy, start_phi_, delta_phi_)) continue;
-                // Entering: for face 0 (upper theta boundary), entering means
-                // going from lower theta (above) to higher theta (below)
-                // Normal of z=0 plane points in +z direction
                 bool entering = (face == 0) ? (dz < 0) : (dz > 0);
-                add_hit(t, entering);
+                add_hit(t, entering, 2);
                 continue;
             }
 
-            // General case: cone at polar angle theta0
-            // Equation: x^2 + y^2 - z^2 * tan^2(theta0) = 0
+            // General cone at polar angle theta0
             double tan_t = std::tan(theta0);
             double tan2 = tan_t * tan_t;
             double A = dx*dx + dy*dy - dz*dz * tan2;
@@ -397,84 +367,109 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
                 } else {
                     continue;
                 }
-                if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
 
                 double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
-                // Check z-sign: for theta0 < pi/2, the cone is in the +z hemisphere
-                // for theta0 > pi/2, the cone is in the -z hemisphere
+                // Correct hemisphere check
                 if(theta0 < M_PI / 2.0 && hz < -GEOMETRY_PRECISION) continue;
                 if(theta0 > M_PI / 2.0 && hz > GEOMETRY_PRECISION) continue;
-                // Radial bounds
-                double r2_hit = hx*hx + hy*hy + hz*hz;
-                if(r2_hit > r2_outer + GEOMETRY_PRECISION) continue;
-                if(r2_hit < r2_inner - GEOMETRY_PRECISION) continue;
-                // Phi filter
-                if(has_phi_cut_ && !PhiInRange(hx, hy, start_phi_, delta_phi_)) continue;
-                // Entering: the cone normal at the hit point.
-                // The cone surface x^2+y^2-z^2*tan2=0 has gradient (2x, 2y, -2z*tan2).
-                // For face 0 (start_theta), the inward-pointing normal (into the theta range)
-                // points toward higher theta (away from z-axis for theta < pi/2).
-                // For face 1 (end theta), inward normal points toward lower theta.
+
+                // Entering/exiting the theta band
                 double gnx = hx, gny = hy, gnz = -hz * tan2;
                 double g_dot_d = gnx*dx + gny*dy + gnz*dz;
-                // face 0: entering when moving INTO the theta range (away from cone on the lower-theta side)
-                // face 1: entering when moving INTO the theta range (away from cone on the higher-theta side)
                 bool entering;
                 if(face == 0) {
-                    // Start-theta cone: inward = toward higher theta = outward from z-axis
-                    entering = (g_dot_d > 0); // moving outward from cone = into the theta range
+                    entering = (g_dot_d > 0);
                 } else {
-                    // End-theta cone: inward = toward lower theta = inward toward z-axis
                     entering = (g_dot_d < 0);
                 }
-                add_hit(t, entering);
+                add_hit(t, entering, 2);
             }
         }
     }
 
-    if(n_hits == 0) return {};
-    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
+    if(n_all == 0) return {};
+
+    // No angular cuts: shell hits are the final result
+    if(!has_phi_cut_ && !has_theta_cut_) {
+        std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+            return a.distance < b.distance;
+        });
+        std::vector<Intersection> result;
+        result.reserve(n_all);
+        for(int i = 0; i < n_all; ++i) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = all_hits[i].entering;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        return result;
+    }
+
+    // Sort all hits by distance
+    std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
         return a.distance < b.distance;
     });
-    // Angular-cut edge fixup: rays grazing the boundary where a phi plane
-    // or theta cone meets the curved surface can produce an odd hit count
-    // due to numerical tolerance mismatches. Discard the unpaired hit
-    // closest to a boundary surface to maintain even parity.
-    if((has_phi_cut_ || has_theta_cut_) && n_hits % 2 != 0) {
-        int best = 0;
-        double best_dist = std::numeric_limits<double>::max();
-        for(int i = 0; i < n_hits; ++i) {
-            double hx = hits[i].position.GetX(), hy = hits[i].position.GetY();
-            double hz = hits[i].position.GetZ();
-            double min_d = best_dist;
-            if(has_phi_cut_) {
-                for(int f = 0; f < 2; ++f) {
-                    double alpha = start_phi_ + f * delta_phi_;
-                    double nx = std::sin(alpha), ny = -std::cos(alpha);
-                    double d = std::fabs(nx*hx + ny*hy);
-                    if(d < min_d) min_d = d;
-                }
-            }
-            if(has_theta_cut_) {
-                // Distance to theta-boundary cones
-                double rxy2 = hx*hx + hy*hy;
-                for(int f = 0; f < 2; ++f) {
-                    double theta0 = start_theta_ + f * delta_theta_;
-                    if(theta0 < 1e-12 || std::fabs(theta0 - M_PI) < 1e-12) continue;
-                    double tan_t = std::tan(theta0);
-                    double d = std::fabs(std::sqrt(rxy2) - std::fabs(hz) * tan_t);
-                    if(d < min_d) min_d = d;
-                }
-            }
-            if(min_d < best_dist) {
-                best_dist = min_d;
-                best = i;
+
+    // Determine initial states at t = -infinity.
+    // Shell: always starts outside (finite closed surface).
+    // Phi wedge: determine from first wedge hit or PhiInRange check.
+    // Theta band: determine from first theta hit or ThetaInRange check.
+    bool in_shell = false;
+    bool in_phi = !has_phi_cut_; // no phi cut means always "inside" the wedge
+    bool in_theta = !has_theta_cut_; // no theta cut means always "inside" the band
+
+    if(has_phi_cut_) {
+        bool found = false;
+        for(int i = 0; i < n_all; ++i) {
+            if(all_hits[i].source == 1) {
+                in_phi = !all_hits[i].entering;
+                found = true;
+                break;
             }
         }
-        for(int i = best; i < n_hits - 1; ++i) hits[i] = hits[i + 1];
-        n_hits--;
+        if(!found) {
+            in_phi = PhiInRange(px, py, start_phi_, delta_phi_);
+        }
     }
-    return {hits, hits + n_hits};
+
+    if(has_theta_cut_) {
+        bool found = false;
+        for(int i = 0; i < n_all; ++i) {
+            if(all_hits[i].source == 2) {
+                in_theta = !all_hits[i].entering;
+                found = true;
+                break;
+            }
+        }
+        if(!found) {
+            in_theta = ThetaInRange(px, py, pz, start_theta_, delta_theta_);
+        }
+    }
+
+    bool was_inside = in_shell && in_phi && in_theta;
+
+    // CSG intersection walk
+    std::vector<Intersection> result;
+    for(int i = 0; i < n_all; ++i) {
+        switch(all_hits[i].source) {
+            case 0: in_shell = all_hits[i].entering; break;
+            case 1: in_phi = all_hits[i].entering; break;
+            case 2: in_theta = all_hits[i].entering; break;
+        }
+        bool now_inside = in_shell && in_phi && in_theta;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //

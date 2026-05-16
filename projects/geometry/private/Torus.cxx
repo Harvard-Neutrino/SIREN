@@ -377,9 +377,17 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
 
     double R = rtor_;
 
-    // At most 4 outer + 4 inner + phi-plane hits = 16
-    Intersection hits[16];
-    int n_hits = 0;
+    // Solve full-rotation torus surface intersections (no phi filtering).
+    // Returns validated, deduplicated roots with entering/exiting flags.
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source; // 0 = surface, 1 = wedge
+    };
+
+    TaggedHit all_hits[16]; // max: 4 outer + 4 inner + 2 wedge planes = 10
+    int n_all = 0;
 
     auto solve_surface = [&](double r, bool invert_entering) {
         // Shift the ray origin to the closest approach point along the ray.
@@ -409,10 +417,6 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
         for(int i = 0; i < n_raw; ++i) raw_roots[i] += t_shift;
 
         // Validate and deduplicate roots.
-        // Ferrari's method can produce duplicate roots (same root from both
-        // quadratics) and the quartic comes from squaring the torus equation
-        // which can theoretically introduce extraneous roots.
-        // For each root: verify it satisfies the torus equation, then deduplicate.
         std::sort(raw_roots, raw_roots + n_raw);
         double roots[4];
         int n = 0;
@@ -421,13 +425,10 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
             double ix = px + t * dx;
             double iy = py + t * dy;
             double iz = pz + t * dz;
-            // Evaluate torus equation: (sqrt(x^2+y^2) - R)^2 + z^2 - r^2
             double rxy = std::sqrt(ix*ix + iy*iy);
             double residual = (rxy - R) * (rxy - R) + iz * iz - r * r;
-            // Scale tolerance by r^2 for relative error
             double tol = 1e-4 * (r * r + R * R);
-            if(std::fabs(residual) > tol) continue; // not a true intersection
-            // Deduplicate: skip if too close to the previous accepted root
+            if(std::fabs(residual) > tol) continue;
             double dedup_tol = 1e-6 * (1.0 + std::fabs(t));
             if(n > 0 && std::fabs(t - roots[n - 1]) < dedup_tol) continue;
             roots[n++] = t;
@@ -441,21 +442,15 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
             double iy = py + t * dy;
             double iz = pz + t * dz;
 
-            if(has_phi_cut_ && !PhiInRange(ix, iy, start_phi_, delta_phi_)) continue;
-
-            // Determine entering/exiting using the torus surface normal.
-            // The outward normal at a point on the torus surface is:
-            //   n = (point - R * (Pxy_hat, 0))
-            // where Pxy_hat is the unit vector from the z-axis to the point in the xy-plane.
+            // Entering/exiting from the torus surface normal
             double rxy = std::sqrt(ix*ix + iy*iy);
             double nx, ny, nz;
             if(rxy > GEOMETRY_PRECISION) {
                 double scale = R / rxy;
-                nx = ix - scale * ix;  // = ix * (1 - R/rxy)
-                ny = iy - scale * iy;  // = iy * (1 - R/rxy)
+                nx = ix - scale * ix;
+                ny = iy - scale * iy;
                 nz = iz;
             } else {
-                // Point is on the z-axis (degenerate case)
                 nx = ix;
                 ny = iy;
                 nz = iz;
@@ -464,85 +459,118 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
             bool entering = n_dot_d < 0;
             if(invert_entering) entering = !entering;
 
-            hits[n_hits].distance = t;
-            hits[n_hits].hierarchy = 0;
-            hits[n_hits].entering = entering;
-            hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
-            n_hits++;
+            all_hits[n_all] = {t, siren::math::Vector3D(ix, iy, iz), entering, 0};
+            n_all++;
         }
     };
 
-    // Outer surface
+    // Outer surface (full rotation, no phi filter)
     solve_surface(rmax_, false);
     // Inner surface (hollow torus)
     if(rmin_ > 0) {
         solve_surface(rmin_, true);
     }
 
-    // Phi-boundary plane intersections
-    if(has_phi_cut_) {
-        for(int face = 0; face < 2; ++face) {
-            double alpha = start_phi_ + face * delta_phi_;
-            double ca = std::cos(alpha), sa = std::sin(alpha);
-            // Outward-pointing normal (away from phi range interior)
-            // Face 0 (start_phi): outward = clockwise from radial
-            // Face 1 (end_phi): outward = counter-clockwise from radial
-            double nx, ny;
-            if(face == 0) { nx = sa; ny = -ca; }
-            else { nx = -sa; ny = ca; }
-            double n_dot_d = nx*dx + ny*dy;
-            if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
-            double n_dot_p = nx*px + ny*py;
-            double t = -n_dot_p / n_dot_d;
-            if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
-
-            double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
-            // Must be on outward side of z-axis
-            if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
-            // Must be within torus cross-section
-            double rxy = std::sqrt(hx*hx + hy*hy);
-            double d2 = (rxy - R)*(rxy - R) + hz*hz;
-            if(d2 > rmax_*rmax_ + GEOMETRY_PRECISION) continue;
-            if(rmin_ > 0 && d2 < rmin_*rmin_ - GEOMETRY_PRECISION) continue;
-            // Entering
-            bool entering = (n_dot_d < 0);
-            hits[n_hits].distance = t;
-            hits[n_hits].hierarchy = 0;
-            hits[n_hits].entering = entering;
-            hits[n_hits].position = siren::math::Vector3D(hx, hy, hz);
-            n_hits++;
+    if(!has_phi_cut_) {
+        // No phi cut: surface hits are the final result
+        if(n_all == 0) return {};
+        std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+            return a.distance < b.distance;
+        });
+        std::vector<Intersection> result;
+        result.reserve(n_all);
+        for(int i = 0; i < n_all; ++i) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = all_hits[i].entering;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
         }
+        return result;
     }
 
-    if(n_hits == 0) return {};
-    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
+    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis)
+    // No cross-section filtering — the CSG walk handles clipping naturally.
+    for(int face = 0; face < 2; ++face) {
+        double alpha = start_phi_ + face * delta_phi_;
+        double ca = std::cos(alpha), sa = std::sin(alpha);
+        // Outward-pointing normal (away from phi range interior)
+        double nx, ny;
+        if(face == 0) { nx = sa; ny = -ca; }
+        else { nx = -sa; ny = ca; }
+        double n_dot_d = nx*dx + ny*dy;
+        if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+        double n_dot_p = nx*px + ny*py;
+        double t = -n_dot_p / n_dot_d;
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+
+        double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+        // Must be on the correct half-plane (outward from z-axis)
+        if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+
+        bool entering = (n_dot_d < 0);
+        all_hits[n_all] = {t, siren::math::Vector3D(hx, hy, hz), entering, 1};
+        n_all++;
+    }
+
+    if(n_all == 0) return {};
+
+    // Sort all hits by distance
+    std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
         return a.distance < b.distance;
     });
-    // Phi-cut edge fixup: rays grazing the boundary where a phi plane meets
-    // the curved surface can produce an odd hit count due to one surface's
-    // intersection being just inside tolerance and its counterpart just outside.
-    // Discard the unpaired boundary hit to maintain even parity.
-    if(has_phi_cut_ && n_hits % 2 != 0) {
-        // Find and remove the hit closest to a phi boundary plane
-        int best = 0;
-        double best_dist = std::numeric_limits<double>::max();
-        for(int i = 0; i < n_hits; ++i) {
-            double hx = hits[i].position.GetX(), hy = hits[i].position.GetY();
-            for(int f = 0; f < 2; ++f) {
-                double alpha = start_phi_ + f * delta_phi_;
-                double nx = std::sin(alpha), ny = -std::cos(alpha);
-                double plane_dist = std::fabs(nx*hx + ny*hy);
-                if(plane_dist < best_dist) {
-                    best_dist = plane_dist;
-                    best = i;
-                }
-            }
+
+    // CSG intersection walk: the phi-cut solid is (full torus) AND (phi wedge).
+    // Walk through sorted hits, tracking in_surface and in_wedge states.
+    // Emit an intersection whenever the combined state changes.
+    //
+    // Initial states at t = -infinity:
+    //   in_surface = false (torus is finite, ray starts outside)
+    //   in_wedge = determined by whether the ray at -infinity is inside the wedge.
+    //             If there are wedge hits, the first one's entering flag tells us:
+    //             first hit entering → started outside. First hit exiting → started inside.
+    //             If no wedge hits, check the ray origin directly.
+    bool in_surface = false;
+    bool in_wedge = false;
+
+    // Determine initial in_wedge state
+    bool has_wedge_hit = false;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 1) {
+            // First wedge hit: if entering, we started outside; if exiting, started inside
+            in_wedge = !all_hits[i].entering;
+            has_wedge_hit = true;
+            break;
         }
-        // Remove the hit at index best by shifting
-        for(int i = best; i < n_hits - 1; ++i) hits[i] = hits[i + 1];
-        n_hits--;
     }
-    return {hits, hits + n_hits};
+    if(!has_wedge_hit) {
+        // No wedge crossings: ray is entirely in or entirely out of wedge.
+        // Check the ray origin (or any point along the ray).
+        in_wedge = PhiInRange(px, py, start_phi_, delta_phi_);
+    }
+
+    bool was_inside = in_surface && in_wedge;
+
+    std::vector<Intersection> result;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 0) {
+            in_surface = all_hits[i].entering;
+        } else {
+            in_wedge = all_hits[i].entering;
+        }
+        bool now_inside = in_surface && in_wedge;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // =========================================================================
