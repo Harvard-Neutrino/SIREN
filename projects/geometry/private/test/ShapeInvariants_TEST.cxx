@@ -38,6 +38,8 @@
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GenericPolycone.h"
+#include "SIREN/geometry/GeometryMesh.h"
 
 using namespace siren::geometry;
 using namespace siren::math;
@@ -174,6 +176,16 @@ std::vector<ShapeEntry> MakeShapes() {
 
     // Polycone with step-change (#8)
     shapes.push_back({"PolyconeStep", Polycone({-0.05, 0.05, 0.05, 0.15}, {0, 0, 0, 0}, {0.03, 0.03, 0.05, 0.05}).create(), -1, -1, 0});
+
+    // GenericPolycone variants
+    shapes.push_back({"GenericPolyconeSolid", GenericPolycone({0, 5, 0}, {-5, 0, 5}).create(), -1, -1, 0});
+    shapes.push_back({"GenericPolyconeHollow", GenericPolycone({3, 4.5, 5, 3.5, 3, 2}, {-5, 0, 5, 5, 0, -5}).create(), -1, -1, 0});
+    shapes.push_back({"GenericPolyconeUShape", GenericPolycone({5, 5, 3, 3}, {-4, 4, 4, -4}).create(), -1, -1, 0});
+    shapes.push_back({"GenericPolyconeCrystal", GenericPolycone({5,38,40,40,30,30,15,15,0,0,5}, {0,0,70,80,80,77,77,80,80,60,60}).create(), -1, -1, 0});
+    {
+        Quaternion q(std::cos(0.5), std::sin(0.5)*0.577, std::sin(0.5)*0.577, std::sin(0.5)*0.577);
+        shapes.push_back({"GenericPolyconeRotated", GenericPolycone(Placement(Vector3D(1,-1,2), q), {3,4.5,5,3.5,3,2}, {-5,0,5,5,0,-5}).create(), -1, -1, 0});
+    }
 
     // ExtrPoly with offset
     {
@@ -859,4 +871,537 @@ TEST(ShapeInvariants, OperatorLessCrossType) {
         bool result = sphere < sphere2;
         (void)result;
     });
+}
+
+// =========================================================================
+// Cone apex rays: ray through the tip where the surface normal is undefined
+// and the quadratic has coincident roots.
+// =========================================================================
+TEST(ShapeInvariants, ConeApexRays) {
+    // Pointed cone: rmax=5 at z=-5, rmax=0 at z=+5 (apex at top)
+    Cone cone(0, 5, 0, 0, 10);
+    double apex_z = 5.0;
+
+    // Ray along z-axis through the apex
+    {
+        auto hits = cone.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Cone apex z-axis ray: odd count " << hits.size();
+    }
+
+    // Radial ray through the apex in the x-direction
+    {
+        auto hits = cone.Intersections(Vector3D(-10, 0, apex_z), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Cone apex radial ray: odd count " << hits.size();
+    }
+
+    // Diagonal ray aimed exactly at the apex
+    {
+        Vector3D dir(0.5, 0, 1);
+        dir.normalize();
+        auto hits = cone.Intersections(Vector3D(-5, 0, apex_z - 10), dir);
+        EXPECT_EQ(hits.size() % 2, 0u) << "Cone apex diagonal ray: odd count " << hits.size();
+    }
+
+    // Reverse-pointed cone: apex at bottom (rmax=0 at z=-5, rmax=5 at z=+5)
+    Cone cone_rev(0, 0, 0, 5, 10);
+    {
+        auto hits = cone_rev.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Cone reverse apex z-axis: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// GenericPolycone vertex-aimed rays: rays aimed directly at polygon
+// vertices where two conical/disk surface segments meet.
+// =========================================================================
+TEST(ShapeInvariants, GenericPolyconeVertexRays) {
+    // Solid triangle: vertices at (0,-5), (5,0), (0,5)
+    GenericPolycone gpc({0, 5, 0}, {-5, 0, 5});
+
+    // Ray aimed at the widest vertex (5, 0) from outside
+    {
+        auto hits = gpc.Intersections(Vector3D(10, 0, 0), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone vertex-aimed (widest): odd count " << hits.size();
+    }
+
+    // Ray aimed at an r=0 tip vertex from outside
+    {
+        auto hits = gpc.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone vertex-aimed (r=0 tip): odd count " << hits.size();
+    }
+
+    // Hollow hexagon: vertices at z=-5, 0, 5 with r changing
+    GenericPolycone gpc_hex({3, 4.5, 5, 3.5, 3, 2}, {-5, 0, 5, 5, 0, -5});
+
+    // Ray aimed at the junction between outer and inner surface at z=5
+    {
+        auto hits = gpc_hex.Intersections(Vector3D(10, 0, 5), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone hex vertex at z=5: odd count " << hits.size();
+    }
+
+    // Ray aimed at the junction between outer and inner at z=-5 (bottom closure)
+    {
+        auto hits = gpc_hex.Intersections(Vector3D(10, 0, -5), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone hex vertex at z=-5: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// GenericPolycone z-axis rays through r=0 vertices: the conical surface
+// degenerates to a point on the z-axis.
+// =========================================================================
+TEST(ShapeInvariants, GenericPolyconeZAxisRays) {
+    // Solid triangle with r=0 tips at z=-5 and z=5
+    GenericPolycone gpc({0, 5, 0}, {-5, 0, 5});
+
+    // Z-axis ray through both tips
+    {
+        auto hits = gpc.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone z-axis through tips: odd count " << hits.size();
+    }
+
+    // Crystal profile with r=0 bottom section
+    GenericPolycone crystal({5,38,40,40,30,30,15,15,0,0,5}, {0,0,70,80,80,77,77,80,80,60,60});
+    {
+        auto hits = crystal.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Crystal z-axis ray: odd count " << hits.size();
+    }
+
+    // Near-axis ray (epsilon off z-axis)
+    {
+        auto hits = crystal.Intersections(Vector3D(1e-8, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Crystal near-axis ray: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// GenericPolycone tangent rays
+// =========================================================================
+TEST(ShapeInvariants, TangentRaysGenericPolycone) {
+    double eps = 1e-6;
+
+    // Hollow hexagon with max outer radius 5 at z=5
+    GenericPolycone gpc({3, 4.5, 5, 3.5, 3, 2}, {-5, 0, 5, 5, 0, -5});
+
+    // Tangent at y=5 (max outer radius)
+    {
+        auto hits = gpc.Intersections(Vector3D(0, 5, 3), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone tangent: odd count " << hits.size();
+    }
+
+    // Just outside
+    {
+        auto hits = gpc.Intersections(Vector3D(0, 5 + eps, 3), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 0u) << "GenericPolycone outside tangent should miss";
+    }
+
+    // Just inside
+    {
+        auto hits = gpc.Intersections(Vector3D(0, 5 - eps, 3), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "GenericPolycone inside tangent: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// GenericPolycone horizontal rays at polygon vertex z-values
+// =========================================================================
+TEST(ShapeInvariants, GenericPolyconeHorizontalBoundaryRays) {
+    // Crystal profile with many z-transitions
+    GenericPolycone crystal({5,38,40,40,30,30,15,15,0,0,5}, {0,0,70,80,80,77,77,80,80,60,60});
+
+    // Horizontal rays at each unique z-value in the profile
+    double z_vals[] = {0, 60, 70, 77, 80};
+    for(double z : z_vals) {
+        Vector3D pos(20, 0, z);
+        Vector3D dir(-1, 0, 0);
+        auto hits = crystal.Intersections(pos, dir);
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Crystal horizontal ray at z=" << z << ": odd count " << hits.size();
+    }
+
+    // Also test containment at vertex z-values with z-direction ray
+    EXPECT_TRUE(crystal.IsInside(Vector3D(20, 0, 40), Vector3D(0, 0, 1)))
+        << "Crystal interior at z=40 should be inside";
+    EXPECT_FALSE(crystal.IsInside(Vector3D(0, 0, 40), Vector3D(0, 0, 1)))
+        << "Crystal z-axis at z=40 should be outside (inside borehole)";
+}
+
+// =========================================================================
+// Far-field rays: numerical stability at large distances.
+// Tests that quadratic discriminant computation doesn't lose precision.
+// =========================================================================
+TEST(ShapeInvariants, FarFieldRays) {
+    double distances[] = {1e2, 1e4, 1e6};
+    int wrong = 0;
+    int total = 0;
+
+    // --- Cone ---
+    Cone cone(0, 5, 0, 3, 10);
+    for(double D : distances) {
+        auto hits = cone.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+        // Should hit (ray through center)
+        if(hits.size() == 0) wrong++;
+        total++;
+    }
+
+    // --- Polycone ---
+    Polycone pc({-5, 0, 5}, {1, 2, 1}, {3, 5, 3});
+    for(double D : distances) {
+        auto hits = pc.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+    }
+
+    // --- GenericPolycone ---
+    GenericPolycone gpc({3, 4.5, 5, 3.5, 3, 2}, {-5, 0, 5, 5, 0, -5});
+    for(double D : distances) {
+        auto hits = gpc.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+    }
+
+    // --- Cylinder ---
+    Cylinder cyl(5, 0, 10);
+    for(double D : distances) {
+        auto hits = cyl.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+    }
+
+    // --- Sphere ---
+    Sphere sphere(5, 0);
+    for(double D : distances) {
+        auto hits = sphere.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+    }
+
+    // --- EllipticalTube ---
+    EllipticalTube etube(3, 5, 10);
+    for(double D : distances) {
+        auto hits = etube.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+    }
+
+    // --- Box ---
+    Box box(10, 8, 6);
+    for(double D : distances) {
+        auto hits = box.Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+        if(hits.size() % 2 != 0) wrong++;
+        total++;
+    }
+
+    EXPECT_EQ(wrong, 0)
+        << "Far-field rays: " << wrong << "/" << total << " incorrect";
+}
+
+// =========================================================================
+// EllipticalTube tangent rays at both semi-axes
+// =========================================================================
+TEST(ShapeInvariants, TangentRaysEllipticalTube) {
+    double eps = 1e-6;
+    EllipticalTube etube(3, 5, 10);
+
+    // Tangent at y=5 (major semi-axis), ray in x-direction
+    {
+        auto hits = etube.Intersections(Vector3D(0, 5, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "EllipticalTube tangent y=5: odd count";
+    }
+    {
+        auto hits = etube.Intersections(Vector3D(0, 5 + eps, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 0u) << "EllipticalTube outside y-tangent should miss";
+    }
+    {
+        auto hits = etube.Intersections(Vector3D(0, 5 - eps, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u) << "EllipticalTube inside y-tangent should hit twice";
+    }
+
+    // Tangent at x=3 (minor semi-axis), ray in y-direction
+    {
+        auto hits = etube.Intersections(Vector3D(3, 0, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "EllipticalTube tangent x=3: odd count";
+    }
+    {
+        auto hits = etube.Intersections(Vector3D(3 + eps, 0, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size(), 0u) << "EllipticalTube outside x-tangent should miss";
+    }
+    {
+        auto hits = etube.Intersections(Vector3D(3 - eps, 0, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size(), 2u) << "EllipticalTube inside x-tangent should hit twice";
+    }
+}
+
+// =========================================================================
+// Trd edge-skimming and vertex-aimed rays
+// =========================================================================
+TEST(ShapeInvariants, TrdEdgeAndVertexRays) {
+    // Trd: half-widths dx1=5,dx2=3,dy1=4,dy2=2, dz=6
+    // Centered at origin. Vertices at (+-dx, +-dy, +-dz)
+    Trd trd(5, 3, 4, 2, 6);
+
+    // Ray aimed at a vertex: bottom corner (+5, +4, -6)
+    {
+        Vector3D dir = Vector3D(5, 4, -6);
+        dir.normalize();
+        auto hits = trd.Intersections(Vector3D(5*2, 4*2, -6*2), Vector3D(-dir.GetX(), -dir.GetY(), -dir.GetZ()));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Trd vertex-aimed ray: odd count " << hits.size();
+    }
+
+    // Ray skimming along a bottom edge (y=4 face at z=-6, from x=-10 to x=+10)
+    {
+        auto hits = trd.Intersections(Vector3D(-10, 4, -6), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Trd edge-skimming ray: odd count " << hits.size();
+    }
+
+    // Ray along the z-axis through center
+    {
+        auto hits = trd.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "Trd z-axis should hit twice";
+    }
+}
+
+// =========================================================================
+// ExtrPoly edge and face-parallel rays
+// =========================================================================
+TEST(ShapeInvariants, ExtrPolyEdgeRays) {
+    // Square extrusion: polygon (+-3, +-3), z from -4 to 4
+    std::vector<std::vector<double>> polygon = {{-3,-3},{3,-3},{3,3},{-3,3}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-4, off, 1.0),
+        ExtrPoly::ZSection(4, off, 1.0)
+    };
+    ExtrPoly ep(polygon, zsecs);
+
+    // Ray along a lateral edge (x=3, y=3, varying z)
+    {
+        auto hits = ep.Intersections(Vector3D(3, 3, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "ExtrPoly lateral edge ray: odd count " << hits.size();
+    }
+
+    // Ray along a lateral face (x=3, y=0, varying z) -- face-grazing
+    {
+        auto hits = ep.Intersections(Vector3D(3, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "ExtrPoly face-grazing ray: odd count " << hits.size();
+    }
+
+    // Ray aimed at a bottom polygon vertex (3, 3, -4) from outside
+    {
+        Vector3D dir(3, 3, -4);
+        dir.normalize();
+        auto hits = ep.Intersections(Vector3D(6, 6, -8), Vector3D(-dir.GetX(), -dir.GetY(), -dir.GetZ()));
+        EXPECT_EQ(hits.size() % 2, 0u) << "ExtrPoly vertex-aimed ray: odd count " << hits.size();
+    }
+
+    // Ray through center
+    {
+        auto hits = ep.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "ExtrPoly center z-axis should hit twice";
+    }
+}
+
+// =========================================================================
+// CutTube rays parallel to and near cut planes
+// =========================================================================
+TEST(ShapeInvariants, CutTubeCutPlaneRays) {
+    // CutTube with tilted cuts: 30-degree tilt on both ends
+    double tilt = 30.0 * M_PI / 180.0;
+    Vector3D low_norm(std::sin(tilt), 0, -std::cos(tilt));
+    Vector3D high_norm(-std::sin(tilt), 0, std::cos(tilt));
+    CutTube ct(2, 5, 10, low_norm, high_norm);
+
+    // Ray parallel to the low cut plane, just inside
+    {
+        Vector3D dir(std::cos(tilt), 0, std::sin(tilt));
+        dir.normalize();
+        auto hits = ct.Intersections(Vector3D(-20, 0, -9), dir);
+        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube low-plane parallel ray: odd count " << hits.size();
+    }
+
+    // Ray parallel to the high cut plane, just inside
+    {
+        Vector3D dir(std::cos(tilt), 0, std::sin(tilt));
+        dir.normalize();
+        auto hits = ct.Intersections(Vector3D(-20, 0, 9), dir);
+        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube high-plane parallel ray: odd count " << hits.size();
+    }
+
+    // Ray through the intersection of cut plane and barrel surface
+    {
+        auto hits = ct.Intersections(Vector3D(5, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube barrel/plane edge ray: odd count " << hits.size();
+    }
+
+    // Ray through center
+    {
+        auto hits = ct.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube z-axis ray: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// BooleanGeometry coincident surface rays: ray through the touching
+// point of two shapes in a union/intersection/subtraction.
+// =========================================================================
+TEST(ShapeInvariants, BooleanCoincidentSurfaceRays) {
+    // Two spheres touching at origin: centers at (-5,0,0) and (5,0,0), radius 5
+    auto s1 = Sphere(Placement(Vector3D(-5, 0, 0)), 5, 0).create();
+    auto s2 = Sphere(Placement(Vector3D(5, 0, 0)), 5, 0).create();
+
+    // Union: ray through the touching point along x
+    {
+        auto bg = BooleanGeometry(BooleanOperation::UNION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Union touching spheres x-ray: odd count " << hits.size();
+    }
+
+    // Intersection: ray through the touching point along x
+    {
+        auto bg = BooleanGeometry(BooleanOperation::INTERSECTION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Intersection touching spheres x-ray: odd count " << hits.size();
+    }
+
+    // Subtraction: ray through the touching point along x
+    {
+        auto bg = BooleanGeometry(BooleanOperation::SUBTRACTION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Subtraction touching spheres x-ray: odd count " << hits.size();
+    }
+
+    // Overlapping spheres: centers at (-2,0,0) and (2,0,0), radius 5
+    auto s3 = Sphere(Placement(Vector3D(-2, 0, 0)), 5, 0).create();
+    auto s4 = Sphere(Placement(Vector3D(2, 0, 0)), 5, 0).create();
+
+    // Union: ray through the overlap region
+    {
+        auto bg = BooleanGeometry(BooleanOperation::UNION, s3, s4);
+        auto hits = bg.Intersections(Vector3D(0, -10, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Union overlapping spheres y-ray: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// Para edge-skimming and vertex-aimed rays
+// =========================================================================
+TEST(ShapeInvariants, ParaEdgeRays) {
+    // Para: dx=5, dy=4, dz=6, alpha=0.3, theta=0.2, phi=0.1
+    Para para(5, 4, 6, 0.3, 0.2, 0.1);
+
+    // Ray through center along z
+    {
+        auto hits = para.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "Para z-axis should hit twice";
+    }
+
+    // Ray along x at the z-extent boundary
+    {
+        auto hits = para.Intersections(Vector3D(-20, 0, 6), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Para z-boundary x-ray: odd count " << hits.size();
+    }
+
+    // Axis-aligned rays from various directions
+    Vector3D dirs[] = {
+        Vector3D(1,0,0), Vector3D(0,1,0), Vector3D(0,0,1),
+        Vector3D(-1,0,0), Vector3D(0,-1,0), Vector3D(0,0,-1)
+    };
+    for(auto const & d : dirs) {
+        auto hits = para.Intersections(Vector3D(0, 0, 0), d);
+        EXPECT_EQ(hits.size() % 2, 0u) << "Para origin ray: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// TriangularMesh vertex-aimed and edge-aligned rays.
+// Uses a cube mesh (12 triangles, 8 vertices, 18 edges).
+// =========================================================================
+TEST(ShapeInvariants, TriangularMeshVertexAndEdgeRays) {
+    double s = 3;
+    Vector3D v[8] = {
+        Vector3D(-s,-s,-s), Vector3D(s,-s,-s), Vector3D(s,s,-s), Vector3D(-s,s,-s),
+        Vector3D(-s,-s, s), Vector3D(s,-s, s), Vector3D(s,s, s), Vector3D(-s,s, s)
+    };
+    std::vector<std::array<Vector3D, 3>> triangles;
+    auto addQuad = [&](Vector3D a, Vector3D b, Vector3D c, Vector3D d) {
+        triangles.push_back({{a, b, c}});
+        triangles.push_back({{a, c, d}});
+    };
+    addQuad(v[3], v[2], v[1], v[0]); // -z
+    addQuad(v[4], v[5], v[6], v[7]); // +z
+    addQuad(v[0], v[1], v[5], v[4]); // -y
+    addQuad(v[1], v[2], v[6], v[5]); // +x
+    addQuad(v[2], v[3], v[7], v[6]); // +y
+    addQuad(v[3], v[0], v[4], v[7]); // -x
+    TriangularMesh mesh(triangles);
+
+    // Ray aimed at a vertex (3,3,3) from outside
+    {
+        Vector3D dir(1, 1, 1);
+        dir.normalize();
+        auto hits = mesh.Intersections(Vector3D(10, 10, 10), Vector3D(-dir.GetX(), -dir.GetY(), -dir.GetZ()));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Mesh vertex-aimed ray: odd count " << hits.size();
+    }
+
+    // Ray along an edge (x=3, y=3, varying z)
+    {
+        auto hits = mesh.Intersections(Vector3D(s, s, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Mesh edge-aligned ray: odd count " << hits.size();
+    }
+
+    // Ray along a face edge (x=3, y=0, z=-3 -> z=3 diagonal of +x face)
+    {
+        auto hits = mesh.Intersections(Vector3D(s, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Mesh face-diagonal ray: odd count " << hits.size();
+    }
+
+    // Ray through center
+    {
+        auto hits = mesh.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "Mesh center z-axis should hit twice";
+    }
+}
+
+// =========================================================================
+// Ellipsoid vertex/axis rays: rays along each semi-axis and at cut boundaries
+// =========================================================================
+TEST(ShapeInvariants, EllipsoidAxisRays) {
+    Ellipsoid ell(3, 5, 7, -4, 6);
+
+    // Ray along each axis through center
+    {
+        auto hits = ell.Intersections(Vector3D(-10, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u) << "Ellipsoid x-axis should hit twice";
+    }
+    {
+        auto hits = ell.Intersections(Vector3D(0, -10, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size(), 2u) << "Ellipsoid y-axis should hit twice";
+    }
+    {
+        auto hits = ell.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "Ellipsoid z-axis should hit twice";
+    }
+
+    // Ray exactly at z-cut boundary
+    {
+        auto hits = ell.Intersections(Vector3D(-10, 0, 6), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Ellipsoid at upper z-cut boundary: odd count " << hits.size();
+    }
+    {
+        auto hits = ell.Intersections(Vector3D(-10, 0, -4), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Ellipsoid at lower z-cut boundary: odd count " << hits.size();
+    }
 }

@@ -296,6 +296,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     double intersection_z;
 
     // --- Outer conical surface ---
+    bool has_outer_apex_top = (rmax2_ <= 0 && rmin2_ <= 0);
+    bool has_outer_apex_bot = (rmax1_ <= 0 && rmin1_ <= 0);
     {
         double a_outer = (rmax1_ + rmax2_) * 0.5;
         double b_outer = 0.0;
@@ -308,6 +310,9 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         double A = dx * dx + dy * dy - b_outer * b_outer * dz * dz;
         double B = 2.0 * (px * dx + py * dy - b_outer * dz * (a_outer + b_outer * pz));
         double C = px * px + py * py - (a_outer + b_outer * pz) * (a_outer + b_outer * pz);
+
+        int n_before_outer = n_all;
+        bool outer_apex_handled = false;
 
         if(!(dx == 0 && dy == 0 && b_outer == 0)) // not parallel to barrel
         {
@@ -326,29 +331,50 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     if(t2 > 0 && t2 < GEOMETRY_PRECISION)
                         t2 = 0;
 
-                    intersection_z = pz + t1 * dz;
-                    if(intersection_z > z_calc_neg && intersection_z < z_calc_pos) {
-                        intersection_x = px + t1 * dx;
-                        intersection_y = py + t1 * dy;
-                        // Check that the hit is on the correct nappe
-                        // r(z) = a + b*z must be >= 0 at the intersection
-                        double r_at_z = a_outer + b_outer * intersection_z;
-                        if(r_at_z >= 0) {
-                            bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                            all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
-                            n_all++;
+                    // Detect near-coincident roots at the apex
+                    if(has_outer_apex_top || has_outer_apex_bot) {
+                        double apex_z = has_outer_apex_top ? z_calc_pos : z_calc_neg;
+                        double z1 = pz + t1 * dz;
+                        double z2 = pz + t2 * dz;
+                        double apex_tol = GEOMETRY_PRECISION * 1e3;
+                        if(std::fabs(z1 - apex_z) < apex_tol && std::fabs(z2 - apex_z) < apex_tol) {
+                            outer_apex_handled = true;
+                            if(C < -GEOMETRY_PRECISION) {
+                                double t_mid = 0.5 * (t1 + t2);
+                                if(t_mid > 0 && t_mid < GEOMETRY_PRECISION) t_mid = 0;
+                                all_hits[n_all] = {t_mid, siren::math::Vector3D(px + t_mid*dx, py + t_mid*dy, apex_z), false, 0};
+                                n_all++;
+                            }
                         }
                     }
 
-                    intersection_z = pz + t2 * dz;
-                    if(intersection_z > z_calc_neg && intersection_z < z_calc_pos) {
-                        intersection_x = px + t2 * dx;
-                        intersection_y = py + t2 * dy;
-                        double r_at_z = a_outer + b_outer * intersection_z;
-                        if(r_at_z >= 0) {
-                            bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                            all_hits[n_all] = {t2, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
-                            n_all++;
+                    if(!outer_apex_handled) {
+                        intersection_z = pz + t1 * dz;
+                        bool z1_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg)
+                                  && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos);
+                        if(z1_ok) {
+                            intersection_x = px + t1 * dx;
+                            intersection_y = py + t1 * dy;
+                            double r_at_z = a_outer + b_outer * intersection_z;
+                            if(r_at_z >= 0) {
+                                bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                                all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                                n_all++;
+                            }
+                        }
+
+                        intersection_z = pz + t2 * dz;
+                        bool z2_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg)
+                                  && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos);
+                        if(z2_ok) {
+                            intersection_x = px + t2 * dx;
+                            intersection_y = py + t2 * dy;
+                            double r_at_z = a_outer + b_outer * intersection_z;
+                            if(r_at_z >= 0) {
+                                bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                                all_hits[n_all] = {t2, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                                n_all++;
+                            }
                         }
                     }
                 }
@@ -359,13 +385,41 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     t1 = 0;
 
                 intersection_z = pz + t1 * dz;
-                if(intersection_z > z_calc_neg && intersection_z < z_calc_pos) {
+                bool z_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg)
+                         && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos);
+                if(z_ok) {
                     intersection_x = px + t1 * dx;
                     intersection_y = py + t1 * dy;
                     double r_at_z = a_outer + b_outer * intersection_z;
                     if(r_at_z >= 0) {
                         bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
                         all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                        n_all++;
+                    }
+                }
+            }
+        }
+
+        // Apex fallback: if no outer surface hit was produced at the apex,
+        // check if the ray passes through the apex point
+        if(!outer_apex_handled && (has_outer_apex_top || has_outer_apex_bot) && std::fabs(dz) > GEOMETRY_PRECISION) {
+            bool found_apex_hit = false;
+            double apex_z = has_outer_apex_top ? z_calc_pos : z_calc_neg;
+            for(int i = n_before_outer; i < n_all; ++i) {
+                if(std::fabs(all_hits[i].position.GetZ() - apex_z) < GEOMETRY_PRECISION * 1e3) {
+                    found_apex_hit = true;
+                    break;
+                }
+            }
+            if(!found_apex_hit) {
+                double t_apex = (apex_z - pz) / dz;
+                double ix = px + t_apex * dx;
+                double iy = py + t_apex * dy;
+                double r2_apex = ix*ix + iy*iy;
+                if(r2_apex < GEOMETRY_PRECISION * GEOMETRY_PRECISION * 1e6) {
+                    if(C <= GEOMETRY_PRECISION) {
+                        if(t_apex > 0 && t_apex < GEOMETRY_PRECISION) t_apex = 0;
+                        all_hits[n_all] = {t_apex, siren::math::Vector3D(ix, iy, apex_z), false, 0};
                         n_all++;
                     }
                 }
@@ -445,7 +499,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     }
 
     // --- Top cap (z = +z_/2) annular disk ---
-    if(std::fabs(dz) > GEOMETRY_PRECISION) {
+    // Skip degenerate cap at apex (rmax=0): apex is handled by the surface solver
+    if(std::fabs(dz) > GEOMETRY_PRECISION && !has_outer_apex_top) {
         double t = (z_calc_pos - pz) / dz;
 
         if(t > 0 && t < GEOMETRY_PRECISION)
@@ -464,7 +519,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     }
 
     // --- Bottom cap (z = -z_/2) annular disk ---
-    if(std::fabs(dz) > GEOMETRY_PRECISION) {
+    // Skip degenerate cap at apex (rmax=0): apex is handled by the surface solver
+    if(std::fabs(dz) > GEOMETRY_PRECISION && !has_outer_apex_bot) {
         double t = (z_calc_neg - pz) / dz;
 
         if(t > 0 && t < GEOMETRY_PRECISION)
