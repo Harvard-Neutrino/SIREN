@@ -716,53 +716,56 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
 
         void BuildVolume(std::string const & volume_name, Placement const & global_placement) {
             if(visited.count(volume_name)) {
-                std::cerr << "Warning: circular volume reference detected for '" << volume_name << "', skipping" << std::endl;
-                return;
+                throw std::runtime_error("GDML error: circular volume reference detected for '" + volume_name + "'");
             }
             auto it = data.volumes.find(volume_name);
-            if(it == data.volumes.end()) return;
+            if(it == data.volumes.end()) {
+                throw std::runtime_error("GDML error: volume '" + volume_name + "' not found in structure");
+            }
 
             visited.insert(volume_name);
 
             GDMLVolume const & vol = it->second;
-            auto solid_it = data.solids.find(vol.solid_ref);
-            auto mat_it = data.materials.find(vol.material_ref);
-            if(solid_it == data.solids.end() || mat_it == data.materials.end()) {
-                if(solid_it == data.solids.end()) {
-                    std::cerr << "GDML warning: volume '" << vol.name << "' references unknown solid '" << vol.solid_ref << "', skipping" << std::endl;
+
+            if(!vol.is_assembly) {
+                auto solid_it = data.solids.find(vol.solid_ref);
+                auto mat_it = data.materials.find(vol.material_ref);
+                if(solid_it == data.solids.end() || mat_it == data.materials.end()) {
+                    std::string msg;
+                    if(solid_it == data.solids.end()) {
+                        msg = "GDML error: volume '" + vol.name + "' references unknown solid '" + vol.solid_ref + "'";
+                    } else {
+                        msg = "GDML error: volume '" + vol.name + "' references unknown material '" + vol.material_ref + "'";
+                    }
+                    visited.erase(volume_name);
+                    throw std::runtime_error(msg);
                 }
-                if(mat_it == data.materials.end()) {
-                    std::cerr << "GDML warning: volume '" << vol.name << "' references unknown material '" << vol.material_ref << "', skipping" << std::endl;
+
+                DetectorSector sector;
+                std::string base_name = vol.name;
+                std::string unique_name = base_name;
+                int name_suffix = 2;
+                while(dm.sector_name_map_.count(unique_name) > 0) {
+                    unique_name = base_name + "_" + std::to_string(name_suffix++);
                 }
-                visited.erase(volume_name);
-                return;
+                sector.name = unique_name;
+                sector.level = level++;
+
+                auto geo = solid_it->second->create();
+                geo->SetPlacement(global_placement);
+                sector.geo = geo;
+
+                if(dm.materials_.HasMaterial(vol.material_ref)) {
+                    sector.material_id = dm.materials_.GetMaterialId(vol.material_ref);
+                } else {
+                    sector.material_id = 0;
+                }
+                sector.density = ConstantDensityDistribution(mat_it->second.density).create();
+
+                dm.AddSector(sector);
             }
 
-            // Create sector
-            DetectorSector sector;
-            std::string base_name = vol.name;
-            std::string unique_name = base_name;
-            int name_suffix = 2;
-            while(dm.sector_name_map_.count(unique_name) > 0) {
-                unique_name = base_name + "_" + std::to_string(name_suffix++);
-            }
-            sector.name = unique_name;
-            sector.level = level++;
-
-            auto geo = solid_it->second->create();
-            geo->SetPlacement(global_placement);
-            sector.geo = geo;
-
-            if(dm.materials_.HasMaterial(vol.material_ref)) {
-                sector.material_id = dm.materials_.GetMaterialId(vol.material_ref);
-            } else {
-                sector.material_id = 0;
-            }
-            sector.density = ConstantDensityDistribution(mat_it->second.density).create();
-
-            dm.AddSector(sector);
-
-            // Recurse into children
+            // Recurse into children (both volumes and assemblies have physvol children)
             for(auto const & child : vol.children) {
                 Vector3D child_pos = global_placement.LocalToGlobalPosition(child.position);
                 Quaternion child_rot = global_placement.GetQuaternion() * child.rotation;
@@ -1431,7 +1434,8 @@ void DetectorModel::RebuildBVH() const {
     std::vector<unsigned int> bvh_indices;
     for(unsigned int i = 0; i < sectors_.size(); ++i) {
         cached_aabb[i] = sectors_[i].geo->GetWorldBoundingBox();
-        if(!std::isfinite(cached_aabb[i].min_corner.GetX()) || !std::isfinite(cached_aabb[i].max_corner.GetX()) ||
+        if(!cached_aabb[i].IsValid() ||
+           !std::isfinite(cached_aabb[i].min_corner.GetX()) || !std::isfinite(cached_aabb[i].max_corner.GetX()) ||
            !std::isfinite(cached_aabb[i].min_corner.GetY()) || !std::isfinite(cached_aabb[i].max_corner.GetY()) ||
            !std::isfinite(cached_aabb[i].min_corner.GetZ()) || !std::isfinite(cached_aabb[i].max_corner.GetZ())) {
             bvh_excluded_sectors_.push_back(i);
@@ -1582,6 +1586,10 @@ static inline void AppendSectorIntersections(
 
 // ---------------------------------------------------------------------------
 // GetIntersections: BVH-accelerated with iterative traversal
+//
+// Thread safety: concurrent reads (GetIntersections, GetContainingSectorDirect)
+// are safe. Concurrent mutation via AddSector during reads is NOT supported
+// and will cause undefined behavior. All sectors must be added before queries.
 // ---------------------------------------------------------------------------
 
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
