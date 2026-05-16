@@ -91,20 +91,28 @@ int SolveQuartic(double a, double b, double c, double d, double roots[4]) {
 
     int n_roots = 0;
 
-    if(std::fabs(q) < 1e-14) {
+    // Biquadratic threshold: scale relative to coefficient magnitudes
+    // so that far-field rays (large coefficients) still trigger this path
+    // when the quartic is structurally biquadratic (q = 0 analytically)
+    double coeff_scale = std::fmax(1.0, std::fmax(std::fabs(p), std::sqrt(std::fmax(std::fabs(r), 0.0))));
+    if(std::fabs(q) < 1e-10 * coeff_scale) {
         // Biquadratic: t^4 + p*t^2 + r = 0
         double disc = p * p - 4.0 * r;
-        if(disc < -1e-14) return 0;
+        double disc_tol = 1e-10 * std::fmax(p * p, std::fabs(r));
+        if(disc < -disc_tol) return 0;
         if(disc < 0) disc = 0;
         double sq = std::sqrt(disc);
         double u1 = (-p + sq) / 2.0;
         double u2 = (-p - sq) / 2.0;
-        if(u1 >= 0) {
+        double u_tol = 1e-10 * std::fmax(std::fabs(p), sq);
+        if(u1 >= -u_tol) {
+            if(u1 < 0) u1 = 0;
             double s = std::sqrt(u1);
             roots[n_roots++] = s - a / 4.0;
             roots[n_roots++] = -s - a / 4.0;
         }
-        if(u2 >= 0 && std::fabs(u2 - u1) > 1e-14) {
+        if(u2 >= -u_tol && std::fabs(u2 - u1) > u_tol) {
+            if(u2 < 0) u2 = 0;
             double s = std::sqrt(u2);
             roots[n_roots++] = s - a / 4.0;
             roots[n_roots++] = -s - a / 4.0;
@@ -112,21 +120,17 @@ int SolveQuartic(double a, double b, double c, double d, double roots[4]) {
         return n_roots;
     }
 
-    // Ferrari's resolvent cubic: y^3 - p*y^2/2 - r*y + (p*r/2 - q^2/8) = 0
-    // We solve the depressed form. First convert to depressed cubic in y:
-    // Let y = m + p/6 to get m^3 + P*m + Q = 0
-    double rp = -p / 2.0;          // coefficient of y^2 in resolvent (negated for standard form)
-    double rq = -r;                 // coefficient of y^1 in resolvent (negated)
-    double rs = p * r / 2.0 - q * q / 8.0; // constant in resolvent
-    // Resolvent: y^3 + rp*y^2 + rq*y + rs = 0
-    // Depress: y = m - rp/3
+    // Ferrari's resolvent cubic
+    double rp = -p / 2.0;
+    double rq = -r;
+    double rs = p * r / 2.0 - q * q / 8.0;
     double P = rq - rp * rp / 3.0;
     double Q = rs - rp * rq / 3.0 + 2.0 * rp * rp * rp / 27.0;
 
     double cubic_roots[3];
     int nc = SolveDepressedCubic(P, Q, cubic_roots);
 
-    // Pick the largest real root of the resolvent cubic (most numerically stable)
+    // Pick the largest real root of the resolvent cubic
     double y = cubic_roots[0] - rp / 3.0;
     for(int i = 1; i < nc; ++i) {
         double yi = cubic_roots[i] - rp / 3.0;
@@ -145,21 +149,18 @@ int SolveQuartic(double a, double b, double c, double d, double roots[4]) {
         u = y - q / (2.0 * s);
         v = y + q / (2.0 * s);
     } else {
-        // s ~ 0: both quadratics have same linear term
         u = y;
         v = y;
         s = 0;
     }
 
-    // Solve the two quadratics:
-    // t^2 + s*t + u = 0
+    // Solve the two quadratics
     double disc1 = s * s - 4.0 * u;
     if(disc1 >= 0) {
         double sq1 = std::sqrt(disc1);
         roots[n_roots++] = (-s + sq1) / 2.0 - a / 4.0;
         roots[n_roots++] = (-s - sq1) / 2.0 - a / 4.0;
     }
-    // t^2 - s*t + v = 0
     double disc2 = s * s - 4.0 * v;
     if(disc2 >= 0) {
         double sq2 = std::sqrt(disc2);
@@ -381,23 +382,31 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
     int n_hits = 0;
 
     auto solve_surface = [&](double r, bool invert_entering) {
-        // Derived quantities
-        double pp = px*px + py*py + pz*pz;  // P.P
-        double pd = px*dx + py*dy + pz*dz;  // P.D
-        double Pxy2 = px*px + py*py;        // Px^2 + Py^2
-        double Dxy2 = dx*dx + dy*dy;        // Dx^2 + Dy^2
-        double PDxy = px*dx + py*dy;        // Px*Dx + Py*Dy
+        // Shift the ray origin to the closest approach point along the ray.
+        // This keeps the quartic coefficients small for far-field rays,
+        // avoiding catastrophic cancellation in the depressed quartic.
+        double t_shift = -(px*dx + py*dy + pz*dz);
+        double qx = px + t_shift * dx;
+        double qy = py + t_shift * dy;
+        double qz = pz + t_shift * dz;
 
-        double alpha = pp + R*R - r*r;      // P.P + R^2 - r^2
+        double qq = qx*qx + qy*qy + qz*qz;
+        double qd = qx*dx + qy*dy + qz*dz; // ~ 0 by construction
+        double Qxy2 = qx*qx + qy*qy;
+        double Dxy2 = dx*dx + dy*dy;
+        double QDxy = qx*dx + qy*dy;
+
+        double alpha = qq + R*R - r*r;
 
         // Quartic coefficients: t^4 + c3*t^3 + c2*t^2 + c1*t + c0 = 0
-        double c3 = 4.0 * pd;
-        double c2 = 4.0 * pd*pd + 2.0 * alpha - 4.0 * R*R * Dxy2;
-        double c1 = 4.0 * pd * alpha - 8.0 * R*R * PDxy;
-        double c0 = alpha * alpha - 4.0 * R*R * Pxy2;
+        double c3 = 4.0 * qd;
+        double c2 = 4.0 * qd*qd + 2.0 * alpha - 4.0 * R*R * Dxy2;
+        double c1 = 4.0 * qd * alpha - 8.0 * R*R * QDxy;
+        double c0 = alpha * alpha - 4.0 * R*R * Qxy2;
 
         double raw_roots[4];
         int n_raw = SolveQuartic(c3, c2, c1, c0, raw_roots);
+        for(int i = 0; i < n_raw; ++i) raw_roots[i] += t_shift;
 
         // Validate and deduplicate roots.
         // Ferrari's method can produce duplicate roots (same root from both
