@@ -594,6 +594,10 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     }
 
     // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
+    // Method: intersect the ray with the full-rotation solid AND an infinite
+    // wedge (two half-planes from the z-axis). A sorted walk over both hit
+    // lists produces the CSG intersection. This pattern is duplicated across
+    // Polycone, GenericPolycone, Sphere, Torus, Cylinder, Cone, CutTube.
     // Collect surface hits into a sorted vector of tagged hits.
     struct TaggedHit {
         double distance;

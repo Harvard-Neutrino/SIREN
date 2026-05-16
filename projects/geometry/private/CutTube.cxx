@@ -445,6 +445,7 @@ std::vector<Geometry::Intersection> CutTube::ComputeIntersections(siren::math::V
     }
 
     // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
+    // See Polycone.cxx for method description; same pattern in all phi-cut shapes.
     struct TaggedHit {
         double distance;
         siren::math::Vector3D position;

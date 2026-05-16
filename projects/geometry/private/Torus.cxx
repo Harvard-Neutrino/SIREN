@@ -490,8 +490,8 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
         return result;
     }
 
-    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis)
-    // No cross-section filtering — the CSG walk handles clipping naturally.
+    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis).
+    // See Polycone.cxx for method description; same pattern in all phi-cut shapes.
     for(int face = 0; face < 2; ++face) {
         double alpha = start_phi_ + face * delta_phi_;
         double ca = std::cos(alpha), sa = std::sin(alpha);
@@ -529,7 +529,7 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
     //   in_surface = false (torus is finite, ray starts outside)
     //   in_wedge = determined by whether the ray at -infinity is inside the wedge.
     //             If there are wedge hits, the first one's entering flag tells us:
-    //             first hit entering → started outside. First hit exiting → started inside.
+    //             first hit entering = started outside. First hit exiting = started inside.
     //             If no wedge hits, check the ray origin directly.
     bool in_surface = false;
     bool in_wedge = false;

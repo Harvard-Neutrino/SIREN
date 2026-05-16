@@ -70,6 +70,14 @@ std::string TrimWhitespace(std::string const & s) {
 // Values are in CLHEP base units: mm=1 (length), MeV=1 (energy), radian=1
 // (angle), nanosecond=1 (time), kelvin=1 (temp), mole=1 (amount).
 // ParseLength/ParseAngle handle conversion from CLHEP units to SIREN units.
+//
+// Unit values derived from CLHEP SystemOfUnits.h and PhysicalConstants.h:
+//   https://gitlab.cern.ch/CLHEP/CLHEP/-/blob/master/Units/Units/SystemOfUnits.h
+// Math constants from CLHEP Evaluator (setStdMath):
+//   https://gitlab.cern.ch/CLHEP/CLHEP/-/blob/master/Evaluator/src/Evaluator.cc
+//
+// GDML schema and element semantics per GDML User's Guide v2.9:
+//   https://gdml.web.cern.ch/doc/GDMLmanual.pdf
 
 struct BuiltInEntry {
     const char* name;

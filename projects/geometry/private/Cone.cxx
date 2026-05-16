@@ -557,8 +557,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         return result;
     }
 
-    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis)
-    // No cross-section filtering -- the CSG walk handles clipping naturally.
+    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis).
+    // See Polycone.cxx for method description; same pattern in all phi-cut shapes.
     for(int face = 0; face < 2; ++face) {
         double alpha = start_phi_ + face * delta_phi_;
         double ca = std::cos(alpha), sa = std::sin(alpha);

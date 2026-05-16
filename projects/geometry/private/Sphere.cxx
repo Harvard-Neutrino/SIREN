@@ -312,6 +312,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
     }
 
     // ---- Infinite phi wedge (no radial/theta bounds) ----
+    // See Polycone.cxx for method description; same pattern in all phi-cut shapes.
     if(has_phi_cut_) {
         for(int face = 0; face < 2; ++face) {
             double alpha = start_phi_ + face * delta_phi_;

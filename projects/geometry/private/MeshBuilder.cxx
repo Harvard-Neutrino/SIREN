@@ -319,7 +319,12 @@ PolygonData Voxel::Clip(TData const & tri) const {
 
 
 ///////////////
-// Fast Box-Triangle intersection check
+// Fast triangle-cube overlap test
+//
+// Douglas Voorhies, "Triangle-Cube Intersection," in Graphics Gems III
+// (David Kirk, ed.), Academic Press, 1992, pp. 236-239.
+// Original source code: https://github.com/erich666/GraphicsGems
+// License: see Graphics Gems license (free for use with attribution).
 ///////////////
 
 #define EPS 10e-5
@@ -953,6 +958,9 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
 
 // ---------------------------------------------------------------------------
 // Moller-Trumbore ray-triangle intersection
+//
+// Tomas Moller, Ben Trumbore, "Fast, Minimum Storage Ray/Triangle
+// Intersection," Journal of Graphics Tools 2(1), 1997.
 // ---------------------------------------------------------------------------
 RayTriangleHit RayTriangleIntersect(
     Point const & origin,

@@ -339,6 +339,7 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
     }
 
     // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
+    // See Polycone.cxx for method description; same pattern in all phi-cut shapes.
     struct TaggedHit {
         double distance;
         siren::math::Vector3D position;

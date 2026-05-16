@@ -23,7 +23,9 @@ namespace geometry {
 // Ensures that a ray hitting a shared edge is assigned to exactly one
 // adjacent triangle via consistent tie-breaking. No epsilon tolerance needed.
 //
-// Reference: Woop, Benthin, Wald (2013) "Watertight Ray/Triangle Intersection"
+// Sven Woop, Carsten Benthin, Ingo Wald, "Watertight Ray/Triangle
+// Intersection," Journal of Computer Graphics Techniques 2(1), 2013.
+// https://jcgt.org/published/0002/01/05/
 // =========================================================================
 
 namespace {
