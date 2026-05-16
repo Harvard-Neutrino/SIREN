@@ -25,6 +25,11 @@
 #include "SIREN/geometry/Polyhedra.h"
 #include "SIREN/geometry/Torus.h"
 #include "SIREN/geometry/BooleanGeometry.h"
+#include "SIREN/geometry/EllipticalTube.h"
+#include "SIREN/geometry/CutTube.h"
+#include "SIREN/geometry/Trap.h"
+#include "SIREN/geometry/Ellipsoid.h"
+#include "SIREN/geometry/Para.h"
 #include "SIREN/geometry/serializable.h"
 #include "SIREN/math/Vector3D.h"
 
@@ -220,6 +225,42 @@ TEST(SerializationRoundtrip, BooleanGeometry) {
     auto loaded = RoundtripGeometry(bool_geo);
     ASSERT_NE(loaded, nullptr);
     EXPECT_EQ(*bool_geo, *loaded);
+}
+
+TEST(SerializationRoundtrip, EllipticalTube) {
+    auto et = std::make_shared<EllipticalTube>(3.0, 2.0, 5.0);
+    auto loaded = RoundtripGeometry(et);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*et, *loaded);
+}
+
+TEST(SerializationRoundtrip, CutTube) {
+    auto ct = std::make_shared<CutTube>(1.0, 5.0, 8.0,
+        siren::math::Vector3D(0, -0.2, -0.98), siren::math::Vector3D(0.1, 0, 0.995));
+    auto loaded = RoundtripGeometry(ct);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*ct, *loaded);
+}
+
+TEST(SerializationRoundtrip, Trap) {
+    auto trap = std::make_shared<Trap>(5.0, 0.1, 0.2, 3.0, 4.0, 5.0, 0.15, 2.0, 3.0, 4.0, 0.1);
+    auto loaded = RoundtripGeometry(trap);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*trap, *loaded);
+}
+
+TEST(SerializationRoundtrip, Ellipsoid) {
+    auto ell = std::make_shared<Ellipsoid>(5.0, 3.0, 4.0, -2.0, 3.0);
+    auto loaded = RoundtripGeometry(ell);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*ell, *loaded);
+}
+
+TEST(SerializationRoundtrip, Para) {
+    auto para = std::make_shared<Para>(4.0, 3.0, 5.0, 0.3, 0.2, 0.5);
+    auto loaded = RoundtripGeometry(para);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*para, *loaded);
 }
 
 int main(int argc, char** argv) {

@@ -561,6 +561,11 @@ TEST(GDMLParser, AllSolidTypes) {
       <section zOrder="0" zPosition="-40" xOffset="0" yOffset="0" scalingFactor="1"/>
       <section zOrder="1" zPosition="40" xOffset="0" yOffset="0" scalingFactor="1"/>
     </xtru>
+    <eltube name="et1" dx="30" dy="20" dz="50" lunit="mm"/>
+    <ellipsoid name="ell1" ax="50" by="40" cz="30" lunit="mm"/>
+    <para name="para1" x="40" y="30" z="50" alpha="0.3" theta="0.2" phi="0.5" aunit="rad" lunit="mm"/>
+    <trap name="trap1" z="100" theta="0" phi="0" y1="50" x1="40" x2="40" alpha1="0" y2="30" x3="30" x4="30" alpha2="0" aunit="rad" lunit="mm"/>
+    <cutTube name="ct1" rmin="0" rmax="50" z="100" startphi="0" deltaphi="360" lowX="0" lowY="0" lowZ="-1" highX="0" highY="0" highZ="1" aunit="deg" lunit="mm"/>
   </solids>
   <structure>
     <volume name="World">
@@ -575,7 +580,7 @@ TEST(GDMLParser, AllSolidTypes) {
 
     GDMLData data = ParseGDMLString(gdml);
 
-    std::vector<std::string> names = {"b1", "s1", "t1", "c1", "pc1", "ph1", "trd1", "xt1"};
+    std::vector<std::string> names = {"b1", "s1", "t1", "c1", "pc1", "ph1", "trd1", "xt1", "et1", "ell1", "para1", "trap1", "ct1"};
     for(auto const & name : names) {
         ASSERT_TRUE(data.solids.count(name) > 0)
             << "Solid '" << name << "' should be parsed";
@@ -2203,4 +2208,311 @@ TEST(GDMLParser, LoopWordBoundarySafety) {
         if(sector.name.find("ChildVol") != std::string::npos) child_count++;
     }
     EXPECT_EQ(child_count, 2) << "Should have 2 ChildVol placements (i=0,1)";
+}
+
+
+// =========================================================================
+// EllipticalTube parse + bounding box
+// =========================================================================
+TEST(GDMLParser, EllipticalTubeIntegration) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <eltube name="et" dx="30" dy="20" dz="50" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="et"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("et") > 0);
+    auto bb = data.solids["et"]->GetBoundingBox();
+    double tol = 1e-9;
+    // dx=30mm=0.03m, dy=20mm=0.02m, dz=50mm=0.05m
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.03, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 0.02, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.05, tol);
+}
+
+// =========================================================================
+// GenericPolycone parse
+// =========================================================================
+TEST(GDMLParser, GenericPolycone) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <genericPolycone name="gpc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <rzpoint r="50" z="-100"/>
+      <rzpoint r="80" z="0"/>
+      <rzpoint r="30" z="100"/>
+    </genericPolycone>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="gpc"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("gpc") > 0);
+    auto bb = data.solids["gpc"]->GetBoundingBox();
+    double tol = 1e-6;
+    // rmax=80mm=0.08m at z=0
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.08, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 0.08, tol);
+    // z ranges from -100mm to 100mm = -0.1m to 0.1m
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.1, tol);
+    EXPECT_NEAR(bb.min_corner.GetZ(), -0.1, tol);
+}
+
+// =========================================================================
+// CutTube parse
+// =========================================================================
+TEST(GDMLParser, CutTubeIntegration) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <cutTube name="ct" rmin="10" rmax="50" z="100" startphi="0" deltaphi="360"
+             lowX="0" lowY="0" lowZ="-1" highX="0" highY="0" highZ="1"
+             aunit="deg" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="ct"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("ct") > 0);
+    auto bb = data.solids["ct"]->GetBoundingBox();
+    double tol = 1e-6;
+    // rmax=50mm=0.05m, z=100mm half=50mm=0.05m (flat cuts)
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol);
+}
+
+// =========================================================================
+// Trap parse + degenerate-to-Trd check
+// =========================================================================
+TEST(GDMLParser, TrapIntegration) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <trap name="t" z="100" theta="0" phi="0"
+          y1="60" x1="40" x2="40" alpha1="0"
+          y2="40" x3="30" x4="30" alpha2="0"
+          aunit="rad" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="t"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("t") > 0);
+    auto bb = data.solids["t"]->GetBoundingBox();
+    double tol = 1e-6;
+    // z=100mm = 0.1m (GDML trap z is half-height, passed directly as dz)
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.1, tol);
+    // max x = max(dx1,dx2,dx3,dx4) = 40mm = 0.04m
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.04, tol);
+}
+
+// =========================================================================
+// Ellipsoid parse
+// =========================================================================
+TEST(GDMLParser, EllipsoidIntegration) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <ellipsoid name="ell" ax="50" by="30" cz="40" zcut2="20" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="ell"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("ell") > 0);
+    auto bb = data.solids["ell"]->GetBoundingBox();
+    double tol = 1e-6;
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol);  // ax=50mm=0.05m
+    EXPECT_NEAR(bb.max_corner.GetY(), 0.03, tol);  // by=30mm=0.03m
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.02, tol);  // zcut2=20mm=0.02m
+    EXPECT_NEAR(bb.min_corner.GetZ(), -0.04, tol); // -cz=-40mm=-0.04m (no zcut1)
+}
+
+// =========================================================================
+// Para parse
+// =========================================================================
+TEST(GDMLParser, ParaIntegration) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <para name="p" x="40" y="30" z="50" alpha="0" theta="0" phi="0" aunit="rad" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="p"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("p") > 0);
+    auto bb = data.solids["p"]->GetBoundingBox();
+    double tol = 1e-6;
+    // With alpha=theta=phi=0, para = box: x=40mm=0.04m half, etc.
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.04, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 0.03, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.05, tol);
+}
+
+// =========================================================================
+// Matrix vector lookup
+// =========================================================================
+TEST(GDMLParser, MatrixVectorLookup) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <matrix name="energies" coldim="1" values="1.5 2.5 3.5 4.5"/>
+    <constant name="e2" value="energies[2]"/>
+    <constant name="e4" value="energies[4]"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants["e2"], 2.5, 1e-9);
+    EXPECT_NEAR(data.constants["e4"], 4.5, 1e-9);
+}
+
+// =========================================================================
+// Matrix 2D table lookup
+// =========================================================================
+TEST(GDMLParser, MatrixTableLookup) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <matrix name="m" coldim="3" values="10 20 30 40 50 60 70 80 90"/>
+    <constant name="v12" value="m[1,2]"/>
+    <constant name="v23" value="m[2,3]"/>
+    <constant name="v31" value="m[3,1]"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    // Row 1, col 2 = index (0*3+1) = values[1] = 20
+    EXPECT_NEAR(data.constants["v12"], 20.0, 1e-9);
+    // Row 2, col 3 = index (1*3+2) = values[5] = 60
+    EXPECT_NEAR(data.constants["v23"], 60.0, 1e-9);
+    // Row 3, col 1 = index (2*3+0) = values[6] = 70
+    EXPECT_NEAR(data.constants["v31"], 70.0, 1e-9);
+}
+
+// =========================================================================
+// Matrix access inside loop
+// =========================================================================
+TEST(GDMLParser, MatrixInLoop) {
+    // Uses word-boundary substitution (bare i in arithmetic) rather than bracket
+    // notation (pos[i]) to avoid collision with the loop bracket substitution.
+    // The loop expands i*1 to e.g. "1*1", "2*1", "3*1" which the expression
+    // evaluator resolves to 1, 2, 3 for the matrix index.
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <matrix name="pos" coldim="1" values="100 200 300"/>
+    <variable name="idx" value="1"/>
+    <constant name="p1" value="pos[1]"/>
+    <constant name="p2" value="pos[2]"/>
+    <constant name="p3" value="pos[3]"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants["p1"], 100.0, 1e-9);
+    EXPECT_NEAR(data.constants["p2"], 200.0, 1e-9);
+    EXPECT_NEAR(data.constants["p3"], 300.0, 1e-9);
 }

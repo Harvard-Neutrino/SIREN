@@ -33,6 +33,11 @@
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/BooleanGeometry.h"
 #include "SIREN/geometry/Torus.h"
+#include "SIREN/geometry/EllipticalTube.h"
+#include "SIREN/geometry/CutTube.h"
+#include "SIREN/geometry/Trap.h"
+#include "SIREN/geometry/Ellipsoid.h"
+#include "SIREN/geometry/Para.h"
 
 using namespace siren::geometry;
 using namespace siren::math;
@@ -193,6 +198,18 @@ std::vector<ShapeEntry> MakeShapes() {
         };
         shapes.push_back({"ExtrPoly(multiZ)", ExtrPoly(polygon, zsecs).create(), -1, -1, 0});
     }
+
+    // New solid types
+    shapes.push_back({"EllipticalTube(3,2,5)", EllipticalTube(3, 2, 5).create(), 2, -1, 0});
+    shapes.push_back({"CutTubeFlat(0,5,8,(0,0,-1),(0,0,1))", CutTube(0, 5, 8, Vector3D(0,0,-1), Vector3D(0,0,1)).create(), 2, -1, 0});
+    shapes.push_back({"CutTubeHollow(2,5,8,(0,0,-1),(0,0,1))", CutTube(2, 5, 8, Vector3D(0,0,-1), Vector3D(0,0,1)).create(), 4, -1, 0});
+    shapes.push_back({"CutTubeTilted(0,5,8)", CutTube(0, 5, 8, Vector3D(0,-0.2,-0.98), Vector3D(0.1,0,0.995)).create(), 2, -1, 0});
+    shapes.push_back({"Trap(symmetric)", Trap(5, 0, 0, 3, 4, 4, 0, 2, 3, 3, 0).create(), 2, -1, 0});
+    shapes.push_back({"Trap(general)", Trap(5, 0.1, 0.2, 3, 4, 5, 0.15, 2, 3, 4, 0.1).create(), 2, -1, 0});
+    shapes.push_back({"Ellipsoid(5,3,4)", Ellipsoid(5, 3, 4).create(), 2, -1, 0});
+    shapes.push_back({"Ellipsoid(5,3,4,-2,3)", Ellipsoid(5, 3, 4, -2, 3).create(), 4, -1, 0});
+    shapes.push_back({"Para(4,3,5,0,0,0)", Para(4, 3, 5, 0, 0, 0).create(), 2, -1, 0});
+    shapes.push_back({"Para(4,3,5,0.3,0.2,0.5)", Para(4, 3, 5, 0.3, 0.2, 0.5).create(), 2, -1, 0});
 
     return shapes;
 }
