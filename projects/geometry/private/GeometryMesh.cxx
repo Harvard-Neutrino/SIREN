@@ -53,7 +53,102 @@ TriangularMesh::TriangularMesh(const TriangularMesh& tmesh)
     , triangle_data_(tmesh.triangle_data_)
     , kd_root_(tmesh.kd_root_)
 {
-    // Share the KD-tree via shared_ptr (immutable after construction)
+}
+
+TriangularMesh::TriangularMesh(std::vector<std::array<math::Vector3D, 3>> const & triangles)
+    : Geometry("TriangularMesh")
+    , mesh(BuildMeshFromTriangles(triangles))
+{
+    BuildAccelerationStructure();
+}
+
+TriangularMesh::TriangularMesh(Placement const & placement, std::vector<std::array<math::Vector3D, 3>> const & triangles)
+    : Geometry("TriangularMesh", placement)
+    , mesh(BuildMeshFromTriangles(triangles))
+{
+    BuildAccelerationStructure();
+}
+
+Mesh::TMesh TriangularMesh::BuildMeshFromTriangles(std::vector<std::array<math::Vector3D, 3>> const & triangles) {
+    Mesh::TMesh m;
+    int vertex_id = 0;
+    for(auto const & tri : triangles) {
+        int v0 = vertex_id++;
+        int v1 = vertex_id++;
+        int v2 = vertex_id++;
+
+        Mesh::VData d0 = {{tri[0].GetX(), tri[0].GetY(), tri[0].GetZ()}};
+        Mesh::VData d1 = {{tri[1].GetX(), tri[1].GetY(), tri[1].GetZ()}};
+        Mesh::VData d2 = {{tri[2].GetX(), tri[2].GetY(), tri[2].GetZ()}};
+
+        Mesh::VAttribute va0; va0.data = d0;
+        Mesh::VAttribute va1; va1.data = d1;
+        Mesh::VAttribute va2; va2.data = d2;
+
+        Mesh::Triangle t = {{v0, v1, v2}};
+        Mesh::TData tdata = {{d0, d1, d2}};
+        Mesh::TAttribute ta; ta.data = tdata;
+
+        va0.tset.insert(t);
+        va1.tset.insert(t);
+        va2.tset.insert(t);
+
+        Mesh::Edge e01 = {{std::min(v0, v1), std::max(v0, v1)}};
+        Mesh::Edge e12 = {{std::min(v1, v2), std::max(v1, v2)}};
+        Mesh::Edge e20 = {{std::min(v2, v0), std::max(v2, v0)}};
+
+        va0.eset.insert(e01); va0.eset.insert(e20);
+        va1.eset.insert(e01); va1.eset.insert(e12);
+        va2.eset.insert(e12); va2.eset.insert(e20);
+
+        m.vmap.push_back(va0);
+        m.vmap.push_back(va1);
+        m.vmap.push_back(va2);
+
+        m.tmap[t] = ta;
+
+        Mesh::EData ed01 = {{d0, d1}};
+        Mesh::EData ed12 = {{d1, d2}};
+        Mesh::EData ed20 = {{d2, d0}};
+
+        if(m.emap.find(e01) == m.emap.end()) {
+            Mesh::EAttribute ea; ea.data = ed01;
+            ea.tset.insert(t);
+            m.emap[e01] = ea;
+        } else {
+            m.emap[e01].tset.insert(t);
+        }
+        if(m.emap.find(e12) == m.emap.end()) {
+            Mesh::EAttribute ea; ea.data = ed12;
+            ea.tset.insert(t);
+            m.emap[e12] = ea;
+        } else {
+            m.emap[e12].tset.insert(t);
+        }
+        if(m.emap.find(e20) == m.emap.end()) {
+            Mesh::EAttribute ea; ea.data = ed20;
+            ea.tset.insert(t);
+            m.emap[e20] = ea;
+        } else {
+            m.emap[e20].tset.insert(t);
+        }
+    }
+    return m;
+}
+
+void TriangularMesh::RebuildFromTriangleData() {
+    std::vector<std::array<math::Vector3D, 3>> triangles;
+    triangles.reserve(triangle_data_.size());
+    for(auto const & td : triangle_data_) {
+        std::array<math::Vector3D, 3> tri = {{
+            math::Vector3D(td[0][0], td[0][1], td[0][2]),
+            math::Vector3D(td[1][0], td[1][1], td[1][2]),
+            math::Vector3D(td[2][0], td[2][1], td[2][2])
+        }};
+        triangles.push_back(tri);
+    }
+    mesh = BuildMeshFromTriangles(triangles);
+    kd_root_ = Mesh::BuildKDTree(triangle_data_, 1.0, 1.5, 20);
 }
 
 Mesh::VAttribute & TriangularMesh::GetVertex(Mesh::Vertex v) {
@@ -155,10 +250,23 @@ void TriangularMesh::BuildAccelerationStructure() {
         triangle_data_.push_back(tp.second.data);
     }
 
-    // Build KD-tree with default parameters
+    // Build KD-tree. For closed-surface meshes (tessellated solids, arb8),
+    // triangles overlap heavily in bounding-box terms and the SAH builder
+    // degenerates (duplicating all triangles into both children). Use a flat
+    // leaf (brute-force) for meshes up to 1024 triangles. For larger meshes,
+    // cap depth at log2(n) to bound degenerate cases.
     double traversal_cost = 1.0;
     double intersection_cost = 1.5;
-    int max_depth = 20;
+    int n = (int)triangle_data_.size();
+    int max_depth;
+    if(n <= 1024) {
+        max_depth = 0;
+    } else {
+        max_depth = 0;
+        int tmp = n;
+        while(tmp > 1) { ++max_depth; tmp >>= 1; }
+        if(max_depth > 16) max_depth = 16;
+    }
     kd_root_ = Mesh::BuildKDTree(triangle_data_, traversal_cost, intersection_cost, max_depth);
 }
 
@@ -190,10 +298,11 @@ std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(math::V
         });
 
     std::set<Mesh::TriangleID> seen_tris;
-    result.reserve(hits.size());
+    std::vector<Intersection> unique_tri_hits;
+    unique_tri_hits.reserve(hits.size());
     for(size_t idx : order) {
         if(!seen_tris.insert(hit_tri_ids[idx]).second) {
-            continue; // duplicate triangle, skip
+            continue;
         }
         Intersection isect;
         isect.distance = hits[idx].t;
@@ -201,6 +310,21 @@ std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(math::V
         isect.entering = hits[idx].front_face;
         isect.matID = 0;
         isect.position = position + direction * hits[idx].t;
+        unique_tri_hits.push_back(isect);
+    }
+
+    // Merge coincident hits from adjacent triangles sharing an edge/vertex.
+    // When a ray hits a shared edge, both triangles report a hit at the same
+    // distance. Keep only one hit per coincident group.
+    result.reserve(unique_tri_hits.size());
+    for(auto const & isect : unique_tri_hits) {
+        if(!result.empty()) {
+            double scale = std::fmax(std::fabs(isect.distance), std::fabs(result.back().distance));
+            double tol = std::fmax(1e-9, scale * 1e-9);
+            if(std::fabs(isect.distance - result.back().distance) < tol) {
+                continue;
+            }
+        }
         result.push_back(isect);
     }
 

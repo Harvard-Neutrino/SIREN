@@ -986,7 +986,10 @@ RayTriangleHit RayTriangleIntersect(
     Point s = subtract(origin, v0);
     double u = f * dot(s, h);
 
-    if(u < 0.0 || u > 1.0)
+    // Slight negative tolerance on barycentric bounds ensures rays hitting
+    // shared edges are accepted by at least one adjacent triangle.
+    static const double BARY_TOL = -1e-10;
+    if(u < BARY_TOL || u > 1.0 - BARY_TOL)
         return result;
 
     // q = s x edge1
@@ -998,16 +1001,17 @@ RayTriangleHit RayTriangleIntersect(
 
     double v = f * dot(direction, q);
 
-    if(v < 0.0 || u + v > 1.0)
+    if(v < BARY_TOL || u + v > 1.0 - BARY_TOL)
         return result;
 
     double t = f * dot(edge2, q);
 
     result.hit = true;
     result.t = t;
-    // Front face: ray hits the side where the normal points outward
-    // Normal direction = edge1 x edge2, front face if dot(direction, normal) < 0
-    result.front_face = (a < 0);
+    // Front face (entering): ray approaches from the side the normal points toward.
+    // Normal = edge1 x edge2. a = -dot(direction, normal).
+    // Front face when dot(direction, normal) < 0, i.e. a > 0.
+    result.front_face = (a > 0);
 
     return result;
 }
@@ -1021,22 +1025,25 @@ bool RayVoxelIntersect(
     Voxel const & voxel,
     double & tmin,
     double & tmax) {
+    // Expand voxel by a small epsilon to handle rays originating exactly on
+    // the boundary with zero direction component (produces 0*inf = NaN).
+    static const double EPS = 1e-8;
     double t1, t2;
 
-    t1 = (voxel.min_extent[0] - origin[0]) * inv_direction[0];
-    t2 = (voxel.max_extent[0] - origin[0]) * inv_direction[0];
+    t1 = (voxel.min_extent[0] - EPS - origin[0]) * inv_direction[0];
+    t2 = (voxel.max_extent[0] + EPS - origin[0]) * inv_direction[0];
 
     tmin = std::fmin(t1, t2);
     tmax = std::fmax(t1, t2);
 
-    t1 = (voxel.min_extent[1] - origin[1]) * inv_direction[1];
-    t2 = (voxel.max_extent[1] - origin[1]) * inv_direction[1];
+    t1 = (voxel.min_extent[1] - EPS - origin[1]) * inv_direction[1];
+    t2 = (voxel.max_extent[1] + EPS - origin[1]) * inv_direction[1];
 
     tmin = std::fmax(tmin, std::fmin(t1, t2));
     tmax = std::fmin(tmax, std::fmax(t1, t2));
 
-    t1 = (voxel.min_extent[2] - origin[2]) * inv_direction[2];
-    t2 = (voxel.max_extent[2] - origin[2]) * inv_direction[2];
+    t1 = (voxel.min_extent[2] - EPS - origin[2]) * inv_direction[2];
+    t2 = (voxel.max_extent[2] + EPS - origin[2]) * inv_direction[2];
 
     tmin = std::fmax(tmin, std::fmin(t1, t2));
     tmax = std::fmin(tmax, std::fmax(t1, t2));

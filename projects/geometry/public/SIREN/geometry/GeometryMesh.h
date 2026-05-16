@@ -37,6 +37,8 @@ public:
     TriangularMesh(Placement const &);
     TriangularMesh(Placement const &, Mesh::TMesh const &);
     TriangularMesh(TriangularMesh const &);
+    TriangularMesh(std::vector<std::array<math::Vector3D, 3>> const & triangles);
+    TriangularMesh(Placement const &, std::vector<std::array<math::Vector3D, 3>> const & triangles);
 
     Mesh::VAttribute & GetVertex(Mesh::Vertex v);
     Mesh::EAttribute & GetEdge(Mesh::Edge e);
@@ -51,8 +53,12 @@ public:
             double data_;
             archive(::cereal::make_nvp("", data_));
             archive(cereal::virtual_base_class<Geometry>(this));
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("TriangleData", triangle_data_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+            RebuildFromTriangleData();
         } else {
-            throw std::runtime_error("TriangularMesh only supports version <= 0!");
+            throw std::runtime_error("TriangularMesh only supports version <= 1!");
         }
     }
 
@@ -74,6 +80,8 @@ protected:
 private:
     void print(std::ostream&) const override;
     void BuildAccelerationStructure();
+    void RebuildFromTriangleData();
+    static Mesh::TMesh BuildMeshFromTriangles(std::vector<std::array<math::Vector3D, 3>> const & triangles);
 
     Mesh::TMesh mesh;
 
@@ -85,7 +93,7 @@ private:
 } // namespace geometry
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::geometry::TriangularMesh, 0);
+CEREAL_CLASS_VERSION(siren::geometry::TriangularMesh, 1);
 CEREAL_REGISTER_TYPE(siren::geometry::TriangularMesh)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::TriangularMesh);
 

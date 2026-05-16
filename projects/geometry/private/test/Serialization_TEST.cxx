@@ -30,6 +30,7 @@
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GeometryMesh.h"
 #include "SIREN/geometry/serializable.h"
 #include "SIREN/math/Vector3D.h"
 
@@ -261,6 +262,22 @@ TEST(SerializationRoundtrip, Para) {
     auto loaded = RoundtripGeometry(para);
     ASSERT_NE(loaded, nullptr);
     EXPECT_EQ(*para, *loaded);
+}
+
+TEST(SerializationRoundtrip, TriangularMesh) {
+    std::vector<std::array<Vector3D, 3>> triangles;
+    Vector3D v0(0,0,0), v1(1,0,0), v2(0,1,0), v3(0,0,1);
+    triangles.push_back({{v0, v2, v1}});
+    triangles.push_back({{v0, v1, v3}});
+    triangles.push_back({{v0, v3, v2}});
+    triangles.push_back({{v1, v2, v3}});
+    auto mesh = std::make_shared<TriangularMesh>(triangles);
+    auto loaded = RoundtripGeometry(mesh);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*mesh, *loaded);
+    // Verify containment still works after deserialization
+    EXPECT_TRUE(loaded->IsInside(Vector3D(0.1, 0.1, 0.1)));
+    EXPECT_FALSE(loaded->IsInside(Vector3D(2.0, 2.0, 2.0)));
 }
 
 int main(int argc, char** argv) {

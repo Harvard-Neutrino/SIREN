@@ -28,6 +28,7 @@
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GeometryMesh.h"
 
 using namespace siren::geometry;
 using namespace siren::math;
@@ -1172,4 +1173,30 @@ TEST(Containment, ParaSheared) {
     ValidateContainment(para, pl, [=](Vector3D const & p) {
         return InsidePara(p, dx, dy, dz, alpha, theta, phi);
     }, 15, 10000, "ParaSheared");
+}
+
+TEST(Containment, TriangularMeshCube) {
+    // Build a 2x2x2 cube centered at origin as a triangulated mesh
+    double s = 3.0;
+    Vector3D v[8] = {
+        Vector3D(-s,-s,-s), Vector3D(s,-s,-s), Vector3D(s,s,-s), Vector3D(-s,s,-s),
+        Vector3D(-s,-s, s), Vector3D(s,-s, s), Vector3D(s,s, s), Vector3D(-s,s, s)
+    };
+    std::vector<std::array<Vector3D, 3>> triangles;
+    auto addQuad = [&](Vector3D a, Vector3D b, Vector3D c, Vector3D d) {
+        triangles.push_back({{a, b, c}});
+        triangles.push_back({{a, c, d}});
+    };
+    addQuad(v[3], v[2], v[1], v[0]); // -z face
+    addQuad(v[4], v[5], v[6], v[7]); // +z face
+    addQuad(v[0], v[1], v[5], v[4]); // -y face
+    addQuad(v[1], v[2], v[6], v[5]); // +x face
+    addQuad(v[2], v[3], v[7], v[6]); // +y face
+    addQuad(v[3], v[0], v[4], v[7]); // -x face
+
+    Placement pl(Vector3D(2, -1, 4));
+    TriangularMesh mesh(pl, triangles);
+    ValidateContainment(mesh, pl, [=](Vector3D const & p) {
+        return std::fabs(p.GetX()) < s && std::fabs(p.GetY()) < s && std::fabs(p.GetZ()) < s;
+    }, s * 2, 10000, "TriangularMeshCube");
 }
