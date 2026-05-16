@@ -3,6 +3,7 @@
 #include <cmath>
 #include <tuple>
 #include <math.h>
+#include <limits>
 #include <string>
 #include <vector>
 #include <ostream>
@@ -394,8 +395,8 @@ std::vector<Geometry::Intersection> Trap::ComputeIntersections(siren::math::Vect
     double diry = direction.GetY();
     double dirz = direction.GetZ();
 
-    double t_enter = -1e30;
-    double t_exit = 1e30;
+    double t_enter = -std::numeric_limits<double>::infinity();
+    double t_exit = std::numeric_limits<double>::infinity();
     int enter_face = -1;
     int exit_face = -1;
 

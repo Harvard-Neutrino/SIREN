@@ -14,6 +14,9 @@
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Cylinder.h"
 #include "SIREN/geometry/Cone.h"
+#include "SIREN/geometry/CutTube.h"
+#include "SIREN/geometry/Ellipsoid.h"
+#include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Trd.h"
 
 using namespace siren::geometry;
@@ -1375,9 +1378,93 @@ TEST(Validation, TrdZeroHeight) {
     EXPECT_NO_THROW(Trd(5, 3, 4, 2, 6));
 }
 
+// --- CutTube negative rmin validation (#11) ---
+
+TEST(Validation, CutTubeNegativeRmin) {
+    Vector3D low_norm(0, 0, -1);
+    Vector3D high_norm(0, 0, 1);
+    // Negative rmin should throw (even if rmax is positive and swap would "fix" it)
+    EXPECT_THROW(CutTube(-5.0, 10.0, 5.0, low_norm, high_norm), std::invalid_argument);
+    // Negative rmax should also throw
+    EXPECT_THROW(CutTube(0.0, -3.0, 5.0, low_norm, high_norm), std::invalid_argument);
+    // Both negative
+    EXPECT_THROW(CutTube(-2.0, -1.0, 5.0, low_norm, high_norm), std::invalid_argument);
+    // Valid: rmin > rmax triggers swap, but both are non-negative
+    EXPECT_NO_THROW(CutTube(8.0, 5.0, 3.0, low_norm, high_norm));
+    // Valid: zero rmin is fine
+    EXPECT_NO_THROW(CutTube(0.0, 5.0, 3.0, low_norm, high_norm));
+}
+
+TEST(Validation, CutTubeNegativeRminWithPlacement) {
+    Placement p;
+    Vector3D low_norm(0, 0, -1);
+    Vector3D high_norm(0, 0, 1);
+    EXPECT_THROW(CutTube(p, -5.0, 10.0, 5.0, low_norm, high_norm), std::invalid_argument);
+    EXPECT_THROW(CutTube(p, 0.0, -3.0, 5.0, low_norm, high_norm), std::invalid_argument);
+    EXPECT_NO_THROW(CutTube(p, 8.0, 5.0, 3.0, low_norm, high_norm));
+}
+
+// --- Trap infinity sentinel test (#12) ---
+
+TEST(TrapIntersection, FarFieldRay) {
+    // A ray originating far from the trap should still produce intersections.
+    // Distance limited by double precision: with a 20-unit-tall trap, we need
+    // the t_enter/t_exit difference (~20) to be representable. At ~1e14 distance
+    // we use all 15 significant digits.
+    Trap trap(10, 0, 0, 8, 5, 5, 0, 6, 3, 3, 0);
+    Vector3D origin(0, 0, -1e12);
+    Vector3D dir(0, 0, 1);
+    auto hits = trap.Intersections(origin, dir);
+    ASSERT_EQ(hits.size(), 2u);
+    EXPECT_NEAR(hits[0].position.GetZ(), -10.0, 1e-3);
+    EXPECT_NEAR(hits[1].position.GetZ(),  10.0, 1e-3);
+}
+
+TEST(TrapIntersection, NearFieldBasic) {
+    // Basic sanity check that Trap intersections work for normal distances
+    Trap trap(10, 0, 0, 8, 5, 5, 0, 6, 3, 3, 0);
+    Vector3D origin(0, 0, -100);
+    Vector3D dir(0, 0, 1);
+    auto hits = trap.Intersections(origin, dir);
+    ASSERT_EQ(hits.size(), 2u);
+    EXPECT_NEAR(hits[0].position.GetZ(), -10.0, 1e-6);
+    EXPECT_NEAR(hits[1].position.GetZ(),  10.0, 1e-6);
+}
+
+// --- Ellipsoid z-cut boundary dedup test (#18) ---
+
+TEST(EllipsoidIntersection, ZCutBoundaryNoDuplicates) {
+    // Ellipsoid with z-cuts at the equator: zcut1=-5, zcut2=5
+    // with semi-axes (10, 10, 10) -- effectively a sphere with z-cuts.
+    Ellipsoid ell(10.0, 10.0, 10.0, -5.0, 5.0);
+    // Shoot a ray along z through the point where the ellipsoid surface
+    // meets the z-cut boundary at z=5 (r = sqrt(100-25) ~ 8.66 from z-axis)
+    double r_at_cut = std::sqrt(10.0*10.0 - 5.0*5.0);
+    Vector3D origin(r_at_cut, 0, -20);
+    Vector3D dir(0, 0, 1);
+    auto hits = ell.Intersections(origin, dir);
+    // Must have an even number of intersections and no duplicates
+    EXPECT_EQ(hits.size() % 2, 0u);
+    for(size_t i = 1; i < hits.size(); ++i) {
+        EXPECT_GT(hits[i].distance - hits[i-1].distance, Geometry::GEOMETRY_PRECISION);
+    }
+}
+
+TEST(EllipsoidIntersection, ZCutBoundaryEvenCount) {
+    // Test with a ray that hits exactly at zcut2 boundary
+    Ellipsoid ell(5.0, 5.0, 10.0, -8.0, 8.0);
+    // At z=8, ellipsoid radius in xy = 5*sqrt(1 - 64/100) = 5*0.6 = 3
+    double r_at_cut = 5.0 * std::sqrt(1.0 - (8.0*8.0)/(10.0*10.0));
+    Vector3D origin(r_at_cut - 0.001, 0, -20);
+    Vector3D dir(0, 0, 1);
+    auto hits = ell.Intersections(origin, dir);
+    EXPECT_EQ(hits.size() % 2, 0u);
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+
 

@@ -297,7 +297,16 @@ std::vector<Geometry::Intersection> Ellipsoid::ComputeIntersections(siren::math:
     std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
     });
-    return {hits, hits + n_hits};
+    // Deduplicate hits at the same distance (can occur where the ellipsoid
+    // surface meets a z-cut plane — both branches report the same point).
+    int n_unique = 0;
+    for(int i = 0; i < n_hits; ++i) {
+        if(n_unique > 0 && std::fabs(hits[i].distance - hits[n_unique - 1].distance) < GEOMETRY_PRECISION) {
+            continue;
+        }
+        hits[n_unique++] = hits[i];
+    }
+    return {hits, hits + n_unique};
 }
 
 // ------------------------------------------------------------------------- //

@@ -63,6 +63,12 @@ CutTube::CutTube(double rmin, double rmax, double dz, math::Vector3D low_norm, m
     , dz_(dz)
     , low_norm_(low_norm)
       , high_norm_(high_norm) {
+    if(rmin_ < 0) {
+        throw std::invalid_argument("CutTube inner radius rmin must be non-negative!");
+    }
+    if(rmax_ < 0) {
+        throw std::invalid_argument("CutTube outer radius rmax must be non-negative!");
+    }
     if(rmin_ > rmax_) {
         std::swap(rmin_, rmax_);
     }
@@ -93,6 +99,12 @@ CutTube::CutTube(Placement const & placement, double rmin, double rmax, double d
     , dz_(dz)
     , low_norm_(low_norm)
       , high_norm_(high_norm) {
+    if(rmin_ < 0) {
+        throw std::invalid_argument("CutTube inner radius rmin must be non-negative!");
+    }
+    if(rmax_ < 0) {
+        throw std::invalid_argument("CutTube outer radius rmax must be non-negative!");
+    }
     if(rmin_ > rmax_) {
         std::swap(rmin_, rmax_);
     }
