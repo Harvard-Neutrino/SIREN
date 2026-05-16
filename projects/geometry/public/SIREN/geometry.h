@@ -9,7 +9,6 @@
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/GeometryMesh.h"
-#include "SIREN/geometry/MeshBuilder.h"
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/Polyhedra.h"

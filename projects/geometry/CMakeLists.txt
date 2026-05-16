@@ -23,6 +23,16 @@ LIST (APPEND geometry_SOURCES
 )
 add_library(SIREN_geometry OBJECT ${geometry_SOURCES})
 set_property(TARGET SIREN_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# Woop's watertight ray-triangle intersection requires that each multiply rounds
+# independently (no FMA contraction). noinline prevents cross-call-boundary FMA;
+# this flag prevents FMA within the function body.
+if(NOT MSVC)
+    set_source_files_properties(
+        ${PROJECT_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
+        PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+    )
+endif()
 target_include_directories(SIREN_geometry PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/geometry/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/geometry/>
