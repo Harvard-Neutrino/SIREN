@@ -68,3 +68,8 @@ __pycache__/
 
 # output dirs
 output/
+
+# flux/processes dirs
+resources/fluxes/**/*txt
+resources/fluxes/**/*dat
+resources/processes/**/*fits
