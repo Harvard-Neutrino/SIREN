@@ -313,6 +313,9 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
         }
         case TokenKind::FUNC: {
             int argc = tok.argc;
+            if(argc > 2) {
+                throw std::runtime_error("GDML expression error: function '" + tok.name + "' called with " + std::to_string(argc) + " arguments (max 2) in '" + expr + "'");
+            }
             if(static_cast<int>(val_stack.size()) < argc) {
                 throw std::runtime_error("GDML expression error: not enough arguments for '" + tok.name + "' in '" + expr + "'");
             }
@@ -366,9 +369,12 @@ double ParseLength(const char* value, const char* unit,
     }
 
     std::string u(unit);
-    if(u == "mm") return val * 0.001;
-    if(u == "cm") return val * 0.01;
+    if(u == "mm") return val * 1e-3;
+    if(u == "cm") return val * 1e-2;
     if(u == "m")  return val * 1.0;
+    if(u == "um") return val * 1e-6;
+    if(u == "nm") return val * 1e-9;
+    if(u == "km") return val * 1e3;
 
     // Unknown unit
     throw std::runtime_error("GDML error: unrecognized length unit '" + std::string(unit) + "'");
@@ -377,12 +383,15 @@ double ParseLength(const char* value, const char* unit,
 // Get the length scale factor for a given unit string
 double LengthScale(const char* unit) {
     if(!unit || unit[0] == '\0') {
-        return 0.001; // GDML default is mm
+        return 1e-3; // GDML default is mm
     }
     std::string u(unit);
-    if(u == "mm") return 0.001;
-    if(u == "cm") return 0.01;
+    if(u == "mm") return 1e-3;
+    if(u == "cm") return 1e-2;
     if(u == "m")  return 1.0;
+    if(u == "um") return 1e-6;
+    if(u == "nm") return 1e-9;
+    if(u == "km") return 1e3;
     throw std::runtime_error("GDML error: unrecognized length unit '" + u + "'");
 }
 
@@ -471,6 +480,8 @@ double QuantityUnitScale(const char* type, const char* unit) {
     if(u == "cm") return 10.0;
     if(u == "m")  return 1000.0;
     if(u == "km") return 1e6;
+    if(u == "um") return 1e-3;
+    if(u == "nm") return 1e-6;
     if(u == "in") return 25.4;
 
     // Also try angle units if type was missing
@@ -495,6 +506,135 @@ void EmitWarning(GDMLData & data, GDMLParseOptions const & options, std::string 
     }
     data.warnings.push_back(msg);
     std::cerr << "GDML warning: " << msg << std::endl;
+}
+
+// Substitute loop variable references in an attribute value string.
+// Two substitution modes following Geant4 convention:
+//   1. Bracket notation: [expr] is evaluated and replaced with the integer
+//      result. Used in name attributes to construct unique identifiers
+//      (e.g. "layer_[i]" -> "layer_0"). The expression inside brackets
+//      can be any evaluable expression using the loop variable.
+//   2. Word-boundary replacement: bare occurrences of the variable name
+//      that form a complete identifier token are replaced with the numeric
+//      value. Used in numeric expressions (e.g. "i*10" -> "0*10").
+//      Does NOT replace the variable inside longer identifiers
+//      (e.g. "ChildVol" is untouched when the variable is "i").
+static std::string SubstLoopVar(
+    std::string const & val,
+    std::string const & var_name,
+    std::string const & var_value_str,
+    std::map<std::string, double> const & constants) {
+    std::string result = val;
+
+    // Pass 1: bracket substitution [expr] -> evaluated integer
+    size_t pos = 0;
+    while((pos = result.find('[', pos)) != std::string::npos) {
+        size_t end = result.find(']', pos + 1);
+        if(end == std::string::npos) break;
+        std::string expr = result.substr(pos + 1, end - pos - 1);
+        try {
+            double v = EvalExpression(expr, constants);
+            long long iv = static_cast<long long>(v);
+            result.replace(pos, end - pos + 1, std::to_string(iv));
+        } catch(...) {
+            pos = end + 1;
+        }
+    }
+
+    // Pass 2: word-boundary replacement of the bare variable name
+    pos = 0;
+    while((pos = result.find(var_name, pos)) != std::string::npos) {
+        bool left_ok = (pos == 0 || !IsIdentChar(result[pos - 1]));
+        bool right_ok = (pos + var_name.size() >= result.size() || !IsIdentChar(result[pos + var_name.size()]));
+        if(left_ok && right_ok) {
+            result.replace(pos, var_name.size(), var_value_str);
+            pos += var_value_str.size();
+        } else {
+            pos += var_name.size();
+        }
+    }
+
+    return result;
+}
+
+// Deep-clone an XML node and all its children/attributes into a document.
+// Performs loop variable substitution in all attribute values.
+static rapidxml::xml_node<>* CloneNodeWithSubst(
+    rapidxml::xml_document<> & doc,
+    rapidxml::xml_node<>* src,
+    std::string const & var_name,
+    std::string const & var_value_str,
+    std::map<std::string, double> const & constants) {
+
+    auto* node = doc.allocate_node(src->type());
+    node->name(src->name(), src->name_size());
+
+    for(auto* attr = src->first_attribute(); attr; attr = attr->next_attribute()) {
+        std::string val(attr->value(), attr->value_size());
+        val = SubstLoopVar(val, var_name, var_value_str, constants);
+        char* aname = doc.allocate_string(attr->name(), attr->name_size() + 1);
+        char* aval = doc.allocate_string(val.c_str(), val.size() + 1);
+        node->append_attribute(doc.allocate_attribute(aname, aval));
+    }
+
+    for(auto* child = src->first_node(); child; child = child->next_sibling()) {
+        node->append_node(CloneNodeWithSubst(doc, child, var_name, var_value_str, constants));
+    }
+    return node;
+}
+
+// Expand all <loop> elements in the DOM tree before section parsing.
+// GDML loops have attributes: for (variable name), from, to, step.
+// The loop body is cloned once per iteration with the variable substituted.
+static void ExpandLoops(rapidxml::xml_document<> & doc,
+                        rapidxml::xml_node<>* node,
+                        std::map<std::string, double> & constants) {
+    if(!node) return;
+
+    auto* child = node->first_node();
+    while(child) {
+        auto* next = child->next_sibling();
+        if(std::string(child->name()) == "loop") {
+            std::string var_name = SafeAttrVal(child, "for");
+            double from_val = SafeParseDouble(SafeAttrVal(child, "from"), constants);
+            double to_val = SafeParseDouble(SafeAttrVal(child, "to"), constants);
+            double step_val = SafeParseDouble(SafeAttrVal(child, "step"), constants);
+            if(step_val == 0) step_val = 1.0;
+
+            int max_iterations = 10000;
+            int count = 0;
+            for(double v = from_val;
+                (step_val > 0) ? (v <= to_val + 1e-9) : (v >= to_val - 1e-9);
+                v += step_val) {
+                if(++count > max_iterations) break;
+
+                constants[var_name] = v;
+
+                // Format integer-valued loop vars without decimal point
+                std::string v_str;
+                if(v == std::floor(v) && std::fabs(v) < 1e15) {
+                    v_str = std::to_string(static_cast<long long>(v));
+                } else {
+                    std::ostringstream oss;
+                    oss << v;
+                    v_str = oss.str();
+                }
+
+                for(auto* body = child->first_node(); body; body = body->next_sibling()) {
+                    auto* cloned = CloneNodeWithSubst(doc, body, var_name, v_str, constants);
+                    node->insert_node(child, cloned);
+                    // Recursively expand nested loops in the cloned subtree
+                    ExpandLoops(doc, cloned, constants);
+                }
+            }
+
+            constants.erase(var_name);
+            node->remove_node(child);
+        } else {
+            ExpandLoops(doc, child, constants);
+        }
+        child = next;
+    }
 }
 
 } // anonymous namespace
@@ -565,7 +705,6 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
         else if(tag == "variable") {
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
-            EmitWarning(data, options, "GDML <variable> element '" + name + "' treated as constant; <loop> constructs using variables are not supported");
             if(!name.empty()) {
                 if(data.constants.find(name) != data.constants.end()) {
                     EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
@@ -1295,65 +1434,23 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
 }
 
 
-// Parse the <structure> section: volumes and physical volumes.
+// Parse the <structure> section: volumes, assemblies, and physical volumes.
 // Checks for ambiguous solid/material references (names with multiple instances).
 static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data, GDMLParseOptions const & options) {
     if(!structure_node) return;
 
-    for(auto* vol_node = structure_node->first_node("volume"); vol_node;
-        vol_node = vol_node->next_sibling("volume")) {
-
-        GDMLVolume vol;
-        vol.name = SafeAttrVal(vol_node, "name");
-
-        // Get <materialref>
-        auto* matref = vol_node->first_node("materialref");
-        if(matref) {
-            vol.material_ref = SafeAttrVal(matref, "ref");
-            // Check for ambiguous material reference.
-            // material_instance_counts tracks the <material> stack only
-            // (not isotopes or elements), so element/material name collisions
-            // don't trigger this — they are in separate namespaces.
-            if(!vol.material_ref.empty()) {
-                auto it = data.material_instance_counts.find(vol.material_ref);
-                if(it != data.material_instance_counts.end() && it->second > 1) {
-                    throw std::runtime_error(
-                        "GDML error: volume '" + vol.name
-                        + "' references ambiguous material '" + vol.material_ref
-                        + "' which has " + std::to_string(it->second) + " instances");
-                }
-            }
-        }
-
-        // Get <solidref>
-        auto* solidref = vol_node->first_node("solidref");
-        if(solidref) {
-            vol.solid_ref = SafeAttrVal(solidref, "ref");
-            // Check for ambiguous solid reference
-            if(!vol.solid_ref.empty()) {
-                auto it = data.solid_instance_counts.find(vol.solid_ref);
-                if(it != data.solid_instance_counts.end() && it->second > 1) {
-                    throw std::runtime_error(
-                        "GDML error: volume '" + vol.name
-                        + "' references ambiguous solid '" + vol.solid_ref
-                        + "' which has " + std::to_string(it->second) + " instances");
-                }
-            }
-        }
-
-        // Parse <physvol> children
-        for(auto* pv = vol_node->first_node("physvol"); pv; pv = pv->next_sibling("physvol")) {
+    // Shared physvol child parser used by both <volume> and <assembly>
+    auto parsePhysVols = [&](rapidxml::xml_node<>* parent_node, GDMLVolume & vol) {
+        for(auto* pv = parent_node->first_node("physvol"); pv; pv = pv->next_sibling("physvol")) {
             GDMLPhysVol physvol;
             physvol.position = Vector3D(0, 0, 0);
             physvol.rotation = Quaternion(); // identity
 
-            // Volume reference
             auto* volref = pv->first_node("volumeref");
             if(volref) {
                 physvol.volume_ref = SafeAttrVal(volref, "ref");
             }
 
-            // Position: inline or reference
             auto* pos = pv->first_node("position");
             if(pos) {
                 const char* punit = SafeAttrVal(pos, "unit");
@@ -1371,7 +1468,6 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
                 }
             }
 
-            // Rotation: inline or reference
             auto* rot = pv->first_node("rotation");
             if(rot) {
                 const char* runit = SafeAttrVal(rot, "unit");
@@ -1391,6 +1487,51 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
 
             vol.children.push_back(physvol);
         }
+    };
+
+    for(auto* vol_node = structure_node->first_node(); vol_node;
+        vol_node = vol_node->next_sibling()) {
+
+        std::string tag(vol_node->name());
+        if(tag != "volume" && tag != "assembly") continue;
+
+        GDMLVolume vol;
+        vol.name = SafeAttrVal(vol_node, "name");
+        vol.is_assembly = (tag == "assembly");
+
+        if(!vol.is_assembly) {
+            // Get <materialref>
+            auto* matref = vol_node->first_node("materialref");
+            if(matref) {
+                vol.material_ref = SafeAttrVal(matref, "ref");
+                if(!vol.material_ref.empty()) {
+                    auto it = data.material_instance_counts.find(vol.material_ref);
+                    if(it != data.material_instance_counts.end() && it->second > 1) {
+                        throw std::runtime_error(
+                            "GDML error: volume '" + vol.name
+                            + "' references ambiguous material '" + vol.material_ref
+                            + "' which has " + std::to_string(it->second) + " instances");
+                    }
+                }
+            }
+
+            // Get <solidref>
+            auto* solidref = vol_node->first_node("solidref");
+            if(solidref) {
+                vol.solid_ref = SafeAttrVal(solidref, "ref");
+                if(!vol.solid_ref.empty()) {
+                    auto it = data.solid_instance_counts.find(vol.solid_ref);
+                    if(it != data.solid_instance_counts.end() && it->second > 1) {
+                        throw std::runtime_error(
+                            "GDML error: volume '" + vol.name
+                            + "' references ambiguous solid '" + vol.solid_ref
+                            + "' which has " + std::to_string(it->second) + " instances");
+                    }
+                }
+            }
+        }
+
+        parsePhysVols(vol_node, vol);
 
         if(!vol.name.empty()) {
             if(data.volumes.find(vol.name) != data.volumes.end()) {
@@ -1458,10 +1599,23 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
         EmitWarning(data, options, "non-standard root element <" + root_tag + "> in " + filename + ", treating as <gdml>");
     }
 
-    // Parse all <define> sections
+    // Expand <loop> elements in the DOM before section parsing.
+    // This must run first so that loop-generated nodes are visible to all parsers.
+    // Parse <define> first to populate constants needed for loop bounds,
+    // then expand loops, then re-parse <define> to pick up loop-generated constants.
     for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
         ParseDefine(node, data, options);
     }
+    ExpandLoops(doc, gdml_node, data.constants);
+
+    // Re-parse <define> to pick up any constants generated by loops
+    data.constants.clear();
+    data.positions.clear();
+    data.rotations.clear();
+    for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
+        ParseDefine(node, data, options);
+    }
+
     // Parse all <materials> sections (with instance-scoped name resolution)
     ParseAllMaterials(gdml_node, data, options);
     // Parse all <solids> sections (with instance-scoped boolean resolution)
@@ -1473,21 +1627,6 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
     // Parse all <setup> sections (last wins)
     for(auto* node = gdml_node->first_node("setup"); node; node = node->next_sibling("setup")) {
         ParseSetup(node, data, options);
-    }
-
-    // Check for <loop> elements anywhere in the document
-    // We scan all sections since loops can appear in define, structure, etc.
-    std::function<bool(rapidxml::xml_node<>*)> hasLoopElement;
-    hasLoopElement = [&](rapidxml::xml_node<>* node) -> bool {
-        if(!node) return false;
-        for(auto* child = node->first_node(); child; child = child->next_sibling()) {
-            if(std::string(child->name()) == "loop") return true;
-            if(hasLoopElement(child)) return true;
-        }
-        return false;
-    };
-    if(hasLoopElement(gdml_node)) {
-        EmitWarning(data, options, "GDML <loop> element found but loops are not supported; loop body will be ignored");
     }
 
     // Warn if no <setup> section was found (world volume undefined)

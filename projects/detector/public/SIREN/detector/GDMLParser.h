@@ -40,6 +40,7 @@ struct GDMLVolume {
     std::string name;
     std::string solid_ref;
     std::string material_ref;
+    bool is_assembly = false;
     std::vector<GDMLPhysVol> children;
 };
 
