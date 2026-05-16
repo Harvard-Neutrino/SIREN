@@ -596,7 +596,16 @@ static void ExpandLoops(rapidxml::xml_document<> & doc,
         auto* next = child->next_sibling();
         if(std::string(child->name()) == "loop") {
             std::string var_name = SafeAttrVal(child, "for");
-            double from_val = SafeParseDouble(SafeAttrVal(child, "from"), constants);
+            // If "from" is omitted, start from the variable's current value
+            // (per GDML spec section 3.4.28)
+            const char* from_attr = SafeAttrVal(child, "from");
+            double from_val;
+            if(from_attr[0] != '\0') {
+                from_val = SafeParseDouble(from_attr, constants);
+            } else {
+                auto it = constants.find(var_name);
+                from_val = (it != constants.end()) ? it->second : 0.0;
+            }
             double to_val = SafeParseDouble(SafeAttrVal(child, "to"), constants);
             double step_val = SafeParseDouble(SafeAttrVal(child, "step"), constants);
             if(step_val == 0) step_val = 1.0;

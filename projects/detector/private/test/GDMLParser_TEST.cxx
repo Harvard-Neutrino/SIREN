@@ -1820,6 +1820,47 @@ TEST(GDMLParser, LoopElementExpansion) {
 
 
 // =========================================================================
+// Loop with omitted "from" defaults to variable's initial value
+// (GDML spec section 3.4.28)
+// =========================================================================
+TEST(GDMLParser, LoopOmittedFromUsesVariableValue) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="x" value="3"/>
+    <loop for="x" to="5" step="1">
+      <constant name="c_[x]" value="x*x"/>
+    </loop>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // Loop should start from x=3 (variable value), not x=0
+    EXPECT_EQ(data.constants.count("c_3"), 1u) << "Should have c_3 (x=3)";
+    EXPECT_EQ(data.constants.count("c_4"), 1u) << "Should have c_4 (x=4)";
+    EXPECT_EQ(data.constants.count("c_5"), 1u) << "Should have c_5 (x=5)";
+    EXPECT_EQ(data.constants.count("c_0"), 0u) << "Should NOT have c_0 (loop starts at 3)";
+    EXPECT_NEAR(data.constants["c_3"], 9.0, 1e-9);
+    EXPECT_NEAR(data.constants["c_4"], 16.0, 1e-9);
+    EXPECT_NEAR(data.constants["c_5"], 25.0, 1e-9);
+}
+
+
+// =========================================================================
 // Missing setup section emits warning
 // =========================================================================
 TEST(GDMLParser, MissingSetupWarning) {
