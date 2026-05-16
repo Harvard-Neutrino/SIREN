@@ -222,13 +222,17 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection dire
 
 void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection direction, double distance) {
     // Check if the new ray is collinear with the cached intersections.
+    // intersections_ are stored in geometry frame, so we must convert the
+    // detector-frame arguments before comparing.
     bool can_reuse_intersections = false;
-    if(set_intersections_) {
-        math::Vector3D new_dir = direction;
+    if(set_intersections_ && set_detector_model_) {
+        GeometryDirection geo_dir = detector_model_->ToGeo(direction);
+        GeometryPosition geo_pos = detector_model_->ToGeo(first_point);
+        math::Vector3D new_dir = geo_dir;
         new_dir.normalize();
         double dot = std::abs(new_dir * intersections_.direction);
         if(dot > 1.0 - 1e-9) {
-            math::Vector3D offset = math::Vector3D(first_point) - intersections_.position;
+            math::Vector3D offset = math::Vector3D(geo_pos) - intersections_.position;
             math::Vector3D perp = math::cross_product(offset, intersections_.direction);
             if(perp.magnitude() < 1e-6 * (1.0 + offset.magnitude())) {
                 can_reuse_intersections = true;
