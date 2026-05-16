@@ -336,10 +336,10 @@ TEST(GDMLParser, CircularVolumeReference) {
         f << gdml;
     }
 
-    // Should not crash or infinite-loop; cycle detection should break it
+    // Circular reference should throw an error
     DetectorModel dm;
-    EXPECT_NO_THROW(dm.LoadGDML(tmpfile))
-        << "LoadGDML should handle circular volume references without crashing";
+    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error)
+        << "LoadGDML should throw on circular volume references";
     std::remove(tmpfile.c_str());
 }
 
@@ -1750,9 +1750,9 @@ TEST(GDMLParser, StodOutOfRangeThrows) {
 
 
 // =========================================================================
-// Variable element emits warning
+// Variable element stored as constant (usable by loops)
 // =========================================================================
-TEST(GDMLParser, VariableElementWarning) {
+TEST(GDMLParser, VariableElementStoredAsConstant) {
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define>
@@ -1777,29 +1777,21 @@ TEST(GDMLParser, VariableElementWarning) {
 
     // The variable should be stored as a constant
     EXPECT_NEAR(data.constants["myvar"], 10.0, 1e-9);
-
-    // A warning about <variable> should be emitted
-    bool found_var_warning = false;
-    for(auto const & w : data.warnings) {
-        if(w.find("<variable>") != std::string::npos && w.find("myvar") != std::string::npos) {
-            found_var_warning = true;
-        }
-    }
-    EXPECT_TRUE(found_var_warning)
-        << "Expected warning about <variable> element being treated as constant";
 }
 
 
 // =========================================================================
-// Loop element emits warning
+// Loop element expands children
 // =========================================================================
-TEST(GDMLParser, LoopElementWarning) {
+TEST(GDMLParser, LoopElementExpansion) {
+    // Uses bracket notation [i] for name construction (Geant4 convention)
+    // and bare variable i for numeric expressions
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define>
     <variable name="i" value="0"/>
     <loop for="i" from="0" to="3" step="1">
-      <constant name="dummy" value="0"/>
+      <constant name="val_[i]" value="i*10"/>
     </loop>
   </define>
   <materials/>
@@ -1819,14 +1811,11 @@ TEST(GDMLParser, LoopElementWarning) {
 
     GDMLData data = ParseGDMLString(gdml);
 
-    bool found_loop_warning = false;
-    for(auto const & w : data.warnings) {
-        if(w.find("<loop>") != std::string::npos) {
-            found_loop_warning = true;
-        }
-    }
-    EXPECT_TRUE(found_loop_warning)
-        << "Expected warning about <loop> element not being supported";
+    // Loop should have generated val_0, val_1, val_2, val_3
+    EXPECT_NEAR(data.constants["val_0"], 0.0, 1e-9);
+    EXPECT_NEAR(data.constants["val_1"], 10.0, 1e-9);
+    EXPECT_NEAR(data.constants["val_2"], 20.0, 1e-9);
+    EXPECT_NEAR(data.constants["val_3"], 30.0, 1e-9);
 }
 
 
@@ -1860,4 +1849,317 @@ TEST(GDMLParser, MissingSetupWarning) {
     }
     EXPECT_TRUE(found_setup_warning)
         << "Expected warning about missing <setup> section";
+}
+
+
+// =========================================================================
+// Expression evaluator: function with 3+ arguments throws
+// =========================================================================
+TEST(GDMLParser, ThreeArgFunctionThrows) {
+    std::string gdml = R"GDML(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="bad" value="max(1,2,3)"/>
+  </define>
+  <materials/>
+  <solids/>
+  <structure/>
+</gdml>)GDML";
+
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error)
+        << "Function with 3 arguments should throw";
+}
+
+
+// =========================================================================
+// Micrometer and nanometer length units
+// =========================================================================
+TEST(GDMLParser, MicrometerNanometerUnits) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="tiny_box" x="100" y="200" z="300" lunit="um"/>
+    <box name="nano_box" x="500" y="500" z="500" lunit="nm"/>
+  </solids>
+  <structure/>
+  <setup name="Default" version="1.0">
+    <world ref=""/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NE(data.solids.find("tiny_box"), data.solids.end());
+    EXPECT_NE(data.solids.find("nano_box"), data.solids.end());
+}
+
+
+// =========================================================================
+// Assembly volume support
+// =========================================================================
+TEST(GDMLParser, AssemblyVolume) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Air">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14" Z="7"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="child_box" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="ChildVol">
+      <materialref ref="Air"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <assembly name="MyAssembly">
+      <physvol>
+        <volumeref ref="ChildVol"/>
+        <position name="pos1" x="200" y="0" z="0" unit="mm"/>
+      </physvol>
+    </assembly>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="MyAssembly"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // Assembly should be stored as a volume with is_assembly=true
+    auto it = data.volumes.find("MyAssembly");
+    ASSERT_NE(it, data.volumes.end());
+    EXPECT_TRUE(it->second.is_assembly);
+    EXPECT_EQ(it->second.children.size(), 1u);
+
+    // Loading into DetectorModel should create a sector for ChildVol but not for MyAssembly
+    std::string tmpfile = "/tmp/siren_gdml_assembly_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    bool found_child = false;
+    bool found_assembly = false;
+    for(auto const & sector : dm.GetSectors()) {
+        if(sector.name == "ChildVol") found_child = true;
+        if(sector.name == "MyAssembly") found_assembly = true;
+    }
+    EXPECT_TRUE(found_child) << "ChildVol should have a sector";
+    EXPECT_FALSE(found_assembly) << "Assembly should not have its own sector";
+}
+
+
+// =========================================================================
+// BuildVolume throws on missing volume reference
+// =========================================================================
+TEST(GDMLParser, BuildVolumeMissingVolumeThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Air">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14" Z="7"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="NonexistentVolume"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_missing_vol_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
+    std::remove(tmpfile.c_str());
+}
+
+
+// =========================================================================
+// BuildVolume throws on missing solid reference
+// =========================================================================
+TEST(GDMLParser, BuildVolumeMissingSolidThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Air">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14" Z="7"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="nonexistent_solid"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_missing_solid_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
+    std::remove(tmpfile.c_str());
+}
+
+
+// =========================================================================
+// Loop expansion in <structure> generates physvol children
+// =========================================================================
+TEST(GDMLParser, LoopInStructure) {
+    // Uses bracket notation [i] for unique position names (Geant4 convention)
+    // and bare variable i for numeric position expressions
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="i" value="0"/>
+  </define>
+  <materials>
+    <material name="TestMat">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14" Z="7"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="sub_box" x="10" y="10" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="SubVol">
+      <materialref ref="TestMat"/>
+      <solidref ref="sub_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="TestMat"/>
+      <solidref ref="world_box"/>
+      <loop for="i" from="0" to="2" step="1">
+        <physvol>
+          <volumeref ref="SubVol"/>
+          <position name="pos_[i]" x="i*100" y="0" z="0" unit="mm"/>
+        </physvol>
+      </loop>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_loop_struct_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    EXPECT_NO_THROW(dm.LoadGDML(tmpfile));
+    std::remove(tmpfile.c_str());
+
+    // Should have 1 world + 3 child placements (i=0,1,2)
+    int child_count = 0;
+    for(auto const & sector : dm.GetSectors()) {
+        if(sector.name.find("SubVol") != std::string::npos) child_count++;
+    }
+    EXPECT_EQ(child_count, 3) << "Loop should produce 3 child volume placements";
+}
+
+
+// =========================================================================
+// Loop variable does not corrupt identifiers containing the variable name
+// (e.g. variable "i" must not corrupt "ChildVol" into "Ch0ldVol")
+// =========================================================================
+TEST(GDMLParser, LoopWordBoundarySafety) {
+    // Volume name "ChildVol" contains "i" but must NOT be corrupted
+    // by a loop with variable "i". Word-boundary matching prevents this.
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="i" value="0"/>
+  </define>
+  <materials>
+    <material name="Air">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14" Z="7"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="child_box" x="10" y="10" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="ChildVol">
+      <materialref ref="Air"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <loop for="i" from="0" to="1" step="1">
+        <physvol>
+          <volumeref ref="ChildVol"/>
+          <position name="p_[i]" x="i*100" y="0" z="0" unit="mm"/>
+        </physvol>
+      </loop>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_loop_wordboundary_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    EXPECT_NO_THROW(dm.LoadGDML(tmpfile))
+        << "Loop variable 'i' should not corrupt 'ChildVol' reference";
+    std::remove(tmpfile.c_str());
+
+    int child_count = 0;
+    for(auto const & sector : dm.GetSectors()) {
+        if(sector.name.find("ChildVol") != std::string::npos) child_count++;
+    }
+    EXPECT_EQ(child_count, 2) << "Should have 2 ChildVol placements (i=0,1)";
 }

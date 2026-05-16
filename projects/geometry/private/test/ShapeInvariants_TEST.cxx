@@ -707,3 +707,139 @@ TEST(ShapeInvariants, TangentRaysPolycone) {
     auto hit = pc.Intersections(inside, tangent_dir);
     EXPECT_EQ(hit.size(), 2u) << "Polycone inside tangent should hit twice";
 }
+
+// =========================================================================
+// Torus quartic solver stability: various problematic ray configurations
+// =========================================================================
+
+TEST(ShapeInvariants, TorusTangentRays) {
+    Torus torus(10, 3, 0);
+    double R = 10, r = 3;
+    int odd_count = 0;
+    int total = 0;
+
+    // Rays tangent to the tube-center circle in the z=0 plane at various angles
+    for(int i = 0; i < 100; ++i) {
+        double theta = 2.0 * M_PI * i / 100.0;
+        double cx = R * std::cos(theta);
+        double cy = R * std::sin(theta);
+        // Tangent direction to the circle at this point
+        double tx = -std::sin(theta);
+        double ty = std::cos(theta);
+        // Ray from outside the tube at the tube-center height (z=0)
+        Vector3D pos(cx, cy, r + 0.5);
+        Vector3D dir(tx, ty, 0);
+        dir.normalize();
+        auto hits = torus.Intersections(pos, dir);
+        if(hits.size() % 2 != 0) odd_count++;
+        total++;
+    }
+    EXPECT_EQ(odd_count, 0)
+        << "Torus tangent rays: " << odd_count << "/" << total << " produced odd intersection count";
+}
+
+TEST(ShapeInvariants, TorusFarFieldRays) {
+    Torus torus(10, 3, 0);
+    double R = 10, r = 3;
+    int wrong = 0;
+    int total = 0;
+
+    // Rays from far away that clearly pass through the tube center
+    double distances[] = {100, 1000, 10000, 50000};
+    for(double D : distances) {
+        for(int i = 0; i < 50; ++i) {
+            double theta = 2.0 * M_PI * i / 50.0;
+            double cx = R * std::cos(theta);
+            double cy = R * std::sin(theta);
+            // Start far back along x, aimed at tube center
+            Vector3D pos(-D, cy, 0);
+            Vector3D dir(1, 0, 0);
+            auto hits = torus.Intersections(pos, dir);
+            total++;
+            if(hits.size() % 2 != 0) {
+                wrong++;
+            } else if(hits.size() == 0 && std::fabs(cy) < R + r - 0.1 && std::fabs(cy) > R - r + 0.1) {
+                // Should have hit the tube
+                wrong++;
+            }
+        }
+    }
+    EXPECT_EQ(wrong, 0)
+        << "Torus far-field rays: " << wrong << "/" << total << " incorrect";
+}
+
+TEST(ShapeInvariants, TorusSymmetryPlaneRays) {
+    Torus torus(10, 3, 0);
+    int odd_count = 0;
+    int total = 0;
+
+    // Rays in the z=0 plane through various points
+    for(int i = 0; i < 200; ++i) {
+        double angle = 2.0 * M_PI * i / 200.0;
+        Vector3D pos(0, 0, 0);
+        Vector3D dir(std::cos(angle), std::sin(angle), 0);
+        auto hits = torus.Intersections(pos, dir);
+        if(hits.size() % 2 != 0) odd_count++;
+        total++;
+    }
+    EXPECT_EQ(odd_count, 0)
+        << "Torus z=0 plane rays: " << odd_count << "/" << total << " produced odd count";
+}
+
+TEST(ShapeInvariants, TorusZAxisRay) {
+    // Ray along z-axis through the center of the torus (rxy=0)
+    Torus torus(10, 3, 0);
+    Vector3D pos(0, 0, -20);
+    Vector3D dir(0, 0, 1);
+    auto hits = torus.Intersections(pos, dir);
+    // z-axis is inside the torus hole, so no intersections expected
+    EXPECT_EQ(hits.size() % 2, 0u) << "Z-axis ray should produce even count";
+}
+
+// =========================================================================
+// Geometry::less() null safety for all shapes
+// =========================================================================
+
+TEST(ShapeInvariants, OperatorLessCrossType) {
+    // Cross-type comparisons via operator< should not crash.
+    // operator< dispatches to less() only for same-type pairs,
+    // but the less() null guard is the last line of defense.
+    Box box(10, 8, 6);
+    Sphere sphere(5, 0);
+    Cylinder cyl(4, 0, 10);
+    Cone cone(0, 5, 0, 3, 8);
+    Trd trd(5, 3, 4, 2, 6);
+    Polycone pc({-5, 5}, {0, 0}, {5, 5});
+    Polyhedra ph(6, 0, {-3, 3}, {0, 0}, {4, 4});
+    Torus tor(10, 3, 0);
+    auto boolean = BooleanGeometry(BooleanOperation::UNION,
+        std::const_pointer_cast<const Geometry>(sphere.create()),
+        std::const_pointer_cast<const Geometry>(box.create()));
+
+    std::vector<Geometry*> shapes = {&box, &sphere, &cyl, &cone, &trd, &pc, &ph, &tor, &boolean};
+
+    // All cross-type pairs should produce a consistent ordering without crashing
+    for(size_t i = 0; i < shapes.size(); ++i) {
+        for(size_t j = 0; j < shapes.size(); ++j) {
+            bool a_lt_b = *shapes[i] < *shapes[j];
+            bool b_lt_a = *shapes[j] < *shapes[i];
+            if(i != j) {
+                // Antisymmetry: can't have both a<b and b<a
+                EXPECT_FALSE(a_lt_b && b_lt_a)
+                    << "Ordering violation between " << i << " and " << j;
+            }
+        }
+    }
+
+    // Same-type comparison via operator< exercises less() with correct dynamic_cast
+    Box box2(8, 8, 8);
+    EXPECT_NO_THROW({
+        bool result = box < box2;
+        (void)result;
+    });
+    Sphere sphere2(3, 0);
+    EXPECT_NO_THROW({
+        bool result = sphere < sphere2;
+        (void)result;
+    });
+}
