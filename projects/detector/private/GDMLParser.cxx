@@ -37,6 +37,7 @@ namespace rapidxml = cereal::rapidxml;
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GeometryMesh.h"
 
 using namespace siren::math;
 using namespace siren::geometry;
@@ -45,8 +46,6 @@ namespace siren {
 namespace detector {
 
 namespace {
-
-static const double PI = 3.141592653589793238462643383279502884197;
 
 // Safe attribute value accessor: returns empty string if attribute is missing
 const char* SafeAttrVal(rapidxml::xml_node<>* node, const char* attr_name) {
@@ -476,12 +475,13 @@ double ParseAngle(const char* value, const char* unit,
 
     if(!unit || unit[0] == '\0') {
         // GDML default angle unit is degrees
-        return val * PI / 180.0;
+        return val * M_PI / 180.0;
     }
 
     std::string u(unit);
-    if(u == "deg") return val * PI / 180.0;
-    if(u == "rad") return val;
+    if(u == "deg" || u == "degree") return val * M_PI / 180.0;
+    if(u == "rad" || u == "radian") return val;
+    if(u == "mrad") return val * 0.001;
 
     // Unknown unit
     throw std::runtime_error("GDML error: unrecognized angle unit '" + std::string(unit) + "'");
@@ -490,11 +490,12 @@ double ParseAngle(const char* value, const char* unit,
 // Get the angle scale factor for a given unit string
 double AngleScale(const char* unit) {
     if(!unit || unit[0] == '\0') {
-        return PI / 180.0; // GDML default angle unit is degrees
+        return M_PI / 180.0; // GDML default angle unit is degrees
     }
     std::string u(unit);
-    if(u == "deg") return PI / 180.0;
-    if(u == "rad") return 1.0;
+    if(u == "deg" || u == "degree") return M_PI / 180.0;
+    if(u == "rad" || u == "radian") return 1.0;
+    if(u == "mrad") return 0.001;
     throw std::runtime_error("GDML error: unrecognized angle unit '" + u + "'");
 }
 
@@ -531,7 +532,7 @@ double QuantityUnitScale(const char* type, const char* unit) {
     // If type tells us what kind of unit, use that to interpret
     if(t == "angle") {
         // Convert to radians (GDML default angle for quantities)
-        if(u == "deg") return PI / 180.0;
+        if(u == "deg") return M_PI / 180.0;
         if(u == "rad") return 1.0;
         if(u == "mrad") return 0.001;
         return 1.0; // unknown angle unit, pass through
@@ -558,7 +559,7 @@ double QuantityUnitScale(const char* type, const char* unit) {
 
     // Also try angle units if type was missing
     if(t.empty()) {
-        if(u == "deg") return PI / 180.0;
+        if(u == "deg") return M_PI / 180.0;
         if(u == "rad") return 1.0;
         if(u == "mrad") return 0.001;
         if(u == "eV")  return 1e-6;
@@ -569,6 +570,162 @@ double QuantityUnitScale(const char* type, const char* unit) {
     }
 
     return 1.0; // unknown unit, pass through
+}
+
+// Parse SYSTEM entity declarations from a DOCTYPE internal subset.
+// Returns a list of (entity_name, resolved_file_path) pairs.
+static std::vector<std::pair<std::string, std::string>> ParseEntityDeclarations(
+        std::string const & content, std::string const & base_dir) {
+    std::vector<std::pair<std::string, std::string>> decls;
+
+    size_t doctype_start = content.find("<!DOCTYPE");
+    if(doctype_start == std::string::npos)
+        doctype_start = content.find("<!doctype");
+    if(doctype_start == std::string::npos) return decls;
+
+    size_t bracket_open = content.find('[', doctype_start);
+    if(bracket_open == std::string::npos) return decls;
+    size_t bracket_close = content.find(']', bracket_open);
+    if(bracket_close == std::string::npos) return decls;
+
+    std::string dtd = content.substr(bracket_open + 1, bracket_close - bracket_open - 1);
+    size_t pos = 0;
+    while((pos = dtd.find("<!ENTITY", pos)) != std::string::npos) {
+        pos += 8;
+        while(pos < dtd.size() && std::isspace(static_cast<unsigned char>(dtd[pos]))) ++pos;
+
+        size_t name_start = pos;
+        while(pos < dtd.size() && !std::isspace(static_cast<unsigned char>(dtd[pos]))) ++pos;
+        std::string ent_name = dtd.substr(name_start, pos - name_start);
+
+        while(pos < dtd.size() && std::isspace(static_cast<unsigned char>(dtd[pos]))) ++pos;
+
+        if(dtd.substr(pos, 6) != "SYSTEM") continue;
+        pos += 6;
+        while(pos < dtd.size() && std::isspace(static_cast<unsigned char>(dtd[pos]))) ++pos;
+
+        if(pos >= dtd.size()) break;
+        char quote = dtd[pos];
+        if(quote != '"' && quote != '\'') continue;
+        ++pos;
+        size_t path_start = pos;
+        while(pos < dtd.size() && dtd[pos] != quote) ++pos;
+        std::string filepath = dtd.substr(path_start, pos - path_start);
+
+        std::string full_path;
+        if(!filepath.empty() && filepath[0] == '/') {
+            full_path = filepath;
+        } else {
+            full_path = base_dir + "/" + filepath;
+        }
+        decls.push_back({ent_name, full_path});
+    }
+    return decls;
+}
+
+// Strip the DOCTYPE declaration from content (RapidXML cannot parse it).
+static std::string StripDoctype(std::string const & content) {
+    size_t doctype_start = content.find("<!DOCTYPE");
+    if(doctype_start == std::string::npos)
+        doctype_start = content.find("<!doctype");
+    if(doctype_start == std::string::npos) return content;
+
+    size_t bracket_close = content.find(']', doctype_start);
+    if(bracket_close == std::string::npos) return content;
+    size_t doctype_end = content.find('>', bracket_close);
+    if(doctype_end == std::string::npos) return content;
+
+    std::string result = content;
+    result.erase(doctype_start, doctype_end - doctype_start + 1);
+    return result;
+}
+
+// Substitute entity references (&name;) in content using the given entity map.
+static std::string SubstituteEntities(std::string const & content,
+        std::map<std::string, std::string> const & entities) {
+    std::string result = content;
+    for(auto const & ent : entities) {
+        std::string ref = "&" + ent.first + ";";
+        size_t pos = 0;
+        while((pos = result.find(ref, pos)) != std::string::npos) {
+            result.replace(pos, ref.size(), ent.second);
+            pos += ent.second.size();
+        }
+    }
+    return result;
+}
+
+// Preprocess XML content to expand ENTITY references.
+// Reads the DOCTYPE for ENTITY SYSTEM declarations, loads the referenced files,
+// and substitutes all &name; references with file contents.
+// Uses an iterative stack to handle nested entity files without recursion.
+// Each stack frame owns its own scope: entities declared in a file's DOCTYPE
+// are only visible for substitution within that file's content.
+static std::string ExpandEntities(std::string const & content, std::string const & base_dir) {
+    struct Frame {
+        std::string content;
+        std::string base_dir;
+        std::vector<std::pair<std::string, std::string>> decls; // name, file_path
+        std::map<std::string, std::string> resolved;            // name -> expanded content
+        int next_decl = 0;
+    };
+
+    std::vector<Frame> stack;
+    stack.push_back({content, base_dir, ParseEntityDeclarations(content, base_dir), {}, 0});
+
+    static constexpr int MAX_DEPTH = 16;
+
+    while(!stack.empty()) {
+        Frame & top = stack.back();
+
+        if(top.next_decl < (int)top.decls.size() && (int)stack.size() <= MAX_DEPTH) {
+            auto & [ent_name, ent_path] = top.decls[top.next_decl];
+            top.next_decl++;
+
+            std::ifstream ent_file(ent_path.c_str(), std::ios::binary);
+            if(!ent_file.is_open()) continue;
+
+            std::string file_content((std::istreambuf_iterator<char>(ent_file)),
+                                      std::istreambuf_iterator<char>());
+            ent_file.close();
+
+            size_t last_slash = ent_path.rfind('/');
+            std::string ent_dir = (last_slash != std::string::npos) ?
+                ent_path.substr(0, last_slash) : top.base_dir;
+
+            auto child_decls = ParseEntityDeclarations(file_content, ent_dir);
+            if(child_decls.empty()) {
+                top.resolved[ent_name] = file_content;
+            } else {
+                stack.push_back({file_content, ent_dir, std::move(child_decls), {}, 0});
+                // Tag the child frame so we know which entity it resolves
+                // Store the entity name in the parent's next slot (already incremented)
+                // We'll retrieve it when the child pops
+            }
+        } else {
+            // All declarations resolved (or depth limit reached) — substitute and pop
+            std::string expanded = StripDoctype(top.content);
+            if(!top.resolved.empty()) {
+                expanded = SubstituteEntities(expanded, top.resolved);
+            }
+
+            if(stack.size() == 1) {
+                return expanded;
+            }
+
+            // Pop this frame and store result in parent as the resolved entity
+            std::string result = std::move(expanded);
+            stack.pop_back();
+
+            Frame & parent = stack.back();
+            // The entity name is from the declaration we just finished processing
+            // (parent.next_decl - 1, since we incremented before pushing)
+            std::string const & ent_name = parent.decls[parent.next_decl - 1].first;
+            parent.resolved[ent_name] = std::move(result);
+        }
+    }
+
+    return content;
 }
 
 // Record a warning. In strict mode, throws instead of continuing.
@@ -655,66 +812,293 @@ static rapidxml::xml_node<>* CloneNodeWithSubst(
     return node;
 }
 
-// Expand all <loop> elements in the DOM tree before section parsing.
-// GDML loops have attributes: for (variable name), from, to, step.
-// The loop body is cloned once per iteration with the variable substituted.
+// Expand all <loop> elements in a DOM subtree (iterative, stack-based).
+// Clones loop body nodes for each iteration with text substitution, inserts
+// them into the parent, and removes the loop node. Used for non-define
+// sections (structure, solids) where the DOM must be modified for downstream
+// parsers that iterate over it.
 static void ExpandLoops(rapidxml::xml_document<> & doc,
-                        rapidxml::xml_node<>* node,
+                        rapidxml::xml_node<>* root,
                         std::map<std::string, double> & constants) {
-    if(!node) return;
+    if(!root) return;
 
-    auto* child = node->first_node();
-    while(child) {
-        auto* next = child->next_sibling();
-        if(std::string(child->name()) == "loop") {
-            std::string var_name = SafeAttrVal(child, "for");
-            // If "from" is omitted, start from the variable's current value
-            // (per GDML spec section 3.4.28)
-            const char* from_attr = SafeAttrVal(child, "from");
+    struct Frame {
+        rapidxml::xml_node<>* parent;
+        rapidxml::xml_node<>* current; // next child to process
+    };
+
+    std::vector<Frame> stack;
+    stack.push_back({root, root->first_node()});
+
+    static constexpr int MAX_DEPTH = 64;
+
+    while(!stack.empty()) {
+        if((int)stack.size() > MAX_DEPTH) {
+            stack.pop_back();
+            continue;
+        }
+
+        Frame & top = stack.back();
+        if(!top.current) {
+            stack.pop_back();
+            continue;
+        }
+
+        auto* child = top.current;
+        top.current = child->next_sibling();
+
+        if(std::string(child->name()) != "loop") {
+            // Descend into non-loop nodes to find nested loops
+            if(child->first_node()) {
+                stack.push_back({child, child->first_node()});
+            }
+            continue;
+        }
+
+        // Process the loop: expand inline
+        std::string var_name = SafeAttrVal(child, "for");
+        const char* from_attr = SafeAttrVal(child, "from");
+        double from_val;
+        if(from_attr[0] != '\0') {
+            from_val = SafeParseDouble(from_attr, constants);
+        } else {
+            auto it = constants.find(var_name);
+            from_val = (it != constants.end()) ? it->second : 0.0;
+        }
+        double to_val = SafeParseDouble(SafeAttrVal(child, "to"), constants);
+        double step_val = SafeParseDouble(SafeAttrVal(child, "step"), constants);
+        if(step_val == 0) step_val = 1.0;
+
+        // Track the first cloned node so we can resume processing from there
+        // (cloned nodes may contain nested loops)
+        rapidxml::xml_node<>* first_cloned = nullptr;
+        int count = 0;
+        for(double v = from_val;
+            (step_val > 0) ? (v <= to_val + 1e-9) : (v >= to_val - 1e-9);
+            v += step_val) {
+            if(++count > 10000) break;
+            constants[var_name] = v;
+
+            std::string v_str;
+            if(v == std::floor(v) && std::fabs(v) < 1e15) {
+                v_str = std::to_string(static_cast<long long>(v));
+            } else {
+                std::ostringstream oss;
+                oss << v;
+                v_str = oss.str();
+            }
+
+            for(auto* body = child->first_node(); body; body = body->next_sibling()) {
+                auto* cloned = CloneNodeWithSubst(doc, body, var_name, v_str, constants);
+                top.parent->insert_node(child, cloned);
+                if(!first_cloned) first_cloned = cloned;
+            }
+        }
+
+        top.parent->remove_node(child);
+
+        // Resume processing from the first cloned node (to catch nested loops)
+        if(first_cloned) {
+            top.current = first_cloned;
+        }
+    }
+}
+
+// Resolve all <define> sections in document order with inline loop handling.
+// Uses an explicit stack to iterate loop bodies without recursion or DOM
+// modification. Constants/variables are evaluated immediately when encountered,
+// giving document-order semantics (a constant before a loop sees the pre-loop
+// variable value; a constant after sees the post-loop value).
+static void ResolveDefineInOrder(rapidxml::xml_node<>* gdml_node,
+                                 GDMLData & data,
+                                 GDMLParseOptions const & options) {
+    // Seed built-in constants
+    data.constants["pi"] = M_PI;
+    data.constants["twopi"] = 2.0 * M_PI;
+    data.constants["TWOPI"] = 2.0 * M_PI;
+    data.constants["halfpi"] = M_PI / 2.0;
+    data.constants["deg"] = M_PI / 180.0;
+    data.constants["rad"] = 1.0;
+    data.constants["mm"] = 1.0;
+    data.constants["cm"] = 10.0;
+    data.constants["m"] = 1000.0;
+
+    // Evaluate bracket expressions [expr] in an attribute string using current
+    // constants. Transforms "sum_[i+1]" into "sum_4" (if i=3 in constants).
+    // Used for both name and value attributes within loop bodies.
+    auto resolveBrackets = [&](const char* raw) -> std::string {
+        std::string s(raw);
+        size_t pos = 0;
+        while((pos = s.find('[', pos)) != std::string::npos) {
+            size_t end = s.find(']', pos + 1);
+            if(end == std::string::npos) break;
+            std::string expr = s.substr(pos + 1, end - pos - 1);
+            try {
+                double v = EvalExpression(expr, data.constants, data.matrices);
+                long long iv = static_cast<long long>(v);
+                s.replace(pos, end - pos + 1, std::to_string(iv));
+            } catch(...) {
+                pos = end + 1;
+            }
+        }
+        return s;
+    };
+
+    // Stack frame: either a sequence of sibling nodes, or a loop iteration context.
+    struct Frame {
+        rapidxml::xml_node<>* current; // next node to process
+        bool is_loop = false;
+        std::string var_name;
+        double to_val = 0;
+        double step_val = 0;
+        rapidxml::xml_node<>* body_first = nullptr; // first child of loop (for restart)
+    };
+
+    std::vector<Frame> stack;
+    // Push all define sections (in order) as top-level frames
+    for(auto* def = gdml_node->first_node("define"); def; def = def->next_sibling("define")) {
+        stack.push_back({def->first_node(), false, {}, 0, 0, nullptr});
+    }
+
+    static constexpr int MAX_DEPTH = 64;
+
+    while(!stack.empty()) {
+        Frame & top = stack.back();
+
+        if(!top.current) {
+            // End of this scope
+            if(top.is_loop) {
+                // Advance loop iteration
+                double next_val = data.constants[top.var_name] + top.step_val;
+                bool in_range = (top.step_val > 0)
+                    ? (next_val <= top.to_val + 1e-9)
+                    : (next_val >= top.to_val - 1e-9);
+                if(in_range) {
+                    data.constants[top.var_name] = next_val;
+                    top.current = top.body_first;
+                    continue;
+                }
+            }
+            stack.pop_back();
+            continue;
+        }
+
+        auto* node = top.current;
+        top.current = node->next_sibling();
+        std::string tag(node->name());
+
+        if(tag == "loop") {
+            if((int)stack.size() >= MAX_DEPTH) continue;
+            std::string var_name = SafeAttrVal(node, "for");
+            const char* from_attr = SafeAttrVal(node, "from");
             double from_val;
             if(from_attr[0] != '\0') {
-                from_val = SafeParseDouble(from_attr, constants);
+                from_val = SafeParseDouble(from_attr, data.constants, data.matrices);
             } else {
-                auto it = constants.find(var_name);
-                from_val = (it != constants.end()) ? it->second : 0.0;
+                auto it = data.constants.find(var_name);
+                from_val = (it != data.constants.end()) ? it->second : 0.0;
             }
-            double to_val = SafeParseDouble(SafeAttrVal(child, "to"), constants);
-            double step_val = SafeParseDouble(SafeAttrVal(child, "step"), constants);
+            double to_val = SafeParseDouble(SafeAttrVal(node, "to"), data.constants, data.matrices);
+            double step_val = SafeParseDouble(SafeAttrVal(node, "step"), data.constants, data.matrices);
             if(step_val == 0) step_val = 1.0;
 
-            int max_iterations = 10000;
-            int count = 0;
-            for(double v = from_val;
-                (step_val > 0) ? (v <= to_val + 1e-9) : (v >= to_val - 1e-9);
-                v += step_val) {
-                if(++count > max_iterations) break;
+            // Check if the loop will execute at all
+            bool will_run = (step_val > 0) ? (from_val <= to_val + 1e-9) : (from_val >= to_val - 1e-9);
+            if(!will_run || !node->first_node()) continue;
 
-                constants[var_name] = v;
-
-                // Format integer-valued loop vars without decimal point
-                std::string v_str;
-                if(v == std::floor(v) && std::fabs(v) < 1e15) {
-                    v_str = std::to_string(static_cast<long long>(v));
-                } else {
-                    std::ostringstream oss;
-                    oss << v;
-                    v_str = oss.str();
-                }
-
-                for(auto* body = child->first_node(); body; body = body->next_sibling()) {
-                    auto* cloned = CloneNodeWithSubst(doc, body, var_name, v_str, constants);
-                    node->insert_node(child, cloned);
-                    // Recursively expand nested loops in the cloned subtree
-                    ExpandLoops(doc, cloned, constants);
-                }
-            }
-
-            constants.erase(var_name);
-            node->remove_node(child);
-        } else {
-            ExpandLoops(doc, child, constants);
+            data.constants[var_name] = from_val;
+            stack.push_back({node->first_node(), true, var_name, to_val, step_val, node->first_node()});
         }
-        child = next;
+        else if(tag == "constant" || tag == "variable") {
+            std::string name = resolveBrackets(SafeAttrVal(node, "name"));
+            if(name.empty()) continue;
+            // Inside loop bodies, resolve bracket expressions in values too
+            // (they construct constant names, not matrix access).
+            // Outside loops, brackets are matrix lookup syntax for EvalExpression.
+            bool in_loop = std::any_of(stack.begin(), stack.end(),
+                [](Frame const & f) { return f.is_loop; });
+            double value;
+            if(in_loop) {
+                std::string val_str = resolveBrackets(SafeAttrVal(node, "value"));
+                value = SafeParseDouble(val_str.c_str(), data.constants, data.matrices);
+            } else {
+                value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
+            }
+            data.constants[name] = value;
+        }
+        else if(tag == "quantity") {
+            std::string name = resolveBrackets(SafeAttrVal(node, "name"));
+            if(name.empty()) continue;
+            bool in_loop = std::any_of(stack.begin(), stack.end(),
+                [](Frame const & f) { return f.is_loop; });
+            double value;
+            if(in_loop) {
+                std::string val_str = resolveBrackets(SafeAttrVal(node, "value"));
+                value = SafeParseDouble(val_str.c_str(), data.constants, data.matrices);
+            } else {
+                value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
+            }
+            const char* unit = SafeAttrVal(node, "unit");
+            const char* type = SafeAttrVal(node, "type");
+            value *= QuantityUnitScale(type, unit);
+            data.constants[name] = value;
+        }
+        else if(tag == "position") {
+            std::string name = resolveBrackets(SafeAttrVal(node, "name"));
+            if(name.empty()) continue;
+            bool in_loop = std::any_of(stack.begin(), stack.end(),
+                [](Frame const & f) { return f.is_loop; });
+            const char* unit = SafeAttrVal(node, "unit");
+            double x, y, z;
+            if(in_loop) {
+                x = ParseLength(resolveBrackets(SafeAttrVal(node, "x")).c_str(), unit, data.constants);
+                y = ParseLength(resolveBrackets(SafeAttrVal(node, "y")).c_str(), unit, data.constants);
+                z = ParseLength(resolveBrackets(SafeAttrVal(node, "z")).c_str(), unit, data.constants);
+            } else {
+                x = ParseLength(SafeAttrVal(node, "x"), unit, data.constants);
+                y = ParseLength(SafeAttrVal(node, "y"), unit, data.constants);
+                z = ParseLength(SafeAttrVal(node, "z"), unit, data.constants);
+            }
+            data.positions[name] = Vector3D(x, y, z);
+        }
+        else if(tag == "rotation") {
+            std::string name = resolveBrackets(SafeAttrVal(node, "name"));
+            if(name.empty()) continue;
+            bool in_loop = std::any_of(stack.begin(), stack.end(),
+                [](Frame const & f) { return f.is_loop; });
+            const char* unit = SafeAttrVal(node, "unit");
+            double rx, ry, rz;
+            if(in_loop) {
+                rx = ParseAngle(resolveBrackets(SafeAttrVal(node, "x")).c_str(), unit, data.constants);
+                ry = ParseAngle(resolveBrackets(SafeAttrVal(node, "y")).c_str(), unit, data.constants);
+                rz = ParseAngle(resolveBrackets(SafeAttrVal(node, "z")).c_str(), unit, data.constants);
+            } else {
+                rx = ParseAngle(SafeAttrVal(node, "x"), unit, data.constants);
+                ry = ParseAngle(SafeAttrVal(node, "y"), unit, data.constants);
+                rz = ParseAngle(SafeAttrVal(node, "z"), unit, data.constants);
+            }
+            data.rotations[name] = QuatFromGDMLRotation(rx, ry, rz);
+        }
+        else if(tag == "matrix") {
+            std::string name = resolveBrackets(SafeAttrVal(node, "name"));
+            if(name.empty()) continue;
+            int coldim = 1;
+            const char* cd = SafeAttrVal(node, "coldim");
+            if(cd[0] != '\0') { try { coldim = std::stoi(std::string(cd)); } catch(...) { coldim = 1; } }
+            if(coldim < 1) coldim = 1;
+            std::string values_str = SafeAttrVal(node, "values");
+            std::vector<double> values;
+            std::istringstream iss(values_str);
+            std::string tok;
+            while(iss >> tok) {
+                values.push_back(EvalExpression(tok, data.constants, data.matrices));
+            }
+            if(!values.empty()) data.matrices[name] = {coldim, values};
+        }
+        else if(tag == "scale") {
+            std::string sname = SafeAttrVal(node, "name");
+            EmitWarning(data, options, "GDML <scale> element '" + sname + "' is not supported and will be ignored");
+        }
     }
 }
 
@@ -1056,9 +1440,9 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             double rmax = SafeParseDouble(SafeAttrVal(node, "rmax"), data.constants) * lscale;
 
             double startphi = 0.0;
-            double deltaphi = 2.0 * PI;
+            double deltaphi = 2.0 * M_PI;
             double starttheta = 0.0;
-            double deltatheta = PI;
+            double deltatheta = M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
             if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
@@ -1091,7 +1475,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
                     EmitWarning(data, options, std::string(tag) + " '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
@@ -1117,7 +1501,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
                     EmitWarning(data, options, "cone '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
@@ -1145,7 +1529,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
                     EmitWarning(data, options, "polycone '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
@@ -1190,7 +1574,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
                     EmitWarning(data, options, "polyhedra '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
@@ -1245,7 +1629,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             double rtor = SafeParseDouble(SafeAttrVal(node, "rtor"), data.constants) * lscale;
 
             double startphi = 0.0;
-            double deltaphi = 2.0 * PI;
+            double deltaphi = 2.0 * M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
             if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
@@ -1278,7 +1662,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
                     EmitWarning(data, options, "cutTube '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
                 }
             }
@@ -1346,7 +1730,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
                 double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
                     EmitWarning(data, options, "genericPolycone '" + name + "' has partial angular extent; SIREN creates full rotation");
                 }
             }
@@ -1383,6 +1767,100 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
                 } else {
                     EmitWarning(data, options, "genericPolycone '" + name + "' has non-monotonic z values after sorting; skipping");
                 }
+            }
+        }
+        else if(tag == "tessellated") {
+            std::vector<std::array<math::Vector3D, 3>> triangles;
+
+            for(auto* facet = node->first_node(); facet; facet = facet->next_sibling()) {
+                std::string ftag(facet->name());
+                if(ftag == "triangular") {
+                    auto resolveVertex = [&](const char* attr) -> math::Vector3D {
+                        std::string ref = SafeAttrVal(facet, attr);
+                        auto it = data.positions.find(ref);
+                        if(it != data.positions.end()) return it->second;
+                        return math::Vector3D(0, 0, 0);
+                    };
+                    math::Vector3D v1 = resolveVertex("vertex1");
+                    math::Vector3D v2 = resolveVertex("vertex2");
+                    math::Vector3D v3 = resolveVertex("vertex3");
+                    triangles.push_back({{v1, v2, v3}});
+                } else if(ftag == "quadrangular") {
+                    auto resolveVertex = [&](const char* attr) -> math::Vector3D {
+                        std::string ref = SafeAttrVal(facet, attr);
+                        auto it = data.positions.find(ref);
+                        if(it != data.positions.end()) return it->second;
+                        return math::Vector3D(0, 0, 0);
+                    };
+                    math::Vector3D v1 = resolveVertex("vertex1");
+                    math::Vector3D v2 = resolveVertex("vertex2");
+                    math::Vector3D v3 = resolveVertex("vertex3");
+                    math::Vector3D v4 = resolveVertex("vertex4");
+                    triangles.push_back({{v1, v2, v3}});
+                    triangles.push_back({{v1, v3, v4}});
+                }
+            }
+
+            if(!triangles.empty()) {
+                geo = TriangularMesh(triangles).create();
+            }
+        }
+        else if(tag == "arb8") {
+            double dz = SafeParseDouble(SafeAttrVal(node, "dz"), data.constants) * lscale;
+            double v1x = SafeParseDouble(SafeAttrVal(node, "v1x"), data.constants) * lscale;
+            double v1y = SafeParseDouble(SafeAttrVal(node, "v1y"), data.constants) * lscale;
+            double v2x = SafeParseDouble(SafeAttrVal(node, "v2x"), data.constants) * lscale;
+            double v2y = SafeParseDouble(SafeAttrVal(node, "v2y"), data.constants) * lscale;
+            double v3x = SafeParseDouble(SafeAttrVal(node, "v3x"), data.constants) * lscale;
+            double v3y = SafeParseDouble(SafeAttrVal(node, "v3y"), data.constants) * lscale;
+            double v4x = SafeParseDouble(SafeAttrVal(node, "v4x"), data.constants) * lscale;
+            double v4y = SafeParseDouble(SafeAttrVal(node, "v4y"), data.constants) * lscale;
+            double v5x = SafeParseDouble(SafeAttrVal(node, "v5x"), data.constants) * lscale;
+            double v5y = SafeParseDouble(SafeAttrVal(node, "v5y"), data.constants) * lscale;
+            double v6x = SafeParseDouble(SafeAttrVal(node, "v6x"), data.constants) * lscale;
+            double v6y = SafeParseDouble(SafeAttrVal(node, "v6y"), data.constants) * lscale;
+            double v7x = SafeParseDouble(SafeAttrVal(node, "v7x"), data.constants) * lscale;
+            double v7y = SafeParseDouble(SafeAttrVal(node, "v7y"), data.constants) * lscale;
+            double v8x = SafeParseDouble(SafeAttrVal(node, "v8x"), data.constants) * lscale;
+            double v8y = SafeParseDouble(SafeAttrVal(node, "v8y"), data.constants) * lscale;
+
+            // Vertices 1-4 at z=-dz, 5-8 at z=+dz
+            math::Vector3D verts[8] = {
+                math::Vector3D(v1x, v1y, -dz),
+                math::Vector3D(v2x, v2y, -dz),
+                math::Vector3D(v3x, v3y, -dz),
+                math::Vector3D(v4x, v4y, -dz),
+                math::Vector3D(v5x, v5y,  dz),
+                math::Vector3D(v6x, v6y,  dz),
+                math::Vector3D(v7x, v7y,  dz),
+                math::Vector3D(v8x, v8y,  dz)
+            };
+
+            // Tessellate 6 faces into triangles.
+            // Bottom face (v1-v4, at -dz): wound CCW when viewed from -z
+            // Top face (v5-v8, at +dz): wound CCW when viewed from +z
+            // Side faces connect bottom[i] to top[i]
+            std::vector<std::array<math::Vector3D, 3>> triangles;
+            triangles.reserve(12);
+
+            auto addQuad = [&](math::Vector3D const & a, math::Vector3D const & b,
+                              math::Vector3D const & c, math::Vector3D const & d) {
+                triangles.push_back({{a, b, c}});
+                triangles.push_back({{a, c, d}});
+            };
+
+            // Bottom face (outward normal in -z): v4, v3, v2, v1
+            addQuad(verts[3], verts[2], verts[1], verts[0]);
+            // Top face (outward normal in +z): v5, v6, v7, v8
+            addQuad(verts[4], verts[5], verts[6], verts[7]);
+            // Side faces (outward normals face outward)
+            addQuad(verts[0], verts[1], verts[5], verts[4]);
+            addQuad(verts[1], verts[2], verts[6], verts[5]);
+            addQuad(verts[2], verts[3], verts[7], verts[6]);
+            addQuad(verts[3], verts[0], verts[4], verts[7]);
+
+            if(dz > 0) {
+                geo = TriangularMesh(triangles).create();
             }
         }
         else if(!tag.empty()) {
@@ -1445,6 +1923,46 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
 
         if(!left || !right_base) return nullptr;
 
+        // The first solid may have a position and rotation (firstposition/firstrotation)
+        Vector3D first_pos(0, 0, 0);
+        Quaternion first_rot;
+
+        auto* fpos_node = node->first_node("firstposition");
+        if(fpos_node) {
+            const char* punit = SafeAttrVal(fpos_node, "unit");
+            double px = ParseLength(SafeAttrVal(fpos_node, "x"), punit, data.constants);
+            double py = ParseLength(SafeAttrVal(fpos_node, "y"), punit, data.constants);
+            double pz = ParseLength(SafeAttrVal(fpos_node, "z"), punit, data.constants);
+            first_pos = Vector3D(px, py, pz);
+        }
+
+        auto* fposref_node = node->first_node("firstpositionref");
+        if(fposref_node) {
+            std::string ref = SafeAttrVal(fposref_node, "ref");
+            auto it = data.positions.find(ref);
+            if(it != data.positions.end()) {
+                first_pos = it->second;
+            }
+        }
+
+        auto* frot_node = node->first_node("firstrotation");
+        if(frot_node) {
+            const char* runit = SafeAttrVal(frot_node, "unit");
+            double rx = ParseAngle(SafeAttrVal(frot_node, "x"), runit, data.constants);
+            double ry = ParseAngle(SafeAttrVal(frot_node, "y"), runit, data.constants);
+            double rz = ParseAngle(SafeAttrVal(frot_node, "z"), runit, data.constants);
+            first_rot = QuatFromGDMLRotation(rx, ry, rz);
+        }
+
+        auto* frotref_node = node->first_node("firstrotationref");
+        if(frotref_node) {
+            std::string ref = SafeAttrVal(frotref_node, "ref");
+            auto it = data.rotations.find(ref);
+            if(it != data.rotations.end()) {
+                first_rot = it->second;
+            }
+        }
+
         // The second solid may have a position and rotation relative to the first
         Vector3D rel_pos(0, 0, 0);
         Quaternion rel_rot;
@@ -1485,12 +2003,24 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
         }
 
+        // Apply first-operand placement if specified
+        bool has_first_placement = (first_pos.magnitude() > 0 || first_rot != Quaternion());
+        std::shared_ptr<Geometry> left_placed;
+        if(has_first_placement) {
+            left_placed = left->create();
+            Placement first_placement(first_pos, first_rot);
+            left_placed->SetPlacement(first_placement);
+        }
+
         auto right = right_base->create();
         Placement rel_placement(rel_pos, rel_rot);
         right->SetPlacement(rel_placement);
 
-        return std::make_shared<BooleanGeometry>(op,
-            std::const_pointer_cast<const Geometry>(left),
+        auto left_final = has_first_placement
+            ? std::const_pointer_cast<const Geometry>(left_placed)
+            : std::const_pointer_cast<const Geometry>(left);
+
+        return std::make_shared<BooleanGeometry>(op, left_final,
             std::const_pointer_cast<const Geometry>(right));
     };
 
@@ -1592,6 +2122,47 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             else if(tag == "union")    op = BooleanOperation::UNION;
             else                       op = BooleanOperation::INTERSECTION;
 
+            // First-operand placement
+            Vector3D first_pos(0, 0, 0);
+            Quaternion first_rot;
+
+            auto* fpos_node = db.node->first_node("firstposition");
+            if(fpos_node) {
+                const char* punit = SafeAttrVal(fpos_node, "unit");
+                double px = ParseLength(SafeAttrVal(fpos_node, "x"), punit, data.constants);
+                double py = ParseLength(SafeAttrVal(fpos_node, "y"), punit, data.constants);
+                double pz = ParseLength(SafeAttrVal(fpos_node, "z"), punit, data.constants);
+                first_pos = Vector3D(px, py, pz);
+            }
+
+            auto* fposref_node = db.node->first_node("firstpositionref");
+            if(fposref_node) {
+                std::string ref = SafeAttrVal(fposref_node, "ref");
+                auto it = data.positions.find(ref);
+                if(it != data.positions.end()) {
+                    first_pos = it->second;
+                }
+            }
+
+            auto* frot_node = db.node->first_node("firstrotation");
+            if(frot_node) {
+                const char* runit = SafeAttrVal(frot_node, "unit");
+                double rx = ParseAngle(SafeAttrVal(frot_node, "x"), runit, data.constants);
+                double ry = ParseAngle(SafeAttrVal(frot_node, "y"), runit, data.constants);
+                double rz = ParseAngle(SafeAttrVal(frot_node, "z"), runit, data.constants);
+                first_rot = QuatFromGDMLRotation(rx, ry, rz);
+            }
+
+            auto* frotref_node = db.node->first_node("firstrotationref");
+            if(frotref_node) {
+                std::string ref = SafeAttrVal(frotref_node, "ref");
+                auto it = data.rotations.find(ref);
+                if(it != data.rotations.end()) {
+                    first_rot = it->second;
+                }
+            }
+
+            // Second-operand placement
             Vector3D rel_pos(0, 0, 0);
             Quaternion rel_rot;
 
@@ -1631,12 +2202,24 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
                 }
             }
 
+            // Apply first-operand placement if specified
+            bool has_first_placement = (first_pos.magnitude() > 0 || first_rot != Quaternion());
+            std::shared_ptr<Geometry> left_placed;
+            if(has_first_placement) {
+                left_placed = left->create();
+                Placement first_placement(first_pos, first_rot);
+                left_placed->SetPlacement(first_placement);
+            }
+
             auto right = right_base->create();
             Placement rel_placement(rel_pos, rel_rot);
             right->SetPlacement(rel_placement);
 
-            auto geo = std::make_shared<BooleanGeometry>(op,
-                std::const_pointer_cast<const Geometry>(left),
+            auto left_final = has_first_placement
+                ? std::const_pointer_cast<const Geometry>(left_placed)
+                : std::const_pointer_cast<const Geometry>(left);
+
+            auto geo = std::make_shared<BooleanGeometry>(op, left_final,
                 std::const_pointer_cast<const Geometry>(right));
 
             storeSolid(db.name, geo);
@@ -1799,6 +2382,76 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
                          std::istreambuf_iterator<char>());
     file.close();
 
+    // Determine base directory for entity resolution
+    std::string base_dir;
+    {
+        size_t last_slash = filename.rfind('/');
+        if(last_slash != std::string::npos) {
+            base_dir = filename.substr(0, last_slash);
+        } else {
+            base_dir = ".";
+        }
+    }
+
+    // Expand ENTITY references before XML parsing
+    if(content.find("<!ENTITY") != std::string::npos || content.find("<!entity") != std::string::npos) {
+        content = ExpandEntities(content, base_dir);
+    }
+
+    // Handle xi:include (XInclude) - expand included files inline
+    if(content.find("xi:include") != std::string::npos) {
+        // Simple xi:include expansion: replace <xi:include href="file"/> with file content
+        std::string result;
+        size_t pos = 0;
+        while(pos < content.size()) {
+            size_t inc_start = content.find("<xi:include", pos);
+            if(inc_start == std::string::npos) {
+                result.append(content, pos, content.size() - pos);
+                break;
+            }
+            result.append(content, pos, inc_start - pos);
+            size_t inc_end = content.find("/>", inc_start);
+            if(inc_end == std::string::npos) {
+                inc_end = content.find("</xi:include>", inc_start);
+                if(inc_end != std::string::npos) inc_end += 12;
+            } else {
+                inc_end += 2;
+            }
+            if(inc_end == std::string::npos) {
+                result.append(content, inc_start, content.size() - inc_start);
+                break;
+            }
+
+            std::string inc_tag = content.substr(inc_start, inc_end - inc_start);
+            size_t href_pos = inc_tag.find("href=");
+            if(href_pos != std::string::npos) {
+                href_pos += 5;
+                char quote = inc_tag[href_pos];
+                if(quote == '"' || quote == '\'') {
+                    ++href_pos;
+                    size_t href_end = inc_tag.find(quote, href_pos);
+                    if(href_end != std::string::npos) {
+                        std::string href = inc_tag.substr(href_pos, href_end - href_pos);
+                        std::string inc_path = (href[0] == '/') ? href : base_dir + "/" + href;
+                        std::ifstream inc_file(inc_path.c_str(), std::ios::binary);
+                        if(inc_file.is_open()) {
+                            std::string inc_content((std::istreambuf_iterator<char>(inc_file)),
+                                                    std::istreambuf_iterator<char>());
+                            inc_file.close();
+                            size_t inc_last_slash = inc_path.rfind('/');
+                            std::string inc_dir = (inc_last_slash != std::string::npos) ?
+                                inc_path.substr(0, inc_last_slash) : base_dir;
+                            inc_content = ExpandEntities(inc_content, inc_dir);
+                            result.append(inc_content);
+                        }
+                    }
+                }
+            }
+            pos = inc_end;
+        }
+        content = result;
+    }
+
     // rapidxml requires a mutable, null-terminated buffer
     std::vector<char> buffer(content.begin(), content.end());
     buffer.push_back('\0');
@@ -1813,11 +2466,16 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
 
     GDMLData data;
 
-    // Check raw XML text for xi:include or entity references
-    if(content.find("xi:include") != std::string::npos ||
-       content.find("<!ENTITY") != std::string::npos) {
-        EmitWarning(data, options, "GDML file may use xi:include or entity references which are not supported; included sections will be missing");
-    }
+    // Seed built-in constants (Geant4 CLHEP values available in all GDML files)
+    data.constants["pi"] = M_PI;
+    data.constants["twopi"] = 2.0 * M_PI;
+    data.constants["TWOPI"] = 2.0 * M_PI;
+    data.constants["halfpi"] = M_PI / 2.0;
+    data.constants["deg"] = M_PI / 180.0;
+    data.constants["rad"] = 1.0;
+    data.constants["mm"] = 1.0;
+    data.constants["cm"] = 10.0;
+    data.constants["m"] = 1000.0;
 
     // Find root node: accept <gdml> or any root element
     auto* gdml_node = doc.first_node("gdml");
@@ -1830,22 +2488,23 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
         EmitWarning(data, options, "non-standard root element <" + root_tag + "> in " + filename + ", treating as <gdml>");
     }
 
-    // Expand <loop> elements in the DOM before section parsing.
-    // This must run first so that loop-generated nodes are visible to all parsers.
-    // Parse <define> first to populate constants needed for loop bounds,
-    // then expand loops, then re-parse <define> to pick up loop-generated constants.
-    for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
-        ParseDefine(node, data, options);
-    }
-    ExpandLoops(doc, gdml_node, data.constants);
+    // Resolve all <define> sections in document order (handles loops inline).
+    ResolveDefineInOrder(gdml_node, data, options);
 
-    // Re-parse <define> to pick up any constants generated by loops
-    data.constants.clear();
-    data.positions.clear();
-    data.rotations.clear();
-    data.matrices.clear();
-    for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
-        ParseDefine(node, data, options);
+    // Expand <loop> elements in non-define sections (structure, solids) where
+    // downstream parsers need to see the expanded DOM nodes.
+    ExpandLoops(doc, gdml_node, data.constants);
+    // Remove loops from <define> sections (already resolved, but the DOM nodes
+    // are still present; remove them so ParseDefine is not confused if called again)
+    for(auto* def = gdml_node->first_node("define"); def; def = def->next_sibling("define")) {
+        auto* child = def->first_node();
+        while(child) {
+            auto* next = child->next_sibling();
+            if(std::string(child->name()) == "loop") {
+                def->remove_node(child);
+            }
+            child = next;
+        }
     }
 
     // Parse all <materials> sections (with instance-scoped name resolution)
