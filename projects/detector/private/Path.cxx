@@ -92,9 +92,6 @@ bool Path::HasIntersections() {
     return set_intersections_;
 }
 
-bool Path::HasColumnDepth() {
-    return set_column_depth_;
-}
 
 std::shared_ptr<const DetectorModel> Path::GetDetectorModel() {
     return detector_model_;
@@ -162,7 +159,6 @@ void Path::SetPoints(GeometryPosition first_point, GeometryPosition last_point) 
     set_points_ = true;
     set_det_points_ = false;
     set_intersections_ = false;
-    set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point);
     last_inf_ = IsInfinite(last_point);
     RequireBothFinite();
@@ -178,7 +174,6 @@ void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) 
     set_points_ = false;
     set_det_points_ = true;
     set_intersections_ = false;
-    set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point);
     last_inf_ = IsInfinite(last_point);
     RequireBothFinite();
@@ -213,7 +208,6 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection dire
     if(!can_reuse_intersections) {
         set_intersections_ = false;
     }
-    set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point_); // Set using GeometryPosition
     last_inf_ = IsInfinite(last_point_); // Set using GeometryPosition
     RequireFirstFinite();
@@ -250,7 +244,6 @@ void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection dire
     if(!can_reuse_intersections) {
         set_intersections_ = false;
     }
-    set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point_det_); // Set using DetectorPosition
     last_inf_ = IsInfinite(last_point_det_); // Set using DetectorPosition
     RequireFirstFinite();
@@ -310,8 +303,7 @@ void Path::ClipToOuterBounds() {
         }
         if(clip) {
             distance_ = (last_point_ - first_point_)->magnitude();
-            set_column_depth_ = false;
-        }
+                }
         set_det_points_ = false;
     } else {
         return;
@@ -339,7 +331,6 @@ void Path::ExtendFromEndByDistance(double distance) {
         distance_ = 0;
         last_point_ = first_point_;
     }
-    set_column_depth_ = false;
     set_det_points_ = false;
 }
 
@@ -352,7 +343,6 @@ void Path::ExtendFromStartByDistance(double distance) {
         distance_ = 0;
         first_point_ = last_point_;
     }
-    set_column_depth_ = false;
     set_det_points_ = false;
 }
 
@@ -540,13 +530,7 @@ double Path::GetColumnDepthInBounds() {
     EnsureIntersections();
     EnsurePoints();
     RequireBothFinite();
-    if(HasColumnDepth()) {
-        return column_depth_cached_;
-    } else {
-        double column_depth = detector_model_->GetColumnDepthInCGS(intersections_, first_point_, last_point_);
-        column_depth_cached_ = column_depth;
-        return column_depth;
-    }
+    return detector_model_->GetColumnDepthInCGS(intersections_, first_point_, last_point_);
 }
 
 

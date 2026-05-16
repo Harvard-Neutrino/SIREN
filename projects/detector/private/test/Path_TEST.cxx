@@ -2074,6 +2074,140 @@ TEST(IsWithinBounds, PointOutside) {
     EXPECT_FALSE(path.IsWithinBounds(DetectorPosition(Vector3D(0, 0, 1.1))));
 }
 
+// --- Path intersection reuse tests ---
+
+TEST(IntersectionReuse, CollinearSameDirection) {
+    // SetPointsWithRay on a collinear ray should reuse cached intersections
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Shift origin along the same line
+    Vector3D new_origin(0, 0, 50);
+    path.SetPointsWithRay(GeometryPosition(new_origin), GeometryDirection(dir), dist);
+    // Intersections should be reused (still set)
+    EXPECT_TRUE(path.HasIntersections());
+}
+
+TEST(IntersectionReuse, CollinearReverseDirection) {
+    // Same line but reversed direction should still reuse
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Same line, reversed direction
+    Vector3D rev_dir(0, 0, -1);
+    path.SetPointsWithRay(GeometryPosition(origin), GeometryDirection(rev_dir), dist);
+    EXPECT_TRUE(path.HasIntersections());
+}
+
+TEST(IntersectionReuse, NonCollinearInvalidates) {
+    // A non-collinear ray should invalidate the cached intersections
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Different direction (perpendicular)
+    Vector3D perp_dir(1, 0, 0);
+    path.SetPointsWithRay(GeometryPosition(origin), GeometryDirection(perp_dir), dist);
+    EXPECT_FALSE(path.HasIntersections());
+}
+
+TEST(IntersectionReuse, ParallelButOffsetInvalidates) {
+    // Parallel but offset from the line should invalidate
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Same direction but shifted perpendicular by 1m
+    Vector3D offset_origin(1.0, 0, 0);
+    path.SetPointsWithRay(GeometryPosition(offset_origin), GeometryDirection(dir), dist);
+    EXPECT_FALSE(path.HasIntersections());
+}
+
+// --- Path collinearity tolerance at large offsets (#20) ---
+
+TEST(IntersectionReuse, LargeOffsetCollinear) {
+    // At IceCube scale (~1e6 m offsets), a truly collinear ray should reuse
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Move 1e6 meters along the same line -- should still reuse
+    Vector3D far_origin(0, 0, 1e6);
+    path.SetPointsWithRay(GeometryPosition(far_origin), GeometryDirection(dir), dist);
+    EXPECT_TRUE(path.HasIntersections());
+}
+
+TEST(IntersectionReuse, LargeOffsetNearlyParallelRejects) {
+    // At large offset, a ray that is nearly parallel but slightly off-line
+    // should NOT reuse if the perpendicular distance exceeds the tolerance.
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Origin at (10, 0, 1e6) -- 10m perpendicular offset at 1e6m along the line.
+    // Tolerance is 1e-6 * (1 + 1e6) ~ 1.0m. 10m > 1m so should NOT reuse.
+    Vector3D far_offset_origin(10.0, 0, 1e6);
+    path.SetPointsWithRay(GeometryPosition(far_offset_origin), GeometryDirection(dir), dist);
+    EXPECT_FALSE(path.HasIntersections());
+}
+
+TEST(IntersectionReuse, LargeOffsetSmallPerpAccepts) {
+    // At large offset, a small perpendicular offset within tolerance should reuse
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+    EXPECT_TRUE(path.HasIntersections());
+
+    // Origin at (0.5, 0, 1e6) -- 0.5m perpendicular offset at 1e6m along the line.
+    // Tolerance is 1e-6 * (1 + 1e6) ~ 1.0m. 0.5m < 1m so should reuse.
+    Vector3D far_small_offset(0.5, 0, 1e6);
+    path.SetPointsWithRay(GeometryPosition(far_small_offset), GeometryDirection(dir), dist);
+    EXPECT_TRUE(path.HasIntersections());
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
