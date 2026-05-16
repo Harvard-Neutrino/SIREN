@@ -175,6 +175,19 @@ bool InsideSpherePartial(Vector3D const & p, double r_outer, double r_inner,
     return theta >= start_theta && theta <= start_theta + delta_theta;
 }
 
+bool InsidePhiRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = std::fmod(std::atan2(y, x), 2.0 * M_PI);
+    if(phi < 0) phi += 2.0 * M_PI;
+    double sp = std::fmod(start_phi, 2.0 * M_PI);
+    if(sp < 0) sp += 2.0 * M_PI;
+    double ep = sp + delta_phi;
+    if(ep <= 2.0 * M_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        return phi >= sp - 1e-9 || phi <= std::fmod(ep, 2.0*M_PI) + 1e-9;
+    }
+}
+
 bool InsideTorusPartial(Vector3D const & p, double R, double rmax, double rmin,
                         double start_phi, double delta_phi) {
     double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
@@ -1027,6 +1040,70 @@ TEST(Containment, TorusPhiCutHalf) {
     ValidateContainment(torus, pl, [=](Vector3D const & p) {
         return InsideTorusPartial(p, R, r, 0, sp, dp);
     }, 15, 10000, "TorusPhiCutHalf");
+}
+
+// =========================================================================
+// Partial angular extent: Cylinder
+// =========================================================================
+
+TEST(Containment, CylinderPhiCut) {
+    // Quarter cylinder: phi from 0 to pi/2
+    double rmax = 5, rmin = 2, z = 10;
+    double sp = 0, dp = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Cylinder cyl(pl, rmax, rmin, z, sp, dp);
+    ValidateContainment(cyl, pl, [=](Vector3D const & p) {
+        return InsideCylinder(p, rmax, rmin, z) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
+    }, 10, 10000, "CylinderPhiCut");
+}
+
+// =========================================================================
+// Partial angular extent: Cone
+// =========================================================================
+
+TEST(Containment, ConePhiCut) {
+    // Quarter cone: phi from 0 to pi/2
+    double rmin1 = 1, rmax1 = 6, rmin2 = 0, rmax2 = 3, z = 8;
+    double sp = 0, dp = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z, sp, dp);
+    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+        return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
+    }, 12, 10000, "ConePhiCut");
+}
+
+// =========================================================================
+// Partial angular extent: Polycone
+// =========================================================================
+
+TEST(Containment, PolyconePhiCut) {
+    // Quarter polycone: phi from 0 to pi/2
+    std::vector<double> zp = {-5, 0, 5};
+    std::vector<double> rmin_v = {1, 2, 1};
+    std::vector<double> rmax_v = {4, 5, 3};
+    double sp = 0, dp = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Polycone pc(pl, zp, rmin_v, rmax_v, sp, dp);
+    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+        return InsidePolycone(p, zp, rmin_v, rmax_v) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
+    }, 10, 10000, "PolyconePhiCut");
+}
+
+// =========================================================================
+// Partial angular extent: CutTube
+// =========================================================================
+
+TEST(Containment, CutTubePhiCut) {
+    // Quarter cut-tube: phi from 0 to pi/2
+    double rmin = 1, rmax = 5, dz = 4;
+    Vector3D low_norm(0, 0, -1);
+    Vector3D high_norm(0, 0, 1);
+    double sp = 0, dp = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    CutTube ct(pl, rmin, rmax, dz, low_norm, high_norm, sp, dp);
+    ValidateContainment(ct, pl, [=](Vector3D const & p) {
+        return InsideCutTube(p, rmin, rmax, dz, low_norm, high_norm) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
+    }, 10, 10000, "CutTubePhiCut");
 }
 
 // =========================================================================

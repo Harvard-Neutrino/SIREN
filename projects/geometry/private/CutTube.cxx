@@ -16,6 +16,33 @@
 namespace siren {
 namespace geometry {
 
+namespace {
+
+static const double TWO_PI = 2.0 * M_PI;
+
+// Normalize angle to [0, 2*pi)
+double NormalizePhi(double phi) {
+    phi = std::fmod(phi, TWO_PI);
+    if(phi < 0) phi += TWO_PI;
+    return phi;
+}
+
+// Check if the azimuthal angle of point (x,y) falls within
+// [start_phi, start_phi + delta_phi]. Handles wraparound.
+bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = NormalizePhi(std::atan2(y, x));
+    double sp = NormalizePhi(start_phi);
+    double ep = sp + delta_phi;
+    if(ep <= TWO_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        // Wraps around 2*pi: phi >= sp OR phi <= (ep - 2*pi)
+        return phi >= sp - 1e-9 || phi <= NormalizePhi(ep) + 1e-9;
+    }
+}
+
+} // anonymous namespace
+
 // ------------------------------------------------------------------------- //
 // Helper: normalize a vector and enforce the sign constraint on its z-component.
 // For the low normal, z must be < 0; for the high normal, z must be > 0.
@@ -52,7 +79,10 @@ CutTube::CutTube()
     , rmax_(0.0)
     , dz_(0.0)
     , low_norm_(siren::math::Vector3D(0, 0, -1))
-      , high_norm_(siren::math::Vector3D(0, 0, 1)) {
+    , high_norm_(siren::math::Vector3D(0, 0, 1))
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     // Do nothing here
 }
 
@@ -62,7 +92,10 @@ CutTube::CutTube(double rmin, double rmax, double dz, math::Vector3D low_norm, m
     , rmax_(rmax)
     , dz_(dz)
     , low_norm_(low_norm)
-      , high_norm_(high_norm) {
+    , high_norm_(high_norm)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     if(rmin_ < 0) {
         throw std::invalid_argument("CutTube inner radius rmin must be non-negative!");
     }
@@ -88,7 +121,10 @@ CutTube::CutTube(Placement const & placement)
     , rmax_(0.0)
     , dz_(0.0)
     , low_norm_(siren::math::Vector3D(0, 0, -1))
-      , high_norm_(siren::math::Vector3D(0, 0, 1)) {
+    , high_norm_(siren::math::Vector3D(0, 0, 1))
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     // Do nothing here
 }
 
@@ -98,7 +134,10 @@ CutTube::CutTube(Placement const & placement, double rmin, double rmax, double d
     , rmax_(rmax)
     , dz_(dz)
     , low_norm_(low_norm)
-      , high_norm_(high_norm) {
+    , high_norm_(high_norm)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     if(rmin_ < 0) {
         throw std::invalid_argument("CutTube inner radius rmin must be non-negative!");
     }
@@ -118,13 +157,82 @@ CutTube::CutTube(Placement const & placement, double rmin, double rmax, double d
     high_norm_ = prepare_normal(high_norm_, true);
 }
 
+CutTube::CutTube(double rmin, double rmax, double dz, math::Vector3D low_norm, math::Vector3D high_norm,
+                 double start_phi, double delta_phi)
+    : Geometry((std::string)("CutTube"))
+    , rmin_(rmin)
+    , rmax_(rmax)
+    , dz_(dz)
+    , low_norm_(low_norm)
+    , high_norm_(high_norm)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    if(rmin_ < 0) {
+        throw std::invalid_argument("CutTube inner radius rmin must be non-negative!");
+    }
+    if(rmax_ < 0) {
+        throw std::invalid_argument("CutTube outer radius rmax must be non-negative!");
+    }
+    if(rmin_ > rmax_) {
+        std::swap(rmin_, rmax_);
+    }
+    if(rmax_ <= 0) {
+        throw std::invalid_argument("CutTube outer radius rmax must be positive!");
+    }
+    if(dz_ <= 0) {
+        throw std::invalid_argument("CutTube half-height dz must be positive!");
+    }
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("CutTube delta_phi must be in (0, 2*pi]!");
+    }
+    low_norm_ = prepare_normal(low_norm_, false);
+    high_norm_ = prepare_normal(high_norm_, true);
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+}
+
+CutTube::CutTube(Placement const & placement, double rmin, double rmax, double dz, math::Vector3D low_norm, math::Vector3D high_norm,
+                 double start_phi, double delta_phi)
+    : Geometry((std::string)("CutTube"), placement)
+    , rmin_(rmin)
+    , rmax_(rmax)
+    , dz_(dz)
+    , low_norm_(low_norm)
+    , high_norm_(high_norm)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    if(rmin_ < 0) {
+        throw std::invalid_argument("CutTube inner radius rmin must be non-negative!");
+    }
+    if(rmax_ < 0) {
+        throw std::invalid_argument("CutTube outer radius rmax must be non-negative!");
+    }
+    if(rmin_ > rmax_) {
+        std::swap(rmin_, rmax_);
+    }
+    if(rmax_ <= 0) {
+        throw std::invalid_argument("CutTube outer radius rmax must be positive!");
+    }
+    if(dz_ <= 0) {
+        throw std::invalid_argument("CutTube half-height dz must be positive!");
+    }
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("CutTube delta_phi must be in (0, 2*pi]!");
+    }
+    low_norm_ = prepare_normal(low_norm_, false);
+    high_norm_ = prepare_normal(high_norm_, true);
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+}
+
 CutTube::CutTube(const CutTube& other)
     : Geometry(other)
     , rmin_(other.rmin_)
     , rmax_(other.rmax_)
     , dz_(other.dz_)
     , low_norm_(other.low_norm_)
-      , high_norm_(other.high_norm_) {
+    , high_norm_(other.high_norm_)
+    , start_phi_(other.start_phi_)
+    , delta_phi_(other.delta_phi_)
+    , has_phi_cut_(other.has_phi_cut_) {
     // Nothing to do here
 }
 
@@ -143,6 +251,9 @@ void CutTube::swap(Geometry& geometry) {
     std::swap(dz_, ct->dz_);
     std::swap(low_norm_, ct->low_norm_);
     std::swap(high_norm_, ct->high_norm_);
+    std::swap(start_phi_, ct->start_phi_);
+    std::swap(delta_phi_, ct->delta_phi_);
+    std::swap(has_phi_cut_, ct->has_phi_cut_);
 }
 
 //------------------------------------------------------------------------- //
@@ -177,6 +288,10 @@ bool CutTube::equal(const Geometry& geometry) const
         return false;
     else if(high_norm_ != ct->high_norm_)
         return false;
+    else if(start_phi_ != ct->start_phi_)
+        return false;
+    else if(delta_phi_ != ct->delta_phi_)
+        return false;
     else
         return true;
 }
@@ -188,9 +303,9 @@ bool CutTube::less(const Geometry& geometry) const
     if(!ct) return false;
 
     return
-        std::tie(rmin_, rmax_, dz_, low_norm_, high_norm_)
+        std::tie(rmin_, rmax_, dz_, low_norm_, high_norm_, start_phi_, delta_phi_)
         <
-        std::tie(ct->rmin_, ct->rmax_, ct->dz_, ct->low_norm_, ct->high_norm_);
+        std::tie(ct->rmin_, ct->rmax_, ct->dz_, ct->low_norm_, ct->high_norm_, ct->start_phi_, ct->delta_phi_);
 }
 
 // ------------------------------------------------------------------------- //
@@ -199,7 +314,9 @@ void CutTube::print(std::ostream& os) const
     os << "rmin: " << rmin_ << "\trmax: " << rmax_
        << "\tdz: " << dz_
        << "\tlow_norm: " << low_norm_
-       << "\thigh_norm: " << high_norm_ << '\n';
+       << "\thigh_norm: " << high_norm_;
+    if(has_phi_cut_) os << "\tStartPhi: " << start_phi_ << "\tDeltaPhi: " << delta_phi_;
+    os << '\n';
 }
 
 // ------------------------------------------------------------------------- //
@@ -317,17 +434,106 @@ std::vector<Geometry::Intersection> CutTube::ComputeIntersections(siren::math::V
     // High cut plane: center at (0, 0, +dz_), normal = high_norm_
     test_cap(0, 0, dz_, hnx, hny, hnz);
 
-    if(n_hits == 0) return {};
+    if(n_hits == 0 && !has_phi_cut_) return {};
+
     std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
     });
-    return {hits, hits + n_hits};
+
+    if(!has_phi_cut_) {
+        return {hits, hits + n_hits};
+    }
+
+    // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source; // 0 = surface, 1 = wedge
+    };
+
+    // Max 6 tagged hits: 4 surface (2 barrel + 2 cap) + 2 wedge
+    TaggedHit all_hits[10];
+    int n_all = 0;
+
+    for(int i = 0; i < n_hits; ++i) {
+        all_hits[n_all] = {hits[i].distance, hits[i].position, hits[i].entering, 0};
+        n_all++;
+    }
+
+    // Compute infinite wedge intersections (two half-planes from z-axis)
+    for(int face = 0; face < 2; ++face) {
+        double alpha = start_phi_ + face * delta_phi_;
+        double ca = std::cos(alpha), sa = std::sin(alpha);
+        // Outward-pointing normal (away from phi range interior)
+        double nx, ny;
+        if(face == 0) { nx = sa; ny = -ca; }
+        else { nx = -sa; ny = ca; }
+        double n_dot_d = nx*dirx + ny*diry;
+        if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+        double n_dot_p = nx*px + ny*py;
+        double t = -n_dot_p / n_dot_d;
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+
+        double hx = px + t*dirx, hy = py + t*diry, hz = pz + t*dirz;
+        // Must be on the correct half-plane (outward from z-axis)
+        if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+
+        bool entering = (n_dot_d < 0);
+        all_hits[n_all] = {t, siren::math::Vector3D(hx, hy, hz), entering, 1};
+        n_all++;
+    }
+
+    if(n_all == 0) return {};
+
+    // Sort all hits by distance
+    std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+        return a.distance < b.distance;
+    });
+
+    // CSG intersection walk: the phi-cut solid is (full surface) AND (phi wedge).
+    bool in_surface = false;
+    bool in_wedge = false;
+
+    // Determine initial in_wedge state
+    bool has_wedge_hit = false;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 1) {
+            in_wedge = !all_hits[i].entering;
+            has_wedge_hit = true;
+            break;
+        }
+    }
+    if(!has_wedge_hit) {
+        in_wedge = PhiInRange(px, py, start_phi_, delta_phi_);
+    }
+
+    bool was_inside = in_surface && in_wedge;
+
+    std::vector<Intersection> result;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 0) {
+            in_surface = all_hits[i].entering;
+        } else {
+            in_wedge = all_hits[i].entering;
+        }
+        bool now_inside = in_surface && in_wedge;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //
 AABB CutTube::GetBoundingBox() const {
     // Conservative bounding box.
-    // x, y extents: [-rmax, rmax]
     // z extents: the cut planes can extend the z range beyond +/-dz.
     // At the barrel circle (radius rmax), the most extreme z-intercept of
     // the low plane is at the point on the barrel circle where the
@@ -347,9 +553,51 @@ AABB CutTube::GetBoundingBox() const {
     double z_min = -dz_ - rmax_ * low_tilt;
     double z_max =  dz_ + rmax_ * high_tilt;
 
+    if(!has_phi_cut_) {
+        return AABB(
+            math::Vector3D(-rmax_, -rmax_, z_min),
+            math::Vector3D( rmax_,  rmax_, z_max)
+        );
+    }
+
+    // Phi sector: compute bounding box from the two edge rays and any
+    // cardinal directions (0, pi/2, pi, 3pi/2) that fall within the sector.
+    double sp = NormalizePhi(start_phi_);
+    double ep = sp + delta_phi_;
+
+    double x_min = 0, x_max = 0, y_min = 0, y_max = 0;
+
+    // Check the two edge directions
+    double angles[2] = {sp, sp + delta_phi_};
+    for(int i = 0; i < 2; ++i) {
+        double a = angles[i];
+        double cx = std::cos(a) * rmax_;
+        double cy = std::sin(a) * rmax_;
+        if(cx < x_min) x_min = cx;
+        if(cx > x_max) x_max = cx;
+        if(cy < y_min) y_min = cy;
+        if(cy > y_max) y_max = cy;
+    }
+
+    // Check cardinal directions if they fall in the sector
+    double cardinals[4] = {0.0, M_PI / 2.0, M_PI, 3.0 * M_PI / 2.0};
+    for(int i = 0; i < 4; ++i) {
+        double c = cardinals[i];
+        double cn = c;
+        if(cn < sp) cn += TWO_PI;
+        if(cn <= ep + 1e-9) {
+            double cx = std::cos(cardinals[i]) * rmax_;
+            double cy = std::sin(cardinals[i]) * rmax_;
+            if(cx < x_min) x_min = cx;
+            if(cx > x_max) x_max = cx;
+            if(cy < y_min) y_min = cy;
+            if(cy > y_max) y_max = cy;
+        }
+    }
+
     return AABB(
-        math::Vector3D(-rmax_, -rmax_, z_min),
-        math::Vector3D( rmax_,  rmax_, z_max)
+        math::Vector3D(x_min, y_min, z_min),
+        math::Vector3D(x_max, y_max, z_max)
     );
 }
 

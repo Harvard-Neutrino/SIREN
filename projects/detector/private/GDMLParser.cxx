@@ -1464,23 +1464,14 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             // GDML <tube> z is HALF-height; SIREN Cylinder takes full height
             double hz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
 
-            // Check angular extent for partial tube
+            double startphi = 0.0;
+            double deltaphi = 2.0 * M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
-            if(sp_val[0] != '\0') {
-                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
-                if(std::fabs(startphi) > ANG_TOL) {
-                    EmitWarning(data, options, std::string(tag) + " '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
-                    EmitWarning(data, options, std::string(tag) + " '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
 
-            geo = Cylinder(rmax, rmin, hz * 2.0).create();
+            geo = Cylinder(rmax, rmin, hz * 2.0, startphi, deltaphi).create();
         }
         else if(tag == "cone") {
             double rmin1 = SafeParseDouble(SafeAttrVal(node, "rmin1"), data.constants) * lscale;
@@ -1490,23 +1481,14 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             // GDML <cone> z is HALF-height; SIREN Cone takes full height
             double hz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
 
-            // Check angular extent for partial cone
+            double startphi = 0.0;
+            double deltaphi = 2.0 * M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
-            if(sp_val[0] != '\0') {
-                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
-                if(std::fabs(startphi) > ANG_TOL) {
-                    EmitWarning(data, options, "cone '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
-                    EmitWarning(data, options, "cone '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
 
-            geo = Cone(rmin1, rmax1, rmin2, rmax2, hz * 2.0).create();
+            geo = Cone(rmin1, rmax1, rmin2, rmax2, hz * 2.0, startphi, deltaphi).create();
         }
         else if(tag == "trd") {
             // GDML <trd> uses half-widths; SIREN Trd also uses half-widths
@@ -1518,21 +1500,12 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             geo = Trd(dx1, dx2, dy1, dy2, dz).create();
         }
         else if(tag == "polycone") {
-            // Check angular extent for partial polycone
+            double startphi = 0.0;
+            double deltaphi = 2.0 * M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
-            if(sp_val[0] != '\0') {
-                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
-                if(std::fabs(startphi) > ANG_TOL) {
-                    EmitWarning(data, options, "polycone '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
-                    EmitWarning(data, options, "polycone '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
 
             std::vector<double> z_planes;
             std::vector<double> rmin_vec;
@@ -1548,7 +1521,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
 
             if(z_planes.size() >= 2) {
-                geo = Polycone(z_planes, rmin_vec, rmax_vec).create();
+                geo = Polycone(z_planes, rmin_vec, rmax_vec, startphi, deltaphi).create();
             }
         }
         else if(tag == "polyhedra") {
@@ -1652,20 +1625,12 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             double rmax = SafeParseDouble(SafeAttrVal(node, "rmax"), data.constants) * lscale;
             double hz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
 
+            double startphi = 0.0;
+            double deltaphi = 2.0 * M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
-            if(sp_val[0] != '\0') {
-                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
-                if(std::fabs(startphi) > ANG_TOL) {
-                    EmitWarning(data, options, "cutTube '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
-                    EmitWarning(data, options, "cutTube '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
 
             double lowX = SafeParseDouble(SafeAttrVal(node, "lowX"), data.constants);
             double lowY = SafeParseDouble(SafeAttrVal(node, "lowY"), data.constants);
@@ -1677,7 +1642,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             if(rmax > 0 && hz > 0) {
                 Vector3D low_norm(lowX, lowY, lowZ);
                 Vector3D high_norm(highX, highY, highZ);
-                geo = CutTube(rmin, rmax, hz, low_norm, high_norm).create();
+                geo = CutTube(rmin, rmax, hz, low_norm, high_norm, startphi, deltaphi).create();
             }
         }
         else if(tag == "trap") {

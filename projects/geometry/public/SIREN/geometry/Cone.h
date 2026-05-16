@@ -29,6 +29,8 @@ public:
     Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z);
     Cone(Placement const &);
     Cone(Placement const &, double rmin1, double rmax1, double rmin2, double rmax2, double z);
+    Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z, double start_phi, double delta_phi);
+    Cone(Placement const &, double rmin1, double rmax1, double rmin2, double rmax2, double z, double start_phi, double delta_phi);
     Cone(const Cone&);
 
     template<typename Archive>
@@ -39,7 +41,10 @@ public:
             archive(::cereal::make_nvp("InnerRadius2", rmin2_));
             archive(::cereal::make_nvp("OuterRadius2", rmax2_));
             archive(::cereal::make_nvp("Height", z_));
+            archive(::cereal::make_nvp("StartPhi", start_phi_));
+            archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
         } else {
             throw std::runtime_error("Cone only supports version <= 0!");
         }
@@ -63,6 +68,8 @@ public:
     double GetRmin2() const { return rmin2_; }
     double GetRmax2() const { return rmax2_; }
     double GetZ() const { return z_; }
+    double GetStartPhi() const { return start_phi_; }
+    double GetDeltaPhi() const { return delta_phi_; }
 
 protected:
     virtual bool equal(const Geometry&) const override;
@@ -75,6 +82,9 @@ private:
     double rmin2_; //!< inner radius at z = +z/2
     double rmax2_; //!< outer radius at z = +z/2
     double z_;     //!< full height along z-axis
+    double start_phi_;    //!< starting azimuthal angle (radians, default 0)
+    double delta_phi_;    //!< azimuthal extent (radians, default 2*pi)
+    bool has_phi_cut_;    //!< true if delta_phi < 2*pi (precomputed)
 };
 
 

@@ -29,6 +29,10 @@ public:
     CutTube(double rmin, double rmax, double dz, math::Vector3D low_norm, math::Vector3D high_norm);
     CutTube(Placement const &);
     CutTube(Placement const &, double rmin, double rmax, double dz, math::Vector3D low_norm, math::Vector3D high_norm);
+    CutTube(double rmin, double rmax, double dz, math::Vector3D low_norm, math::Vector3D high_norm,
+            double start_phi, double delta_phi);
+    CutTube(Placement const &, double rmin, double rmax, double dz, math::Vector3D low_norm, math::Vector3D high_norm,
+            double start_phi, double delta_phi);
     CutTube(const CutTube&);
 
     template<typename Archive>
@@ -39,7 +43,10 @@ public:
             archive(::cereal::make_nvp("HalfZ", dz_));
             archive(::cereal::make_nvp("LowNorm", low_norm_));
             archive(::cereal::make_nvp("HighNorm", high_norm_));
+            archive(::cereal::make_nvp("StartPhi", start_phi_));
+            archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
         } else {
             throw std::runtime_error("CutTube only supports version <= 0!");
         }
@@ -63,6 +70,8 @@ public:
     double GetDz() const { return dz_; }
     math::Vector3D GetLowNorm() const { return low_norm_; }
     math::Vector3D GetHighNorm() const { return high_norm_; }
+    double GetStartPhi() const { return start_phi_; }
+    double GetDeltaPhi() const { return delta_phi_; }
 
 protected:
     virtual bool equal(const Geometry&) const override;
@@ -75,6 +84,9 @@ private:
     double dz_;                  //!< half-height along z before cut
     math::Vector3D low_norm_;    //!< outward unit normal of low-z end cap (z < 0)
     math::Vector3D high_norm_;   //!< outward unit normal of high-z end cap (z > 0)
+    double start_phi_;           //!< starting azimuthal angle (radians, default 0)
+    double delta_phi_;           //!< azimuthal extent (radians, default 2*pi)
+    bool has_phi_cut_;           //!< true if delta_phi < 2*pi (precomputed)
 };
 
 

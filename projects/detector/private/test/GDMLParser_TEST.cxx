@@ -1423,7 +1423,7 @@ TEST(GDMLParser, PartialTorusParses) {
 // =========================================================================
 // Partial cylinder still warns (not yet supported)
 // =========================================================================
-TEST(GDMLParser, PartialCylinderStillWarns) {
+TEST(GDMLParser, PartialCylinderSupported) {
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define/>
@@ -1444,12 +1444,12 @@ TEST(GDMLParser, PartialCylinderStillWarns) {
 
     GDMLData data = ParseGDMLString(gdml);
     ASSERT_TRUE(data.solids.count("wedge") > 0);
-    // Should still warn because cylinder partial phi is not yet supported
-    bool found = false;
+    ASSERT_TRUE(data.solids["wedge"] != nullptr);
+    // Partial phi is now supported -- no warnings expected
     for(auto const & w : data.warnings) {
-        if(w.find("tube") != std::string::npos || w.find("tubs") != std::string::npos) found = true;
+        EXPECT_TRUE(w.find("partial angular extent") == std::string::npos)
+            << "Unexpected warning: " << w;
     }
-    EXPECT_TRUE(found) << "Expected warning about partial cylinder angular extent";
 }
 
 // =========================================================================
@@ -3720,4 +3720,47 @@ TEST(GDMLParser, TessellatedInlineVertices) {
     // Verify unit conversion: point at 50cm = 0.5m should be outside
     // (sum of barycentric coords > 1: 0.5+0.5+0.5 = 1.5 > 1)
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.5, 0.5, 0.5)));
+}
+
+
+// =========================================================================
+// Partial-phi tube and cone parsing (no warning, correct geometry)
+// =========================================================================
+TEST(GDMLParser, PartialPhiTubeAndCone) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <tube name="quarter_tube" rmin="10" rmax="50" z="100"
+          startphi="0" deltaphi="1.5707963267948966" lunit="mm" aunit="rad"/>
+    <cone name="quarter_cone" rmin1="10" rmax1="50" rmin2="5" rmax2="30" z="80"
+          startphi="0.7853981633974483" deltaphi="1.5707963267948966" lunit="mm" aunit="rad"/>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // Verify the solids were created successfully
+    ASSERT_TRUE(data.solids.find("quarter_tube") != data.solids.end());
+    ASSERT_TRUE(data.solids["quarter_tube"] != nullptr);
+
+    ASSERT_TRUE(data.solids.find("quarter_cone") != data.solids.end());
+    ASSERT_TRUE(data.solids["quarter_cone"] != nullptr);
+
+    // Verify no warnings about partial angular extent
+    for(auto const & w : data.warnings) {
+        EXPECT_TRUE(w.find("partial angular extent") == std::string::npos)
+            << "Unexpected warning: " << w;
+    }
 }

@@ -17,6 +17,33 @@
 namespace siren {
 namespace geometry {
 
+namespace {
+
+static const double TWO_PI = 2.0 * M_PI;
+
+// Normalize angle to [0, 2*pi)
+double NormalizePhi(double phi) {
+    phi = std::fmod(phi, TWO_PI);
+    if(phi < 0) phi += TWO_PI;
+    return phi;
+}
+
+// Check if the azimuthal angle of point (x,y) falls within
+// [start_phi, start_phi + delta_phi]. Handles wraparound.
+bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = NormalizePhi(std::atan2(y, x));
+    double sp = NormalizePhi(start_phi);
+    double ep = sp + delta_phi;
+    if(ep <= TWO_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        // Wraps around 2*pi: phi >= sp OR phi <= (ep - 2*pi)
+        return phi >= sp - 1e-9 || phi <= NormalizePhi(ep) + 1e-9;
+    }
+}
+
+} // anonymous namespace
+
 void Polycone::validate() const {
     if(z_planes_.size() < 2) {
         throw std::runtime_error("Polycone requires at least 2 z-planes!");
@@ -43,7 +70,10 @@ Polycone::Polycone()
     : Geometry((std::string)("Polycone"))
     , z_planes_()
     , rmin_()
-      , rmax_() {
+    , rmax_()
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     // Do nothing here
 }
 
@@ -53,7 +83,10 @@ Polycone::Polycone(std::vector<double> const & z_planes,
     : Geometry((std::string)("Polycone"))
     , z_planes_(z_planes)
     , rmin_(rmin)
-      , rmax_(rmax) {
+    , rmax_(rmax)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     validate();
 }
 
@@ -61,7 +94,10 @@ Polycone::Polycone(Placement const & placement)
     : Geometry((std::string)("Polycone"), placement)
     , z_planes_()
     , rmin_()
-      , rmax_() {
+    , rmax_()
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     // Do nothing here
 }
 
@@ -72,15 +108,56 @@ Polycone::Polycone(Placement const & placement,
     : Geometry((std::string)("Polycone"), placement)
     , z_planes_(z_planes)
     , rmin_(rmin)
-      , rmax_(rmax) {
+    , rmax_(rmax)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     validate();
+}
+
+Polycone::Polycone(std::vector<double> const & z_planes,
+                   std::vector<double> const & rmin,
+                   std::vector<double> const & rmax,
+                   double start_phi, double delta_phi)
+    : Geometry((std::string)("Polycone"))
+    , z_planes_(z_planes)
+    , rmin_(rmin)
+    , rmax_(rmax)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    validate();
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("Polycone delta_phi must be in (0, 2*pi]!");
+    }
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+}
+
+Polycone::Polycone(Placement const & placement,
+                   std::vector<double> const & z_planes,
+                   std::vector<double> const & rmin,
+                   std::vector<double> const & rmax,
+                   double start_phi, double delta_phi)
+    : Geometry((std::string)("Polycone"), placement)
+    , z_planes_(z_planes)
+    , rmin_(rmin)
+    , rmax_(rmax)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    validate();
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("Polycone delta_phi must be in (0, 2*pi]!");
+    }
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
 }
 
 Polycone::Polycone(const Polycone& polycone)
     : Geometry(polycone)
     , z_planes_(polycone.z_planes_)
     , rmin_(polycone.rmin_)
-      , rmax_(polycone.rmax_) {
+    , rmax_(polycone.rmax_)
+    , start_phi_(polycone.start_phi_)
+    , delta_phi_(polycone.delta_phi_)
+    , has_phi_cut_(polycone.has_phi_cut_) {
     // Nothing to do here
 }
 
@@ -96,6 +173,9 @@ void Polycone::swap(Geometry& geometry) {
     std::swap(z_planes_, polycone->z_planes_);
     std::swap(rmin_, polycone->rmin_);
     std::swap(rmax_, polycone->rmax_);
+    std::swap(start_phi_, polycone->start_phi_);
+    std::swap(delta_phi_, polycone->delta_phi_);
+    std::swap(has_phi_cut_, polycone->has_phi_cut_);
 }
 
 // ------------------------------------------------------------------------- //
@@ -124,6 +204,10 @@ bool Polycone::equal(const Geometry& geometry) const
         return false;
     else if(rmax_ != polycone->rmax_)
         return false;
+    else if(start_phi_ != polycone->start_phi_)
+        return false;
+    else if(delta_phi_ != polycone->delta_phi_)
+        return false;
     else
         return true;
 }
@@ -135,9 +219,9 @@ bool Polycone::less(const Geometry& geometry) const
     if(!polycone) return false;
 
     return
-        std::tie(z_planes_, rmin_, rmax_)
+        std::tie(z_planes_, rmin_, rmax_, start_phi_, delta_phi_)
         <
-        std::tie(polycone->z_planes_, polycone->rmin_, polycone->rmax_);
+        std::tie(polycone->z_planes_, polycone->rmin_, polycone->rmax_, polycone->start_phi_, polycone->delta_phi_);
 }
 
 void Polycone::print(std::ostream& os) const
@@ -148,6 +232,7 @@ void Polycone::print(std::ostream& os) const
            << " rmin=" << rmin_[i]
            << " rmax=" << rmax_[i] << "]";
     }
+    if(has_phi_cut_) os << "\tStartPhi: " << start_phi_ << "\tDeltaPhi: " << delta_phi_;
     os << '\n';
 }
 
@@ -497,12 +582,110 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     auto cmp = [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
     };
+
+    if(!has_phi_cut_) {
+        // No phi cut: surface hits are the final result
+        if(use_heap) {
+            std::sort(heap_hits.begin(), heap_hits.end(), cmp);
+            return heap_hits;
+        }
+        std::sort(stack_hits, stack_hits + n_hits, cmp);
+        return {stack_hits, stack_hits + n_hits};
+    }
+
+    // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
+    // Collect surface hits into a sorted vector of tagged hits.
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source; // 0 = surface, 1 = wedge
+    };
+
+    // Sort surface hits first
     if(use_heap) {
         std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-        return heap_hits;
+    } else {
+        std::sort(stack_hits, stack_hits + n_hits, cmp);
     }
-    std::sort(stack_hits, stack_hits + n_hits, cmp);
-    return {stack_hits, stack_hits + n_hits};
+
+    std::vector<TaggedHit> all_hits;
+    all_hits.reserve(n_hits + 2);
+    for(int i = 0; i < n_hits; ++i) {
+        Intersection const & h = use_heap ? heap_hits[i] : stack_hits[i];
+        all_hits.push_back({h.distance, h.position, h.entering, 0});
+    }
+
+    // Compute infinite wedge intersections (two half-planes from z-axis)
+    for(int face = 0; face < 2; ++face) {
+        double alpha = start_phi_ + face * delta_phi_;
+        double ca = std::cos(alpha), sa = std::sin(alpha);
+        // Outward-pointing normal (away from phi range interior)
+        double nx, ny;
+        if(face == 0) { nx = sa; ny = -ca; }
+        else { nx = -sa; ny = ca; }
+        double n_dot_d = nx*dx + ny*dy;
+        if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+        double n_dot_p = nx*px + ny*py;
+        double t = -n_dot_p / n_dot_d;
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+
+        double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+        // Must be on the correct half-plane (outward from z-axis)
+        if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+
+        bool entering = (n_dot_d < 0);
+        all_hits.push_back({t, siren::math::Vector3D(hx, hy, hz), entering, 1});
+    }
+
+    if(all_hits.empty()) return {};
+
+    // Sort all hits by distance
+    std::sort(all_hits.begin(), all_hits.end(), [](TaggedHit const & a, TaggedHit const & b) {
+        return a.distance < b.distance;
+    });
+
+    // CSG intersection walk: the phi-cut solid is (full surface) AND (phi wedge).
+    // Walk through sorted hits, tracking in_surface and in_wedge states.
+    bool in_surface = false;
+    bool in_wedge = false;
+
+    // Determine initial in_wedge state
+    bool has_wedge_hit = false;
+    for(size_t i = 0; i < all_hits.size(); ++i) {
+        if(all_hits[i].source == 1) {
+            // First wedge hit: if entering, we started outside; if exiting, started inside
+            in_wedge = !all_hits[i].entering;
+            has_wedge_hit = true;
+            break;
+        }
+    }
+    if(!has_wedge_hit) {
+        // No wedge crossings: ray is entirely in or entirely out of wedge.
+        in_wedge = PhiInRange(px, py, start_phi_, delta_phi_);
+    }
+
+    bool was_inside = in_surface && in_wedge;
+
+    std::vector<Intersection> result;
+    for(size_t i = 0; i < all_hits.size(); ++i) {
+        if(all_hits[i].source == 0) {
+            in_surface = all_hits[i].entering;
+        } else {
+            in_wedge = all_hits[i].entering;
+        }
+        bool now_inside = in_surface && in_wedge;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //
@@ -513,9 +696,53 @@ AABB Polycone::GetBoundingBox() const {
     double max_r = *std::max_element(rmax_.begin(), rmax_.end());
     double z_lo = z_planes_.front();
     double z_hi = z_planes_.back();
+
+    if(!has_phi_cut_) {
+        return AABB(
+            math::Vector3D(-max_r, -max_r, z_lo),
+            math::Vector3D( max_r,  max_r, z_hi)
+        );
+    }
+
+    // Phi sector: compute bounding box from the two edge rays and any
+    // cardinal directions (0, pi/2, pi, 3pi/2) that fall within the sector.
+    double sp = NormalizePhi(start_phi_);
+    double ep = sp + delta_phi_;
+
+    double x_min = 0, x_max = 0, y_min = 0, y_max = 0;
+
+    // Check the two edge directions
+    double angles[2] = {sp, sp + delta_phi_};
+    for(int i = 0; i < 2; ++i) {
+        double a = angles[i];
+        double cx = std::cos(a) * max_r;
+        double cy = std::sin(a) * max_r;
+        if(cx < x_min) x_min = cx;
+        if(cx > x_max) x_max = cx;
+        if(cy < y_min) y_min = cy;
+        if(cy > y_max) y_max = cy;
+    }
+
+    // Check cardinal directions if they fall in the sector
+    double cardinals[4] = {0.0, M_PI / 2.0, M_PI, 3.0 * M_PI / 2.0};
+    for(int i = 0; i < 4; ++i) {
+        double c = cardinals[i];
+        // Check if cardinal is within [sp, ep] (with wraparound)
+        double cn = c;
+        if(cn < sp) cn += TWO_PI;
+        if(cn <= ep + 1e-9) {
+            double cx = std::cos(cardinals[i]) * max_r;
+            double cy = std::sin(cardinals[i]) * max_r;
+            if(cx < x_min) x_min = cx;
+            if(cx > x_max) x_max = cx;
+            if(cy < y_min) y_min = cy;
+            if(cy > y_max) y_max = cy;
+        }
+    }
+
     return AABB(
-        math::Vector3D(-max_r, -max_r, z_lo),
-        math::Vector3D( max_r,  max_r, z_hi)
+        math::Vector3D(x_min, y_min, z_lo),
+        math::Vector3D(x_max, y_max, z_hi)
     );
 }
 

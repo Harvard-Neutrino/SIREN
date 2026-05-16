@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <tuple>
-#include <math.h>
 #include <string>
 #include <vector>
 #include <ostream>
@@ -17,14 +16,39 @@
 namespace siren {
 namespace geometry {
 
+namespace {
+
+static const double TWO_PI = 2.0 * M_PI;
+
+double NormalizePhi(double phi) {
+    phi = std::fmod(phi, TWO_PI);
+    if(phi < 0) phi += TWO_PI;
+    return phi;
+}
+
+bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = NormalizePhi(std::atan2(y, x));
+    double sp = NormalizePhi(start_phi);
+    double ep = sp + delta_phi;
+    if(ep <= TWO_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        return phi >= sp - 1e-9 || phi <= NormalizePhi(ep) + 1e-9;
+    }
+}
+
+} // anonymous namespace
+
 Cone::Cone()
     : Geometry((std::string)("Cone"))
     , rmin1_(0.0)
     , rmax1_(0.0)
     , rmin2_(0.0)
     , rmax2_(0.0)
-      , z_(0.0) {
-    // Do nothing here
+    , z_(0.0)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
 }
 
 Cone::Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z)
@@ -33,7 +57,10 @@ Cone::Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z)
     , rmax1_(rmax1)
     , rmin2_(rmin2)
     , rmax2_(rmax2)
-      , z_(z) {
+    , z_(z)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     if(z_ <= 0) {
         throw std::invalid_argument("Cone height must be positive!");
     }
@@ -46,6 +73,34 @@ Cone::Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z)
     if(rmax1_ <= 0 && rmax2_ <= 0) {
         throw std::invalid_argument("Cone must have at least one positive outer radius!");
     }
+}
+
+Cone::Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z,
+           double start_phi, double delta_phi)
+    : Geometry((std::string)("Cone"))
+    , rmin1_(rmin1)
+    , rmax1_(rmax1)
+    , rmin2_(rmin2)
+    , rmax2_(rmax2)
+    , z_(z)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    if(z_ <= 0) {
+        throw std::invalid_argument("Cone height must be positive!");
+    }
+    if(rmin1_ > rmax1_) {
+        std::swap(rmin1_, rmax1_);
+    }
+    if(rmin2_ > rmax2_) {
+        std::swap(rmin2_, rmax2_);
+    }
+    if(rmax1_ <= 0 && rmax2_ <= 0) {
+        throw std::invalid_argument("Cone must have at least one positive outer radius!");
+    }
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("Cone delta_phi must be in (0, 2*pi]!");
+    }
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
 }
 
 Cone::Cone(Placement const & placement)
@@ -54,8 +109,10 @@ Cone::Cone(Placement const & placement)
     , rmax1_(0.0)
     , rmin2_(0.0)
     , rmax2_(0.0)
-      , z_(0.0) {
-    // Do nothing here
+    , z_(0.0)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
 }
 
 Cone::Cone(Placement const & placement, double rmin1, double rmax1, double rmin2, double rmax2, double z)
@@ -64,7 +121,10 @@ Cone::Cone(Placement const & placement, double rmin1, double rmax1, double rmin2
     , rmax1_(rmax1)
     , rmin2_(rmin2)
     , rmax2_(rmax2)
-      , z_(z) {
+    , z_(z)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     if(z_ <= 0) {
         throw std::invalid_argument("Cone height must be positive!");
     }
@@ -79,13 +139,44 @@ Cone::Cone(Placement const & placement, double rmin1, double rmax1, double rmin2
     }
 }
 
+Cone::Cone(Placement const & placement, double rmin1, double rmax1, double rmin2, double rmax2, double z,
+           double start_phi, double delta_phi)
+    : Geometry((std::string)("Cone"), placement)
+    , rmin1_(rmin1)
+    , rmax1_(rmax1)
+    , rmin2_(rmin2)
+    , rmax2_(rmax2)
+    , z_(z)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    if(z_ <= 0) {
+        throw std::invalid_argument("Cone height must be positive!");
+    }
+    if(rmin1_ > rmax1_) {
+        std::swap(rmin1_, rmax1_);
+    }
+    if(rmin2_ > rmax2_) {
+        std::swap(rmin2_, rmax2_);
+    }
+    if(rmax1_ <= 0 && rmax2_ <= 0) {
+        throw std::invalid_argument("Cone must have at least one positive outer radius!");
+    }
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("Cone delta_phi must be in (0, 2*pi]!");
+    }
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+}
+
 Cone::Cone(const Cone& cone)
     : Geometry(cone)
     , rmin1_(cone.rmin1_)
     , rmax1_(cone.rmax1_)
     , rmin2_(cone.rmin2_)
     , rmax2_(cone.rmax2_)
-      , z_(cone.z_) {
+    , z_(cone.z_)
+    , start_phi_(cone.start_phi_)
+    , delta_phi_(cone.delta_phi_)
+    , has_phi_cut_(cone.has_phi_cut_) {
     // Nothing to do here
 }
 
@@ -104,6 +195,9 @@ void Cone::swap(Geometry& geometry) {
     std::swap(rmin2_, cone->rmin2_);
     std::swap(rmax2_, cone->rmax2_);
     std::swap(z_, cone->z_);
+    std::swap(start_phi_, cone->start_phi_);
+    std::swap(delta_phi_, cone->delta_phi_);
+    std::swap(has_phi_cut_, cone->has_phi_cut_);
 }
 
 //------------------------------------------------------------------------- //
@@ -137,6 +231,10 @@ bool Cone::equal(const Geometry& geometry) const
         return false;
     else if(z_ != cone->z_)
         return false;
+    else if(start_phi_ != cone->start_phi_)
+        return false;
+    else if(delta_phi_ != cone->delta_phi_)
+        return false;
     else
         return true;
 }
@@ -148,16 +246,17 @@ bool Cone::less(const Geometry& geometry) const
     if(!cone) return false;
 
     return
-        std::tie(rmin1_, rmax1_, rmin2_, rmax2_, z_)
+        std::tie(rmin1_, rmax1_, rmin2_, rmax2_, z_, start_phi_, delta_phi_)
         <
-        std::tie(cone->rmin1_, cone->rmax1_, cone->rmin2_, cone->rmax2_, cone->z_);
+        std::tie(cone->rmin1_, cone->rmax1_, cone->rmin2_, cone->rmax2_, cone->z_, cone->start_phi_, cone->delta_phi_);
 }
 
-void Cone::print(std::ostream& os) const
-{
+void Cone::print(std::ostream& os) const {
     os << "Rmin1: " << rmin1_ << "\tRmax1: " << rmax1_
        << "\tRmin2: " << rmin2_ << "\tRmax2: " << rmax2_
-       << "\tHeight: " << z_ << '\n';
+       << "\tHeight: " << z_;
+    if(has_phi_cut_) os << "\tStartPhi: " << start_phi_ << "\tDeltaPhi: " << delta_phi_;
+    os << '\n';
 }
 
 // ------------------------------------------------------------------------- //
@@ -182,9 +281,15 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     double z_calc_pos = 0.5 * z_;
     double z_calc_neg = -0.5 * z_;
 
-    // Max 8 intersections: 2 outer barrel + 2 inner barrel + 2 top cap + 2 bottom cap
-    Intersection hits[8];
-    int n_hits = 0;
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source; // 0 = surface, 1 = wedge
+    };
+
+    TaggedHit all_hits[12]; // max: 2 outer + 2 inner + 2 top + 2 bottom + 2 wedge + spare
+    int n_all = 0;
 
     double intersection_x;
     double intersection_y;
@@ -230,11 +335,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                            hits[n_hits].distance = t1;
-                            hits[n_hits].hierarchy = 0;
-                            hits[n_hits].entering = entering;
-                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                            n_hits++;
+                            all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                            n_all++;
                         }
                     }
 
@@ -245,11 +347,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                            hits[n_hits].distance = t2;
-                            hits[n_hits].hierarchy = 0;
-                            hits[n_hits].entering = entering;
-                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                            n_hits++;
+                            all_hits[n_all] = {t2, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                            n_all++;
                         }
                     }
                 }
@@ -266,11 +365,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     double r_at_z = a_outer + b_outer * intersection_z;
                     if(r_at_z >= 0) {
                         bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                        hits[n_hits].distance = t1;
-                        hits[n_hits].hierarchy = 0;
-                        hits[n_hits].entering = entering;
-                        hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                        n_hits++;
+                        all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                        n_all++;
                     }
                 }
             }
@@ -311,11 +407,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         if(r_at_z >= 0) {
                             // Inner surface: entering is inverted (entering inner = exiting volume)
                             bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
-                            hits[n_hits].distance = t1;
-                            hits[n_hits].hierarchy = 0;
-                            hits[n_hits].entering = entering;
-                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                            n_hits++;
+                            all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                            n_all++;
                         }
                     }
 
@@ -326,11 +419,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
-                            hits[n_hits].distance = t2;
-                            hits[n_hits].hierarchy = 0;
-                            hits[n_hits].entering = entering;
-                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                            n_hits++;
+                            all_hits[n_all] = {t2, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                            n_all++;
                         }
                     }
                 }
@@ -346,11 +436,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     double r_at_z = a_inner + b_inner * intersection_z;
                     if(r_at_z >= 0) {
                         bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
-                        hits[n_hits].distance = t1;
-                        hits[n_hits].hierarchy = 0;
-                        hits[n_hits].entering = entering;
-                        hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                        n_hits++;
+                        all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
+                        n_all++;
                     }
                 }
             }
@@ -371,11 +458,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         // At z = +z_/2, outer radius is rmax2_, inner radius is rmin2_
         if(r2_hit <= rmax2_ * rmax2_ && r2_hit >= rmin2_ * rmin2_) {
             intersection_z = pz + t * dz;
-            hits[n_hits].distance = t;
-            hits[n_hits].hierarchy = 0;
-            hits[n_hits].entering = dz < 0;
-            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-            n_hits++;
+            all_hits[n_all] = {t, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), dz < 0, 0};
+            n_all++;
         }
     }
 
@@ -393,18 +477,92 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         // At z = -z_/2, outer radius is rmax1_, inner radius is rmin1_
         if(r2_hit <= rmax1_ * rmax1_ && r2_hit >= rmin1_ * rmin1_) {
             intersection_z = pz + t * dz;
-            hits[n_hits].distance = t;
-            hits[n_hits].hierarchy = 0;
-            hits[n_hits].entering = dz > 0;
-            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-            n_hits++;
+            all_hits[n_all] = {t, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), dz > 0, 0};
+            n_all++;
         }
     }
 
-    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
+    if(!has_phi_cut_) {
+        // No phi cut: surface hits are the final result
+        if(n_all == 0) return {};
+        std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+            return a.distance < b.distance;
+        });
+        std::vector<Intersection> result;
+        result.reserve(n_all);
+        for(int i = 0; i < n_all; ++i) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = all_hits[i].entering;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        return result;
+    }
+
+    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis)
+    // No cross-section filtering -- the CSG walk handles clipping naturally.
+    for(int face = 0; face < 2; ++face) {
+        double alpha = start_phi_ + face * delta_phi_;
+        double ca = std::cos(alpha), sa = std::sin(alpha);
+        double nx, ny;
+        if(face == 0) { nx = sa; ny = -ca; }
+        else { nx = -sa; ny = ca; }
+        double n_dot_d = nx*dx + ny*dy;
+        if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+        double n_dot_p = nx*px + ny*py;
+        double t = -n_dot_p / n_dot_d;
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+        double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+        if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+        bool entering = (n_dot_d < 0);
+        all_hits[n_all] = {t, siren::math::Vector3D(hx, hy, hz), entering, 1};
+        n_all++;
+    }
+
+    if(n_all == 0) return {};
+
+    std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
         return a.distance < b.distance;
     });
-    return {hits, hits + n_hits};
+
+    // Determine initial in_wedge state
+    bool in_surface = false;
+    bool in_wedge = false;
+    bool has_wedge_hit = false;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 1) {
+            in_wedge = !all_hits[i].entering;
+            has_wedge_hit = true;
+            break;
+        }
+    }
+    if(!has_wedge_hit) {
+        in_wedge = PhiInRange(px, py, start_phi_, delta_phi_);
+    }
+    bool was_inside = in_surface && in_wedge;
+
+    // CSG intersection walk
+    std::vector<Intersection> result;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 0) {
+            in_surface = all_hits[i].entering;
+        } else {
+            in_wedge = all_hits[i].entering;
+        }
+        bool now_inside = in_surface && in_wedge;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //

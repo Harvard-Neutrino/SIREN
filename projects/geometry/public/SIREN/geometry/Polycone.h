@@ -35,6 +35,15 @@ public:
              std::vector<double> const & z_planes,
              std::vector<double> const & rmin,
              std::vector<double> const & rmax);
+    Polycone(std::vector<double> const & z_planes,
+             std::vector<double> const & rmin,
+             std::vector<double> const & rmax,
+             double start_phi, double delta_phi);
+    Polycone(Placement const &,
+             std::vector<double> const & z_planes,
+             std::vector<double> const & rmin,
+             std::vector<double> const & rmax,
+             double start_phi, double delta_phi);
     Polycone(const Polycone&);
 
     template<typename Archive>
@@ -43,7 +52,10 @@ public:
             archive(::cereal::make_nvp("ZPlanes", z_planes_));
             archive(::cereal::make_nvp("Rmin", rmin_));
             archive(::cereal::make_nvp("Rmax", rmax_));
+            archive(::cereal::make_nvp("StartPhi", start_phi_));
+            archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
         } else {
             throw std::runtime_error("Polycone only supports version <= 0!");
         }
@@ -65,6 +77,8 @@ public:
     std::vector<double> const & GetZPlanes() const { return z_planes_; }
     std::vector<double> const & GetRmin() const { return rmin_; }
     std::vector<double> const & GetRmax() const { return rmax_; }
+    double GetStartPhi() const { return start_phi_; }
+    double GetDeltaPhi() const { return delta_phi_; }
 
 protected:
     virtual bool equal(const Geometry&) const override;
@@ -78,6 +92,9 @@ private:
     std::vector<double> z_planes_; //!< z-positions of each plane (ascending)
     std::vector<double> rmin_;     //!< inner radius at each z-plane
     std::vector<double> rmax_;     //!< outer radius at each z-plane
+    double start_phi_;    //!< starting azimuthal angle (radians, default 0)
+    double delta_phi_;    //!< azimuthal extent (radians, default 2*pi)
+    bool has_phi_cut_;    //!< true if delta_phi < 2*pi (precomputed)
 };
 
 
