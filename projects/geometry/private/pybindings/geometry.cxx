@@ -14,6 +14,11 @@
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/BooleanGeometry.h"
 #include "../../public/SIREN/geometry/AABB.h"
+#include "../../public/SIREN/geometry/EllipticalTube.h"
+#include "../../public/SIREN/geometry/CutTube.h"
+#include "../../public/SIREN/geometry/Trap.h"
+#include "../../public/SIREN/geometry/Ellipsoid.h"
+#include "../../public/SIREN/geometry/Para.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -205,6 +210,83 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Operation",&BooleanGeometry::GetOperation)
         .def_property_readonly("Left",&BooleanGeometry::GetLeft)
         .def_property_readonly("Right",&BooleanGeometry::GetRight);
+
+    // EllipticalTube
+
+    class_<EllipticalTube, std::shared_ptr<EllipticalTube>, Geometry>(m, "EllipticalTube")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<const EllipticalTube&>())
+        .def_property_readonly("Dx",&EllipticalTube::GetDx)
+        .def_property_readonly("Dy",&EllipticalTube::GetDy)
+        .def_property_readonly("Dz",&EllipticalTube::GetDz);
+
+    // CutTube
+
+    class_<CutTube, std::shared_ptr<CutTube>, Geometry>(m, "CutTube")
+        .def(init<>())
+        .def(init<double, double, double, siren::math::Vector3D, siren::math::Vector3D>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, siren::math::Vector3D, siren::math::Vector3D>())
+        .def(init<const CutTube&>())
+        .def_property_readonly("Rmin",&CutTube::GetRmin)
+        .def_property_readonly("Rmax",&CutTube::GetRmax)
+        .def_property_readonly("Dz",&CutTube::GetDz)
+        .def_property_readonly("LowNorm",&CutTube::GetLowNorm)
+        .def_property_readonly("HighNorm",&CutTube::GetHighNorm);
+
+    // Trap
+
+    class_<Trap, std::shared_ptr<Trap>, Geometry>(m, "Trap")
+        .def(init<>())
+        .def(init<double, double, double, double, double, double, double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double, double, double, double, double, double, double>())
+        .def(init<const Trap&>())
+        .def_property_readonly("Dz",&Trap::GetDz)
+        .def_property_readonly("Theta",&Trap::GetTheta)
+        .def_property_readonly("Phi",&Trap::GetPhi)
+        .def_property_readonly("Dy1",&Trap::GetDy1)
+        .def_property_readonly("Dx1",&Trap::GetDx1)
+        .def_property_readonly("Dx2",&Trap::GetDx2)
+        .def_property_readonly("Alpha1",&Trap::GetAlpha1)
+        .def_property_readonly("Dy2",&Trap::GetDy2)
+        .def_property_readonly("Dx3",&Trap::GetDx3)
+        .def_property_readonly("Dx4",&Trap::GetDx4)
+        .def_property_readonly("Alpha2",&Trap::GetAlpha2);
+
+    // Ellipsoid
+
+    class_<Ellipsoid, std::shared_ptr<Ellipsoid>, Geometry>(m, "Ellipsoid")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Ellipsoid&>())
+        .def_property_readonly("Ax",&Ellipsoid::GetAx)
+        .def_property_readonly("By",&Ellipsoid::GetBy)
+        .def_property_readonly("Cz",&Ellipsoid::GetCz)
+        .def_property_readonly("Zcut1",&Ellipsoid::GetZcut1)
+        .def_property_readonly("Zcut2",&Ellipsoid::GetZcut2);
+
+    // Para
+
+    class_<Para, std::shared_ptr<Para>, Geometry>(m, "Para")
+        .def(init<>())
+        .def(init<double, double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double, double>())
+        .def(init<const Para&>())
+        .def_property_readonly("Dx",&Para::GetDx)
+        .def_property_readonly("Dy",&Para::GetDy)
+        .def_property_readonly("Dz",&Para::GetDz)
+        .def_property_readonly("Alpha",&Para::GetAlpha)
+        .def_property_readonly("Theta",&Para::GetTheta)
+        .def_property_readonly("Phi",&Para::GetPhi);
 
     // AABB
 

@@ -16,5 +16,10 @@
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Torus.h"
 #include "SIREN/geometry/Trd.h"
+#include "SIREN/geometry/EllipticalTube.h"
+#include "SIREN/geometry/CutTube.h"
+#include "SIREN/geometry/Trap.h"
+#include "SIREN/geometry/Ellipsoid.h"
+#include "SIREN/geometry/Para.h"
 
 #endif // SIREN_geometry_geometry_H

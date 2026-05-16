@@ -220,9 +220,9 @@ public:
     math::Vector3D GlobalToLocalDirection(math::Vector3D const & d) const;
 };
 
-enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH, CONE, TRD, POLYCONE, POLYHEDRA, BOOLEAN, TORUS};
+enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH, CONE, TRD, POLYCONE, POLYHEDRA, BOOLEAN, TORUS, ELTUBE, CUTTUBE, TRAP, ELLIPSOID, PARA};
 
-const std::array<std::string, 11>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh", "cone", "trd", "polycone", "polyhedra", "boolean", "torus"};
+const std::array<std::string, 16>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh", "cone", "trd", "polycone", "polyhedra", "boolean", "torus", "eltube", "cuttube", "trap", "ellipsoid", "para"};
 
 } // namespace geometry
 } // namespace siren
