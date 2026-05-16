@@ -31,7 +31,6 @@
 #define SIREN_Geometry_H
 
 #include <array>
-#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -185,7 +184,7 @@ public:
 
     Placement GetPlacement() const { return placement_; }
 
-    void SetPlacement(Placement const & placement) { placement_ = placement; world_aabb_valid_.store(false, std::memory_order_release); }
+    void SetPlacement(Placement const & placement) { placement_ = placement; RecomputeWorldAABB(); }
 
     //void SetPosition(const math::Vector3D& position) { position_ = position; };
 
@@ -208,10 +207,12 @@ protected:
 
     //math::Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 
+    void RecomputeWorldAABB();
+
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
     Placement placement_;
     mutable AABB cached_world_aabb_;
-    mutable std::atomic<bool> world_aabb_valid_{false};
+    mutable bool world_aabb_valid_{false};
 
 public:
     math::Vector3D LocalToGlobalPosition(math::Vector3D const & p) const;

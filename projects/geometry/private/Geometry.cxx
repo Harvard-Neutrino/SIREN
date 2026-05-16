@@ -1,6 +1,5 @@
 #include "SIREN/geometry/Geometry.h"
 
-#include <mutex>
 #include <string>
 #include <vector>
 #include <ostream>
@@ -8,7 +7,6 @@
 #include <typeinfo>
 #include <typeindex>
 #include <algorithm>
-#include <unordered_map>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/AABB.h"
@@ -66,8 +64,8 @@ void Geometry::swap(Geometry& geometry)
 {
     name_.swap(geometry.name_);
     placement_.swap(geometry.placement_);
-    world_aabb_valid_.store(false, std::memory_order_release);
-    geometry.world_aabb_valid_.store(false, std::memory_order_release);
+    world_aabb_valid_ = false;
+    geometry.world_aabb_valid_ = false;
 }
 
 
@@ -78,7 +76,7 @@ Geometry& Geometry::operator=(const Geometry& geometry)
     if(this != &geometry) {
         name_     = geometry.name_;
         placement_     = geometry.placement_;
-        world_aabb_valid_.store(false, std::memory_order_release);
+        world_aabb_valid_ = false;
     }
 
     return *this;
@@ -166,34 +164,8 @@ siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D con
     return placement_.GlobalToLocalDirection(p0);
 }
 
-// Per-instance mutex for GetWorldBoundingBox() double-checked locking.
-// Stored externally to avoid adding non-trivial members to Geometry
-// (which would break implicit copy/assignment in the many derived classes).
-// Uses a map keyed by pointer so different instances don't serialize each other.
-static std::recursive_mutex & GetWorldAABBMutex(Geometry const * geo) {
-    // Recursive mutex needed because BooleanGeometry::GetBoundingBox() calls
-    // GetWorldBoundingBox() on its children while the parent's lock is held.
-    static std::mutex map_mtx;
-    static std::unordered_map<Geometry const *, std::unique_ptr<std::recursive_mutex>> map;
-    std::lock_guard<std::mutex> guard(map_mtx);
-    auto & ptr = map[geo];
-    if(!ptr) ptr = std::make_unique<std::recursive_mutex>();
-    return *ptr;
-}
-
-AABB Geometry::GetWorldBoundingBox() const {
-    if(world_aabb_valid_.load(std::memory_order_acquire)) {
-        return cached_world_aabb_;
-    }
-
-    std::lock_guard<std::recursive_mutex> lock(GetWorldAABBMutex(this));
-    // Double-check after acquiring the lock
-    if(world_aabb_valid_.load(std::memory_order_relaxed)) {
-        return cached_world_aabb_;
-    }
-
+void Geometry::RecomputeWorldAABB() {
     AABB local_box = GetBoundingBox();
-    // Generate the 8 corners of the local AABB
     double x0 = local_box.min_corner.GetX();
     double y0 = local_box.min_corner.GetY();
     double z0 = local_box.min_corner.GetZ();
@@ -202,7 +174,6 @@ AABB Geometry::GetWorldBoundingBox() const {
     double z1 = local_box.max_corner.GetZ();
 
     AABB result;
-    // Transform each corner to global coordinates and expand the world AABB
     result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z0)));
     result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z1)));
     result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z0)));
@@ -211,10 +182,15 @@ AABB Geometry::GetWorldBoundingBox() const {
     result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z1)));
     result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z0)));
     result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z1)));
-
     cached_world_aabb_ = result;
-    world_aabb_valid_.store(true, std::memory_order_release);
-    return result;
+    world_aabb_valid_ = true;
+}
+
+AABB Geometry::GetWorldBoundingBox() const {
+    if(!world_aabb_valid_) {
+        const_cast<Geometry*>(this)->RecomputeWorldAABB();
+    }
+    return cached_world_aabb_;
 }
 
 std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
