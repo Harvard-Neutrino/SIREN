@@ -30,6 +30,7 @@
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GenericPolycone.h"
 #include "SIREN/geometry/GeometryMesh.h"
 #include "SIREN/geometry/serializable.h"
 #include "SIREN/math/Vector3D.h"
@@ -278,6 +279,15 @@ TEST(SerializationRoundtrip, TriangularMesh) {
     // Verify containment still works after deserialization
     EXPECT_TRUE(loaded->IsInside(Vector3D(0.1, 0.1, 0.1)));
     EXPECT_FALSE(loaded->IsInside(Vector3D(2.0, 2.0, 2.0)));
+}
+
+TEST(SerializationRoundtrip, GenericPolycone) {
+    auto gpc = std::make_shared<GenericPolycone>(
+        std::vector<double>{3, 4.5, 5, 3.5, 3, 2},
+        std::vector<double>{-5, 0, 5, 5, 0, -5});
+    auto loaded = RoundtripGeometry(gpc);
+    ASSERT_NE(loaded, nullptr);
+    EXPECT_EQ(*gpc, *loaded);
 }
 
 int main(int argc, char** argv) {

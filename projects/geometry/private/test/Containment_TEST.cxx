@@ -28,6 +28,7 @@
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GenericPolycone.h"
 #include "SIREN/geometry/GeometryMesh.h"
 
 using namespace siren::geometry;
@@ -1276,4 +1277,141 @@ TEST(Containment, TriangularMeshCube) {
     ValidateContainment(mesh, pl, [=](Vector3D const & p) {
         return std::fabs(p.GetX()) < s && std::fabs(p.GetY()) < s && std::fabs(p.GetZ()) < s;
     }, s * 2, 10000, "TriangularMeshCube");
+}
+
+// =========================================================================
+// GenericPolycone
+// =========================================================================
+
+bool InsideGenericPolycone(Vector3D const & p,
+                           std::vector<double> const & rv,
+                           std::vector<double> const & zv) {
+    double r = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+    double z = p.GetZ();
+    size_t n = rv.size();
+    int crossings = 0;
+    for(size_t i = 0; i < n; ++i) {
+        size_t j = (i + 1) % n;
+        double ri = rv[i], zi = zv[i];
+        double rj = rv[j], zj = zv[j];
+        if((zi <= z && zj > z) || (zj <= z && zi > z)) {
+            double r_cross = ri + (z - zi) / (zj - zi) * (rj - ri);
+            if(r < r_cross) {
+                crossings++;
+            }
+        }
+    }
+    return (crossings % 2) == 1;
+}
+
+TEST(Containment, GenericPolyconeSolid) {
+    // Simple solid triangle outline (equivalent to a solid cone)
+    std::vector<double> rv = {0, 5, 0};
+    std::vector<double> zv = {-5, 0, 5};
+    Placement pl;
+    GenericPolycone gpc(pl, rv, zv);
+    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+        return InsideGenericPolycone(p, rv, zv);
+    }, 6, 10000, "GenericPolyconeSolid");
+}
+
+TEST(Containment, GenericPolyconeHollow) {
+    // Hollow shape: hexagonal outline like the celeritas test case
+    std::vector<double> rv = {3, 4.5, 5, 3.5, 3, 2};
+    std::vector<double> zv = {-5, 0, 5, 5, 0, -5};
+    Placement pl;
+    GenericPolycone gpc(pl, rv, zv);
+    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+        return InsideGenericPolycone(p, rv, zv);
+    }, 6, 10000, "GenericPolyconeHollow");
+}
+
+TEST(Containment, GenericPolyconeUShape) {
+    // U-shaped cross-section: creates a hollow annular shell
+    std::vector<double> rv = {5, 5, 3, 3, 5};
+    std::vector<double> zv = {-4, 4, 4, -4, -4};
+    // Remove the degenerate closing edge (first == last)
+    rv.pop_back(); zv.pop_back();
+    Placement pl;
+    GenericPolycone gpc(pl, rv, zv);
+    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+        return InsideGenericPolycone(p, rv, zv);
+    }, 6, 10000, "GenericPolyconeUShape");
+}
+
+TEST(Containment, GenericPolyconePhiCut) {
+    std::vector<double> rv = {0, 5, 0};
+    std::vector<double> zv = {-5, 0, 5};
+    double sp = M_PI / 4;
+    double dp = M_PI;
+    Placement pl;
+    GenericPolycone gpc(pl, rv, zv, sp, dp);
+    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+        return InsideGenericPolycone(p, rv, zv) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
+    }, 6, 10000, "GenericPolyconePhiCut");
+}
+
+TEST(Containment, GenericPolyconeRotated) {
+    std::vector<double> rv = {3, 4.5, 5, 3.5, 3, 2};
+    std::vector<double> zv = {-5, 0, 5, 5, 0, -5};
+    Quaternion q(std::cos(0.5), std::sin(0.5)*0.577, std::sin(0.5)*0.577, std::sin(0.5)*0.577);
+    Placement pl(Vector3D(1, -1, 2), q);
+    GenericPolycone gpc(pl, rv, zv);
+    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+        return InsideGenericPolycone(p, rv, zv);
+    }, 8, 10000, "GenericPolyconeRotated");
+}
+
+TEST(Containment, GenericPolyconeEquivalentToPolycone) {
+    // A genericPolycone that traces the same shape as a regular polycone:
+    // outer boundary going up, then inner boundary going back down.
+    // Polycone: z={-5,0,5}, rmin={2,3,3.5}, rmax={3,4.5,5}
+    std::vector<double> zp = {-5, 0, 5};
+    std::vector<double> rmin_v = {2, 3, 3.5};
+    std::vector<double> rmax_v = {3, 4.5, 5};
+    Polycone pc(zp, rmin_v, rmax_v);
+
+    // Equivalent genericPolycone outline: outer going up, inner going down
+    std::vector<double> rv = {3, 4.5, 5, 3.5, 3, 2};
+    std::vector<double> zv = {-5, 0, 5, 5, 0, -5};
+    GenericPolycone gpc(rv, zv);
+
+    int mismatches = 0;
+    for(int i = 0; i < 30000; ++i) {
+        Vector3D pos = RandomPoint(6);
+        Vector3D dir = RandomDirection();
+        bool pc_inside = pc.IsInside(pos, dir);
+        bool gpc_inside = gpc.IsInside(pos, dir);
+        if(pc_inside != gpc_inside) {
+            mismatches++;
+            if(mismatches <= 3) {
+                std::cerr << "Equivalence mismatch #" << mismatches
+                          << ": pos=(" << pos.GetX() << "," << pos.GetY() << "," << pos.GetZ() << ")"
+                          << " polycone=" << pc_inside << " generic=" << gpc_inside
+                          << std::endl;
+            }
+        }
+    }
+    EXPECT_EQ(mismatches, 0) << mismatches << " mismatches between Polycone and equivalent GenericPolycone";
+}
+
+TEST(Containment, GenericPolyconeCrystal) {
+    // HPGe detector crystal profile modeled after LEGEND IC-type crystals.
+    // Features: tapered outer surface, passivation groove at bottom,
+    // central borehole cavity, multiple z-direction reversals.
+    //
+    // Cross-section (z=0 at top, z increases downward):
+    //   - Cavity opening at top (r=5, z=0)
+    //   - Tapered outer wall (r=38 at z=0 to r=40 at z=70)
+    //   - Straight outer cylinder (r=40, z=70 to z=80)
+    //   - Groove at bottom (outer r=30, inner r=15, z=77 to 80)
+    //   - Flat bottom (r=0 to r=15 at z=80)
+    //   - Inner borehole (r=0 at z=80 to z=60, then r=5 back up to z=0)
+    std::vector<double> rv = {5, 38, 40, 40, 30, 30, 15, 15, 0, 0, 5};
+    std::vector<double> zv = {0, 0, 70, 80, 80, 77, 77, 80, 80, 60, 60};
+    Placement pl;
+    GenericPolycone gpc(pl, rv, zv);
+    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+        return InsideGenericPolycone(p, rv, zv);
+    }, 45, 20000, "GenericPolyconeCrystal");
 }

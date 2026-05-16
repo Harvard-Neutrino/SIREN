@@ -13,6 +13,7 @@
 #include <map>
 #include <cctype>
 #include <functional>
+#include <unordered_set>
 
 #include <cereal/external/rapidxml/rapidxml.hpp>
 
@@ -37,6 +38,7 @@ namespace rapidxml = cereal::rapidxml;
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GenericPolycone.h"
 #include "SIREN/geometry/GeometryMesh.h"
 
 using namespace siren::math;
@@ -61,6 +63,102 @@ std::string TrimWhitespace(std::string const & s) {
     if(start == std::string::npos) return "";
     size_t end = s.find_last_not_of(" \t\n\r");
     return s.substr(start, end - start + 1);
+}
+
+// ---- Built-in constants (CLHEP/Geant4 unit system) ----
+// Single source of truth for all constants seeded before user-defined <define>.
+// Values are in CLHEP base units: mm=1 (length), MeV=1 (energy), radian=1
+// (angle), nanosecond=1 (time), kelvin=1 (temp), mole=1 (amount).
+// ParseLength/ParseAngle handle conversion from CLHEP units to SIREN units.
+
+struct BuiltInEntry {
+    const char* name;
+    double value;
+};
+
+static const BuiltInEntry kBuiltInConstants[] = {
+    // Math (from CLHEP Evaluator::setStdMath)
+    {"pi", M_PI},
+    {"twopi", 2.0 * M_PI},
+    {"TWOPI", 2.0 * M_PI},
+    {"halfpi", M_PI / 2.0},
+    {"e", 2.7182818284590452354},
+    {"gamma", 0.5772156649015328606},
+
+    // Angle (radian = 1)
+    {"rad", 1.0},
+    {"radian", 1.0},
+    {"mrad", 1e-3},
+    {"milliradian", 1e-3},
+    {"deg", M_PI / 180.0},
+    {"degree", M_PI / 180.0},
+
+    // Length (mm = 1)
+    {"mm", 1.0},
+    {"millimeter", 1.0},
+    {"cm", 10.0},
+    {"centimeter", 10.0},
+    {"m", 1000.0},
+    {"meter", 1000.0},
+    {"km", 1e6},
+    {"kilometer", 1e6},
+    {"micrometer", 1e-3},
+    {"nanometer", 1e-6},
+    {"angstrom", 1e-7},
+    {"fermi", 1e-12},
+    {"inch", 25.4},
+
+    // Energy (MeV = 1)
+    {"eV", 1e-6},
+    {"keV", 1e-3},
+    {"MeV", 1.0},
+    {"GeV", 1e3},
+    {"TeV", 1e6},
+    {"PeV", 1e9},
+    {"joule", 6.241509074460763e12},
+
+    // Time (nanosecond = 1)
+    {"ns", 1.0},
+    {"nanosecond", 1.0},
+    {"ps", 1e-3},
+    {"picosecond", 1e-3},
+    {"us", 1e3},
+    {"microsecond", 1e3},
+    {"ms", 1e6},
+    {"millisecond", 1e6},
+    {"second", 1e9},
+
+    // Mass (derived: kg = joule * s^2 / m^2)
+    {"milligram", 6.241509074460763e18},
+    {"gram", 6.241509074460763e21},
+    {"kg", 6.241509074460763e24},
+    {"kilogram", 6.241509074460763e24},
+
+    // Amount (mole = 1)
+    {"mole", 1.0},
+    {"mol", 1.0},
+
+    // Temperature (kelvin = 1)
+    {"kelvin", 1.0},
+};
+
+static const std::unordered_set<std::string>& GetBuiltInNames() {
+    static const std::unordered_set<std::string> names = []() {
+        std::unordered_set<std::string> s;
+        for(auto const & e : kBuiltInConstants) s.insert(e.name);
+        return s;
+    }();
+    return names;
+}
+
+static bool IsBuiltInConstant(std::string const & name) {
+    return GetBuiltInNames().count(name) != 0;
+}
+
+static void SeedBuiltInConstants(GDMLData & data) {
+    for(auto const & e : kBuiltInConstants) {
+        data.constants[e.name] = e.value;
+    }
 }
 
 // Iterative expression evaluator using the shunting-yard algorithm.
@@ -857,6 +955,10 @@ static void ExpandLoops(rapidxml::xml_document<> & doc,
 
         // Process the loop: expand inline
         std::string var_name = SafeAttrVal(child, "for");
+        if(IsBuiltInConstant(var_name)) {
+            top.parent->remove_node(child);
+            continue;
+        }
         const char* from_attr = SafeAttrVal(child, "from");
         double from_val;
         if(from_attr[0] != '\0') {
@@ -912,16 +1014,7 @@ static void ExpandLoops(rapidxml::xml_document<> & doc,
 static void ResolveDefineInOrder(rapidxml::xml_node<>* gdml_node,
                                  GDMLData & data,
                                  GDMLParseOptions const & options) {
-    // Seed built-in constants
-    data.constants["pi"] = M_PI;
-    data.constants["twopi"] = 2.0 * M_PI;
-    data.constants["TWOPI"] = 2.0 * M_PI;
-    data.constants["halfpi"] = M_PI / 2.0;
-    data.constants["deg"] = M_PI / 180.0;
-    data.constants["rad"] = 1.0;
-    data.constants["mm"] = 1.0;
-    data.constants["cm"] = 10.0;
-    data.constants["m"] = 1000.0;
+    SeedBuiltInConstants(data);
 
     // Evaluate bracket expressions [expr] in an attribute string using current
     // constants. Transforms "sum_[i+1]" into "sum_4" (if i=3 in constants).
@@ -990,6 +1083,10 @@ static void ResolveDefineInOrder(rapidxml::xml_node<>* gdml_node,
         if(tag == "loop") {
             if((int)stack.size() >= MAX_DEPTH) continue;
             std::string var_name = SafeAttrVal(node, "for");
+            if(IsBuiltInConstant(var_name)) {
+                EmitWarning(data, options, "loop variable '" + var_name + "' shadows a built-in constant, skipping loop");
+                continue;
+            }
             const char* from_attr = SafeAttrVal(node, "from");
             double from_val;
             if(from_attr[0] != '\0') {
@@ -1012,9 +1109,10 @@ static void ResolveDefineInOrder(rapidxml::xml_node<>* gdml_node,
         else if(tag == "constant" || tag == "variable") {
             std::string name = resolveBrackets(SafeAttrVal(node, "name"));
             if(name.empty()) continue;
-            // Inside loop bodies, resolve bracket expressions in values too
-            // (they construct constant names, not matrix access).
-            // Outside loops, brackets are matrix lookup syntax for EvalExpression.
+            if(IsBuiltInConstant(name)) {
+                EmitWarning(data, options, "cannot redefine built-in constant '" + name + "', ignoring");
+                continue;
+            }
             bool in_loop = std::any_of(stack.begin(), stack.end(),
                 [](Frame const & f) { return f.is_loop; });
             double value;
@@ -1029,6 +1127,10 @@ static void ResolveDefineInOrder(rapidxml::xml_node<>* gdml_node,
         else if(tag == "quantity") {
             std::string name = resolveBrackets(SafeAttrVal(node, "name"));
             if(name.empty()) continue;
+            if(IsBuiltInConstant(name)) {
+                EmitWarning(data, options, "cannot redefine built-in constant '" + name + "', ignoring");
+                continue;
+            }
             bool in_loop = std::any_of(stack.begin(), stack.end(),
                 [](Frame const & f) { return f.is_loop; });
             double value;
@@ -1118,10 +1220,14 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             if(!name.empty()) {
-                if(data.constants.find(name) != data.constants.end()) {
-                    EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                if(IsBuiltInConstant(name)) {
+                    EmitWarning(data, options, "cannot redefine built-in constant '" + name + "', ignoring");
+                } else {
+                    if(data.constants.find(name) != data.constants.end()) {
+                        EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                    }
+                    data.constants[name] = value;
                 }
-                data.constants[name] = value;
             }
         }
         else if(tag == "quantity") {
@@ -1131,10 +1237,14 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
             const char* type = SafeAttrVal(node, "type");
             value *= QuantityUnitScale(type, unit);
             if(!name.empty()) {
-                if(data.constants.find(name) != data.constants.end()) {
-                    EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                if(IsBuiltInConstant(name)) {
+                    EmitWarning(data, options, "cannot redefine built-in constant '" + name + "', ignoring");
+                } else {
+                    if(data.constants.find(name) != data.constants.end()) {
+                        EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                    }
+                    data.constants[name] = value;
                 }
-                data.constants[name] = value;
             }
         }
         else if(tag == "position") {
@@ -1171,10 +1281,14 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             if(!name.empty()) {
-                if(data.constants.find(name) != data.constants.end()) {
-                    EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                if(IsBuiltInConstant(name)) {
+                    EmitWarning(data, options, "cannot redefine built-in constant '" + name + "', ignoring");
+                } else {
+                    if(data.constants.find(name) != data.constants.end()) {
+                        EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
+                    }
+                    data.constants[name] = value;
                 }
-                data.constants[name] = value;
             }
         }
         else if(tag == "matrix") {
@@ -1521,7 +1635,35 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
 
             if(z_planes.size() >= 2) {
-                geo = Polycone(z_planes, rmin_vec, rmax_vec, startphi, deltaphi).create();
+                bool needs_sort = false;
+                for(size_t i = 1; i < z_planes.size(); ++i) {
+                    if(z_planes[i] < z_planes[i-1]) { needs_sort = true; break; }
+                }
+                if(needs_sort) {
+                    std::vector<size_t> idx(z_planes.size());
+                    for(size_t i = 0; i < idx.size(); ++i) idx[i] = i;
+                    std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) {
+                        return z_planes[a] < z_planes[b];
+                    });
+                    std::vector<double> zs(z_planes.size()), rns(z_planes.size()), rxs(z_planes.size());
+                    for(size_t i = 0; i < idx.size(); ++i) {
+                        zs[i] = z_planes[idx[i]];
+                        rns[i] = rmin_vec[idx[i]];
+                        rxs[i] = rmax_vec[idx[i]];
+                    }
+                    z_planes = std::move(zs);
+                    rmin_vec = std::move(rns);
+                    rmax_vec = std::move(rxs);
+                }
+                bool z_valid = true;
+                for(size_t i = 1; i < z_planes.size(); ++i) {
+                    if(z_planes[i] <= z_planes[i-1]) { z_valid = false; break; }
+                }
+                if(z_valid) {
+                    geo = Polycone(z_planes, rmin_vec, rmax_vec, startphi, deltaphi).create();
+                } else {
+                    EmitWarning(data, options, "polycone '" + name + "' has non-monotonic z-planes after sorting; skipping");
+                }
             }
         }
         else if(tag == "polyhedra") {
@@ -1566,7 +1708,35 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
 
             if(z_planes.size() >= 2 && numSide >= 3) {
-                geo = Polyhedra(numSide, startphi, z_planes, rmin_vec, rmax_vec).create();
+                bool needs_sort = false;
+                for(size_t i = 1; i < z_planes.size(); ++i) {
+                    if(z_planes[i] < z_planes[i-1]) { needs_sort = true; break; }
+                }
+                if(needs_sort) {
+                    std::vector<size_t> idx(z_planes.size());
+                    for(size_t i = 0; i < idx.size(); ++i) idx[i] = i;
+                    std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) {
+                        return z_planes[a] < z_planes[b];
+                    });
+                    std::vector<double> zs(z_planes.size()), rns(z_planes.size()), rxs(z_planes.size());
+                    for(size_t i = 0; i < idx.size(); ++i) {
+                        zs[i] = z_planes[idx[i]];
+                        rns[i] = rmin_vec[idx[i]];
+                        rxs[i] = rmax_vec[idx[i]];
+                    }
+                    z_planes = std::move(zs);
+                    rmin_vec = std::move(rns);
+                    rmax_vec = std::move(rxs);
+                }
+                bool z_valid = true;
+                for(size_t i = 1; i < z_planes.size(); ++i) {
+                    if(z_planes[i] <= z_planes[i-1]) { z_valid = false; break; }
+                }
+                if(z_valid) {
+                    geo = Polyhedra(numSide, startphi, z_planes, rmin_vec, rmax_vec).create();
+                } else {
+                    EmitWarning(data, options, "polyhedra '" + name + "' has non-monotonic z-planes after sorting; skipping");
+                }
             }
         }
         else if(tag == "xtru") {
@@ -1685,52 +1855,32 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
         }
         else if(tag == "genericPolycone") {
+            double startphi = 0.0;
+            double deltaphi = 2.0 * M_PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
             if(sp_val[0] != '\0') {
-                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
-                if(std::fabs(startphi) > ANG_TOL) {
-                    EmitWarning(data, options, "genericPolycone '" + name + "' has partial angular extent; SIREN creates full rotation");
-                }
+                startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             }
             const char* dp_val = SafeAttrVal(node, "deltaphi");
             if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
-                    EmitWarning(data, options, "genericPolycone '" + name + "' has partial angular extent; SIREN creates full rotation");
-                }
+                deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
             }
 
-            struct RZPoint { double r; double z; };
-            std::vector<RZPoint> points;
+            std::vector<double> r_vec, z_vec;
             for(auto* rz = node->first_node("rzpoint"); rz; rz = rz->next_sibling("rzpoint")) {
                 double r = SafeParseDouble(SafeAttrVal(rz, "r"), data.constants) * lscale;
                 double z = SafeParseDouble(SafeAttrVal(rz, "z"), data.constants) * lscale;
-                points.push_back({r, z});
+                r_vec.push_back(r);
+                z_vec.push_back(z);
             }
 
-            if(points.size() >= 2) {
-                std::sort(points.begin(), points.end(), [](RZPoint const & a, RZPoint const & b) {
-                    return a.z < b.z;
-                });
-
-                std::vector<double> z_planes, rmin_vec, rmax_vec;
-                for(auto const & pt : points) {
-                    z_planes.push_back(pt.z);
-                    rmin_vec.push_back(0.0);
-                    rmax_vec.push_back(pt.r);
-                }
-
-                bool z_valid = true;
-                for(size_t i = 1; i < z_planes.size(); ++i) {
-                    if(z_planes[i] <= z_planes[i-1]) {
-                        z_valid = false;
-                        break;
-                    }
-                }
-                if(z_valid) {
-                    geo = Polycone(z_planes, rmin_vec, rmax_vec).create();
+            if(r_vec.size() >= 3) {
+                bool has_phi_cut = (std::fabs(startphi) > ANG_TOL) ||
+                                   (std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL);
+                if(has_phi_cut) {
+                    geo = GenericPolycone(r_vec, z_vec, startphi, deltaphi).create();
                 } else {
-                    EmitWarning(data, options, "genericPolycone '" + name + "' has non-monotonic z values after sorting; skipping");
+                    geo = GenericPolycone(r_vec, z_vec).create();
                 }
             }
         }
@@ -2312,6 +2462,70 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
 
         parsePhysVols(vol_node, vol);
 
+        for(auto* rv = vol_node->first_node("replicavol"); rv; rv = rv->next_sibling("replicavol")) {
+            int ncopies = 0;
+            {
+                std::string ns(SafeAttrVal(rv, "number"));
+                if(!ns.empty()) {
+                    try { ncopies = std::stoi(ns); } catch(...) { ncopies = 0; }
+                }
+            }
+            if(ncopies <= 0) continue;
+
+            std::string child_vol_ref;
+            auto* vref = rv->first_node("volumeref");
+            if(vref) child_vol_ref = SafeAttrVal(vref, "ref");
+            if(child_vol_ref.empty()) continue;
+
+            auto* raa = rv->first_node("replicate_along_axis");
+            if(!raa) continue;
+
+            double dir_x = 0, dir_y = 0, dir_z = 0;
+            auto* dir = raa->first_node("direction");
+            if(dir) {
+                dir_x = SafeParseDouble(SafeAttrVal(dir, "x"), data.constants);
+                dir_y = SafeParseDouble(SafeAttrVal(dir, "y"), data.constants);
+                dir_z = SafeParseDouble(SafeAttrVal(dir, "z"), data.constants);
+            }
+            double dir_len = std::sqrt(dir_x*dir_x + dir_y*dir_y + dir_z*dir_z);
+            if(dir_len == 0) {
+                auto* rho_attr = dir ? dir->first_attribute("rho") : nullptr;
+                auto* phi_attr = dir ? dir->first_attribute("phi") : nullptr;
+                if(rho_attr || phi_attr) {
+                    EmitWarning(data, options, "replicavol in volume '" + vol.name + "': cylindrical axis replication not supported; skipping");
+                } else {
+                    EmitWarning(data, options, "replicavol in volume '" + vol.name + "': no direction specified; skipping");
+                }
+                continue;
+            }
+            dir_x /= dir_len;
+            dir_y /= dir_len;
+            dir_z /= dir_len;
+
+            double width = 0;
+            auto* w_node = raa->first_node("width");
+            if(w_node) {
+                width = ParseLength(SafeAttrVal(w_node, "value"),
+                                    SafeAttrVal(w_node, "unit"), data.constants);
+            }
+
+            double offset = 0;
+            auto* o_node = raa->first_node("offset");
+            if(o_node) {
+                offset = ParseLength(SafeAttrVal(o_node, "value"),
+                                     SafeAttrVal(o_node, "unit"), data.constants);
+            }
+
+            for(int i = 0; i < ncopies; ++i) {
+                double t = offset + (i + 0.5 - ncopies / 2.0) * width;
+                GDMLPhysVol pv;
+                pv.volume_ref = child_vol_ref;
+                pv.position = Vector3D(t * dir_x, t * dir_y, t * dir_z);
+                pv.rotation = Quaternion();
+                vol.children.push_back(pv);
+            }
+        }
+
         if(!vol.name.empty()) {
             if(data.volumes.find(vol.name) != data.volumes.end()) {
                 EmitWarning(data, options, "duplicate volume name '" + vol.name + "', overwriting");
@@ -2431,16 +2645,7 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
 
     GDMLData data;
 
-    // Seed built-in constants (Geant4 CLHEP values available in all GDML files)
-    data.constants["pi"] = M_PI;
-    data.constants["twopi"] = 2.0 * M_PI;
-    data.constants["TWOPI"] = 2.0 * M_PI;
-    data.constants["halfpi"] = M_PI / 2.0;
-    data.constants["deg"] = M_PI / 180.0;
-    data.constants["rad"] = 1.0;
-    data.constants["mm"] = 1.0;
-    data.constants["cm"] = 10.0;
-    data.constants["m"] = 1000.0;
+    SeedBuiltInConstants(data);
 
     // Find root node: accept <gdml> or any root element
     auto* gdml_node = doc.first_node("gdml");

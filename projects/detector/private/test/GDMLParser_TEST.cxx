@@ -3764,3 +3764,658 @@ TEST(GDMLParser, PartialPhiTubeAndCone) {
             << "Unexpected warning: " << w;
     }
 }
+
+
+// =========================================================================
+// Energy unit built-in constants
+// =========================================================================
+TEST(GDMLParser, EnergyUnitConstants) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="photon_e" value="3.0*eV"/>
+    <constant name="gamma_e" value="1.5*MeV"/>
+    <constant name="k_e" value="100*keV"/>
+    <constant name="g_e" value="2*GeV"/>
+    <constant name="t_e" value="0.5*TeV"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    double tol = 1e-12;
+    EXPECT_NEAR(data.constants["eV"], 1e-6, tol);
+    EXPECT_NEAR(data.constants["keV"], 1e-3, tol);
+    EXPECT_NEAR(data.constants["MeV"], 1.0, tol);
+    EXPECT_NEAR(data.constants["GeV"], 1e3, tol);
+    EXPECT_NEAR(data.constants["TeV"], 1e6, tol);
+
+    EXPECT_NEAR(data.constants["photon_e"], 3.0e-6, tol);
+    EXPECT_NEAR(data.constants["gamma_e"], 1.5, tol);
+    EXPECT_NEAR(data.constants["k_e"], 0.1, tol);
+    EXPECT_NEAR(data.constants["g_e"], 2e3, tol);
+    EXPECT_NEAR(data.constants["t_e"], 5e5, tol);
+}
+
+
+// =========================================================================
+// Polycone z-plane auto-sorting
+// =========================================================================
+TEST(GDMLParser, PolyconeZPlaneSorting) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <polycone name="sorted_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="10" z="0"/>
+      <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="15" z="100"/>
+    </polycone>
+    <polycone name="reversed_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="15" z="100"/>
+      <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="10" z="0"/>
+    </polycone>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    ASSERT_TRUE(data.solids.find("sorted_pc") != data.solids.end());
+    ASSERT_TRUE(data.solids["sorted_pc"] != nullptr);
+    ASSERT_TRUE(data.solids.find("reversed_pc") != data.solids.end());
+    ASSERT_TRUE(data.solids["reversed_pc"] != nullptr);
+
+    for(auto const & w : data.warnings) {
+        EXPECT_TRUE(w.find("non-monotonic") == std::string::npos)
+            << "Unexpected warning: " << w;
+    }
+}
+
+TEST(GDMLParser, PolyconeZPlaneDuplicateZFails) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <polycone name="dup_z_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="10" z="50"/>
+      <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="15" z="100"/>
+    </polycone>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    EXPECT_TRUE(data.solids.find("dup_z_pc") == data.solids.end()
+                || data.solids["dup_z_pc"] == nullptr);
+
+    bool found_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("non-monotonic") != std::string::npos) { found_warning = true; break; }
+    }
+    EXPECT_TRUE(found_warning);
+}
+
+
+// =========================================================================
+// Replicavol: N-copy placement along axis
+// =========================================================================
+TEST(GDMLParser, ReplicavolXAxis) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="mother_box" x="800" y="100" z="100" lunit="mm"/>
+    <box name="child_box" x="100" y="100" z="100" lunit="mm"/>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="ChildVol">
+      <materialref ref=""/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="MotherVol">
+      <materialref ref=""/>
+      <solidref ref="mother_box"/>
+      <replicavol number="8">
+        <volumeref ref="ChildVol"/>
+        <replicate_along_axis>
+          <direction x="1"/>
+          <width value="100" unit="mm"/>
+          <offset value="0" unit="mm"/>
+        </replicate_along_axis>
+      </replicavol>
+    </volume>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="MotherVol"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    auto it = data.volumes.find("MotherVol");
+    ASSERT_TRUE(it != data.volumes.end());
+    ASSERT_EQ(it->second.children.size(), 8u);
+
+    double width_m = 0.1; // 100mm in meters
+    double tol = 1e-9;
+    for(int i = 0; i < 8; ++i) {
+        double expected_x = (i + 0.5 - 4.0) * width_m;
+        EXPECT_NEAR(it->second.children[i].position.GetX(), expected_x, tol)
+            << "Replica " << i << " x position mismatch";
+        EXPECT_NEAR(it->second.children[i].position.GetY(), 0.0, tol);
+        EXPECT_NEAR(it->second.children[i].position.GetZ(), 0.0, tol);
+        EXPECT_EQ(it->second.children[i].volume_ref, "ChildVol");
+    }
+}
+
+TEST(GDMLParser, ReplicavolYAxisWithOffset) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="mother_box" x="100" y="300" z="100" lunit="mm"/>
+    <box name="child_box" x="100" y="100" z="100" lunit="mm"/>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="ChildVol">
+      <materialref ref=""/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="MotherVol">
+      <materialref ref=""/>
+      <solidref ref="mother_box"/>
+      <replicavol number="3">
+        <volumeref ref="ChildVol"/>
+        <replicate_along_axis>
+          <direction y="1"/>
+          <width value="10" unit="cm"/>
+          <offset value="0" unit="mm"/>
+        </replicate_along_axis>
+      </replicavol>
+    </volume>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    auto it = data.volumes.find("MotherVol");
+    ASSERT_TRUE(it != data.volumes.end());
+    ASSERT_EQ(it->second.children.size(), 3u);
+
+    double width_m = 0.1; // 10cm in meters
+    double tol = 1e-9;
+    for(int i = 0; i < 3; ++i) {
+        double expected_y = (i + 0.5 - 1.5) * width_m;
+        EXPECT_NEAR(it->second.children[i].position.GetX(), 0.0, tol);
+        EXPECT_NEAR(it->second.children[i].position.GetY(), expected_y, tol);
+        EXPECT_NEAR(it->second.children[i].position.GetZ(), 0.0, tol);
+    }
+}
+
+
+// =========================================================================
+// Polyhedra z-plane auto-sorting (parallel code path to polycone)
+// =========================================================================
+TEST(GDMLParser, PolyhedraZPlaneSorting) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <polyhedra name="sorted_ph" startphi="0" deltaphi="360" numsides="6" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="10" z="0"/>
+      <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="15" z="100"/>
+    </polyhedra>
+    <polyhedra name="reversed_ph" startphi="0" deltaphi="360" numsides="6" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="15" z="100"/>
+      <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="10" z="0"/>
+    </polyhedra>
+    <polyhedra name="scrambled_ph" startphi="0" deltaphi="360" numsides="4" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="10" z="0"/>
+      <zplane rmin="0" rmax="15" z="100"/>
+      <zplane rmin="0" rmax="5" z="200"/>
+    </polyhedra>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    ASSERT_TRUE(data.solids.find("sorted_ph") != data.solids.end());
+    ASSERT_TRUE(data.solids["sorted_ph"] != nullptr);
+    ASSERT_TRUE(data.solids.find("reversed_ph") != data.solids.end());
+    ASSERT_TRUE(data.solids["reversed_ph"] != nullptr);
+    ASSERT_TRUE(data.solids.find("scrambled_ph") != data.solids.end());
+    ASSERT_TRUE(data.solids["scrambled_ph"] != nullptr);
+
+    for(auto const & w : data.warnings) {
+        EXPECT_TRUE(w.find("non-monotonic") == std::string::npos)
+            << "Unexpected warning: " << w;
+    }
+}
+
+
+// =========================================================================
+// Energy units in matrix values (optical property use case)
+// =========================================================================
+TEST(GDMLParser, EnergyUnitsInMatrix) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <matrix name="RINDEX" coldim="2"
+            values="1.5*eV  1.48
+                    2.0*eV  1.49
+                    3.0*eV  1.50
+                    4.0*eV  1.52"/>
+    <matrix name="ENERGIES" coldim="1"
+            values="1.5*eV 2.0*eV 3.0*eV 4.0*eV"/>
+    <constant name="threshold" value="2.5*GeV"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    double tol = 1e-12;
+
+    auto ri = data.matrices.find("RINDEX");
+    ASSERT_TRUE(ri != data.matrices.end());
+    EXPECT_EQ(ri->second.first, 2);
+    ASSERT_EQ(ri->second.second.size(), 8u);
+    EXPECT_NEAR(ri->second.second[0], 1.5e-6, tol);
+    EXPECT_NEAR(ri->second.second[1], 1.48, tol);
+    EXPECT_NEAR(ri->second.second[2], 2.0e-6, tol);
+    EXPECT_NEAR(ri->second.second[3], 1.49, tol);
+    EXPECT_NEAR(ri->second.second[4], 3.0e-6, tol);
+    EXPECT_NEAR(ri->second.second[5], 1.50, tol);
+    EXPECT_NEAR(ri->second.second[6], 4.0e-6, tol);
+    EXPECT_NEAR(ri->second.second[7], 1.52, tol);
+
+    auto en = data.matrices.find("ENERGIES");
+    ASSERT_TRUE(en != data.matrices.end());
+    EXPECT_EQ(en->second.first, 1);
+    ASSERT_EQ(en->second.second.size(), 4u);
+    EXPECT_NEAR(en->second.second[0], 1.5e-6, tol);
+    EXPECT_NEAR(en->second.second[1], 2.0e-6, tol);
+    EXPECT_NEAR(en->second.second[2], 3.0e-6, tol);
+    EXPECT_NEAR(en->second.second[3], 4.0e-6, tol);
+
+    EXPECT_NEAR(data.constants["threshold"], 2.5e3, tol);
+}
+
+
+// =========================================================================
+// Replicavol along arbitrary (non-axis-aligned) direction
+// =========================================================================
+TEST(GDMLParser, ReplicavolArbitraryAxis) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="mother_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="ChildVol">
+      <materialref ref=""/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="ZVol">
+      <materialref ref=""/>
+      <solidref ref="mother_box"/>
+      <replicavol number="4">
+        <volumeref ref="ChildVol"/>
+        <replicate_along_axis>
+          <direction z="1"/>
+          <width value="200" unit="mm"/>
+          <offset value="0" unit="mm"/>
+        </replicate_along_axis>
+      </replicavol>
+    </volume>
+    <volume name="DiagVol">
+      <materialref ref=""/>
+      <solidref ref="mother_box"/>
+      <replicavol number="3">
+        <volumeref ref="ChildVol"/>
+        <replicate_along_axis>
+          <direction x="1" y="1"/>
+          <width value="100" unit="mm"/>
+          <offset value="0" unit="mm"/>
+        </replicate_along_axis>
+      </replicavol>
+    </volume>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // Z-axis: 4 copies, width=0.2m
+    {
+        auto it = data.volumes.find("ZVol");
+        ASSERT_TRUE(it != data.volumes.end());
+        ASSERT_EQ(it->second.children.size(), 4u);
+        double w = 0.2;
+        double tol = 1e-9;
+        for(int i = 0; i < 4; ++i) {
+            double expected_z = (i + 0.5 - 2.0) * w;
+            EXPECT_NEAR(it->second.children[i].position.GetX(), 0.0, tol);
+            EXPECT_NEAR(it->second.children[i].position.GetY(), 0.0, tol);
+            EXPECT_NEAR(it->second.children[i].position.GetZ(), expected_z, tol)
+                << "Z-axis replica " << i;
+        }
+    }
+
+    // Diagonal (1,1,0): direction normalized to (1/sqrt2, 1/sqrt2, 0)
+    // 3 copies, width=0.1m
+    {
+        auto it = data.volumes.find("DiagVol");
+        ASSERT_TRUE(it != data.volumes.end());
+        ASSERT_EQ(it->second.children.size(), 3u);
+        double w = 0.1;
+        double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+        double tol = 1e-9;
+        for(int i = 0; i < 3; ++i) {
+            double t = (i + 0.5 - 1.5) * w;
+            EXPECT_NEAR(it->second.children[i].position.GetX(), t * inv_sqrt2, tol)
+                << "Diagonal replica " << i << " x";
+            EXPECT_NEAR(it->second.children[i].position.GetY(), t * inv_sqrt2, tol)
+                << "Diagonal replica " << i << " y";
+            EXPECT_NEAR(it->second.children[i].position.GetZ(), 0.0, tol);
+        }
+    }
+}
+
+
+// =========================================================================
+// Built-in constants are immutable: user <define> cannot overwrite them
+// =========================================================================
+TEST(GDMLParser, BuiltInConstantsImmutable) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="pi" value="999"/>
+    <constant name="cm" value="42"/>
+    <constant name="MeV" value="-1"/>
+    <variable name="deg" value="123"/>
+    <quantity name="mm" value="7" type="length" unit="mm"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    double tol = 1e-12;
+    EXPECT_NEAR(data.constants.at("pi"), M_PI, tol);
+    EXPECT_NEAR(data.constants.at("cm"), 10.0, tol);
+    EXPECT_NEAR(data.constants.at("MeV"), 1.0, tol);
+    EXPECT_NEAR(data.constants.at("deg"), M_PI / 180.0, tol);
+    EXPECT_NEAR(data.constants.at("mm"), 1.0, tol);
+    EXPECT_GE(data.warnings.size(), 5u);
+}
+
+// =========================================================================
+// Built-in constants cannot be used as loop variables
+// =========================================================================
+TEST(GDMLParser, BuiltInConstantsBlockLoopVar) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <loop for="mm" from="1" to="3" step="1">
+      <constant name="x_[mm]" value="[mm]*100"/>
+    </loop>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants.at("mm"), 1.0, 1e-12);
+    EXPECT_EQ(data.constants.count("x_1"), 0u);
+    EXPECT_EQ(data.constants.count("x_2"), 0u);
+    EXPECT_EQ(data.constants.count("x_3"), 0u);
+    EXPECT_FALSE(data.warnings.empty());
+}
+
+// =========================================================================
+// Extended built-in constants: verify new additions are available
+// =========================================================================
+TEST(GDMLParser, ExtendedBuiltInConstants) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="use_euler" value="e"/>
+    <constant name="use_gamma" value="gamma"/>
+    <constant name="use_km" value="km"/>
+    <constant name="use_degree" value="degree"/>
+    <constant name="use_radian" value="radian"/>
+    <constant name="use_inch" value="inch"/>
+    <constant name="use_fermi" value="fermi"/>
+    <constant name="use_ns" value="ns"/>
+    <constant name="use_PeV" value="PeV"/>
+    <constant name="use_mole" value="mole"/>
+    <constant name="use_kelvin" value="kelvin"/>
+    <constant name="len_m" value="2.5*meter"/>
+    <constant name="len_um" value="3*micrometer"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    double tol = 1e-9;
+    EXPECT_NEAR(data.constants.at("use_euler"), 2.7182818284590452354, tol);
+    EXPECT_NEAR(data.constants.at("use_gamma"), 0.5772156649015328606, tol);
+    EXPECT_NEAR(data.constants.at("use_km"), 1e6, tol);
+    EXPECT_NEAR(data.constants.at("use_degree"), M_PI / 180.0, tol);
+    EXPECT_NEAR(data.constants.at("use_radian"), 1.0, tol);
+    EXPECT_NEAR(data.constants.at("use_inch"), 25.4, tol);
+    EXPECT_NEAR(data.constants.at("use_fermi"), 1e-12, tol);
+    EXPECT_NEAR(data.constants.at("use_ns"), 1.0, tol);
+    EXPECT_NEAR(data.constants.at("use_PeV"), 1e9, tol);
+    EXPECT_NEAR(data.constants.at("use_mole"), 1.0, tol);
+    EXPECT_NEAR(data.constants.at("use_kelvin"), 1.0, tol);
+    EXPECT_NEAR(data.constants.at("len_m"), 2500.0, tol);
+    EXPECT_NEAR(data.constants.at("len_um"), 3e-3, tol);
+}
+
+// =========================================================================
+// GenericPolycone: hollow shape with non-monotonic z
+// =========================================================================
+TEST(GDMLParser, GenericPolyconeHollow) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <genericPolycone name="gpc_hollow" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <rzpoint r="300" z="-500"/>
+      <rzpoint r="450" z="0"/>
+      <rzpoint r="500" z="500"/>
+      <rzpoint r="350" z="500"/>
+      <rzpoint r="300" z="0"/>
+      <rzpoint r="200" z="-500"/>
+    </genericPolycone>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="gpc_hollow"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("gpc_hollow") > 0);
+    auto & geo = data.solids["gpc_hollow"];
+    auto bb = geo->GetBoundingBox();
+    double tol = 1e-6;
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.5, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.5, tol);
+    EXPECT_NEAR(bb.min_corner.GetZ(), -0.5, tol);
+
+    // Point inside the hollow shell
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.4, 0, 0)));
+    // Point in the hollow center
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.1, 0, 0)));
+    // Point outside
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.6, 0, 0)));
+}
+
+// =========================================================================
+// GenericPolycone: phi-cut
+// =========================================================================
+TEST(GDMLParser, GenericPolyconePhiCut) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <genericPolycone name="gpc_phi" startphi="0" deltaphi="180" aunit="deg" lunit="mm">
+      <rzpoint r="0" z="-100"/>
+      <rzpoint r="50" z="0"/>
+      <rzpoint r="0" z="100"/>
+    </genericPolycone>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="gpc_phi"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("gpc_phi") > 0);
+    auto & geo = data.solids["gpc_phi"];
+    // +x, +y is within phi=[0, pi]
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.01, 0.01, 0)));
+    // -y is outside phi=[0, pi]
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.01, -0.01, 0)));
+}
