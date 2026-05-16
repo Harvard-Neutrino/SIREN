@@ -60,6 +60,9 @@ struct GDMLData {
     // Materials
     std::map<std::string, GDMLMaterial> materials;
 
+    // Matrix definitions: name -> {coldim, flat_values}
+    std::map<std::string, std::pair<int, std::vector<double>>> matrices;
+
     // Solids (as Geometry objects, in SIREN units)
     std::map<std::string, std::shared_ptr<geometry::Geometry>> solids;
 

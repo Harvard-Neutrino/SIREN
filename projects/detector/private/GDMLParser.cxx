@@ -32,6 +32,11 @@ namespace rapidxml = cereal::rapidxml;
 #include "SIREN/geometry/Polyhedra.h"
 #include "SIREN/geometry/Torus.h"
 #include "SIREN/geometry/BooleanGeometry.h"
+#include "SIREN/geometry/EllipticalTube.h"
+#include "SIREN/geometry/CutTube.h"
+#include "SIREN/geometry/Trap.h"
+#include "SIREN/geometry/Ellipsoid.h"
+#include "SIREN/geometry/Para.h"
 
 using namespace siren::math;
 using namespace siren::geometry;
@@ -115,7 +120,11 @@ static double ApplyFunc(std::string const & name, double const * args, int argc,
     throw std::runtime_error("GDML expression error: unknown function '" + name + "' in '" + expr + "'");
 }
 
-static std::vector<Token> Tokenize(std::string const & s, std::map<std::string, double> const & constants, std::string const & expr) {
+static double EvalExpression(std::string const & expr, std::map<std::string, double> const & constants,
+                             std::map<std::string, std::pair<int, std::vector<double>>> const & matrices = {});
+
+static std::vector<Token> Tokenize(std::string const & s, std::map<std::string, double> const & constants, std::string const & expr,
+                                   std::map<std::string, std::pair<int, std::vector<double>>> const & matrices = {}) {
     std::vector<Token> tokens;
     size_t i = 0;
     while(i < s.size()) {
@@ -159,6 +168,65 @@ static std::vector<Token> Tokenize(std::string const & s, std::map<std::string, 
             if(j < s.size() && s[j] == '(') {
                 Token t; t.kind = TokenKind::FUNC; t.name = name; t.argc = 1;
                 tokens.push_back(t);
+            } else if(j < s.size() && s[j] == '[') {
+                // Matrix/vector element access: name[idx] or name[row,col]
+                auto mit = matrices.find(name);
+                if(mit == matrices.end()) {
+                    throw std::runtime_error("GDML expression error: unknown matrix '" + name + "' in '" + expr + "'");
+                }
+                i = j + 1; // skip '['
+                // Parse first index expression (up to ',' or ']')
+                int depth = 1;
+                size_t idx_start = i;
+                size_t comma_pos = std::string::npos;
+                while(i < s.size() && depth > 0) {
+                    if(s[i] == '[') ++depth;
+                    else if(s[i] == ']') --depth;
+                    else if(s[i] == ',' && depth == 1) comma_pos = i;
+                    if(depth > 0) ++i;
+                }
+                if(depth != 0) {
+                    throw std::runtime_error("GDML expression error: unmatched '[' in '" + expr + "'");
+                }
+                size_t bracket_end = i;
+                ++i; // skip ']'
+
+                int coldim = mit->second.first;
+                auto const & vals = mit->second.second;
+                double result;
+
+                if(comma_pos != std::string::npos) {
+                    // Two indices: name[row, col] (1-based)
+                    std::string row_expr = s.substr(idx_start, comma_pos - idx_start);
+                    std::string col_expr = s.substr(comma_pos + 1, bracket_end - comma_pos - 1);
+                    // Recursively evaluate the index expressions
+                    double row_val = EvalExpression(row_expr, constants);
+                    double col_val = EvalExpression(col_expr, constants);
+                    int row = static_cast<int>(row_val + 0.5);
+                    int col = static_cast<int>(col_val + 0.5);
+                    int flat_idx = (row - 1) * coldim + (col - 1);
+                    if(flat_idx < 0 || flat_idx >= static_cast<int>(vals.size())) {
+                        throw std::runtime_error("GDML expression error: matrix index out of range for '" + name + "[" + std::to_string(row) + "," + std::to_string(col) + "]' in '" + expr + "'");
+                    }
+                    result = vals[flat_idx];
+                } else {
+                    // Single index: name[idx] (1-based)
+                    std::string idx_expr = s.substr(idx_start, bracket_end - idx_start);
+                    double idx_val = EvalExpression(idx_expr, constants);
+                    int idx = static_cast<int>(idx_val + 0.5);
+                    int flat_idx;
+                    if(coldim == 1) {
+                        flat_idx = idx - 1;
+                    } else {
+                        flat_idx = idx - 1;
+                    }
+                    if(flat_idx < 0 || flat_idx >= static_cast<int>(vals.size())) {
+                        throw std::runtime_error("GDML expression error: matrix index out of range for '" + name + "[" + std::to_string(idx) + "]' in '" + expr + "'");
+                    }
+                    result = vals[flat_idx];
+                }
+                Token t; t.kind = TokenKind::NUMBER; t.value = result;
+                tokens.push_back(t);
             } else {
                 auto it = constants.find(name);
                 if(it == constants.end()) {
@@ -175,7 +243,8 @@ static std::vector<Token> Tokenize(std::string const & s, std::map<std::string, 
     return tokens;
 }
 
-double EvalExpression(std::string const & expr, std::map<std::string, double> const & constants) {
+double EvalExpression(std::string const & expr, std::map<std::string, double> const & constants,
+                      std::map<std::string, std::pair<int, std::vector<double>>> const & matrices) {
     std::string s = TrimWhitespace(expr);
     if(s.empty()) return 0.0;
 
@@ -191,7 +260,7 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
         }
     }
 
-    // Fast path: bare constant name
+    // Fast path: bare constant name (only if no bracket follows)
     {
         bool bare = true;
         for(size_t i = 0; i < s.size(); ++i) {
@@ -200,11 +269,13 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
         if(bare && IsIdentStart(s[0])) {
             auto it = constants.find(s);
             if(it != constants.end()) return it->second;
-            throw std::runtime_error("GDML expression error: unknown constant '" + s + "'");
+            if(matrices.find(s) == matrices.end()) {
+                throw std::runtime_error("GDML expression error: unknown constant '" + s + "'");
+            }
         }
     }
 
-    std::vector<Token> tokens = Tokenize(s, constants, expr);
+    std::vector<Token> tokens = Tokenize(s, constants, expr, matrices);
 
     // Shunting-yard: convert to RPN
     std::vector<Token> output;
@@ -339,7 +410,8 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
 
 // Parse a double from a string, returning 0 if empty.
 // Optionally evaluates expressions using the provided constants map.
-double SafeParseDouble(const char* val, std::map<std::string, double> const & constants = {}) {
+double SafeParseDouble(const char* val, std::map<std::string, double> const & constants = {},
+                       std::map<std::string, std::pair<int, std::vector<double>>> const & matrices = {}) {
     if(!val || val[0] == '\0') return 0.0;
     // Fast path: try simple numeric literal
     try {
@@ -353,7 +425,7 @@ double SafeParseDouble(const char* val, std::map<std::string, double> const & co
         throw std::runtime_error("GDML expression error: numeric value out of range in '" + std::string(val) + "'");
     }
     // Fall back to expression evaluation
-    return EvalExpression(std::string(val), constants);
+    return EvalExpression(std::string(val), constants, matrices);
 }
 
 // Convert a GDML length value+unit to meters (SIREN base unit)
@@ -660,7 +732,7 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
 
         if(tag == "constant") {
             std::string name = SafeAttrVal(node, "name");
-            double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
+            double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             if(!name.empty()) {
                 if(data.constants.find(name) != data.constants.end()) {
                     EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
@@ -670,7 +742,7 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
         }
         else if(tag == "quantity") {
             std::string name = SafeAttrVal(node, "name");
-            double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
+            double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             const char* unit = SafeAttrVal(node, "unit");
             const char* type = SafeAttrVal(node, "type");
             value *= QuantityUnitScale(type, unit);
@@ -713,12 +785,32 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
         }
         else if(tag == "variable") {
             std::string name = SafeAttrVal(node, "name");
-            double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
+            double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             if(!name.empty()) {
                 if(data.constants.find(name) != data.constants.end()) {
                     EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
                 }
                 data.constants[name] = value;
+            }
+        }
+        else if(tag == "matrix") {
+            std::string name = SafeAttrVal(node, "name");
+            int coldim = 1;
+            const char* cd = SafeAttrVal(node, "coldim");
+            if(cd[0] != '\0') {
+                try { coldim = std::stoi(std::string(cd)); }
+                catch(...) { coldim = 1; }
+            }
+            if(coldim < 1) coldim = 1;
+            std::string values_str = SafeAttrVal(node, "values");
+            std::vector<double> values;
+            std::istringstream iss(values_str);
+            std::string tok;
+            while(iss >> tok) {
+                values.push_back(EvalExpression(tok, data.constants, data.matrices));
+            }
+            if(!name.empty() && !values.empty()) {
+                data.matrices[name] = {coldim, values};
             }
         }
     }
@@ -1161,6 +1253,136 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
 
             if(rtor > 0 && rmax_t > 0) {
                 geo = Torus(rtor, rmax_t, rmin_t, startphi, deltaphi).create();
+            }
+        }
+        else if(tag == "eltube") {
+            double dx = SafeParseDouble(SafeAttrVal(node, "dx"), data.constants) * lscale;
+            double dy = SafeParseDouble(SafeAttrVal(node, "dy"), data.constants) * lscale;
+            double dz = SafeParseDouble(SafeAttrVal(node, "dz"), data.constants) * lscale;
+            if(dx > 0 && dy > 0 && dz > 0) {
+                geo = EllipticalTube(dx, dy, dz).create();
+            }
+        }
+        else if(tag == "cutTube") {
+            double rmin = SafeParseDouble(SafeAttrVal(node, "rmin"), data.constants) * lscale;
+            double rmax = SafeParseDouble(SafeAttrVal(node, "rmax"), data.constants) * lscale;
+            double hz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
+
+            const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') {
+                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
+                if(std::fabs(startphi) > ANG_TOL) {
+                    EmitWarning(data, options, "cutTube '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
+                }
+            }
+            const char* dp_val = SafeAttrVal(node, "deltaphi");
+            if(dp_val[0] != '\0') {
+                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
+                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                    EmitWarning(data, options, "cutTube '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
+                }
+            }
+
+            double lowX = SafeParseDouble(SafeAttrVal(node, "lowX"), data.constants);
+            double lowY = SafeParseDouble(SafeAttrVal(node, "lowY"), data.constants);
+            double lowZ = SafeParseDouble(SafeAttrVal(node, "lowZ"), data.constants);
+            double highX = SafeParseDouble(SafeAttrVal(node, "highX"), data.constants);
+            double highY = SafeParseDouble(SafeAttrVal(node, "highY"), data.constants);
+            double highZ = SafeParseDouble(SafeAttrVal(node, "highZ"), data.constants);
+
+            if(rmax > 0 && hz > 0) {
+                Vector3D low_norm(lowX, lowY, lowZ);
+                Vector3D high_norm(highX, highY, highZ);
+                geo = CutTube(rmin, rmax, hz, low_norm, high_norm).create();
+            }
+        }
+        else if(tag == "trap") {
+            double dz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
+            double theta = SafeParseDouble(SafeAttrVal(node, "theta"), data.constants) * ascale;
+            double phi = SafeParseDouble(SafeAttrVal(node, "phi"), data.constants) * ascale;
+            double dy1 = SafeParseDouble(SafeAttrVal(node, "y1"), data.constants) * lscale;
+            double dx1 = SafeParseDouble(SafeAttrVal(node, "x1"), data.constants) * lscale;
+            double dx2 = SafeParseDouble(SafeAttrVal(node, "x2"), data.constants) * lscale;
+            double alpha1 = SafeParseDouble(SafeAttrVal(node, "alpha1"), data.constants) * ascale;
+            double dy2 = SafeParseDouble(SafeAttrVal(node, "y2"), data.constants) * lscale;
+            double dx3 = SafeParseDouble(SafeAttrVal(node, "x3"), data.constants) * lscale;
+            double dx4 = SafeParseDouble(SafeAttrVal(node, "x4"), data.constants) * lscale;
+            double alpha2 = SafeParseDouble(SafeAttrVal(node, "alpha2"), data.constants) * ascale;
+            geo = Trap(dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2).create();
+        }
+        else if(tag == "ellipsoid") {
+            double ax = SafeParseDouble(SafeAttrVal(node, "ax"), data.constants) * lscale;
+            double by = SafeParseDouble(SafeAttrVal(node, "by"), data.constants) * lscale;
+            double cz = SafeParseDouble(SafeAttrVal(node, "cz"), data.constants) * lscale;
+            double zcut1 = -cz;
+            double zcut2 = cz;
+            const char* z1_val = SafeAttrVal(node, "zcut1");
+            if(z1_val[0] != '\0') zcut1 = SafeParseDouble(z1_val, data.constants) * lscale;
+            const char* z2_val = SafeAttrVal(node, "zcut2");
+            if(z2_val[0] != '\0') zcut2 = SafeParseDouble(z2_val, data.constants) * lscale;
+            if(ax > 0 && by > 0 && cz > 0) {
+                geo = Ellipsoid(ax, by, cz, zcut1, zcut2).create();
+            }
+        }
+        else if(tag == "para") {
+            double dx = SafeParseDouble(SafeAttrVal(node, "x"), data.constants) * lscale;
+            double dy = SafeParseDouble(SafeAttrVal(node, "y"), data.constants) * lscale;
+            double dz = SafeParseDouble(SafeAttrVal(node, "z"), data.constants) * lscale;
+            double alpha = SafeParseDouble(SafeAttrVal(node, "alpha"), data.constants) * ascale;
+            double theta = SafeParseDouble(SafeAttrVal(node, "theta"), data.constants) * ascale;
+            double phi = SafeParseDouble(SafeAttrVal(node, "phi"), data.constants) * ascale;
+            if(dx > 0 && dy > 0 && dz > 0) {
+                geo = Para(dx, dy, dz, alpha, theta, phi).create();
+            }
+        }
+        else if(tag == "genericPolycone") {
+            const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') {
+                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
+                if(std::fabs(startphi) > ANG_TOL) {
+                    EmitWarning(data, options, "genericPolycone '" + name + "' has partial angular extent; SIREN creates full rotation");
+                }
+            }
+            const char* dp_val = SafeAttrVal(node, "deltaphi");
+            if(dp_val[0] != '\0') {
+                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
+                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
+                    EmitWarning(data, options, "genericPolycone '" + name + "' has partial angular extent; SIREN creates full rotation");
+                }
+            }
+
+            struct RZPoint { double r; double z; };
+            std::vector<RZPoint> points;
+            for(auto* rz = node->first_node("rzpoint"); rz; rz = rz->next_sibling("rzpoint")) {
+                double r = SafeParseDouble(SafeAttrVal(rz, "r"), data.constants) * lscale;
+                double z = SafeParseDouble(SafeAttrVal(rz, "z"), data.constants) * lscale;
+                points.push_back({r, z});
+            }
+
+            if(points.size() >= 2) {
+                std::sort(points.begin(), points.end(), [](RZPoint const & a, RZPoint const & b) {
+                    return a.z < b.z;
+                });
+
+                std::vector<double> z_planes, rmin_vec, rmax_vec;
+                for(auto const & pt : points) {
+                    z_planes.push_back(pt.z);
+                    rmin_vec.push_back(0.0);
+                    rmax_vec.push_back(pt.r);
+                }
+
+                bool z_valid = true;
+                for(size_t i = 1; i < z_planes.size(); ++i) {
+                    if(z_planes[i] <= z_planes[i-1]) {
+                        z_valid = false;
+                        break;
+                    }
+                }
+                if(z_valid) {
+                    geo = Polycone(z_planes, rmin_vec, rmax_vec).create();
+                } else {
+                    EmitWarning(data, options, "genericPolycone '" + name + "' has non-monotonic z values after sorting; skipping");
+                }
             }
         }
         else if(!tag.empty()) {
@@ -1621,6 +1843,7 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
     data.constants.clear();
     data.positions.clear();
     data.rotations.clear();
+    data.matrices.clear();
     for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
         ParseDefine(node, data, options);
     }
