@@ -69,15 +69,30 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
                 // Loop over cross section signatures with the same target
                 std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                 for(auto const & signature : signatures) {
+                    // check here for 0 generation probability
                     fake_record.signature = signature;
                     fake_record.target_mass = detector_model->GetTargetMass(target);
                     // Add total cross section times density to the total prob
-                    double target_prob = target_density * cross_section->TotalCrossSection(fake_record);
+                    double total_xs = cross_section->TotalCrossSection(fake_record);
+                    double target_prob = target_density * total_xs;
+                    // if (total_xs == 0) {
+                    //         std::cout << "total cross section give 0 for process of " << record.signature.primary_type << std::endl;
+                    //         std::cout << "for signature " << fake_record.signature << std::endl;
+                    //     } else if (std::isinf(total_xs)) {
+                    //         std::cout << "total cross section give inf for process of " << record.signature.primary_type << std::endl;
+                    //         std::cout << "for signature " << fake_record.signature << std::endl;
+                    //     }
                     total_prob += target_prob;
                     // Add up total cross section times density times final state prob for matching signatures
                     if(signature == record.signature) {
                         // selected_prob += target_prob;
-                        selected_final_state += target_prob * cross_section->FinalStateProbability(record);
+                        double final_prob = cross_section->FinalStateProbability(record);
+                        // if (final_prob == 0) {
+                        //     std::cout << "final state prob give 0 for process of " << record.signature.primary_type << std::endl;
+                        // } else if (std::isinf(final_prob)) {
+                        //     std::cout << "final state prob give inf for process of " << record.signature.primary_type << std::endl;
+                        // }
+                        selected_final_state += target_prob * final_prob;
                     }
                 }
             }

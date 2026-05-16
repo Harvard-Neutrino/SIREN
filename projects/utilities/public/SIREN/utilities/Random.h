@@ -7,7 +7,7 @@
 
 // this implements a class to sample numbers just like in an i3 service
 
-#include <random> // default_random_engine, uniform_real_distribution
+#include <random> // mt19937_64, uniform_real_distribution
 #include <cstdint>                                      // for uint32_t
 
 #include <cereal/cereal.hpp>
@@ -59,7 +59,14 @@ public:
 
 private:
     uint64_t seed;
-    std::default_random_engine configuration;
+    // Previously used std::default_random_engine (minstd_rand0 on GCC),
+    // a linear congruential generator with only ~2.1 billion states
+    // (period 2^31-2). With ~500 RNG draws per event and thousands of
+    // seeds each generating 10k events, the birthday paradox causes
+    // frequent internal state collisions across seeds, producing
+    // identical event sequences. Switched to Mersenne Twister
+    // (period 2^19937-1) to eliminate cross-seed duplicates.
+    std::mt19937_64 configuration;
     std::uniform_real_distribution<double> generator;
 };
 
@@ -67,4 +74,3 @@ private:
 } // namespace siren
 
 #endif // SIREN_Random_H
-

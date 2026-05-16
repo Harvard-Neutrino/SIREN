@@ -57,6 +57,11 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
     siren::math::Vector3D dir = record.direction;
 
     siren::math::Vector3D endcap_0 = pos;
+    // skip computation of endpoint if interaction is hadronization
+    if (interactions->HasHadronizations()) {
+        record.SetLength(0);
+        return;
+    }
     siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
@@ -121,6 +126,14 @@ double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr
     siren::math::Vector3D vertex(record.interaction_vertex);
 
     siren::math::Vector3D endcap_0 = record.primary_initial_position;
+    // hadrnoization treated differently, but also check for misconducting
+    if (interactions->HasHadronizations()) {
+        if (vertex == endcap_0) {
+            return 1.0;
+        } else {
+            return 0.0;
+        }
+    }
     siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
@@ -173,6 +186,11 @@ double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr
         prob_density = interaction_density / total_interaction_depth;
     } else {
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+    }
+
+    if (prob_density == 0) {
+        std::cout << "observed prob density 0 in physical vertex under process " << record.signature.primary_type << " to " 
+        << record.signature.secondary_types[0] << " with total depth " << total_interaction_depth <<  std::endl;
     }
 
     return prob_density;

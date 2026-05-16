@@ -20,6 +20,36 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/photospline/CMakeLists.txt")
 endif()
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline EXCLUDE_FROM_ALL)
+
+# Apply local patches to the vendored photospline submodule before including
+# it. Upstream photospline @ c6fb3ea (the pin used by SIREN) declares
+# bsplvb_simple() and bspline_deriv_nonzero() in the public header but does
+# not compile implementations for them -- the inline template code in
+# detail/bspline_eval.h calls them, causing undefined-symbol link errors when
+# libSIREN is loaded at runtime. Restore the implementations from an earlier
+# photospline revision. Each patch is idempotent (--forward skips if already
+# applied).
+set(_PHOTOSPLINE_PATCH_DIR "${PROJECT_SOURCE_DIR}/cmake/photospline_patches")
+if(EXISTS "${_PHOTOSPLINE_PATCH_DIR}")
+    file(GLOB _PHOTOSPLINE_PATCHES "${_PHOTOSPLINE_PATCH_DIR}/*.patch")
+    list(SORT _PHOTOSPLINE_PATCHES)
+    foreach(_patch IN LISTS _PHOTOSPLINE_PATCHES)
+        message(STATUS "Applying photospline patch: ${_patch}")
+        execute_process(
+            COMMAND patch -p1 --forward --silent -i "${_patch}"
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/photospline"
+            RESULT_VARIABLE _patch_result
+            OUTPUT_QUIET ERROR_QUIET
+        )
+        # patch returns 1 if already applied (which is fine); only error on 2+
+        if(_patch_result GREATER 1)
+            message(FATAL_ERROR "Failed to apply photospline patch ${_patch} (exit ${_patch_result})")
+        endif()
+    endforeach()
+endif()
+unset(_PHOTOSPLINE_PATCH_DIR)
+unset(_PHOTOSPLINE_PATCHES)
+
 # Override CMAKE_POLICY_VERSION_MINIMUM before adding subdirectory
 set(TEMP_CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_POLICY_VERSION_MINIMUM})
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)

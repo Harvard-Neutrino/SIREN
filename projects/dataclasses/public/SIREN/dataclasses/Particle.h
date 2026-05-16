@@ -78,6 +78,10 @@ public:
 bool isLepton(ParticleType p);
 bool isCharged(ParticleType p);
 bool isNeutrino(ParticleType p);
+bool isQuark(Particle::ParticleType p);
+bool isHadron(Particle::ParticleType p);
+bool isD(Particle::ParticleType p);
+
 
 } // namespace dataclasses
 } // namespace siren
