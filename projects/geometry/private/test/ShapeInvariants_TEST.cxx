@@ -946,36 +946,65 @@ TEST(ShapeInvariants, OperatorLessCrossType) {
 // Cone apex rays: ray through the tip where the surface normal is undefined
 // and the quadratic has coincident roots.
 // =========================================================================
+// Apex enter/exit semantics, not just parity. A ray crossing a cone tip
+// has a knowable count AND a knowable entering flag at the apex: the apex
+// hit is "entering" when the ray moves toward the body side of the tip.
+// (Parity-only mod-2 here masked a hardcoded entering=false at the apex.)
 TEST(ShapeInvariants, ConeApexRays) {
-    // Pointed cone: rmax=5 at z=-5, rmax=0 at z=+5 (apex at top)
+    // Pointed cone: base radius 5 at z=-5, apex at z=+5 (body below apex).
     Cone cone(0, 5, 0, 0, 10);
-    double apex_z = 5.0;
 
-    // Ray along z-axis through the apex
+    // Up the z-axis: enter base cap (z=-5, entering), exit at apex (z=+5).
     {
-        auto hits = cone.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Cone apex z-axis ray: odd count " << hits.size();
+        auto h = cone.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        ASSERT_EQ(h.size(), 2u) << "axis ray through apex";
+        EXPECT_NEAR(h[0].position.GetZ(), -5.0, 1e-6);
+        EXPECT_TRUE(h[0].entering) << "base-cap hit must be entering";
+        EXPECT_NEAR(h[1].position.GetZ(),  5.0, 1e-6);
+        EXPECT_FALSE(h[1].entering) << "apex hit (ray exiting upward) must be exiting";
     }
 
-    // Radial ray through the apex in the x-direction
+    // Down the z-axis from above: enter AT the apex (z=+5), exit base cap.
+    // This is the case the parity-only test could not see: the apex hit
+    // must be entering=true here.
     {
-        auto hits = cone.Intersections(Vector3D(-10, 0, apex_z), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Cone apex radial ray: odd count " << hits.size();
+        auto h = cone.Intersections(Vector3D(0, 0, 20), Vector3D(0, 0, -1));
+        ASSERT_EQ(h.size(), 2u) << "reverse axis ray through apex";
+        EXPECT_NEAR(h[0].position.GetZ(), 5.0, 1e-6);
+        EXPECT_TRUE(h[0].entering) << "apex hit (ray entering downward) must be entering";
+        EXPECT_NEAR(h[1].position.GetZ(), -5.0, 1e-6);
+        EXPECT_FALSE(h[1].entering) << "base-cap exit must be exiting";
     }
 
-    // Diagonal ray aimed exactly at the apex
+    // Transverse ray exactly through the apex point: the tip is a single
+    // point (radius 0), so a perpendicular ray is a measure-zero grazing
+    // touch -- exactly zero crossings, not merely an even count.
+    {
+        auto h = cone.Intersections(Vector3D(-10, 0, 5), Vector3D(1, 0, 0));
+        EXPECT_EQ(h.size(), 0u) << "transverse apex ray must produce no crossings";
+    }
+
+    // Diagonal ray through the apex: enters the body, exits at the apex.
     {
         Vector3D dir(0.5, 0, 1);
         dir.normalize();
-        auto hits = cone.Intersections(Vector3D(-5, 0, apex_z - 10), dir);
-        EXPECT_EQ(hits.size() % 2, 0u) << "Cone apex diagonal ray: odd count " << hits.size();
+        auto h = cone.Intersections(Vector3D(-5, 0, -5), dir);
+        ASSERT_EQ(h.size(), 2u) << "diagonal ray through apex";
+        EXPECT_NE(h[0].entering, h[1].entering) << "one entering, one exiting";
+        EXPECT_NEAR(h[1].position.GetZ(), 5.0, 1e-6) << "second hit is the apex";
+        EXPECT_FALSE(h[1].entering) << "apex exit (ray leaving upward)";
     }
 
-    // Reverse-pointed cone: apex at bottom (rmax=0 at z=-5, rmax=5 at z=+5)
+    // Reverse-pointed cone: apex at z=-5, base radius 5 at z=+5 (body
+    // above apex). Up the z-axis: enter AT the apex, exit base cap.
     Cone cone_rev(0, 0, 0, 5, 10);
     {
-        auto hits = cone_rev.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Cone reverse apex z-axis: odd count " << hits.size();
+        auto h = cone_rev.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        ASSERT_EQ(h.size(), 2u) << "reverse cone axis ray through apex";
+        EXPECT_NEAR(h[0].position.GetZ(), -5.0, 1e-6);
+        EXPECT_TRUE(h[0].entering) << "bottom-apex hit must be entering";
+        EXPECT_NEAR(h[1].position.GetZ(), 5.0, 1e-6);
+        EXPECT_FALSE(h[1].entering) << "top base-cap must be exiting";
     }
 }
 

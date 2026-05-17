@@ -342,7 +342,12 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                             if(C < -GEOMETRY_PRECISION) {
                                 double t_mid = 0.5 * (t1 + t2);
                                 if(t_mid > 0 && t_mid < GEOMETRY_PRECISION) t_mid = 0;
-                                all_hits[n_all] = {t_mid, siren::math::Vector3D(px + t_mid*dx, py + t_mid*dy, apex_z), false, 0};
+                                // The cone body lies below a top apex and
+                                // above a bottom apex, so a ray crossing
+                                // the tip is entering the solid when it
+                                // moves toward that side.
+                                bool apex_entering = has_outer_apex_top ? (dz < 0.0) : (dz > 0.0);
+                                all_hits[n_all] = {t_mid, siren::math::Vector3D(px + t_mid*dx, py + t_mid*dy, apex_z), apex_entering, 0};
                                 n_all++;
                             }
                         }
@@ -419,7 +424,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                 if(r2_apex < GEOMETRY_PRECISION * GEOMETRY_PRECISION * 1e6) {
                     if(C <= GEOMETRY_PRECISION) {
                         if(t_apex > 0 && t_apex < GEOMETRY_PRECISION) t_apex = 0;
-                        all_hits[n_all] = {t_apex, siren::math::Vector3D(ix, iy, apex_z), false, 0};
+                        // Entering when the ray moves toward the body
+                        // side of the tip (below a top apex, above a
+                        // bottom apex).
+                        bool apex_entering = has_outer_apex_top ? (dz < 0.0) : (dz > 0.0);
+                        all_hits[n_all] = {t_apex, siren::math::Vector3D(ix, iy, apex_z), apex_entering, 0};
                         n_all++;
                     }
                 }
