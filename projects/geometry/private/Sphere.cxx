@@ -292,9 +292,15 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
     };
 
     // ---- Shell intersections (no angular filtering) ----
+    // The discriminant is r^2 - |p x d|^2 (squared perpendicular distance
+    // from origin to ray). Computing |p x d|^2 directly avoids catastrophic
+    // cancellation that occurs when the ray origin is far from the sphere.
+    double cx = py * dz - pz * dy;
+    double cy = pz * dx - px * dz;
+    double cz = px * dy - py * dx;
+    double perp2 = cx*cx + cy*cy + cz*cz;
     auto solve_shell = [&](double r, bool is_outer) {
-        double A = pp - r * r;
-        double det = pd * pd - A;
+        double det = r * r - perp2;
         if(det <= 0) return;
         double sq = std::sqrt(det);
         double t1 = -pd - sq;

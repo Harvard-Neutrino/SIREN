@@ -121,12 +121,18 @@ std::vector<Geometry::Intersection> EllipticalTube::ComputeIntersections(
     double idx2 = 1.0 / (dx_ * dx_);
     double idy2 = 1.0 / (dy_ * dy_);
 
+    // Origin shift: move to closest approach point to reduce magnitudes and
+    // prevent catastrophic cancellation in the discriminant at far-field.
+    double t_shift = -(px*dirx + py*diry + pz*dirz);
+    double qx = px + t_shift * dirx;
+    double qy = py + t_shift * diry;
+
     // Elliptical barrel: (x/dx)^2 + (y/dy)^2 = 1
-    // Substituting x = px + t*dirx, y = py + t*diry:
+    // Substituting x = qx + t*dirx, y = qy + t*diry (shifted origin):
     // A*t^2 + 2*B*t + C = 0
     double A = dirx * dirx * idx2 + diry * diry * idy2;
-    double B = px * dirx * idx2 + py * diry * idy2;
-    double C = px * px * idx2 + py * py * idy2 - 1.0;
+    double B = qx * dirx * idx2 + qy * diry * idy2;
+    double C = qx * qx * idx2 + qy * qy * idy2 - 1.0;
 
     double disc = B * B - A * C;
 
@@ -134,8 +140,8 @@ std::vector<Geometry::Intersection> EllipticalTube::ComputeIntersections(
         double sqrt_disc = std::sqrt(disc);
         double inv_A = 1.0 / A;
 
-        double t1 = (-B - sqrt_disc) * inv_A;
-        double t2 = (-B + sqrt_disc) * inv_A;
+        double t1 = (-B - sqrt_disc) * inv_A + t_shift;
+        double t2 = (-B + sqrt_disc) * inv_A + t_shift;
 
         // Check t1
         {

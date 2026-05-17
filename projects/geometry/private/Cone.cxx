@@ -298,6 +298,15 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     // --- Outer conical surface ---
     bool has_outer_apex_top = (rmax2_ <= 0 && rmin2_ <= 0);
     bool has_outer_apex_bot = (rmax1_ <= 0 && rmin1_ <= 0);
+
+    // Origin shift: move ray origin to closest approach along the ray to
+    // minimize coordinate magnitudes, preventing catastrophic cancellation
+    // in the quadratic discriminant at large distances.
+    double t_shift = -(px*dx + py*dy + pz*dz);
+    double qx = px + t_shift * dx;
+    double qy = py + t_shift * dy;
+    double qz = pz + t_shift * dz;
+
     {
         double a_outer = (rmax1_ + rmax2_) * 0.5;
         double b_outer = 0.0;
@@ -305,11 +314,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
             b_outer = (rmax2_ - rmax1_) / z_;
         }
 
-        // Quadratic coefficients for outer surface
+        // Quadratic coefficients for outer surface at shifted origin q
         // A*t^2 + B*t + C = 0
         double A = dx * dx + dy * dy - b_outer * b_outer * dz * dz;
-        double B = 2.0 * (px * dx + py * dy - b_outer * dz * (a_outer + b_outer * pz));
-        double C = px * px + py * py - (a_outer + b_outer * pz) * (a_outer + b_outer * pz);
+        double B = 2.0 * (qx * dx + qy * dy - b_outer * dz * (a_outer + b_outer * qz));
+        double C = qx * qx + qy * qy - (a_outer + b_outer * qz) * (a_outer + b_outer * qz);
 
         int n_before_outer = n_all;
         bool outer_apex_handled = false;
@@ -322,8 +331,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                 // Standard quadratic
                 if(determinant > 0) {
                     double sqrt_det = std::sqrt(determinant);
-                    double t1 = (-B + sqrt_det) / (2.0 * A);
-                    double t2 = (-B - sqrt_det) / (2.0 * A);
+                    double t1 = (-B + sqrt_det) / (2.0 * A) + t_shift;
+                    double t2 = (-B - sqrt_det) / (2.0 * A) + t_shift;
 
                     // Computer precision control
                     if(t1 > 0 && t1 < GEOMETRY_PRECISION)
@@ -342,10 +351,6 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                             if(C < -GEOMETRY_PRECISION) {
                                 double t_mid = 0.5 * (t1 + t2);
                                 if(t_mid > 0 && t_mid < GEOMETRY_PRECISION) t_mid = 0;
-                                // The cone body lies below a top apex and
-                                // above a bottom apex, so a ray crossing
-                                // the tip is entering the solid when it
-                                // moves toward that side.
                                 bool apex_entering = has_outer_apex_top ? (dz < 0.0) : (dz > 0.0);
                                 all_hits[n_all] = {t_mid, siren::math::Vector3D(px + t_mid*dx, py + t_mid*dy, apex_z), apex_entering, 0};
                                 n_all++;
@@ -385,7 +390,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                 }
             } else if(std::fabs(B) > GEOMETRY_PRECISION) {
                 // Linear case (A ~ 0): ray is parallel to cone surface
-                double t1 = -C / B;
+                double t1 = -C / B + t_shift;
                 if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                     t1 = 0;
 
@@ -445,8 +450,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         }
 
         double A = dx * dx + dy * dy - b_inner * b_inner * dz * dz;
-        double B = 2.0 * (px * dx + py * dy - b_inner * dz * (a_inner + b_inner * pz));
-        double C = px * px + py * py - (a_inner + b_inner * pz) * (a_inner + b_inner * pz);
+        double B = 2.0 * (qx * dx + qy * dy - b_inner * dz * (a_inner + b_inner * qz));
+        double C = qx * qx + qy * qy - (a_inner + b_inner * qz) * (a_inner + b_inner * qz);
 
         if(!(dx == 0 && dy == 0 && b_inner == 0)) {
             double determinant = B * B - 4.0 * A * C;
@@ -454,8 +459,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
             if(std::fabs(A) > GEOMETRY_PRECISION) {
                 if(determinant > 0) {
                     double sqrt_det = std::sqrt(determinant);
-                    double t1 = (-B + sqrt_det) / (2.0 * A);
-                    double t2 = (-B - sqrt_det) / (2.0 * A);
+                    double t1 = (-B + sqrt_det) / (2.0 * A) + t_shift;
+                    double t2 = (-B - sqrt_det) / (2.0 * A) + t_shift;
 
                     if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                         t1 = 0;
@@ -488,7 +493,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     }
                 }
             } else if(std::fabs(B) > GEOMETRY_PRECISION) {
-                double t1 = -C / B;
+                double t1 = -C / B + t_shift;
                 if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                     t1 = 0;
 

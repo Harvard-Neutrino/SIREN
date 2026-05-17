@@ -252,8 +252,10 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
         if(dx == 0 && dy == 0) return;
         double C = dx*dx + dy*dy;
         double B_half = px*dx + py*dy;
-        double A = px*px + py*py - r2;
-        double det = B_half*B_half - C*A;
+        // det = C*r2 - (px*dy - py*dx)^2
+        // avoids catastrophic cancellation at large distances
+        double cross_z = px * dy - py * dx;
+        double det = C * r2 - cross_z * cross_z;
         if(det <= 0) return;
         double sq = std::sqrt(det);
         double inv_C = 1.0 / C;
