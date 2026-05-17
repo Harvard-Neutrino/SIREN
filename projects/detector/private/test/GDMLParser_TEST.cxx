@@ -613,6 +613,38 @@ TEST(GDMLParser, AllSolidTypes) {
         EXPECT_TRUE(std::isfinite(bb.max_corner.GetZ()))
             << "Solid '" << name << "' bounding box should have finite dimensions";
     }
+
+    double tol = 1e-6;
+    // GDML box x/y/z are half-widths: 100mm half-width = 0.1m
+    auto bb_b1 = data.solids["b1"]->GetBoundingBox();
+    EXPECT_NEAR(bb_b1.max_corner.GetX(), 0.1, tol);
+    EXPECT_NEAR(bb_b1.max_corner.GetZ(), 0.1, tol);
+
+    // sphere: rmax=50mm = 0.05m
+    auto bb_s1 = data.solids["s1"]->GetBoundingBox();
+    EXPECT_NEAR(bb_s1.max_corner.GetX(), 0.05, tol);
+
+    // tube: rmax=50mm=0.05m, GDML z=100mm is half-length=0.1m
+    auto bb_t1 = data.solids["t1"]->GetBoundingBox();
+    EXPECT_NEAR(bb_t1.max_corner.GetX(), 0.05, tol);
+    EXPECT_NEAR(bb_t1.max_corner.GetZ(), 0.1, tol);
+
+    // trd: GDML half-widths: max(x1=60,x2=40)=60mm=0.06m, z=100mm half-height=0.1m
+    auto bb_trd = data.solids["trd1"]->GetBoundingBox();
+    EXPECT_NEAR(bb_trd.max_corner.GetX(), 0.06, tol);
+    EXPECT_NEAR(bb_trd.max_corner.GetZ(), 0.1, tol);
+
+    // elliptical tube: dx=30mm=0.03m, dy=20mm=0.02m, dz=50mm half-z=0.05m
+    auto bb_et = data.solids["et1"]->GetBoundingBox();
+    EXPECT_NEAR(bb_et.max_corner.GetX(), 0.03, tol);
+    EXPECT_NEAR(bb_et.max_corner.GetY(), 0.02, tol);
+    EXPECT_NEAR(bb_et.max_corner.GetZ(), 0.05, tol);
+
+    // ellipsoid: ax=50mm=0.05m, by=40mm=0.04m, cz=30mm=0.03m
+    auto bb_ell = data.solids["ell1"]->GetBoundingBox();
+    EXPECT_NEAR(bb_ell.max_corner.GetX(), 0.05, tol);
+    EXPECT_NEAR(bb_ell.max_corner.GetY(), 0.04, tol);
+    EXPECT_NEAR(bb_ell.max_corner.GetZ(), 0.03, tol);
 }
 
 
@@ -2869,6 +2901,12 @@ TEST(GDMLParser, BooleanFirstRotation) {
     // But a point at (0.08, 0, 0) should be outside (80mm > 25mm half-x after rotation)
     siren::math::Vector3D outside_rot(0.08, 0, 0);
     EXPECT_FALSE(geo->IsInside(outside_rot, dir));
+    // Subtraction probe: origin is inside rotated box_a AND inside box_b
+    // (box_b half-width = 10mm = 0.01m), so subtraction should exclude it
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // Just outside box_b: z=0.012 > 0.01m half-width, but inside rotated box_a
+    // (z half-width = 25mm = 0.025m), so subtraction should include it
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0.012), dir));
 }
 
 TEST(GDMLParser, BooleanFirstPositionRef) {
@@ -4782,6 +4820,10 @@ TEST(GDMLParser, SphereContainmentThroughParser) {
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.015, 0, 0), dir));
     // Exterior: past outer radius (r=0.051 > rmax=0.05)
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.051, 0, 0), dir));
+    // Off-axis interior: r=sqrt(0.02^2+0.02^2+0.02^2)=0.0346 in [0.02, 0.05]
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.02, 0.02, 0.02), dir));
+    // Off-axis exterior: r=sqrt(0.04^2+0.03^2)=0.05 ~ rmax boundary
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.04, 0.03, 0.01), dir));
 }
 
 TEST(GDMLParser, TubeContainmentThroughParser) {
@@ -4863,6 +4905,10 @@ TEST(GDMLParser, ConeContainmentThroughParser) {
     EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.04, 0, -0.09), dir));
     // Exterior: near top (r=0.04 > rmax~0.0215m at z=+0.09)
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.04, 0, 0.09), dir));
+    // Off-axis interior: r=sqrt(0.02^2+0.02^2)=0.0283 < rmax~0.035 at z=0
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.02, 0.02, 0), dir));
+    // Off-axis exterior: r=sqrt(0.03^2+0.03^2)=0.0424 > rmax~0.035 at z=0
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, 0.03, 0), dir));
 }
 
 TEST(GDMLParser, TrdContainmentThroughParser) {
@@ -4976,6 +5022,9 @@ TEST(GDMLParser, TorusContainmentThroughParser) {
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
     // Exterior: z=0.025m from ring center at (0.1,0,0): 0.025 > rmax=0.02
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.1, 0, 0.025), dir));
+    // Off-axis interior: ring at phi=45, center at (0.1/sqrt2, 0.1/sqrt2, 0)
+    double s2 = 1.0 / std::sqrt(2.0);
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.1*s2, 0.1*s2, 0), dir));
 }
 
 TEST(GDMLParser, TrapContainmentThroughParser) {
@@ -5065,6 +5114,8 @@ TEST(GDMLParser, PolyconeContainmentThroughParser) {
     EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.04, 0, -0.04), dir));
     // Exterior: at z=0.04m, r=0.06 > rmax~0.04m (interpolated between 80mm and 30mm)
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.06, 0, 0.04), dir));
+    // Off-axis interior: r=sqrt(0.03^2+0.04^2)=0.05 < rmax=0.08 at z=0
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0.04, 0), dir));
 }
 
 TEST(GDMLParser, EllipsoidContainmentThroughParser) {
@@ -5802,4 +5853,340 @@ TEST(GDMLParser, RealWorldGDMLSmoke) {
         EXPECT_TRUE(has_world)
             << tc.filename << " should have at least one non-empty volume";
     }
+}
+
+
+// =========================================================================
+// Boolean subtraction: verify the CSG operation creates a hollow
+// =========================================================================
+TEST(GDMLParser, BooleanSubtractionHollow) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="outer" x="100" y="100" z="100" lunit="mm"/>
+    <box name="inner" x="60" y="60" z="60" lunit="mm"/>
+    <subtraction name="hollow_box">
+      <first ref="outer"/>
+      <second ref="inner"/>
+    </subtraction>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("hollow_box") > 0);
+    auto geo = data.solids["hollow_box"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Center is inside both boxes, so subtraction should exclude it
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // In the wall: x=0.08m is outside inner (half-width 0.06m) but inside outer (0.1m)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.08, 0, 0), dir));
+    // In the wall off-axis
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0.08, 0), dir));
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0.08), dir));
+    // Outside the outer box entirely (half-width 0.1m)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.12, 0, 0), dir));
+    // Inside the inner box: subtracted away
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, 0.03, 0.03), dir));
+}
+
+
+// =========================================================================
+// Nested boolean: sphere shell (subtraction) then union with box
+// =========================================================================
+TEST(GDMLParser, NestedBooleanSolidsContainment) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <sphere name="big_sphere" rmax="100" lunit="mm"/>
+    <sphere name="small_sphere" rmax="60" lunit="mm"/>
+    <box name="some_box" x="40" y="40" z="40" lunit="mm"/>
+    <subtraction name="inner_sub">
+      <first ref="big_sphere"/>
+      <second ref="small_sphere"/>
+    </subtraction>
+    <union name="final">
+      <first ref="inner_sub"/>
+      <second ref="some_box"/>
+    </union>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("final") > 0);
+    auto geo = data.solids["final"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // In the shell: r=0.08m is between rmin=0.06 and rmax=0.1
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.08, 0, 0), dir));
+    // In the hollow but inside some_box: (0,0,0) is in the box (half-width=0.04m)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // In the hollow but outside some_box: r=0.05 < rmin=0.06, outside box (0.05 > 0.04)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.05, 0, 0), dir));
+    // Outside everything: r=0.15 > rmax=0.1
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.15, 0, 0), dir));
+}
+
+
+// =========================================================================
+// Trap with non-zero shearing parameters (theta, phi, alpha)
+// =========================================================================
+TEST(GDMLParser, TrapShearedContainment) {
+    // theta=20deg tilts the trapezoid so center faces shift in x-y.
+    // phi=0 means the tilt is purely in the x-direction.
+    // alpha1=alpha2=10deg shears x within each face.
+    // dz=50mm, dy1=dy2=30mm, dx1=dx2=dx3=dx4=20mm
+    // Face center offset at z=+dz: x_off = +dz*tan(theta)*cos(phi)
+    //   = 0.05*tan(20deg)*1.0 ~ 0.05*0.364 = 0.0182m
+    // So at z=+0.05, the face center is near x=+0.0182, and dx=0.02m.
+    // A point at x=0 should be outside the top face since 0 < 0.0182-0.02=-0.0018? No,
+    // let's be more careful. With alpha, the x-extent is sheared by y*tan(alpha).
+    // At y=0: x range is [xc-dx, xc+dx] = [0.0182-0.02, 0.0182+0.02] = [-0.0018, 0.0382]
+    // So x=0 at z=+0.05, y=0 is barely inside (0 > -0.0018).
+    // But x=-0.01 at z=+0.05, y=0 would be outside (-0.01 < -0.0018).
+    //
+    // At z=-0.05: x_off = -0.05*tan(20)*cos(0) ~ -0.0182m
+    // x range = [-0.0182-0.02, -0.0182+0.02] = [-0.0382, -0.0018]
+    // So x=0 at z=-0.05, y=0 is outside (0 > -0.0018, i.e., outside).
+    // Actually wait: 0 > -0.0018 means 0 is NOT in [-0.0382, -0.0018]. Correct, outside.
+    //
+    // Let's use a clear test: point (0.03, 0, 0.05) should be inside the top face
+    // (0.03 in [-0.0018, 0.0382]), and point (0.03, 0, -0.05) should be outside the
+    // bottom face (0.03 not in [-0.0382, -0.0018]).
+    // This asymmetry only exists because theta != 0 -- a zero-theta trap would
+    // have the same x-range at both faces.
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <trap name="sheared_trap" z="100" theta="20" phi="0"
+          y1="30" x1="20" x2="20" alpha1="10"
+          y2="30" x3="20" x4="20" alpha2="10"
+          aunit="deg" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("sheared_trap") > 0);
+    auto geo = data.solids["sheared_trap"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Center of the solid: should be inside regardless of theta
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+
+    // Near top face (z close to +dz=0.05m): point shifted in +x direction
+    // should be inside, while unshifted point may be outside
+    // At z=+0.049m (near top), face center ~ x=+0.0178m
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0, 0.049), dir));
+    // Same x at bottom face (z=-0.049m): face center ~ x=-0.0178m
+    // x=0.03 is far from [-0.0378, 0.0022] range, so outside
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, 0, -0.049), dir));
+}
+
+
+// =========================================================================
+// Partial polyhedra: deltaphi < 360 creates a sector
+// =========================================================================
+TEST(GDMLParser, PartialPolyhedraContainment) {
+    // 6-sided polyhedra with deltaphi=180deg (half-shell)
+    // rmax=50mm = 0.05m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <polyhedra name="half_hex" numsides="6" startphi="0" deltaphi="180"
+               aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="50" z="-40"/>
+      <zplane rmin="0" rmax="50" z="40"/>
+    </polyhedra>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("half_hex") > 0);
+    auto geo = data.solids["half_hex"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: point in the positive-y half (phi ~ 90deg, within [0,180])
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0.03, 0), dir));
+    // Interior: point along +x axis (phi=0, boundary of sector)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0, 0), dir));
+    // Exterior: point in the negative-y half (phi ~ 270deg, outside [0,180])
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, -0.03, 0), dir));
+    // Exterior: beyond the solid radius
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0.06, 0), dir));
+    // Bounding box should be tighter than full rotation
+    auto bb = geo->GetBoundingBox();
+    EXPECT_LT(bb.min_corner.GetY(), 0.001);
+    EXPECT_GT(bb.max_corner.GetY(), 0.04);
+}
+
+
+// =========================================================================
+// Assembly with y-offset and rotation
+// =========================================================================
+TEST(GDMLParser, AssemblyPlacementMultiAxis) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Air" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.007"/>
+    </material>
+    <material name="Iron" Z="26">
+      <D value="7.874" unit="g/cm3"/>
+      <atom value="55.845"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="4000" y="4000" z="4000" lunit="mm"/>
+    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="IronBlock">
+      <materialref ref="Iron"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <assembly name="Assy">
+      <physvol>
+        <volumeref ref="IronBlock"/>
+        <position name="assy_child_pos" x="0" y="100" z="0" unit="mm"/>
+      </physvol>
+    </assembly>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Assy"/>
+        <position name="assy_pos" x="200" y="0" z="0" unit="mm"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_assy_multiaxis_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    auto material_at = [&](double x, double y, double z) {
+        auto sector = dm.GetContainingSector(
+            DetectorPosition(siren::math::Vector3D(x, y, z)));
+        return dm.GetMaterials().GetMaterialName(sector.material_id);
+    };
+
+    // Child global position: assy at (0.2,0,0) + child at (0,0.1,0) = (0.2,0.1,0) m
+    EXPECT_EQ(material_at(0.2, 0.1, 0.0), "Iron")
+        << "Child at (200, 100, 0) mm should be Iron";
+
+    // Assembly origin has no child: just Air
+    EXPECT_EQ(material_at(0.2, 0.0, 0.0), "Air")
+        << "Assembly origin should be Air (no child there)";
+
+    // The original x-only position from old test should be Air
+    EXPECT_EQ(material_at(0.3, 0.0, 0.0), "Air")
+        << "(300, 0, 0) mm should be Air -- child is at y=100mm";
+}
+
+
+// =========================================================================
+// Unresolved boolean operand ref produces warning
+// =========================================================================
+TEST(GDMLParser, UnresolvedBooleanOperandWarns) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="existing_box" x="100" y="100" z="100" lunit="mm"/>
+    <subtraction name="bad_sub">
+      <first ref="existing_box"/>
+      <second ref="nonexistent_solid"/>
+    </subtraction>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // The boolean solid should not be created
+    EXPECT_EQ(data.solids.count("bad_sub"), 0u);
+    // A warning should have been emitted
+    bool found_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("bad_sub") != std::string::npos && w.find("unresolved") != std::string::npos) {
+            found_warning = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(found_warning)
+        << "Should warn about unresolved operand in boolean solid 'bad_sub'";
 }
