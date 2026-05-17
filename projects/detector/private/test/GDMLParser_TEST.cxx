@@ -426,14 +426,14 @@ TEST(GDMLParser, PhysvolConstantsPosition) {
 
 
 // =========================================================================
-// GDML default angle unit is degrees
+// GDML default angle unit is radians
 // =========================================================================
-TEST(GDMLParser, DefaultAngleUnitDegrees) {
+TEST(GDMLParser, DefaultAngleUnitRadians) {
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define>
-    <rotation name="rot_nounit" z="90"/>
-    <rotation name="rot_deg" z="90" unit="deg"/>
+    <rotation name="rot_nounit" z="pi/2"/>
+    <rotation name="rot_deg" z="pi/2" unit="rad"/>
   </define>
   <materials/>
   <solids>
@@ -472,7 +472,7 @@ TEST(GDMLParser, DefaultAngleUnitDegrees) {
     EXPECT_NEAR(q_nounit.GetX(), 0.0, tol);
     EXPECT_NEAR(q_nounit.GetY(), 0.0, tol);
     EXPECT_NEAR(q_nounit.GetZ(), s, tol)
-        << "90-degree z-rotation should have z = sqrt(2)/2, not a radian-based value";
+        << "90-degree z-rotation should have z = sqrt(2)/2, not a degree-based value";
     EXPECT_NEAR(q_nounit.GetW(), s, tol);
 }
 

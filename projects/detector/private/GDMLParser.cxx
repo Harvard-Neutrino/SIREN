@@ -19,8 +19,11 @@
 
 namespace rapidxml = cereal::rapidxml;
 
+#include "SIREN/utilities/Constants.h"
+
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/math/Quaternion.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
 
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Box.h"
@@ -149,6 +152,15 @@ static const BuiltInEntry kBuiltInConstants[] = {
     // Temperature (kelvin = 1)
     {"kelvin", 1.0},
 };
+
+static const std::map<std::string, double>& GetBuiltInMap() {
+    static const std::map<std::string, double> m = []() {
+        std::map<std::string, double> m;
+        for(auto const & e : kBuiltInConstants) m[e.name] = e.value;
+        return m;
+    }();
+    return m;
+}
 
 static const std::unordered_set<std::string>& GetBuiltInNames() {
     static const std::unordered_set<std::string> names = []() {
@@ -533,6 +545,21 @@ double SafeParseDouble(const char* val, std::map<std::string, double> const & co
     return EvalExpression(std::string(val), constants, matrices);
 }
 
+// Get the length scale factor for a given unit string
+double LengthScale(const char* unit) {
+    if(!unit || unit[0] == '\0') {
+        return siren::utilities::Constants::mm; // GDML default is mm
+    }
+    std::string u(unit);
+    if(u == "mm") return siren::utilities::Constants::mm;
+    if(u == "cm") return siren::utilities::Constants::cm;
+    if(u == "m")  return siren::utilities::Constants::m;
+    if(u == "um") return siren::utilities::Constants::um;
+    if(u == "nm") return siren::utilities::Constants::nm;
+    if(u == "km") return siren::utilities::Constants::km;
+    throw std::runtime_error("GDML error: unrecognized length unit '" + u + "'");
+}
+
 // Convert a GDML length value+unit to meters (SIREN base unit)
 // GDML default length unit is mm
 double ParseLength(const char* value, const char* unit,
@@ -540,36 +567,20 @@ double ParseLength(const char* value, const char* unit,
     if(!value || value[0] == '\0') return 0.0;
     double val = EvalExpression(std::string(value), constants);
 
-    if(!unit || unit[0] == '\0') {
-        // GDML default is mm
-        return val * 0.001;
-    }
-
-    std::string u(unit);
-    if(u == "mm") return val * 1e-3;
-    if(u == "cm") return val * 1e-2;
-    if(u == "m")  return val * 1.0;
-    if(u == "um") return val * 1e-6;
-    if(u == "nm") return val * 1e-9;
-    if(u == "km") return val * 1e3;
-
-    // Unknown unit
-    throw std::runtime_error("GDML error: unrecognized length unit '" + std::string(unit) + "'");
+    return val * LengthScale(unit);
 }
 
-// Get the length scale factor for a given unit string
-double LengthScale(const char* unit) {
+// Get the angle scale factor for a given unit string
+double AngleScale(const char* unit) {
     if(!unit || unit[0] == '\0') {
-        return 1e-3; // GDML default is mm
+        // GDML default angle unit is radians
+        return siren::utilities::Constants::radian;
     }
     std::string u(unit);
-    if(u == "mm") return 1e-3;
-    if(u == "cm") return 1e-2;
-    if(u == "m")  return 1.0;
-    if(u == "um") return 1e-6;
-    if(u == "nm") return 1e-9;
-    if(u == "km") return 1e3;
-    throw std::runtime_error("GDML error: unrecognized length unit '" + u + "'");
+    if(u == "deg" || u == "degree") return siren::utilities::Constants::degrees;
+    if(u == "rad" || u == "radian") return siren::utilities::Constants::radian;
+    if(u == "mrad") return siren::utilities::Constants::mrad;
+    throw std::runtime_error("GDML error: unrecognized angle unit '" + u + "'");
 }
 
 // Convert a GDML angle value+unit to radians
@@ -578,43 +589,14 @@ double ParseAngle(const char* value, const char* unit,
                   std::map<std::string, double> const & constants = {}) {
     if(!value || value[0] == '\0') return 0.0;
     double val = EvalExpression(std::string(value), constants);
-
-    if(!unit || unit[0] == '\0') {
-        // GDML default angle unit is degrees
-        return val * M_PI / 180.0;
-    }
-
-    std::string u(unit);
-    if(u == "deg" || u == "degree") return val * M_PI / 180.0;
-    if(u == "rad" || u == "radian") return val;
-    if(u == "mrad") return val * 0.001;
-
-    // Unknown unit
-    throw std::runtime_error("GDML error: unrecognized angle unit '" + std::string(unit) + "'");
-}
-
-// Get the angle scale factor for a given unit string
-double AngleScale(const char* unit) {
-    if(!unit || unit[0] == '\0') {
-        return M_PI / 180.0; // GDML default angle unit is degrees
-    }
-    std::string u(unit);
-    if(u == "deg" || u == "degree") return M_PI / 180.0;
-    if(u == "rad" || u == "radian") return 1.0;
-    if(u == "mrad") return 0.001;
-    throw std::runtime_error("GDML error: unrecognized angle unit '" + u + "'");
+    return val * AngleScale(unit);
 }
 
 // Build a quaternion from GDML rotation convention:
 // Extrinsic rotations: rotate around X by rx, then Y by ry, then Z by rz
-// Equivalent to intrinsic Z-Y-X, so quaternion = Qz * Qy * Qx
+// Frame is static, so XYZs is the appropriate convention
 Quaternion QuatFromGDMLRotation(double rx, double ry, double rz) {
-    // Individual axis quaternions: Quaternion(x, y, z, w)
-    Quaternion qx(std::sin(rx / 2.0), 0, 0, std::cos(rx / 2.0));
-    Quaternion qy(0, std::sin(ry / 2.0), 0, std::cos(ry / 2.0));
-    Quaternion qz(0, 0, std::sin(rz / 2.0), std::cos(rz / 2.0));
-    // Applied right-to-left: first X, then Y, then Z
-    return qz * qy * qx;
+    return siren::math::QFromXYZs(rx, ry, rz);
 }
 
 // Convert a value from the given unit to the GDML default for that unit type.
@@ -628,54 +610,12 @@ double QuantityUnitScale(const char* type, const char* unit) {
     if(!unit || unit[0] == '\0') return 1.0; // no unit means use raw value
 
     std::string u(unit);
-    std::string t;
-    if(type && type[0] != '\0') {
-        t = std::string(type);
-        // normalize to lowercase
-        for(auto & c : t) c = std::tolower(static_cast<unsigned char>(c));
-    }
 
-    // If type tells us what kind of unit, use that to interpret
-    if(t == "angle") {
-        // Convert to radians (GDML default angle for quantities)
-        if(u == "deg") return M_PI / 180.0;
-        if(u == "rad") return 1.0;
-        if(u == "mrad") return 0.001;
-        return 1.0; // unknown angle unit, pass through
-    }
-    if(t == "energy") {
-        // Convert to MeV
-        if(u == "eV")  return 1e-6;
-        if(u == "keV") return 1e-3;
-        if(u == "MeV") return 1.0;
-        if(u == "GeV") return 1e3;
-        if(u == "TeV") return 1e6;
-        return 1.0; // unknown energy unit, pass through
-    }
-
-    // For type "length" or unknown/missing type, try length units
-    // (length is the most common case in GDML quantity elements)
-    if(u == "mm") return 1.0;
-    if(u == "cm") return 10.0;
-    if(u == "m")  return 1000.0;
-    if(u == "km") return 1e6;
-    if(u == "um") return 1e-3;
-    if(u == "nm") return 1e-6;
-    if(u == "in") return 25.4;
-
-    // Also try angle units if type was missing
-    if(t.empty()) {
-        if(u == "deg") return M_PI / 180.0;
-        if(u == "rad") return 1.0;
-        if(u == "mrad") return 0.001;
-        if(u == "eV")  return 1e-6;
-        if(u == "keV") return 1e-3;
-        if(u == "MeV") return 1.0;
-        if(u == "GeV") return 1e3;
-        if(u == "TeV") return 1e6;
-    }
-
-    return 1.0; // unknown unit, pass through
+    // Ignore type entirely
+    auto it = GetBuiltInMap().find(u);
+    if(it != GetBuiltInMap().end()) return it->second;
+    std::string t(type ? type : "");
+    throw std::runtime_error("GDML error: unrecognized unit '" + u + "' with type '" + t + "'");
 }
 
 // Parse SYSTEM entity declarations from a DOCTYPE internal subset.
