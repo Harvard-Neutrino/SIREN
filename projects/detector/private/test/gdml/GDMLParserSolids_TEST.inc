@@ -138,10 +138,7 @@ TEST(GDMLParser, TorusIntegration) {
     EXPECT_NEAR(bb.max_corner.GetX(), 0.12, tol);
     EXPECT_NEAR(bb.max_corner.GetZ(), 0.02, tol);
     // No warnings for a full-rotation torus
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("torus") == std::string::npos)
-            << "Unexpected torus warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "torus");
 }
 
 
@@ -151,10 +148,8 @@ TEST(GDMLParser, PartialSphereParses) {
 )", "hemi");
     ASSERT_TRUE(data.solids.count("hemi") > 0);
     // No warnings about partial sphere (it is now supported)
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("sphere") == std::string::npos && w.find("angular") == std::string::npos)
-            << "Unexpected sphere angular warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "sphere");
+    ExpectNoWarningContaining(data, "angular");
 }
 
 
@@ -164,10 +159,8 @@ TEST(GDMLParser, PartialTorusParses) {
 )", "elbow");
     ASSERT_TRUE(data.solids.count("elbow") > 0);
     // No warnings about partial torus (it is now supported)
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("torus") == std::string::npos && w.find("angular") == std::string::npos)
-            << "Unexpected torus angular warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "torus");
+    ExpectNoWarningContaining(data, "angular");
 }
 
 
@@ -178,10 +171,7 @@ TEST(GDMLParser, PartialCylinderSupported) {
     ASSERT_TRUE(data.solids.count("wedge") > 0);
     ASSERT_TRUE(data.solids["wedge"] != nullptr);
     // Partial phi is now supported -- no warnings expected
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("partial angular extent") == std::string::npos)
-            << "Unexpected warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "partial angular extent");
 }
 
 
@@ -189,8 +179,8 @@ TEST(GDMLParser, EllipticalTubeIntegration) {
     GDMLData data = ParseGDMLWithSolids(R"(
     <eltube name="et" dx="30" dy="20" dz="50" lunit="mm"/>
 )", "et");
-    ASSERT_TRUE(data.solids.count("et") > 0);
-    auto bb = data.solids["et"]->GetBoundingBox();
+    auto geo = RequireSolid(data, "et");
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-9;
     // dx=30mm=0.03m, dy=20mm=0.02m, dz=50mm=0.05m
     EXPECT_NEAR(bb.max_corner.GetX(), 0.03, tol);
@@ -207,8 +197,8 @@ TEST(GDMLParser, GenericPolycone) {
       <rzpoint r="30" z="100"/>
     </genericPolycone>
 )", "gpc");
-    ASSERT_TRUE(data.solids.count("gpc") > 0);
-    auto bb = data.solids["gpc"]->GetBoundingBox();
+    auto geo = RequireSolid(data, "gpc");
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     // rmax=80mm=0.08m at z=0
     EXPECT_NEAR(bb.max_corner.GetX(), 0.08, tol);
@@ -225,8 +215,8 @@ TEST(GDMLParser, CutTubeIntegration) {
              lowX="0" lowY="0" lowZ="-1" highX="0" highY="0" highZ="1"
              aunit="deg" lunit="mm"/>
 )", "ct");
-    ASSERT_TRUE(data.solids.count("ct") > 0);
-    auto bb = data.solids["ct"]->GetBoundingBox();
+    auto geo = RequireSolid(data, "ct");
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     // rmax=50mm=0.05m, z=100mm half=50mm=0.05m (flat cuts)
     EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol);
@@ -240,8 +230,8 @@ TEST(GDMLParser, TrapIntegration) {
           y2="40" x3="30" x4="30" alpha2="0"
           aunit="rad" lunit="mm"/>
 )", "t");
-    ASSERT_TRUE(data.solids.count("t") > 0);
-    auto bb = data.solids["t"]->GetBoundingBox();
+    auto geo = RequireSolid(data, "t");
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     // z=100mm = 0.1m (GDML trap z is half-height, passed directly as dz)
     EXPECT_NEAR(bb.max_corner.GetZ(), 0.1, tol);
@@ -254,8 +244,8 @@ TEST(GDMLParser, EllipsoidIntegration) {
     GDMLData data = ParseGDMLWithSolids(R"(
     <ellipsoid name="ell" ax="50" by="30" cz="40" zcut2="20" lunit="mm"/>
 )", "ell");
-    ASSERT_TRUE(data.solids.count("ell") > 0);
-    auto bb = data.solids["ell"]->GetBoundingBox();
+    auto geo = RequireSolid(data, "ell");
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol);  // ax=50mm=0.05m
     EXPECT_NEAR(bb.max_corner.GetY(), 0.03, tol);  // by=30mm=0.03m
@@ -268,8 +258,8 @@ TEST(GDMLParser, ParaIntegration) {
     GDMLData data = ParseGDMLWithSolids(R"(
     <para name="p" x="40" y="30" z="50" alpha="0" theta="0" phi="0" aunit="rad" lunit="mm"/>
 )", "p");
-    ASSERT_TRUE(data.solids.count("p") > 0);
-    auto bb = data.solids["p"]->GetBoundingBox();
+    auto geo = RequireSolid(data, "p");
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     // With alpha=theta=phi=0, para = box: x=40mm=0.04m half, etc.
     EXPECT_NEAR(bb.max_corner.GetX(), 0.04, tol);
@@ -582,10 +572,7 @@ TEST(GDMLParser, PartialPhiTubeAndCone) {
     ASSERT_TRUE(data.solids["quarter_cone"] != nullptr);
 
     // Verify no warnings about partial angular extent
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("partial angular extent") == std::string::npos)
-            << "Unexpected warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "partial angular extent");
 }
 
 
@@ -609,10 +596,7 @@ TEST(GDMLParser, PolyconeZPlaneSorting) {
     ASSERT_TRUE(data.solids.find("reversed_pc") != data.solids.end());
     ASSERT_TRUE(data.solids["reversed_pc"] != nullptr);
 
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("non-monotonic") == std::string::npos)
-            << "Unexpected warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "non-monotonic");
 }
 
 
@@ -665,10 +649,7 @@ TEST(GDMLParser, PolyhedraZPlaneSorting) {
     ASSERT_TRUE(data.solids.find("scrambled_ph") != data.solids.end());
     ASSERT_TRUE(data.solids["scrambled_ph"] != nullptr);
 
-    for(auto const & w : data.warnings) {
-        EXPECT_TRUE(w.find("non-monotonic") == std::string::npos)
-            << "Unexpected warning: " << w;
-    }
+    ExpectNoWarningContaining(data, "non-monotonic");
 }
 
 
@@ -683,8 +664,7 @@ TEST(GDMLParser, GenericPolyconeHollow) {
       <rzpoint r="200" z="-500"/>
     </genericPolycone>
 )", "gpc_hollow");
-    ASSERT_TRUE(data.solids.count("gpc_hollow") > 0);
-    auto & geo = data.solids["gpc_hollow"];
+    auto geo = RequireSolid(data, "gpc_hollow");
     auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     EXPECT_NEAR(bb.max_corner.GetX(), 0.5, tol);
@@ -708,8 +688,7 @@ TEST(GDMLParser, GenericPolyconePhiCut) {
       <rzpoint r="0" z="100"/>
     </genericPolycone>
 )", "gpc_phi");
-    ASSERT_TRUE(data.solids.count("gpc_phi") > 0);
-    auto & geo = data.solids["gpc_phi"];
+    auto geo = RequireSolid(data, "gpc_phi");
     // +x, +y is within phi=[0, pi]
     EXPECT_TRUE(IsInside(geo, 0.01, 0.01, 0));
     // -y is outside phi=[0, pi]
@@ -719,161 +698,105 @@ TEST(GDMLParser, GenericPolyconePhiCut) {
 
 TEST(GDMLParser, BoxContainmentThroughParser) {
     // box x,y,z are GDML half-widths: 50mm, 30mm, 20mm
-    // Parser doubles them; SIREN stores full-widths internally.
     // Half-extents in meters: 0.05, 0.03, 0.02
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <box name="b" x="50" y="30" z="20" lunit="mm"/>
-)", "b");
-    auto geo = RequireSolid(data, "b");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: center
-    EXPECT_TRUE(IsInside(geo, 0, 0, 0));
-    // Interior: just inside corners
-    EXPECT_TRUE(IsInside(geo, 0.049, 0.029, 0.019));
-    // Exterior: just past x half-width
-    EXPECT_FALSE(IsInside(geo, 0.051, 0, 0));
-    // Exterior: just past y half-width
-    EXPECT_FALSE(IsInside(geo, 0, 0.031, 0));
-    // Exterior: just past z half-width
-    EXPECT_FALSE(IsInside(geo, 0, 0, 0.021));
+    TestContainment(
+        R"(<box name="b" x="50" y="30" z="20" lunit="mm"/>)",
+        "b", {
+            {0, 0, 0, true},            // Interior: center
+            {0.049, 0.029, 0.019, true}, // Interior: just inside corners
+            {0.051, 0, 0, false},       // Exterior: just past x half-width
+            {0, 0.031, 0, false},       // Exterior: just past y half-width
+            {0, 0, 0.021, false},       // Exterior: just past z half-width
+        });
 }
 
 
 TEST(GDMLParser, SphereContainmentThroughParser) {
     // Hollow sphere: rmin=20mm=0.02m, rmax=50mm=0.05m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <sphere name="s" rmin="20" rmax="50" lunit="mm"/>
-)", "s");
-    auto geo = RequireSolid(data, "s");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: between inner and outer radius
-    EXPECT_TRUE(IsInside(geo, 0.035, 0, 0));
-    // Exterior: inside hollow core (r=0.015 < rmin=0.02)
-    EXPECT_FALSE(IsInside(geo, 0.015, 0, 0));
-    // Exterior: past outer radius (r=0.051 > rmax=0.05)
-    EXPECT_FALSE(IsInside(geo, 0.051, 0, 0));
-    // Off-axis interior: r=sqrt(0.02^2+0.02^2+0.02^2)=0.0346 in [0.02, 0.05]
-    EXPECT_TRUE(IsInside(geo, 0.02, 0.02, 0.02));
-    // Off-axis exterior: r=sqrt(0.04^2+0.03^2)=0.05 ~ rmax boundary
-    EXPECT_FALSE(IsInside(geo, 0.04, 0.03, 0.01));
+    TestContainment(
+        R"(<sphere name="s" rmin="20" rmax="50" lunit="mm"/>)",
+        "s", {
+            {0.035, 0, 0, true},        // Interior: between inner and outer radius
+            {0.015, 0, 0, false},       // Exterior: inside hollow core (r<rmin)
+            {0.051, 0, 0, false},       // Exterior: past outer radius
+            {0.02, 0.02, 0.02, true},   // Off-axis interior: r=0.0346 in [0.02, 0.05]
+            {0.04, 0.03, 0.01, false},  // Off-axis exterior: r~0.05 ~ rmax boundary
+        });
 }
 
 
 TEST(GDMLParser, TubeContainmentThroughParser) {
     // Hollow tube: rmin=10mm=0.01m, rmax=50mm=0.05m
-    // z=100mm is GDML half-height; parser doubles it -> full height 200mm, half=0.1m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <tube name="t" rmin="10" rmax="50" z="100" deltaphi="360" aunit="deg" lunit="mm"/>
-)", "t");
-    auto geo = RequireSolid(data, "t");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: in shell, at center height
-    EXPECT_TRUE(IsInside(geo, 0.03, 0, 0));
-    // Interior: in shell, near top (z=0.09 < half-height 0.1)
-    EXPECT_TRUE(IsInside(geo, 0, 0.03, 0.09));
-    // Exterior: inside hollow (r=0.005 < rmin=0.01)
-    EXPECT_FALSE(IsInside(geo, 0.005, 0, 0));
-    // Exterior: past outer radius
-    EXPECT_FALSE(IsInside(geo, 0.051, 0, 0));
-    // Exterior: past z half-height (0.101 > 0.1)
-    EXPECT_FALSE(IsInside(geo, 0.03, 0, 0.101));
+    // z=100mm is GDML half-height; half=0.1m
+    TestContainment(
+        R"(<tube name="t" rmin="10" rmax="50" z="100" deltaphi="360" aunit="deg" lunit="mm"/>)",
+        "t", {
+            {0.03, 0, 0, true},         // Interior: in shell, at center height
+            {0, 0.03, 0.09, true},      // Interior: in shell, near top
+            {0.005, 0, 0, false},       // Exterior: inside hollow (r<rmin)
+            {0.051, 0, 0, false},       // Exterior: past outer radius
+            {0.03, 0, 0.101, false},    // Exterior: past z half-height
+        });
 }
 
 
 TEST(GDMLParser, ConeContainmentThroughParser) {
-    // Solid cone: rmax1=50mm at z=-0.05m, rmax2=20mm at z=+0.05m
-    // z=100mm is GDML half-height, so full height = 0.2m, spanning z=-0.1 to z=0.1
-    // Wait -- parser doubles z for cone, so z goes from -0.1 to +0.1
-    // rmax linearly interpolates: rmax(z) = 50 + (20-50)*(z+0.1)/0.2 mm
-    //   = 50 - 150*(z+0.1) mm  (z in meters)
-    // At z=0: rmax = 50 - 150*0.1 = 35mm = 0.035m
-    // At z=-0.09: rmax = 50 - 150*0.01 = 48.5mm = 0.0485m
-    // At z=+0.09: rmax = 50 - 150*0.19 = 21.5mm = 0.0215m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <cone name="c" rmin1="0" rmax1="50" rmin2="0" rmax2="20" z="100"
-          deltaphi="360" aunit="deg" lunit="mm"/>
-)", "c");
-    auto geo = RequireSolid(data, "c");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: center (r=0 < rmax=0.035m at z=0)
-    EXPECT_TRUE(IsInside(geo, 0, 0, 0));
-    // Interior: near bottom (r=0.04 < rmax~0.0485m at z=-0.09)
-    EXPECT_TRUE(IsInside(geo, 0.04, 0, -0.09));
-    // Exterior: near top (r=0.04 > rmax~0.0215m at z=+0.09)
-    EXPECT_FALSE(IsInside(geo, 0.04, 0, 0.09));
-    // Off-axis interior: r=sqrt(0.02^2+0.02^2)=0.0283 < rmax~0.035 at z=0
-    EXPECT_TRUE(IsInside(geo, 0.02, 0.02, 0));
-    // Off-axis exterior: r=sqrt(0.03^2+0.03^2)=0.0424 > rmax~0.035 at z=0
-    EXPECT_FALSE(IsInside(geo, 0.03, 0.03, 0));
+    // Solid cone: rmax1=50mm at bottom, rmax2=20mm at top
+    // z=100mm is GDML half-height, spanning z=-0.1 to z=0.1
+    // At z=0: rmax~35mm=0.035m
+    // At z=-0.09: rmax~48.5mm=0.0485m
+    // At z=+0.09: rmax~21.5mm=0.0215m
+    TestContainment(
+        R"(<cone name="c" rmin1="0" rmax1="50" rmin2="0" rmax2="20" z="100" deltaphi="360" aunit="deg" lunit="mm"/>)",
+        "c", {
+            {0, 0, 0, true},            // Interior: center
+            {0.04, 0, -0.09, true},     // Interior: near bottom (r<rmax~0.0485)
+            {0.04, 0, 0.09, false},     // Exterior: near top (r>rmax~0.0215)
+            {0.02, 0.02, 0, true},      // Off-axis interior: r=0.0283 < 0.035
+            {0.03, 0.03, 0, false},     // Off-axis exterior: r=0.0424 > 0.035
+        });
 }
 
 
 TEST(GDMLParser, TrdContainmentThroughParser) {
     // Trd: x1=60, x2=30, y1=40, y2=20, z=50 (all GDML half-widths/half-height, mm)
-    // At z=-0.05m (bottom face): x half-width=0.06m, y half-width=0.04m
-    // At z=+0.05m (top face): x half-width=0.03m, y half-width=0.02m
     // At z=0 (center): x half-width=0.045m, y half-width=0.03m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <trd name="tr" x1="60" x2="30" y1="40" y2="20" z="50" lunit="mm"/>
-)", "tr");
-    auto geo = RequireSolid(data, "tr");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: center region (|x|=0.04 < 0.045, |y|=0.025 < 0.03)
-    EXPECT_TRUE(IsInside(geo, 0.04, 0.025, 0));
-    // Exterior: at center height, x=0.046 > 0.045 (interpolated half-width)
-    EXPECT_FALSE(IsInside(geo, 0.046, 0, 0));
-    // Interior: near bottom z=-0.045, x half-width ~ 0.057m, 0.055 < 0.057
-    EXPECT_TRUE(IsInside(geo, 0.055, 0, -0.045));
-    // Exterior: near top z=+0.045, x half-width ~ 0.033m, 0.055 > 0.033
-    EXPECT_FALSE(IsInside(geo, 0.055, 0, 0.045));
+    TestContainment(
+        R"(<trd name="tr" x1="60" x2="30" y1="40" y2="20" z="50" lunit="mm"/>)",
+        "tr", {
+            {0.04, 0.025, 0, true},     // Interior: center region
+            {0.046, 0, 0, false},       // Exterior: x>interpolated half-width at z=0
+            {0.055, 0, -0.045, true},   // Interior: near bottom, x<~0.057m
+            {0.055, 0, 0.045, false},   // Exterior: near top, x>~0.033m
+        });
 }
 
 
 TEST(GDMLParser, EllipticalTubeContainmentThroughParser) {
     // eltube dx=40mm=0.04m, dy=20mm=0.02m, dz=50mm=0.05m
     // Cross-section: (x/dx)^2 + (y/dy)^2 < 1, |z| < dz
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <eltube name="et" dx="40" dy="20" dz="50" lunit="mm"/>
-)", "et");
-    auto geo = RequireSolid(data, "et");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: (0.03/0.04)^2 = 0.5625 < 1
-    EXPECT_TRUE(IsInside(geo, 0.03, 0, 0));
-    // Exterior: (0.03/0.04)^2 + (0.015/0.02)^2 = 0.5625 + 0.5625 = 1.125 > 1
-    EXPECT_FALSE(IsInside(geo, 0.03, 0.015, 0));
-    // Exterior: past z extent
-    EXPECT_FALSE(IsInside(geo, 0, 0, 0.051));
+    TestContainment(
+        R"(<eltube name="et" dx="40" dy="20" dz="50" lunit="mm"/>)",
+        "et", {
+            {0.03, 0, 0, true},         // Interior: (0.03/0.04)^2 = 0.5625 < 1
+            {0.03, 0.015, 0, false},    // Exterior: 0.5625 + 0.5625 = 1.125 > 1
+            {0, 0, 0.051, false},       // Exterior: past z extent
+        });
 }
 
 
 TEST(GDMLParser, TorusContainmentThroughParser) {
     // Solid torus: rmin=0, rmax=20mm=0.02m, rtor=100mm=0.1m
-    // Points on the major radius circle (distance 0.1m from z-axis) are
-    // within the tube cross-section.
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <torus name="tor" rmin="0" rmax="20" rtor="100" startphi="0" deltaphi="360"
-           lunit="mm" aunit="deg"/>
-)", "tor");
-    auto geo = RequireSolid(data, "tor");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: on major radius circle (distance from ring center = 0)
-    EXPECT_TRUE(IsInside(geo, 0.1, 0, 0));
-    // Interior: 0.01m from ring center (0.11 - 0.1 = 0.01 < rmax=0.02)
-    EXPECT_TRUE(IsInside(geo, 0.11, 0, 0));
-    // Exterior: origin is 0.1m from ring, 0.1 > rmax=0.02
-    EXPECT_FALSE(IsInside(geo, 0, 0, 0));
-    // Exterior: z=0.025m from ring center at (0.1,0,0): 0.025 > rmax=0.02
-    EXPECT_FALSE(IsInside(geo, 0.1, 0, 0.025));
-    // Off-axis interior: ring at phi=45, center at (0.1/sqrt2, 0.1/sqrt2, 0)
-    double s2 = 1.0 / std::sqrt(2.0);
-    EXPECT_TRUE(IsInside(geo, 0.1*s2, 0.1*s2, 0));
+    TestContainment(
+        R"(<torus name="tor" rmin="0" rmax="20" rtor="100" startphi="0" deltaphi="360" lunit="mm" aunit="deg"/>)",
+        "tor", {
+            {0.1, 0, 0, true},          // Interior: on major radius circle
+            {0.11, 0, 0, true},         // Interior: 0.01m from ring center < rmax
+            {0, 0, 0, false},           // Exterior: origin is 0.1m from ring > rmax
+            {0.1, 0, 0.025, false},     // Exterior: z=0.025 from ring center > rmax
+            // Off-axis interior: ring at phi=45, center at (0.1/sqrt2, 0.1/sqrt2, 0)
+            {0.1/1.41421356, 0.1/1.41421356, 0, true},
+        });
 }
 
 
@@ -881,27 +804,15 @@ TEST(GDMLParser, TrapContainmentThroughParser) {
     // Trap: z=50mm dz=0.05m. theta=phi=0.
     // At z=-dz: dy1=0.03m, dx1=dx2=0.02m
     // At z=+dz: dy2=0.015m, dx3=dx4=0.01m
-    // At z=0: interpolated dy~0.0225m, dx~0.015m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <trap name="trp" z="50" theta="0" phi="0"
-          y1="30" x1="20" x2="20" alpha1="0"
-          y2="15" x3="10" x4="10" alpha2="0"
-          aunit="rad" lunit="mm"/>
-)", "trp");
-    auto geo = RequireSolid(data, "trp");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: center
-    EXPECT_TRUE(IsInside(geo, 0, 0, 0));
-    // Interior: near bottom face (z=-0.04). Interpolated at z=-0.04:
-    //   t = (-0.04+0.05)/0.1 = 0.1, dx = 0.02*(1-0.1)+0.01*0.1 = 0.019
-    //   dy = 0.03*(1-0.1)+0.015*0.1 = 0.0285
-    //   x=0.015 < 0.019, y=0.02 < 0.0285 -> inside
-    EXPECT_TRUE(IsInside(geo, 0.015, 0.02, -0.04));
-    // Exterior: near top face (z=+0.04). Interpolated:
-    //   t = (0.04+0.05)/0.1 = 0.9, dx = 0.02*0.1+0.01*0.9 = 0.011
-    //   x=0.015 > 0.011 -> outside
-    EXPECT_FALSE(IsInside(geo, 0.015, 0, 0.04));
+    TestContainment(
+        R"(<trap name="trp" z="50" theta="0" phi="0" y1="30" x1="20" x2="20" alpha1="0" y2="15" x3="10" x4="10" alpha2="0" aunit="rad" lunit="mm"/>)",
+        "trp", {
+            {0, 0, 0, true},            // Interior: center
+            // Interior: near bottom face (z=-0.04), dx~0.019, dy~0.0285
+            {0.015, 0.02, -0.04, true},
+            // Exterior: near top face (z=+0.04), dx~0.011, x=0.015>0.011
+            {0.015, 0, 0.04, false},
+        });
 }
 
 
@@ -910,103 +821,71 @@ TEST(GDMLParser, PolyconeContainmentThroughParser) {
     //   z=-50mm rmin=0 rmax=50mm
     //   z=0     rmin=0 rmax=80mm
     //   z=+50mm rmin=0 rmax=30mm
-    // At z=0: rmax=0.08m
-    // At z=40mm (between 0 and 50mm): rmax = 80 + (30-80)*(40/50) = 80-40 = 40mm = 0.04m
-    // At z=-40mm (between -50 and 0mm): rmax = 50 + (80-50)*(10/50) = 56mm = 0.056m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <polycone name="pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+    TestContainment(
+        R"(<polycone name="pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
       <zplane rmin="0" rmax="50" z="-50"/>
       <zplane rmin="0" rmax="80" z="0"/>
       <zplane rmin="0" rmax="30" z="50"/>
-    </polycone>
-)", "pc");
-    auto geo = RequireSolid(data, "pc");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: at z=0, r=0.06 < rmax=0.08
-    EXPECT_TRUE(IsInside(geo, 0.06, 0, 0));
-    // Interior: at z=-0.04m, r=0.04 < rmax~0.056
-    EXPECT_TRUE(IsInside(geo, 0.04, 0, -0.04));
-    // Exterior: at z=0.04m, r=0.06 > rmax~0.04m (interpolated between 80mm and 30mm)
-    EXPECT_FALSE(IsInside(geo, 0.06, 0, 0.04));
-    // Off-axis interior: r=sqrt(0.03^2+0.04^2)=0.05 < rmax=0.08 at z=0
-    EXPECT_TRUE(IsInside(geo, 0.03, 0.04, 0));
+    </polycone>)",
+        "pc", {
+            {0.06, 0, 0, true},         // Interior: at z=0, r=0.06 < rmax=0.08
+            {0.04, 0, -0.04, true},     // Interior: at z=-0.04m, r<rmax~0.056
+            {0.06, 0, 0.04, false},     // Exterior: at z=0.04m, r>rmax~0.04m
+            {0.03, 0.04, 0, true},      // Off-axis interior: r=0.05 < rmax=0.08 at z=0
+        });
 }
 
 
 TEST(GDMLParser, EllipsoidContainmentThroughParser) {
     // Ellipsoid: ax=50mm=0.05m, by=30mm=0.03m, cz=40mm=0.04m
     // Equation: (x/0.05)^2 + (y/0.03)^2 + (z/0.04)^2 < 1
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <ellipsoid name="ell" ax="50" by="30" cz="40" lunit="mm"/>
-)", "ell");
-    auto geo = RequireSolid(data, "ell");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: origin
-    EXPECT_TRUE(IsInside(geo, 0, 0, 0));
-    // Interior: (0.03/0.05)^2 + (0.01/0.03)^2 + (0.01/0.04)^2
-    //         = 0.36 + 0.1111 + 0.0625 = 0.5336 < 1
-    EXPECT_TRUE(IsInside(geo, 0.03, 0.01, 0.01));
-    // Exterior: (0.04/0.05)^2 + (0.02/0.03)^2 + (0.03/0.04)^2
-    //         = 0.64 + 0.4444 + 0.5625 = 1.647 > 1
-    EXPECT_FALSE(IsInside(geo, 0.04, 0.02, 0.03));
+    TestContainment(
+        R"(<ellipsoid name="ell" ax="50" by="30" cz="40" lunit="mm"/>)",
+        "ell", {
+            {0, 0, 0, true},            // Interior: origin
+            // Interior: 0.36 + 0.1111 + 0.0625 = 0.5336 < 1
+            {0.03, 0.01, 0.01, true},
+            // Exterior: 0.64 + 0.4444 + 0.5625 = 1.647 > 1
+            {0.04, 0.02, 0.03, false},
+        });
 }
 
 
 TEST(GDMLParser, PartialSphereContainmentThroughParser) {
     // Upper hemisphere: starttheta=0, deltatheta=90 deg
-    // Only theta in [0, 90deg] is included (z >= 0 hemisphere)
     // rmax = 100mm = 0.1m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <sphere name="hemi" rmax="100" starttheta="0" deltatheta="90"
-            startphi="0" deltaphi="360" lunit="mm" aunit="deg"/>
-)", "hemi");
-    auto geo = RequireSolid(data, "hemi");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: upper hemisphere (z>0, r=0.05 < 0.1)
-    EXPECT_TRUE(IsInside(geo, 0, 0, 0.05));
-    // Exterior: lower hemisphere (z<0, theta > 90 deg)
-    EXPECT_FALSE(IsInside(geo, 0, 0, -0.05));
+    TestContainment(
+        R"(<sphere name="hemi" rmax="100" starttheta="0" deltatheta="90" startphi="0" deltaphi="360" lunit="mm" aunit="deg"/>)",
+        "hemi", {
+            {0, 0, 0.05, true},         // Interior: upper hemisphere (z>0, r<0.1)
+            {0, 0, -0.05, false},       // Exterior: lower hemisphere (theta > 90 deg)
+        });
 }
 
 
 TEST(GDMLParser, PartialTorusContainmentThroughParser) {
     // Quarter torus: deltaphi=90 deg (phi from 0 to 90 deg)
     // rmin=0, rmax=20mm=0.02m, rtor=100mm=0.1m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <torus name="qt" rmin="0" rmax="20" rtor="100" startphi="0" deltaphi="90"
-           lunit="mm" aunit="deg"/>
-)", "qt");
-    auto geo = RequireSolid(data, "qt");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: at phi=0, on the ring
-    EXPECT_TRUE(IsInside(geo, 0.1, 0, 0));
-    // Interior: at phi=45 deg (x=y=0.1/sqrt(2)~0.0707)
-    EXPECT_TRUE(IsInside(geo, 0.0707, 0.0707, 0));
-    // Exterior: at phi=180 deg (negative x axis, outside 90 deg cut)
-    EXPECT_FALSE(IsInside(geo, -0.1, 0, 0));
-    // Exterior: at phi=270 deg (negative y axis)
-    EXPECT_FALSE(IsInside(geo, 0, -0.1, 0));
+    TestContainment(
+        R"(<torus name="qt" rmin="0" rmax="20" rtor="100" startphi="0" deltaphi="90" lunit="mm" aunit="deg"/>)",
+        "qt", {
+            {0.1, 0, 0, true},          // Interior: at phi=0, on the ring
+            {0.0707, 0.0707, 0, true},  // Interior: at phi=45 deg
+            {-0.1, 0, 0, false},        // Exterior: at phi=180 deg
+            {0, -0.1, 0, false},        // Exterior: at phi=270 deg
+        });
 }
 
 
 TEST(GDMLParser, PartialCylinderContainmentThroughParser) {
     // Half cylinder: deltaphi=180 deg (phi from 0 to 180 deg, y >= 0 half)
     // rmax=50mm=0.05m, z=100mm half-height=0.05m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <tube name="hc" rmin="0" rmax="50" z="100" startphi="0" deltaphi="180"
-          lunit="mm" aunit="deg"/>
-)", "hc");
-    auto geo = RequireSolid(data, "hc");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: phi~45 deg (first quadrant, within 180 deg cut)
-    EXPECT_TRUE(IsInside(geo, 0.03, 0.03, 0));
-    // Exterior: phi~315 deg (fourth quadrant, outside 180 deg cut)
-    EXPECT_FALSE(IsInside(geo, 0.03, -0.03, 0));
+    TestContainment(
+        R"(<tube name="hc" rmin="0" rmax="50" z="100" startphi="0" deltaphi="180" lunit="mm" aunit="deg"/>)",
+        "hc", {
+            {0.03, 0.03, 0, true},      // Interior: phi~45 deg, within 180 deg cut
+            {0.03, -0.03, 0, false},    // Exterior: phi~315 deg, outside 180 deg cut
+        });
 }
 
 
@@ -1060,27 +939,15 @@ TEST(GDMLParser, TrapShearedContainment) {
 TEST(GDMLParser, PartialPolyhedraContainment) {
     // 6-sided polyhedra with deltaphi=180deg (half-shell)
     // rmax=50mm = 0.05m
-    GDMLData data = ParseGDMLWithSolids(R"(
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-    <polyhedra name="half_hex" numsides="6" startphi="0" deltaphi="180"
-               aunit="deg" lunit="mm">
+    TestContainment(
+        R"(<polyhedra name="half_hex" numsides="6" startphi="0" deltaphi="180" aunit="deg" lunit="mm">
       <zplane rmin="0" rmax="50" z="-40"/>
       <zplane rmin="0" rmax="50" z="40"/>
-    </polyhedra>
-)", "world_box");
-    auto geo = RequireSolid(data, "half_hex");
-    ASSERT_NE(geo, nullptr);
-
-    // Interior: point in the positive-y half (phi ~ 90deg, within [0,180])
-    EXPECT_TRUE(IsInside(geo, 0, 0.03, 0));
-    // Interior: point along +x axis (phi=0, boundary of sector)
-    EXPECT_TRUE(IsInside(geo, 0.03, 0, 0));
-    // Exterior: point in the negative-y half (phi ~ 270deg, outside [0,180])
-    EXPECT_FALSE(IsInside(geo, 0, -0.03, 0));
-    // Exterior: beyond the solid radius
-    EXPECT_FALSE(IsInside(geo, 0, 0.06, 0));
-    // Bounding box should be tighter than full rotation
-    auto bb = geo->GetBoundingBox();
-    EXPECT_LT(bb.min_corner.GetY(), 0.001);
-    EXPECT_GT(bb.max_corner.GetY(), 0.04);
+    </polyhedra>)",
+        "half_hex", {
+            {0, 0.03, 0, true},         // Interior: positive-y half (phi~90, within [0,180])
+            {0.03, 0, 0, true},         // Interior: along +x axis (phi=0, boundary)
+            {0, -0.03, 0, false},       // Exterior: negative-y half (phi~270, outside [0,180])
+            {0, 0.06, 0, false},        // Exterior: beyond the solid radius
+        });
 }

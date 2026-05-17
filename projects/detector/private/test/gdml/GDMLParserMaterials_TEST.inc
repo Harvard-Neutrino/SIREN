@@ -1,202 +1,41 @@
 // Included by GDMLParser_TEST.cxx. Do not compile directly.
 
-TEST(GDMLParser, CompositeOfCompositeMaterial) {
-    // Create a GDML file where Water is composed of elements H and O,
-    // and a composite material "Mix" is composed of Water and another element.
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <element name="Hydrogen" Z="1">
-      <atom value="1.008"/>
-    </element>
-    <element name="Oxygen" Z="8">
-      <atom value="15.999"/>
-    </element>
-    <element name="Carbon" Z="6">
-      <atom value="12.011"/>
-    </element>
-    <material name="Water">
-      <D value="1.0" unit="g/cm3"/>
-      <fraction ref="Hydrogen" n="0.112"/>
-      <fraction ref="Oxygen" n="0.888"/>
-    </material>
-    <material name="Mix">
-      <D value="1.5" unit="g/cm3"/>
-      <fraction ref="Water" n="0.8"/>
-      <fraction ref="Carbon" n="0.2"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
-    <box name="inner_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="Inner">
-      <materialref ref="Mix"/>
-      <solidref ref="inner_box"/>
-    </volume>
-    <volume name="World">
-      <materialref ref="Water"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Inner"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+// Shared material fragments used by multiple tests
+static const std::string kHOC_Elements = R"(
+    <element name="Hydrogen" Z="1"><atom value="1.008"/></element>
+    <element name="Oxygen" Z="8"><atom value="15.999"/></element>
+    <element name="Carbon" Z="6"><atom value="12.011"/></element>)";
 
-    std::string tmpfile = "/tmp/siren_gdml_composite_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
+static const std::string kWaterFrac =
+    R"(<material name="Water"><D value="1.0" unit="g/cm3"/>
+      <fraction ref="Hydrogen" n="0.112"/><fraction ref="Oxygen" n="0.888"/></material>)";
 
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+// Solids/structure for a two-volume world (inner box inside world box)
+static const std::string kTwoBoxSolids =
+    R"(<box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="inner_box" x="1000" y="1000" z="1000" lunit="mm"/>)";
 
-    // The "Mix" material should have been resolved recursively:
-    // Water(0.8) -> H(0.8*0.112) + O(0.8*0.888)
-    // Carbon(0.2)
-    // So Mix = {H: 0.0896, O: 0.7104, C: 0.2}
-    // All three should be present as PDG codes
-    auto const & materials = dm.GetMaterials();
-    ASSERT_TRUE(materials.HasMaterial("Mix"));
-    int mix_id = materials.GetMaterialId("Mix");
-    auto constituents = materials.GetMaterialConstituents(mix_id);
-    // The original test only counted constituents (>=3). That passes even
-    // if recursive resolution silently drops Carbon or fails to expand
-    // Water into H+O. SIREN decomposes a material into scattering targets:
-    // the element nuclei plus free p/n/e. Value-check that the resolved
-    // NUCLEAR set is exactly {H (Z=1), C (Z=6), O (Z=8)} -- nuclear PDG
-    // codes have the form 10LZZZAAAI (>= 1000000000).
-    EXPECT_GE(constituents.size(), 3u) << "Mix should resolve to >= H, C, O";
-    std::set<int> nuclear_Z;
-    for(auto pt : constituents) {
-        long long pdg = static_cast<long long>(pt);
-        if(pdg < 0) pdg = -pdg;
-        if(pdg >= 1000000000LL) {                 // nuclear PDG 10LZZZAAAI
-            int Z = static_cast<int>((pdg / 10000) % 1000);
-            if(Z >= 1) nuclear_Z.insert(Z);       // skip SIREN pseudo-targets
-        }
-    }
-    std::set<int> expected_Z = {1, 6, 8};        // H, C, O
-    EXPECT_EQ(nuclear_Z, expected_Z)
-        << "recursive composite resolution must yield exactly H, C, O nuclei";
+static std::string TwoVolumeStructure(std::string const & inner_mat,
+                                      std::string const & outer_mat) {
+    return R"(<volume name="Inner"><materialref ref=")" + inner_mat +
+           R"("/><solidref ref="inner_box"/></volume>
+    <volume name="World"><materialref ref=")" + outer_mat +
+           R"("/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Inner"/></physvol></volume>)";
 }
 
+// Solids/structure for a single-volume world
+static const std::string kOneBoxSolid =
+    R"(<box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>)";
 
-TEST(GDMLParser, MaterialCompositionCycleThrows) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="MatA" Z="1">
-      <D value="1.0" unit="g/cm3"/>
-      <composite n="1" ref="MatB"/>
-    </material>
-    <material name="MatB" Z="1">
-      <D value="1.0" unit="g/cm3"/>
-      <composite n="1" ref="MatA"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref="MatA"/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    std::string tmpfile = "/tmp/siren_gdml_cycle_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
-    std::remove(tmpfile.c_str());
+static std::string OneVolumeStructure(std::string const & mat) {
+    return R"(<volume name="World"><materialref ref=")" + mat +
+           R"("/><solidref ref="world_box"/></volume>)";
 }
 
-
-TEST(GDMLParser, CompositeMaterialMassFractions) {
-    // Water = H(0.112) + O(0.888), Mix = Water(0.8) + Carbon(0.2)
-    // After recursive resolution:
-    //   H: 0.8 * 0.112 = 0.0896
-    //   O: 0.8 * 0.888 = 0.7104
-    //   C: 0.2
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <element name="Hydrogen" Z="1">
-      <atom value="1.008"/>
-    </element>
-    <element name="Oxygen" Z="8">
-      <atom value="15.999"/>
-    </element>
-    <element name="Carbon" Z="6">
-      <atom value="12.011"/>
-    </element>
-    <material name="Water">
-      <D value="1.0" unit="g/cm3"/>
-      <fraction ref="Hydrogen" n="0.112"/>
-      <fraction ref="Oxygen" n="0.888"/>
-    </material>
-    <material name="Mix">
-      <D value="1.5" unit="g/cm3"/>
-      <fraction ref="Water" n="0.8"/>
-      <fraction ref="Carbon" n="0.2"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
-    <box name="inner_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="Inner">
-      <materialref ref="Mix"/>
-      <solidref ref="inner_box"/>
-    </volume>
-    <volume name="World">
-      <materialref ref="Water"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Inner"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    std::string tmpfile = "/tmp/siren_gdml_massfrac_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
-
-    auto const & materials = dm.GetMaterials();
-    ASSERT_TRUE(materials.HasMaterial("Mix"));
-    int mix_id = materials.GetMaterialId("Mix");
-
-    // Verify nuclear constituents are present
-    auto constituents = materials.GetMaterialConstituents(mix_id);
+// Helper: extract the set of nuclear Z values from material constituents
+static std::set<int> NuclearZSet(MaterialModel const & materials, int mat_id) {
+    auto constituents = materials.GetMaterialConstituents(mat_id);
     std::set<int> nuclear_Z;
     for(auto pt : constituents) {
         long long pdg = static_cast<long long>(pt);
@@ -206,8 +45,72 @@ TEST(GDMLParser, CompositeMaterialMassFractions) {
             if(Z >= 1) nuclear_Z.insert(Z);
         }
     }
+    return nuclear_Z;
+}
+
+
+TEST(GDMLParser, CompositeOfCompositeMaterial) {
+    // Water = H(0.112) + O(0.888), Mix = Water(0.8) + Carbon(0.2)
+    // Recursive resolution: H=0.0896, O=0.7104, C=0.2
+    std::string gdml = GDMLFull("",
+        kHOC_Elements + "\n    " + kWaterFrac + R"(
+    <material name="Mix"><D value="1.5" unit="g/cm3"/>
+      <fraction ref="Water" n="0.8"/><fraction ref="Carbon" n="0.2"/></material>)",
+        kTwoBoxSolids, TwoVolumeStructure("Mix", "Water"), "World");
+
+    auto dm = LoadGDMLFromString(gdml);
+
+    // The original test only counted constituents (>=3). That passes even
+    // if recursive resolution silently drops Carbon or fails to expand
+    // Water into H+O. SIREN decomposes a material into scattering targets:
+    // the element nuclei plus free p/n/e. Value-check that the resolved
+    // NUCLEAR set is exactly {H (Z=1), C (Z=6), O (Z=8)} -- nuclear PDG
+    // codes have the form 10LZZZAAAI (>= 1000000000).
+    auto const & materials = dm->GetMaterials();
+    ASSERT_TRUE(materials.HasMaterial("Mix"));
+    int mix_id = materials.GetMaterialId("Mix");
+    auto constituents = materials.GetMaterialConstituents(mix_id);
+    EXPECT_GE(constituents.size(), 3u) << "Mix should resolve to >= H, C, O";
+
+    std::set<int> expected_Z = {1, 6, 8};        // H, C, O
+    EXPECT_EQ(NuclearZSet(materials, mix_id), expected_Z)
+        << "recursive composite resolution must yield exactly H, C, O nuclei";
+}
+
+
+TEST(GDMLParser, MaterialCompositionCycleThrows) {
+    std::string gdml = GDMLFull("", R"(
+    <material name="MatA" Z="1"><D value="1.0" unit="g/cm3"/>
+      <composite n="1" ref="MatB"/></material>
+    <material name="MatB" Z="1"><D value="1.0" unit="g/cm3"/>
+      <composite n="1" ref="MatA"/></material>)",
+        kOneBoxSolid, OneVolumeStructure("MatA"), "World");
+
+    EXPECT_THROW(LoadGDMLFromString(gdml), std::runtime_error);
+}
+
+
+TEST(GDMLParser, CompositeMaterialMassFractions) {
+    // Water = H(0.112) + O(0.888), Mix = Water(0.8) + Carbon(0.2)
+    // After recursive resolution:
+    //   H: 0.8 * 0.112 = 0.0896
+    //   O: 0.8 * 0.888 = 0.7104
+    //   C: 0.2
+    std::string gdml = GDMLFull("",
+        kHOC_Elements + "\n    " + kWaterFrac + R"(
+    <material name="Mix"><D value="1.5" unit="g/cm3"/>
+      <fraction ref="Water" n="0.8"/><fraction ref="Carbon" n="0.2"/></material>)",
+        kTwoBoxSolids, TwoVolumeStructure("Mix", "Water"), "World");
+
+    auto dm = LoadGDMLFromString(gdml);
+
+    auto const & materials = dm->GetMaterials();
+    ASSERT_TRUE(materials.HasMaterial("Mix"));
+    int mix_id = materials.GetMaterialId("Mix");
+
+    // Verify nuclear constituents are present
     std::set<int> expected_Z = {1, 6, 8};
-    ASSERT_EQ(nuclear_Z, expected_Z)
+    ASSERT_EQ(NuclearZSet(materials, mix_id), expected_Z)
         << "Mix should resolve to H (Z=1), C (Z=6), O (Z=8)";
 
     // Verify mass fractions via GetTargetMassFraction
@@ -244,35 +147,12 @@ TEST(GDMLParser, CompositeAtomCountMaterial) {
     // Water defined via <composite> atom counts: H=2, O=1
     // Expected mass fractions: H = 2*1.008 / (2*1.008 + 15.999) = 0.11191
     //                          O = 15.999 / (2*1.008 + 15.999) = 0.88809
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <element name="Hydrogen" Z="1">
-      <atom value="1.008"/>
-    </element>
-    <element name="Oxygen" Z="8">
-      <atom value="15.999"/>
-    </element>
-    <material name="Water" formula="H2O">
-      <D value="1.0" unit="g/cm3"/>
-      <composite n="2" ref="Hydrogen"/>
-      <composite n="1" ref="Oxygen"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref="Water"/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    std::string gdml = GDMLFull("", R"(
+    <element name="Hydrogen" Z="1"><atom value="1.008"/></element>
+    <element name="Oxygen" Z="8"><atom value="15.999"/></element>
+    <material name="Water" formula="H2O"><D value="1.0" unit="g/cm3"/>
+      <composite n="2" ref="Hydrogen"/><composite n="1" ref="Oxygen"/></material>)",
+        kOneBoxSolid, OneVolumeStructure("Water"), "World");
 
     GDMLData data = ParseGDMLString(gdml);
     ASSERT_TRUE(data.materials.count("Water") > 0);
@@ -302,46 +182,16 @@ TEST(GDMLParser, CompositeAtomCountThroughDetectorModel) {
     //   total = 28.054
     //   C frac = 24.022/28.054 = 0.8563
     //   H frac =  4.032/28.054 = 0.1437
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <element name="Carbon" Z="6">
-      <atom value="12.011"/>
-    </element>
-    <element name="Hydrogen" Z="1">
-      <atom value="1.008"/>
-    </element>
-    <material name="Polyethylene" formula="C2H4">
-      <D value="0.96" unit="g/cm3"/>
-      <composite n="2" ref="Carbon"/>
-      <composite n="4" ref="Hydrogen"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref="Polyethylene"/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    std::string gdml = GDMLFull("", R"(
+    <element name="Carbon" Z="6"><atom value="12.011"/></element>
+    <element name="Hydrogen" Z="1"><atom value="1.008"/></element>
+    <material name="Polyethylene" formula="C2H4"><D value="0.96" unit="g/cm3"/>
+      <composite n="2" ref="Carbon"/><composite n="4" ref="Hydrogen"/></material>)",
+        kOneBoxSolid, OneVolumeStructure("Polyethylene"), "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_composite_atom_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+    auto dm = LoadGDMLFromString(gdml);
 
-    auto const & materials = dm.GetMaterials();
+    auto const & materials = dm->GetMaterials();
     ASSERT_TRUE(materials.HasMaterial("Polyethylene"));
     int mat_id = materials.GetMaterialId("Polyethylene");
 
@@ -368,77 +218,22 @@ TEST(GDMLParser, RecursiveCompositeAtomCount) {
     // Water: H2O -> H frac = 2*1.008/(2*1.008+15.999), O frac = 15.999/(...)
     // Mix: Water(0.7) + Carbon(0.3)
     // After resolution: H = 0.7 * H_frac, O = 0.7 * O_frac, C = 0.3
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <element name="Hydrogen" Z="1">
-      <atom value="1.008"/>
-    </element>
-    <element name="Oxygen" Z="8">
-      <atom value="15.999"/>
-    </element>
-    <element name="Carbon" Z="6">
-      <atom value="12.011"/>
-    </element>
-    <material name="Water" formula="H2O">
-      <D value="1.0" unit="g/cm3"/>
-      <composite n="2" ref="Hydrogen"/>
-      <composite n="1" ref="Oxygen"/>
-    </material>
-    <material name="Mix">
-      <D value="1.2" unit="g/cm3"/>
-      <fraction ref="Water" n="0.7"/>
-      <fraction ref="Carbon" n="0.3"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
-    <box name="inner_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="Inner">
-      <materialref ref="Mix"/>
-      <solidref ref="inner_box"/>
-    </volume>
-    <volume name="World">
-      <materialref ref="Water"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Inner"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    std::string gdml = GDMLFull("",
+        kHOC_Elements + R"(
+    <material name="Water" formula="H2O"><D value="1.0" unit="g/cm3"/>
+      <composite n="2" ref="Hydrogen"/><composite n="1" ref="Oxygen"/></material>
+    <material name="Mix"><D value="1.2" unit="g/cm3"/>
+      <fraction ref="Water" n="0.7"/><fraction ref="Carbon" n="0.3"/></material>)",
+        kTwoBoxSolids, TwoVolumeStructure("Mix", "Water"), "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_recursive_composite_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+    auto dm = LoadGDMLFromString(gdml);
 
-    auto const & materials = dm.GetMaterials();
+    auto const & materials = dm->GetMaterials();
     ASSERT_TRUE(materials.HasMaterial("Mix"));
     int mix_id = materials.GetMaterialId("Mix");
 
-    auto constituents = materials.GetMaterialConstituents(mix_id);
-    std::set<int> nuclear_Z;
-    for(auto pt : constituents) {
-        long long pdg = static_cast<long long>(pt);
-        if(pdg < 0) pdg = -pdg;
-        if(pdg >= 1000000000LL) {
-            int Z = static_cast<int>((pdg / 10000) % 1000);
-            if(Z >= 1) nuclear_Z.insert(Z);
-        }
-    }
     std::set<int> expected_Z = {1, 6, 8};
-    EXPECT_EQ(nuclear_Z, expected_Z)
+    EXPECT_EQ(NuclearZSet(materials, mix_id), expected_Z)
         << "Mix should resolve to H, C, O";
 
     double total_water = 2.0 * 1.008 + 15.999;

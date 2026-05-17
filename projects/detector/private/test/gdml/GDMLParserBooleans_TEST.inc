@@ -13,10 +13,9 @@ TEST(GDMLParser, BooleanForwardReference) {
 )", "result");
 
     // The boolean solid should have been parsed despite forward references
-    ASSERT_TRUE(data.solids.count("result") > 0)
-        << "Boolean solid with forward-referenced operands should be parsed";
-    ASSERT_TRUE(data.solids.count("big_sphere") > 0);
-    ASSERT_TRUE(data.solids.count("small_sphere") > 0);
+    RequireSolid(data, "result");
+    RequireSolid(data, "big_sphere");
+    RequireSolid(data, "small_sphere");
 }
 
 
@@ -36,17 +35,15 @@ TEST(GDMLParser, NestedBooleanSolids) {
 )", "final");
 
     // All composite/primitive solids should exist
-    ASSERT_TRUE(data.solids.count("final") > 0)
-        << "Outer union 'final' should be parsed despite nested forward references";
-    ASSERT_TRUE(data.solids.count("inner_sub") > 0)
-        << "Inner subtraction 'inner_sub' should be parsed";
-    ASSERT_TRUE(data.solids.count("big_sphere") > 0);
-    ASSERT_TRUE(data.solids.count("small_sphere") > 0);
-    ASSERT_TRUE(data.solids.count("some_box") > 0);
+    auto geo_final = RequireSolid(data, "final");
+    auto geo_inner = RequireSolid(data, "inner_sub");
+    RequireSolid(data, "big_sphere");
+    RequireSolid(data, "small_sphere");
+    RequireSolid(data, "some_box");
 
     // Verify the boolean solids have valid bounding boxes
-    auto bb_final = data.solids["final"]->GetBoundingBox();
-    auto bb_inner = data.solids["inner_sub"]->GetBoundingBox();
+    auto bb_final = geo_final->GetBoundingBox();
+    auto bb_inner = geo_inner->GetBoundingBox();
     EXPECT_TRUE(bb_final.IsValid())
         << "Nested boolean 'final' should have a valid bounding box";
     EXPECT_TRUE(bb_inner.IsValid())
@@ -112,13 +109,13 @@ TEST(GDMLParser, DuplicateSolidInstances) {
 
     GDMLData data = ParseGDMLString(gdml);
     // Instance 0 keeps the original name: 100mm half-width = 0.1m
-    ASSERT_TRUE(data.solids.count("mybox") > 0);
+    auto geo1 = RequireSolid(data, "mybox");
     double tol = 1e-9;
-    EXPECT_NEAR(data.solids["mybox"]->GetBoundingBox().max_corner.GetX(), 0.1, tol)
+    EXPECT_NEAR(geo1->GetBoundingBox().max_corner.GetX(), 0.1, tol)
         << "First instance keeps original name (100mm half-width = 0.1m)";
     // Instance 1 gets flattened name: mybox__2, 200mm half-width = 0.2m
-    ASSERT_TRUE(data.solids.count("mybox__2") > 0);
-    EXPECT_NEAR(data.solids["mybox__2"]->GetBoundingBox().max_corner.GetX(), 0.2, tol)
+    auto geo2 = RequireSolid(data, "mybox__2");
+    EXPECT_NEAR(geo2->GetBoundingBox().max_corner.GetX(), 0.2, tol)
         << "Second instance gets flattened name mybox__2 (200mm half-width = 0.2m)";
     // Instance count should be 2
     ASSERT_TRUE(data.solid_instance_counts.count("mybox") > 0);
@@ -164,10 +161,10 @@ TEST(GDMLParser, BooleanInstanceResolution) {
     </subtraction>
     <box name="base" x="500" y="500" z="500" lunit="mm"/>
 )", "result");
-    ASSERT_TRUE(data.solids.count("result") > 0);
+    auto geo = RequireSolid(data, "result");
     // The boolean "result" was defined after first "base" (100mm) but before
     // second "base" (500mm). It should use the first definition.
-    auto bb = data.solids["result"]->GetBoundingBox();
+    auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
     // The subtraction bounding box should be close to the first base box (100mm=0.1m half)
     EXPECT_NEAR(bb.max_corner.GetX(), 0.1, tol)
@@ -180,16 +177,12 @@ TEST(GDMLParser, BooleanFirstPosition) {
     // firstposition shifts box_a by (200, 0, 0) mm = 0.2m in x
     // A point at (0.2, 0, 0) is at box_a's center, outside box_b -> inside subtraction
     // A point at (0, 0, 0) is outside box_a -> outside subtraction
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
+    std::string gdml = GDMLFull("", R"(
     <material name="Vacuum" Z="1">
       <D value="1e-25" unit="g/cm3"/>
       <atom value="1.008"/>
     </material>
-  </materials>
-  <solids>
+)", R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <box name="box_a" x="100" y="100" z="100" lunit="mm"/>
     <box name="box_b" x="20" y="20" z="20" lunit="mm"/>
@@ -198,22 +191,16 @@ TEST(GDMLParser, BooleanFirstPosition) {
       <second ref="box_b"/>
       <firstposition x="200" y="0" z="0" unit="mm"/>
     </subtraction>
-  </solids>
-  <structure>
+)", R"(
     <volume name="World">
       <materialref ref="Vacuum"/>
       <solidref ref="world_box"/>
     </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
     auto geo = RequireSolid(data, "sub_first_pos");
     ASSERT_NE(geo, nullptr);
-    siren::math::Vector3D dir(0, 1, 0);
     // box_a is shifted to center (0.2, 0, 0). Point at (0.2, 0, 0) is inside box_a
     // but outside box_b (centered at origin, half-width 0.02m). 0.2 > 0.02 -> outside box_b.
     // Subtraction: inside_a && !inside_b = true
@@ -224,16 +211,12 @@ TEST(GDMLParser, BooleanFirstPosition) {
 
 
 TEST(GDMLParser, BooleanFirstRotation) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
+    std::string gdml = GDMLFull("", R"(
     <material name="Vacuum" Z="1">
       <D value="1e-25" unit="g/cm3"/>
       <atom value="1.008"/>
     </material>
-  </materials>
-  <solids>
+)", R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <box name="box_a" x="200" y="50" z="50" lunit="mm"/>
     <box name="box_b" x="10" y="10" z="10" lunit="mm"/>
@@ -242,29 +225,21 @@ TEST(GDMLParser, BooleanFirstRotation) {
       <second ref="box_b"/>
       <firstrotation z="90" unit="deg"/>
     </subtraction>
-  </solids>
-  <structure>
+)", R"(
     <volume name="World">
       <materialref ref="Vacuum"/>
       <solidref ref="world_box"/>
     </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
     auto geo = RequireSolid(data, "sub_first_rot");
     ASSERT_NE(geo, nullptr);
     // box_a is 200x50x50 mm, rotated 90 deg about z -> becomes 50x200x50 mm
     // A point at (0, 0.08, 0) should be inside the rotated box_a (0.08m = 80mm < 100mm half-y)
-    siren::math::Vector3D dir(0, 0, 1);
-    siren::math::Vector3D inside_rot(0, 0.08, 0);
-    EXPECT_TRUE(geo->IsInside(inside_rot, dir));
+    EXPECT_TRUE(IsInside(geo, 0, 0.08, 0));
     // But a point at (0.08, 0, 0) should be outside (80mm > 25mm half-x after rotation)
-    siren::math::Vector3D outside_rot(0.08, 0, 0);
-    EXPECT_FALSE(geo->IsInside(outside_rot, dir));
+    EXPECT_FALSE(IsInside(geo, 0.08, 0, 0));
     // Subtraction probe: origin is inside rotated box_a AND inside box_b
     // (box_b half-width = 10mm = 0.01m), so subtraction should exclude it
     EXPECT_FALSE(IsInside(geo, 0, 0, 0));
@@ -275,18 +250,14 @@ TEST(GDMLParser, BooleanFirstRotation) {
 
 
 TEST(GDMLParser, BooleanFirstPositionRef) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define>
+    std::string gdml = GDMLFull(R"(
     <position name="shift1" x="50" y="0" z="0" unit="mm"/>
-  </define>
-  <materials>
+)", R"(
     <material name="Vacuum" Z="1">
       <D value="1e-25" unit="g/cm3"/>
       <atom value="1.008"/>
     </material>
-  </materials>
-  <solids>
+)", R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <box name="box_a" x="100" y="100" z="100" lunit="mm"/>
     <box name="box_b" x="10" y="10" z="10" lunit="mm"/>
@@ -295,25 +266,18 @@ TEST(GDMLParser, BooleanFirstPositionRef) {
       <second ref="box_b"/>
       <firstpositionref ref="shift1"/>
     </union>
-  </solids>
-  <structure>
+)", R"(
     <volume name="World">
       <materialref ref="Vacuum"/>
       <solidref ref="world_box"/>
     </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
     auto geo = RequireSolid(data, "union_fposref");
     ASSERT_NE(geo, nullptr);
     // box_a center is shifted to x=0.05m. Point at (0.05, 0, 0) should be inside box_a
-    siren::math::Vector3D dir(0, 0, 1);
-    siren::math::Vector3D at_shifted(0.05, 0, 0);
-    EXPECT_TRUE(geo->IsInside(at_shifted, dir));
+    EXPECT_TRUE(IsInside(geo, 0.05, 0, 0));
 }
 
 
@@ -323,16 +287,12 @@ TEST(GDMLParser, BooleanBothOperandsTransformed) {
     // position shifts box_b by -300mm (-0.3m) in x
     // Union of the two: points at each center should be inside, point at
     // origin should be outside (0.3m > 0.1m half-width)
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
+    std::string gdml = GDMLFull("", R"(
     <material name="Vacuum" Z="1">
       <D value="1e-25" unit="g/cm3"/>
       <atom value="1.008"/>
     </material>
-  </materials>
-  <solids>
+)", R"(
     <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
     <box name="box_a" x="100" y="100" z="100" lunit="mm"/>
     <box name="box_b" x="100" y="100" z="100" lunit="mm"/>
@@ -342,17 +302,12 @@ TEST(GDMLParser, BooleanBothOperandsTransformed) {
       <firstposition x="300" y="0" z="0" unit="mm"/>
       <position x="-300" y="0" z="0" unit="mm"/>
     </union>
-  </solids>
-  <structure>
+)", R"(
     <volume name="World">
       <materialref ref="Vacuum"/>
       <solidref ref="world_box"/>
     </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
     auto geo = RequireSolid(data, "union_both");

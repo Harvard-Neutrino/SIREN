@@ -1,92 +1,44 @@
 // Included by GDMLParser_TEST.cxx. Do not compile directly.
 
+static const std::string kAirIron = R"(
+    <material name="Air" Z="7"><D value="0.00129" unit="g/cm3"/><atom value="14.007"/></material>
+    <material name="Iron" Z="26"><D value="7.874" unit="g/cm3"/><atom value="55.845"/></material>)";
+
 TEST(GDMLParser, CircularVolumeReference) {
     // Create a GDML where volume A contains physvol referencing A (self-loop)
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Air">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14" Z="7"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
+    std::string gdml = GDMLFull("", R"(
+    <material name="Air"><D value="0.00129" unit="g/cm3"/><atom value="14" Z="7"/></material>)",
+        R"(<box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>)",
+        R"(<volume name="World">
       <materialref ref="Air"/>
       <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="World"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    std::string tmpfile = "/tmp/siren_gdml_cycle_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
+      <physvol><volumeref ref="World"/></physvol>
+    </volume>)", "World");
 
     // Circular reference should throw an error
-    DetectorModel dm;
-    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error)
+    EXPECT_THROW(LoadGDMLFromString(gdml), std::runtime_error)
         << "LoadGDML should throw on circular volume references";
-    std::remove(tmpfile.c_str());
 }
 
 
 TEST(GDMLParser, PhysvolConstantsPosition) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define>
-    <constant name="offset" value="500"/>
-  </define>
-  <materials>
-    <element name="Hydrogen" Z="1">
-      <atom value="1.008"/>
-    </element>
-    <element name="Oxygen" Z="8">
-      <atom value="15.999"/>
-    </element>
-    <material name="Water">
-      <D value="1.0" unit="g/cm3"/>
-      <fraction ref="Hydrogen" n="0.112"/>
-      <fraction ref="Oxygen" n="0.888"/>
+    std::string gdml = GDMLFull(
+        R"(<constant name="offset" value="500"/>)",
+        R"(<element name="Hydrogen" Z="1"><atom value="1.008"/></element>
+    <element name="Oxygen" Z="8"><atom value="15.999"/></element>
+    <material name="Water"><D value="1.0" unit="g/cm3"/>
+      <fraction ref="Hydrogen" n="0.112"/><fraction ref="Oxygen" n="0.888"/>
     </material>
-    <material name="Iron" Z="26">
-      <D value="7.874" unit="g/cm3"/>
-      <atom value="55.845"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
-    <box name="child_box" x="200" y="200" z="200" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="Child">
-      <materialref ref="Iron"/>
-      <solidref ref="child_box"/>
+    <material name="Iron" Z="26"><D value="7.874" unit="g/cm3"/><atom value="55.845"/></material>)",
+        R"(<box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="child_box" x="200" y="200" z="200" lunit="mm"/>)",
+        R"(<volume name="Child">
+      <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
     <volume name="World">
-      <materialref ref="Water"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Child"/>
-        <position x="offset" unit="mm"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+      <materialref ref="Water"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Child"/><position x="offset" unit="mm"/></physvol>
+    </volume>)", "World");
 
     // Verify via ParseGDMLString that the physvol position resolved the constant
     GDMLData data = ParseGDMLString(gdml);
@@ -102,142 +54,57 @@ TEST(GDMLParser, PhysvolConstantsPosition) {
     EXPECT_NEAR(world.children[0].position.GetZ(), 0.0, tol);
 
     // Also verify via LoadGDML that the sector is placed correctly
-    std::string tmpfile = "/tmp/siren_gdml_physvol_const_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+    auto dm = LoadGDMLFromString(gdml);
 
     // A point at (0.5, 0, 0) meters should be inside the Iron child
-    auto sector = dm.GetContainingSector(
-        DetectorPosition(siren::math::Vector3D(0.5, 0.0, 0.0)));
-    std::string mat_name = dm.GetMaterials().GetMaterialName(sector.material_id);
-    EXPECT_EQ(mat_name, "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.5, 0.0, 0.0), "Iron")
         << "Point at (0.5,0,0) should be in Iron child placed at offset=500mm";
 }
 
 
 TEST(GDMLParser, DuplicateVolumeNames) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Iron" Z="26">
-      <D value="7.874" unit="g/cm3"/>
-      <atom value="55.845"/>
-    </material>
-    <material name="Air" Z="7">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14.007"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
-    <box name="child_box" x="200" y="200" z="200" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="Child">
-      <materialref ref="Iron"/>
-      <solidref ref="child_box"/>
+    std::string gdml = GDMLFull("", kAirIron,
+        R"(<box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="child_box" x="200" y="200" z="200" lunit="mm"/>)",
+        R"(<volume name="Child">
+      <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
     <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Child"/>
-        <position x="100" unit="mm"/>
-      </physvol>
-      <physvol>
-        <volumeref ref="Child"/>
-        <position x="-100" unit="mm"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Child"/><position x="100" unit="mm"/></physvol>
+      <physvol><volumeref ref="Child"/><position x="-100" unit="mm"/></physvol>
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_dupvol_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+    auto dm = LoadGDMLFromString(gdml);
 
     // World + 2 children + UNIVERSE = at least 4 sectors
-    auto const & sectors = dm.GetSectors();
+    auto const & sectors = dm->GetSectors();
     EXPECT_GE(sectors.size(), 4u)
         << "Detector model should have at least 4 sectors (UNIVERSE + world + 2 duplicate children)";
 
     // Both child positions should resolve to Iron
-    auto sector_pos = dm.GetContainingSector(
-        DetectorPosition(siren::math::Vector3D(0.1, 0.0, 0.0)));
-    std::string mat_pos = dm.GetMaterials().GetMaterialName(sector_pos.material_id);
-    EXPECT_EQ(mat_pos, "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.1, 0.0, 0.0), "Iron")
         << "Point at (0.1,0,0) should be in first Iron child";
-
-    auto sector_neg = dm.GetContainingSector(
-        DetectorPosition(siren::math::Vector3D(-0.1, 0.0, 0.0)));
-    std::string mat_neg = dm.GetMaterials().GetMaterialName(sector_neg.material_id);
-    EXPECT_EQ(mat_neg, "Iron")
+    EXPECT_EQ(MaterialAt(*dm, -0.1, 0.0, 0.0), "Iron")
         << "Point at (-0.1,0,0) should be in second Iron child";
 }
 
 
 TEST(GDMLParser, RotationHandling) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Iron" Z="26">
-      <D value="7.874" unit="g/cm3"/>
-      <atom value="55.845"/>
-    </material>
-    <material name="Air" Z="7">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14.007"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
-    <box name="child_box" x="400" y="100" z="100" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="Child">
-      <materialref ref="Iron"/>
-      <solidref ref="child_box"/>
+    std::string gdml = GDMLFull("", kAirIron,
+        R"(<box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="child_box" x="400" y="100" z="100" lunit="mm"/>)",
+        R"(<volume name="Child">
+      <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
     <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Child"/>
-        <position x="200" unit="mm"/>
-        <rotation z="90" unit="deg"/>
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Child"/>
+        <position x="200" unit="mm"/><rotation z="90" unit="deg"/>
       </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_rotation_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+    auto dm = LoadGDMLFromString(gdml);
 
     // The child box is 400x100x100 mm (half-widths: 0.4x0.1x0.1 m)
     // Placed at x=200mm=0.2m with z-rotation of 90 degrees.
@@ -245,108 +112,62 @@ TEST(GDMLParser, RotationHandling) {
     // So the child occupies roughly: x in [0.1, 0.3], y in [-0.4, 0.4]
 
     // The child sector should exist
-    auto const & sectors = dm.GetSectors();
+    auto const & sectors = dm->GetSectors();
     EXPECT_GE(sectors.size(), 3u)
         << "Should have at least 3 sectors (UNIVERSE + world + rotated child)";
 
     // A point at the child center (0.2, 0, 0) should be Iron
-    auto sector_center = dm.GetContainingSector(
-        DetectorPosition(siren::math::Vector3D(0.2, 0.0, 0.0)));
-    std::string mat_center = dm.GetMaterials().GetMaterialName(sector_center.material_id);
-    EXPECT_EQ(mat_center, "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.0, 0.0), "Iron")
         << "Center of rotated child at (0.2,0,0) should be Iron";
 
     // After rotation, the long axis is along y. A point at (0.2, 0.3, 0) should
     // still be inside (within the rotated half-width of 0.4 along y).
-    auto sector_along_y = dm.GetContainingSector(
-        DetectorPosition(siren::math::Vector3D(0.2, 0.3, 0.0)));
-    std::string mat_along_y = dm.GetMaterials().GetMaterialName(sector_along_y.material_id);
-    EXPECT_EQ(mat_along_y, "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.3, 0.0), "Iron")
         << "Point at (0.2, 0.3, 0) should be inside the rotated child (long axis now along y)";
 
     // A point far from the child should be in Air
-    auto sector_far = dm.GetContainingSector(
-        DetectorPosition(siren::math::Vector3D(1.0, 1.0, 0.0)));
-    std::string mat_far = dm.GetMaterials().GetMaterialName(sector_far.material_id);
-    EXPECT_EQ(mat_far, "Air")
+    EXPECT_EQ(MaterialAt(*dm, 1.0, 1.0, 0.0), "Air")
         << "Point at (1.0,1.0,0) should be in Air (outside rotated child)";
 }
 
 
 TEST(GDMLParser, CompoundRotationGroundTruth) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Iron" Z="26">
-      <D value="7.874" unit="g/cm3"/>
-      <atom value="55.845"/>
-    </material>
-    <material name="Air" Z="7">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14.007"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="5" y="5" z="5" lunit="m"/>
-    <box name="child_box" x="0.5" y="0.2" z="0.1" lunit="m"/>
-  </solids>
-  <structure>
-    <volume name="Child">
-      <materialref ref="Iron"/>
-      <solidref ref="child_box"/>
+    std::string gdml = GDMLFull("", kAirIron,
+        R"(<box name="world_box" x="5" y="5" z="5" lunit="m"/>
+    <box name="child_box" x="0.5" y="0.2" z="0.1" lunit="m"/>)",
+        R"(<volume name="Child">
+      <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
     <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Child"/>
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Child"/>
         <rotation x="30" z="60" unit="deg"/>
       </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_compound_rotation_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
-
-    auto material_at = [&](double x, double y, double z) {
-        auto sector = dm.GetContainingSector(
-            DetectorPosition(siren::math::Vector3D(x, y, z)));
-        return dm.GetMaterials().GetMaterialName(sector.material_id);
-    };
+    auto dm = LoadGDMLFromString(gdml);
 
     // Box center maps to local origin under any convention: sanity that the
     // rotated child sector was built and is reachable.
-    EXPECT_EQ(material_at(0.0, 0.0, 0.0), "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.0, 0.0, 0.0), "Iron")
         << "Rotated child center must be Iron";
 
     // P1 = 0.4 * (first row of M). Geant4 local = (0.4, 0, 0): comfortably
     // inside (margins 0.1/0.2/0.1). FAILS as Air under the QFromXYZs sign
     // bug and under the wrong (active) handedness.
-    EXPECT_EQ(material_at(0.2, -0.3, 0.17320508075688773), "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, -0.3, 0.17320508075688773), "Iron")
         << "P1 is inside the box under the Geant4-true passive mapping; "
            "Air here indicates the QFromXYZs sign bug or wrong handedness";
 
     // P3 = 0.4 * (first column of M). Geant4 local = (-0.1598, 0.3232,
     // 0.1732): outside (|y|,|z| exceed half-extents). The active-handedness
     // bug instead maps P3 to (0.4,0,0) -> Iron.
-    EXPECT_EQ(material_at(0.2, 0.3464101615137755, 0.0), "Air")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.3464101615137755, 0.0), "Air")
         << "P3 is outside the box under the Geant4-true passive mapping; "
            "Iron here indicates the rotation is applied with wrong handedness";
 
     // Far point: outside the child under every convention.
-    EXPECT_EQ(material_at(1.0, 1.0, 1.0), "Air")
+    EXPECT_EQ(MaterialAt(*dm, 1.0, 1.0, 1.0), "Air")
         << "Point far from the rotated child must be Air";
 }
 
@@ -396,42 +217,22 @@ TEST(GDMLParser, MultipleStructureSections) {
 
 
 TEST(GDMLParser, AssemblyVolume) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Air">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14" Z="7"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-    <box name="child_box" x="100" y="100" z="100" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="ChildVol">
-      <materialref ref="Air"/>
-      <solidref ref="child_box"/>
+    std::string gdml = GDMLFull("", R"(
+    <material name="Air"><D value="0.00129" unit="g/cm3"/><atom value="14" Z="7"/></material>)",
+        R"(<box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    <box name="child_box" x="100" y="100" z="100" lunit="mm"/>)",
+        R"(<volume name="ChildVol">
+      <materialref ref="Air"/><solidref ref="child_box"/>
     </volume>
     <assembly name="MyAssembly">
-      <physvol>
-        <volumeref ref="ChildVol"/>
+      <physvol><volumeref ref="ChildVol"/>
         <position name="pos1" x="200" y="0" z="0" unit="mm"/>
       </physvol>
     </assembly>
     <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="MyAssembly"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="MyAssembly"/></physvol>
+    </volume>)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
 
@@ -442,18 +243,11 @@ TEST(GDMLParser, AssemblyVolume) {
     EXPECT_EQ(it->second.children.size(), 1u);
 
     // Loading into DetectorModel should create a sector for ChildVol but not for MyAssembly
-    std::string tmpfile = "/tmp/siren_gdml_assembly_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
+    auto dm = LoadGDMLFromString(gdml);
 
     bool found_child = false;
     bool found_assembly = false;
-    for(auto const & sector : dm.GetSectors()) {
+    for(auto const & sector : dm->GetSectors()) {
         if(sector.name == "ChildVol") found_child = true;
         if(sector.name == "MyAssembly") found_assembly = true;
     }
@@ -463,117 +257,51 @@ TEST(GDMLParser, AssemblyVolume) {
 
 
 TEST(GDMLParser, BuildVolumeMissingVolumeThrows) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Air">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14" Z="7"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="NonexistentVolume"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    std::string gdml = GDMLFull("", R"(
+    <material name="Air"><D value="0.00129" unit="g/cm3"/><atom value="14" Z="7"/></material>)",
+        R"(<box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>)",
+        R"(<volume name="World">
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="NonexistentVolume"/></physvol>
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_missing_vol_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
-    std::remove(tmpfile.c_str());
+    EXPECT_THROW(LoadGDMLFromString(gdml), std::runtime_error);
 }
 
 
 TEST(GDMLParser, BuildVolumeMissingSolidThrows) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Air">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14" Z="7"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="nonexistent_solid"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    std::string gdml = GDMLFull("", R"(
+    <material name="Air"><D value="0.00129" unit="g/cm3"/><atom value="14" Z="7"/></material>)",
+        R"(<box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>)",
+        R"(<volume name="World">
+      <materialref ref="Air"/><solidref ref="nonexistent_solid"/>
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_missing_solid_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-    DetectorModel dm;
-    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
-    std::remove(tmpfile.c_str());
+    EXPECT_THROW(LoadGDMLFromString(gdml), std::runtime_error);
 }
 
 
 TEST(GDMLParser, ReplicavolXAxis) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
-    <box name="mother_box" x="800" y="100" z="100" lunit="mm"/>
+    std::string gdml = GDMLFull("", "",
+        R"(<box name="mother_box" x="800" y="100" z="100" lunit="mm"/>
     <box name="child_box" x="100" y="100" z="100" lunit="mm"/>
-    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="ChildVol">
-      <materialref ref=""/>
-      <solidref ref="child_box"/>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>)",
+        R"(<volume name="ChildVol">
+      <materialref ref=""/><solidref ref="child_box"/>
     </volume>
     <volume name="MotherVol">
-      <materialref ref=""/>
-      <solidref ref="mother_box"/>
+      <materialref ref=""/><solidref ref="mother_box"/>
       <replicavol number="8">
         <volumeref ref="ChildVol"/>
         <replicate_along_axis>
-          <direction x="1"/>
-          <width value="100" unit="mm"/>
-          <offset value="0" unit="mm"/>
+          <direction x="1"/><width value="100" unit="mm"/><offset value="0" unit="mm"/>
         </replicate_along_axis>
       </replicavol>
     </volume>
     <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="MotherVol"/>
-      </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+      <materialref ref=""/><solidref ref="world_box"/>
+      <physvol><volumeref ref="MotherVol"/></physvol>
+    </volume>)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
 
@@ -595,41 +323,25 @@ TEST(GDMLParser, ReplicavolXAxis) {
 
 
 TEST(GDMLParser, ReplicavolYAxisWithOffset) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
-    <box name="mother_box" x="100" y="300" z="100" lunit="mm"/>
+    std::string gdml = GDMLFull("", "",
+        R"(<box name="mother_box" x="100" y="300" z="100" lunit="mm"/>
     <box name="child_box" x="100" y="100" z="100" lunit="mm"/>
-    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="ChildVol">
-      <materialref ref=""/>
-      <solidref ref="child_box"/>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>)",
+        R"(<volume name="ChildVol">
+      <materialref ref=""/><solidref ref="child_box"/>
     </volume>
     <volume name="MotherVol">
-      <materialref ref=""/>
-      <solidref ref="mother_box"/>
+      <materialref ref=""/><solidref ref="mother_box"/>
       <replicavol number="3">
         <volumeref ref="ChildVol"/>
         <replicate_along_axis>
-          <direction y="1"/>
-          <width value="10" unit="cm"/>
-          <offset value="0" unit="mm"/>
+          <direction y="1"/><width value="10" unit="cm"/><offset value="0" unit="mm"/>
         </replicate_along_axis>
       </replicavol>
     </volume>
     <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+      <materialref ref=""/><solidref ref="world_box"/>
+    </volume>)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
 
@@ -649,53 +361,34 @@ TEST(GDMLParser, ReplicavolYAxisWithOffset) {
 
 
 TEST(GDMLParser, ReplicavolArbitraryAxis) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
-    <box name="mother_box" x="1000" y="1000" z="1000" lunit="mm"/>
+    std::string gdml = GDMLFull("", "",
+        R"(<box name="mother_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <box name="child_box" x="50" y="50" z="50" lunit="mm"/>
-    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="ChildVol">
-      <materialref ref=""/>
-      <solidref ref="child_box"/>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>)",
+        R"(<volume name="ChildVol">
+      <materialref ref=""/><solidref ref="child_box"/>
     </volume>
     <volume name="ZVol">
-      <materialref ref=""/>
-      <solidref ref="mother_box"/>
+      <materialref ref=""/><solidref ref="mother_box"/>
       <replicavol number="4">
         <volumeref ref="ChildVol"/>
         <replicate_along_axis>
-          <direction z="1"/>
-          <width value="200" unit="mm"/>
-          <offset value="0" unit="mm"/>
+          <direction z="1"/><width value="200" unit="mm"/><offset value="0" unit="mm"/>
         </replicate_along_axis>
       </replicavol>
     </volume>
     <volume name="DiagVol">
-      <materialref ref=""/>
-      <solidref ref="mother_box"/>
+      <materialref ref=""/><solidref ref="mother_box"/>
       <replicavol number="3">
         <volumeref ref="ChildVol"/>
         <replicate_along_axis>
-          <direction x="1" y="1"/>
-          <width value="100" unit="mm"/>
-          <offset value="0" unit="mm"/>
+          <direction x="1" y="1"/><width value="100" unit="mm"/><offset value="0" unit="mm"/>
         </replicate_along_axis>
       </replicavol>
     </volume>
     <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+      <materialref ref=""/><solidref ref="world_box"/>
+    </volume>)", "World");
 
     GDMLData data = ParseGDMLString(gdml);
 
@@ -742,146 +435,70 @@ TEST(GDMLParser, AssemblyPlacementGeometry) {
     // be (300,0,0) mm = (0.3,0,0) m.
     // Child box half-width = 50mm = 0.05m, so its extent centered at (0.3,0,0)
     // is [0.25, 0.35] x [-0.05, 0.05] x [-0.05, 0.05].
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Air" Z="7">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14.007"/>
-    </material>
-    <material name="Iron" Z="26">
-      <D value="7.874" unit="g/cm3"/>
-      <atom value="55.845"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="4000" y="4000" z="4000" lunit="mm"/>
-    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="IronBlock">
-      <materialref ref="Iron"/>
-      <solidref ref="child_box"/>
+    std::string gdml = GDMLFull("", kAirIron,
+        R"(<box name="world_box" x="4000" y="4000" z="4000" lunit="mm"/>
+    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>)",
+        R"(<volume name="IronBlock">
+      <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
     <assembly name="Assy">
-      <physvol>
-        <volumeref ref="IronBlock"/>
+      <physvol><volumeref ref="IronBlock"/>
         <position name="assy_child_pos" x="100" y="0" z="0" unit="mm"/>
       </physvol>
     </assembly>
     <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Assy"/>
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Assy"/>
         <position name="assy_pos" x="200" y="0" z="0" unit="mm"/>
       </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_assy_geom_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
-
-    auto material_at = [&](double x, double y, double z) {
-        auto sector = dm.GetContainingSector(
-            DetectorPosition(siren::math::Vector3D(x, y, z)));
-        return dm.GetMaterials().GetMaterialName(sector.material_id);
-    };
+    auto dm = LoadGDMLFromString(gdml);
 
     // Child center at global (0.3, 0, 0) m should be Iron
-    EXPECT_EQ(material_at(0.3, 0.0, 0.0), "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.3, 0.0, 0.0), "Iron")
         << "Assembly child center at (200+100, 0, 0) mm = (0.3, 0, 0) m should be Iron";
 
     // Assembly position (0.2, 0, 0) m has no child solid there -- should be Air
-    EXPECT_EQ(material_at(0.2, 0.0, 0.0), "Air")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.0, 0.0), "Air")
         << "Assembly origin at (0.2, 0, 0) m has no child geometry, should be Air";
 
     // World center should be Air
-    EXPECT_EQ(material_at(0.0, 0.0, 0.0), "Air")
+    EXPECT_EQ(MaterialAt(*dm, 0.0, 0.0, 0.0), "Air")
         << "World center should be Air";
 }
 
 
 TEST(GDMLParser, AssemblyPlacementMultiAxis) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials>
-    <material name="Air" Z="7">
-      <D value="0.00129" unit="g/cm3"/>
-      <atom value="14.007"/>
-    </material>
-    <material name="Iron" Z="26">
-      <D value="7.874" unit="g/cm3"/>
-      <atom value="55.845"/>
-    </material>
-  </materials>
-  <solids>
-    <box name="world_box" x="4000" y="4000" z="4000" lunit="mm"/>
-    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="IronBlock">
-      <materialref ref="Iron"/>
-      <solidref ref="child_box"/>
+    std::string gdml = GDMLFull("", kAirIron,
+        R"(<box name="world_box" x="4000" y="4000" z="4000" lunit="mm"/>
+    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>)",
+        R"(<volume name="IronBlock">
+      <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
     <assembly name="Assy">
-      <physvol>
-        <volumeref ref="IronBlock"/>
+      <physvol><volumeref ref="IronBlock"/>
         <position name="assy_child_pos" x="0" y="100" z="0" unit="mm"/>
       </physvol>
     </assembly>
     <volume name="World">
-      <materialref ref="Air"/>
-      <solidref ref="world_box"/>
-      <physvol>
-        <volumeref ref="Assy"/>
+      <materialref ref="Air"/><solidref ref="world_box"/>
+      <physvol><volumeref ref="Assy"/>
         <position name="assy_pos" x="200" y="0" z="0" unit="mm"/>
       </physvol>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
+    </volume>)", "World");
 
-    std::string tmpfile = "/tmp/siren_gdml_assy_multiaxis_test.gdml";
-    {
-        std::ofstream f(tmpfile);
-        f << gdml;
-    }
-
-    DetectorModel dm;
-    dm.LoadGDML(tmpfile);
-    std::remove(tmpfile.c_str());
-
-    auto material_at = [&](double x, double y, double z) {
-        auto sector = dm.GetContainingSector(
-            DetectorPosition(siren::math::Vector3D(x, y, z)));
-        return dm.GetMaterials().GetMaterialName(sector.material_id);
-    };
+    auto dm = LoadGDMLFromString(gdml);
 
     // Child global position: assy at (0.2,0,0) + child at (0,0.1,0) = (0.2,0.1,0) m
-    EXPECT_EQ(material_at(0.2, 0.1, 0.0), "Iron")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.1, 0.0), "Iron")
         << "Child at (200, 100, 0) mm should be Iron";
 
     // Assembly origin has no child: just Air
-    EXPECT_EQ(material_at(0.2, 0.0, 0.0), "Air")
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.0, 0.0), "Air")
         << "Assembly origin should be Air (no child there)";
 
     // The original x-only position from old test should be Air
-    EXPECT_EQ(material_at(0.3, 0.0, 0.0), "Air")
+    EXPECT_EQ(MaterialAt(*dm, 0.3, 0.0, 0.0), "Air")
         << "(300, 0, 0) mm should be Air -- child is at y=100mm";
 }
