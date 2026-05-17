@@ -1326,16 +1326,33 @@ TEST(Ordering, CrossTypeOrdering) {
     EXPECT_NE(sphere_lt_cyl, cyl_lt_sphere)
         << "Cross-type comparison must be asymmetric";
 
-    // Transitivity: if a < b and b < c then a < c
-    // Sort three objects and verify the order is consistent
-    std::vector<Geometry const *> geos = {&box, &sphere, &cyl};
-    std::sort(geos.begin(), geos.end(), [](Geometry const * a, Geometry const * b) {
-        return *a < *b;
-    });
-    // After sorting: geos[0] < geos[1] < geos[2]
-    EXPECT_TRUE(*geos[0] < *geos[1]);
-    EXPECT_TRUE(*geos[1] < *geos[2]);
-    EXPECT_TRUE(*geos[0] < *geos[2]) << "Transitivity violated";
+    // Irreflexivity: nothing is less than itself.
+    EXPECT_FALSE(box < box);
+    EXPECT_FALSE(sphere < sphere);
+    EXPECT_FALSE(cyl < cyl);
+
+    // Transitivity, verified from the independent pairwise results (not by
+    // sorting with the comparator under test, which would be tautological).
+    // A strict order over 3 elements must be acyclic: the tournament
+    // formed by the three pairwise '<' relations has no 3-cycle.
+    bool cyc1 = box_lt_sphere && sphere_lt_cyl && cyl_lt_box;
+    bool cyc2 = sphere_lt_box && cyl_lt_sphere && box_lt_cyl;
+    EXPECT_FALSE(cyc1) << "Ordering has a 3-cycle (box<sphere<cyl<box)";
+    EXPECT_FALSE(cyc2) << "Ordering has a 3-cycle (sphere<box, cyl<sphere, box<cyl)";
+
+    // Spot transitivity: derive the minimum from pairwise results and
+    // confirm it precedes the maximum independently.
+    Geometry const * lo = box_lt_sphere ? static_cast<Geometry const *>(&box)
+                                         : static_cast<Geometry const *>(&sphere);
+    Geometry const * hi = box_lt_sphere ? static_cast<Geometry const *>(&sphere)
+                                         : static_cast<Geometry const *>(&box);
+    bool lo_lt_cyl = *lo < cyl, cyl_lt_lo = cyl < *lo;
+    bool hi_lt_cyl = *hi < cyl, cyl_lt_hi = cyl < *hi;
+    if(lo_lt_cyl && cyl_lt_hi)
+        EXPECT_TRUE(*lo < *hi) << "Transitivity: lo<cyl<hi implies lo<hi";
+    if(cyl_lt_lo)
+        EXPECT_TRUE(cyl_lt_hi) << "Transitivity: cyl<lo<hi implies cyl<hi";
+    (void)hi_lt_cyl;
 }
 
 TEST(Ordering, SameTypeDifferentParams) {
@@ -1407,17 +1424,18 @@ TEST(Validation, CutTubeNegativeRminWithPlacement) {
 // --- Trap infinity sentinel test (#12) ---
 
 TEST(TrapIntersection, FarFieldRay) {
-    // A ray originating far from the trap should still produce intersections.
-    // Distance limited by double precision: with a 20-unit-tall trap, we need
-    // the t_enter/t_exit difference (~20) to be representable. At ~1e14 distance
-    // we use all 15 significant digits.
+    // A ray originating far from the trap must still produce intersections.
+    // At 1e6 distance the double ULP is ~1e6*2^-52 ~ 2e-10, so a 1e-6
+    // positional tolerance is amply safe and still exercises the
+    // far-field path (NearFieldBasic uses distance 100). The previous
+    // 1e12 distance forced an unnecessarily loose 1e-3 tolerance.
     Trap trap(10, 0, 0, 8, 5, 5, 0, 6, 3, 3, 0);
-    Vector3D origin(0, 0, -1e12);
+    Vector3D origin(0, 0, -1e6);
     Vector3D dir(0, 0, 1);
     auto hits = trap.Intersections(origin, dir);
     ASSERT_EQ(hits.size(), 2u);
-    EXPECT_NEAR(hits[0].position.GetZ(), -10.0, 1e-3);
-    EXPECT_NEAR(hits[1].position.GetZ(),  10.0, 1e-3);
+    EXPECT_NEAR(hits[0].position.GetZ(), -10.0, 1e-6);
+    EXPECT_NEAR(hits[1].position.GetZ(),  10.0, 1e-6);
 }
 
 TEST(TrapIntersection, NearFieldBasic) {
