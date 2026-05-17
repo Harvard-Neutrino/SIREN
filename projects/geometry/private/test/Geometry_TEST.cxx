@@ -1476,7 +1476,11 @@ TEST(EllipsoidIntersection, ZCutBoundaryEvenCount) {
     Vector3D origin(r_at_cut - 0.001, 0, -20);
     Vector3D dir(0, 0, 1);
     auto hits = ell.Intersections(origin, dir);
-    EXPECT_EQ(hits.size() % 2, 0u);
+    // Deterministic: at x just inside the cut-plane rim radius the
+    // ellipsoid surface (z=+/-8.001) lies outside the z-cuts (+/-8), so
+    // the solid is capped by the two flat z-cut discs. The axial ray
+    // enters the bottom disc and exits the top disc: exactly 2.
+    EXPECT_EQ(hits.size(), 2u);
 }
 
 int main(int argc, char** argv)
