@@ -1225,7 +1225,7 @@ TEST(ShapeInvariants, TangentRaysEllipticalTube) {
     // Tangent at y=5 (major semi-axis), ray in x-direction
     {
         auto hits = etube.Intersections(Vector3D(0, 5, 0), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "EllipticalTube tangent y=5: odd count";
+        EXPECT_EQ(hits.size(), 0u) << "EllipticalTube tangent y=5: should miss (tangent)";
     }
     {
         auto hits = etube.Intersections(Vector3D(0, 5 + eps, 0), Vector3D(1, 0, 0));
@@ -1239,7 +1239,7 @@ TEST(ShapeInvariants, TangentRaysEllipticalTube) {
     // Tangent at x=3 (minor semi-axis), ray in y-direction
     {
         auto hits = etube.Intersections(Vector3D(3, 0, 0), Vector3D(0, 1, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "EllipticalTube tangent x=3: odd count";
+        EXPECT_EQ(hits.size(), 0u) << "EllipticalTube tangent x=3: should miss (tangent)";
     }
     {
         auto hits = etube.Intersections(Vector3D(3 + eps, 0, 0), Vector3D(0, 1, 0));
@@ -1264,13 +1264,15 @@ TEST(ShapeInvariants, TrdEdgeAndVertexRays) {
         Vector3D dir = Vector3D(5, 4, -6);
         dir.normalize();
         auto hits = trd.Intersections(Vector3D(5*2, 4*2, -6*2), Vector3D(-dir.GetX(), -dir.GetY(), -dir.GetZ()));
+        // Vertex-aimed ray: result is 0 or 2 (degenerate tangent case).
+        // Only parity is guaranteed; exact count is implementation-defined.
         EXPECT_EQ(hits.size() % 2, 0u) << "Trd vertex-aimed ray: odd count " << hits.size();
     }
 
     // Ray skimming along a bottom edge (y=4 face at z=-6, from x=-10 to x=+10)
     {
         auto hits = trd.Intersections(Vector3D(-10, 4, -6), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Trd edge-skimming ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "Trd edge-skimming ray: should enter and exit";
     }
 
     // Ray along the z-axis through center
@@ -1296,12 +1298,14 @@ TEST(ShapeInvariants, ExtrPolyEdgeRays) {
     // Ray along a lateral edge (x=3, y=3, varying z)
     {
         auto hits = ep.Intersections(Vector3D(3, 3, -10), Vector3D(0, 0, 1));
-        EXPECT_EQ(hits.size() % 2, 0u) << "ExtrPoly lateral edge ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 0u) << "ExtrPoly lateral edge ray: should miss (tangent to edge)";
     }
 
     // Ray along a lateral face (x=3, y=0, varying z) -- face-grazing
     {
         auto hits = ep.Intersections(Vector3D(3, 0, -10), Vector3D(0, 0, 1));
+        // Face-grazing ray at z=dz: result is 0 or 2 (degenerate tangent case).
+        // Only parity is guaranteed; exact count is implementation-defined.
         EXPECT_EQ(hits.size() % 2, 0u) << "ExtrPoly face-grazing ray: odd count " << hits.size();
     }
 
@@ -1310,7 +1314,7 @@ TEST(ShapeInvariants, ExtrPolyEdgeRays) {
         Vector3D dir(3, 3, -4);
         dir.normalize();
         auto hits = ep.Intersections(Vector3D(6, 6, -8), Vector3D(-dir.GetX(), -dir.GetY(), -dir.GetZ()));
-        EXPECT_EQ(hits.size() % 2, 0u) << "ExtrPoly vertex-aimed ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "ExtrPoly vertex-aimed ray: should enter and exit";
     }
 
     // Ray through center
@@ -1335,7 +1339,7 @@ TEST(ShapeInvariants, CutTubeCutPlaneRays) {
         Vector3D dir(std::cos(tilt), 0, std::sin(tilt));
         dir.normalize();
         auto hits = ct.Intersections(Vector3D(-20, 0, -9), dir);
-        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube low-plane parallel ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 4u) << "CutTube low-plane parallel ray: hollow tube gives 4 hits";
     }
 
     // Ray parallel to the high cut plane, just inside
@@ -1343,19 +1347,19 @@ TEST(ShapeInvariants, CutTubeCutPlaneRays) {
         Vector3D dir(std::cos(tilt), 0, std::sin(tilt));
         dir.normalize();
         auto hits = ct.Intersections(Vector3D(-20, 0, 9), dir);
-        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube high-plane parallel ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 0u) << "CutTube high-plane parallel ray: above cut plane, no hit";
     }
 
     // Ray through the intersection of cut plane and barrel surface
     {
         auto hits = ct.Intersections(Vector3D(5, 0, -20), Vector3D(0, 0, 1));
-        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube barrel/plane edge ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "CutTube barrel/plane edge ray: should enter and exit";
     }
 
     // Ray through center
     {
         auto hits = ct.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
-        EXPECT_EQ(hits.size() % 2, 0u) << "CutTube z-axis ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 0u) << "CutTube z-axis ray: inside hollow center, no hit";
     }
 }
 
@@ -1372,21 +1376,21 @@ TEST(ShapeInvariants, BooleanCoincidentSurfaceRays) {
     {
         auto bg = BooleanGeometry(BooleanOperation::UNION, s1, s2);
         auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Union touching spheres x-ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "Union touching spheres x-ray: merged solid, enter + exit";
     }
 
     // Intersection: ray through the touching point along x
     {
         auto bg = BooleanGeometry(BooleanOperation::INTERSECTION, s1, s2);
         auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Intersection touching spheres x-ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 0u) << "Intersection touching spheres x-ray: zero-volume, no hit";
     }
 
     // Subtraction: ray through the touching point along x
     {
         auto bg = BooleanGeometry(BooleanOperation::SUBTRACTION, s1, s2);
         auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Subtraction touching spheres x-ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "Subtraction touching spheres x-ray: left sphere minus point";
     }
 
     // Overlapping spheres: centers at (-2,0,0) and (2,0,0), radius 5
@@ -1397,7 +1401,7 @@ TEST(ShapeInvariants, BooleanCoincidentSurfaceRays) {
     {
         auto bg = BooleanGeometry(BooleanOperation::UNION, s3, s4);
         auto hits = bg.Intersections(Vector3D(0, -10, 0), Vector3D(0, 1, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Union overlapping spheres y-ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "Union overlapping spheres y-ray: single merged solid";
     }
 }
 
@@ -1417,7 +1421,7 @@ TEST(ShapeInvariants, ParaEdgeRays) {
     // Ray along x at the z-extent boundary
     {
         auto hits = para.Intersections(Vector3D(-20, 0, 6), Vector3D(1, 0, 0));
-        EXPECT_EQ(hits.size() % 2, 0u) << "Para z-boundary x-ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 0u) << "Para z-boundary x-ray: tangent at z=dz, no hit";
     }
 
     // Axis-aligned rays from various directions
@@ -1427,7 +1431,7 @@ TEST(ShapeInvariants, ParaEdgeRays) {
     };
     for(auto const & d : dirs) {
         auto hits = para.Intersections(Vector3D(0, 0, 0), d);
-        EXPECT_EQ(hits.size() % 2, 0u) << "Para origin ray: odd count " << hits.size();
+        EXPECT_EQ(hits.size(), 2u) << "Para origin ray: should enter and exit";
     }
 }
 

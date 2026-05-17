@@ -252,25 +252,41 @@ std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
         }
     };
 
-    for(int i = 0; i < n_all; ++i) {
-        if(all_ptr[i].child == 0) {
-            in_left = all_ptr[i].isect.entering;
-        } else {
-            in_right = all_ptr[i].isect.entering;
+    // CSG walk with coincident-hit batching.
+    // When both operands produce hits at the same distance (within tolerance),
+    // process them as a batch and evaluate the combined state only once.
+    // Without this, touching/coincident surfaces produce spurious transitions
+    // (e.g., union of two touching spheres emits 4 hits instead of 2).
+    for(int i = 0; i < n_all; ) {
+        // Find end of coincident-distance batch.
+        int batch_end = i + 1;
+        while(batch_end < n_all
+              && (all_ptr[batch_end].isect.distance - all_ptr[i].isect.distance) < GEOMETRY_PRECISION) {
+            ++batch_end;
+        }
+
+        // Apply all state changes in the batch.
+        for(int j = i; j < batch_end; ++j) {
+            if(all_ptr[j].child == 0) {
+                in_left = all_ptr[j].isect.entering;
+            } else {
+                in_right = all_ptr[j].isect.entering;
+            }
         }
 
         bool now_inside = IsInsideResult(op_, in_left, in_right);
 
         if(was_inside != now_inside) {
             Intersection r;
-            r.distance = all_ptr[i].isect.distance;
-            r.position = all_ptr[i].isect.position;
-            r.hierarchy = all_ptr[i].isect.hierarchy;
+            r.distance = all_ptr[batch_end - 1].isect.distance;
+            r.position = all_ptr[batch_end - 1].isect.position;
+            r.hierarchy = all_ptr[batch_end - 1].isect.hierarchy;
             r.entering = now_inside;
             add_result(r);
         }
 
         was_inside = now_inside;
+        i = batch_end;
     }
 
     if(using_heap_result) {
