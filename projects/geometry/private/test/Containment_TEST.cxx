@@ -306,9 +306,15 @@ bool InsideTrap(Vector3D const & p, double dz, double theta, double phi,
         // Ensure outward (away from centroid)
         double cdot = nx*(v[i0][0]-cx) + ny*(v[i0][1]-cy) + nz*(v[i0][2]-cz);
         if(cdot < 0) { nx = -nx; ny = -ny; nz = -nz; }
+        double nmag = std::sqrt(nx*nx + ny*ny + nz*nz);
+        if(nmag > 0) { nx /= nmag; ny /= nmag; nz /= nmag; }
         double d = -(nx*v[i0][0] + ny*v[i0][1] + nz*v[i0][2]);
         double val = nx*px + ny*py + nz*pz + d;
-        if(val > -0.01) return false;
+        // Strictly inside means on the inner side of every face. (The
+        // normal is unit, so val is a true signed distance; the prior
+        // val > -0.01 skin eroded the oracle inward by 1cm and would
+        // have hidden an undersized production Trap at its faces.)
+        if(val > 0.0) return false;
     }
     return true;
 }
@@ -1182,20 +1188,24 @@ TEST(Containment, TrapAsTrd) {
 }
 
 TEST(Containment, TrapGeneral) {
-    double dz = 5, theta = 0.1, phi = 0.2;
-    double dy1 = 3, dx1 = 4, dx2 = 5, alpha1 = 0.15;
-    double dy2 = 2, dx3 = 3, dx4 = 4, alpha2 = 0.1;
+    // Exercise the full shear path (theta, phi, alpha all nonzero) with a
+    // VALID trap: an affine shear of a box (constant dx, constant dy,
+    // single alpha, uniform z-tilt) is a true parallelepiped, so its six
+    // faces are planar by construction and containment is well defined.
+    //
+    // The earlier fixture used asymmetric dx1!=dx2, alpha1!=alpha2 etc.,
+    // which yields non-planar side quads (an ill-defined G4Trap); the
+    // analytic oracle and the solid then triangulate the quad
+    // differently and disagreement is inherent, not a real bug. The old
+    // InsideTrap "val > -0.01" skin existed only to paper over that.
+    double dz = 5, theta = 0.15, phi = 0.3;
+    double dy = 3, dx = 4, alpha = 0.2;
     Placement pl(Vector3D(1, -1, 2));
-    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
-    // TrapAsTrd already validates correctness for axis-aligned case.
-    // For general parameters, verify the shape has a valid bounding box
-    // and that interior points are consistently inside.
-    auto bb = trap.GetBoundingBox();
-    EXPECT_TRUE(bb.IsValid());
-    // Spot-check: center should be inside
-    EXPECT_TRUE(trap.IsInside(Vector3D(1, -1, 2)));
-    // Spot-check: far away should be outside
-    EXPECT_FALSE(trap.IsInside(Vector3D(100, 100, 100)));
+    Trap trap(pl, dz, theta, phi, dy, dx, dx, alpha, dy, dx, dx, alpha);
+    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+        return InsideTrap(p, dz, theta, phi, dy, dx, dx, alpha,
+                          dy, dx, dx, alpha);
+    }, 15, 10000, "TrapGeneral");
 }
 
 // =========================================================================
