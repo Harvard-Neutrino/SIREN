@@ -254,9 +254,25 @@ TEST(GDMLParser, CompositeOfCompositeMaterial) {
     ASSERT_TRUE(materials.HasMaterial("Mix"));
     int mix_id = materials.GetMaterialId("Mix");
     auto constituents = materials.GetMaterialConstituents(mix_id);
-    // Should have 3 constituents (H, O, C)
-    EXPECT_GE(constituents.size(), 3u)
-        << "Mix should have at least 3 elemental constituents from recursive resolution";
+    // The original test only counted constituents (>=3). That passes even
+    // if recursive resolution silently drops Carbon or fails to expand
+    // Water into H+O. SIREN decomposes a material into scattering targets:
+    // the element nuclei plus free p/n/e. Value-check that the resolved
+    // NUCLEAR set is exactly {H (Z=1), C (Z=6), O (Z=8)} -- nuclear PDG
+    // codes have the form 10LZZZAAAI (>= 1000000000).
+    EXPECT_GE(constituents.size(), 3u) << "Mix should resolve to >= H, C, O";
+    std::set<int> nuclear_Z;
+    for(auto pt : constituents) {
+        long long pdg = static_cast<long long>(pt);
+        if(pdg < 0) pdg = -pdg;
+        if(pdg >= 1000000000LL) {                 // nuclear PDG 10LZZZAAAI
+            int Z = static_cast<int>((pdg / 10000) % 1000);
+            if(Z >= 1) nuclear_Z.insert(Z);       // skip SIREN pseudo-targets
+        }
+    }
+    std::set<int> expected_Z = {1, 6, 8};        // H, C, O
+    EXPECT_EQ(nuclear_Z, expected_Z)
+        << "recursive composite resolution must yield exactly H, C, O nuclei";
 }
 
 
