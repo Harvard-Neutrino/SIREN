@@ -1777,14 +1777,9 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
 
             double startphi = SafeParseDouble(SafeAttrVal(node, "startphi"), data.constants) * ascale;
 
-            // Check deltaphi for partial polyhedra
+            double deltaphi = 2.0 * M_PI;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * M_PI) > ANG_TOL) {
-                    EmitWarning(data, options, "polyhedra '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
 
             std::vector<double> z_planes;
             std::vector<double> rmin_vec;
@@ -1825,7 +1820,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
                     if(z_planes[i] <= z_planes[i-1]) { z_valid = false; break; }
                 }
                 if(z_valid) {
-                    geo = Polyhedra(numSide, startphi, z_planes, rmin_vec, rmax_vec).create();
+                    geo = Polyhedra(numSide, startphi, z_planes, rmin_vec, rmax_vec, deltaphi).create();
                 } else {
                     EmitWarning(data, options, "polyhedra '" + name + "' has non-monotonic z-planes after sorting; skipping");
                 }
@@ -2211,7 +2206,8 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
         }
 
         // Apply first-operand placement if specified
-        bool has_first_placement = (first_pos.magnitude() > 0 || first_rot != Quaternion());
+        bool has_first_placement = (fpos_node != nullptr || fposref_node != nullptr
+                                 || frot_node != nullptr || frotref_node != nullptr);
         std::shared_ptr<Geometry> left_placed;
         if(has_first_placement) {
             left_placed = left->create();
@@ -2410,7 +2406,8 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
 
             // Apply first-operand placement if specified
-            bool has_first_placement = (first_pos.magnitude() > 0 || first_rot != Quaternion());
+            bool has_first_placement = (fpos_node != nullptr || fposref_node != nullptr
+                                     || frot_node != nullptr || frotref_node != nullptr);
             std::shared_ptr<Geometry> left_placed;
             if(has_first_placement) {
                 left_placed = left->create();
@@ -2432,6 +2429,12 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             storeSolid(db.name, geo);
             db.node = nullptr; // Mark as resolved
             made_progress = true;
+        }
+    }
+
+    for(auto const & db : deferred) {
+        if(db.node != nullptr) {
+            EmitWarning(data, options, "boolean solid '" + db.name + "' has unresolved operand references; skipping");
         }
     }
 
