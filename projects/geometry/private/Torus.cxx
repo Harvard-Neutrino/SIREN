@@ -427,6 +427,16 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
             double iz = pz + t * dz;
             double rxy = std::sqrt(ix*ix + iy*iy);
             double residual = (rxy - R) * (rxy - R) + iz * iz - r * r;
+            // Acceptance band on the implicit surface residual. This is
+            // deliberately loose: with the closest-approach origin shift
+            // above, Ferrari lands within ~1e-9 of a well-conditioned
+            // torus surface (verified by ShapeInvariants.TorusHitOnSurface),
+            // so the band is a harmless pre-filter there. It MUST stay
+            // loose, however, for self-intersecting tori (tube radius >
+            // major radius): near the self-intersection the surface is
+            // singular and the analytic roots legitimately carry a much
+            // larger residual; a tight positional bound rejects real hits
+            // and breaks containment for that (supported) degenerate case.
             double tol = 1e-4 * (r * r + R * R);
             if(std::fabs(residual) > tol) continue;
             double dedup_tol = 1e-6 * (1.0 + std::fabs(t));

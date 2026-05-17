@@ -816,13 +816,82 @@ TEST(ShapeInvariants, TorusSymmetryPlaneRays) {
 }
 
 TEST(ShapeInvariants, TorusZAxisRay) {
-    // Ray along z-axis through the center of the torus (rxy=0)
+    // Ray along z-axis through the center hole of the torus (rxy=0).
+    // Solid torus R=10, r=3 occupies rxy in [7,13]; the z-axis (rxy=0)
+    // never reaches the body, so the count is exactly zero (knowable).
     Torus torus(10, 3, 0);
     Vector3D pos(0, 0, -20);
     Vector3D dir(0, 0, 1);
     auto hits = torus.Intersections(pos, dir);
-    // z-axis is inside the torus hole, so no intersections expected
-    EXPECT_EQ(hits.size() % 2, 0u) << "Z-axis ray should produce even count";
+    EXPECT_EQ(hits.size(), 0u) << "Z-axis ray must produce no intersections";
+}
+
+// Accepted hits must lie on the implicit torus surface
+// F = (sqrt(x^2+y^2) - R)^2 + z^2 - r^2 = 0. Before root polishing, the
+// Ferrari solver's positional error scaled as R^2/r and no test ever
+// checked surface-landing.
+TEST(ShapeInvariants, TorusHitOnSurface) {
+    auto surfaceF = [](double R, double r, Vector3D const & p) {
+        double x = p.GetX(), y = p.GetY(), z = p.GetZ();
+        double rxy = std::sqrt(x*x + y*y);
+        return (rxy - R) * (rxy - R) + z*z - r*r;
+    };
+
+    // Case 1: axis-aligned ray in the z=0 plane crosses both tube lobes;
+    // surface crossings are at |x| = R-r = 7 and R+r = 13 (4 hits).
+    {
+        double R = 10, r = 3;
+        Torus torus(R, r, 0);
+        auto hits = torus.Intersections(Vector3D(-50, 0, 0), Vector3D(1, 0, 0));
+        ASSERT_EQ(hits.size(), 4u) << "z=0 axis ray must cross 4 surfaces";
+        for(size_t i = 0; i < hits.size(); ++i) {
+            EXPECT_NEAR(surfaceF(R, r, hits[i].position), 0.0, 1e-7)
+                << "hit " << i << " is off the torus surface";
+            double ax = std::fabs(hits[i].position.GetX());
+            EXPECT_TRUE(std::fabs(ax - 7.0) < 1e-6 || std::fabs(ax - 13.0) < 1e-6)
+                << "hit " << i << " x=" << hits[i].position.GetX();
+        }
+    }
+
+    // Case 2: vertical ray through the +x tube center: 2 hits at z = +/-r.
+    {
+        double R = 10, r = 3;
+        Torus torus(R, r, 0);
+        auto hits = torus.Intersections(Vector3D(10, 0, -20), Vector3D(0, 0, 1));
+        ASSERT_EQ(hits.size(), 2u);
+        for(size_t i = 0; i < hits.size(); ++i)
+            EXPECT_NEAR(surfaceF(R, r, hits[i].position), 0.0, 1e-7)
+                << "lobe hit " << i << " off surface";
+    }
+
+    // Case 3: oblique general ray (all direction components nonzero) to
+    // exercise the non-biquadratic Ferrari path. Must hit and land on
+    // the surface; assert it is not vacuous.
+    {
+        double R = 10, r = 3;
+        Torus torus(R, r, 0);
+        Vector3D dir(1.0, 0.1, 0.05);
+        dir.normalize();
+        auto hits = torus.Intersections(Vector3D(-40, 2, -1), dir);
+        EXPECT_EQ(hits.size() % 2, 0u) << "oblique ray odd count";
+        EXPECT_GE(hits.size(), 2u) << "oblique ray must pierce the torus";
+        for(size_t i = 0; i < hits.size(); ++i)
+            EXPECT_NEAR(surfaceF(R, r, hits[i].position), 0.0, 1e-6)
+                << "oblique hit " << i << " off surface";
+    }
+
+    // Case 4: thin large-R torus. The old tolerance 1e-4*(r^2+R^2)
+    // accepted points ~0.5 units off here; the fix must keep hits on
+    // the surface to ~1e-6.
+    {
+        double R = 100, r = 1;
+        Torus torus(R, r, 0);
+        auto hits = torus.Intersections(Vector3D(-200, 0, 0), Vector3D(1, 0, 0));
+        ASSERT_EQ(hits.size(), 4u);
+        for(size_t i = 0; i < hits.size(); ++i)
+            EXPECT_NEAR(surfaceF(R, r, hits[i].position), 0.0, 1e-6)
+                << "thin-torus hit " << i << " off surface";
+    }
 }
 
 // =========================================================================
