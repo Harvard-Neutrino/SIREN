@@ -39,6 +39,19 @@ public:
               std::vector<double> const & z_planes,
               std::vector<double> const & rmin,
               std::vector<double> const & rmax);
+    Polyhedra(int num_sides,
+              double start_phi,
+              std::vector<double> const & z_planes,
+              std::vector<double> const & rmin,
+              std::vector<double> const & rmax,
+              double delta_phi);
+    Polyhedra(Placement const &,
+              int num_sides,
+              double start_phi,
+              std::vector<double> const & z_planes,
+              std::vector<double> const & rmin,
+              std::vector<double> const & rmax,
+              double delta_phi);
     Polyhedra(const Polyhedra&);
 
     template<typename Archive>
@@ -50,9 +63,21 @@ public:
             archive(::cereal::make_nvp("Rmin", rmin_));
             archive(::cereal::make_nvp("Rmax", rmax_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            delta_phi_ = 2.0 * M_PI;
+            has_phi_cut_ = false;
+            precompute_trig();
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("NumSides", num_sides_));
+            archive(::cereal::make_nvp("StartPhi", start_phi_));
+            archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
+            archive(::cereal::make_nvp("ZPlanes", z_planes_));
+            archive(::cereal::make_nvp("Rmin", rmin_));
+            archive(::cereal::make_nvp("Rmax", rmax_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+            has_phi_cut_ = std::fabs(delta_phi_ - 2.0 * M_PI) > 1e-9;
             precompute_trig();
         } else {
-            throw std::runtime_error("Polyhedra only supports version <= 0!");
+            throw std::runtime_error("Polyhedra only supports version <= 1!");
         }
     }
 
@@ -71,6 +96,8 @@ public:
     // Getter & Setter
     int GetNumSides() const { return num_sides_; }
     double GetStartPhi() const { return start_phi_; }
+    double GetDeltaPhi() const { return delta_phi_; }
+    bool HasPhiCut() const { return has_phi_cut_; }
     std::vector<double> const & GetZPlanes() const { return z_planes_; }
     std::vector<double> const & GetRmin() const { return rmin_; }
     std::vector<double> const & GetRmax() const { return rmax_; }
@@ -89,6 +116,8 @@ private:
 
     int num_sides_;            //!< number of polygon sides (>= 3)
     double start_phi_;         //!< starting angle of first polygon edge (radians)
+    double delta_phi_;         //!< azimuthal extent (radians, default 2*pi)
+    bool has_phi_cut_;         //!< true if delta_phi < 2*pi
     std::vector<double> z_planes_; //!< z-positions of each plane (ascending)
     std::vector<double> rmin_;     //!< inner radius at each z-plane (to edge center)
     std::vector<double> rmax_;     //!< outer radius at each z-plane (to edge center)
@@ -103,7 +132,7 @@ private:
 } // namespace geometry
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::geometry::Polyhedra, 0);
+CEREAL_CLASS_VERSION(siren::geometry::Polyhedra, 1);
 CEREAL_REGISTER_TYPE(siren::geometry::Polyhedra)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Polyhedra);
 

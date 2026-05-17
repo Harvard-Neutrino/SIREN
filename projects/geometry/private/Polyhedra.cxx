@@ -16,6 +16,29 @@
 namespace siren {
 namespace geometry {
 
+namespace {
+
+static const double TWO_PI = 2.0 * M_PI;
+
+double NormalizePhi(double phi) {
+    phi = std::fmod(phi, TWO_PI);
+    if(phi < 0) phi += TWO_PI;
+    return phi;
+}
+
+bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = NormalizePhi(std::atan2(y, x));
+    double sp = NormalizePhi(start_phi);
+    double ep = sp + delta_phi;
+    if(ep <= TWO_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        return phi >= sp - 1e-9 || phi <= NormalizePhi(ep) + 1e-9;
+    }
+}
+
+} // anonymous namespace
+
 void Polyhedra::validate() const {
     if(num_sides_ < 3) {
         throw std::runtime_error("Polyhedra requires at least 3 sides!");
@@ -67,6 +90,8 @@ Polyhedra::Polyhedra()
     : Geometry((std::string)("Polyhedra"))
     , num_sides_(0)
     , start_phi_(0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false)
     , z_planes_()
     , rmin_()
       , rmax_() {
@@ -81,6 +106,8 @@ Polyhedra::Polyhedra(int num_sides,
     : Geometry((std::string)("Polyhedra"))
     , num_sides_(num_sides)
     , start_phi_(start_phi)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false)
     , z_planes_(z_planes)
     , rmin_(rmin)
       , rmax_(rmax) {
@@ -92,6 +119,8 @@ Polyhedra::Polyhedra(Placement const & placement)
     : Geometry((std::string)("Polyhedra"), placement)
     , num_sides_(0)
     , start_phi_(0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false)
     , z_planes_()
     , rmin_()
       , rmax_() {
@@ -107,6 +136,45 @@ Polyhedra::Polyhedra(Placement const & placement,
     : Geometry((std::string)("Polyhedra"), placement)
     , num_sides_(num_sides)
     , start_phi_(start_phi)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false)
+    , z_planes_(z_planes)
+    , rmin_(rmin)
+      , rmax_(rmax) {
+    validate();
+    precompute_trig();
+}
+
+Polyhedra::Polyhedra(int num_sides,
+                     double start_phi,
+                     std::vector<double> const & z_planes,
+                     std::vector<double> const & rmin,
+                     std::vector<double> const & rmax,
+                     double delta_phi)
+    : Geometry((std::string)("Polyhedra"))
+    , num_sides_(num_sides)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi)
+    , has_phi_cut_(std::fabs(delta_phi - 2.0 * M_PI) > 1e-9)
+    , z_planes_(z_planes)
+    , rmin_(rmin)
+      , rmax_(rmax) {
+    validate();
+    precompute_trig();
+}
+
+Polyhedra::Polyhedra(Placement const & placement,
+                     int num_sides,
+                     double start_phi,
+                     std::vector<double> const & z_planes,
+                     std::vector<double> const & rmin,
+                     std::vector<double> const & rmax,
+                     double delta_phi)
+    : Geometry((std::string)("Polyhedra"), placement)
+    , num_sides_(num_sides)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi)
+    , has_phi_cut_(std::fabs(delta_phi - 2.0 * M_PI) > 1e-9)
     , z_planes_(z_planes)
     , rmin_(rmin)
       , rmax_(rmax) {
@@ -118,6 +186,8 @@ Polyhedra::Polyhedra(const Polyhedra& polyhedra)
     : Geometry(polyhedra)
     , num_sides_(polyhedra.num_sides_)
     , start_phi_(polyhedra.start_phi_)
+    , delta_phi_(polyhedra.delta_phi_)
+    , has_phi_cut_(polyhedra.has_phi_cut_)
     , z_planes_(polyhedra.z_planes_)
     , rmin_(polyhedra.rmin_)
     , rmax_(polyhedra.rmax_)
@@ -137,6 +207,8 @@ void Polyhedra::swap(Geometry& geometry) {
 
     std::swap(num_sides_, polyhedra->num_sides_);
     std::swap(start_phi_, polyhedra->start_phi_);
+    std::swap(delta_phi_, polyhedra->delta_phi_);
+    std::swap(has_phi_cut_, polyhedra->has_phi_cut_);
     std::swap(z_planes_, polyhedra->z_planes_);
     std::swap(rmin_, polyhedra->rmin_);
     std::swap(rmax_, polyhedra->rmax_);
@@ -168,6 +240,8 @@ bool Polyhedra::equal(const Geometry& geometry) const
         return false;
     else if(start_phi_ != polyhedra->start_phi_)
         return false;
+    else if(delta_phi_ != polyhedra->delta_phi_)
+        return false;
     else if(z_planes_ != polyhedra->z_planes_)
         return false;
     else if(rmin_ != polyhedra->rmin_)
@@ -185,15 +259,16 @@ bool Polyhedra::less(const Geometry& geometry) const
     if(!polyhedra) return false;
 
     return
-        std::tie(num_sides_, start_phi_, z_planes_, rmin_, rmax_)
+        std::tie(num_sides_, start_phi_, delta_phi_, z_planes_, rmin_, rmax_)
         <
-        std::tie(polyhedra->num_sides_, polyhedra->start_phi_, polyhedra->z_planes_, polyhedra->rmin_, polyhedra->rmax_);
+        std::tie(polyhedra->num_sides_, polyhedra->start_phi_, polyhedra->delta_phi_, polyhedra->z_planes_, polyhedra->rmin_, polyhedra->rmax_);
 }
 
 void Polyhedra::print(std::ostream& os) const
 {
     os << "Polyhedra with " << num_sides_ << " sides, "
-       << z_planes_.size() << " z-planes, start_phi=" << start_phi_ << ":";
+       << z_planes_.size() << " z-planes, start_phi=" << start_phi_
+       << ", delta_phi=" << delta_phi_ << ":";
     for(size_t i = 0; i < z_planes_.size(); ++i) {
         os << " [z=" << z_planes_[i]
            << " rmin=" << rmin_[i]
@@ -618,12 +693,100 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
     auto cmp = [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
     };
+
+    if(!has_phi_cut_) {
+        if(using_heap) {
+            std::sort(heap_hits.begin(), heap_hits.end(), cmp);
+            return heap_hits;
+        }
+        std::sort(stack_hits, stack_hits + n_hits, cmp);
+        return {stack_hits, stack_hits + n_hits};
+    }
+
+    // Phi cut: CSG intersection of the full-rotation solid with an infinite wedge.
     if(using_heap) {
         std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-        return heap_hits;
+    } else {
+        std::sort(stack_hits, stack_hits + n_hits, cmp);
     }
-    std::sort(stack_hits, stack_hits + n_hits, cmp);
-    return {stack_hits, stack_hits + n_hits};
+
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source; // 0 = surface, 1 = wedge
+    };
+
+    std::vector<TaggedHit> all_hits;
+    all_hits.reserve(n_hits + 2);
+    for(int i = 0; i < n_hits; ++i) {
+        Intersection const & h = using_heap ? heap_hits[i] : stack_hits[i];
+        all_hits.push_back({h.distance, h.position, h.entering, 0});
+    }
+
+    // Infinite wedge: two half-planes from the z-axis
+    for(int face = 0; face < 2; ++face) {
+        double alpha = start_phi_ + face * delta_phi_;
+        double ca = std::cos(alpha), sa = std::sin(alpha);
+        double nx, ny;
+        if(face == 0) { nx = sa; ny = -ca; }
+        else { nx = -sa; ny = ca; }
+        double n_dot_d = nx*dx + ny*dy;
+        if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+        double n_dot_p = nx*px + ny*py;
+        double t = -n_dot_p / n_dot_d;
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+
+        double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+        if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+
+        bool entering = (n_dot_d < 0);
+        all_hits.push_back({t, siren::math::Vector3D(hx, hy, hz), entering, 1});
+    }
+
+    if(all_hits.empty()) return {};
+
+    std::sort(all_hits.begin(), all_hits.end(), [](TaggedHit const & a, TaggedHit const & b) {
+        return a.distance < b.distance;
+    });
+
+    // CSG walk
+    bool in_surface = false;
+    bool in_wedge = false;
+
+    bool has_wedge_hit = false;
+    for(size_t i = 0; i < all_hits.size(); ++i) {
+        if(all_hits[i].source == 1) {
+            in_wedge = !all_hits[i].entering;
+            has_wedge_hit = true;
+            break;
+        }
+    }
+    if(!has_wedge_hit) {
+        in_wedge = PhiInRange(px, py, start_phi_, delta_phi_);
+    }
+
+    bool was_inside = in_surface && in_wedge;
+
+    std::vector<Intersection> result;
+    for(size_t i = 0; i < all_hits.size(); ++i) {
+        if(all_hits[i].source == 0) {
+            in_surface = all_hits[i].entering;
+        } else {
+            in_wedge = all_hits[i].entering;
+        }
+        bool now_inside = in_surface && in_wedge;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //
@@ -632,14 +795,51 @@ AABB Polyhedra::GetBoundingBox() const {
         return AABB(math::Vector3D(0, 0, 0), math::Vector3D(0, 0, 0));
     }
     double max_r = *std::max_element(rmax_.begin(), rmax_.end());
-    // The inscribed radius is rmax (distance from center to edge midpoint).
-    // The circumradius (distance from center to vertex) is rmax / cos(pi/N).
     double circum_r = max_r / std::cos(M_PI / num_sides_);
     double z_lo = z_planes_.front();
     double z_hi = z_planes_.back();
+
+    if(!has_phi_cut_) {
+        return AABB(
+            math::Vector3D(-circum_r, -circum_r, z_lo),
+            math::Vector3D( circum_r,  circum_r, z_hi)
+        );
+    }
+
+    double sp = NormalizePhi(start_phi_);
+    double ep = sp + delta_phi_;
+
+    double x_min = 0, x_max = 0, y_min = 0, y_max = 0;
+
+    double angles[2] = {sp, sp + delta_phi_};
+    for(int i = 0; i < 2; ++i) {
+        double a = angles[i];
+        double cx = std::cos(a) * circum_r;
+        double cy = std::sin(a) * circum_r;
+        if(cx < x_min) x_min = cx;
+        if(cx > x_max) x_max = cx;
+        if(cy < y_min) y_min = cy;
+        if(cy > y_max) y_max = cy;
+    }
+
+    double cardinals[4] = {0.0, M_PI / 2.0, M_PI, 3.0 * M_PI / 2.0};
+    for(int i = 0; i < 4; ++i) {
+        double c = cardinals[i];
+        double cn = c;
+        if(cn < sp) cn += TWO_PI;
+        if(cn <= ep + 1e-9) {
+            double cx = std::cos(cardinals[i]) * circum_r;
+            double cy = std::sin(cardinals[i]) * circum_r;
+            if(cx < x_min) x_min = cx;
+            if(cx > x_max) x_max = cx;
+            if(cy < y_min) y_min = cy;
+            if(cy > y_max) y_max = cy;
+        }
+    }
+
     return AABB(
-        math::Vector3D(-circum_r, -circum_r, z_lo),
-        math::Vector3D( circum_r,  circum_r, z_hi)
+        math::Vector3D(x_min, y_min, z_lo),
+        math::Vector3D(x_max, y_max, z_hi)
     );
 }
 
