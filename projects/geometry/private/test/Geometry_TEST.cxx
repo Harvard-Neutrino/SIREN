@@ -31,6 +31,11 @@ double RandomDouble() {
 
 // Replaces the removed DistanceToBorder method.
 // Returns pair<double,double> with the same semantics as the original.
+// Known limitation: this inspects only the first forward entry/exit
+// pair, so it cannot detect over-reporting, duplicate, or mis-ordered
+// hits beyond the 2nd. It is faithful for the convex shapes it is used
+// on; for the hollow Sphere/Cylinder cases the first pair is the inner
+// shell and is what those tests intentionally assert.
 std::pair<double, double> DistanceToBorder(
         Geometry const & geo,
         Vector3D const & position,
