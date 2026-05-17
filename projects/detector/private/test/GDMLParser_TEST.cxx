@@ -6,14 +6,17 @@
 //   - Forward-reference boolean solid parsing
 
 #include <cmath>
+#include <set>
 #include <string>
 #include <fstream>
 #include <cstdio>
+#include <utility>
 
 #include <gtest/gtest.h>
 
 #include "SIREN/detector/GDMLParser.h"
 #include "SIREN/detector/DetectorModel.h"
+#include "SIREN/dataclasses/ParticleType.h"
 
 using namespace siren::detector;
 
@@ -4698,4 +4701,880 @@ TEST(GDMLParser, LengthQuantityInSolid) {
     auto bb = data.solids["test"]->GetBoundingBox();
     EXPECT_NEAR(bb.max_corner.GetX(), 0.05, 1e-9)
         << "5cm quantity = 50mm half-width, box full-width = 100mm, AABB max = 50mm = 0.05m";
+}
+
+
+// =========================================================================
+// Per-Solid Parser-to-Geometry Bridge Tests
+// Validate that parsed GDML solids produce correct IsInside() results
+// at analytically-chosen probe points.
+// =========================================================================
+
+TEST(GDMLParser, BoxContainmentThroughParser) {
+    // box x,y,z are GDML half-widths: 50mm, 30mm, 20mm
+    // Parser doubles them; SIREN stores full-widths internally.
+    // Half-extents in meters: 0.05, 0.03, 0.02
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="b" x="50" y="30" z="20" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="b"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("b") > 0);
+    auto geo = data.solids["b"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: center
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // Interior: just inside corners
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.049, 0.029, 0.019), dir));
+    // Exterior: just past x half-width
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.051, 0, 0), dir));
+    // Exterior: just past y half-width
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0.031, 0), dir));
+    // Exterior: just past z half-width
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0.021), dir));
+}
+
+TEST(GDMLParser, SphereContainmentThroughParser) {
+    // Hollow sphere: rmin=20mm=0.02m, rmax=50mm=0.05m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <sphere name="s" rmin="20" rmax="50" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="s"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("s") > 0);
+    auto geo = data.solids["s"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: between inner and outer radius
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.035, 0, 0), dir));
+    // Exterior: inside hollow core (r=0.015 < rmin=0.02)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.015, 0, 0), dir));
+    // Exterior: past outer radius (r=0.051 > rmax=0.05)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.051, 0, 0), dir));
+}
+
+TEST(GDMLParser, TubeContainmentThroughParser) {
+    // Hollow tube: rmin=10mm=0.01m, rmax=50mm=0.05m
+    // z=100mm is GDML half-height; parser doubles it -> full height 200mm, half=0.1m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <tube name="t" rmin="10" rmax="50" z="100" deltaphi="360" aunit="deg" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="t"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("t") > 0);
+    auto geo = data.solids["t"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: in shell, at center height
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0, 0), dir));
+    // Interior: in shell, near top (z=0.09 < half-height 0.1)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0.03, 0.09), dir));
+    // Exterior: inside hollow (r=0.005 < rmin=0.01)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.005, 0, 0), dir));
+    // Exterior: past outer radius
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.051, 0, 0), dir));
+    // Exterior: past z half-height (0.101 > 0.1)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, 0, 0.101), dir));
+}
+
+TEST(GDMLParser, ConeContainmentThroughParser) {
+    // Solid cone: rmax1=50mm at z=-0.05m, rmax2=20mm at z=+0.05m
+    // z=100mm is GDML half-height, so full height = 0.2m, spanning z=-0.1 to z=0.1
+    // Wait -- parser doubles z for cone, so z goes from -0.1 to +0.1
+    // rmax linearly interpolates: rmax(z) = 50 + (20-50)*(z+0.1)/0.2 mm
+    //   = 50 - 150*(z+0.1) mm  (z in meters)
+    // At z=0: rmax = 50 - 150*0.1 = 35mm = 0.035m
+    // At z=-0.09: rmax = 50 - 150*0.01 = 48.5mm = 0.0485m
+    // At z=+0.09: rmax = 50 - 150*0.19 = 21.5mm = 0.0215m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <cone name="c" rmin1="0" rmax1="50" rmin2="0" rmax2="20" z="100"
+          deltaphi="360" aunit="deg" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="c"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("c") > 0);
+    auto geo = data.solids["c"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: center (r=0 < rmax=0.035m at z=0)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // Interior: near bottom (r=0.04 < rmax~0.0485m at z=-0.09)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.04, 0, -0.09), dir));
+    // Exterior: near top (r=0.04 > rmax~0.0215m at z=+0.09)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.04, 0, 0.09), dir));
+}
+
+TEST(GDMLParser, TrdContainmentThroughParser) {
+    // Trd: x1=60, x2=30, y1=40, y2=20, z=50 (all GDML half-widths/half-height, mm)
+    // At z=-0.05m (bottom face): x half-width=0.06m, y half-width=0.04m
+    // At z=+0.05m (top face): x half-width=0.03m, y half-width=0.02m
+    // At z=0 (center): x half-width=0.045m, y half-width=0.03m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <trd name="tr" x1="60" x2="30" y1="40" y2="20" z="50" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="tr"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("tr") > 0);
+    auto geo = data.solids["tr"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: center region (|x|=0.04 < 0.045, |y|=0.025 < 0.03)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.04, 0.025, 0), dir));
+    // Exterior: at center height, x=0.046 > 0.045 (interpolated half-width)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.046, 0, 0), dir));
+    // Interior: near bottom z=-0.045, x half-width ~ 0.057m, 0.055 < 0.057
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.055, 0, -0.045), dir));
+    // Exterior: near top z=+0.045, x half-width ~ 0.033m, 0.055 > 0.033
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.055, 0, 0.045), dir));
+}
+
+TEST(GDMLParser, EllipticalTubeContainmentThroughParser) {
+    // eltube dx=40mm=0.04m, dy=20mm=0.02m, dz=50mm=0.05m
+    // Cross-section: (x/dx)^2 + (y/dy)^2 < 1, |z| < dz
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <eltube name="et" dx="40" dy="20" dz="50" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="et"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("et") > 0);
+    auto geo = data.solids["et"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: (0.03/0.04)^2 = 0.5625 < 1
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0, 0), dir));
+    // Exterior: (0.03/0.04)^2 + (0.015/0.02)^2 = 0.5625 + 0.5625 = 1.125 > 1
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, 0.015, 0), dir));
+    // Exterior: past z extent
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0.051), dir));
+}
+
+TEST(GDMLParser, TorusContainmentThroughParser) {
+    // Solid torus: rmin=0, rmax=20mm=0.02m, rtor=100mm=0.1m
+    // Points on the major radius circle (distance 0.1m from z-axis) are
+    // within the tube cross-section.
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <torus name="tor" rmin="0" rmax="20" rtor="100" startphi="0" deltaphi="360"
+           lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="tor"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("tor") > 0);
+    auto geo = data.solids["tor"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: on major radius circle (distance from ring center = 0)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.1, 0, 0), dir));
+    // Interior: 0.01m from ring center (0.11 - 0.1 = 0.01 < rmax=0.02)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.11, 0, 0), dir));
+    // Exterior: origin is 0.1m from ring, 0.1 > rmax=0.02
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // Exterior: z=0.025m from ring center at (0.1,0,0): 0.025 > rmax=0.02
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.1, 0, 0.025), dir));
+}
+
+TEST(GDMLParser, TrapContainmentThroughParser) {
+    // Trap: z=50mm dz=0.05m. theta=phi=0.
+    // At z=-dz: dy1=0.03m, dx1=dx2=0.02m
+    // At z=+dz: dy2=0.015m, dx3=dx4=0.01m
+    // At z=0: interpolated dy~0.0225m, dx~0.015m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <trap name="trp" z="50" theta="0" phi="0"
+          y1="30" x1="20" x2="20" alpha1="0"
+          y2="15" x3="10" x4="10" alpha2="0"
+          aunit="rad" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="trp"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("trp") > 0);
+    auto geo = data.solids["trp"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: center
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // Interior: near bottom face (z=-0.04). Interpolated at z=-0.04:
+    //   t = (-0.04+0.05)/0.1 = 0.1, dx = 0.02*(1-0.1)+0.01*0.1 = 0.019
+    //   dy = 0.03*(1-0.1)+0.015*0.1 = 0.0285
+    //   x=0.015 < 0.019, y=0.02 < 0.0285 -> inside
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.015, 0.02, -0.04), dir));
+    // Exterior: near top face (z=+0.04). Interpolated:
+    //   t = (0.04+0.05)/0.1 = 0.9, dx = 0.02*0.1+0.01*0.9 = 0.011
+    //   x=0.015 > 0.011 -> outside
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.015, 0, 0.04), dir));
+}
+
+TEST(GDMLParser, PolyconeContainmentThroughParser) {
+    // Polycone with 3 z-planes:
+    //   z=-50mm rmin=0 rmax=50mm
+    //   z=0     rmin=0 rmax=80mm
+    //   z=+50mm rmin=0 rmax=30mm
+    // At z=0: rmax=0.08m
+    // At z=40mm (between 0 and 50mm): rmax = 80 + (30-80)*(40/50) = 80-40 = 40mm = 0.04m
+    // At z=-40mm (between -50 and 0mm): rmax = 50 + (80-50)*(10/50) = 56mm = 0.056m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <polycone name="pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="50" z="-50"/>
+      <zplane rmin="0" rmax="80" z="0"/>
+      <zplane rmin="0" rmax="30" z="50"/>
+    </polycone>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="pc"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("pc") > 0);
+    auto geo = data.solids["pc"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: at z=0, r=0.06 < rmax=0.08
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.06, 0, 0), dir));
+    // Interior: at z=-0.04m, r=0.04 < rmax~0.056
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.04, 0, -0.04), dir));
+    // Exterior: at z=0.04m, r=0.06 > rmax~0.04m (interpolated between 80mm and 30mm)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.06, 0, 0.04), dir));
+}
+
+TEST(GDMLParser, EllipsoidContainmentThroughParser) {
+    // Ellipsoid: ax=50mm=0.05m, by=30mm=0.03m, cz=40mm=0.04m
+    // Equation: (x/0.05)^2 + (y/0.03)^2 + (z/0.04)^2 < 1
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <ellipsoid name="ell" ax="50" by="30" cz="40" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="ell"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("ell") > 0);
+    auto geo = data.solids["ell"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: origin
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    // Interior: (0.03/0.05)^2 + (0.01/0.03)^2 + (0.01/0.04)^2
+    //         = 0.36 + 0.1111 + 0.0625 = 0.5336 < 1
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0.01, 0.01), dir));
+    // Exterior: (0.04/0.05)^2 + (0.02/0.03)^2 + (0.03/0.04)^2
+    //         = 0.64 + 0.4444 + 0.5625 = 1.647 > 1
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.04, 0.02, 0.03), dir));
+}
+
+
+// =========================================================================
+// Partial Angular Extent Validation
+// Verify that solids with restricted phi/theta ranges correctly exclude
+// points outside the angular cut.
+// =========================================================================
+
+TEST(GDMLParser, PartialSphereContainmentThroughParser) {
+    // Upper hemisphere: starttheta=0, deltatheta=90 deg
+    // Only theta in [0, 90deg] is included (z >= 0 hemisphere)
+    // rmax = 100mm = 0.1m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <sphere name="hemi" rmax="100" starttheta="0" deltatheta="90"
+            startphi="0" deltaphi="360" lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="hemi"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("hemi") > 0);
+    auto geo = data.solids["hemi"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: upper hemisphere (z>0, r=0.05 < 0.1)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0.05), dir));
+    // Exterior: lower hemisphere (z<0, theta > 90 deg)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, -0.05), dir));
+}
+
+TEST(GDMLParser, PartialTorusContainmentThroughParser) {
+    // Quarter torus: deltaphi=90 deg (phi from 0 to 90 deg)
+    // rmin=0, rmax=20mm=0.02m, rtor=100mm=0.1m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <torus name="qt" rmin="0" rmax="20" rtor="100" startphi="0" deltaphi="90"
+           lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="qt"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("qt") > 0);
+    auto geo = data.solids["qt"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: at phi=0, on the ring
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.1, 0, 0), dir));
+    // Interior: at phi=45 deg (x=y=0.1/sqrt(2)~0.0707)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.0707, 0.0707, 0), dir));
+    // Exterior: at phi=180 deg (negative x axis, outside 90 deg cut)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(-0.1, 0, 0), dir));
+    // Exterior: at phi=270 deg (negative y axis)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, -0.1, 0), dir));
+}
+
+TEST(GDMLParser, PartialCylinderContainmentThroughParser) {
+    // Half cylinder: deltaphi=180 deg (phi from 0 to 180 deg, y >= 0 half)
+    // rmax=50mm=0.05m, z=100mm half-height=0.05m
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <tube name="hc" rmin="0" rmax="50" z="100" startphi="0" deltaphi="180"
+          lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="hc"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("hc") > 0);
+    auto geo = data.solids["hc"];
+    ASSERT_NE(geo, nullptr);
+    siren::math::Vector3D dir(0, 0, 1);
+
+    // Interior: phi~45 deg (first quadrant, within 180 deg cut)
+    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.03, 0.03, 0), dir));
+    // Exterior: phi~315 deg (fourth quadrant, outside 180 deg cut)
+    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, -0.03, 0), dir));
+}
+
+
+// =========================================================================
+// Loop position validation: single loop generating 4 physvols
+// =========================================================================
+TEST(GDMLParser, LoopInStructurePositions) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="i" value="0"/>
+  </define>
+  <materials>
+    <material name="TestMat" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.01"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
+    <box name="child_box" x="10" y="10" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Child">
+      <materialref ref="TestMat"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="TestMat"/>
+      <solidref ref="world_box"/>
+      <loop for="i" from="0" to="3" step="1">
+        <physvol>
+          <volumeref ref="Child"/>
+          <position name="lpos_[i]" x="i*100" y="0" z="0" unit="mm"/>
+        </physvol>
+      </loop>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    auto it = data.volumes.find("World");
+    ASSERT_NE(it, data.volumes.end());
+    ASSERT_EQ(it->second.children.size(), 4u)
+        << "Loop i=0..3 should produce exactly 4 physvol placements";
+
+    for(size_t idx = 0; idx < 4; ++idx) {
+        double expected_x = idx * 0.1; // i*100 mm -> i*0.1 m
+        auto const & child = it->second.children[idx];
+        EXPECT_NEAR(child.position.GetX(), expected_x, 1e-9)
+            << "Child " << idx << " x position should be " << expected_x << " m";
+        EXPECT_NEAR(child.position.GetY(), 0.0, 1e-9)
+            << "Child " << idx << " y position should be 0";
+        EXPECT_NEAR(child.position.GetZ(), 0.0, 1e-9)
+            << "Child " << idx << " z position should be 0";
+    }
+}
+
+// =========================================================================
+// Nested loop position validation: 2x2 grid of physvols
+// =========================================================================
+TEST(GDMLParser, NestedLoopInStructurePositions) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="i" value="0"/>
+    <variable name="j" value="0"/>
+  </define>
+  <materials>
+    <material name="TestMat" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.01"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="2000" y="2000" z="2000" lunit="mm"/>
+    <box name="child_box" x="10" y="10" z="10" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Child">
+      <materialref ref="TestMat"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="TestMat"/>
+      <solidref ref="world_box"/>
+      <loop for="i" from="0" to="1" step="1">
+        <loop for="j" from="0" to="1" step="1">
+          <physvol>
+            <volumeref ref="Child"/>
+            <position name="nlpos_[i]_[j]" x="i*200" y="j*200" z="0" unit="mm"/>
+          </physvol>
+        </loop>
+      </loop>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    auto it = data.volumes.find("World");
+    ASSERT_NE(it, data.volumes.end());
+    ASSERT_EQ(it->second.children.size(), 4u)
+        << "Nested loops i=0..1, j=0..1 should produce 4 physvol placements";
+
+    // Collect actual (x, y) pairs from children
+    std::set<std::pair<double, double>> actual_positions;
+    for(auto const & child : it->second.children) {
+        double x = std::round(child.position.GetX() * 1e6) / 1e6;
+        double y = std::round(child.position.GetY() * 1e6) / 1e6;
+        actual_positions.insert({x, y});
+        EXPECT_NEAR(child.position.GetZ(), 0.0, 1e-9)
+            << "All children should have z=0";
+    }
+
+    std::set<std::pair<double, double>> expected_positions = {
+        {0.0, 0.0}, {0.0, 0.2}, {0.2, 0.0}, {0.2, 0.2}
+    };
+
+    EXPECT_EQ(actual_positions, expected_positions)
+        << "Nested loop should produce positions at (0,0), (0,0.2), (0.2,0), (0.2,0.2) meters";
+}
+
+// =========================================================================
+// Composite material mass fraction validation via DetectorModel
+// =========================================================================
+TEST(GDMLParser, CompositeMaterialMassFractions) {
+    // Water = H(0.112) + O(0.888), Mix = Water(0.8) + Carbon(0.2)
+    // After recursive resolution:
+    //   H: 0.8 * 0.112 = 0.0896
+    //   O: 0.8 * 0.888 = 0.7104
+    //   C: 0.2
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <element name="Hydrogen" Z="1">
+      <atom value="1.008"/>
+    </element>
+    <element name="Oxygen" Z="8">
+      <atom value="15.999"/>
+    </element>
+    <element name="Carbon" Z="6">
+      <atom value="12.011"/>
+    </element>
+    <material name="Water">
+      <D value="1.0" unit="g/cm3"/>
+      <fraction ref="Hydrogen" n="0.112"/>
+      <fraction ref="Oxygen" n="0.888"/>
+    </material>
+    <material name="Mix">
+      <D value="1.5" unit="g/cm3"/>
+      <fraction ref="Water" n="0.8"/>
+      <fraction ref="Carbon" n="0.2"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="5000" y="5000" z="5000" lunit="mm"/>
+    <box name="inner_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="Inner">
+      <materialref ref="Mix"/>
+      <solidref ref="inner_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="Water"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Inner"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_massfrac_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    auto const & materials = dm.GetMaterials();
+    ASSERT_TRUE(materials.HasMaterial("Mix"));
+    int mix_id = materials.GetMaterialId("Mix");
+
+    // Verify nuclear constituents are present
+    auto constituents = materials.GetMaterialConstituents(mix_id);
+    std::set<int> nuclear_Z;
+    for(auto pt : constituents) {
+        long long pdg = static_cast<long long>(pt);
+        if(pdg < 0) pdg = -pdg;
+        if(pdg >= 1000000000LL) {
+            int Z = static_cast<int>((pdg / 10000) % 1000);
+            if(Z >= 1) nuclear_Z.insert(Z);
+        }
+    }
+    std::set<int> expected_Z = {1, 6, 8};
+    ASSERT_EQ(nuclear_Z, expected_Z)
+        << "Mix should resolve to H (Z=1), C (Z=6), O (Z=8)";
+
+    // Verify mass fractions via GetTargetMassFraction
+    using PT = siren::dataclasses::ParticleType;
+    double frac_H = materials.GetTargetMassFraction(mix_id, PT::HNucleus);
+    double frac_C = materials.GetTargetMassFraction(mix_id, PT::C12Nucleus);
+    double frac_O = materials.GetTargetMassFraction(mix_id, PT::O16Nucleus);
+
+    EXPECT_NEAR(frac_H, 0.0896, 1e-3)
+        << "H mass fraction: 0.8 * 0.112 = 0.0896";
+    EXPECT_NEAR(frac_O, 0.7104, 1e-3)
+        << "O mass fraction: 0.8 * 0.888 = 0.7104";
+    EXPECT_NEAR(frac_C, 0.2, 1e-3)
+        << "C mass fraction: 0.2";
+
+    // Nuclear mass fractions should sum to approximately 1.0
+    double nuclear_sum = frac_H + frac_C + frac_O;
+    EXPECT_NEAR(nuclear_sum, 1.0, 0.05)
+        << "Nuclear mass fractions should sum close to 1.0";
+
+    // Also verify at GDMLData level that the composition map is correct
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.materials.count("Mix") > 0);
+    auto const & mix_comp = data.materials["Mix"].composition;
+    ASSERT_EQ(mix_comp.size(), 2u) << "Mix has 2 direct constituents: Water and Carbon";
+    ASSERT_TRUE(mix_comp.count("Water") > 0);
+    ASSERT_TRUE(mix_comp.count("Carbon") > 0);
+    EXPECT_NEAR(mix_comp.at("Water"), 0.8, 1e-9);
+    EXPECT_NEAR(mix_comp.at("Carbon"), 0.2, 1e-9);
+}
+
+// =========================================================================
+// Assembly placement geometric validation: global position compositing
+// =========================================================================
+TEST(GDMLParser, AssemblyPlacementGeometry) {
+    // Assembly placed at (200,0,0) mm in World, containing a child box
+    // at local position (100,0,0) mm. The child's global position should
+    // be (300,0,0) mm = (0.3,0,0) m.
+    // Child box half-width = 50mm = 0.05m, so its extent centered at (0.3,0,0)
+    // is [0.25, 0.35] x [-0.05, 0.05] x [-0.05, 0.05].
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Air" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.007"/>
+    </material>
+    <material name="Iron" Z="26">
+      <D value="7.874" unit="g/cm3"/>
+      <atom value="55.845"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="4000" y="4000" z="4000" lunit="mm"/>
+    <box name="child_box" x="50" y="50" z="50" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="IronBlock">
+      <materialref ref="Iron"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <assembly name="Assy">
+      <physvol>
+        <volumeref ref="IronBlock"/>
+        <position name="assy_child_pos" x="100" y="0" z="0" unit="mm"/>
+      </physvol>
+    </assembly>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Assy"/>
+        <position name="assy_pos" x="200" y="0" z="0" unit="mm"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_assy_geom_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    auto material_at = [&](double x, double y, double z) {
+        auto sector = dm.GetContainingSector(
+            DetectorPosition(siren::math::Vector3D(x, y, z)));
+        return dm.GetMaterials().GetMaterialName(sector.material_id);
+    };
+
+    // Child center at global (0.3, 0, 0) m should be Iron
+    EXPECT_EQ(material_at(0.3, 0.0, 0.0), "Iron")
+        << "Assembly child center at (200+100, 0, 0) mm = (0.3, 0, 0) m should be Iron";
+
+    // Assembly position (0.2, 0, 0) m has no child solid there -- should be Air
+    EXPECT_EQ(material_at(0.2, 0.0, 0.0), "Air")
+        << "Assembly origin at (0.2, 0, 0) m has no child geometry, should be Air";
+
+    // World center should be Air
+    EXPECT_EQ(material_at(0.0, 0.0, 0.0), "Air")
+        << "World center should be Air";
+}
+
+// =========================================================================
+// Real-world GDML smoke test: parse actual detector files without crashing
+// =========================================================================
+TEST(GDMLParser, RealWorldGDMLSmoke) {
+    std::string test_dir = std::string(__FILE__);
+    auto pos = test_dir.rfind("projects/");
+    ASSERT_NE(pos, std::string::npos)
+        << "Could not locate repo root from __FILE__";
+    test_dir = test_dir.substr(0, pos) + "test_gdml/dark_matter/cats/";
+
+    struct TestCase {
+        std::string filename;
+    };
+    std::vector<TestCase> cases = {
+        {"simpleLArTPC.gdml"},
+        {"DRSingleCrystal.gdml"},
+        {"zen.gdml"},
+    };
+
+    for(auto const & tc : cases) {
+        std::string path = test_dir + tc.filename;
+        GDMLData data;
+        EXPECT_NO_THROW(data = ParseGDML(path))
+            << "ParseGDML should not throw for " << tc.filename;
+
+        EXPECT_GE(data.solids.size(), 1u)
+            << tc.filename << " should contain at least one solid";
+
+        bool has_world = false;
+        for(auto const & kv : data.volumes) {
+            if(!kv.second.children.empty() || !kv.second.solid_ref.empty()) {
+                has_world = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(has_world)
+            << tc.filename << " should have at least one non-empty volume";
+    }
 }
