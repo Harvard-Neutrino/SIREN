@@ -890,29 +890,6 @@ TEST(GDMLParser, PartialCylinderContainmentThroughParser) {
 
 
 TEST(GDMLParser, TrapShearedContainment) {
-    // theta=20deg tilts the trapezoid so center faces shift in x-y.
-    // phi=0 means the tilt is purely in the x-direction.
-    // alpha1=alpha2=10deg shears x within each face.
-    // dz=50mm, dy1=dy2=30mm, dx1=dx2=dx3=dx4=20mm
-    // Face center offset at z=+dz: x_off = +dz*tan(theta)*cos(phi)
-    //   = 0.05*tan(20deg)*1.0 ~ 0.05*0.364 = 0.0182m
-    // So at z=+0.05, the face center is near x=+0.0182, and dx=0.02m.
-    // A point at x=0 should be outside the top face since 0 < 0.0182-0.02=-0.0018? No,
-    // let's be more careful. With alpha, the x-extent is sheared by y*tan(alpha).
-    // At y=0: x range is [xc-dx, xc+dx] = [0.0182-0.02, 0.0182+0.02] = [-0.0018, 0.0382]
-    // So x=0 at z=+0.05, y=0 is barely inside (0 > -0.0018).
-    // But x=-0.01 at z=+0.05, y=0 would be outside (-0.01 < -0.0018).
-    //
-    // At z=-0.05: x_off = -0.05*tan(20)*cos(0) ~ -0.0182m
-    // x range = [-0.0182-0.02, -0.0182+0.02] = [-0.0382, -0.0018]
-    // So x=0 at z=-0.05, y=0 is outside (0 > -0.0018, i.e., outside).
-    // Actually wait: 0 > -0.0018 means 0 is NOT in [-0.0382, -0.0018]. Correct, outside.
-    //
-    // Let's use a clear test: point (0.03, 0, 0.05) should be inside the top face
-    // (0.03 in [-0.0018, 0.0382]), and point (0.03, 0, -0.05) should be outside the
-    // bottom face (0.03 not in [-0.0382, -0.0018]).
-    // This asymmetry only exists because theta != 0 -- a zero-theta trap would
-    // have the same x-range at both faces.
     GDMLData data = ParseGDMLWithSolids(R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <trap name="sheared_trap" z="100" theta="20" phi="0"

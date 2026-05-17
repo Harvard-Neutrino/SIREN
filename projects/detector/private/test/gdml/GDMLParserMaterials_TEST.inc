@@ -50,8 +50,6 @@ static std::set<int> NuclearZSet(MaterialModel const & materials, int mat_id) {
 
 
 TEST(GDMLParser, CompositeOfCompositeMaterial) {
-    // Water = H(0.112) + O(0.888), Mix = Water(0.8) + Carbon(0.2)
-    // Recursive resolution: H=0.0896, O=0.7104, C=0.2
     std::string gdml = GDMLFull("",
         kHOC_Elements + "\n    " + kWaterFrac + R"(
     <material name="Mix"><D value="1.5" unit="g/cm3"/>
@@ -60,18 +58,13 @@ TEST(GDMLParser, CompositeOfCompositeMaterial) {
 
     auto dm = LoadGDMLFromString(gdml);
 
-    // The original test only counted constituents (>=3). That passes even
-    // if recursive resolution silently drops Carbon or fails to expand
-    // Water into H+O. SIREN decomposes a material into scattering targets:
-    // the element nuclei plus free p/n/e. Value-check that the resolved
-    // NUCLEAR set is exactly {H (Z=1), C (Z=6), O (Z=8)} -- nuclear PDG
-    // codes have the form 10LZZZAAAI (>= 1000000000).
     auto const & materials = dm->GetMaterials();
     ASSERT_TRUE(materials.HasMaterial("Mix"));
     int mix_id = materials.GetMaterialId("Mix");
     auto constituents = materials.GetMaterialConstituents(mix_id);
     EXPECT_GE(constituents.size(), 3u) << "Mix should resolve to >= H, C, O";
 
+    // Check that the nuclear constituents include H, C, O after recursive resolution
     std::set<int> expected_Z = {1, 6, 8};        // H, C, O
     EXPECT_EQ(NuclearZSet(materials, mix_id), expected_Z)
         << "recursive composite resolution must yield exactly H, C, O nuclei";
@@ -92,7 +85,7 @@ TEST(GDMLParser, MaterialCompositionCycleThrows) {
 
 TEST(GDMLParser, CompositeMaterialMassFractions) {
     // Water = H(0.112) + O(0.888), Mix = Water(0.8) + Carbon(0.2)
-    // After recursive resolution:
+    // Mix after recursive resolution:
     //   H: 0.8 * 0.112 = 0.0896
     //   O: 0.8 * 0.888 = 0.7104
     //   C: 0.2
@@ -145,8 +138,6 @@ TEST(GDMLParser, CompositeMaterialMassFractions) {
 
 TEST(GDMLParser, CompositeAtomCountMaterial) {
     // Water defined via <composite> atom counts: H=2, O=1
-    // Expected mass fractions: H = 2*1.008 / (2*1.008 + 15.999) = 0.11191
-    //                          O = 15.999 / (2*1.008 + 15.999) = 0.88809
     std::string gdml = GDMLFull("", R"(
     <element name="Hydrogen" Z="1"><atom value="1.008"/></element>
     <element name="Oxygen" Z="8"><atom value="15.999"/></element>
@@ -176,12 +167,6 @@ TEST(GDMLParser, CompositeAtomCountMaterial) {
 
 
 TEST(GDMLParser, CompositeAtomCountThroughDetectorModel) {
-    // Polyethylene: C2H4
-    //   C: 2 * 12.011 = 24.022
-    //   H: 4 * 1.008  =  4.032
-    //   total = 28.054
-    //   C frac = 24.022/28.054 = 0.8563
-    //   H frac =  4.032/28.054 = 0.1437
     std::string gdml = GDMLFull("", R"(
     <element name="Carbon" Z="6"><atom value="12.011"/></element>
     <element name="Hydrogen" Z="1"><atom value="1.008"/></element>
@@ -215,9 +200,6 @@ TEST(GDMLParser, CompositeAtomCountThroughDetectorModel) {
 TEST(GDMLParser, RecursiveCompositeAtomCount) {
     // Water via atom counts, then a Mix using mass fractions
     // that references the Water material.
-    // Water: H2O -> H frac = 2*1.008/(2*1.008+15.999), O frac = 15.999/(...)
-    // Mix: Water(0.7) + Carbon(0.3)
-    // After resolution: H = 0.7 * H_frac, O = 0.7 * O_frac, C = 0.3
     std::string gdml = GDMLFull("",
         kHOC_Elements + R"(
     <material name="Water" formula="H2O"><D value="1.0" unit="g/cm3"/>

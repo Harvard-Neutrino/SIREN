@@ -152,7 +152,6 @@ TEST(GDMLParser, MissingSetupWarning) {
 }
 
 TEST(GDMLParser, LoopInStructure) {
-    // Merged: checks both DetectorModel material lookup AND parsed positions.
     std::string gdml = GDMLFull(
         R"(
     <variable name="i" value="0"/>)",
@@ -420,7 +419,6 @@ TEST(GDMLParser, LoopGeneratingPositions) {
 }
 
 TEST(GDMLParser, NestedLoopInStructure) {
-    // Merged: checks both DetectorModel child count AND parsed positions.
     std::string gdml = GDMLFull(
         R"(
     <variable name="i" value="0"/>
@@ -495,9 +493,7 @@ TEST(GDMLParser, LoopVariableInInnerBounds) {
 }
 
 TEST(GDMLParser, EntityMissingFile) {
-    // Merged: tests both unused and used missing entity references.
-
-    // Part 1: Entity not referenced in body -- should parse successfully.
+    // Entity not referenced in body should parse successfully.
     std::string main_file = "/tmp/siren_gdml_missing_entity_test.gdml";
     { std::ofstream f(main_file); f << R"(<?xml version="1.0"?>
 <!DOCTYPE gdml [
@@ -514,7 +510,7 @@ TEST(GDMLParser, EntityMissingFile) {
     std::remove(main_file.c_str());
     EXPECT_TRUE(data_unused.solids.find("world_box") != data_unused.solids.end());
 
-    // Part 2: Entity file missing but local content should still parse.
+    // Entity file missing but local content should still parse.
     std::string main_file2 = "/tmp/siren_gdml_missing_entity_used_test.gdml";
     { std::ofstream f(main_file2); f << R"(<?xml version="1.0"?>
 <!DOCTYPE gdml [

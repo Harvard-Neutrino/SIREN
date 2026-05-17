@@ -2,7 +2,7 @@
 
 TEST(GDMLParser, BooleanForwardReference) {
     // Define the boolean solid BEFORE one of its operands in the <solids> section.
-    // With two-pass parsing, this should work.
+    // Relies on two-pass parsing to resolve forward references.
     GDMLData data = ParseGDMLWithSolids(R"(
     <subtraction name="result">
       <first ref="big_sphere"/>
