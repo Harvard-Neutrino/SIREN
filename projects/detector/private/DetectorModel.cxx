@@ -768,7 +768,16 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
             // Recurse into children (both volumes and assemblies have physvol children)
             for(auto const & child : vol.children) {
                 Vector3D child_pos = global_placement.LocalToGlobalPosition(child.position);
-                Quaternion child_rot = global_placement.GetQuaternion() * child.rotation;
+                // GDML <physvol> rotation is PASSIVE: Geant4 places the daughter
+                // with G4Transform3D(GetRotationMatrix(angles).inverse(), pos), so
+                // its global->local map is M*(g-pos) with M = Rz*Ry*Rx. SIREN's
+                // Placement applies R(stored)^T for global->local, so the stored
+                // quaternion must be the conjugate of the QuatFromGDMLRotation
+                // building block (which equals M). Boolean operands keep the raw
+                // building block: Geant4's BooleanRead does NOT invert, and the
+                // wrapping G4DisplacedSolid yields M^-1*(p-pos), which the raw
+                // quaternion already reproduces -- so only physvol conjugates.
+                Quaternion child_rot = global_placement.GetQuaternion() * child.rotation.conjugated();
                 Placement child_global(child_pos, child_rot);
 
                 BuildVolume(child.volume_ref, child_global);

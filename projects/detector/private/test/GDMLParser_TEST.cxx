@@ -810,6 +810,116 @@ TEST(GDMLParser, RotationHandling) {
 
 
 // =========================================================================
+// Compound-rotation ground truth (Geant4-authoritative).
+//
+// The existing RotationHandling / BooleanFirstRotation tests use a single
+// 90 deg rotation about one axis on a symmetric-enough box, which cannot
+// distinguish (a) the QFromXYZs y-sign bug nor (b) passive vs active
+// handedness. This test uses a COMPOUND rotation and an asymmetric box and
+// asserts material at points whose expected values were computed from
+// Geant4 itself.
+//
+// Geant4's GDML <physvol> rotation is passive: the daughter is placed with
+//   G4Transform3D(GetRotationMatrix(angles).inverse(), pos)
+// and G4PVPlacement stores frame rotation M = Rz*Ry*Rx, so Geant4's
+// global->local map is  p_local = M * (p_global - pos).  This was verified
+// out-of-tree against Geant4 11.3.2 (G4GDMLParser + the live G4Navigator
+// GetGlobalToLocalTransform, cross-checked against the placed
+// G4VPhysicalVolume): for rx=30,rz=60 only the conjugate of the
+// qz*qy*qx building block reproduces Geant4, to ~1e-16, on every probe.
+//
+// child box: SIREN half-extents (0.5, 0.2, 0.1) m, placed at the origin
+// with <rotation x="30" z="60" unit="deg">.  M = Rz(60)*Rx(30) =
+//   [ 0.5        -0.75        0.4330127018922193 ]
+//   [ 0.8660254037844387  0.4330127018922194  -0.25 ]
+//   [ 0.0         0.5         0.8660254037844387 ]
+//
+// P1 = 0.4 * (first row of M): Geant4 local = (0.4,0,0) -> INSIDE (Iron).
+//   The old QFromXYZs sign bug AND the un-conjugated active handedness both
+//   map P1 outside the box -> Air, so this assertion fails under either bug.
+// P3 = 0.4 * (first column of M): Geant4 local has |y|=0.323>0.2 -> Air.
+//   The active-handedness bug maps P3 to (0.4,0,0) -> Iron, so this
+//   assertion fails under the wrong handedness (reverse direction).
+// =========================================================================
+TEST(GDMLParser, CompoundRotationGroundTruth) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="Iron" Z="26">
+      <D value="7.874" unit="g/cm3"/>
+      <atom value="55.845"/>
+    </material>
+    <material name="Air" Z="7">
+      <D value="0.00129" unit="g/cm3"/>
+      <atom value="14.007"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="5" y="5" z="5" lunit="m"/>
+    <box name="child_box" x="0.5" y="0.2" z="0.1" lunit="m"/>
+  </solids>
+  <structure>
+    <volume name="Child">
+      <materialref ref="Iron"/>
+      <solidref ref="child_box"/>
+    </volume>
+    <volume name="World">
+      <materialref ref="Air"/>
+      <solidref ref="world_box"/>
+      <physvol>
+        <volumeref ref="Child"/>
+        <rotation x="30" z="60" unit="deg"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_compound_rotation_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+
+    DetectorModel dm;
+    dm.LoadGDML(tmpfile);
+    std::remove(tmpfile.c_str());
+
+    auto material_at = [&](double x, double y, double z) {
+        auto sector = dm.GetContainingSector(
+            DetectorPosition(siren::math::Vector3D(x, y, z)));
+        return dm.GetMaterials().GetMaterialName(sector.material_id);
+    };
+
+    // Box center maps to local origin under any convention: sanity that the
+    // rotated child sector was built and is reachable.
+    EXPECT_EQ(material_at(0.0, 0.0, 0.0), "Iron")
+        << "Rotated child center must be Iron";
+
+    // P1 = 0.4 * (first row of M). Geant4 local = (0.4, 0, 0): comfortably
+    // inside (margins 0.1/0.2/0.1). FAILS as Air under the QFromXYZs sign
+    // bug and under the wrong (active) handedness.
+    EXPECT_EQ(material_at(0.2, -0.3, 0.17320508075688773), "Iron")
+        << "P1 is inside the box under the Geant4-true passive mapping; "
+           "Air here indicates the QFromXYZs sign bug or wrong handedness";
+
+    // P3 = 0.4 * (first column of M). Geant4 local = (-0.1598, 0.3232,
+    // 0.1732): outside (|y|,|z| exceed half-extents). The active-handedness
+    // bug instead maps P3 to (0.4,0,0) -> Iron.
+    EXPECT_EQ(material_at(0.2, 0.3464101615137755, 0.0), "Air")
+        << "P3 is outside the box under the Geant4-true passive mapping; "
+           "Iron here indicates the rotation is applied with wrong handedness";
+
+    // Far point: outside the child under every convention.
+    EXPECT_EQ(material_at(1.0, 1.0, 1.0), "Air")
+        << "Point far from the rotated child must be Air";
+}
+
+
+// =========================================================================
 // GDML error handling: unknown constant throws
 // =========================================================================
 TEST(GDMLParser, UnknownConstantThrows) {

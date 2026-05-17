@@ -590,7 +590,7 @@ double AngleScale(const char* unit) {
 }
 
 // Convert a GDML angle value+unit to radians
-// GDML default angle unit is degrees
+// GDML default angle unit is radians (matches AngleScale)
 double ParseAngle(const char* value, const char* unit,
                   std::map<std::string, double> const & constants = {}) {
     if(!value || value[0] == '\0') return 0.0;
@@ -600,9 +600,18 @@ double ParseAngle(const char* value, const char* unit,
 
 // Build a quaternion from GDML rotation convention:
 // Extrinsic rotations: rotate around X by rx, then Y by ry, then Z by rz
-// Frame is static, so XYZs is the appropriate convention
+// (each about the static world axes), so the composite quaternion is
+// qz * qy * qx applied right-to-left.
+//
+// Built explicitly from the half-angle factors for clarity and to keep
+// this convention self-contained; it equals siren::math::QFromXYZs and
+// QuaternionFromEulerAngles(EulerAngles(XYZs, rx, ry, rz)).
 Quaternion QuatFromGDMLRotation(double rx, double ry, double rz) {
-    return siren::math::QFromXYZs(rx, ry, rz);
+    // Quaternion(x, y, z, w)
+    Quaternion qx(std::sin(rx / 2.0), 0, 0, std::cos(rx / 2.0));
+    Quaternion qy(0, std::sin(ry / 2.0), 0, std::cos(ry / 2.0));
+    Quaternion qz(0, 0, std::sin(rz / 2.0), std::cos(rz / 2.0));
+    return qz * qy * qx;
 }
 
 // Convert a value from the given unit to the GDML default for that unit type.
