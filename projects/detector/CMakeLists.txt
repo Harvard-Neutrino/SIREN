@@ -22,6 +22,14 @@ LIST (APPEND detector_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/detector/private/RadialAxisExponentialDensityDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/DetectorModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/GDMLParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLDefineParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLExpression.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLMaterialParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLPreprocess.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLReadUtils.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLSolidParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLStructureParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLUnits.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/Path.cxx
 )

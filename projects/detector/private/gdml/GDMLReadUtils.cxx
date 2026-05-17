@@ -1,0 +1,180 @@
+#include "GDMLParserPrivate.h"
+
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <string>
+#include <utility>
+#include <vector>
+
+using namespace siren::math;
+
+namespace siren {
+namespace detector {
+namespace gdml {
+
+double ReadDoubleAttr(rapidxml::xml_node<>* node, const char* attr,
+                      std::map<std::string, double> const & constants,
+                      double scale) {
+    return SafeParseDouble(SafeAttrVal(node, attr), constants) * scale;
+}
+
+double ReadLengthAttr(rapidxml::xml_node<>* node, const char* attr,
+                      double lscale,
+                      std::map<std::string, double> const & constants) {
+    return ReadDoubleAttr(node, attr, constants, lscale);
+}
+
+double ReadAngleAttr(rapidxml::xml_node<>* node, const char* attr,
+                     double ascale,
+                     std::map<std::string, double> const & constants) {
+    return ReadDoubleAttr(node, attr, constants, ascale);
+}
+
+GDMLPhiRange ReadPhiRange(rapidxml::xml_node<>* node,
+                          double ascale,
+                          std::map<std::string, double> const & constants) {
+    GDMLPhiRange range;
+    range.start = 0.0;
+    range.delta = 2.0 * M_PI;
+
+    const char* start = SafeAttrVal(node, "startphi");
+    if(start[0] != '\0') {
+        range.start = SafeParseDouble(start, constants) * ascale;
+    }
+
+    const char* delta = SafeAttrVal(node, "deltaphi");
+    if(delta[0] != '\0') {
+        range.delta = SafeParseDouble(delta, constants) * ascale;
+    }
+
+    return range;
+}
+
+Vector3D ReadPositionXYZ(rapidxml::xml_node<>* node, GDMLData const & data) {
+    if(!node) return Vector3D(0, 0, 0);
+
+    const char* unit = SafeAttrVal(node, "unit");
+    double x = ParseLength(SafeAttrVal(node, "x"), unit, data.constants);
+    double y = ParseLength(SafeAttrVal(node, "y"), unit, data.constants);
+    double z = ParseLength(SafeAttrVal(node, "z"), unit, data.constants);
+    return Vector3D(x, y, z);
+}
+
+Quaternion ReadRotationXYZ(rapidxml::xml_node<>* node, GDMLData const & data) {
+    if(!node) return Quaternion();
+
+    const char* unit = SafeAttrVal(node, "unit");
+    double x = ParseAngle(SafeAttrVal(node, "x"), unit, data.constants);
+    double y = ParseAngle(SafeAttrVal(node, "y"), unit, data.constants);
+    double z = ParseAngle(SafeAttrVal(node, "z"), unit, data.constants);
+    return QuatFromGDMLRotation(x, y, z);
+}
+
+Vector3D ReadPositionReferenceAttr(rapidxml::xml_node<>* node,
+                                  const char* attr,
+                                  GDMLData const & data) {
+    std::string ref = SafeAttrVal(node, attr);
+    auto it = data.positions.find(ref);
+    if(it != data.positions.end()) {
+        return it->second;
+    }
+    return Vector3D(0, 0, 0);
+}
+
+GDMLPlacement ReadPlacement(rapidxml::xml_node<>* node,
+                            const char* position_tag,
+                            const char* position_ref_tag,
+                            const char* rotation_tag,
+                            const char* rotation_ref_tag,
+                            GDMLData const & data) {
+    GDMLPlacement placement;
+
+    auto* pos_node = node->first_node(position_tag);
+    if(pos_node) {
+        placement.position = ReadPositionXYZ(pos_node, data);
+        placement.specified = true;
+    }
+
+    auto* posref_node = node->first_node(position_ref_tag);
+    if(posref_node) {
+        std::string ref = SafeAttrVal(posref_node, "ref");
+        auto it = data.positions.find(ref);
+        if(it != data.positions.end()) {
+            placement.position = it->second;
+        }
+        placement.specified = true;
+    }
+
+    auto* rot_node = node->first_node(rotation_tag);
+    if(rot_node) {
+        placement.rotation = ReadRotationXYZ(rot_node, data);
+        placement.specified = true;
+    }
+
+    auto* rotref_node = node->first_node(rotation_ref_tag);
+    if(rotref_node) {
+        std::string ref = SafeAttrVal(rotref_node, "ref");
+        auto it = data.rotations.find(ref);
+        if(it != data.rotations.end()) {
+            placement.rotation = it->second;
+        }
+        placement.specified = true;
+    }
+
+    return placement;
+}
+
+GDMLZPlanes ReadZPlanes(rapidxml::xml_node<>* node,
+                        double lscale,
+                        GDMLData const & data) {
+    GDMLZPlanes planes;
+
+    for(auto* zp = node->first_node("zplane"); zp; zp = zp->next_sibling("zplane")) {
+        planes.z.push_back(ReadLengthAttr(zp, "z", lscale, data.constants));
+        planes.rmin.push_back(ReadLengthAttr(zp, "rmin", lscale, data.constants));
+        planes.rmax.push_back(ReadLengthAttr(zp, "rmax", lscale, data.constants));
+    }
+
+    return planes;
+}
+
+bool SortAndValidateZPlanes(GDMLZPlanes & planes) {
+    if(planes.z.size() < 2) return false;
+
+    bool needs_sort = false;
+    for(size_t i = 1; i < planes.z.size(); ++i) {
+        if(planes.z[i] < planes.z[i - 1]) {
+            needs_sort = true;
+            break;
+        }
+    }
+
+    if(needs_sort) {
+        std::vector<size_t> idx(planes.z.size());
+        std::iota(idx.begin(), idx.end(), 0);
+        std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) {
+            return planes.z[a] < planes.z[b];
+        });
+
+        GDMLZPlanes sorted;
+        sorted.z.resize(planes.z.size());
+        sorted.rmin.resize(planes.rmin.size());
+        sorted.rmax.resize(planes.rmax.size());
+        for(size_t i = 0; i < idx.size(); ++i) {
+            sorted.z[i] = planes.z[idx[i]];
+            sorted.rmin[i] = planes.rmin[idx[i]];
+            sorted.rmax[i] = planes.rmax[idx[i]];
+        }
+        planes = std::move(sorted);
+    }
+
+    for(size_t i = 1; i < planes.z.size(); ++i) {
+        if(planes.z[i] <= planes.z[i - 1]) return false;
+    }
+    return true;
+}
+
+} // namespace gdml
+} // namespace detector
+} // namespace siren
