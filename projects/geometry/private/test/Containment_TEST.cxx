@@ -866,19 +866,23 @@ TEST(Containment, PolyconeAtZBoundary) {
     Polycone pc(pl, zp, rmin, rmax);
 
     // Point inside at z=0 boundary: (1, 0, 0), rmax=5, r=1 is inside.
-    // Use non-horizontal direction so barrel intersections are at z != 0
-    // (a horizontal ray at exact z-boundary is tangent to the z-plane and
-    // won't pierce the barrel surface).
+    // A horizontal ray at the exact internal z-boundary DOES pierce the
+    // barrel (it crosses the z=0 disc), so containment must be correct for
+    // a horizontal probe direction, not only off-axis ones.
     Vector3D inside_at_boundary(1, 0, 0);
+    EXPECT_TRUE(pc.IsInside(inside_at_boundary, Vector3D(1, 0, 0)))
+        << "Point (1,0,0) inside polycone at z=0, horizontal ray";
     EXPECT_TRUE(pc.IsInside(inside_at_boundary, Vector3D(1, 1, 1)))
-        << "Point (1,0,0) should be inside polycone at z=0 boundary";
+        << "Point (1,0,0) inside polycone at z=0, diagonal ray";
     EXPECT_TRUE(pc.IsInside(inside_at_boundary, Vector3D(0, 0, 1)))
-        << "Point (1,0,0) should be inside polycone at z=0 with z-direction";
+        << "Point (1,0,0) inside polycone at z=0, z-direction ray";
 
     // Point outside at z=0 boundary: (6, 0, 0), r=6 > rmax=5
     Vector3D outside_at_boundary(6, 0, 0);
+    EXPECT_FALSE(pc.IsInside(outside_at_boundary, Vector3D(1, 0, 0)))
+        << "Point (6,0,0) outside polycone at z=0, horizontal ray";
     EXPECT_FALSE(pc.IsInside(outside_at_boundary, Vector3D(0, 0, 1)))
-        << "Point (6,0,0) should be outside polycone at z=0 boundary";
+        << "Point (6,0,0) outside polycone at z=0, z-direction ray";
 }
 
 TEST(Containment, PolyhedraAtZBoundary) {

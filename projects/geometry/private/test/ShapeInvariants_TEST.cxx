@@ -657,43 +657,53 @@ TEST(ShapeInvariants, TangentRays) {
 // =========================================================================
 // Fix 3: Horizontal rays at Polycone/Polyhedra section boundaries
 // A horizontal ray exactly at an internal z-boundary must be claimed by
-// exactly one section (half-open interval [z_lo, z_hi)).
+// exactly one section (half-open interval [z_lo, z_hi)). Such a ray DOES
+// pierce the barrel surface (it crosses the cross-section disc/polygon at
+// that z); the prior strict (z_lo, z_hi) lateral test wrongly dropped both
+// boundary hits, returning 0 and reporting interior points as outside.
 // =========================================================================
 TEST(ShapeInvariants, HorizontalRayAtSectionBoundary) {
-    // Fix 3: A horizontal ray at an internal z-boundary was being skipped
-    // by both adjacent sections (both used closed interval). After the fix,
-    // each section uses half-open [z_lo, z_hi) so exactly one claims it.
-    //
-    // A ray at exactly z=z_boundary is tangent to the z-plane and does not
-    // pierce the barrel surface, so we test containment (IsInside) instead
-    // of raw intersection count: a point inside the shape at the z-boundary
-    // must still be reported as inside.
-
-    // Polycone with internal boundary at z=0 where rmax=5
+    // Polycone with internal boundary at z=0 where rmax=5. The z=0 cross
+    // section is a disc of radius 5, so a horizontal ray along x at z=0
+    // through the axis enters at x=-5 and exits at x=+5: exactly 2 hits.
     Polycone pc({-5, 0, 5}, {0, 0, 0}, {3, 5, 3});
-    // Point (1, 0, 0) is inside at z=0 (r=1 < rmax=5).
-    // Use non-horizontal direction: a horizontal ray at an exact z-boundary
-    // is tangent to the z-plane and won't pierce barrel surfaces.
-    EXPECT_TRUE(pc.IsInside(Vector3D(1, 0, 0), Vector3D(1, 1, 1)))
-        << "Polycone IsInside at z-boundary with non-horizontal ray";
-    EXPECT_TRUE(pc.IsInside(Vector3D(1, 0, 0), Vector3D(0, 0, 1)))
-        << "Polycone IsInside at z-boundary with z-direction";
-    // Point outside at z-boundary
-    EXPECT_FALSE(pc.IsInside(Vector3D(6, 0, 0), Vector3D(0, 0, 1)))
-        << "Polycone outside at z-boundary should be false";
+    auto pc_hits = pc.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+    ASSERT_EQ(pc_hits.size(), 2u)
+        << "Horizontal ray at internal z-boundary must produce 2 barrel hits";
+    double pc_xmin = std::min(pc_hits[0].position.GetX(), pc_hits[1].position.GetX());
+    double pc_xmax = std::max(pc_hits[0].position.GetX(), pc_hits[1].position.GetX());
+    EXPECT_NEAR(pc_xmin, -5.0, 1e-6) << "Entry must lie on barrel at x=-5, z=0";
+    EXPECT_NEAR(pc_xmax,  5.0, 1e-6) << "Exit must lie on barrel at x=+5, z=0";
+    EXPECT_NEAR(pc_hits[0].position.GetZ(), 0.0, 1e-9);
+    EXPECT_NEAR(pc_hits[1].position.GetZ(), 0.0, 1e-9);
 
-    // Same test for Polyhedra
+    // Containment via a true horizontal ray at the z-boundary.
+    EXPECT_TRUE(pc.IsInside(Vector3D(1, 0, 0), Vector3D(1, 0, 0)))
+        << "Polycone interior point at z=0 boundary, horizontal ray";
+    EXPECT_FALSE(pc.IsInside(Vector3D(6, 0, 0), Vector3D(1, 0, 0)))
+        << "Polycone exterior point at z=0 boundary, horizontal ray";
+
+    // Polyhedra (hexagon at z=0): a horizontal ray offset in y so it
+    // crosses two lateral faces (not a vertex) of the convex cross
+    // section exactly twice at the z=0 boundary.
     Polyhedra ph(6, 0, {-5, 0, 5}, {0, 0, 0}, {3, 5, 3});
-    EXPECT_TRUE(ph.IsInside(Vector3D(1, 0, 0), Vector3D(1, 1, 1)))
-        << "Polyhedra IsInside at z-boundary with non-horizontal ray";
-    EXPECT_TRUE(ph.IsInside(Vector3D(1, 0, 0), Vector3D(0, 0, 1)))
-        << "Polyhedra IsInside at z-boundary with z-direction";
+    auto ph_hits = ph.Intersections(Vector3D(-20, 1, 0), Vector3D(1, 0, 0));
+    EXPECT_EQ(ph_hits.size(), 2u)
+        << "Polyhedra horizontal ray at z-boundary must produce 2 hits";
+    EXPECT_TRUE(ph.IsInside(Vector3D(1, 1, 0), Vector3D(1, 0, 0)))
+        << "Polyhedra interior point at z=0 boundary, horizontal ray";
 
-    // Multi-section polycone: boundary at z=-2
+    // Multi-section polycone: internal boundary at z=-2 where rmax=5.
     Polycone pc2({-5, -2, 0, 3, 5}, {0, 0, 0, 0, 0}, {3, 5, 4, 6, 2});
-    // At z=-2, rmax=5; point (1, 0, -2) is inside
-    EXPECT_TRUE(pc2.IsInside(Vector3D(1, 0, -2), Vector3D(0, 0, 1)))
-        << "Polycone IsInside at z=-2 boundary with z-direction";
+    auto pc2_hits = pc2.Intersections(Vector3D(-20, 0, -2), Vector3D(1, 0, 0));
+    ASSERT_EQ(pc2_hits.size(), 2u)
+        << "Horizontal ray at z=-2 boundary must produce 2 barrel hits";
+    EXPECT_NEAR(std::min(pc2_hits[0].position.GetX(), pc2_hits[1].position.GetX()),
+                -5.0, 1e-6);
+    EXPECT_NEAR(std::max(pc2_hits[0].position.GetX(), pc2_hits[1].position.GetX()),
+                 5.0, 1e-6);
+    EXPECT_TRUE(pc2.IsInside(Vector3D(1, 0, -2), Vector3D(1, 0, 0)))
+        << "Polycone interior point at z=-2 boundary, horizontal ray";
 }
 
 // =========================================================================

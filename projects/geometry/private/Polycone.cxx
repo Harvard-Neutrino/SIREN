@@ -359,7 +359,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             t2 = 0;
 
                         intersection_z = pz + t1 * dz;
-                        if(intersection_z > z_lo && intersection_z < z_hi) {
+                        if(intersection_z >= z_lo && intersection_z < z_hi) {
                             intersection_x = px + t1 * dx;
                             intersection_y = py + t1 * dy;
                             double r_at_z = a_outer + b_outer * intersection_z;
@@ -370,7 +370,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         }
 
                         intersection_z = pz + t2 * dz;
-                        if(intersection_z > z_lo && intersection_z < z_hi) {
+                        if(intersection_z >= z_lo && intersection_z < z_hi) {
                             intersection_x = px + t2 * dx;
                             intersection_y = py + t2 * dy;
                             double r_at_z = a_outer + b_outer * intersection_z;
@@ -387,7 +387,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         t1 = 0;
 
                     intersection_z = pz + t1 * dz;
-                    if(intersection_z > z_lo && intersection_z < z_hi) {
+                    if(intersection_z >= z_lo && intersection_z < z_hi) {
                         intersection_x = px + t1 * dx;
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_outer + b_outer * intersection_z;
@@ -427,7 +427,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             t2 = 0;
 
                         intersection_z = pz + t1 * dz;
-                        if(intersection_z > z_lo && intersection_z < z_hi) {
+                        if(intersection_z >= z_lo && intersection_z < z_hi) {
                             intersection_x = px + t1 * dx;
                             intersection_y = py + t1 * dy;
                             double r_at_z = a_inner + b_inner * intersection_z;
@@ -438,7 +438,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         }
 
                         intersection_z = pz + t2 * dz;
-                        if(intersection_z > z_lo && intersection_z < z_hi) {
+                        if(intersection_z >= z_lo && intersection_z < z_hi) {
                             intersection_x = px + t2 * dx;
                             intersection_y = py + t2 * dy;
                             double r_at_z = a_inner + b_inner * intersection_z;
@@ -454,7 +454,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         t1 = 0;
 
                     intersection_z = pz + t1 * dz;
-                    if(intersection_z > z_lo && intersection_z < z_hi) {
+                    if(intersection_z >= z_lo && intersection_z < z_hi) {
                         intersection_x = px + t1 * dx;
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_inner + b_inner * intersection_z;
