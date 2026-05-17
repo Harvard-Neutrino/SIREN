@@ -83,7 +83,7 @@ Quaternion QFromXYZs(double alpha, double beta, double gamma)
 
     return Quaternion(
             cb * sc - sb * cs,
-            sb * cc - cb * ss,
+            sb * cc + cb * ss,
             cb * cs - sb * sc,
             cb * cc + sb * ss
         );
@@ -101,17 +101,24 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
     double wx = w * xs,  wy = w * ys,  wz = w * zs;
     double xx = x * xs,  xy = x * ys,  xz = x * zs;
     double yy = y * ys,  yz = y * zs,  zz = z * zs;
-    double check = sqrt(1 - (wy - xz) * (wy - xz));
+    // Gimbal metric as sqrt(R_XX^2 + R_YX^2) = |cos(beta)|. The earlier
+    // sqrt(1 - (wy-xz)^2) form suffers catastrophic cancellation near
+    // beta = +-pi/2 (1 minus an almost-unit square), so it stayed ~1e-6
+    // there instead of ~0, the degenerate branch never triggered, and
+    // atan2 split alpha/gamma on near-zero denominators -> wrong angles.
+    double Rxx = 1 - (yy + zz);
+    double Ryx = xy + wz;
+    double cy = sqrt(Rxx * Rxx + Ryx * Ryx);
 
     double alpha, beta, gamma;
 
-    if(check > 16 * std::numeric_limits<double>::epsilon()) {
+    if(cy > 16 * std::numeric_limits<double>::epsilon()) {
         alpha = atan2(wx + yz, 1 - (xx + yy));
-        beta = atan2(wy - xz, check);
+        beta = atan2(wy - xz, cy);
         gamma = atan2(xy + wz, 1 - (yy + zz));
     } else {
         alpha = atan2(wx - yz, 1 - (xx + zz));
-        beta = atan2(wy - xz, check);
+        beta = atan2(wy - xz, cy);
         gamma = 0;
     }
     return EulerAngles(EulerOrder::XYZs, alpha, beta, gamma);
