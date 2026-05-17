@@ -188,6 +188,11 @@ std::vector<Geometry::Intersection> Ellipsoid::ComputeIntersections(siren::math:
     // Surface: (x/ax)^2 + (y/by)^2 + (z/cz)^2 = 1
     // Ray: P + t*D
     // Substituting gives A*t^2 + 2*B*t + C = 0
+    //
+    // For far-field rays (|P| >> ellipsoid size), B^2 ~ A*C ~ |P|^2 and the
+    // discriminant B^2 - A*C suffers catastrophic cancellation. We shift the
+    // ray origin to the closest approach point along the ray to the coordinate
+    // origin, keeping the quadratic coefficients small.
 
     double px = position.GetX();
     double py = position.GetY();
@@ -200,9 +205,16 @@ std::vector<Geometry::Intersection> Ellipsoid::ComputeIntersections(siren::math:
     double inv_by2 = 1.0 / (by_ * by_);
     double inv_cz2 = 1.0 / (cz_ * cz_);
 
+    // Origin shift: move ray origin to closest approach to the coordinate origin.
+    // This minimizes |q|^2 and keeps B and C well-conditioned for far-field rays.
+    double t_shift = -(px * dx + py * dy + pz * dz);
+    double qx = px + t_shift * dx;
+    double qy = py + t_shift * dy;
+    double qz = pz + t_shift * dz;
+
     double A = dx * dx * inv_ax2 + dy * dy * inv_by2 + dz * dz * inv_cz2;
-    double B = px * dx * inv_ax2 + py * dy * inv_by2 + pz * dz * inv_cz2;
-    double C = px * px * inv_ax2 + py * py * inv_by2 + pz * pz * inv_cz2 - 1.0;
+    double B = qx * dx * inv_ax2 + qy * dy * inv_by2 + qz * dz * inv_cz2;
+    double C = qx * qx * inv_ax2 + qy * qy * inv_by2 + qz * qz * inv_cz2 - 1.0;
 
     double disc = B * B - A * C;
 
@@ -214,8 +226,8 @@ std::vector<Geometry::Intersection> Ellipsoid::ComputeIntersections(siren::math:
         double sqrt_disc = std::sqrt(disc);
         double inv_A = 1.0 / A;
 
-        double t1 = (-B - sqrt_disc) * inv_A;
-        double t2 = (-B + sqrt_disc) * inv_A;
+        double t1 = (-B - sqrt_disc) * inv_A + t_shift;
+        double t2 = (-B + sqrt_disc) * inv_A + t_shift;
 
         // Process both roots
         for(int i = 0; i < 2; ++i) {

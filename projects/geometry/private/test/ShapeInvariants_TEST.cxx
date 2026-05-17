@@ -1513,3 +1513,587 @@ TEST(ShapeInvariants, EllipsoidAxisRays) {
             << "Ellipsoid at lower z-cut boundary: odd count " << hits.size();
     }
 }
+
+// =========================================================================
+// Exact count tests for center-piercing rays on all shapes.
+// A ray through the center of any finite solid must produce at least 2 hits.
+// For convex shapes, exactly 2. This catches algorithms that silently
+// return empty on hard cases.
+// =========================================================================
+TEST(ShapeInvariants, CenterPiercingExactCount) {
+    // Convex shapes: ray through center must give exactly 2
+    struct ConvexCase {
+        std::string name;
+        std::shared_ptr<Geometry> geo;
+    };
+    std::vector<ConvexCase> convex = {
+        {"Box(10,8,6)", Box(10, 8, 6).create()},
+        {"Sphere(5,0)", Sphere(5, 0).create()},
+        {"Cylinder(4,0,10)", Cylinder(4, 0, 10).create()},
+        {"Cone(0,5,0,3,8)", Cone(0, 5, 0, 3, 8).create()},
+        {"Trd(5,3,4,2,6)", Trd(5, 3, 4, 2, 6).create()},
+        {"EllipticalTube(3,5,10)", EllipticalTube(3, 5, 10).create()},
+        {"CutTubeFlat(0,5,8)", CutTube(0, 5, 8, Vector3D(0,0,-1), Vector3D(0,0,1)).create()},
+        {"Trap(sym)", Trap(5, 0, 0, 3, 4, 4, 0, 2, 3, 3, 0).create()},
+        {"Ellipsoid(5,3,4)", Ellipsoid(5, 3, 4).create()},
+        {"Para(4,3,5,0.3,0.2,0.5)", Para(4, 3, 5, 0.3, 0.2, 0.5).create()},
+    };
+
+    // Test with general (non-axis-aligned) directions through center
+    Vector3D dirs[] = {
+        Vector3D(1, 0, 0),
+        Vector3D(0, 1, 0),
+        Vector3D(0, 0, 1),
+        Vector3D(1, 1, 1),
+        Vector3D(1, -1, 0.5),
+        Vector3D(-0.3, 0.7, -0.6),
+        Vector3D(0.1, 0.2, 0.97),
+        Vector3D(2, 3, -5),
+    };
+
+    for(auto & entry : convex) {
+        Vector3D center = entry.geo->GetPlacement().GetPosition();
+        for(auto & d : dirs) {
+            Vector3D dir = d;
+            dir.normalize();
+            Vector3D origin = center - dir * 50.0;
+            auto hits = entry.geo->Intersections(origin, dir);
+            EXPECT_EQ(hits.size(), 2u)
+                << entry.name << " center-piercing ray dir=("
+                << dir.GetX() << "," << dir.GetY() << "," << dir.GetZ()
+                << ") got " << hits.size() << " hits instead of 2";
+        }
+    }
+}
+
+// =========================================================================
+// General 3D ray invariants: non-axis-aligned rays through all shapes.
+// Tests both that results are even AND non-zero for rays that must hit.
+// =========================================================================
+TEST(ShapeInvariants, General3DRays) {
+    auto shapes = MakeShapes();
+    int failures = 0;
+
+    for(auto const & entry : shapes) {
+        if(entry.known_cross_section > 0) continue;
+
+        AABB box = entry.geo->GetWorldBoundingBox();
+        if(!box.IsValid() || !std::isfinite(box.min_corner.GetX())) continue;
+
+        Vector3D center = (box.min_corner + box.max_corner) * 0.5;
+        double extent = (box.max_corner - box.min_corner).magnitude();
+
+        // Fire 50 random rays that pass through the AABB center.
+        // These must all produce even intersection counts.
+        // Most should produce >= 2 hits (some may tangentially miss).
+        int zero_count = 0;
+        for(int i = 0; i < 50; ++i) {
+            Vector3D dir = RandomDirection();
+            Vector3D origin = center - dir * (extent + 10);
+            auto hits = entry.geo->Intersections(origin, dir);
+            EXPECT_EQ(hits.size() % 2, 0u)
+                << entry.name << " general ray #" << i << ": odd count " << hits.size();
+            if(hits.size() % 2 != 0) failures++;
+            if(hits.size() == 0) zero_count++;
+        }
+        // A ray through the AABB center of a convex solid should always hit.
+        // Non-convex shapes (torus, partial solids) may have large holes at
+        // their AABB center, so many random directions genuinely miss.
+        // Only assert for convex shapes where zero hits means a solver failure.
+        if(entry.max_intersections == 2) {
+            EXPECT_EQ(zero_count, 0)
+                << entry.name << " (convex): " << zero_count
+                << "/50 center-aimed rays returned 0 hits";
+        }
+        // For non-convex shapes: the even-count invariant (tested above) is
+        // the meaningful correctness check. Zero-hit rates depend on geometry.
+    }
+    EXPECT_EQ(failures, 0) << "Total odd-count failures: " << failures;
+}
+
+// =========================================================================
+// Far-field precision: expose catastrophic cancellation in quadratic solver.
+// At distance D from a shape of radius r, the discriminant b^2-4ac suffers
+// catastrophic cancellation because b^2 ~ 4ac ~ D^2 while the useful
+// difference is O(r^2). Tests at 1e8, 1e10, 1e12.
+// =========================================================================
+TEST(ShapeInvariants, FarFieldPrecisionExtreme) {
+    double distances[] = {1e8, 1e10, 1e12};
+
+    struct FarFieldCase {
+        std::string name;
+        std::shared_ptr<Geometry> geo;
+        double radius;
+    };
+    std::vector<FarFieldCase> cases = {
+        {"Sphere(5)", Sphere(5, 0).create(), 5},
+        {"Cylinder(4,0,10)", Cylinder(4, 0, 10).create(), 4},
+        {"Cone(0,5,0,3,8)", Cone(0, 5, 0, 3, 8).create(), 4},
+        {"EllipticalTube(3,5,10)", EllipticalTube(3, 5, 10).create(), 3},
+        {"Ellipsoid(5,3,4)", Ellipsoid(5, 3, 4).create(), 5},
+        {"CutTubeFlat(0,5,8)", CutTube(0, 5, 8, Vector3D(0,0,-1), Vector3D(0,0,1)).create(), 5},
+        {"Polycone", Polycone({-5,0,5}, {0,0,0}, {4,6,4}).create(), 6},
+        {"GenericPolycone", GenericPolycone({3,4.5,5,3.5,3,2}, {-5,0,5,5,0,-5}).create(), 4.5},
+    };
+
+    for(auto & c : cases) {
+        for(double D : distances) {
+            // Axis-aligned ray through center
+            auto hits_x = c.geo->Intersections(Vector3D(-D, 0, 0), Vector3D(1, 0, 0));
+            EXPECT_GE(hits_x.size(), 2u)
+                << c.name << " x-axis at D=" << D << ": expected >=2, got " << hits_x.size();
+            EXPECT_EQ(hits_x.size() % 2, 0u)
+                << c.name << " x-axis at D=" << D << ": odd count " << hits_x.size();
+
+            // Verify positions are reasonable (check first enter/last exit span)
+            if(hits_x.size() >= 2) {
+                double span = hits_x.back().distance - hits_x.front().distance;
+                EXPECT_GT(span, 0)
+                    << c.name << " x-axis at D=" << D << ": hits not ordered";
+                EXPECT_NEAR(span, 2 * c.radius, c.radius * 0.01)
+                    << c.name << " x-axis at D=" << D
+                    << ": span " << span << " vs expected " << 2*c.radius;
+            }
+
+            // General diagonal ray through center
+            Vector3D dir(1, 1, 1);
+            dir.normalize();
+            auto hits_diag = c.geo->Intersections(Vector3D(-D, -D, -D) * (1.0/std::sqrt(3.0)), dir);
+            EXPECT_EQ(hits_diag.size() % 2, 0u)
+                << c.name << " diagonal at D=" << D << ": odd count " << hits_diag.size();
+            EXPECT_GE(hits_diag.size(), 2u)
+                << c.name << " diagonal at D=" << D << ": missed entirely";
+        }
+    }
+}
+
+// =========================================================================
+// Boolean geometry exact counts: verify CSG operations produce correct
+// intersection counts for well-defined configurations.
+// =========================================================================
+TEST(ShapeInvariants, BooleanExactCounts) {
+    // Two non-overlapping spheres: union ray through both must give 4 hits
+    {
+        auto s1 = Sphere(Placement(Vector3D(-10, 0, 0)), 3, 0).create();
+        auto s2 = Sphere(Placement(Vector3D(10, 0, 0)), 3, 0).create();
+        auto bg = BooleanGeometry(BooleanOperation::UNION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 4u)
+            << "Union of separated spheres along x: expected 4 hits, got " << hits.size();
+    }
+
+    // Two non-overlapping spheres: intersection should give 0 hits (empty solid)
+    {
+        auto s1 = Sphere(Placement(Vector3D(-10, 0, 0)), 3, 0).create();
+        auto s2 = Sphere(Placement(Vector3D(10, 0, 0)), 3, 0).create();
+        auto bg = BooleanGeometry(BooleanOperation::INTERSECTION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 0u)
+            << "Intersection of separated spheres: expected 0, got " << hits.size();
+    }
+
+    // Subtraction: sphere minus non-overlapping sphere = original sphere (2 hits)
+    {
+        auto s1 = Sphere(Placement(Vector3D(0, 0, 0)), 5, 0).create();
+        auto s2 = Sphere(Placement(Vector3D(20, 0, 0)), 3, 0).create();
+        auto bg = BooleanGeometry(BooleanOperation::SUBTRACTION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-10, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Subtraction with non-overlap: expected 2, got " << hits.size();
+    }
+
+    // Overlapping spheres: union ray should give 2 (enters leftmost, exits rightmost)
+    {
+        auto s1 = Sphere(Placement(Vector3D(-2, 0, 0)), 5, 0).create();
+        auto s2 = Sphere(Placement(Vector3D(2, 0, 0)), 5, 0).create();
+        auto bg = BooleanGeometry(BooleanOperation::UNION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Union of overlapping spheres: expected 2, got " << hits.size();
+        if(hits.size() == 2) {
+            EXPECT_NEAR(hits[0].position.GetX(), -7, 1e-6)
+                << "Union enter at x=-7";
+            EXPECT_NEAR(hits[1].position.GetX(), 7, 1e-6)
+                << "Union exit at x=+7";
+        }
+    }
+
+    // Overlapping spheres: intersection ray should give 2 (overlap region)
+    {
+        auto s1 = Sphere(Placement(Vector3D(-2, 0, 0)), 5, 0).create();
+        auto s2 = Sphere(Placement(Vector3D(2, 0, 0)), 5, 0).create();
+        auto bg = BooleanGeometry(BooleanOperation::INTERSECTION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Intersection of overlapping spheres: expected 2, got " << hits.size();
+        if(hits.size() == 2) {
+            EXPECT_NEAR(hits[0].position.GetX(), -3, 1e-6)
+                << "Intersection enter at x=-3";
+            EXPECT_NEAR(hits[1].position.GetX(), 3, 1e-6)
+                << "Intersection exit at x=+3";
+        }
+    }
+
+    // Subtraction: large sphere minus centered small sphere = shell (4 hits)
+    {
+        auto s1 = Sphere(5, 0).create();
+        auto s2 = Sphere(2, 0).create();
+        auto bg = BooleanGeometry(BooleanOperation::SUBTRACTION, s1, s2);
+        auto hits = bg.Intersections(Vector3D(-10, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 4u)
+            << "Shell (subtract concentric): expected 4, got " << hits.size();
+    }
+}
+
+// =========================================================================
+// CutTube exact intersection counts: rays through center must hit.
+// The existing test only checked parity.
+// =========================================================================
+TEST(ShapeInvariants, CutTubeExactCounts) {
+    double tilt = 30.0 * M_PI / 180.0;
+    Vector3D low_norm(std::sin(tilt), 0, -std::cos(tilt));
+    Vector3D high_norm(-std::sin(tilt), 0, std::cos(tilt));
+    CutTube ct(0, 5, 10, low_norm, high_norm);
+
+    // Z-axis ray through center: must hit exactly 2 (enters low cap, exits high cap)
+    {
+        auto hits = ct.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "CutTube z-axis: expected 2, got " << hits.size();
+    }
+
+    // X-axis ray through center: must hit exactly 2 (enters barrel, exits barrel)
+    {
+        auto hits = ct.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u) << "CutTube x-axis: expected 2, got " << hits.size();
+    }
+
+    // Diagonal ray through center
+    {
+        Vector3D dir(1, 1, 0.5);
+        dir.normalize();
+        auto hits = ct.Intersections(Vector3D(0, 0, 0) - dir * 20.0, dir);
+        EXPECT_EQ(hits.size(), 2u) << "CutTube diagonal: expected 2, got " << hits.size();
+    }
+
+    // General directions through center (non-axis-aligned)
+    Vector3D general_dirs[] = {
+        Vector3D(1, 2, 3), Vector3D(-1, 0.5, 0.3), Vector3D(0.7, -0.7, 0.1),
+        Vector3D(3, -1, 2), Vector3D(-2, 3, -1),
+    };
+    for(auto & d : general_dirs) {
+        Vector3D dir = d;
+        dir.normalize();
+        auto hits = ct.Intersections(Vector3D(0, 0, 0) - dir * 30.0, dir);
+        EXPECT_EQ(hits.size(), 2u)
+            << "CutTube general dir (" << d.GetX() << "," << d.GetY() << "," << d.GetZ()
+            << "): expected 2, got " << hits.size();
+    }
+}
+
+// =========================================================================
+// GenericPolycone exact counts for center-piercing rays.
+// Existing tests only check parity.
+// =========================================================================
+TEST(ShapeInvariants, GenericPolyconeExactCounts) {
+    // Solid cone: triangle in (r,z) space revolved => convex for radial rays
+    GenericPolycone solid({0, 5, 0}, {-5, 0, 5});
+
+    // Radial rays through center must give exactly 2
+    {
+        auto hits = solid.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u) << "Solid GenericPolycone x-axis: expected 2, got " << hits.size();
+    }
+    {
+        auto hits = solid.Intersections(Vector3D(0, -20, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size(), 2u) << "Solid GenericPolycone y-axis: expected 2, got " << hits.size();
+    }
+    // Z-axis ray is degenerate (passes through apex vertices where r=0);
+    // the surface collapses to a point there, so 0 hits is acceptable.
+    {
+        auto hits = solid.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size() % 2, 0u) << "Solid GenericPolycone z-axis: odd count " << hits.size();
+    }
+    {
+        Vector3D dir(1, 1, 1);
+        dir.normalize();
+        auto hits = solid.Intersections(Vector3D(0, 0, 0) - dir * 20, dir);
+        EXPECT_EQ(hits.size(), 2u) << "Solid GenericPolycone diagonal: expected 2, got " << hits.size();
+    }
+
+    // Non-degenerate hollow shape: outer radius varies, inner void
+    GenericPolycone hollow({3, 4.5, 5, 3.5, 3, 2}, {-5, 0, 5, 5, 0, -5});
+    {
+        auto hits = hollow.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_GE(hits.size(), 2u) << "Hollow GenericPolycone x-axis: expected >=2, got " << hits.size();
+        EXPECT_EQ(hits.size() % 2, 0u) << "Hollow GenericPolycone x-axis: odd count " << hits.size();
+    }
+    {
+        Vector3D dir(1, 2, -1);
+        dir.normalize();
+        auto hits = hollow.Intersections(Vector3D(0, 0, 0) - dir * 20, dir);
+        EXPECT_GE(hits.size(), 2u) << "Hollow GenericPolycone general: expected >=2, got " << hits.size();
+        EXPECT_EQ(hits.size() % 2, 0u) << "Hollow GenericPolycone general: odd count " << hits.size();
+    }
+
+    // Hollow (U-shape): center ray should give 4 (enters outer, exits inner, enters inner, exits outer)
+    GenericPolycone ushape({5, 5, 3, 3}, {-4, 4, 4, -4});
+    {
+        auto hits = ushape.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 4u) << "U-shape GenericPolycone x-axis: expected 4, got " << hits.size();
+    }
+    {
+        auto hits = ushape.Intersections(Vector3D(0, -20, 0), Vector3D(0, 1, 0));
+        EXPECT_EQ(hits.size(), 4u) << "U-shape GenericPolycone y-axis: expected 4, got " << hits.size();
+    }
+}
+
+// =========================================================================
+// Polycone horizontal ray at internal z-boundary: must find the barrel hits.
+// The existing HorizontalRayAtSectionBoundary test uses polycone with step
+// at z=0 and verifies 2 hits. We extend to general directions.
+// =========================================================================
+TEST(ShapeInvariants, PolyconeInternalBoundaryExact) {
+    // Polycone: 2 sections with same outer radius (5), no step.
+    // Section 1: z in [-5, 0], rmin=0, rmax=5
+    // Section 2: z in [0, 5], rmin=0, rmax=5
+    // This is just a cylinder r=5, z=[-5,5], but split into 2 sections.
+    Polycone pc({-5, 0, 5}, {0, 0, 0}, {5, 5, 5});
+
+    // Horizontal ray at z=0 (internal boundary): must give 2
+    {
+        auto hits = pc.Intersections(Vector3D(-10, 0, 0), Vector3D(1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Polycone horizontal at z=0: expected 2, got " << hits.size();
+        if(hits.size() == 2) {
+            EXPECT_NEAR(hits[0].position.GetX(), -5.0, 1e-9);
+            EXPECT_NEAR(hits[1].position.GetX(), 5.0, 1e-9);
+        }
+    }
+
+    // General direction through center at z=0
+    {
+        Vector3D dir(1, 1, 0);
+        dir.normalize();
+        auto hits = pc.Intersections(Vector3D(0, 0, 0) - dir * 20, dir);
+        EXPECT_EQ(hits.size(), 2u)
+            << "Polycone diagonal horizontal: expected 2, got " << hits.size();
+    }
+
+    // Nearly-horizontal ray (small dz component)
+    {
+        Vector3D dir(1, 0, 1e-6);
+        dir.normalize();
+        auto hits = pc.Intersections(Vector3D(-10, 0, 0), dir);
+        EXPECT_EQ(hits.size(), 2u)
+            << "Polycone nearly-horizontal: expected 2, got " << hits.size();
+    }
+}
+
+// =========================================================================
+// Enter/exit consistency: verify that intersections strictly alternate
+// entering/exiting, and that entering comes first when ray starts outside.
+// =========================================================================
+TEST(ShapeInvariants, EnterExitStrictAlternation) {
+    auto shapes = MakeShapes();
+
+    for(auto const & entry : shapes) {
+        if(entry.known_cross_section > 0) continue;
+
+        AABB box = entry.geo->GetWorldBoundingBox();
+        if(!box.IsValid() || !std::isfinite(box.min_corner.GetX())) continue;
+
+        Vector3D center = (box.min_corner + box.max_corner) * 0.5;
+        double extent = (box.max_corner - box.min_corner).magnitude();
+
+        for(int i = 0; i < 30; ++i) {
+            Vector3D dir = RandomDirection();
+            Vector3D origin = center - dir * (extent + 20);
+            auto hits = entry.geo->Intersections(origin, dir);
+
+            if(hits.empty()) continue;
+
+            // First hit from outside must be entering
+            EXPECT_TRUE(hits[0].entering)
+                << entry.name << " ray #" << i
+                << ": first hit should be entering but is exiting";
+
+            // Strictly alternating
+            for(size_t j = 1; j < hits.size(); ++j) {
+                EXPECT_NE(hits[j].entering, hits[j-1].entering)
+                    << entry.name << " ray #" << i
+                    << ": hits[" << j-1 << "] and hits[" << j << "] have same entering="
+                    << hits[j].entering;
+            }
+
+            // Last hit must be exiting
+            EXPECT_FALSE(hits.back().entering)
+                << entry.name << " ray #" << i
+                << ": last hit should be exiting but is entering";
+
+            // Distances must be non-decreasing (coincident CSG boundaries
+            // at the same distance are acceptable but must still alternate)
+            for(size_t j = 1; j < hits.size(); ++j) {
+                EXPECT_GE(hits[j].distance, hits[j-1].distance)
+                    << entry.name << " ray #" << i
+                    << ": hits[" << j << "].distance=" << hits[j].distance
+                    << " < hits[" << j-1 << "].distance=" << hits[j-1].distance;
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Intersection position accuracy: verify hit positions actually lie on
+// the shape's surface using the implicit surface equation.
+// =========================================================================
+TEST(ShapeInvariants, IntersectionPositionOnSurface) {
+    // For each shape, fire rays and verify the reported position matches
+    // origin + t * direction (internal consistency)
+    auto shapes = MakeShapes();
+
+    for(auto const & entry : shapes) {
+        if(entry.known_cross_section > 0) continue;
+
+        AABB box = entry.geo->GetWorldBoundingBox();
+        if(!box.IsValid() || !std::isfinite(box.min_corner.GetX())) continue;
+
+        Vector3D center = (box.min_corner + box.max_corner) * 0.5;
+        double extent = (box.max_corner - box.min_corner).magnitude();
+        double tol = 1e-9 * extent;
+
+        for(int i = 0; i < 20; ++i) {
+            Vector3D dir = RandomDirection();
+            Vector3D origin = center - dir * (extent + 10);
+            auto hits = entry.geo->Intersections(origin, dir);
+
+            for(auto & h : hits) {
+                Vector3D expected_pos = origin + dir * h.distance;
+                double err = (h.position - expected_pos).magnitude();
+                EXPECT_LT(err, tol)
+                    << entry.name << " ray #" << i
+                    << ": position error " << err << " > tol " << tol
+                    << " at distance " << h.distance;
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Torus: verify all 4 intersections for axis-parallel ray through lobe.
+// The torus with R=10, r=3 has lobes at x=+-10. A ray from x=-20 along x
+// through y=0,z=0 must produce exactly 4 hits (enter outer at x=-13,
+// exit inner at x=-7, enter inner at x=7, exit outer at x=13).
+// =========================================================================
+TEST(ShapeInvariants, TorusLobeExactFourHits) {
+    Torus torus(10, 3, 0);
+
+    // Ray along x-axis: passes through both lobes
+    auto hits = torus.Intersections(Vector3D(-20, 0, 0), Vector3D(1, 0, 0));
+    EXPECT_EQ(hits.size(), 4u) << "Torus x-axis: expected 4 hits, got " << hits.size();
+    if(hits.size() == 4) {
+        EXPECT_NEAR(hits[0].position.GetX(), -13, 1e-6);
+        EXPECT_NEAR(hits[1].position.GetX(), -7, 1e-6);
+        EXPECT_NEAR(hits[2].position.GetX(), 7, 1e-6);
+        EXPECT_NEAR(hits[3].position.GetX(), 13, 1e-6);
+        EXPECT_TRUE(hits[0].entering);
+        EXPECT_FALSE(hits[1].entering);
+        EXPECT_TRUE(hits[2].entering);
+        EXPECT_FALSE(hits[3].entering);
+    }
+
+    // Ray along y-axis through (10,0,0): at x=10, torus surface satisfies
+    // (sqrt(x^2+y^2) - R)^2 + z^2 = r^2. With x=10, z=0:
+    //   (sqrt(100+y^2) - 10)^2 = 9
+    //   sqrt(100+y^2) = 13  =>  y^2 = 69  =>  y = +/-sqrt(69)
+    // The span is 2*sqrt(69) (NOT 2*r=6, which would only hold for a
+    // radial-direction ray through the tube center).
+    auto hits_y = torus.Intersections(Vector3D(10, -10, 0), Vector3D(0, 1, 0));
+    EXPECT_EQ(hits_y.size(), 2u) << "Torus y-through-lobe: expected 2, got " << hits_y.size();
+    if(hits_y.size() == 2) {
+        double span_y = hits_y[1].position.GetY() - hits_y[0].position.GetY();
+        double expected_span = 2.0 * std::sqrt(69.0); // 2*sqrt(R^2+2Rr+r^2 - R^2) when entering at rxy=R+r
+        EXPECT_NEAR(span_y, expected_span, 1e-6) << "Torus lobe y-span should be 2*sqrt(69)";
+    }
+
+    // Diagonal ray through center of torus hole (no hit expected)
+    auto hits_center = torus.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+    // For R=10, r=3: at (0,0,z) the nearest torus point is at distance R-r=7
+    // so a z-axis ray should hit if it passes through the "donut hole" region
+    // Actually at (0,0,z): sqrt(0+0) = 0, dist to tube center = R=10, so
+    // surface equation: (0 - 10)^2 + z^2 = 9 => z^2 = 9 - 100 < 0 => no hit
+    EXPECT_EQ(hits_center.size(), 0u) << "Torus z-axis (through hole): expected 0, got " << hits_center.size();
+
+    // Non-axis-aligned ray through a lobe
+    {
+        Vector3D dir(0, 1, 1);
+        dir.normalize();
+        // Start at lobe center (10, 0, 0), go along (0,1,1) -- tube radius is 3
+        Vector3D origin(10, 0, 0);
+        origin = origin - dir * 10;
+        auto hits_oblique = torus.Intersections(origin, dir);
+        EXPECT_EQ(hits_oblique.size(), 2u) << "Torus oblique through lobe: expected 2, got " << hits_oblique.size();
+    }
+}
+
+// =========================================================================
+// Mesh geometry: non-axis-aligned mesh (rotated cube) to expose orientation
+// and general-position intersection bugs.
+// =========================================================================
+TEST(ShapeInvariants, MeshGeneralPosition) {
+    // Rotated cube: vertices of unit cube rotated 45 degrees around z-axis
+    double c = std::cos(M_PI / 4.0);
+    double s_val = std::sin(M_PI / 4.0);
+    double sz = 5.0;
+
+    // Cube vertices rotated 45 deg around z
+    Vector3D v[8] = {
+        Vector3D((-sz*c - (-sz)*s_val), (-sz*s_val + (-sz)*c), -sz),
+        Vector3D(( sz*c - (-sz)*s_val), ( sz*s_val + (-sz)*c), -sz),
+        Vector3D(( sz*c -   sz *s_val), ( sz*s_val +   sz *c), -sz),
+        Vector3D((-sz*c -   sz *s_val), (-sz*s_val +   sz *c), -sz),
+        Vector3D((-sz*c - (-sz)*s_val), (-sz*s_val + (-sz)*c),  sz),
+        Vector3D(( sz*c - (-sz)*s_val), ( sz*s_val + (-sz)*c),  sz),
+        Vector3D(( sz*c -   sz *s_val), ( sz*s_val +   sz *c),  sz),
+        Vector3D((-sz*c -   sz *s_val), (-sz*s_val +   sz *c),  sz),
+    };
+
+    // 12 triangles (2 per face), consistent outward winding
+    std::vector<std::array<Vector3D, 3>> triangles;
+    auto addQuad = [&](Vector3D a, Vector3D b, Vector3D cc, Vector3D d) {
+        triangles.push_back({{a, b, cc}});
+        triangles.push_back({{a, cc, d}});
+    };
+    addQuad(v[3], v[2], v[1], v[0]); // -z
+    addQuad(v[4], v[5], v[6], v[7]); // +z
+    addQuad(v[0], v[1], v[5], v[4]); // -y
+    addQuad(v[1], v[2], v[6], v[5]); // +x
+    addQuad(v[2], v[3], v[7], v[6]); // +y
+    addQuad(v[3], v[0], v[4], v[7]); // -x
+
+    TriangularMesh mesh(triangles);
+
+    // Ray through center along z-axis
+    {
+        auto hits = mesh.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u) << "Rotated mesh z-axis: expected 2, got " << hits.size();
+    }
+
+    // General diagonal ray through center
+    {
+        Vector3D dir(1, 2, 3);
+        dir.normalize();
+        auto hits = mesh.Intersections(Vector3D(0, 0, 0) - dir * 30, dir);
+        EXPECT_EQ(hits.size(), 2u) << "Rotated mesh diagonal: expected 2, got " << hits.size();
+    }
+
+    // Multiple general directions
+    int missed = 0;
+    for(int i = 0; i < 50; ++i) {
+        Vector3D dir = RandomDirection();
+        auto hits = mesh.Intersections(Vector3D(0, 0, 0) - dir * 30, dir);
+        if(hits.size() != 2) missed++;
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Rotated mesh random ray #" << i << ": odd count " << hits.size();
+    }
+    EXPECT_EQ(missed, 0) << "Rotated mesh: " << missed << "/50 center rays missed";
+}

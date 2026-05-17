@@ -91,11 +91,11 @@ int SolveQuartic(double a, double b, double c, double d, double roots[4]) {
 
     int n_roots = 0;
 
-    // Biquadratic threshold: scale relative to coefficient magnitudes
-    // so that far-field rays (large coefficients) still trigger this path
-    // when the quartic is structurally biquadratic (q = 0 analytically)
+    // Biquadratic threshold: only use the q=0 shortcut when the linear term
+    // is genuinely negligible relative to ALL other terms. A too-loose threshold
+    // causes root loss for general ray directions where q is small but non-zero.
     double coeff_scale = std::fmax(1.0, std::fmax(std::fabs(p), std::sqrt(std::fmax(std::fabs(r), 0.0))));
-    if(std::fabs(q) < 1e-10 * coeff_scale) {
+    if(std::fabs(q) < 1e-14 * coeff_scale) {
         // Biquadratic: t^4 + p*t^2 + r = 0
         double disc = p * p - 4.0 * r;
         double disc_tol = 1e-10 * std::fmax(p * p, std::fabs(r));
@@ -414,43 +414,57 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
 
         double raw_roots[4];
         int n_raw = SolveQuartic(c3, c2, c1, c0, raw_roots);
-        for(int i = 0; i < n_raw; ++i) raw_roots[i] += t_shift;
 
-        // Validate and deduplicate roots.
+        // Polish each root with Newton-Raphson on the shifted quartic
+        // f(s) = s^4 + c3*s^3 + c2*s^2 + c1*s + c0
+        // Keep roots in the shifted frame (s) for position accuracy.
+        for(int i = 0; i < n_raw; ++i) {
+            double s = raw_roots[i];
+            for(int iter = 0; iter < 3; ++iter) {
+                double f = ((( s + c3) * s + c2) * s + c1) * s + c0;
+                double fp = ((4.0*s + 3.0*c3) * s + 2.0*c2) * s + c1;
+                if(std::fabs(fp) < 1e-30) break;
+                s -= f / fp;
+            }
+            raw_roots[i] = s; // Keep in shifted frame
+        }
+
+        // Validate, deduplicate, and emit roots.
+        // Positions are computed from the shifted origin (qx + s*dx) to avoid
+        // catastrophic cancellation when t_shift is large (far-field rays).
+        // We keep the shifted roots (s) throughout and only convert to absolute
+        // distance (t = s + t_shift) for the output.
         std::sort(raw_roots, raw_roots + n_raw);
-        double roots[4];
+        struct ValidRoot { double s; double t; };
+        ValidRoot valid[4];
         int n = 0;
         for(int i = 0; i < n_raw; ++i) {
-            double t = raw_roots[i];
-            double ix = px + t * dx;
-            double iy = py + t * dy;
-            double iz = pz + t * dz;
+            double s = raw_roots[i];
+            double ix = qx + s * dx;
+            double iy = qy + s * dy;
+            double iz = qz + s * dz;
             double rxy = std::sqrt(ix*ix + iy*iy);
             double residual = (rxy - R) * (rxy - R) + iz * iz - r * r;
-            // Acceptance band on the implicit surface residual. This is
-            // deliberately loose: with the closest-approach origin shift
-            // above, Ferrari lands within ~1e-9 of a well-conditioned
-            // torus surface (verified by ShapeInvariants.TorusHitOnSurface),
-            // so the band is a harmless pre-filter there. It MUST stay
-            // loose, however, for self-intersecting tori (tube radius >
-            // major radius): near the self-intersection the surface is
-            // singular and the analytic roots legitimately carry a much
-            // larger residual; a tight positional bound rejects real hits
-            // and breaks containment for that (supported) degenerate case.
             double tol = 1e-4 * (r * r + R * R);
             if(std::fabs(residual) > tol) continue;
-            double dedup_tol = 1e-6 * (1.0 + std::fabs(t));
-            if(n > 0 && std::fabs(t - roots[n - 1]) < dedup_tol) continue;
-            roots[n++] = t;
+            double t = s + t_shift;
+            // Deduplicate using shifted roots (s) not absolute distance (t),
+            // because at far-field |t| >> root separation and a tolerance
+            // proportional to |t| would merge distinct intersections.
+            double dedup_tol = 1e-6 * (1.0 + std::fabs(s));
+            if(n > 0 && std::fabs(s - valid[n - 1].s) < dedup_tol) continue;
+            valid[n++] = {s, t};
         }
 
         for(int i = 0; i < n; ++i) {
-            double t = roots[i];
-            if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+            double t = valid[i].t;
+            double s = valid[i].s;
+            if(t > 0 && t < GEOMETRY_PRECISION) { t = 0; s = -t_shift; }
 
-            double ix = px + t * dx;
-            double iy = py + t * dy;
-            double iz = pz + t * dz;
+            // Compute position from shifted frame (precise for far-field)
+            double ix = qx + s * dx;
+            double iy = qy + s * dy;
+            double iz = qz + s * dz;
 
             // Entering/exiting from the torus surface normal
             double rxy = std::sqrt(ix*ix + iy*iy);

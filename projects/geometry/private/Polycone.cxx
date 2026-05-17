@@ -261,6 +261,14 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
+    // Origin shift: move ray origin to closest approach to the coordinate
+    // origin. This keeps quadratic coefficients small for far-field rays,
+    // avoiding catastrophic cancellation in the discriminant B^2 - 4AC.
+    double t_shift = -(px * dx + py * dy + pz * dz);
+    double qx = px + t_shift * dx;
+    double qy = py + t_shift * dy;
+    double qz = pz + t_shift * dz;
+
     // Estimate max intersections: each segment can produce up to 4 (2 outer +
     // 2 inner barrel), plus 2 endcaps at top/bottom, plus up to 2 per internal
     // z-plane. Conservative bound: 6 * num_segments.
@@ -338,11 +346,11 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             double a_outer = rmax_lo - b_outer * z_lo;
 
             // Surface equation: x^2 + y^2 = (a + b*z)^2
-            // Substituting ray: x = px + t*dx, y = py + t*dy, z = pz + t*dz
-            // gives:  A*t^2 + B*t + C = 0
+            // Substituting ray with shifted origin (q) gives: A*s^2 + B*s + C = 0
+            // where s = t - t_shift (roots are shifted back to absolute t).
             double A = dx * dx + dy * dy - b_outer * b_outer * dz * dz;
-            double B = 2.0 * (px * dx + py * dy - b_outer * dz * (a_outer + b_outer * pz));
-            double C = px * px + py * py - (a_outer + b_outer * pz) * (a_outer + b_outer * pz);
+            double B = 2.0 * (qx * dx + qy * dy - b_outer * dz * (a_outer + b_outer * qz));
+            double C = qx * qx + qy * qy - (a_outer + b_outer * qz) * (a_outer + b_outer * qz);
 
             if(!(dx == 0 && dy == 0 && b_outer == 0)) {
                 double determinant = B * B - 4.0 * A * C;
@@ -350,8 +358,8 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                 if(std::fabs(A) > GEOMETRY_PRECISION) {
                     if(determinant > 0) {
                         double sqrt_det = std::sqrt(determinant);
-                        double t1 = (-B + sqrt_det) / (2.0 * A);
-                        double t2 = (-B - sqrt_det) / (2.0 * A);
+                        double t1 = (-B + sqrt_det) / (2.0 * A) + t_shift;
+                        double t2 = (-B - sqrt_det) / (2.0 * A) + t_shift;
 
                         if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                             t1 = 0;
@@ -382,7 +390,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                     }
                 } else if(std::fabs(B) > GEOMETRY_PRECISION) {
                     // Linear case: ray parallel to cone surface
-                    double t1 = -C / B;
+                    double t1 = -C / B + t_shift;
                     if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                         t1 = 0;
 
@@ -409,8 +417,8 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             double a_inner = rmin_lo - b_inner * z_lo;
 
             double A = dx * dx + dy * dy - b_inner * b_inner * dz * dz;
-            double B = 2.0 * (px * dx + py * dy - b_inner * dz * (a_inner + b_inner * pz));
-            double C = px * px + py * py - (a_inner + b_inner * pz) * (a_inner + b_inner * pz);
+            double B = 2.0 * (qx * dx + qy * dy - b_inner * dz * (a_inner + b_inner * qz));
+            double C = qx * qx + qy * qy - (a_inner + b_inner * qz) * (a_inner + b_inner * qz);
 
             if(!(dx == 0 && dy == 0 && b_inner == 0)) {
                 double determinant = B * B - 4.0 * A * C;
@@ -418,8 +426,8 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                 if(std::fabs(A) > GEOMETRY_PRECISION) {
                     if(determinant > 0) {
                         double sqrt_det = std::sqrt(determinant);
-                        double t1 = (-B + sqrt_det) / (2.0 * A);
-                        double t2 = (-B - sqrt_det) / (2.0 * A);
+                        double t1 = (-B + sqrt_det) / (2.0 * A) + t_shift;
+                        double t2 = (-B - sqrt_det) / (2.0 * A) + t_shift;
 
                         if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                             t1 = 0;
@@ -449,7 +457,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         }
                     }
                 } else if(std::fabs(B) > GEOMETRY_PRECISION) {
-                    double t1 = -C / B;
+                    double t1 = -C / B + t_shift;
                     if(t1 > 0 && t1 < GEOMETRY_PRECISION)
                         t1 = 0;
 

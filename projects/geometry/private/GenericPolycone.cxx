@@ -215,6 +215,14 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
+    // Origin shift: move ray origin to closest approach to coordinate origin.
+    // This keeps quadratic coefficients small for far-field rays, avoiding
+    // catastrophic cancellation in the discriminant B^2 - 4AC.
+    double t_shift = -(px * dx + py * dy + pz * dz);
+    double qx = px + t_shift * dx;
+    double qy = py + t_shift * dy;
+    double qz = pz + t_shift * dz;
+
     size_t max_hits = 2 * n + 4;
 
     static constexpr int STACK_CAP = 32;
@@ -269,22 +277,25 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
             double a = r0 - b * z0;
 
             // Surface: x^2 + y^2 = (a + b*z)^2
+            // Use shifted origin (q) for numerical stability at large distances.
             double A = dx*dx + dy*dy - b*b*dz*dz;
-            double B = 2.0 * (px*dx + py*dy - b*dz*(a + b*pz));
-            double C = px*px + py*py - (a + b*pz)*(a + b*pz);
+            double B = 2.0 * (qx*dx + qy*dy - b*dz*(a + b*qz));
+            double C = qx*qx + qy*qy - (a + b*qz)*(a + b*qz);
 
             bool flip = (winding_ * dz_edge < 0);
 
             auto try_hit = [&](double t) {
                 if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
                 intersection_z = pz + t * dz;
-                // Clip to edge parameter range: s in (0, 1)
+                // Clip to edge parameter range: s in [0, 1)
+                // Half-open ensures each vertex is owned by exactly one edge.
                 double s = (intersection_z - z0) / dz_edge;
-                if(s <= 0 || s >= 1) return;
+                if(s < 0 || s >= 1) return;
                 intersection_x = px + t * dx;
                 intersection_y = py + t * dy;
                 double r_at_z = a + b * intersection_z;
-                if(r_at_z < -GEOMETRY_PRECISION) return;
+                // Reject if radius is zero or negative (degenerate point on axis)
+                if(r_at_z < GEOMETRY_PRECISION) return;
                 bool entering = flip ? !entering_cone(a, b) : entering_cone(a, b);
                 emit(t, entering);
             };
@@ -293,11 +304,11 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
                 double det = B*B - 4.0*A*C;
                 if(det > 0) {
                     double sqrt_det = std::sqrt(det);
-                    try_hit((-B + sqrt_det) / (2.0 * A));
-                    try_hit((-B - sqrt_det) / (2.0 * A));
+                    try_hit((-B + sqrt_det) / (2.0 * A) + t_shift);
+                    try_hit((-B - sqrt_det) / (2.0 * A) + t_shift);
                 }
             } else if(std::fabs(B) > GEOMETRY_PRECISION) {
-                try_hit(-C / B);
+                try_hit(-C / B + t_shift);
             }
         } else {
             // Horizontal edge: annular disk at z = z0
@@ -312,10 +323,12 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
 
             double r_hit = std::sqrt(intersection_x*intersection_x + intersection_y*intersection_y);
 
-            // Clip to edge parameter range: s in (0, 1)
+            // Reject if hit is at degenerate zero-radius point on axis
+            if(r_hit < GEOMETRY_PRECISION) continue;
+            // Clip to edge parameter range: s in [0, 1)
             if(std::fabs(dr_edge) < GEOMETRY_PRECISION) continue;
             double s = (r_hit - r0) / dr_edge;
-            if(s <= 0 || s >= 1) continue;
+            if(s < 0 || s >= 1) continue;
 
             // Entering: D . N_outward < 0 where N_outward z-component = -winding * dr_edge
             bool entering = (dz * winding_ * dr_edge > 0);

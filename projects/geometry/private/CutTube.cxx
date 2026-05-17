@@ -340,6 +340,13 @@ std::vector<Geometry::Intersection> CutTube::ComputeIntersections(siren::math::V
     double diry = direction.GetY();
     double dirz = direction.GetZ();
 
+    // Origin shift: move ray origin to closest approach to coordinate origin.
+    // This keeps quadratic barrel coefficients small for far-field rays.
+    double t_shift = -(px * dirx + py * diry + pz * dirz);
+    double qx = px + t_shift * dirx;
+    double qy = py + t_shift * diry;
+    double qz = pz + t_shift * dirz;
+
     double r2_outer = rmax_ * rmax_;
     double r2_inner = rmin_ * rmin_;
 
@@ -372,21 +379,19 @@ std::vector<Geometry::Intersection> CutTube::ComputeIntersections(siren::math::V
     };
 
     // ------ Barrel surfaces ------ //
-    // Quadratic: A*t^2 + 2*B_half*t + C = 0
-    // A = dirx^2 + diry^2
-    // B_half = px*dirx + py*diry
-    // C = px^2 + py^2 - r^2
+    // Quadratic in shifted frame: A*s^2 + 2*B_half*s + C = 0
+    // Uses shifted origin (q) for far-field numerical stability.
     auto test_barrel = [&](double r2, bool invert_entering) {
         double A = dirx * dirx + diry * diry;
         if(A == 0) return;
-        double B_half = px * dirx + py * diry;
-        double C = px * px + py * py - r2;
+        double B_half = qx * dirx + qy * diry;
+        double C = qx * qx + qy * qy - r2;
         double det = B_half * B_half - A * C;
         if(det <= 0) return;
         double sq = std::sqrt(det);
         double inv_A = 1.0 / A;
-        double t1 = (-B_half - sq) * inv_A;
-        double t2 = (-B_half + sq) * inv_A;
+        double t1 = (-B_half - sq) * inv_A + t_shift;
+        double t2 = (-B_half + sq) * inv_A + t_shift;
         for(int k = 0; k < 2; ++k) {
             double t = (k == 0) ? t1 : t2;
             double ix = px + t * dirx;
