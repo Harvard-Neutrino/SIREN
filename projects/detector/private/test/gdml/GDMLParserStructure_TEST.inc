@@ -502,3 +502,36 @@ TEST(GDMLParser, AssemblyPlacementMultiAxis) {
     EXPECT_EQ(MaterialAt(*dm, 0.3, 0.0, 0.0), "Air")
         << "(300, 0, 0) mm should be Air -- child is at y=100mm";
 }
+
+
+TEST(GDMLParser, AssemblyAsWorldVolume) {
+    // Use an assembly as the world volume. This is the expected integration
+    std::string gdml = GDMLFull("",
+        kAirIron,
+        R"(<box name="block" x="100" y="100" z="100" lunit="mm"/>)",
+        R"(<volume name="IronBlock">
+             <materialref ref="Iron"/>
+             <solidref ref="block"/>
+           </volume>
+           <assembly name="World">
+             <physvol>
+               <volumeref ref="IronBlock"/>
+               <position name="p1" x="200" y="0" z="0" unit="mm"/>
+             </physvol>
+             <physvol>
+               <volumeref ref="IronBlock"/>
+               <position name="p2" x="-200" y="0" z="0" unit="mm"/>
+             </physvol>
+           </assembly>)",
+        "World");
+
+    auto dm = LoadGDMLFromString(gdml);
+
+    // Children placed at +/-200mm = +/-0.2m should be Iron
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0, 0), "Iron");
+    EXPECT_EQ(MaterialAt(*dm, -0.2, 0, 0), "Iron");
+
+    // Points between the blocks have no geometry (assembly has no solid)
+    EXPECT_NE(MaterialAt(*dm, 0.2, 0, 0), MaterialAt(*dm, 0, 0, 0))
+        << "Assembly world should not fill the space between children";
+}
