@@ -1639,6 +1639,11 @@ TEST(GDMLParser, QuantityUnitConversion) {
     <quantity name="q_deg" value="90" unit="deg" type="angle"/>
     <quantity name="q_nounit" value="42" type="length"/>
     <quantity name="q_notype" value="10" unit="cm"/>
+    <quantity name="q_in" value="2" unit="in" type="length"/>
+    <quantity name="rho_gcm3" value="2.7" unit="g/cm3" type="density"/>
+    <quantity name="rho_mgcm3" value="2700" unit="mg/cm3" type="density"/>
+    <quantity name="rho_kgm3" value="2700" unit="kg/m3" type="density"/>
+    <constant name="plain_const" value="99"/>
   </define>
   <materials/>
   <solids>
@@ -1673,6 +1678,26 @@ TEST(GDMLParser, QuantityUnitConversion) {
     // No type but unit=cm -> treated as length
     EXPECT_NEAR(data.constants["q_notype"], 100.0, tol)
         << "10 cm with no type should convert to 100 mm (length assumed)";
+    EXPECT_NEAR(data.constants["q_in"], 50.8, tol)
+        << "2 in should convert to 50.8 mm";
+    EXPECT_NEAR(data.constants["rho_gcm3"], 2.7, 1e-9)
+        << "g/cm3 density should store as 2.7 g/cm3";
+    EXPECT_NEAR(data.constants["rho_mgcm3"], 2.7, 1e-9)
+        << "2700 mg/cm3 density should store as 2.7 g/cm3";
+    EXPECT_NEAR(data.constants["rho_kgm3"], 2.7, 1e-9)
+        << "2700 kg/m3 density should store as 2.7 g/cm3";
+
+    // Verify type map is populated
+    EXPECT_EQ(data.quantity_types["q_cm"], siren::detector::GDMLQuantityType::LENGTH);
+    EXPECT_EQ(data.quantity_types["q_mm"], siren::detector::GDMLQuantityType::LENGTH);
+    EXPECT_EQ(data.quantity_types["q_deg"], siren::detector::GDMLQuantityType::ANGLE);
+    EXPECT_EQ(data.quantity_types["q_notype"], siren::detector::GDMLQuantityType::LENGTH);
+    EXPECT_EQ(data.quantity_types["q_in"], siren::detector::GDMLQuantityType::LENGTH);
+    EXPECT_EQ(data.quantity_types["rho_gcm3"], siren::detector::GDMLQuantityType::DENSITY);
+    EXPECT_EQ(data.quantity_types["rho_mgcm3"], siren::detector::GDMLQuantityType::DENSITY);
+    EXPECT_EQ(data.quantity_types["rho_kgm3"], siren::detector::GDMLQuantityType::DENSITY);
+    EXPECT_EQ(data.quantity_types["q_nounit"], siren::detector::GDMLQuantityType::LENGTH);
+    EXPECT_EQ(data.quantity_types.count("plain_const"), 0u);
 }
 
 
@@ -4418,4 +4443,133 @@ TEST(GDMLParser, GenericPolyconePhiCut) {
     EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.01, 0.01, 0)));
     // -y is outside phi=[0, pi]
     EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.01, -0.01, 0)));
+}
+
+// =========================================================================
+// Quantity type system tests
+// =========================================================================
+
+TEST(GDMLParser, QuantityTypeConflictWarns) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <quantity name="confused" value="10" unit="cm" type="angle"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_GE(data.warnings.size(), 1u);
+    bool found_conflict = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("conflicts") != std::string::npos) found_conflict = true;
+    }
+    EXPECT_TRUE(found_conflict) << "Expected warning about type/unit conflict";
+    EXPECT_NEAR(data.constants["confused"], 100.0, 1e-9)
+        << "Unit-inferred type (LENGTH) should convert 10cm -> 100mm";
+    EXPECT_EQ(data.quantity_types["confused"], siren::detector::GDMLQuantityType::LENGTH);
+}
+
+TEST(GDMLParser, DensityQuantityInMaterial) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <quantity name="al_rho" value="2.7" unit="g/cm3" type="density"/>
+  </define>
+  <materials>
+    <material name="Al_from_qty" Z="13">
+      <D value="al_rho"/>
+      <atom value="27"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref="Al_from_qty"/>
+      <solidref ref="world"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.materials.count("Al_from_qty") > 0);
+    EXPECT_NEAR(data.materials["Al_from_qty"].density, 2.7, 1e-9)
+        << "Density quantity 2.7 g/cm3 consumed by <D> should yield 2.7";
+}
+
+TEST(GDMLParser, DensityQuantityKgM3InMaterial) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <quantity name="water_rho" value="1000" unit="kg/m3" type="density"/>
+  </define>
+  <materials>
+    <material name="Water" Z="1">
+      <D value="water_rho"/>
+      <atom value="1"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world" x="100" y="100" z="100" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref="Water"/>
+      <solidref ref="world"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.materials.count("Water") > 0);
+    EXPECT_NEAR(data.materials["Water"].density, 1.0, 1e-9)
+        << "1000 kg/m3 density quantity consumed by <D> should yield 1.0 g/cm3";
+}
+
+TEST(GDMLParser, LengthQuantityInSolid) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <quantity name="half_w" value="5" unit="cm" type="length"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="test" x="half_w" y="half_w" z="half_w" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="test"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("test") > 0);
+    auto bb = data.solids["test"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.05, 1e-9)
+        << "5cm quantity = 50mm half-width, box full-width = 100mm, AABB max = 50mm = 0.05m";
 }

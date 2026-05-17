@@ -118,6 +118,7 @@ static const BuiltInEntry kBuiltInConstants[] = {
     {"angstrom", 1e-7},
     {"fermi", 1e-12},
     {"inch", 25.4},
+    {"in", 25.4},
 
     // Energy (MeV = 1)
     {"eV", 1e-6},
@@ -144,6 +145,11 @@ static const BuiltInEntry kBuiltInConstants[] = {
     {"gram", 6.241509074460763e21},
     {"kg", 6.241509074460763e24},
     {"kilogram", 6.241509074460763e24},
+
+    // Volumic mass (CLHEP mass / mm^3)
+    {"g/cm3", 6.241509074460763e18},
+    {"mg/cm3", 6.241509074460763e15},
+    {"kg/m3", 6.241509074460763e15},
 
     // Amount (mole = 1)
     {"mole", 1.0},
@@ -604,18 +610,96 @@ Quaternion QuatFromGDMLRotation(double rx, double ry, double rz) {
 // For angle: convert to rad (GDML default angle)
 // For energy: convert to MeV (common default)
 // Returns the scale factor to multiply the raw value by.
-// The type parameter says what kind of quantity this is (length, angle, etc.)
-// and the unit parameter is the specific unit string.
-double QuantityUnitScale(const char* type, const char* unit) {
-    if(!unit || unit[0] == '\0') return 1.0; // no unit means use raw value
+// Forward declaration (defined after ExpandEntities)
+static void EmitWarning(GDMLData & data, GDMLParseOptions const & options, std::string const & msg);
+
+// Infer quantity type from a unit string.
+static GDMLQuantityType TypeFromUnit(std::string const & u) {
+    if(u.empty()) return GDMLQuantityType::NONE;
+    if(u == "mm" || u == "cm" || u == "m" || u == "km" ||
+       u == "um" || u == "nm" || u == "in" ||
+       u == "millimeter" || u == "centimeter" || u == "meter" ||
+       u == "kilometer" || u == "micrometer" || u == "nanometer" ||
+       u == "angstrom" || u == "fermi" || u == "inch")
+        return GDMLQuantityType::LENGTH;
+    if(u == "rad" || u == "deg" || u == "mrad" ||
+       u == "radian" || u == "degree" || u == "milliradian")
+        return GDMLQuantityType::ANGLE;
+    if(u == "eV" || u == "keV" || u == "MeV" || u == "GeV" ||
+       u == "TeV" || u == "PeV" || u == "joule")
+        return GDMLQuantityType::ENERGY;
+    if(u == "ns" || u == "ps" || u == "us" || u == "ms" ||
+       u == "nanosecond" || u == "picosecond" || u == "microsecond" ||
+       u == "millisecond" || u == "second")
+        return GDMLQuantityType::TIME;
+    if(u == "g/cm3" || u == "mg/cm3" || u == "kg/m3")
+        return GDMLQuantityType::DENSITY;
+    if(u == "kelvin")
+        return GDMLQuantityType::TEMPERATURE;
+    if(u == "mole" || u == "mol")
+        return GDMLQuantityType::AMOUNT;
+    return GDMLQuantityType::NONE;
+}
+
+// Infer quantity type from the type attribute string.
+static GDMLQuantityType TypeFromTypeAttr(std::string const & type_str) {
+    if(type_str.empty()) return GDMLQuantityType::NONE;
+    std::string t = type_str;
+    std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+    if(t == "length" || t == "lenght" || t == "coordinate")
+        return GDMLQuantityType::LENGTH;
+    if(t == "angle") return GDMLQuantityType::ANGLE;
+    if(t == "energy" || t == "threshold") return GDMLQuantityType::ENERGY;
+    if(t == "time") return GDMLQuantityType::TIME;
+    if(t == "density") return GDMLQuantityType::DENSITY;
+    if(t == "temperature") return GDMLQuantityType::TEMPERATURE;
+    return GDMLQuantityType::NONE;
+}
+
+// Resolve the quantity type from both the type attribute and the unit string.
+// If both are present and disagree, warn and prefer the unit-inferred type.
+static GDMLQuantityType ResolveQuantityType(
+        const char* type_attr, const char* unit,
+        std::string const & name,
+        GDMLData & data, GDMLParseOptions const & options) {
+    GDMLQuantityType from_attr = TypeFromTypeAttr(type_attr ? type_attr : "");
+    GDMLQuantityType from_unit = TypeFromUnit(unit ? unit : "");
+
+    if(from_attr != GDMLQuantityType::NONE && from_unit != GDMLQuantityType::NONE) {
+        if(from_attr != from_unit) {
+            EmitWarning(data, options, "quantity '" + name + "': type '"
+                + std::string(type_attr) + "' conflicts with unit '"
+                + std::string(unit) + "'; using unit-inferred type");
+        }
+        return from_unit;
+    }
+    if(from_unit != GDMLQuantityType::NONE) return from_unit;
+    return from_attr;
+}
+
+// Convert a quantity value from its declared unit to the canonical storage
+// representation for its type.
+//
+// LENGTH/ANGLE/ENERGY/TIME: stored in CLHEP base units (mm, rad, MeV, ns).
+//   These equal the GDML default units, so downstream consumption via
+//   lscale/ascale works correctly.
+// DENSITY: stored in g/cm3. The <D> parser expects g/cm3, so we must NOT
+//   use CLHEP density units here.
+static double QuantityUnitScale(const char* unit, GDMLQuantityType resolved_type) {
+    if(!unit || unit[0] == '\0') return 1.0;
 
     std::string u(unit);
 
-    // Ignore type entirely
+    if(resolved_type == GDMLQuantityType::DENSITY) {
+        if(u == "g/cm3") return 1.0;
+        if(u == "mg/cm3") return 1.0e-3;
+        if(u == "kg/m3") return 1.0e-3;
+        throw std::runtime_error("GDML error: unrecognized density unit '" + u + "'");
+    }
+
     auto it = GetBuiltInMap().find(u);
     if(it != GetBuiltInMap().end()) return it->second;
-    std::string t(type ? type : "");
-    throw std::runtime_error("GDML error: unrecognized unit '" + u + "' with type '" + t + "'");
+    throw std::runtime_error("GDML error: unrecognized unit '" + u + "'");
 }
 
 // Parse SYSTEM entity declarations from a DOCTYPE internal subset.
@@ -1089,9 +1173,13 @@ static void ResolveDefineInOrder(rapidxml::xml_node<>* gdml_node,
                 value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             }
             const char* unit = SafeAttrVal(node, "unit");
-            const char* type = SafeAttrVal(node, "type");
-            value *= QuantityUnitScale(type, unit);
+            const char* type_attr = SafeAttrVal(node, "type");
+            GDMLQuantityType resolved_type = ResolveQuantityType(type_attr, unit, name, data, options);
+            value *= QuantityUnitScale(unit, resolved_type);
             data.constants[name] = value;
+            if(resolved_type != GDMLQuantityType::NONE) {
+                data.quantity_types[name] = resolved_type;
+            }
         }
         else if(tag == "position") {
             std::string name = resolveBrackets(SafeAttrVal(node, "name"));
@@ -1182,8 +1270,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants, data.matrices);
             const char* unit = SafeAttrVal(node, "unit");
-            const char* type = SafeAttrVal(node, "type");
-            value *= QuantityUnitScale(type, unit);
+            const char* type_attr = SafeAttrVal(node, "type");
+            GDMLQuantityType resolved_type = ResolveQuantityType(type_attr, unit, name, data, options);
+            value *= QuantityUnitScale(unit, resolved_type);
             if(!name.empty()) {
                 if(IsBuiltInConstant(name)) {
                     EmitWarning(data, options, "cannot redefine built-in constant '" + name + "', ignoring");
@@ -1192,6 +1281,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
                         EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
                     }
                     data.constants[name] = value;
+                    if(resolved_type != GDMLQuantityType::NONE) {
+                        data.quantity_types[name] = resolved_type;
+                    }
                 }
             }
         }
@@ -1381,18 +1473,27 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
 
                 auto* d_node = node->first_node("D");
                 if(d_node) {
-                    mat.density = SafeParseDouble(SafeAttrVal(d_node, "value"), data.constants);
-                    const char* d_unit = SafeAttrVal(d_node, "unit");
-                    if(d_unit && d_unit[0] != '\0') {
-                        std::string du(d_unit);
-                        if(du == "kg/m3") {
-                            mat.density /= 1000.0;
-                        } else if(du == "mg/cm3") {
-                            mat.density /= 1000.0;
-                        } else if(du == "g/cm3") {
-                            // No conversion needed
-                        } else {
-                            EmitWarning(data, options, "unrecognized density unit '" + du + "' for material '" + mat.name + "', assuming g/cm3");
+                    const char* d_val_str = SafeAttrVal(d_node, "value");
+                    mat.density = SafeParseDouble(d_val_str, data.constants);
+
+                    std::string d_val_trimmed = TrimWhitespace(d_val_str);
+                    auto qty_it = data.quantity_types.find(d_val_trimmed);
+                    bool is_density_qty = (qty_it != data.quantity_types.end()
+                                           && qty_it->second == GDMLQuantityType::DENSITY);
+
+                    if(!is_density_qty) {
+                        const char* d_unit = SafeAttrVal(d_node, "unit");
+                        if(d_unit && d_unit[0] != '\0') {
+                            std::string du(d_unit);
+                            if(du == "kg/m3") {
+                                mat.density /= 1000.0;
+                            } else if(du == "mg/cm3") {
+                                mat.density /= 1000.0;
+                            } else if(du == "g/cm3") {
+                                // No conversion needed
+                            } else {
+                                EmitWarning(data, options, "unrecognized density unit '" + du + "' for material '" + mat.name + "', assuming g/cm3");
+                            }
                         }
                     }
                 }

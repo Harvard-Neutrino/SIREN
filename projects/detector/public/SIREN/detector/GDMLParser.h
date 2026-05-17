@@ -44,6 +44,13 @@ struct GDMLVolume {
     std::vector<GDMLPhysVol> children;
 };
 
+// Physical dimension type for a GDML quantity.
+// Used to check that typed quantities are consumed in compatible contexts
+// and to select the correct unit-conversion path (e.g. density -> g/cm3).
+enum class GDMLQuantityType {
+    NONE, LENGTH, ANGLE, ENERGY, TIME, DENSITY, TEMPERATURE, AMOUNT
+};
+
 // Options controlling GDML parse behavior
 struct GDMLParseOptions {
     // If true, any warning condition throws std::runtime_error instead of
@@ -56,6 +63,10 @@ struct GDMLData {
     std::map<std::string, math::Vector3D> positions;
     std::map<std::string, math::Quaternion> rotations;
     std::map<std::string, double> constants;
+
+    // Type information for named quantities. Keys are a subset of constants.
+    // Only quantities with explicit type/unit have entries here.
+    std::map<std::string, GDMLQuantityType> quantity_types;
 
     // Materials
     std::map<std::string, GDMLMaterial> materials;
