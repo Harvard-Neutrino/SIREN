@@ -2208,6 +2208,140 @@ TEST(IntersectionReuse, LargeOffsetSmallPerpAccepts) {
     EXPECT_TRUE(path.HasIntersections());
 }
 
+// --- Tests demonstrating tolerance scaling risks ---
+
+TEST(IntersectionReuse, ToleranceScalesWithOffset) {
+    // Verify the tolerance formula 1e-6*(1+|offset|) at several offset magnitudes.
+    // At large offsets the allowed perpendicular reuse distance grows,
+    // which could mask sub-meter geometry features.
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    double offsets[] = {0, 1e2, 1e4, 1e6};
+    for(double z_off : offsets) {
+        Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+        path.EnsureIntersections();
+
+        double tol = 1e-6 * (1.0 + z_off);
+        // Just under tolerance: should reuse
+        Vector3D near_origin(tol * 0.5, 0, z_off);
+        path.SetPointsWithRay(GeometryPosition(near_origin), GeometryDirection(dir), dist);
+        EXPECT_TRUE(path.HasIntersections())
+            << "Should reuse at z_off=" << z_off << " perp=" << tol * 0.5;
+
+        // Re-establish cache
+        path.SetPointsWithRay(GeometryPosition(origin), GeometryDirection(dir), dist);
+        path.EnsureIntersections();
+
+        // Just over tolerance: should invalidate
+        Vector3D far_origin(tol * 2.0, 0, z_off);
+        path.SetPointsWithRay(GeometryPosition(far_origin), GeometryDirection(dir), dist);
+        EXPECT_FALSE(path.HasIntersections())
+            << "Should invalidate at z_off=" << z_off << " perp=" << tol * 2.0;
+    }
+}
+
+TEST(IntersectionReuse, DirectionToleranceTight) {
+    // Verify that even a small direction change invalidates the cache
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+
+    // Direction 1e-4 radians off: should invalidate
+    double angle = 1e-4;
+    Vector3D tilted_dir(std::sin(angle), 0, std::cos(angle));
+    path.SetPointsWithRay(GeometryPosition(origin), GeometryDirection(tilted_dir), dist);
+    EXPECT_FALSE(path.HasIntersections())
+        << "Small direction change (1e-4 rad) should invalidate cache";
+}
+
+TEST(IntersectionReuse, ScaleDocumentation) {
+    // Document the tolerance behavior at various scales for future reference.
+    // At Earth-radius scale offsets (6.4e6m), the tolerance is ~6.4m.
+    // Any two parallel rays within 6.4m perpendicular offset
+    // share cached intersections.
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    double earth_offset = 6.4e6;
+    double expected_tol = 1e-6 * (1.0 + earth_offset);
+
+    Path path(model, GeometryPosition(Vector3D(0,0,0)), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+
+    // A 3m perpendicular offset at Earth-radius scale reuses (3 < 6.4)
+    Vector3D offset_3m(3.0, 0, earth_offset);
+    path.SetPointsWithRay(GeometryPosition(offset_3m), GeometryDirection(dir), dist);
+    EXPECT_TRUE(path.HasIntersections())
+        << "3m offset at Earth scale reuses cache (tolerance=" << expected_tol << "m)";
+
+    // Re-establish
+    path.SetPointsWithRay(GeometryPosition(Vector3D(0,0,0)), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+
+    // A 10m perpendicular offset at Earth-radius scale should NOT reuse
+    Vector3D offset_10m(10.0, 0, earth_offset);
+    path.SetPointsWithRay(GeometryPosition(offset_10m), GeometryDirection(dir), dist);
+    EXPECT_FALSE(path.HasIntersections())
+        << "10m offset at Earth scale should invalidate (tolerance=" << expected_tol << "m)";
+}
+
+TEST(IntersectionReuse, AntiparallelReuse) {
+    // Verify that anti-parallel (reversed) direction reuses cache
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D origin(0, 0, 0);
+    Vector3D dir(0, 0, 1);
+    double dist = 100.0;
+
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+
+    // Reverse direction on the same line should reuse
+    Vector3D rev_dir(0, 0, -1);
+    path.SetPointsWithRay(GeometryPosition(origin), GeometryDirection(rev_dir), dist);
+    EXPECT_TRUE(path.HasIntersections())
+        << "Anti-parallel direction on same line should reuse";
+}
+
+TEST(IntersectionReuse, DiagonalRayCollinearity) {
+    // Test with non-axis-aligned rays
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D dir(1, 1, 1);
+    double mag = std::sqrt(3.0);
+    dir = Vector3D(dir.GetX()/mag, dir.GetY()/mag, dir.GetZ()/mag);
+    double dist = 100.0;
+
+    Vector3D origin(0, 0, 0);
+    Path path(model, GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+
+    // Move along the diagonal line: should reuse
+    double shift = 1000.0;
+    Vector3D shifted(dir.GetX()*shift, dir.GetY()*shift, dir.GetZ()*shift);
+    path.SetPointsWithRay(GeometryPosition(shifted), GeometryDirection(dir), dist);
+    EXPECT_TRUE(path.HasIntersections())
+        << "Shift along diagonal line should reuse";
+
+    // Re-establish
+    path.SetPointsWithRay(GeometryPosition(origin), GeometryDirection(dir), dist);
+    path.EnsureIntersections();
+
+    // Move perpendicular to the diagonal: should invalidate
+    // Perpendicular to (1,1,1) is e.g. (1,-1,0)/sqrt(2)
+    double perp_dist = 5.0;
+    Vector3D perp(perp_dist/std::sqrt(2.0), -perp_dist/std::sqrt(2.0), 0);
+    path.SetPointsWithRay(GeometryPosition(perp), GeometryDirection(dir), dist);
+    EXPECT_FALSE(path.HasIntersections())
+        << "5m perpendicular shift from diagonal should invalidate";
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

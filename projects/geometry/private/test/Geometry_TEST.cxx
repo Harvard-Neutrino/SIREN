@@ -1488,6 +1488,290 @@ TEST(EllipsoidIntersection, ZCutBoundaryEvenCount) {
     EXPECT_EQ(hits.size(), 2u);
 }
 
+// =========================================================================
+// Multi-intersection tests for hollow shapes
+// These validate ALL intersections returned by the Intersections() API,
+// unlike the DistanceToBorder shim which only checks the first pair.
+// =========================================================================
+
+TEST(MultiIntersection, HollowSphereFullTraversal) {
+    // Hollow sphere: outer radius=10, inner radius=5, centered at origin
+    Sphere hollow_sphere(10, 5);
+
+    // --- Ray A: axial ray through center ---
+    // origin=(0,0,20), direction=(0,0,-1)
+    // Expect 4 intersections: enter outer, exit to cavity, enter from cavity, exit outer
+    {
+        Vector3D origin(0, 0, 20);
+        Vector3D dir(0, 0, -1);
+        auto hits = hollow_sphere.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 4u) << "Ray A: expected 4 intersections for axial ray through hollow sphere";
+
+        // [0] enter outer shell at z=10
+        EXPECT_TRUE(hits[0].entering) << "Ray A hit[0]: should be entering";
+        EXPECT_NEAR(hits[0].distance, 10.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetX(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetY(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetZ(), 10.0, 1e-6);
+
+        // [1] exit to cavity at inner shell z=5
+        EXPECT_FALSE(hits[1].entering) << "Ray A hit[1]: should be exiting";
+        EXPECT_NEAR(hits[1].distance, 15.0, 1e-6);
+        EXPECT_NEAR(hits[1].position.GetX(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[1].position.GetY(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[1].position.GetZ(), 5.0, 1e-6);
+
+        // [2] enter from cavity at inner shell far side z=-5
+        EXPECT_TRUE(hits[2].entering) << "Ray A hit[2]: should be entering";
+        EXPECT_NEAR(hits[2].distance, 25.0, 1e-6);
+        EXPECT_NEAR(hits[2].position.GetX(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[2].position.GetY(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[2].position.GetZ(), -5.0, 1e-6);
+
+        // [3] exit outer shell at z=-10
+        EXPECT_FALSE(hits[3].entering) << "Ray A hit[3]: should be exiting";
+        EXPECT_NEAR(hits[3].distance, 30.0, 1e-6);
+        EXPECT_NEAR(hits[3].position.GetX(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[3].position.GetY(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[3].position.GetZ(), -10.0, 1e-6);
+    }
+
+    // --- Ray B: offset ray at y=3 that still hits inner shell ---
+    // rxy=3 < inner_radius=5, so ray hits inner shell too
+    // Outer: z = +/-sqrt(100-9) = +/-sqrt(91) ~ +/-9.539
+    // Inner: z = +/-sqrt(25-9) = +/-4
+    {
+        Vector3D origin(0, 3, 20);
+        Vector3D dir(0, 0, -1);
+        auto hits = hollow_sphere.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 4u) << "Ray B: expected 4 intersections for offset ray hitting inner shell";
+
+        double z_outer = std::sqrt(91.0);
+        double z_inner = 4.0;
+
+        EXPECT_TRUE(hits[0].entering);
+        EXPECT_NEAR(hits[0].position.GetZ(), z_outer, 1e-6);
+        EXPECT_NEAR(hits[0].distance, 20.0 - z_outer, 1e-6);
+
+        EXPECT_FALSE(hits[1].entering);
+        EXPECT_NEAR(hits[1].position.GetZ(), z_inner, 1e-6);
+        EXPECT_NEAR(hits[1].distance, 20.0 - z_inner, 1e-6);
+
+        EXPECT_TRUE(hits[2].entering);
+        EXPECT_NEAR(hits[2].position.GetZ(), -z_inner, 1e-6);
+        EXPECT_NEAR(hits[2].distance, 20.0 + z_inner, 1e-6);
+
+        EXPECT_FALSE(hits[3].entering);
+        EXPECT_NEAR(hits[3].position.GetZ(), -z_outer, 1e-6);
+        EXPECT_NEAR(hits[3].distance, 20.0 + z_outer, 1e-6);
+    }
+
+    // --- Ray C: offset ray at y=8 that misses inner shell entirely ---
+    // rxy=8 > inner_radius=5, so only outer shell intersections
+    // Outer: z = +/-sqrt(100-64) = +/-6
+    {
+        Vector3D origin(0, 8, 20);
+        Vector3D dir(0, 0, -1);
+        auto hits = hollow_sphere.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 2u) << "Ray C: expected 2 intersections for ray missing inner shell";
+
+        EXPECT_TRUE(hits[0].entering);
+        EXPECT_NEAR(hits[0].position.GetZ(), 6.0, 1e-6);
+        EXPECT_NEAR(hits[0].distance, 14.0, 1e-6);
+
+        EXPECT_FALSE(hits[1].entering);
+        EXPECT_NEAR(hits[1].position.GetZ(), -6.0, 1e-6);
+        EXPECT_NEAR(hits[1].distance, 26.0, 1e-6);
+    }
+}
+
+TEST(MultiIntersection, HollowCylinderFullTraversal) {
+    // Hollow cylinder: radius=10, inner_radius=5, height=20, centered at origin
+    Cylinder hollow_cyl(10, 5, 20);
+
+    // --- Ray A: radial ray through center ---
+    // origin=(20,0,0), direction=(-1,0,0)
+    // Expect 4 intersections at x=10, 5, -5, -10
+    {
+        Vector3D origin(20, 0, 0);
+        Vector3D dir(-1, 0, 0);
+        auto hits = hollow_cyl.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 4u) << "Ray A: expected 4 intersections for radial ray through hollow cylinder";
+
+        // [0] enter outer at x=10
+        EXPECT_TRUE(hits[0].entering);
+        EXPECT_NEAR(hits[0].distance, 10.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetX(), 10.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetY(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetZ(), 0.0, 1e-6);
+
+        // [1] exit to bore at x=5
+        EXPECT_FALSE(hits[1].entering);
+        EXPECT_NEAR(hits[1].distance, 15.0, 1e-6);
+        EXPECT_NEAR(hits[1].position.GetX(), 5.0, 1e-6);
+
+        // [2] enter from bore at x=-5
+        EXPECT_TRUE(hits[2].entering);
+        EXPECT_NEAR(hits[2].distance, 25.0, 1e-6);
+        EXPECT_NEAR(hits[2].position.GetX(), -5.0, 1e-6);
+
+        // [3] exit outer at x=-10
+        EXPECT_FALSE(hits[3].entering);
+        EXPECT_NEAR(hits[3].distance, 30.0, 1e-6);
+        EXPECT_NEAR(hits[3].position.GetX(), -10.0, 1e-6);
+    }
+
+    // --- Ray B: axial ray through annular cap region (5 < rxy=8 < 10) ---
+    // origin=(0,8,20), direction=(0,0,-1)
+    // Ray is in the solid annulus, enters top cap z=10, exits bottom cap z=-10
+    {
+        Vector3D origin(0, 8, 20);
+        Vector3D dir(0, 0, -1);
+        auto hits = hollow_cyl.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 2u) << "Ray B: expected 2 intersections for ray through annular cap";
+
+        EXPECT_TRUE(hits[0].entering);
+        EXPECT_NEAR(hits[0].position.GetZ(), 10.0, 1e-6);
+        EXPECT_NEAR(hits[0].distance, 10.0, 1e-6);
+
+        EXPECT_FALSE(hits[1].entering);
+        EXPECT_NEAR(hits[1].position.GetZ(), -10.0, 1e-6);
+        EXPECT_NEAR(hits[1].distance, 30.0, 1e-6);
+    }
+
+    // --- Ray C: axial ray through bore (rxy=3 < inner_radius=5) ---
+    // origin=(0,3,20), direction=(0,0,-1)
+    // Passes through hollow bore, expect 0 intersections
+    {
+        Vector3D origin(0, 3, 20);
+        Vector3D dir(0, 0, -1);
+        auto hits = hollow_cyl.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 0u) << "Ray C: expected 0 intersections for ray through bore";
+    }
+}
+
+TEST(MultiIntersection, HollowConeFullTraversal) {
+    // Cone: rmin1=1, rmax1=5, rmin2=1, rmax2=3, z=8
+    // z spans from -4 to +4
+    // At z=0 (midplane): outer radius = (5+3)/2 = 4, inner radius = (1+1)/2 = 1
+    Cone hollow_cone(1, 5, 1, 3, 8);
+
+    // --- Ray A: radial ray through center at z=0 ---
+    // origin=(10,0,0), direction=(-1,0,0)
+    // Expected 4 intersections at x = +4, +1, -1, -4
+    {
+        Vector3D origin(10, 0, 0);
+        Vector3D dir(-1, 0, 0);
+        auto hits = hollow_cone.Intersections(origin, dir);
+        ASSERT_EQ(hits.size(), 4u) << "Cone Ray A: expected 4 intersections for radial ray at midplane";
+
+        // [0] enter outer at x=4
+        EXPECT_TRUE(hits[0].entering);
+        EXPECT_NEAR(hits[0].distance, 6.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetX(), 4.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetY(), 0.0, 1e-6);
+        EXPECT_NEAR(hits[0].position.GetZ(), 0.0, 1e-6);
+
+        // [1] exit to cavity at x=1
+        EXPECT_FALSE(hits[1].entering);
+        EXPECT_NEAR(hits[1].distance, 9.0, 1e-6);
+        EXPECT_NEAR(hits[1].position.GetX(), 1.0, 1e-6);
+
+        // [2] enter from cavity at x=-1
+        EXPECT_TRUE(hits[2].entering);
+        EXPECT_NEAR(hits[2].distance, 11.0, 1e-6);
+        EXPECT_NEAR(hits[2].position.GetX(), -1.0, 1e-6);
+
+        // [3] exit outer at x=-4
+        EXPECT_FALSE(hits[3].entering);
+        EXPECT_NEAR(hits[3].distance, 14.0, 1e-6);
+        EXPECT_NEAR(hits[3].position.GetX(), -4.0, 1e-6);
+    }
+}
+
+TEST(MultiIntersection, EnteringFlagConsistency) {
+    // For each hollow shape, fire deterministic rays and verify:
+    // - first hit is entering=true
+    // - entering flags strictly alternate
+    // - last hit is entering=false
+    // - distances are non-decreasing
+
+    Sphere hollow_sphere(10, 5);
+    Cylinder hollow_cyl(10, 5, 20);
+    Cone hollow_cone(1, 5, 1, 3, 8);
+
+    // 10 deterministic ray directions from well outside each shape
+    double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    double inv_sqrt3 = 1.0 / std::sqrt(3.0);
+    struct RayDef {
+        double ox, oy, oz;  // origin (scaled by shape extent)
+        double dx, dy, dz;  // direction
+    };
+    RayDef ray_defs[10] = {
+        { 30, 0, 0,  -1, 0, 0},
+        {-30, 0, 0,   1, 0, 0},
+        { 0, 30, 0,   0,-1, 0},
+        { 0,-30, 0,   0, 1, 0},
+        { 0, 0, 30,   0, 0,-1},
+        { 0, 0,-30,   0, 0, 1},
+        { 30, 30, 0,  -inv_sqrt2, -inv_sqrt2, 0},
+        { 0, 30, 30,  0, -inv_sqrt2, -inv_sqrt2},
+        { 30, 0, 30,  -inv_sqrt2, 0, -inv_sqrt2},
+        { 30, 30, 30, -inv_sqrt3, -inv_sqrt3, -inv_sqrt3},
+    };
+
+    Geometry const * shapes[3] = {&hollow_sphere, &hollow_cyl, &hollow_cone};
+    const char * names[3] = {"Sphere", "Cylinder", "Cone"};
+
+    for(int s = 0; s < 3; ++s) {
+        for(int r = 0; r < 10; ++r) {
+            Vector3D origin(ray_defs[r].ox, ray_defs[r].oy, ray_defs[r].oz);
+            Vector3D dir(ray_defs[r].dx, ray_defs[r].dy, ray_defs[r].dz);
+            auto hits = shapes[s]->Intersections(origin, dir);
+
+            if(hits.empty()) continue;
+
+            // First hit must be entering
+            EXPECT_TRUE(hits[0].entering)
+                << names[s] << " ray " << r << ": first hit should be entering";
+
+            // Last hit must be exiting
+            EXPECT_FALSE(hits.back().entering)
+                << names[s] << " ray " << r << ": last hit should be exiting";
+
+            // Total count must be even (enter/exit pairs)
+            EXPECT_EQ(hits.size() % 2, 0u)
+                << names[s] << " ray " << r << ": hit count should be even";
+
+            for(size_t i = 0; i < hits.size(); ++i) {
+                // Distances must be non-decreasing
+                if(i > 0) {
+                    EXPECT_GE(hits[i].distance, hits[i-1].distance)
+                        << names[s] << " ray " << r << " hit " << i
+                        << ": distance not non-decreasing";
+                }
+                // Entering flags must strictly alternate
+                if(i > 0) {
+                    EXPECT_NE(hits[i].entering, hits[i-1].entering)
+                        << names[s] << " ray " << r << " hit " << i
+                        << ": entering flag did not alternate";
+                }
+                // Position must match origin + t*direction
+                Vector3D expected_pos(
+                    origin.GetX() + hits[i].distance * dir.GetX(),
+                    origin.GetY() + hits[i].distance * dir.GetY(),
+                    origin.GetZ() + hits[i].distance * dir.GetZ());
+                EXPECT_NEAR(hits[i].position.GetX(), expected_pos.GetX(), 1e-6)
+                    << names[s] << " ray " << r << " hit " << i << " pos.x";
+                EXPECT_NEAR(hits[i].position.GetY(), expected_pos.GetY(), 1e-6)
+                    << names[s] << " ray " << r << " hit " << i << " pos.y";
+                EXPECT_NEAR(hits[i].position.GetZ(), expected_pos.GetZ(), 1e-6)
+                    << names[s] << " ray " << r << " hit " << i << " pos.z";
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
