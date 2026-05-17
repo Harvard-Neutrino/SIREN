@@ -1521,12 +1521,46 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
                     }
                 }
 
-                // Composite children: resolve each ref to the current instance
+                // Composite children: atom counts -> mass fractions.
+                // Collect (resolved_name, atom_count) pairs, then convert
+                // to mass fractions using the referenced element's atomic mass:
+                //   mass_fraction_i = n_i * A_i / sum(n_j * A_j)
+                std::vector<std::pair<std::string, double>> composite_entries;
                 for(auto* comp = node->first_node("composite"); comp; comp = comp->next_sibling("composite")) {
                     std::string ref = SafeAttrVal(comp, "ref");
                     double n = SafeParseDouble(SafeAttrVal(comp, "n"), data.constants);
                     if(!ref.empty()) {
-                        mat.composition[resolveCompRef(ref)] = n;
+                        composite_entries.push_back({resolveCompRef(ref), n});
+                    }
+                }
+                if(!composite_entries.empty()) {
+                    auto lookupA = [&](std::string const & resolved_name) -> double {
+                        auto iso_it = isotope_stacks.instances.find(resolved_name);
+                        if(iso_it != isotope_stacks.instances.end() && !iso_it->second.empty())
+                            return iso_it->second.back().A;
+                        auto elem_it = element_stacks.instances.find(resolved_name);
+                        if(elem_it != element_stacks.instances.end() && !elem_it->second.empty())
+                            return elem_it->second.back().A;
+                        auto mat_it = material_stacks.instances.find(resolved_name);
+                        if(mat_it != material_stacks.instances.end() && !mat_it->second.empty())
+                            return mat_it->second.back().A;
+                        return 0.0;
+                    };
+                    double total_mass = 0.0;
+                    std::vector<double> masses(composite_entries.size());
+                    for(size_t ci = 0; ci < composite_entries.size(); ++ci) {
+                        double A = lookupA(composite_entries[ci].first);
+                        masses[ci] = composite_entries[ci].second * A;
+                        total_mass += masses[ci];
+                    }
+                    if(total_mass > 0) {
+                        for(size_t ci = 0; ci < composite_entries.size(); ++ci) {
+                            mat.composition[composite_entries[ci].first] = masses[ci] / total_mass;
+                        }
+                    } else {
+                        for(auto const & ce : composite_entries) {
+                            mat.composition[ce.first] = ce.second;
+                        }
                     }
                 }
 
