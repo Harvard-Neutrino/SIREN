@@ -259,6 +259,7 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
     for(size_t edge = 0; edge < n; ++edge) {
         size_t i0 = edge;
         size_t i1 = (edge + 1) % n;
+        size_t i2 = (edge + 2) % n;
 
         double r0 = r_[i0], z0 = z_[i0];
         double r1 = r_[i1], z1 = z_[i1];
@@ -269,6 +270,11 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
         if(std::fabs(dr_edge) < GEOMETRY_PRECISION && std::fabs(dz_edge) < GEOMETRY_PRECISION) {
             continue;
         }
+
+        // If the next edge is a horizontal disk, include s=1 to prevent
+        // orphaning the shared vertex when the ray is parallel to the disk.
+        double dz_next = z_[i2] - z_[i1];
+        bool next_is_disk = std::fabs(dz_next) <= GEOMETRY_PRECISION;
 
         if(std::fabs(dz_edge) > GEOMETRY_PRECISION) {
             // Non-horizontal edge: conical/cylindrical surface
@@ -287,10 +293,11 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
             auto try_hit = [&](double t) {
                 if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
                 intersection_z = pz + t * dz;
-                // Clip to edge parameter range: s in [0, 1)
-                // Half-open ensures each vertex is owned by exactly one edge.
+                // Clip to edge parameter range: s in [0, 1) normally, or
+                // [0, 1] when the next edge is a horizontal disk (prevents
+                // orphaning the shared vertex for horizontal rays).
                 double s = (intersection_z - z0) / dz_edge;
-                if(s < 0 || s >= 1) return;
+                if(s < 0 || (next_is_disk ? s > 1 : s >= 1)) return;
                 intersection_x = px + t * dx;
                 intersection_y = py + t * dy;
                 double r_at_z = a + b * intersection_z;

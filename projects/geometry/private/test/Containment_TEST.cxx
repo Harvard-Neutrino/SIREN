@@ -280,13 +280,15 @@ bool InsideTrap(Vector3D const & p, double dz, double theta, double phi,
         {xc_hi + dy2*ta2 - dx4, yc_hi + dy2, +dz}
     };
 
-    // 6 faces defined by vertex indices (outward winding)
+    // 6 faces defined by vertex indices (outward winding).
+    // The first 3 vertices of each face determine the plane equation,
+    // so their triangulation must match Trap::ComputePlanes exactly.
     int faces[6][4] = {
-        {0, 3, 2, 1}, // bottom (z=-dz)
-        {4, 5, 6, 7}, // top (z=+dz)
+        {0, 1, 2, 3}, // bottom (z=-dz)
+        {7, 6, 5, 4}, // top (z=+dz)
         {0, 1, 5, 4}, // front (-y)
-        {3, 7, 6, 2}, // back (+y)
-        {0, 4, 7, 3}, // left (-x)
+        {3, 2, 6, 7}, // back (+y)
+        {0, 3, 7, 4}, // left (-x)
         {1, 2, 6, 5}  // right (+x)
     };
 
@@ -1212,6 +1214,85 @@ TEST(Containment, TrapGeneral) {
     }, 15, 10000, "TrapGeneral");
 }
 
+TEST(Containment, TrapAsymmetricAlpha0) {
+    // Strong dx asymmetry with alpha=0 (planar faces, algorithm should be exact)
+    double dz = 5, theta = 0, phi = 0;
+    double dy1 = 3, dx1 = 4, dx2 = 1, alpha1 = 0;
+    double dy2 = 3, dx3 = 4, dx4 = 1, alpha2 = 0;
+    Placement pl(Vector3D(0, 0, 0));
+    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+        return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    }, 12, 10000, "TrapAsymmetricAlpha0");
+}
+
+TEST(Containment, TrapNearTriangularAlpha0) {
+    // Near-triangular (one face nearly collapsed)
+    double dz = 5, theta = 0, phi = 0;
+    double dy1 = 3, dx1 = 4, dx2 = 0.1, alpha1 = 0;
+    double dy2 = 3, dx3 = 4, dx4 = 0.1, alpha2 = 0;
+    Placement pl(Vector3D(0, 0, 0));
+    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+        return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    }, 12, 10000, "TrapNearTriangularAlpha0");
+}
+
+TEST(Containment, TrapAsymWithTheta) {
+    // Asymmetric dx with theta tilt (still alpha=0, so faces are planar)
+    double dz = 5, theta = 0.2, phi = 0.5;
+    double dy1 = 3, dx1 = 4, dx2 = 1, alpha1 = 0;
+    double dy2 = 3, dx3 = 4, dx4 = 1, alpha2 = 0;
+    Placement pl(Vector3D(0, 0, 0));
+    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+        return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    }, 15, 10000, "TrapAsymWithTheta");
+}
+
+TEST(Containment, TrapTaperedAlpha0) {
+    // Different top/bottom faces (full taper)
+    double dz = 5, theta = 0, phi = 0;
+    double dy1 = 3, dx1 = 4, dx2 = 2, alpha1 = 0;
+    double dy2 = 2, dx3 = 3, dx4 = 1, alpha2 = 0;
+    Placement pl(Vector3D(0, 0, 0));
+    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+        return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    }, 12, 10000, "TrapTaperedAlpha0");
+}
+
+TEST(Containment, TrapAsymIntersectionCount) {
+    // Verify that asymmetric alpha=0 Trap produces exactly 2 intersections
+    // for center-piercing rays
+    Trap trap(5, 0, 0, 3, 4, 1, 0, 3, 4, 1, 0);
+    Vector3D dirs[] = {
+        Vector3D(1, 0, 0), Vector3D(0, 1, 0), Vector3D(0, 0, 1),
+        Vector3D(1, 1, 1), Vector3D(1, -1, 0.5), Vector3D(-0.3, 0.7, -0.6),
+    };
+    for(auto & d : dirs) {
+        Vector3D dir = d;
+        dir.normalize();
+        Vector3D origin = Vector3D(0, 0, 0) - dir * 50.0;
+        auto hits = trap.Intersections(origin, dir);
+        EXPECT_EQ(hits.size(), 2u)
+            << "TrapAsym center ray dir=(" << dir.GetX() << "," << dir.GetY() << "," << dir.GetZ()
+            << ") got " << hits.size();
+    }
+}
+
+TEST(Containment, TrapAsymEnterExitFlags) {
+    // For an asymmetric Trap, verify entering/exiting flags are correct
+    Trap trap(5, 0, 0, 3, 4, 1, 0, 3, 4, 1, 0);
+    // Z-axis ray
+    auto hits = trap.Intersections(Vector3D(0, 0, -20), Vector3D(0, 0, 1));
+    ASSERT_EQ(hits.size(), 2u);
+    EXPECT_TRUE(hits[0].entering);
+    EXPECT_FALSE(hits[1].entering);
+    EXPECT_NEAR(hits[0].position.GetZ(), -5.0, 1e-6);
+    EXPECT_NEAR(hits[1].position.GetZ(), 5.0, 1e-6);
+}
+
 // =========================================================================
 // Ellipsoid
 // =========================================================================
@@ -1428,4 +1509,148 @@ TEST(Containment, GenericPolyconeCrystal) {
     ValidateContainment(gpc, pl, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv);
     }, 45, 20000, "GenericPolyconeCrystal");
+}
+
+// =========================================================================
+// ExtrPoly extended coverage and cross-validation
+// =========================================================================
+
+TEST(Containment, ExtrPolyTriangle) {
+    // Triangle prism: V0=(5,-5), V1=(-5,-5), V2=(0,5)
+    std::vector<std::vector<double>> polygon = {{5,-5},{-5,-5},{0,5}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-5, off, 1.0),
+        ExtrPoly::ZSection(5, off, 1.0)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        double px = p.GetX(), py = p.GetY();
+        bool in_triangle = (py > -5.0 &&
+                            py < 2.0*px + 5.0 &&
+                            py < -2.0*px + 5.0);
+        return in_triangle && p.GetZ() > -5.0 && p.GetZ() < 5.0;
+    }, 8, 10000, "ExtrPolyTriangle");
+}
+
+TEST(Containment, ExtrPolyHexagon) {
+    // Regular hexagon with circumradius 5, extruded along z
+    double r = 5.0;
+    std::vector<std::vector<double>> polygon;
+    for(int k = 0; k < 6; ++k) {
+        double a = k * M_PI / 3.0;
+        polygon.push_back({r * std::cos(a), r * std::sin(a)});
+    }
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-4, off, 1.0),
+        ExtrPoly::ZSection(4, off, 1.0)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [=](Vector3D const & p) {
+        bool in_hex = InsideRegularPolygon(p.GetX(), p.GetY(), 6, r, 0);
+        return in_hex && p.GetZ() > -4.0 && p.GetZ() < 4.0;
+    }, 8, 10000, "ExtrPolyHexagon");
+}
+
+TEST(Containment, ExtrPolyExtremeAspectRatio) {
+    // Very elongated rectangle (100:1 aspect ratio)
+    std::vector<std::vector<double>> polygon = {{-50,-0.5},{50,-0.5},{50,0.5},{-50,0.5}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-1, off, 1.0),
+        ExtrPoly::ZSection(1, off, 1.0)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        return std::fabs(p.GetX()) < 50.0
+            && std::fabs(p.GetY()) < 0.5
+            && std::fabs(p.GetZ()) < 1.0;
+    }, 55, 20000, "ExtrPolyExtremeAspectRatio");
+}
+
+TEST(Containment, ExtrPolyCombinedOffsetScale) {
+    // Multi-section with both offset and scale varying
+    std::vector<std::vector<double>> polygon = {{-2,-2},{2,-2},{2,2},{-2,2}};
+    double off_bot[2] = {0, 0};
+    double off_mid[2] = {0.5, 0.5};
+    double off_top[2] = {1, 1};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-4, off_bot, 1.0),
+        ExtrPoly::ZSection(0, off_mid, 1.5),
+        ExtrPoly::ZSection(4, off_top, 0.8)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        double pz = p.GetZ();
+        if(pz <= -4.0 || pz >= 4.0) return false;
+        double s, ox, oy;
+        if(pz < 0.0) {
+            double frac = (pz + 4.0) / 4.0;
+            s = 1.0 + (1.5 - 1.0) * frac;
+            ox = 0.0 + (0.5 - 0.0) * frac;
+            oy = 0.0 + (0.5 - 0.0) * frac;
+        } else {
+            double frac = pz / 4.0;
+            s = 1.5 + (0.8 - 1.5) * frac;
+            ox = 0.5 + (1.0 - 0.5) * frac;
+            oy = 0.5 + (1.0 - 0.5) * frac;
+        }
+        return std::fabs(p.GetX() - ox) < 2.0 * s
+            && std::fabs(p.GetY() - oy) < 2.0 * s;
+    }, 10, 10000, "ExtrPolyCombinedOffsetScale");
+}
+
+TEST(Containment, ExtrPolyRotated) {
+    // Square extrusion with rotated placement
+    std::vector<std::vector<double>> polygon = {{-3,-3},{3,-3},{3,3},{-3,3}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-4, off, 1.0),
+        ExtrPoly::ZSection(4, off, 1.0)
+    };
+    Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
+    Placement pl(Vector3D(2, -1, 3), q);
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        return std::fabs(p.GetX()) < 3 && std::fabs(p.GetY()) < 3 && std::fabs(p.GetZ()) < 4;
+    }, 12, 10000, "ExtrPolyRotated");
+}
+
+TEST(Containment, ExtrPolyVsBoxCrossValidation) {
+    // Cross-validate that an ExtrPoly square prism agrees with a Box
+    std::vector<std::vector<double>> polygon = {{-4,-3},{4,-3},{4,3},{-4,3}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-5, off, 1.0),
+        ExtrPoly::ZSection(5, off, 1.0)
+    };
+    ExtrPoly ep(polygon, zsecs);
+    Box box(8, 6, 10); // full widths = 2*4, 2*3, 2*5
+
+    int mismatches = 0;
+    std::mt19937 rng(99999);
+    std::uniform_real_distribution<double> u(-1.0, 1.0);
+    for(int i = 0; i < 30000; ++i) {
+        Vector3D pos(u(rng) * 8, u(rng) * 6, u(rng) * 8);
+        Vector3D dir(u(rng), u(rng), u(rng));
+        double mag = std::sqrt(dir.GetX()*dir.GetX() + dir.GetY()*dir.GetY() + dir.GetZ()*dir.GetZ());
+        if(mag < 1e-12) continue;
+        dir = Vector3D(dir.GetX()/mag, dir.GetY()/mag, dir.GetZ()/mag);
+        bool ep_inside = ep.IsInside(pos, dir);
+        bool box_inside = box.IsInside(pos, dir);
+        if(ep_inside != box_inside) {
+            mismatches++;
+            if(mismatches <= 3) {
+                std::cerr << "ExtrPoly vs Box mismatch at ("
+                    << pos.GetX() << "," << pos.GetY() << "," << pos.GetZ()
+                    << ") ep=" << ep_inside << " box=" << box_inside << std::endl;
+            }
+        }
+    }
+    EXPECT_EQ(mismatches, 0) << "ExtrPoly vs Box: " << mismatches << " mismatches";
 }

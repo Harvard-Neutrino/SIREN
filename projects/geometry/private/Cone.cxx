@@ -360,8 +360,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
 
                     if(!outer_apex_handled) {
                         intersection_z = pz + t1 * dz;
-                        bool z1_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg)
-                                  && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos);
+                        bool z1_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg - GEOMETRY_PRECISION)
+                                  && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos + GEOMETRY_PRECISION);
                         if(z1_ok) {
                             intersection_x = px + t1 * dx;
                             intersection_y = py + t1 * dy;
@@ -374,8 +374,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         }
 
                         intersection_z = pz + t2 * dz;
-                        bool z2_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg)
-                                  && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos);
+                        bool z2_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg - GEOMETRY_PRECISION)
+                                  && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos + GEOMETRY_PRECISION);
                         if(z2_ok) {
                             intersection_x = px + t2 * dx;
                             intersection_y = py + t2 * dy;
@@ -395,8 +395,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     t1 = 0;
 
                 intersection_z = pz + t1 * dz;
-                bool z_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg)
-                         && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos);
+                bool z_ok = (has_outer_apex_bot ? intersection_z >= z_calc_neg : intersection_z > z_calc_neg - GEOMETRY_PRECISION)
+                         && (has_outer_apex_top ? intersection_z <= z_calc_pos : intersection_z < z_calc_pos + GEOMETRY_PRECISION);
                 if(z_ok) {
                     intersection_x = px + t1 * dx;
                     intersection_y = py + t1 * dy;
@@ -468,12 +468,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         t2 = 0;
 
                     intersection_z = pz + t1 * dz;
-                    if(intersection_z > z_calc_neg && intersection_z < z_calc_pos) {
+                    if(intersection_z > z_calc_neg - GEOMETRY_PRECISION && intersection_z < z_calc_pos + GEOMETRY_PRECISION) {
                         intersection_x = px + t1 * dx;
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
-                            // Inner surface: entering is inverted (entering inner = exiting volume)
                             bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
                             all_hits[n_all] = {t1, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), entering, 0};
                             n_all++;
@@ -481,7 +480,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     }
 
                     intersection_z = pz + t2 * dz;
-                    if(intersection_z > z_calc_neg && intersection_z < z_calc_pos) {
+                    if(intersection_z > z_calc_neg - GEOMETRY_PRECISION && intersection_z < z_calc_pos + GEOMETRY_PRECISION) {
                         intersection_x = px + t2 * dx;
                         intersection_y = py + t2 * dy;
                         double r_at_z = a_inner + b_inner * intersection_z;
@@ -498,7 +497,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     t1 = 0;
 
                 intersection_z = pz + t1 * dz;
-                if(intersection_z > z_calc_neg && intersection_z < z_calc_pos) {
+                if(intersection_z > z_calc_neg - GEOMETRY_PRECISION && intersection_z < z_calc_pos + GEOMETRY_PRECISION) {
                     intersection_x = px + t1 * dx;
                     intersection_y = py + t1 * dy;
                     double r_at_z = a_inner + b_inner * intersection_z;
@@ -524,8 +523,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         intersection_y = py + t * dy;
 
         double r2_hit = intersection_x * intersection_x + intersection_y * intersection_y;
-        // At z = +z_/2, outer radius is rmax2_, inner radius is rmin2_
-        if(r2_hit <= rmax2_ * rmax2_ && r2_hit >= rmin2_ * rmin2_) {
+        if(r2_hit <= rmax2_ * rmax2_ + GEOMETRY_PRECISION && r2_hit >= rmin2_ * rmin2_ - GEOMETRY_PRECISION) {
             intersection_z = pz + t * dz;
             all_hits[n_all] = {t, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), dz < 0, 0};
             n_all++;
@@ -544,8 +542,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         intersection_y = py + t * dy;
 
         double r2_hit = intersection_x * intersection_x + intersection_y * intersection_y;
-        // At z = -z_/2, outer radius is rmax1_, inner radius is rmin1_
-        if(r2_hit <= rmax1_ * rmax1_ && r2_hit >= rmin1_ * rmin1_) {
+        if(r2_hit <= rmax1_ * rmax1_ + GEOMETRY_PRECISION && r2_hit >= rmin1_ * rmin1_ - GEOMETRY_PRECISION) {
             intersection_z = pz + t * dz;
             all_hits[n_all] = {t, siren::math::Vector3D(intersection_x, intersection_y, intersection_z), dz > 0, 0};
             n_all++;
@@ -561,6 +558,9 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         std::vector<Intersection> result;
         result.reserve(n_all);
         for(int i = 0; i < n_all; ++i) {
+            if(!result.empty() && std::fabs(all_hits[i].distance - result.back().distance) < GEOMETRY_PRECISION) {
+                continue;
+            }
             Intersection isect;
             isect.distance = all_hits[i].distance;
             isect.hierarchy = 0;

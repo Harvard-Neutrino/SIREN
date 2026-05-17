@@ -264,7 +264,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
         for(int k = 0; k < 2; ++k) {
             double t = (k == 0) ? t1 : t2;
             double iz = pz + t * dz;
-            if(iz > -hz && iz < hz) {
+            if(iz > -hz - GEOMETRY_PRECISION && iz < hz + GEOMETRY_PRECISION) {
                 double ix = px + t * dx;
                 double iy = py + t * dy;
                 bool radial_entering = (ix * dx + iy * dy) < 0;
@@ -280,7 +280,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
         double ix = px + t * dx;
         double iy = py + t * dy;
         double r2_hit = ix*ix + iy*iy;
-        if(r2_hit <= r2_hi && r2_hit >= r2_lo) {
+        if(r2_hit <= r2_hi + GEOMETRY_PRECISION && r2_hit >= r2_lo - GEOMETRY_PRECISION) {
             add_surface_hit(t, ix, iy, pz + t * dz, enter);
         }
     };
@@ -296,7 +296,6 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
     }
 
     if(!has_phi_cut_) {
-        // No phi cut: surface hits are the final result
         if(n_all == 0) return {};
         std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
             return a.distance < b.distance;
@@ -304,6 +303,9 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
         std::vector<Intersection> result;
         result.reserve(n_all);
         for(int i = 0; i < n_all; ++i) {
+            if(!result.empty() && std::fabs(all_hits[i].distance - result.back().distance) < GEOMETRY_PRECISION) {
+                continue;
+            }
             Intersection isect;
             isect.distance = all_hits[i].distance;
             isect.hierarchy = 0;
