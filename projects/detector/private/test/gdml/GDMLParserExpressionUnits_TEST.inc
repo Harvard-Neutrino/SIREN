@@ -190,27 +190,11 @@ TEST(GDMLParser, DefaultAngleUnitRadians) {
 
 
 TEST(GDMLParser, LengthUnitConversion) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <box name="box_mm" x="100" y="100" z="100" lunit="mm"/>
     <box name="box_cm" x="10" y="10" z="10" lunit="cm"/>
     <box name="box_m" x="0.1" y="0.1" z="0.1" lunit="m"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="box_mm"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
+)", "box_mm");
 
     ASSERT_TRUE(data.solids.count("box_mm") > 0);
     ASSERT_TRUE(data.solids.count("box_cm") > 0);

@@ -3,30 +3,14 @@
 TEST(GDMLParser, BooleanForwardReference) {
     // Define the boolean solid BEFORE one of its operands in the <solids> section.
     // With two-pass parsing, this should work.
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <subtraction name="result">
       <first ref="big_sphere"/>
       <second ref="small_sphere"/>
     </subtraction>
     <sphere name="big_sphere" rmax="100" lunit="mm"/>
     <sphere name="small_sphere" rmax="50" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="result"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
+)", "result");
 
     // The boolean solid should have been parsed despite forward references
     ASSERT_TRUE(data.solids.count("result") > 0)
@@ -37,11 +21,7 @@ TEST(GDMLParser, BooleanForwardReference) {
 
 
 TEST(GDMLParser, NestedBooleanSolids) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <union name="final">
       <first ref="inner_sub"/>
       <second ref="some_box"/>
@@ -53,19 +33,7 @@ TEST(GDMLParser, NestedBooleanSolids) {
     <sphere name="big_sphere" rmax="100" lunit="mm"/>
     <sphere name="small_sphere" rmax="50" lunit="mm"/>
     <box name="some_box" x="40" y="40" z="40" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="final"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
+)", "final");
 
     // All composite/primitive solids should exist
     ASSERT_TRUE(data.solids.count("final") > 0)
@@ -187,11 +155,7 @@ TEST(GDMLParser, BooleanInstanceResolution) {
     // Define a box with name "operand", then a boolean using it, then
     // redefine "operand" with different dimensions. The boolean should
     // use the first definition (current at definition time).
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <box name="base" x="100" y="100" z="100" lunit="mm"/>
     <box name="cutter" x="50" y="50" z="200" lunit="mm"/>
     <subtraction name="result">
@@ -199,19 +163,7 @@ TEST(GDMLParser, BooleanInstanceResolution) {
       <second ref="cutter"/>
     </subtraction>
     <box name="base" x="500" y="500" z="500" lunit="mm"/>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="result"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
+)", "result");
     ASSERT_TRUE(data.solids.count("result") > 0);
     // The boolean "result" was defined after first "base" (100mm) but before
     // second "base" (500mm). It should use the first definition.
@@ -259,16 +211,15 @@ TEST(GDMLParser, BooleanFirstPosition) {
 </gdml>)";
 
     GDMLData data = ParseGDMLString(gdml);
-    ASSERT_TRUE(data.solids.count("sub_first_pos") > 0);
-    auto geo = data.solids["sub_first_pos"];
+    auto geo = RequireSolid(data, "sub_first_pos");
     ASSERT_NE(geo, nullptr);
     siren::math::Vector3D dir(0, 1, 0);
     // box_a is shifted to center (0.2, 0, 0). Point at (0.2, 0, 0) is inside box_a
     // but outside box_b (centered at origin, half-width 0.02m). 0.2 > 0.02 -> outside box_b.
     // Subtraction: inside_a && !inside_b = true
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.2, 0, 0), dir));
+    EXPECT_TRUE(IsInside(geo, 0.2, 0, 0));
     // Point at origin: box_a center is at 0.2m, half-width 0.1m. |0 - 0.2| = 0.2 > 0.1 -> outside box_a
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0, 0, 0));
 }
 
 
@@ -304,8 +255,7 @@ TEST(GDMLParser, BooleanFirstRotation) {
 </gdml>)";
 
     GDMLData data = ParseGDMLString(gdml);
-    ASSERT_TRUE(data.solids.count("sub_first_rot") > 0);
-    auto geo = data.solids["sub_first_rot"];
+    auto geo = RequireSolid(data, "sub_first_rot");
     ASSERT_NE(geo, nullptr);
     // box_a is 200x50x50 mm, rotated 90 deg about z -> becomes 50x200x50 mm
     // A point at (0, 0.08, 0) should be inside the rotated box_a (0.08m = 80mm < 100mm half-y)
@@ -317,10 +267,10 @@ TEST(GDMLParser, BooleanFirstRotation) {
     EXPECT_FALSE(geo->IsInside(outside_rot, dir));
     // Subtraction probe: origin is inside rotated box_a AND inside box_b
     // (box_b half-width = 10mm = 0.01m), so subtraction should exclude it
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0, 0, 0));
     // Just outside box_b: z=0.012 > 0.01m half-width, but inside rotated box_a
     // (z half-width = 25mm = 0.025m), so subtraction should include it
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0.012), dir));
+    EXPECT_TRUE(IsInside(geo, 0, 0, 0.012));
 }
 
 
@@ -358,8 +308,7 @@ TEST(GDMLParser, BooleanFirstPositionRef) {
 </gdml>)";
 
     GDMLData data = ParseGDMLString(gdml);
-    ASSERT_TRUE(data.solids.count("union_fposref") > 0);
-    auto geo = data.solids["union_fposref"];
+    auto geo = RequireSolid(data, "union_fposref");
     ASSERT_NE(geo, nullptr);
     // box_a center is shifted to x=0.05m. Point at (0.05, 0, 0) should be inside box_a
     siren::math::Vector3D dir(0, 0, 1);
@@ -406,24 +355,18 @@ TEST(GDMLParser, BooleanBothOperandsTransformed) {
 </gdml>)";
 
     GDMLData data = ParseGDMLString(gdml);
-    ASSERT_TRUE(data.solids.count("union_both") > 0);
-    auto geo = data.solids["union_both"];
+    auto geo = RequireSolid(data, "union_both");
     ASSERT_NE(geo, nullptr);
-    siren::math::Vector3D dir(0, 0, 1);
     // box_a centered at x=0.3m, box_b centered at x=-0.3m (each half-width 0.1m)
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.3, 0, 0), dir));
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(-0.3, 0, 0), dir));
+    EXPECT_TRUE(IsInside(geo, 0.3, 0, 0));
+    EXPECT_TRUE(IsInside(geo, -0.3, 0, 0));
     // Origin is 0.3m from each center, > 0.1m half-width -> outside both
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0, 0, 0));
 }
 
 
 TEST(GDMLParser, BooleanSubtractionHollow) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <box name="outer" x="100" y="100" z="100" lunit="mm"/>
     <box name="inner" x="60" y="60" z="60" lunit="mm"/>
@@ -431,44 +374,26 @@ TEST(GDMLParser, BooleanSubtractionHollow) {
       <first ref="outer"/>
       <second ref="inner"/>
     </subtraction>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
-    ASSERT_TRUE(data.solids.count("hollow_box") > 0);
-    auto geo = data.solids["hollow_box"];
+)", "world_box");
+    auto geo = RequireSolid(data, "hollow_box");
     ASSERT_NE(geo, nullptr);
-    siren::math::Vector3D dir(0, 0, 1);
 
     // Center is inside both boxes, so subtraction should exclude it
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0, 0, 0));
     // In the wall: x=0.08m is outside inner (half-width 0.06m) but inside outer (0.1m)
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.08, 0, 0), dir));
+    EXPECT_TRUE(IsInside(geo, 0.08, 0, 0));
     // In the wall off-axis
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0.08, 0), dir));
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0.08), dir));
+    EXPECT_TRUE(IsInside(geo, 0, 0.08, 0));
+    EXPECT_TRUE(IsInside(geo, 0, 0, 0.08));
     // Outside the outer box entirely (half-width 0.1m)
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.12, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0.12, 0, 0));
     // Inside the inner box: subtracted away
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.03, 0.03, 0.03), dir));
+    EXPECT_FALSE(IsInside(geo, 0.03, 0.03, 0.03));
 }
 
 
 TEST(GDMLParser, NestedBooleanSolidsContainment) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <sphere name="big_sphere" rmax="100" lunit="mm"/>
     <sphere name="small_sphere" rmax="60" lunit="mm"/>
@@ -481,60 +406,30 @@ TEST(GDMLParser, NestedBooleanSolidsContainment) {
       <first ref="inner_sub"/>
       <second ref="some_box"/>
     </union>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
-    ASSERT_TRUE(data.solids.count("final") > 0);
-    auto geo = data.solids["final"];
+)", "world_box");
+    auto geo = RequireSolid(data, "final");
     ASSERT_NE(geo, nullptr);
-    siren::math::Vector3D dir(0, 0, 1);
 
     // In the shell: r=0.08m is between rmin=0.06 and rmax=0.1
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0.08, 0, 0), dir));
+    EXPECT_TRUE(IsInside(geo, 0.08, 0, 0));
     // In the hollow but inside some_box: (0,0,0) is in the box (half-width=0.04m)
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0), dir));
+    EXPECT_TRUE(IsInside(geo, 0, 0, 0));
     // In the hollow but outside some_box: r=0.05 < rmin=0.06, outside box (0.05 > 0.04)
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.05, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0.05, 0, 0));
     // Outside everything: r=0.15 > rmax=0.1
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(0.15, 0, 0), dir));
+    EXPECT_FALSE(IsInside(geo, 0.15, 0, 0));
 }
 
 
 TEST(GDMLParser, UnresolvedBooleanOperandWarns) {
-    std::string gdml = R"(<?xml version="1.0"?>
-<gdml>
-  <define/>
-  <materials/>
-  <solids>
+    GDMLData data = ParseGDMLWithSolids(R"(
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
     <box name="existing_box" x="100" y="100" z="100" lunit="mm"/>
     <subtraction name="bad_sub">
       <first ref="existing_box"/>
       <second ref="nonexistent_solid"/>
     </subtraction>
-  </solids>
-  <structure>
-    <volume name="World">
-      <materialref ref=""/>
-      <solidref ref="world_box"/>
-    </volume>
-  </structure>
-  <setup name="Default" version="1.0">
-    <world ref="World"/>
-  </setup>
-</gdml>)";
-
-    GDMLData data = ParseGDMLString(gdml);
+)", "world_box");
 
     // The boolean solid should not be created
     EXPECT_EQ(data.solids.count("bad_sub"), 0u);

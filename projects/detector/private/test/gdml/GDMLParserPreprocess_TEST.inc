@@ -489,13 +489,12 @@ TEST(GDMLParser, EntityExpansion) {
     std::remove(main_file.c_str());
     std::remove(inc_file.c_str());
 
-    ASSERT_TRUE(data.solids.find("included_box") != data.solids.end());
-    auto geo = data.solids["included_box"];
-    ASSERT_TRUE(geo != nullptr);
+    auto geo = RequireSolid(data, "included_box");
+    ASSERT_NE(geo, nullptr);
 
     // The box is 4m x 4m x 4m (half-widths 2m); center should be inside
-    EXPECT_TRUE(geo->IsInside(siren::math::Vector3D(0, 0, 0)));
-    EXPECT_FALSE(geo->IsInside(siren::math::Vector3D(3.0, 0, 0)));
+    EXPECT_TRUE(IsInside(geo, 0, 0, 0));
+    EXPECT_FALSE(IsInside(geo, 3.0, 0, 0));
 }
 
 
