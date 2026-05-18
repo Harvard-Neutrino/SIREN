@@ -205,8 +205,6 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
     // No intersection if the entry point is past the exit point
     if(t_enter > t_exit) return {};
 
-    // Precision control: Note on boundary (t near 0), the original code
-    // treats |t| < GEOMETRY_PRECISION as "on the border" and sets to 0.
     // A particle on the border moving inside has one intersection (exit),
     // a particle on the border moving outside has no intersection.
     if(t_enter > 0 && t_enter < GEOMETRY_PRECISION) t_enter = 0;

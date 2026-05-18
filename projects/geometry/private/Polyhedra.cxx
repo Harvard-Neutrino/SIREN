@@ -284,9 +284,6 @@ void Polyhedra::print(std::ostream& os) const
 // For each section, each polygon side produces a planar quadrilateral face
 // (outer and optionally inner). We also check the top/bottom end caps
 // as annular polygonal faces.
-//
-// All coordinates are in local frame. Distance can be negative (full-line
-// intersections, same convention as other SIREN geometry classes).
 // ------------------------------------------------------------------------- //
 
 // Helper: check if a point (px, py) lies inside a convex polygon defined
