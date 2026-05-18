@@ -62,6 +62,36 @@ Vector3D RandomDirection() {
     return Vector3D(dx/mag, dy/mag, dz/mag);
 }
 
+// Shape construction helpers to reduce boilerplate in MakeShapes()
+
+std::shared_ptr<Geometry> MakeSquareExtrPoly(double half, double half_z, double scale = 1.0) {
+    std::vector<std::vector<double>> polygon = {{-half,-half},{half,-half},{half,half},{-half,half}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-half_z, off, scale),
+        ExtrPoly::ZSection(half_z, off, scale)
+    };
+    return ExtrPoly(polygon, zsecs).create();
+}
+
+std::shared_ptr<Geometry> MakeCubeMesh(double half) {
+    Vector3D v[8] = {
+        Vector3D(-half,-half,-half), Vector3D(half,-half,-half),
+        Vector3D(half,half,-half), Vector3D(-half,half,-half),
+        Vector3D(-half,-half,half), Vector3D(half,-half,half),
+        Vector3D(half,half,half), Vector3D(-half,half,half)
+    };
+    std::vector<std::array<Vector3D, 3>> tris;
+    auto addQuad = [&](Vector3D a, Vector3D b, Vector3D c, Vector3D d) {
+        tris.push_back({{a, b, c}});
+        tris.push_back({{a, c, d}});
+    };
+    addQuad(v[3],v[2],v[1],v[0]); addQuad(v[4],v[5],v[6],v[7]);
+    addQuad(v[0],v[1],v[5],v[4]); addQuad(v[1],v[2],v[6],v[5]);
+    addQuad(v[2],v[3],v[7],v[6]); addQuad(v[3],v[0],v[4],v[7]);
+    return TriangularMesh(tris).create();
+}
+
 // Registry of test shapes with metadata
 struct ShapeEntry {
     std::string name;
@@ -86,15 +116,7 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"ConePointedReverse(0,0,0,5,8)", Cone(0, 0, 0, 5, 8).create(), 2, -1, 0});
 
     // Extruded polygon (#20)
-    {
-        std::vector<std::vector<double>> polygon = {{-3,-3},{3,-3},{3,3},{-3,3}};
-        double off[2] = {0, 0};
-        std::vector<ExtrPoly::ZSection> zsecs = {
-            ExtrPoly::ZSection(-4, off, 1.0),
-            ExtrPoly::ZSection(4, off, 1.0)
-        };
-        shapes.push_back({"ExtrPoly(square)", ExtrPoly(polygon, zsecs).create(), 2, -1, 0});
-    }
+    shapes.push_back({"ExtrPoly(square)", MakeSquareExtrPoly(3, 4), 2, -1, 0});
     {
         std::vector<std::vector<double>> polygon = {{-3,0},{0,-3},{3,0},{0,3}};
         double off[2] = {0, 0};
@@ -255,15 +277,7 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"Polyhedra6_MC", Polyhedra(6, 0, {-5,5}, {0,0}, {5,5}).create(), -1, 3.0*25*std::sin(M_PI/3.0), 8});
 
     // ExtrPoly square: z-projection = 6*6 = 36
-    {
-        std::vector<std::vector<double>> polygon = {{-3,-3},{3,-3},{3,3},{-3,3}};
-        double off[2] = {0, 0};
-        std::vector<ExtrPoly::ZSection> zsecs = {
-            ExtrPoly::ZSection(-4, off, 1.0),
-            ExtrPoly::ZSection(4, off, 1.0)
-        };
-        shapes.push_back({"ExtrPoly(square)_MC", ExtrPoly(polygon, zsecs).create(), 2, 36, 5});
-    }
+    shapes.push_back({"ExtrPoly(square)_MC", MakeSquareExtrPoly(3, 4), 2, 36, 5});
 
     // BooleanGeometry: cylinder intersected with box = pi*9
     {
@@ -273,27 +287,32 @@ std::vector<ShapeEntry> MakeShapes() {
     }
 
     // TriangularMesh cube: z-projection = 6*6 = 36
-    {
-        double s = 3;
-        Vector3D v[8] = {
-            Vector3D(-s,-s,-s), Vector3D(s,-s,-s), Vector3D(s,s,-s), Vector3D(-s,s,-s),
-            Vector3D(-s,-s, s), Vector3D(s,-s, s), Vector3D(s,s, s), Vector3D(-s,s, s)
-        };
-        std::vector<std::array<Vector3D, 3>> triangles;
-        auto addQuad = [&](Vector3D a, Vector3D b, Vector3D c, Vector3D d) {
-            triangles.push_back({{a, b, c}});
-            triangles.push_back({{a, c, d}});
-        };
-        addQuad(v[3], v[2], v[1], v[0]);
-        addQuad(v[4], v[5], v[6], v[7]);
-        addQuad(v[0], v[1], v[5], v[4]);
-        addQuad(v[1], v[2], v[6], v[5]);
-        addQuad(v[2], v[3], v[7], v[6]);
-        addQuad(v[3], v[0], v[4], v[7]);
-        shapes.push_back({"TriMesh(cube)_MC", TriangularMesh(triangles).create(), -1, 36, 5});
-    }
+    shapes.push_back({"TriMesh(cube)_MC", MakeCubeMesh(3), -1, 36, 5});
 
     return shapes;
+}
+
+// Test helper: iterates over shapes, fires N random rays, and calls test_fn
+// for each. Returns false from test_fn to report a violation. Violations are
+// counted and printed (up to 3 per shape), then EXPECT_EQ'd to zero.
+using ShapeTestFn = std::function<bool(ShapeEntry const &, Vector3D const &, Vector3D const &, std::string &)>;
+
+void ForEachShape(std::vector<ShapeEntry> const & shapes, int N, bool skip_mc, ShapeTestFn test_fn) {
+    for(auto const & entry : shapes) {
+        if(skip_mc && entry.known_cross_section > 0) continue;
+        int violations = 0;
+        for(int i = 0; i < N; ++i) {
+            Vector3D pos = RandomPoint(20);
+            Vector3D dir = RandomDirection();
+            std::string detail;
+            if(!test_fn(entry, pos, dir, detail)) {
+                violations++;
+                if(violations <= 3)
+                    std::cerr << entry.name << ": " << detail << std::endl;
+            }
+        }
+        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " violations";
+    }
 }
 
 } // anonymous namespace
@@ -303,37 +322,19 @@ std::vector<ShapeEntry> MakeShapes() {
 // =========================================================================
 TEST(ShapeInvariants, IntersectionCount) {
     auto shapes = MakeShapes();
-    int N = 10000;
-
-    for(auto const & entry : shapes) {
-        if(entry.known_cross_section > 0) continue; // skip MC shapes
-        int violations = 0;
-        for(int i = 0; i < N; ++i) {
-            Vector3D pos = RandomPoint(20);
-            Vector3D dir = RandomDirection();
-            auto isects = entry.geo->Intersections(pos, dir);
-            int n = (int)isects.size();
-
-            // Must be even
-            if(n % 2 != 0) {
-                violations++;
-                if(violations <= 3) {
-                    std::cerr << entry.name << ": odd intersection count " << n
-                              << " at (" << pos.GetX() << "," << pos.GetY() << "," << pos.GetZ() << ")" << std::endl;
-                }
-                continue;
-            }
-
-            // For shapes with known max, check upper bound
-            if(entry.max_intersections > 0 && n > entry.max_intersections) {
-                violations++;
-                if(violations <= 3) {
-                    std::cerr << entry.name << ": " << n << " intersections (max " << entry.max_intersections << ")" << std::endl;
-                }
-            }
+    ForEachShape(shapes, 10000, true, [](ShapeEntry const & entry, Vector3D const & pos, Vector3D const & dir, std::string & detail) {
+        auto isects = entry.geo->Intersections(pos, dir);
+        int n = (int)isects.size();
+        if(n % 2 != 0) {
+            detail = "odd intersection count " + std::to_string(n);
+            return false;
         }
-        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " intersection count violations";
-    }
+        if(entry.max_intersections > 0 && n > entry.max_intersections) {
+            detail = std::to_string(n) + " intersections (max " + std::to_string(entry.max_intersections) + ")";
+            return false;
+        }
+        return true;
+    });
 }
 
 // =========================================================================
@@ -341,38 +342,23 @@ TEST(ShapeInvariants, IntersectionCount) {
 // =========================================================================
 TEST(ShapeInvariants, EnterExitOrdering) {
     auto shapes = MakeShapes();
-    int N = 10000;
-
-    for(auto const & entry : shapes) {
-        if(entry.known_cross_section > 0) continue;
-        int violations = 0;
-        for(int i = 0; i < N; ++i) {
-            Vector3D pos = RandomPoint(20);
-            Vector3D dir = RandomDirection();
-            auto isects = entry.geo->Intersections(pos, dir);
-
-            // Filter to just the forward intersections (positive distance) and check alternation
-            bool last_entering = false;
-            bool first = true;
-            for(auto const & isect : isects) {
-                if(!first) {
-                    // Consecutive same-type is a violation
-                    if(isect.entering == last_entering) {
-                        violations++;
-                        if(violations <= 3) {
-                            std::cerr << entry.name << ": consecutive "
-                                      << (isect.entering ? "entering" : "exiting")
-                                      << " at dist=" << isect.distance << std::endl;
-                        }
-                        break;
-                    }
+    ForEachShape(shapes, 10000, true, [](ShapeEntry const & entry, Vector3D const & pos, Vector3D const & dir, std::string & detail) {
+        auto isects = entry.geo->Intersections(pos, dir);
+        bool last_entering = false;
+        bool first = true;
+        for(auto const & isect : isects) {
+            if(!first) {
+                if(isect.entering == last_entering) {
+                    detail = "consecutive " + std::string(isect.entering ? "entering" : "exiting")
+                             + " at dist=" + std::to_string(isect.distance);
+                    return false;
                 }
-                first = false;
-                last_entering = isect.entering;
             }
+            first = false;
+            last_entering = isect.entering;
         }
-        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " enter/exit ordering violations";
-    }
+        return true;
+    });
 }
 
 // =========================================================================
@@ -380,50 +366,28 @@ TEST(ShapeInvariants, EnterExitOrdering) {
 // =========================================================================
 TEST(ShapeInvariants, Reciprocity) {
     auto shapes = MakeShapes();
-    int N = 5000;
-    double tol = 1e-6;
-
-    for(auto const & entry : shapes) {
-        if(entry.known_cross_section > 0) continue;
-        int violations = 0;
-        for(int i = 0; i < N; ++i) {
-            Vector3D pos = RandomPoint(20);
-            Vector3D dir = RandomDirection();
-            Vector3D neg_dir(-dir.GetX(), -dir.GetY(), -dir.GetZ());
-
-            auto fwd = entry.geo->Intersections(pos, dir);
-            auto rev = entry.geo->Intersections(pos, neg_dir);
-
-            // Both must find the same number of intersections
-            if(fwd.size() != rev.size()) {
-                violations++;
-                if(violations <= 3) {
-                    std::cerr << entry.name << ": forward=" << fwd.size()
-                              << " reverse=" << rev.size() << std::endl;
-                }
-                continue;
-            }
-
-            // The intersection positions should match (reversed order, same points)
-            // Forward sorted by distance ascending; reverse has negated distances
-            for(size_t j = 0; j < fwd.size(); ++j) {
-                size_t k = fwd.size() - 1 - j;
-                double dx = fwd[j].position.GetX() - rev[k].position.GetX();
-                double dy = fwd[j].position.GetY() - rev[k].position.GetY();
-                double dz = fwd[j].position.GetZ() - rev[k].position.GetZ();
-                double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-                if(dist > tol) {
-                    violations++;
-                    if(violations <= 3) {
-                        std::cerr << entry.name << ": position mismatch at pair " << j
-                                  << " dist=" << dist << std::endl;
-                    }
-                    break;
-                }
+    ForEachShape(shapes, 5000, true, [](ShapeEntry const & entry, Vector3D const & pos, Vector3D const & dir, std::string & detail) {
+        double tol = 1e-6;
+        Vector3D neg_dir(-dir.GetX(), -dir.GetY(), -dir.GetZ());
+        auto fwd = entry.geo->Intersections(pos, dir);
+        auto rev = entry.geo->Intersections(pos, neg_dir);
+        if(fwd.size() != rev.size()) {
+            detail = "forward=" + std::to_string(fwd.size()) + " reverse=" + std::to_string(rev.size());
+            return false;
+        }
+        for(size_t j = 0; j < fwd.size(); ++j) {
+            size_t k = fwd.size() - 1 - j;
+            double dx = fwd[j].position.GetX() - rev[k].position.GetX();
+            double dy = fwd[j].position.GetY() - rev[k].position.GetY();
+            double dz = fwd[j].position.GetZ() - rev[k].position.GetZ();
+            double dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+            if(dist > tol) {
+                detail = "position mismatch at pair " + std::to_string(j) + " dist=" + std::to_string(dist);
+                return false;
             }
         }
-        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " reciprocity violations";
-    }
+        return true;
+    });
 }
 
 // =========================================================================
@@ -431,42 +395,25 @@ TEST(ShapeInvariants, Reciprocity) {
 // =========================================================================
 TEST(ShapeInvariants, AABBConsistency) {
     auto shapes = MakeShapes();
-    int N = 10000;
     double tol = 1e-6; // allow slight overshoot due to floating point
-
-    for(auto const & entry : shapes) {
-        if(entry.known_cross_section > 0) continue;
+    ForEachShape(shapes, 10000, true, [tol](ShapeEntry const & entry, Vector3D const & pos, Vector3D const & dir, std::string & detail) {
         AABB box = entry.geo->GetWorldBoundingBox();
-        if(!box.IsValid()) continue;
-        // Skip shapes with infinite bounds
-        if(!std::isfinite(box.min_corner.GetX())) continue;
-
-        int violations = 0;
-        for(int i = 0; i < N; ++i) {
-            Vector3D pos = RandomPoint(20);
-            Vector3D dir = RandomDirection();
-            auto isects = entry.geo->Intersections(pos, dir);
-
-            for(auto const & isect : isects) {
-                double x = isect.position.GetX();
-                double y = isect.position.GetY();
-                double z = isect.position.GetZ();
-                if(x < box.min_corner.GetX() - tol || x > box.max_corner.GetX() + tol ||
-                   y < box.min_corner.GetY() - tol || y > box.max_corner.GetY() + tol ||
-                   z < box.min_corner.GetZ() - tol || z > box.max_corner.GetZ() + tol) {
-                    violations++;
-                    if(violations <= 3) {
-                        std::cerr << entry.name << ": intersection at ("
-                                  << x << "," << y << "," << z << ") outside AABB ["
-                                  << box.min_corner.GetX() << ".." << box.max_corner.GetX() << "]["
-                                  << box.min_corner.GetY() << ".." << box.max_corner.GetY() << "]["
-                                  << box.min_corner.GetZ() << ".." << box.max_corner.GetZ() << "]" << std::endl;
-                    }
-                }
+        if(!box.IsValid()) return true;
+        if(!std::isfinite(box.min_corner.GetX())) return true;
+        auto isects = entry.geo->Intersections(pos, dir);
+        for(auto const & isect : isects) {
+            double x = isect.position.GetX();
+            double y = isect.position.GetY();
+            double z = isect.position.GetZ();
+            if(x < box.min_corner.GetX() - tol || x > box.max_corner.GetX() + tol ||
+               y < box.min_corner.GetY() - tol || y > box.max_corner.GetY() + tol ||
+               z < box.min_corner.GetZ() - tol || z > box.max_corner.GetZ() + tol) {
+                detail = "intersection at (" + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z) + ") outside AABB";
+                return false;
             }
         }
-        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " AABB consistency violations";
-    }
+        return true;
+    });
 }
 
 // =========================================================================
@@ -474,39 +421,27 @@ TEST(ShapeInvariants, AABBConsistency) {
 // =========================================================================
 TEST(ShapeInvariants, AABBTightness) {
     auto shapes = MakeShapes();
-    int N = 10000;
     double tol = 1e-6;
-
-    for(auto const & entry : shapes) {
-        if(entry.known_cross_section > 0) continue;
+    // Shoots rays from the AABB centroid (ignores the random pos from ForEachShape)
+    ForEachShape(shapes, 10000, true, [tol](ShapeEntry const & entry, Vector3D const &, Vector3D const & dir, std::string & detail) {
         AABB box = entry.geo->GetWorldBoundingBox();
-        if(!box.IsValid()) continue;
-        if(!std::isfinite(box.min_corner.GetX())) continue;
-
-        // Shoot rays and collect surface points; verify they're inside the AABB
-        int violations = 0;
-        for(int i = 0; i < N; ++i) {
-            // Shoot from inside the AABB to ensure we hit the surface
-            Vector3D center = box.Centroid();
-            Vector3D dir = RandomDirection();
-            auto isects = entry.geo->Intersections(center, dir);
-
-            for(auto const & isect : isects) {
-                double x = isect.position.GetX();
-                double y = isect.position.GetY();
-                double z = isect.position.GetZ();
-                if(x < box.min_corner.GetX() - tol || x > box.max_corner.GetX() + tol ||
-                   y < box.min_corner.GetY() - tol || y > box.max_corner.GetY() + tol ||
-                   z < box.min_corner.GetZ() - tol || z > box.max_corner.GetZ() + tol) {
-                    violations++;
-                    if(violations <= 3) {
-                        std::cerr << entry.name << ": surface point outside AABB" << std::endl;
-                    }
-                }
+        if(!box.IsValid()) return true;
+        if(!std::isfinite(box.min_corner.GetX())) return true;
+        Vector3D center = box.Centroid();
+        auto isects = entry.geo->Intersections(center, dir);
+        for(auto const & isect : isects) {
+            double x = isect.position.GetX();
+            double y = isect.position.GetY();
+            double z = isect.position.GetZ();
+            if(x < box.min_corner.GetX() - tol || x > box.max_corner.GetX() + tol ||
+               y < box.min_corner.GetY() - tol || y > box.max_corner.GetY() + tol ||
+               z < box.min_corner.GetZ() - tol || z > box.max_corner.GetZ() + tol) {
+                detail = "surface point outside AABB";
+                return false;
             }
         }
-        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " AABB tightness violations";
-    }
+        return true;
+    });
 }
 
 // =========================================================================
@@ -514,39 +449,24 @@ TEST(ShapeInvariants, AABBTightness) {
 // =========================================================================
 TEST(ShapeInvariants, DistancePositionConsistency) {
     auto shapes = MakeShapes();
-    int N = 10000;
-    double tol = 1e-6;
-
-    for(auto const & entry : shapes) {
-        if(entry.known_cross_section > 0) continue;
-        int violations = 0;
-        for(int i = 0; i < N; ++i) {
-            Vector3D pos = RandomPoint(20);
-            Vector3D dir = RandomDirection();
-            auto isects = entry.geo->Intersections(pos, dir);
-
-            for(auto const & isect : isects) {
-                // Expected position: pos + t * dir
-                double ex = pos.GetX() + isect.distance * dir.GetX();
-                double ey = pos.GetY() + isect.distance * dir.GetY();
-                double ez = pos.GetZ() + isect.distance * dir.GetZ();
-
-                double dx = isect.position.GetX() - ex;
-                double dy = isect.position.GetY() - ey;
-                double dz = isect.position.GetZ() - ez;
-                double err = std::sqrt(dx*dx + dy*dy + dz*dz);
-
-                if(err > tol) {
-                    violations++;
-                    if(violations <= 3) {
-                        std::cerr << entry.name << ": position error " << err
-                                  << " at dist=" << isect.distance << std::endl;
-                    }
-                }
+    ForEachShape(shapes, 10000, true, [](ShapeEntry const & entry, Vector3D const & pos, Vector3D const & dir, std::string & detail) {
+        double tol = 1e-6;
+        auto isects = entry.geo->Intersections(pos, dir);
+        for(auto const & isect : isects) {
+            double ex = pos.GetX() + isect.distance * dir.GetX();
+            double ey = pos.GetY() + isect.distance * dir.GetY();
+            double ez = pos.GetZ() + isect.distance * dir.GetZ();
+            double dx = isect.position.GetX() - ex;
+            double dy = isect.position.GetY() - ey;
+            double dz = isect.position.GetZ() - ez;
+            double err = std::sqrt(dx*dx + dy*dy + dz*dz);
+            if(err > tol) {
+                detail = "position error " + std::to_string(err) + " at dist=" + std::to_string(isect.distance);
+                return false;
             }
         }
-        EXPECT_EQ(violations, 0) << entry.name << ": " << violations << " distance-position violations";
-    }
+        return true;
+    });
 }
 
 // =========================================================================

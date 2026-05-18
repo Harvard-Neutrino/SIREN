@@ -209,12 +209,19 @@ bool InsideTorusPartial(Vector3D const & p, double R, double rmax, double rmin,
     }
 }
 
+bool InsideTorus(Vector3D const & p, double R, double rmax, double rmin) {
+    double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+    double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+    return d2 < rmax*rmax && (rmin <= 0 || d2 > rmin*rmin);
+}
+
 // Helper: test a shape with N random points, comparing IsInside against the
 // independent check. Uses multiple random directions per point since IsInside
 // result should be direction-independent for interior points.
-void ValidateContainment(Geometry const & geo, Placement const & placement,
+void ValidateContainment(Geometry const & geo,
                          std::function<bool(Vector3D const &)> analytic_inside,
                          double scale, int N, std::string const & label) {
+    Placement placement = geo.GetPlacement();
     int mismatches = 0;
     for(int i = 0; i < N; ++i) {
         Vector3D global_pos = RandomPoint(scale);
@@ -357,7 +364,7 @@ TEST(Containment, Box) {
     double x = 10, y = 8, z = 6;
     Placement pl(Vector3D(5, -3, 2));
     Box box(pl, x, y, z);
-    ValidateContainment(box, pl, [=](Vector3D const & p) {
+    ValidateContainment(box, [=](Vector3D const & p) {
         return InsideBox(p, x, y, z);
     }, 20, 10000, "Box");
 }
@@ -367,7 +374,7 @@ TEST(Containment, BoxRotated) {
     Quaternion q(std::cos(0.3), std::sin(0.3)*0.577, std::sin(0.3)*0.577, std::sin(0.3)*0.577);
     Placement pl(Vector3D(1, 2, 3), q);
     Box box(pl, x, y, z);
-    ValidateContainment(box, pl, [=](Vector3D const & p) {
+    ValidateContainment(box, [=](Vector3D const & p) {
         return InsideBox(p, x, y, z);
     }, 20, 10000, "BoxRotated");
 }
@@ -379,16 +386,15 @@ TEST(Containment, Sphere) {
     double r = 5;
     Placement pl(Vector3D(-2, 1, 3));
     Sphere sphere(pl, r, 0);
-    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+    ValidateContainment(sphere, [=](Vector3D const & p) {
         return InsideSphere(p, r, 0);
     }, 15, 10000, "Sphere");
 }
 
 TEST(Containment, SphereHollow) {
     double r_out = 8, r_in = 3;
-    Placement pl(Vector3D(0, 0, 0));
-    Sphere sphere(pl, r_out, r_in);
-    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+    Sphere sphere(r_out, r_in);
+    ValidateContainment(sphere, [=](Vector3D const & p) {
         return InsideSphere(p, r_out, r_in);
     }, 15, 10000, "SphereHollow");
 }
@@ -400,16 +406,15 @@ TEST(Containment, Cylinder) {
     double r = 5, z = 12;
     Placement pl(Vector3D(3, 0, -1));
     Cylinder cyl(pl, r, 0, z);
-    ValidateContainment(cyl, pl, [=](Vector3D const & p) {
+    ValidateContainment(cyl, [=](Vector3D const & p) {
         return InsideCylinder(p, r, 0, z);
     }, 15, 10000, "Cylinder");
 }
 
 TEST(Containment, CylinderHollow) {
     double r_out = 6, r_in = 2, z = 10;
-    Placement pl(Vector3D(0, 0, 0));
-    Cylinder cyl(pl, r_out, r_in, z);
-    ValidateContainment(cyl, pl, [=](Vector3D const & p) {
+    Cylinder cyl(r_out, r_in, z);
+    ValidateContainment(cyl, [=](Vector3D const & p) {
         return InsideCylinder(p, r_out, r_in, z);
     }, 15, 10000, "CylinderHollow");
 }
@@ -419,9 +424,8 @@ TEST(Containment, CylinderHollow) {
 // =========================================================================
 TEST(Containment, ConeSolid) {
     double rmin1 = 0, rmax1 = 8, rmin2 = 0, rmax2 = 3, z = 10;
-    Placement pl(Vector3D(0, 0, 0));
-    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    Cone cone(rmin1, rmax1, rmin2, rmax2, z);
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
     }, 15, 10000, "ConeSolid");
 }
@@ -430,7 +434,7 @@ TEST(Containment, ConeHollow) {
     double rmin1 = 2, rmax1 = 6, rmin2 = 1, rmax2 = 4, z = 8;
     Placement pl(Vector3D(1, -1, 2));
     Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
     }, 15, 10000, "ConeHollow");
 }
@@ -438,9 +442,8 @@ TEST(Containment, ConeHollow) {
 TEST(Containment, ConeCylinder) {
     // Degenerate: cone with equal radii = cylinder
     double r = 5, z = 10;
-    Placement pl(Vector3D(0, 0, 0));
-    Cone cone(pl, 0, r, 0, r, z);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    Cone cone(0, r, 0, r, z);
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, 0, r, 0, r, z);
     }, 15, 10000, "ConeCylinder");
 }
@@ -450,9 +453,8 @@ TEST(Containment, ConeCylinder) {
 // =========================================================================
 TEST(Containment, Trd) {
     double dx1 = 5, dx2 = 3, dy1 = 4, dy2 = 2, dz = 6;
-    Placement pl(Vector3D(0, 0, 0));
-    Trd trd(pl, dx1, dx2, dy1, dy2, dz);
-    ValidateContainment(trd, pl, [=](Vector3D const & p) {
+    Trd trd(dx1, dx2, dy1, dy2, dz);
+    ValidateContainment(trd, [=](Vector3D const & p) {
         return InsideTrd(p, dx1, dx2, dy1, dy2, dz);
     }, 15, 10000, "Trd");
 }
@@ -462,7 +464,7 @@ TEST(Containment, TrdBox) {
     double dx = 4, dy = 3, dz = 5;
     Placement pl(Vector3D(2, -1, 0));
     Trd trd(pl, dx, dx, dy, dy, dz);
-    ValidateContainment(trd, pl, [=](Vector3D const & p) {
+    ValidateContainment(trd, [=](Vector3D const & p) {
         return InsideTrd(p, dx, dx, dy, dy, dz);
     }, 15, 10000, "TrdBox");
 }
@@ -474,9 +476,8 @@ TEST(Containment, Polycone) {
     std::vector<double> zp = {-5, -2, 0, 3, 5};
     std::vector<double> rmin = {0, 0, 0, 0, 0};
     std::vector<double> rmax = {3, 5, 4, 6, 2};
-    Placement pl(Vector3D(0, 0, 0));
-    Polycone pc(pl, zp, rmin, rmax);
-    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+    Polycone pc(zp, rmin, rmax);
+    ValidateContainment(pc, [&](Vector3D const & p) {
         return InsidePolycone(p, zp, rmin, rmax);
     }, 10, 10000, "Polycone");
 }
@@ -485,9 +486,8 @@ TEST(Containment, PolyconeHollow) {
     std::vector<double> zp = {-4, 0, 4};
     std::vector<double> rmin = {1, 2, 1};
     std::vector<double> rmax = {5, 6, 5};
-    Placement pl(Vector3D(0, 0, 0));
-    Polycone pc(pl, zp, rmin, rmax);
-    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+    Polycone pc(zp, rmin, rmax);
+    ValidateContainment(pc, [&](Vector3D const & p) {
         return InsidePolycone(p, zp, rmin, rmax);
     }, 10, 10000, "PolyconeHollow");
 }
@@ -501,9 +501,8 @@ TEST(Containment, Polyhedra) {
     std::vector<double> zp = {-5, 0, 5};
     std::vector<double> rmin = {0, 0, 0};
     std::vector<double> rmax = {4, 6, 4};
-    Placement pl(Vector3D(0, 0, 0));
-    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
-    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+    Polyhedra ph(n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, [&](Vector3D const & p) {
         return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
     }, 10, 10000, "Polyhedra");
 }
@@ -515,9 +514,8 @@ TEST(Containment, PolyhedraSquare) {
     std::vector<double> zp = {-3, 3};
     std::vector<double> rmin = {0, 0};
     std::vector<double> rmax = {5, 5};
-    Placement pl(Vector3D(0, 0, 0));
-    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
-    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+    Polyhedra ph(n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, [&](Vector3D const & p) {
         return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
     }, 10, 10000, "PolyhedraSquare");
 }
@@ -530,8 +528,7 @@ TEST(Containment, BooleanUnion) {
     auto left = Sphere(Placement(Vector3D(-2, 0, 0)), 5, 0).create();
     auto right = Sphere(Placement(Vector3D(2, 0, 0)), 5, 0).create();
     BooleanGeometry bg(BooleanOperation::UNION, left, right);
-    Placement pl; // identity
-    ValidateContainment(bg, pl, [](Vector3D const & p) {
+    ValidateContainment(bg, [](Vector3D const & p) {
         double r2_left = (p.GetX()+2)*(p.GetX()+2) + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
         double r2_right = (p.GetX()-2)*(p.GetX()-2) + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
         return r2_left < 25 || r2_right < 25;
@@ -543,8 +540,7 @@ TEST(Containment, BooleanSubtraction) {
     auto sphere = Sphere(5, 0).create();
     auto hole = Cylinder(2, 0, 12).create();
     BooleanGeometry bg(BooleanOperation::SUBTRACTION, sphere, hole);
-    Placement pl;
-    ValidateContainment(bg, pl, [](Vector3D const & p) {
+    ValidateContainment(bg, [](Vector3D const & p) {
         double r2 = p.GetX()*p.GetX() + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
         double rxy2 = p.GetX()*p.GetX() + p.GetY()*p.GetY();
         bool in_sphere = r2 < 25;
@@ -558,8 +554,7 @@ TEST(Containment, BooleanIntersection) {
     auto sphere = Sphere(5, 0).create();
     auto box = Box(8, 8, 8).create();
     BooleanGeometry bg(BooleanOperation::INTERSECTION, sphere, box);
-    Placement pl;
-    ValidateContainment(bg, pl, [](Vector3D const & p) {
+    ValidateContainment(bg, [](Vector3D const & p) {
         double r2 = p.GetX()*p.GetX() + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
         bool in_sphere = r2 < 25;
         bool in_box = std::fabs(p.GetX()) < 4 && std::fabs(p.GetY()) < 4 && std::fabs(p.GetZ()) < 4;
@@ -572,18 +567,16 @@ TEST(Containment, BooleanIntersection) {
 // =========================================================================
 TEST(Containment, ConePointed) {
     double rmin1 = 0, rmax1 = 5, rmin2 = 0, rmax2 = 0, z = 10;
-    Placement pl(Vector3D(0, 0, 0));
-    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    Cone cone(rmin1, rmax1, rmin2, rmax2, z);
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
     }, 10, 10000, "ConePointed");
 }
 
 TEST(Containment, ConePointedReverse) {
     double rmin1 = 0, rmax1 = 0, rmin2 = 0, rmax2 = 5, z = 10;
-    Placement pl(Vector3D(0, 0, 0));
-    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    Cone cone(rmin1, rmax1, rmin2, rmax2, z);
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
     }, 10, 10000, "ConePointedReverse");
 }
@@ -598,9 +591,8 @@ TEST(Containment, ExtrPolySquare) {
         ExtrPoly::ZSection(-4, off, 1.0),
         ExtrPoly::ZSection(4, off, 1.0)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         return std::fabs(p.GetX()) < 3 && std::fabs(p.GetY()) < 3 && std::fabs(p.GetZ()) < 4;
     }, 8, 10000, "ExtrPolySquare");
 }
@@ -613,9 +605,8 @@ TEST(Containment, ExtrPolyTapered) {
         ExtrPoly::ZSection(-3, off, 1.5),
         ExtrPoly::ZSection(3, off, 0.5)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         double frac = (p.GetZ() + 3.0) / 6.0;
         double s = 1.5 + (0.5 - 1.5) * frac;
         return std::fabs(p.GetX()) < 2.0 * s
@@ -632,7 +623,7 @@ TEST(Containment, ConeRotated) {
     Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
     Placement pl(Vector3D(2, -1, 3), q);
     Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
     }, 20, 10000, "ConeRotated");
 }
@@ -642,7 +633,7 @@ TEST(Containment, TrdRotated) {
     Quaternion q(std::cos(0.3), std::sin(0.3)*0.577, std::sin(0.3)*0.577, std::sin(0.3)*0.577);
     Placement pl(Vector3D(-1, 2, 0), q);
     Trd trd(pl, dx1, dx2, dy1, dy2, dz);
-    ValidateContainment(trd, pl, [=](Vector3D const & p) {
+    ValidateContainment(trd, [=](Vector3D const & p) {
         return InsideTrd(p, dx1, dx2, dy1, dy2, dz);
     }, 20, 10000, "TrdRotated");
 }
@@ -654,7 +645,7 @@ TEST(Containment, PolyconeRotated) {
     Quaternion q(std::cos(0.5), std::sin(0.5)*0.577, std::sin(0.5)*0.577, std::sin(0.5)*0.577);
     Placement pl(Vector3D(1, 0, -2), q);
     Polycone pc(pl, zp, rmin, rmax);
-    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+    ValidateContainment(pc, [&](Vector3D const & p) {
         return InsidePolycone(p, zp, rmin, rmax);
     }, 12, 10000, "PolyconeRotated");
 }
@@ -668,7 +659,7 @@ TEST(Containment, PolyhedraRotated) {
     Quaternion q(std::cos(0.6), std::sin(0.6)*0.577, std::sin(0.6)*0.577, std::sin(0.6)*0.577);
     Placement pl(Vector3D(0, -2, 1), q);
     Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
-    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+    ValidateContainment(ph, [&](Vector3D const & p) {
         return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
     }, 12, 10000, "PolyhedraRotated");
 }
@@ -683,9 +674,8 @@ TEST(Containment, PolyhedraPyramid) {
     std::vector<double> zp = {-3, 5};
     std::vector<double> rmin = {0, 0};
     std::vector<double> rmax = {5, 0};
-    Placement pl(Vector3D(0, 0, 0));
-    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
-    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+    Polyhedra ph(n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, [&](Vector3D const & p) {
         return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
     }, 10, 10000, "PolyhedraPyramid");
 }
@@ -697,9 +687,8 @@ TEST(Containment, PolyhedraPyramidReverse) {
     std::vector<double> zp = {-4, 4};
     std::vector<double> rmin = {0, 0};
     std::vector<double> rmax = {0, 6};
-    Placement pl(Vector3D(0, 0, 0));
-    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
-    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+    Polyhedra ph(n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, [&](Vector3D const & p) {
         return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
     }, 10, 10000, "PolyhedraPyramidReverse");
 }
@@ -734,8 +723,7 @@ TEST(Containment, BooleanSubtractionFromInside) {
     auto sphere = Sphere(5, 0).create();
     auto box = Box(4, 4, 4).create();
     BooleanGeometry bg(BooleanOperation::SUBTRACTION, sphere, box);
-    Placement pl;
-    ValidateContainment(bg, pl, [](Vector3D const & p) {
+    ValidateContainment(bg, [](Vector3D const & p) {
         double r2 = p.GetX()*p.GetX() + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
         bool in_sphere = r2 < 25;
         bool in_box = std::fabs(p.GetX()) < 2 && std::fabs(p.GetY()) < 2 && std::fabs(p.GetZ()) < 2;
@@ -752,9 +740,8 @@ TEST(Containment, PolyconeStepChange) {
     std::vector<double> zp = {-0.05, 0.05, 0.05, 0.15};
     std::vector<double> rmin = {0, 0, 0, 0};
     std::vector<double> rmax = {0.03, 0.03, 0.05, 0.05};
-    Placement pl(Vector3D(0, 0, 0));
-    Polycone pc(pl, zp, rmin, rmax);
-    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+    Polycone pc(zp, rmin, rmax);
+    ValidateContainment(pc, [&](Vector3D const & p) {
         double pz = p.GetZ();
         double rxy2 = p.GetX()*p.GetX() + p.GetY()*p.GetY();
         // First segment: z in (-0.05, 0.05), r < 0.03
@@ -777,7 +764,7 @@ TEST(Containment, CylinderHollowRotated) {
     Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
     Placement pl(Vector3D(1, -1, 2), q);
     Cylinder cyl(pl, r_out, r_in, z);
-    ValidateContainment(cyl, pl, [=](Vector3D const & p) {
+    ValidateContainment(cyl, [=](Vector3D const & p) {
         return InsideCylinder(p, r_out, r_in, z);
     }, 20, 10000, "CylinderHollowRotated");
 }
@@ -793,9 +780,8 @@ TEST(Containment, ExtrPolyWithOffset) {
         ExtrPoly::ZSection(-3, off_bot, 1.0),
         ExtrPoly::ZSection(3, off_top, 1.0)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         // At height z, the polygon center is offset by interpolated (ox, oy)
         double frac = (p.GetZ() + 3.0) / 6.0;
         double ox = 1.0 * frac;
@@ -817,9 +803,8 @@ TEST(Containment, ExtrPolyMultiSection) {
         ExtrPoly::ZSection(0, off, 1.5),
         ExtrPoly::ZSection(4, off, 0.8)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         double pz = p.GetZ();
         if(pz <= -4.0 || pz >= 4.0) return false;
         double s;
@@ -864,8 +849,7 @@ TEST(Containment, PolyconeAtZBoundary) {
     std::vector<double> zp = {-5, 0, 5};
     std::vector<double> rmin = {0, 0, 0};
     std::vector<double> rmax = {3, 5, 3};
-    Placement pl(Vector3D(0, 0, 0));
-    Polycone pc(pl, zp, rmin, rmax);
+    Polycone pc(zp, rmin, rmax);
 
     // Point inside at z=0 boundary: (1, 0, 0), rmax=5, r=1 is inside.
     // A horizontal ray at the exact internal z-boundary DOES pierce the
@@ -893,8 +877,7 @@ TEST(Containment, PolyhedraAtZBoundary) {
     std::vector<double> zp = {-5, 0, 5};
     std::vector<double> rmin = {0, 0, 0};
     std::vector<double> rmax = {3, 5, 3};
-    Placement pl(Vector3D(0, 0, 0));
-    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
+    Polyhedra ph(n, start_phi, zp, rmin, rmax);
 
     // Point inside at z=0 boundary with horizontal direction
     Vector3D inside_at_boundary(1, 0, 0);
@@ -909,36 +892,25 @@ TEST(Containment, PolyhedraAtZBoundary) {
 // =========================================================================
 
 TEST(Containment, Torus) {
-    double R = 10, r = 3;
-    Placement pl(Vector3D(0, 0, 0));
-    Torus torus(pl, R, r, 0);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
-        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
-        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
-        return d2 < r*r;
+    Torus torus(10, 3, 0);
+    ValidateContainment(torus, [=](Vector3D const & p) {
+        return InsideTorus(p, 10, 3, 0);
     }, 15, 10000, "Torus");
 }
 
 TEST(Containment, TorusHollow) {
-    double R = 10, r_out = 3, r_in = 1;
-    Placement pl(Vector3D(0, 0, 0));
-    Torus torus(pl, R, r_out, r_in);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
-        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
-        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
-        return d2 < r_out*r_out && d2 > r_in*r_in;
+    Torus torus(10, 3, 1);
+    ValidateContainment(torus, [=](Vector3D const & p) {
+        return InsideTorus(p, 10, 3, 1);
     }, 15, 10000, "TorusHollow");
 }
 
 TEST(Containment, TorusRotated) {
-    double R = 8, r = 2;
     Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
     Placement pl(Vector3D(1, -1, 2), q);
-    Torus torus(pl, R, r, 0);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
-        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
-        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
-        return d2 < r*r;
+    Torus torus(pl, 8, 2, 0);
+    ValidateContainment(torus, [=](Vector3D const & p) {
+        return InsideTorus(p, 8, 2, 0);
     }, 15, 10000, "TorusRotated");
 }
 
@@ -957,28 +929,17 @@ TEST(Containment, TorusValidation) {
 
 TEST(Containment, TorusSelfIntersecting) {
     // Self-intersecting torus: rtor < rmax (tube overlaps through center)
-    double R = 3;
-    double r = 5;
-    Placement pl(Vector3D(0, 0, 0));
-    Torus torus(pl, R, r, 0);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
-        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
-        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
-        return d2 < r*r;
-    }, R + r + 1, 10000, "TorusSelfIntersecting");
+    Torus torus(3, 5, 0);
+    ValidateContainment(torus, [=](Vector3D const & p) {
+        return InsideTorus(p, 3, 5, 0);
+    }, 3 + 5 + 1, 10000, "TorusSelfIntersecting");
 }
 
 TEST(Containment, TorusSelfIntersectingHollow) {
-    double R = 3;
-    double rout = 5;
-    double rin = 2;
-    Placement pl(Vector3D(0, 0, 0));
-    Torus torus(pl, R, rout, rin);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
-        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
-        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
-        return d2 < rout*rout && d2 > rin*rin;
-    }, R + rout + 1, 10000, "TorusSelfIntersectingHollow");
+    Torus torus(3, 5, 2);
+    ValidateContainment(torus, [=](Vector3D const & p) {
+        return InsideTorus(p, 3, 5, 2);
+    }, 3 + 5 + 1, 10000, "TorusSelfIntersectingHollow");
 }
 
 // =========================================================================
@@ -989,9 +950,8 @@ TEST(Containment, SphereThetaCut) {
     // Upper hemisphere: theta from 0 to pi/2
     double r = 5;
     double st = 0, dt = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Sphere sphere(pl, r, 0, 0, 2*M_PI, st, dt);
-    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+    Sphere sphere(r, 0, 0, 2*M_PI, st, dt);
+    ValidateContainment(sphere, [=](Vector3D const & p) {
         return InsideSpherePartial(p, r, 0, 0, 2*M_PI, st, dt);
     }, 8, 10000, "SphereThetaCut");
 }
@@ -1000,9 +960,8 @@ TEST(Containment, SpherePhiCut) {
     // Half sphere in phi: phi from 0 to pi
     double r = 5;
     double sp = 0, dp = M_PI;
-    Placement pl(Vector3D(0, 0, 0));
-    Sphere sphere(pl, r, 0, sp, dp, 0, M_PI);
-    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+    Sphere sphere(r, 0, sp, dp, 0, M_PI);
+    ValidateContainment(sphere, [=](Vector3D const & p) {
         return InsideSpherePartial(p, r, 0, sp, dp, 0, M_PI);
     }, 8, 10000, "SpherePhiCut");
 }
@@ -1011,9 +970,8 @@ TEST(Containment, SpherePhiThetaCut) {
     // Quarter sphere: phi [0,pi], theta [0,pi/2]
     double r = 5;
     double sp = 0, dp = M_PI, st = 0, dt = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Sphere sphere(pl, r, 0, sp, dp, st, dt);
-    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+    Sphere sphere(r, 0, sp, dp, st, dt);
+    ValidateContainment(sphere, [=](Vector3D const & p) {
         return InsideSpherePartial(p, r, 0, sp, dp, st, dt);
     }, 8, 10000, "SpherePhiThetaCut");
 }
@@ -1022,9 +980,8 @@ TEST(Containment, SphereHollowThetaCut) {
     // Hollow upper hemisphere
     double r_out = 5, r_in = 2;
     double st = 0, dt = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Sphere sphere(pl, r_out, r_in, 0, 2*M_PI, st, dt);
-    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+    Sphere sphere(r_out, r_in, 0, 2*M_PI, st, dt);
+    ValidateContainment(sphere, [=](Vector3D const & p) {
         return InsideSpherePartial(p, r_out, r_in, 0, 2*M_PI, st, dt);
     }, 8, 10000, "SphereHollowThetaCut");
 }
@@ -1037,9 +994,8 @@ TEST(Containment, TorusPhiCut) {
     // Quarter torus: phi from 0 to pi/2
     double R = 10, r = 3;
     double sp = 0, dp = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Torus torus(pl, R, r, 0, sp, dp);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+    Torus torus(R, r, 0, sp, dp);
+    ValidateContainment(torus, [=](Vector3D const & p) {
         return InsideTorusPartial(p, R, r, 0, sp, dp);
     }, 15, 10000, "TorusPhiCut");
 }
@@ -1048,9 +1004,8 @@ TEST(Containment, TorusPhiCutHalf) {
     // Half torus: phi from 0 to pi
     double R = 10, r = 3;
     double sp = 0, dp = M_PI;
-    Placement pl(Vector3D(0, 0, 0));
-    Torus torus(pl, R, r, 0, sp, dp);
-    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+    Torus torus(R, r, 0, sp, dp);
+    ValidateContainment(torus, [=](Vector3D const & p) {
         return InsideTorusPartial(p, R, r, 0, sp, dp);
     }, 15, 10000, "TorusPhiCutHalf");
 }
@@ -1063,9 +1018,8 @@ TEST(Containment, CylinderPhiCut) {
     // Quarter cylinder: phi from 0 to pi/2
     double rmax = 5, rmin = 2, z = 10;
     double sp = 0, dp = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Cylinder cyl(pl, rmax, rmin, z, sp, dp);
-    ValidateContainment(cyl, pl, [=](Vector3D const & p) {
+    Cylinder cyl(rmax, rmin, z, sp, dp);
+    ValidateContainment(cyl, [=](Vector3D const & p) {
         return InsideCylinder(p, rmax, rmin, z) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
     }, 10, 10000, "CylinderPhiCut");
 }
@@ -1078,9 +1032,8 @@ TEST(Containment, ConePhiCut) {
     // Quarter cone: phi from 0 to pi/2
     double rmin1 = 1, rmax1 = 6, rmin2 = 0, rmax2 = 3, z = 8;
     double sp = 0, dp = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z, sp, dp);
-    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+    Cone cone(rmin1, rmax1, rmin2, rmax2, z, sp, dp);
+    ValidateContainment(cone, [=](Vector3D const & p) {
         return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
     }, 12, 10000, "ConePhiCut");
 }
@@ -1095,9 +1048,8 @@ TEST(Containment, PolyconePhiCut) {
     std::vector<double> rmin_v = {1, 2, 1};
     std::vector<double> rmax_v = {4, 5, 3};
     double sp = 0, dp = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    Polycone pc(pl, zp, rmin_v, rmax_v, sp, dp);
-    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+    Polycone pc(zp, rmin_v, rmax_v, sp, dp);
+    ValidateContainment(pc, [&](Vector3D const & p) {
         return InsidePolycone(p, zp, rmin_v, rmax_v) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
     }, 10, 10000, "PolyconePhiCut");
 }
@@ -1112,9 +1064,8 @@ TEST(Containment, CutTubePhiCut) {
     Vector3D low_norm(0, 0, -1);
     Vector3D high_norm(0, 0, 1);
     double sp = 0, dp = M_PI / 2.0;
-    Placement pl(Vector3D(0, 0, 0));
-    CutTube ct(pl, rmin, rmax, dz, low_norm, high_norm, sp, dp);
-    ValidateContainment(ct, pl, [=](Vector3D const & p) {
+    CutTube ct(rmin, rmax, dz, low_norm, high_norm, sp, dp);
+    ValidateContainment(ct, [=](Vector3D const & p) {
         return InsideCutTube(p, rmin, rmax, dz, low_norm, high_norm) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
     }, 10, 10000, "CutTubePhiCut");
 }
@@ -1126,16 +1077,15 @@ TEST(Containment, EllipticalTube) {
     double dx = 3, dy = 2, dz = 5;
     Placement pl(Vector3D(1, -2, 3));
     EllipticalTube et(pl, dx, dy, dz);
-    ValidateContainment(et, pl, [=](Vector3D const & p) {
+    ValidateContainment(et, [=](Vector3D const & p) {
         return InsideEllipticalTube(p, dx, dy, dz);
     }, 10, 10000, "EllipticalTube");
 }
 
 TEST(Containment, EllipticalTubeCircular) {
     double d = 4, dz = 6;
-    Placement pl(Vector3D(0, 0, 0));
-    EllipticalTube et(pl, d, d, dz);
-    ValidateContainment(et, pl, [=](Vector3D const & p) {
+    EllipticalTube et(d, d, dz);
+    ValidateContainment(et, [=](Vector3D const & p) {
         return InsideEllipticalTube(p, d, d, dz);
     }, 10, 10000, "EllipticalTubeCircular");
 }
@@ -1147,9 +1097,8 @@ TEST(Containment, CutTubeFlat) {
     double rmin = 0, rmax = 5, dz = 4;
     Vector3D low_norm(0, 0, -1);
     Vector3D high_norm(0, 0, 1);
-    Placement pl(Vector3D(0, 0, 0));
-    CutTube ct(pl, rmin, rmax, dz, low_norm, high_norm);
-    ValidateContainment(ct, pl, [=](Vector3D const & p) {
+    CutTube ct(rmin, rmax, dz, low_norm, high_norm);
+    ValidateContainment(ct, [=](Vector3D const & p) {
         return InsideCutTube(p, rmin, rmax, dz, low_norm, high_norm);
     }, 10, 10000, "CutTubeFlat");
 }
@@ -1164,7 +1113,7 @@ TEST(Containment, CutTubeTilted) {
     high_norm = Vector3D(high_norm.GetX()/hmag, high_norm.GetY()/hmag, high_norm.GetZ()/hmag);
     Placement pl(Vector3D(2, -1, 0));
     CutTube ct(pl, rmin, rmax, dz, low_norm, high_norm);
-    ValidateContainment(ct, pl, [=](Vector3D const & p) {
+    ValidateContainment(ct, [=](Vector3D const & p) {
         return InsideCutTube(p, rmin, rmax, dz, low_norm, high_norm);
     }, 12, 10000, "CutTubeTilted");
 }
@@ -1173,9 +1122,8 @@ TEST(Containment, CutTubeHollow) {
     double rmin = 2, rmax = 5, dz = 4;
     Vector3D low_norm(0, 0, -1);
     Vector3D high_norm(0, 0, 1);
-    Placement pl(Vector3D(0, 0, 0));
-    CutTube ct(pl, rmin, rmax, dz, low_norm, high_norm);
-    ValidateContainment(ct, pl, [=](Vector3D const & p) {
+    CutTube ct(rmin, rmax, dz, low_norm, high_norm);
+    ValidateContainment(ct, [=](Vector3D const & p) {
         return InsideCutTube(p, rmin, rmax, dz, low_norm, high_norm);
     }, 10, 10000, "CutTubeHollow");
 }
@@ -1186,9 +1134,8 @@ TEST(Containment, CutTubeHollow) {
 TEST(Containment, TrapAsTrd) {
     // theta=phi=alpha=0, symmetric => reduces to Trd
     double dz = 5, dy1 = 3, dx1 = 4, dx2 = 4, dy2 = 2, dx3 = 3, dx4 = 3;
-    Placement pl(Vector3D(0, 0, 0));
-    Trap trap(pl, dz, 0, 0, dy1, dx1, dx2, 0, dy2, dx3, dx4, 0);
-    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+    Trap trap(dz, 0, 0, dy1, dx1, dx2, 0, dy2, dx3, dx4, 0);
+    ValidateContainment(trap, [=](Vector3D const & p) {
         return InsideTrap(p, dz, 0, 0, dy1, dx1, dx2, 0, dy2, dx3, dx4, 0);
     }, 12, 10000, "TrapAsTrd");
 }
@@ -1208,7 +1155,7 @@ TEST(Containment, TrapGeneral) {
     double dy = 3, dx = 4, alpha = 0.2;
     Placement pl(Vector3D(1, -1, 2));
     Trap trap(pl, dz, theta, phi, dy, dx, dx, alpha, dy, dx, dx, alpha);
-    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+    ValidateContainment(trap, [=](Vector3D const & p) {
         return InsideTrap(p, dz, theta, phi, dy, dx, dx, alpha,
                           dy, dx, dx, alpha);
     }, 15, 10000, "TrapGeneral");
@@ -1219,9 +1166,8 @@ TEST(Containment, TrapAsymmetricAlpha0) {
     double dz = 5, theta = 0, phi = 0;
     double dy1 = 3, dx1 = 4, dx2 = 1, alpha1 = 0;
     double dy2 = 3, dx3 = 4, dx4 = 1, alpha2 = 0;
-    Placement pl(Vector3D(0, 0, 0));
-    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
-    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+    Trap trap(dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, [=](Vector3D const & p) {
         return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
     }, 12, 10000, "TrapAsymmetricAlpha0");
 }
@@ -1231,9 +1177,8 @@ TEST(Containment, TrapNearTriangularAlpha0) {
     double dz = 5, theta = 0, phi = 0;
     double dy1 = 3, dx1 = 4, dx2 = 0.1, alpha1 = 0;
     double dy2 = 3, dx3 = 4, dx4 = 0.1, alpha2 = 0;
-    Placement pl(Vector3D(0, 0, 0));
-    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
-    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+    Trap trap(dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, [=](Vector3D const & p) {
         return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
     }, 12, 10000, "TrapNearTriangularAlpha0");
 }
@@ -1243,9 +1188,8 @@ TEST(Containment, TrapAsymWithTheta) {
     double dz = 5, theta = 0.2, phi = 0.5;
     double dy1 = 3, dx1 = 4, dx2 = 1, alpha1 = 0;
     double dy2 = 3, dx3 = 4, dx4 = 1, alpha2 = 0;
-    Placement pl(Vector3D(0, 0, 0));
-    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
-    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+    Trap trap(dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, [=](Vector3D const & p) {
         return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
     }, 15, 10000, "TrapAsymWithTheta");
 }
@@ -1255,9 +1199,8 @@ TEST(Containment, TrapTaperedAlpha0) {
     double dz = 5, theta = 0, phi = 0;
     double dy1 = 3, dx1 = 4, dx2 = 2, alpha1 = 0;
     double dy2 = 2, dx3 = 3, dx4 = 1, alpha2 = 0;
-    Placement pl(Vector3D(0, 0, 0));
-    Trap trap(pl, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
-    ValidateContainment(trap, pl, [=](Vector3D const & p) {
+    Trap trap(dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
+    ValidateContainment(trap, [=](Vector3D const & p) {
         return InsideTrap(p, dz, theta, phi, dy1, dx1, dx2, alpha1, dy2, dx3, dx4, alpha2);
     }, 12, 10000, "TrapTaperedAlpha0");
 }
@@ -1300,7 +1243,7 @@ TEST(Containment, Ellipsoid) {
     double ax = 5, by = 3, cz = 4;
     Placement pl(Vector3D(2, -1, 0));
     Ellipsoid ell(pl, ax, by, cz);
-    ValidateContainment(ell, pl, [=](Vector3D const & p) {
+    ValidateContainment(ell, [=](Vector3D const & p) {
         return InsideEllipsoid(p, ax, by, cz, -cz, cz);
     }, 10, 10000, "Ellipsoid");
 }
@@ -1308,9 +1251,8 @@ TEST(Containment, Ellipsoid) {
 TEST(Containment, EllipsoidWithZCuts) {
     double ax = 5, by = 3, cz = 4;
     double zcut1 = -2, zcut2 = 3;
-    Placement pl(Vector3D(0, 0, 0));
-    Ellipsoid ell(pl, ax, by, cz, zcut1, zcut2);
-    ValidateContainment(ell, pl, [=](Vector3D const & p) {
+    Ellipsoid ell(ax, by, cz, zcut1, zcut2);
+    ValidateContainment(ell, [=](Vector3D const & p) {
         return InsideEllipsoid(p, ax, by, cz, zcut1, zcut2);
     }, 10, 10000, "EllipsoidWithZCuts");
 }
@@ -1318,9 +1260,8 @@ TEST(Containment, EllipsoidWithZCuts) {
 TEST(Containment, EllipsoidSphere) {
     // Equal semi-axes = sphere
     double r = 5;
-    Placement pl(Vector3D(0, 0, 0));
-    Ellipsoid ell(pl, r, r, r);
-    ValidateContainment(ell, pl, [=](Vector3D const & p) {
+    Ellipsoid ell(r, r, r);
+    ValidateContainment(ell, [=](Vector3D const & p) {
         return InsideEllipsoid(p, r, r, r, -r, r);
     }, 10, 10000, "EllipsoidSphere");
 }
@@ -1331,9 +1272,8 @@ TEST(Containment, EllipsoidSphere) {
 TEST(Containment, ParaBox) {
     // alpha=theta=phi=0 => box
     double dx = 4, dy = 3, dz = 5;
-    Placement pl(Vector3D(0, 0, 0));
-    Para para(pl, dx, dy, dz, 0, 0, 0);
-    ValidateContainment(para, pl, [=](Vector3D const & p) {
+    Para para(dx, dy, dz, 0, 0, 0);
+    ValidateContainment(para, [=](Vector3D const & p) {
         return InsidePara(p, dx, dy, dz, 0, 0, 0);
     }, 10, 10000, "ParaBox");
 }
@@ -1343,7 +1283,7 @@ TEST(Containment, ParaSheared) {
     double alpha = 0.3, theta = 0.2, phi = 0.5;
     Placement pl(Vector3D(1, -2, 3));
     Para para(pl, dx, dy, dz, alpha, theta, phi);
-    ValidateContainment(para, pl, [=](Vector3D const & p) {
+    ValidateContainment(para, [=](Vector3D const & p) {
         return InsidePara(p, dx, dy, dz, alpha, theta, phi);
     }, 15, 10000, "ParaSheared");
 }
@@ -1369,7 +1309,7 @@ TEST(Containment, TriangularMeshCube) {
 
     Placement pl(Vector3D(2, -1, 4));
     TriangularMesh mesh(pl, triangles);
-    ValidateContainment(mesh, pl, [=](Vector3D const & p) {
+    ValidateContainment(mesh, [=](Vector3D const & p) {
         return std::fabs(p.GetX()) < s && std::fabs(p.GetY()) < s && std::fabs(p.GetZ()) < s;
     }, s * 2, 10000, "TriangularMeshCube");
 }
@@ -1403,9 +1343,8 @@ TEST(Containment, GenericPolyconeSolid) {
     // Simple solid triangle outline (equivalent to a solid cone)
     std::vector<double> rv = {0, 5, 0};
     std::vector<double> zv = {-5, 0, 5};
-    Placement pl;
-    GenericPolycone gpc(pl, rv, zv);
-    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+    GenericPolycone gpc(rv, zv);
+    ValidateContainment(gpc, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv);
     }, 6, 10000, "GenericPolyconeSolid");
 }
@@ -1414,9 +1353,8 @@ TEST(Containment, GenericPolyconeHollow) {
     // Hollow shape: hexagonal outline like the celeritas test case
     std::vector<double> rv = {3, 4.5, 5, 3.5, 3, 2};
     std::vector<double> zv = {-5, 0, 5, 5, 0, -5};
-    Placement pl;
-    GenericPolycone gpc(pl, rv, zv);
-    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+    GenericPolycone gpc(rv, zv);
+    ValidateContainment(gpc, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv);
     }, 6, 10000, "GenericPolyconeHollow");
 }
@@ -1427,9 +1365,8 @@ TEST(Containment, GenericPolyconeUShape) {
     std::vector<double> zv = {-4, 4, 4, -4, -4};
     // Remove the degenerate closing edge (first == last)
     rv.pop_back(); zv.pop_back();
-    Placement pl;
-    GenericPolycone gpc(pl, rv, zv);
-    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+    GenericPolycone gpc(rv, zv);
+    ValidateContainment(gpc, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv);
     }, 6, 10000, "GenericPolyconeUShape");
 }
@@ -1439,9 +1376,8 @@ TEST(Containment, GenericPolyconePhiCut) {
     std::vector<double> zv = {-5, 0, 5};
     double sp = M_PI / 4;
     double dp = M_PI;
-    Placement pl;
-    GenericPolycone gpc(pl, rv, zv, sp, dp);
-    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+    GenericPolycone gpc(rv, zv, sp, dp);
+    ValidateContainment(gpc, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv) && InsidePhiRange(p.GetX(), p.GetY(), sp, dp);
     }, 6, 10000, "GenericPolyconePhiCut");
 }
@@ -1452,7 +1388,7 @@ TEST(Containment, GenericPolyconeRotated) {
     Quaternion q(std::cos(0.5), std::sin(0.5)*0.577, std::sin(0.5)*0.577, std::sin(0.5)*0.577);
     Placement pl(Vector3D(1, -1, 2), q);
     GenericPolycone gpc(pl, rv, zv);
-    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+    ValidateContainment(gpc, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv);
     }, 8, 10000, "GenericPolyconeRotated");
 }
@@ -1504,9 +1440,8 @@ TEST(Containment, GenericPolyconeCrystal) {
     //   - Inner borehole (r=0 at z=80 to z=60, then r=5 back up to z=0)
     std::vector<double> rv = {5, 38, 40, 40, 30, 30, 15, 15, 0, 0, 5};
     std::vector<double> zv = {0, 0, 70, 80, 80, 77, 77, 80, 80, 60, 60};
-    Placement pl;
-    GenericPolycone gpc(pl, rv, zv);
-    ValidateContainment(gpc, pl, [&](Vector3D const & p) {
+    GenericPolycone gpc(rv, zv);
+    ValidateContainment(gpc, [&](Vector3D const & p) {
         return InsideGenericPolycone(p, rv, zv);
     }, 45, 20000, "GenericPolyconeCrystal");
 }
@@ -1523,9 +1458,8 @@ TEST(Containment, ExtrPolyTriangle) {
         ExtrPoly::ZSection(-5, off, 1.0),
         ExtrPoly::ZSection(5, off, 1.0)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         double px = p.GetX(), py = p.GetY();
         bool in_triangle = (py > -5.0 &&
                             py < 2.0*px + 5.0 &&
@@ -1547,9 +1481,8 @@ TEST(Containment, ExtrPolyHexagon) {
         ExtrPoly::ZSection(-4, off, 1.0),
         ExtrPoly::ZSection(4, off, 1.0)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [=](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [=](Vector3D const & p) {
         bool in_hex = InsideRegularPolygon(p.GetX(), p.GetY(), 6, r, 0);
         return in_hex && p.GetZ() > -4.0 && p.GetZ() < 4.0;
     }, 8, 10000, "ExtrPolyHexagon");
@@ -1563,9 +1496,8 @@ TEST(Containment, ExtrPolyExtremeAspectRatio) {
         ExtrPoly::ZSection(-1, off, 1.0),
         ExtrPoly::ZSection(1, off, 1.0)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         return std::fabs(p.GetX()) < 50.0
             && std::fabs(p.GetY()) < 0.5
             && std::fabs(p.GetZ()) < 1.0;
@@ -1583,9 +1515,8 @@ TEST(Containment, ExtrPolyCombinedOffsetScale) {
         ExtrPoly::ZSection(0, off_mid, 1.5),
         ExtrPoly::ZSection(4, off_top, 0.8)
     };
-    Placement pl(Vector3D(0, 0, 0));
-    ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ExtrPoly ep(polygon, zsecs);
+    ValidateContainment(ep, [](Vector3D const & p) {
         double pz = p.GetZ();
         if(pz <= -4.0 || pz >= 4.0) return false;
         double s, ox, oy;
@@ -1616,7 +1547,7 @@ TEST(Containment, ExtrPolyRotated) {
     Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
     Placement pl(Vector3D(2, -1, 3), q);
     ExtrPoly ep(pl, polygon, zsecs);
-    ValidateContainment(ep, pl, [](Vector3D const & p) {
+    ValidateContainment(ep, [](Vector3D const & p) {
         return std::fabs(p.GetX()) < 3 && std::fabs(p.GetY()) < 3 && std::fabs(p.GetZ()) < 4;
     }, 12, 10000, "ExtrPolyRotated");
 }
