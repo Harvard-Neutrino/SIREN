@@ -154,10 +154,8 @@ std::shared_ptr<Geometry> ParsePolycone(SolidContext const & ctx) {
     GDMLZPlanes planes = ReadZPlanes(ctx.node, ctx.lscale, ctx.data);
     if(planes.z.size() < 2) return nullptr;
 
-    if(!SortAndValidateZPlanes(planes)) {
-        EmitWarning(ctx.data, ctx.options,
-            "polycone '" + ctx.name + "' has non-monotonic z-planes after sorting; skipping");
-        return nullptr;
+    if(!ValidateZPlaneMonotonicity(planes)) {
+        throw std::runtime_error("polycone '" + ctx.name + "' has non-monotonic z-planes");
     }
 
     return Polycone(planes.z, planes.rmin, planes.rmax, phi.start, phi.delta).create();
@@ -181,10 +179,8 @@ std::shared_ptr<Geometry> ParsePolyhedra(SolidContext const & ctx) {
     GDMLZPlanes planes = ReadZPlanes(ctx.node, ctx.lscale, ctx.data);
     if(planes.z.size() < 2 || numSide < 3) return nullptr;
 
-    if(!SortAndValidateZPlanes(planes)) {
-        EmitWarning(ctx.data, ctx.options,
-            "polyhedra '" + ctx.name + "' has non-monotonic z-planes after sorting; skipping");
-        return nullptr;
+    if(!ValidateZPlaneMonotonicity(planes)) {
+        throw std::runtime_error("polyhedra '" + ctx.name + "' has non-monotonic z-planes");
     }
 
     return Polyhedra(numSide, phi.start, planes.z, planes.rmin, planes.rmax, phi.delta).create();

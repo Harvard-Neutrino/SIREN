@@ -44,12 +44,30 @@ bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
 
 } // anonymous namespace
 
-void Polycone::validate() const {
+void Polycone::validate() {
     if(z_planes_.size() < 2) {
         throw std::runtime_error("Polycone requires at least 2 z-planes!");
     }
     if(z_planes_.size() != rmin_.size() || z_planes_.size() != rmax_.size()) {
         throw std::runtime_error("Polycone z_planes, rmin, and rmax vectors must have the same size!");
+    }
+    // Accept ascending or descending z-order (including duplicate z-values).
+    // If descending, reverse all three vectors so the geometry math sees
+    // ascending order. Non-monotonic sequences are rejected.
+    // This must happen before the rmin/rmax check since the reversal
+    // reorders the radii arrays.
+    bool ascending = true, descending = true;
+    for(size_t i = 1; i < z_planes_.size(); ++i) {
+        if(z_planes_[i] < z_planes_[i - 1]) ascending = false;
+        if(z_planes_[i] > z_planes_[i - 1]) descending = false;
+    }
+    if(!ascending && !descending) {
+        throw std::runtime_error("Polycone z-planes must be monotonic (ascending or descending)!");
+    }
+    if(descending && !ascending) {
+        std::reverse(z_planes_.begin(), z_planes_.end());
+        std::reverse(rmin_.begin(), rmin_.end());
+        std::reverse(rmax_.begin(), rmax_.end());
     }
     for(size_t i = 0; i < z_planes_.size(); ++i) {
         if(rmin_[i] < 0 || rmax_[i] < 0) {
@@ -57,11 +75,6 @@ void Polycone::validate() const {
         }
         if(rmin_[i] > rmax_[i]) {
             throw std::runtime_error("Polycone inner radius must not exceed outer radius at each z-plane!");
-        }
-    }
-    for(size_t i = 1; i < z_planes_.size(); ++i) {
-        if(z_planes_[i] < z_planes_[i - 1]) {
-            throw std::runtime_error("Polycone z-planes must be sorted in ascending order!");
         }
     }
 }

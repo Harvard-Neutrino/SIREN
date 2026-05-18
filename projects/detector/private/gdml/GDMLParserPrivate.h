@@ -89,7 +89,7 @@ GDMLPlacement ReadPlacement(rapidxml::xml_node<>* node,
 GDMLZPlanes ReadZPlanes(rapidxml::xml_node<>* node,
                         double lscale,
                         GDMLData const & data);
-bool SortAndValidateZPlanes(GDMLZPlanes & planes);
+bool ValidateZPlaneMonotonicity(GDMLZPlanes const & planes);
 
 std::string ExpandEntities(std::string const & content, std::string const & base_dir);
 std::string ExpandXIncludes(std::string const & content, std::string const & base_dir);

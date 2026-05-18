@@ -227,6 +227,14 @@ std::vector<ShapeEntry> MakeShapes() {
     // Polycone with step-change (#8)
     shapes.push_back({"PolyconeStep", Polycone({-0.05, 0.05, 0.05, 0.15}, {0, 0, 0, 0}, {0.03, 0.03, 0.05, 0.05}).create(), -1, -1, 0});
 
+    // Reversed z-planes (constructor auto-reverses to ascending)
+    shapes.push_back({"PolyconeReversed", Polycone({5, 0, -5}, {0, 0, 0}, {3, 5, 3}).create(), -1, -1, 0});
+    shapes.push_back({"PolyhedraReversed", Polyhedra(6, 0, {5, -5}, {0, 0}, {4, 4}).create(), -1, -1, 0});
+
+    // Duplicate z-planes (step profiles)
+    shapes.push_back({"PolyconeStepFlange", Polycone({-5,-2,-2,2,2,5}, {0,0,0,0,0,0}, {3,3,5,5,3,3}).create(), -1, -1, 0});
+    shapes.push_back({"PolyhedraStepFlange", Polyhedra(6, 0, {-5,-1,-1,1,1,5}, {0,0,0,0,0,0}, {3,3,5,5,3,3}).create(), -1, -1, 0});
+
     // GenericPolycone variants
     shapes.push_back({"GenericPolyconeSolid", GenericPolycone({0, 5, 0}, {-5, 0, 5}).create(), -1, -1, 0});
     shapes.push_back({"GenericPolyconeHollow", GenericPolycone({3, 4.5, 5, 3.5, 3, 2}, {-5, 0, 5, 5, 0, -5}).create(), -1, -1, 0});

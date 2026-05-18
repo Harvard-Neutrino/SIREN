@@ -1585,3 +1585,82 @@ TEST(Containment, ExtrPolyVsBoxCrossValidation) {
     }
     EXPECT_EQ(mismatches, 0) << "ExtrPoly vs Box: " << mismatches << " mismatches";
 }
+
+
+// =========================================================================
+// Z-plane ordering: reversed z produces identical containment
+// =========================================================================
+
+TEST(Containment, PolyconeReversedEquivalence) {
+    // Ascending and descending z-plane orders must produce identical geometry
+    Polycone ascending({-5, 0, 5}, {0, 0, 0}, {3, 5, 3});
+    Polycone descending({5, 0, -5}, {0, 0, 0}, {3, 5, 3});
+
+    int mismatches = 0;
+    for(int i = 0; i < 20000; ++i) {
+        Vector3D pos = RandomPoint(8);
+        Vector3D dir = RandomDirection();
+        bool a = ascending.IsInside(pos, dir);
+        bool d = descending.IsInside(pos, dir);
+        if(a != d) {
+            mismatches++;
+            if(mismatches <= 3) {
+                std::cerr << "PolyconeReversed mismatch at ("
+                    << pos.GetX() << "," << pos.GetY() << "," << pos.GetZ()
+                    << ") asc=" << a << " desc=" << d << std::endl;
+            }
+        }
+    }
+    EXPECT_EQ(mismatches, 0) << mismatches << " mismatches between ascending and descending Polycone";
+}
+
+TEST(Containment, PolyhedraReversedEquivalence) {
+    Polyhedra ascending(6, 0, {-5, 0, 5}, {0, 0, 0}, {4, 6, 4});
+    Polyhedra descending(6, 0, {5, 0, -5}, {0, 0, 0}, {4, 6, 4});
+
+    int mismatches = 0;
+    for(int i = 0; i < 20000; ++i) {
+        Vector3D pos = RandomPoint(10);
+        Vector3D dir = RandomDirection();
+        bool a = ascending.IsInside(pos, dir);
+        bool d = descending.IsInside(pos, dir);
+        if(a != d) {
+            mismatches++;
+            if(mismatches <= 3) {
+                std::cerr << "PolyhedraReversed mismatch at ("
+                    << pos.GetX() << "," << pos.GetY() << "," << pos.GetZ()
+                    << ") asc=" << a << " desc=" << d << std::endl;
+            }
+        }
+    }
+    EXPECT_EQ(mismatches, 0) << mismatches << " mismatches between ascending and descending Polyhedra";
+}
+
+
+// =========================================================================
+// Z-plane ordering: duplicate z-planes produce correct step profiles
+// =========================================================================
+
+TEST(Containment, PolyconeStepProfile) {
+    // Narrow tube with a wide flange in the middle:
+    // z: [-5,-2] rmax=3, [-2,+2] rmax=5, [+2,+5] rmax=3
+    Polycone pc({-5, -2, -2, 2, 2, 5}, {0,0,0,0,0,0}, {3,3,5,5,3,3});
+    ValidateContainment(pc, [=](Vector3D const & p) {
+        double rxy2 = p.GetX()*p.GetX() + p.GetY()*p.GetY();
+        double z = p.GetZ();
+        if(z <= -5 || z >= 5) return false;
+        double rmax = (z > -2 && z < 2) ? 5.0 : 3.0;
+        return rxy2 < rmax * rmax;
+    }, 8, 10000, "PolyconeStepProfile");
+}
+
+TEST(Containment, PolyhedraStepProfile) {
+    // Same concept for polyhedra: narrow-wide-narrow hexagonal tube
+    Polyhedra ph(6, 0, {-5, -1, -1, 1, 1, 5}, {0,0,0,0,0,0}, {3,3,5,5,3,3});
+    ValidateContainment(ph, [=](Vector3D const & p) {
+        double z = p.GetZ();
+        if(z <= -5 || z >= 5) return false;
+        double rmax = (z > -1 && z < 1) ? 5.0 : 3.0;
+        return InsideRegularPolygon(p.GetX(), p.GetY(), 6, rmax, 0);
+    }, 8, 10000, "PolyhedraStepProfile");
+}

@@ -576,7 +576,8 @@ TEST(GDMLParser, PartialPhiTubeAndCone) {
 }
 
 
-TEST(GDMLParser, PolyconeZPlaneSorting) {
+TEST(GDMLParser, PolyconeZPlaneReversed) {
+    // Descending z-planes should be accepted and reversed by the constructor
     GDMLData data = ParseGDMLWithSolids(R"(
     <polycone name="sorted_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
       <zplane rmin="0" rmax="10" z="0"/>
@@ -591,37 +592,54 @@ TEST(GDMLParser, PolyconeZPlaneSorting) {
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
 )", "world_box");
 
-    ASSERT_TRUE(data.solids.find("sorted_pc") != data.solids.end());
-    ASSERT_TRUE(data.solids["sorted_pc"] != nullptr);
-    ASSERT_TRUE(data.solids.find("reversed_pc") != data.solids.end());
-    ASSERT_TRUE(data.solids["reversed_pc"] != nullptr);
-
-    ExpectNoWarningContaining(data, "non-monotonic");
+    auto sorted = RequireSolid(data, "sorted_pc");
+    auto reversed = RequireSolid(data, "reversed_pc");
+    ASSERT_NE(sorted, nullptr);
+    ASSERT_NE(reversed, nullptr);
+    // Both should produce the same geometry
+    EXPECT_TRUE(IsInside(sorted, 0, 0, 0.025));
+    EXPECT_TRUE(IsInside(reversed, 0, 0, 0.025));
 }
 
 
-TEST(GDMLParser, PolyconeZPlaneDuplicateZFails) {
+TEST(GDMLParser, PolyconeZPlaneDuplicateZ) {
+    // Duplicate z-planes create step profiles and should be accepted
     GDMLData data = ParseGDMLWithSolids(R"(
-    <polycone name="dup_z_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
-      <zplane rmin="0" rmax="10" z="50"/>
+    <polycone name="step_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
+      <zplane rmin="0" rmax="30" z="-50"/>
+      <zplane rmin="0" rmax="30" z="-20"/>
+      <zplane rmin="0" rmax="50" z="-20"/>
+      <zplane rmin="0" rmax="50" z="20"/>
+      <zplane rmin="0" rmax="30" z="20"/>
+      <zplane rmin="0" rmax="30" z="50"/>
+    </polycone>
+)", "step_pc");
+
+    auto geo = RequireSolid(data, "step_pc");
+    ASSERT_NE(geo, nullptr);
+    // In the flange: r=0.04 at z=0 should be inside (rmax=0.05 in flange)
+    EXPECT_TRUE(IsInside(geo, 0.04, 0, 0));
+    // In the narrow section: r=0.04 at z=-0.04 should be outside (rmax=0.03)
+    EXPECT_FALSE(IsInside(geo, 0.04, 0, -0.04));
+}
+
+
+TEST(GDMLParser, PolyconeNonMonotonicThrows) {
+    // Non-monotonic z-planes are malformed and should throw
+    std::string gdml = GDMLWithSolids(R"(
+    <polycone name="bad_pc" startphi="0" deltaphi="360" aunit="deg" lunit="mm">
       <zplane rmin="0" rmax="20" z="50"/>
+      <zplane rmin="0" rmax="10" z="0"/>
       <zplane rmin="0" rmax="15" z="100"/>
     </polycone>
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-)", "world_box");
-
-    EXPECT_TRUE(data.solids.find("dup_z_pc") == data.solids.end()
-                || data.solids["dup_z_pc"] == nullptr);
-
-    bool found_warning = false;
-    for(auto const & w : data.warnings) {
-        if(w.find("non-monotonic") != std::string::npos) { found_warning = true; break; }
-    }
-    EXPECT_TRUE(found_warning);
+    )", "world_box");
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error);
 }
 
 
-TEST(GDMLParser, PolyhedraZPlaneSorting) {
+TEST(GDMLParser, PolyhedraZPlaneReversed) {
+    // Descending z-planes should be accepted for polyhedra too
     GDMLData data = ParseGDMLWithSolids(R"(
     <polyhedra name="sorted_ph" startphi="0" deltaphi="360" numsides="6" aunit="deg" lunit="mm">
       <zplane rmin="0" rmax="10" z="0"/>
@@ -633,23 +651,30 @@ TEST(GDMLParser, PolyhedraZPlaneSorting) {
       <zplane rmin="0" rmax="20" z="50"/>
       <zplane rmin="0" rmax="10" z="0"/>
     </polyhedra>
-    <polyhedra name="scrambled_ph" startphi="0" deltaphi="360" numsides="4" aunit="deg" lunit="mm">
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+)", "world_box");
+
+    auto sorted = RequireSolid(data, "sorted_ph");
+    auto reversed = RequireSolid(data, "reversed_ph");
+    ASSERT_NE(sorted, nullptr);
+    ASSERT_NE(reversed, nullptr);
+    EXPECT_TRUE(IsInside(sorted, 0, 0, 0.025));
+    EXPECT_TRUE(IsInside(reversed, 0, 0, 0.025));
+}
+
+
+TEST(GDMLParser, PolyhedraNonMonotonicThrows) {
+    // Non-monotonic z-planes should throw
+    std::string gdml = GDMLWithSolids(R"(
+    <polyhedra name="bad_ph" startphi="0" deltaphi="360" numsides="4" aunit="deg" lunit="mm">
       <zplane rmin="0" rmax="20" z="50"/>
       <zplane rmin="0" rmax="10" z="0"/>
       <zplane rmin="0" rmax="15" z="100"/>
       <zplane rmin="0" rmax="5" z="200"/>
     </polyhedra>
     <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
-)", "world_box");
-
-    ASSERT_TRUE(data.solids.find("sorted_ph") != data.solids.end());
-    ASSERT_TRUE(data.solids["sorted_ph"] != nullptr);
-    ASSERT_TRUE(data.solids.find("reversed_ph") != data.solids.end());
-    ASSERT_TRUE(data.solids["reversed_ph"] != nullptr);
-    ASSERT_TRUE(data.solids.find("scrambled_ph") != data.solids.end());
-    ASSERT_TRUE(data.solids["scrambled_ph"] != nullptr);
-
-    ExpectNoWarningContaining(data, "non-monotonic");
+    )", "world_box");
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error);
 }
 
 

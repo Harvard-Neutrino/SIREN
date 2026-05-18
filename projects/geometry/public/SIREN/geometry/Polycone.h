@@ -86,8 +86,8 @@ protected:
 private:
     void print(std::ostream&) const override;
 
-    // Validate that vectors have consistent sizes >= 2
-    void validate() const;
+    // Validate parameters and normalize z-plane order to ascending.
+    void validate();
 
     std::vector<double> z_planes_; //!< z-positions of each plane (ascending)
     std::vector<double> rmin_;     //!< inner radius at each z-plane

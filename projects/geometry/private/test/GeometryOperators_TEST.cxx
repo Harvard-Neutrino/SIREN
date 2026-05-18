@@ -19,6 +19,8 @@
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/CutTube.h"
 #include "SIREN/geometry/Trd.h"
+#include "SIREN/geometry/Polycone.h"
+#include "SIREN/geometry/Polyhedra.h"
 #include "SIREN/geometry/Placement.h"
 
 using namespace siren::geometry;
@@ -306,6 +308,52 @@ TEST(GeometryOps, HollowConeTraversal) {
     EXPECT_FALSE(hits[3].entering);
     EXPECT_NEAR(hits[3].position.GetX(), -4.0, 1e-6);
 }
+
+// =========================================================================
+// Z-plane ordering: constructor acceptance and rejection
+// =========================================================================
+
+TEST(GeometryOps, PolyconeAcceptsAscendingZ) {
+    EXPECT_NO_THROW(Polycone({-5, 0, 5}, {0, 0, 0}, {3, 5, 3}));
+}
+
+TEST(GeometryOps, PolyconeAcceptsDescendingZ) {
+    EXPECT_NO_THROW(Polycone({5, 0, -5}, {0, 0, 0}, {3, 5, 3}));
+}
+
+TEST(GeometryOps, PolyconeAcceptsDuplicateZ) {
+    // Step profile: narrow-wide-narrow
+    EXPECT_NO_THROW(Polycone({-5, -2, -2, 2, 2, 5},
+                             {0, 0, 0, 0, 0, 0},
+                             {3, 3, 5, 5, 3, 3}));
+}
+
+TEST(GeometryOps, PolyconeRejectsNonMonotonicZ) {
+    EXPECT_THROW(Polycone({-5, 5, 0}, {0, 0, 0}, {3, 3, 5}), std::runtime_error);
+    EXPECT_THROW(Polycone({0, 5, -5, 10}, {0, 0, 0, 0}, {3, 3, 3, 3}), std::runtime_error);
+}
+
+TEST(GeometryOps, PolyhedraAcceptsAscendingZ) {
+    EXPECT_NO_THROW(Polyhedra(6, 0, {-5, 5}, {0, 0}, {4, 4}));
+}
+
+TEST(GeometryOps, PolyhedraAcceptsDescendingZ) {
+    EXPECT_NO_THROW(Polyhedra(6, 0, {5, -5}, {0, 0}, {4, 4}));
+}
+
+TEST(GeometryOps, PolyhedraAcceptsDuplicateZ) {
+    EXPECT_NO_THROW(Polyhedra(6, 0, {-5, -1, -1, 1, 1, 5},
+                              {0, 0, 0, 0, 0, 0},
+                              {3, 3, 5, 5, 3, 3}));
+}
+
+TEST(GeometryOps, PolyhedraRejectsNonMonotonicZ) {
+    EXPECT_THROW(Polyhedra(6, 0, {-5, 5, 0}, {0, 0, 0}, {3, 3, 5}), std::runtime_error);
+}
+
+// =========================================================================
+// Entering flag consistency for hollow shapes
+// =========================================================================
 
 TEST(GeometryOps, EnteringFlagConsistency) {
     Sphere hollow_sphere(10, 5);

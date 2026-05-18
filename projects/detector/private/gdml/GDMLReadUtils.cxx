@@ -139,40 +139,16 @@ GDMLZPlanes ReadZPlanes(rapidxml::xml_node<>* node,
     return planes;
 }
 
-bool SortAndValidateZPlanes(GDMLZPlanes & planes) {
+bool ValidateZPlaneMonotonicity(GDMLZPlanes const & planes) {
     if(planes.z.size() < 2) return false;
-
-    bool needs_sort = false;
+    // Z-planes must be monotonic (ascending or descending, duplicates allowed).
+    // The geometry constructors handle reversal to ascending order internally.
+    bool ascending = true, descending = true;
     for(size_t i = 1; i < planes.z.size(); ++i) {
-        if(planes.z[i] < planes.z[i - 1]) {
-            needs_sort = true;
-            break;
-        }
+        if(planes.z[i] < planes.z[i - 1]) ascending = false;
+        if(planes.z[i] > planes.z[i - 1]) descending = false;
     }
-
-    if(needs_sort) {
-        std::vector<size_t> idx(planes.z.size());
-        std::iota(idx.begin(), idx.end(), 0);
-        std::sort(idx.begin(), idx.end(), [&](size_t a, size_t b) {
-            return planes.z[a] < planes.z[b];
-        });
-
-        GDMLZPlanes sorted;
-        sorted.z.resize(planes.z.size());
-        sorted.rmin.resize(planes.rmin.size());
-        sorted.rmax.resize(planes.rmax.size());
-        for(size_t i = 0; i < idx.size(); ++i) {
-            sorted.z[i] = planes.z[idx[i]];
-            sorted.rmin[i] = planes.rmin[idx[i]];
-            sorted.rmax[i] = planes.rmax[idx[i]];
-        }
-        planes = std::move(sorted);
-    }
-
-    for(size_t i = 1; i < planes.z.size(); ++i) {
-        if(planes.z[i] <= planes.z[i - 1]) return false;
-    }
-    return true;
+    return ascending || descending;
 }
 
 } // namespace gdml

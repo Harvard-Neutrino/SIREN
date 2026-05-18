@@ -108,8 +108,8 @@ protected:
 private:
     void print(std::ostream&) const override;
 
-    // Validate parameters
-    void validate() const;
+    // Validate parameters and normalize z-plane order to ascending.
+    void validate();
 
     // Precompute cached trig arrays from num_sides_ and start_phi_
     void precompute_trig();
