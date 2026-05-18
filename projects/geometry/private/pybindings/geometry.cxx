@@ -6,7 +6,19 @@
 #include "../../public/SIREN/geometry/ExtrPoly.h"
 #include "../../public/SIREN/geometry/Cylinder.h"
 #include "../../public/SIREN/geometry/Box.h"
+#include "../../public/SIREN/geometry/Cone.h"
+#include "../../public/SIREN/geometry/Polycone.h"
+#include "../../public/SIREN/geometry/Polyhedra.h"
+#include "../../public/SIREN/geometry/Trd.h"
+#include "../../public/SIREN/geometry/Torus.h"
 #include "../../public/SIREN/geometry/Sphere.h"
+#include "../../public/SIREN/geometry/BooleanGeometry.h"
+#include "../../public/SIREN/geometry/AABB.h"
+#include "../../public/SIREN/geometry/EllipticalTube.h"
+#include "../../public/SIREN/geometry/CutTube.h"
+#include "../../public/SIREN/geometry/Trap.h"
+#include "../../public/SIREN/geometry/Ellipsoid.h"
+#include "../../public/SIREN/geometry/Para.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -21,13 +33,10 @@ PYBIND11_MODULE(geometry,m) {
     // geometry
 
     class_<Geometry, std::shared_ptr<Geometry>>(m, "Geometry")
-        .def("IsInside",&Geometry::IsInside)
-        .def("IsInfront",&Geometry::IsInfront)
-        .def("IsBehind",&Geometry::IsBehind)
-        .def("DistanceToBorder",&Geometry::DistanceToBorder)
-        .def("Intersections",&Geometry::Intersections)
+        .def("IsInside", (bool (Geometry::*)(siren::math::Vector3D const &, siren::math::Vector3D const &) const) &Geometry::IsInside)
+        .def("IsInside", (bool (Geometry::*)(siren::math::Vector3D const &) const) &Geometry::IsInside)
+        .def("Intersections", (std::vector<Geometry::Intersection> (Geometry::*)(siren::math::Vector3D const &, siren::math::Vector3D const &) const) &Geometry::Intersections)
         .def("DistanceToClosestApproach",&Geometry::DistanceToClosestApproach)
-        .def("GetLocation",&Geometry::GetLocation)
         .def_property_readonly("name",&Geometry::GetName)
         .def_property("placement",&Geometry::GetPlacement, &Geometry::SetPlacement)
         .def("ComputeIntersections",&Geometry::ComputeIntersections)
@@ -87,6 +96,76 @@ PYBIND11_MODULE(geometry,m) {
         .def_property("Y",&Box::GetY, &Box::SetY)
         .def_property("Z",&Box::GetZ, &Box::SetZ);
 
+    // Cone
+
+    class_<Cone, std::shared_ptr<Cone>, Geometry>(m, "Cone")
+        .def(init<>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Cone&>())
+        .def_property_readonly("Rmin1",&Cone::GetRmin1)
+        .def_property_readonly("Rmax1",&Cone::GetRmax1)
+        .def_property_readonly("Rmin2",&Cone::GetRmin2)
+        .def_property_readonly("Rmax2",&Cone::GetRmax2)
+        .def_property_readonly("Z",&Cone::GetZ);
+
+    // Torus
+
+    class_<Torus, std::shared_ptr<Torus>, Geometry>(m, "Torus")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Torus&>())
+        .def_property_readonly("MajorRadius",&Torus::GetMajorRadius)
+        .def_property_readonly("MinorRadius",&Torus::GetMinorRadius)
+        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius)
+        .def_property_readonly("StartPhi",&Torus::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Torus::GetDeltaPhi);
+
+    // Polycone
+
+    class_<Polycone, std::shared_ptr<Polycone>, Geometry>(m, "Polycone")
+        .def(init<>())
+        .def(init<std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<const Polycone&>())
+        .def_property_readonly("ZPlanes",&Polycone::GetZPlanes)
+        .def_property_readonly("Rmin",&Polycone::GetRmin)
+        .def_property_readonly("Rmax",&Polycone::GetRmax);
+
+    // Polyhedra
+
+    class_<Polyhedra, std::shared_ptr<Polyhedra>, Geometry>(m, "Polyhedra")
+        .def(init<>())
+        .def(init<int, double, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, int, double, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<const Polyhedra&>())
+        .def_property_readonly("NumSides",&Polyhedra::GetNumSides)
+        .def_property_readonly("StartPhi",&Polyhedra::GetStartPhi)
+        .def_property_readonly("ZPlanes",&Polyhedra::GetZPlanes)
+        .def_property_readonly("Rmin",&Polyhedra::GetRmin)
+        .def_property_readonly("Rmax",&Polyhedra::GetRmax);
+
+    // Trd
+
+    class_<Trd, std::shared_ptr<Trd>, Geometry>(m, "Trd")
+        .def(init<>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Trd&>())
+        .def_property_readonly("Dx1",&Trd::GetDx1)
+        .def_property_readonly("Dx2",&Trd::GetDx2)
+        .def_property_readonly("Dy1",&Trd::GetDy1)
+        .def_property_readonly("Dy2",&Trd::GetDy2)
+        .def_property_readonly("Dz",&Trd::GetDz);
+
     // Cylinder
 
     class_<Cylinder, std::shared_ptr<Cylinder>, Geometry>(m, "Cylinder")
@@ -104,11 +183,124 @@ PYBIND11_MODULE(geometry,m) {
     class_<Sphere, std::shared_ptr<Sphere>, Geometry>(m, "Sphere")
         .def(init<>())
         .def(init<double, double>())
+        .def(init<double, double, double, double, double, double>())
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double>())
+        .def(init<Placement const &, double, double, double, double, double, double>())
         .def(init<const Sphere&>())
-        .def_property("InnerRadius",&Sphere::GetInnerRadius, &Sphere::SetInnerRadius)
-        .def_property("Radius",&Sphere::GetRadius, &Sphere::SetRadius);
+        .def_property_readonly("InnerRadius",&Sphere::GetInnerRadius)
+        .def_property_readonly("Radius",&Sphere::GetRadius)
+        .def_property_readonly("StartPhi",&Sphere::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Sphere::GetDeltaPhi)
+        .def_property_readonly("StartTheta",&Sphere::GetStartTheta)
+        .def_property_readonly("DeltaTheta",&Sphere::GetDeltaTheta);
+
+    // BooleanGeometry
+
+    enum_<BooleanOperation>(m, "BooleanOperation")
+        .value("UNION", BooleanOperation::UNION)
+        .value("SUBTRACTION", BooleanOperation::SUBTRACTION)
+        .value("INTERSECTION", BooleanOperation::INTERSECTION);
+
+    class_<BooleanGeometry, std::shared_ptr<BooleanGeometry>, Geometry>(m, "BooleanGeometry")
+        .def(init<>())
+        .def(init<BooleanOperation, std::shared_ptr<const Geometry>, std::shared_ptr<const Geometry>>())
+        .def(init<Placement const &, BooleanOperation, std::shared_ptr<const Geometry>, std::shared_ptr<const Geometry>>())
+        .def(init<const BooleanGeometry&>())
+        .def_property_readonly("Operation",&BooleanGeometry::GetOperation)
+        .def_property_readonly("Left",&BooleanGeometry::GetLeft)
+        .def_property_readonly("Right",&BooleanGeometry::GetRight);
+
+    // EllipticalTube
+
+    class_<EllipticalTube, std::shared_ptr<EllipticalTube>, Geometry>(m, "EllipticalTube")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<const EllipticalTube&>())
+        .def_property_readonly("Dx",&EllipticalTube::GetDx)
+        .def_property_readonly("Dy",&EllipticalTube::GetDy)
+        .def_property_readonly("Dz",&EllipticalTube::GetDz);
+
+    // CutTube
+
+    class_<CutTube, std::shared_ptr<CutTube>, Geometry>(m, "CutTube")
+        .def(init<>())
+        .def(init<double, double, double, siren::math::Vector3D, siren::math::Vector3D>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, siren::math::Vector3D, siren::math::Vector3D>())
+        .def(init<const CutTube&>())
+        .def_property_readonly("Rmin",&CutTube::GetRmin)
+        .def_property_readonly("Rmax",&CutTube::GetRmax)
+        .def_property_readonly("Dz",&CutTube::GetDz)
+        .def_property_readonly("LowNorm",&CutTube::GetLowNorm)
+        .def_property_readonly("HighNorm",&CutTube::GetHighNorm);
+
+    // Trap
+
+    class_<Trap, std::shared_ptr<Trap>, Geometry>(m, "Trap")
+        .def(init<>())
+        .def(init<double, double, double, double, double, double, double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double, double, double, double, double, double, double>())
+        .def(init<const Trap&>())
+        .def_property_readonly("Dz",&Trap::GetDz)
+        .def_property_readonly("Theta",&Trap::GetTheta)
+        .def_property_readonly("Phi",&Trap::GetPhi)
+        .def_property_readonly("Dy1",&Trap::GetDy1)
+        .def_property_readonly("Dx1",&Trap::GetDx1)
+        .def_property_readonly("Dx2",&Trap::GetDx2)
+        .def_property_readonly("Alpha1",&Trap::GetAlpha1)
+        .def_property_readonly("Dy2",&Trap::GetDy2)
+        .def_property_readonly("Dx3",&Trap::GetDx3)
+        .def_property_readonly("Dx4",&Trap::GetDx4)
+        .def_property_readonly("Alpha2",&Trap::GetAlpha2);
+
+    // Ellipsoid
+
+    class_<Ellipsoid, std::shared_ptr<Ellipsoid>, Geometry>(m, "Ellipsoid")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Ellipsoid&>())
+        .def_property_readonly("Ax",&Ellipsoid::GetAx)
+        .def_property_readonly("By",&Ellipsoid::GetBy)
+        .def_property_readonly("Cz",&Ellipsoid::GetCz)
+        .def_property_readonly("Zcut1",&Ellipsoid::GetZcut1)
+        .def_property_readonly("Zcut2",&Ellipsoid::GetZcut2);
+
+    // Para
+
+    class_<Para, std::shared_ptr<Para>, Geometry>(m, "Para")
+        .def(init<>())
+        .def(init<double, double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double, double>())
+        .def(init<const Para&>())
+        .def_property_readonly("Dx",&Para::GetDx)
+        .def_property_readonly("Dy",&Para::GetDy)
+        .def_property_readonly("Dz",&Para::GetDz)
+        .def_property_readonly("Alpha",&Para::GetAlpha)
+        .def_property_readonly("Theta",&Para::GetTheta)
+        .def_property_readonly("Phi",&Para::GetPhi);
+
+    // AABB
+
+    class_<AABB>(m, "AABB")
+        .def(init<>())
+        .def(init<siren::math::Vector3D const &, siren::math::Vector3D const &>())
+        .def_readwrite("min_corner", &AABB::min_corner)
+        .def_readwrite("max_corner", &AABB::max_corner)
+        .def("ExpandToInclude", (void (AABB::*)(siren::math::Vector3D const &)) &AABB::ExpandToInclude)
+        .def("Centroid", &AABB::Centroid)
+        .def("SurfaceArea", &AABB::SurfaceArea)
+        .def("LargestAxis", &AABB::LargestAxis)
+        .def("IsValid", &AABB::IsValid)
+        .def("Contains", &AABB::Contains);
 
     class_<Placement, std::shared_ptr<Placement>>(m, "Placement")
         .def(init<>())

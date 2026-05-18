@@ -1,6 +1,7 @@
 #include "SIREN/geometry/Sphere.h"
 
 #include <cmath>
+#include <limits>
 #include <tuple>
 #include <math.h>
 #include <string>
@@ -15,63 +16,150 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/Placement.h"
 
+namespace {
+
+static const double TWO_PI = 2.0 * M_PI;
+
+// Normalize angle to [0, 2*pi)
+double NormalizePhi(double phi) {
+    phi = std::fmod(phi, TWO_PI);
+    if(phi < 0) phi += TWO_PI;
+    return phi;
+}
+
+// Check if the azimuthal angle of point (x,y) falls within
+// [start_phi, start_phi + delta_phi]. Handles wraparound.
+bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = NormalizePhi(std::atan2(y, x));
+    double sp = NormalizePhi(start_phi);
+    double ep = sp + delta_phi;
+    if(ep <= TWO_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        // Wraps around 2*pi: phi >= sp OR phi <= (ep - 2*pi)
+        return phi >= sp - 1e-9 || phi <= NormalizePhi(ep) + 1e-9;
+    }
+}
+
+// Check if the polar angle of point (x,y,z) falls within
+// [start_theta, start_theta + delta_theta].
+bool ThetaInRange(double x, double y, double z, double start_theta, double delta_theta) {
+    double r = std::sqrt(x*x + y*y + z*z);
+    if(r < 1e-15) return true; // origin is degenerate
+    double cos_theta = z / r;
+    if(cos_theta > 1.0) cos_theta = 1.0;
+    if(cos_theta < -1.0) cos_theta = -1.0;
+    double theta = std::acos(cos_theta);
+    return theta >= start_theta - 1e-9 && theta <= start_theta + delta_theta + 1e-9;
+}
+
+} // anonymous namespace
+
 namespace siren {
 namespace geometry {
 
 Sphere::Sphere()
     : Geometry((std::string)("Sphere"))
     , radius_(0.0)
-      , inner_radius_(0.0)
-{
-    // Do nothing here
+    , inner_radius_(0.0)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , start_theta_(0.0)
+    , delta_theta_(M_PI) {
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
 }
 
 Sphere::Sphere(double radius, double inner_radius)
     : Geometry("Sphere")
     , radius_(radius)
-      , inner_radius_(inner_radius)
-{
-    if (inner_radius_ > radius_)
-    {
-        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
-        std::swap(inner_radius_, radius_);
-    }
-    if (inner_radius_ == radius_)
-    {
-        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
-    }
+    , inner_radius_(inner_radius)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , start_theta_(0.0)
+    , delta_theta_(M_PI) {
+    if(inner_radius_ > radius_) std::swap(inner_radius_, radius_);
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
 }
 
 Sphere::Sphere(Placement const & placement)
     : Geometry((std::string)("Sphere"), placement)
     , radius_(0.0)
-      , inner_radius_(0.0)
-{
-    // Do nothing here
+    , inner_radius_(0.0)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , start_theta_(0.0)
+    , delta_theta_(M_PI) {
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
 }
 
 Sphere::Sphere(Placement const & placement, double radius, double inner_radius)
     : Geometry((std::string)("Sphere"), placement)
     , radius_(radius)
-      , inner_radius_(inner_radius)
-{
-    if (inner_radius_ > radius_)
-    {
-        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
-        std::swap(inner_radius_, radius_);
-    }
-    if (inner_radius_ == radius_)
-    {
-        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
-    }
+    , inner_radius_(inner_radius)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , start_theta_(0.0)
+    , delta_theta_(M_PI) {
+    if(inner_radius_ > radius_) std::swap(inner_radius_, radius_);
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
+}
+
+Sphere::Sphere(double radius, double inner_radius,
+               double start_phi, double delta_phi,
+               double start_theta, double delta_theta)
+    : Geometry("Sphere")
+    , radius_(radius)
+    , inner_radius_(inner_radius)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi)
+    , start_theta_(start_theta)
+    , delta_theta_(delta_theta) {
+    if(inner_radius_ > radius_) std::swap(inner_radius_, radius_);
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9)
+        throw std::invalid_argument("Sphere delta_phi must be in (0, 2*pi]!");
+    if(start_theta_ < -1e-9 || start_theta_ > M_PI + 1e-9)
+        throw std::invalid_argument("Sphere start_theta must be in [0, pi]!");
+    if(delta_theta_ <= 0 || start_theta_ + delta_theta_ > M_PI + 1e-9)
+        throw std::invalid_argument("Sphere start_theta + delta_theta must be in (0, pi]!");
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
+}
+
+Sphere::Sphere(Placement const & placement, double radius, double inner_radius,
+               double start_phi, double delta_phi,
+               double start_theta, double delta_theta)
+    : Geometry((std::string)("Sphere"), placement)
+    , radius_(radius)
+    , inner_radius_(inner_radius)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi)
+    , start_theta_(start_theta)
+    , delta_theta_(delta_theta) {
+    if(inner_radius_ > radius_) std::swap(inner_radius_, radius_);
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9)
+        throw std::invalid_argument("Sphere delta_phi must be in (0, 2*pi]!");
+    if(start_theta_ < -1e-9 || start_theta_ > M_PI + 1e-9)
+        throw std::invalid_argument("Sphere start_theta must be in [0, pi]!");
+    if(delta_theta_ <= 0 || start_theta_ + delta_theta_ > M_PI + 1e-9)
+        throw std::invalid_argument("Sphere start_theta + delta_theta must be in (0, pi]!");
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
 }
 
 Sphere::Sphere(const Sphere& sphere)
     : Geometry(sphere)
     , radius_(sphere.radius_)
-      , inner_radius_(sphere.inner_radius_)
-{
-    // Nothing to do here
+    , inner_radius_(sphere.inner_radius_)
+    , start_phi_(sphere.start_phi_)
+    , delta_phi_(sphere.delta_phi_)
+    , start_theta_(sphere.start_theta_)
+    , delta_theta_(sphere.delta_theta_)
+    , has_phi_cut_(sphere.has_phi_cut_)
+    , has_theta_cut_(sphere.has_theta_cut_) {
 }
 
 
@@ -105,6 +193,12 @@ void Sphere::swap(Geometry& geometry)
 
     std::swap(inner_radius_, sphere->inner_radius_);
     std::swap(radius_, sphere->radius_);
+    std::swap(start_phi_, sphere->start_phi_);
+    std::swap(delta_phi_, sphere->delta_phi_);
+    std::swap(start_theta_, sphere->start_theta_);
+    std::swap(delta_theta_, sphere->delta_theta_);
+    std::swap(has_phi_cut_, sphere->has_phi_cut_);
+    std::swap(has_theta_cut_, sphere->has_theta_cut_);
 }
 
 //------------------------------------------------------------------------- //
@@ -130,11 +224,19 @@ bool Sphere::equal(const Geometry& geometry) const
 {
     const Sphere* sphere = dynamic_cast<const Sphere*>(&geometry);
 
-    if (!sphere)
+    if(!sphere)
         return false;
-    else if (inner_radius_ != sphere->inner_radius_)
+    else if(inner_radius_ != sphere->inner_radius_)
         return false;
-    else if (radius_ != sphere->radius_)
+    else if(radius_ != sphere->radius_)
+        return false;
+    else if(start_phi_ != sphere->start_phi_)
+        return false;
+    else if(delta_phi_ != sphere->delta_phi_)
+        return false;
+    else if(start_theta_ != sphere->start_theta_)
+        return false;
+    else if(delta_theta_ != sphere->delta_theta_)
         return false;
     else
         return true;
@@ -144,184 +246,245 @@ bool Sphere::equal(const Geometry& geometry) const
 bool Sphere::less(const Geometry& geometry) const
 {
     const Sphere* sphere = dynamic_cast<const Sphere*>(&geometry);
+    if(!sphere) return false;
 
-    return
-        std::tie(inner_radius_, radius_)
-        <
-        std::tie(sphere->inner_radius_, sphere->radius_);
+    return std::tie(inner_radius_, radius_, start_phi_, delta_phi_, start_theta_, delta_theta_)
+         < std::tie(sphere->inner_radius_, sphere->radius_, sphere->start_phi_, sphere->delta_phi_, sphere->start_theta_, sphere->delta_theta_);
 }
 
 // ------------------------------------------------------------------------- //
-void Sphere::print(std::ostream& os) const
-{
-    os << "Radius: " << radius_ << "\tInner radius: " << inner_radius_ << '\n';
+void Sphere::print(std::ostream& os) const {
+    os << "Radius: " << radius_ << "\tInner radius: " << inner_radius_;
+    if(has_phi_cut_) os << "\tStartPhi: " << start_phi_ << "\tDeltaPhi: " << delta_phi_;
+    if(has_theta_cut_) os << "\tStartTheta: " << start_theta_ << "\tDeltaTheta: " << delta_theta_;
+    os << '\n';
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Sphere::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
-    // Calculate intersection of particle trajectory and the sphere
-    // sphere (x1 + x0)^2 + (x2 + y0)^2 + (x3 + z0)^2 = radius^2
-    // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
-    // *sinth, sinph *sinth , costh)
-    // Insert and transform leads to C * t^2 + B * t + A = 0
-    // length of direction vector =1 => C = 1
-    // We are only interested in postive values of t
-    // ( we want to find the intersection in direction of the particle
-    // trajectory)
+std::vector<Geometry::Intersection> Sphere::ComputeIntersections(
+    siren::math::Vector3D const & position,
+    siren::math::Vector3D const & direction) const {
 
-    double A, B, t1, t2, difference_length_squared;
+    double px = position.GetX(), py = position.GetY(), pz = position.GetZ();
+    double dx = direction.GetX(), dy = direction.GetY(), dz = direction.GetZ();
+    double pp = px*px + py*py + pz*pz;
+    double pd = px*dx + py*dy + pz*dz;
 
-    double determinant;
-
-    std::vector<Intersection> dist;
-
-    siren::math::Vector3D intersection;
-
-    std::function<void(double, bool)> save = [&](double t, bool entering){
-        Intersection i;
-        i.position = intersection;
-        i.distance = t;
-        i.hierarchy = 0;
-        i.entering = entering;
-        dist.push_back(i);
+    // The sphere with angular cuts is treated as:
+    //   (spherical shell) AND (phi wedge) AND (theta band)
+    // Each component produces independent enter/exit pairs. A CSG intersection
+    // walk combines them without tolerance-dependent filtering or heuristics.
+    // Source tags: 0 = shell, 1 = phi wedge, 2 = theta band
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source;
     };
 
-    difference_length_squared = std::pow((position).magnitude(), 2);
-    A                         = difference_length_squared - radius_ * radius_;
+    TaggedHit all_hits[16]; // max: 4 shell + 4 phi planes + 8 theta cones
+    int n_all = 0;
 
-    B = scalar_product(position, direction);
+    auto add_hit = [&](double t, bool entering, int source) {
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+        all_hits[n_all] = {t, siren::math::Vector3D(px + t*dx, py + t*dy, pz + t*dz), entering, source};
+        n_all++;
+    };
 
-    determinant = B * B - A;
-
-    if (determinant > 0) // determinant == 0 (boundery point) is ignored
-    {
-        t1 = -1 * B + std::sqrt(determinant);
-        t2 = -1 * B - std::sqrt(determinant);
-
-        // Computer precision controll
-        if (t1 > 0 && t1 < GEOMETRY_PRECISION)
-            t1 = 0;
-        if (t2 > 0 && t2 < GEOMETRY_PRECISION)
-            t2 = 0;
-
-        if (t2 < t1)
-        {
-            std::swap(t1, t2);
+    // ---- Shell intersections (no angular filtering) ----
+    // The discriminant is r^2 - |p x d|^2 (squared perpendicular distance
+    // from origin to ray). Computing |p x d|^2 directly avoids catastrophic
+    // cancellation that occurs when the ray origin is far from the sphere.
+    double cx = py * dz - pz * dy;
+    double cy = pz * dx - px * dz;
+    double cz = px * dy - py * dx;
+    double perp2 = cx*cx + cy*cy + cz*cz;
+    auto solve_shell = [&](double r, bool is_outer) {
+        double det = r * r - perp2;
+        if(det <= 0) return;
+        double sq = std::sqrt(det);
+        double t1 = -pd - sq;
+        double t2 = -pd + sq;
+        for(int k = 0; k < 2; ++k) {
+            double t = (k == 0) ? t1 : t2;
+            bool entering = is_outer ? (k == 0) : (k == 1);
+            add_hit(t, entering, 0);
         }
+    };
 
-        intersection = position + t1*direction;
-        save(t1, true);
-        intersection = position + t2*direction;
-        save(t2, false);
+    solve_shell(radius_, true);
+    if(inner_radius_ > 0) {
+        solve_shell(inner_radius_, false);
+    }
 
-        if (inner_radius_ > 0)
-        {
-            A = difference_length_squared - inner_radius_ * inner_radius_;
+    // ---- Infinite phi wedge (no radial/theta bounds) ----
+    // See Polycone.cxx for method description; same pattern in all phi-cut shapes.
+    if(has_phi_cut_) {
+        for(int face = 0; face < 2; ++face) {
+            double alpha = start_phi_ + face * delta_phi_;
+            double ca = std::cos(alpha), sa = std::sin(alpha);
+            double nx, ny;
+            if(face == 0) { nx = sa; ny = -ca; }
+            else { nx = -sa; ny = ca; }
+            double n_dot_d = nx*dx + ny*dy;
+            if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+            double n_dot_p = nx*px + ny*py;
+            double t = -n_dot_p / n_dot_d;
+            double hx = px + t*dx, hy = py + t*dy;
+            // Must be on the correct half-plane (outward from z-axis)
+            if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+            bool entering = (n_dot_d < 0);
+            add_hit(t, entering, 1);
+        }
+    }
 
-            determinant = B * B - A;
+    // ---- Infinite theta band boundaries (no radial/phi bounds) ----
+    if(has_theta_cut_) {
+        for(int face = 0; face < 2; ++face) {
+            double theta0 = start_theta_ + face * delta_theta_;
+            // Degenerate cone at theta=0 or theta=pi (z-axis): skip
+            if(theta0 < 1e-12 || std::fabs(theta0 - M_PI) < 1e-12) continue;
 
-            if (determinant > 0) // determinant == 0 (boundery point) is ignored
-            {
-                t1 = -1 * B + std::sqrt(determinant);
-                t2 = -1 * B - std::sqrt(determinant);
+            if(std::fabs(theta0 - M_PI / 2.0) < 1e-12) {
+                // theta = pi/2 is the z=0 plane
+                if(std::fabs(dz) < GEOMETRY_PRECISION) continue;
+                double t = -pz / dz;
+                bool entering = (face == 0) ? (dz < 0) : (dz > 0);
+                add_hit(t, entering, 2);
+                continue;
+            }
 
-                // Computer precision controll
-                if (t1 > 0 && t1 < GEOMETRY_PRECISION)
-                    t1 = 0;
-                if (t2 > 0 && t2 < GEOMETRY_PRECISION)
-                    t2 = 0;
+            // General cone at polar angle theta0
+            double tan_t = std::tan(theta0);
+            double tan2 = tan_t * tan_t;
+            double A = dx*dx + dy*dy - dz*dz * tan2;
+            double B_half = px*dx + py*dy - pz*dz * tan2;
+            double C = px*px + py*py - pz*pz * tan2;
 
-                if (t2 < t1)
-                {
-                    std::swap(t1, t2);
+            double det = B_half * B_half - A * C;
+            if(det < 0) continue;
+            double sq = std::sqrt(std::fmax(det, 0.0));
+
+            for(int root = 0; root < 2; ++root) {
+                double t;
+                if(std::fabs(A) > GEOMETRY_PRECISION) {
+                    t = (root == 0) ? (-B_half - sq) / A : (-B_half + sq) / A;
+                } else if(root == 0 && std::fabs(B_half) > GEOMETRY_PRECISION) {
+                    t = -C / (2.0 * B_half);
+                } else {
+                    continue;
                 }
 
-                intersection = position + t1*direction;
-                save(t1, false);
-                intersection = position + t2*direction;
-                save(t2, true);
+                double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+                // Correct hemisphere check
+                if(theta0 < M_PI / 2.0 && hz < -GEOMETRY_PRECISION) continue;
+                if(theta0 > M_PI / 2.0 && hz > GEOMETRY_PRECISION) continue;
+
+                // Entering/exiting the theta band
+                double gnx = hx, gny = hy, gnz = -hz * tan2;
+                double g_dot_d = gnx*dx + gny*dy + gnz*dz;
+                bool entering;
+                if(face == 0) {
+                    entering = (g_dot_d > 0);
+                } else {
+                    entering = (g_dot_d < 0);
+                }
+                add_hit(t, entering, 2);
             }
         }
     }
 
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    if(n_all == 0) return {};
+
+    // No angular cuts: shell hits are the final result
+    if(!has_phi_cut_ && !has_theta_cut_) {
+        std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+            return a.distance < b.distance;
+        });
+        std::vector<Intersection> result;
+        result.reserve(n_all);
+        for(int i = 0; i < n_all; ++i) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = all_hits[i].entering;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        return result;
+    }
+
+    // Sort all hits by distance
+    std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
         return a.distance < b.distance;
-    };
+    });
 
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
+    // Determine initial states at t = -infinity.
+    // Shell: always starts outside (finite closed surface).
+    // Phi wedge: determine from first wedge hit or PhiInRange check.
+    // Theta band: determine from first theta hit or ThetaInRange check.
+    bool in_shell = false;
+    bool in_phi = !has_phi_cut_; // no phi cut means always "inside" the wedge
+    bool in_theta = !has_theta_cut_; // no theta cut means always "inside" the band
+
+    if(has_phi_cut_) {
+        bool found = false;
+        for(int i = 0; i < n_all; ++i) {
+            if(all_hits[i].source == 1) {
+                in_phi = !all_hits[i].entering;
+                found = true;
+                break;
+            }
+        }
+        if(!found) {
+            in_phi = PhiInRange(px, py, start_phi_, delta_phi_);
+        }
+    }
+
+    if(has_theta_cut_) {
+        bool found = false;
+        for(int i = 0; i < n_all; ++i) {
+            if(all_hits[i].source == 2) {
+                in_theta = !all_hits[i].entering;
+                found = true;
+                break;
+            }
+        }
+        if(!found) {
+            in_theta = ThetaInRange(px, py, pz, start_theta_, delta_theta_);
+        }
+    }
+
+    bool was_inside = in_shell && in_phi && in_theta;
+
+    // CSG intersection walk
+    std::vector<Intersection> result;
+    for(int i = 0; i < n_all; ++i) {
+        switch(all_hits[i].source) {
+            case 0: in_shell = all_hits[i].entering; break;
+            case 1: in_phi = all_hits[i].entering; break;
+            case 2: in_theta = all_hits[i].entering; break;
+        }
+        bool now_inside = in_shell && in_phi && in_theta;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Sphere::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
-{
-    // Compute the surface intersections
-    std::vector<Intersection> intersections = Intersections(position, direction);
-    std::vector<double> dist;
-    bool first = true;
-    for(unsigned int i=0; i<intersections.size(); ++i) {
-        Intersection const & obj = intersections[i];
-        if(obj.distance > 0) {
-            if(first) {
-                first = false;
-                dist.push_back(obj.distance);
-                if(not obj.entering) {
-                    break;
-                }
-            }
-            else {
-                if(not obj.entering) {
-                    dist.push_back(obj.distance);
-                    break;
-                }
-                else {
-                    throw(std::runtime_error("There should never be two \"entering\" intersections in a row!"));
-                }
-            }
-        }
-    }
-
-    std::pair<double, double> distance;
-
-    // No intersection with the outer cylinder
-    if (dist.size() < 1)
-    {
-        distance.first  = -1;
-        distance.second = -1;
-        //    return distance;
-    } else if (dist.size() == 1) // particle is inside the cylinder
-    {
-        distance.first  = dist.at(0);
-        distance.second = -1;
-
-    } else if (dist.size() == 2) // cylinder is infront of the particle
-    {
-        distance.first  = dist.at(0);
-        distance.second = dist.at(1);
-
-        if (distance.second < distance.first)
-        {
-            std::swap(distance.first, distance.second);
-        }
-
-    } else
-    {
-        //log_error("This point should never be reached");
-    }
-    // Make a computer precision controll!
-    // This is necessary cause due to numerical effects it meight be happen
-    // that a particle which is located on a gemoetry border is treated as
-    // inside
-    // or outside
-
-    if (distance.first < GEOMETRY_PRECISION)
-        distance.first = -1;
-    if (distance.second < GEOMETRY_PRECISION)
-        distance.second = -1;
-    if (distance.first < 0)
-        std::swap(distance.first, distance.second);
-
-    return distance;
+AABB Sphere::GetBoundingBox() const {
+    return AABB(
+        math::Vector3D(-radius_, -radius_, -radius_),
+        math::Vector3D( radius_,  radius_,  radius_)
+    );
 }
 
 } // namespace geometry

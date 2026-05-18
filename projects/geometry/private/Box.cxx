@@ -106,7 +106,7 @@ Box& Box::operator=(const Geometry& geometry)
         const Box* box = dynamic_cast<const Box*>(&geometry);
         if (!box)
         {
-            //log_warn("Cannot assign Sphere!");
+            //log_warn("Cannot assign Box!");
             return *this;
         }
 
@@ -137,6 +137,7 @@ bool Box::equal(const Geometry& geometry) const
 bool Box::less(const Geometry& geometry) const
 {
     const Box* box = dynamic_cast<const Box*>(&geometry);
+    if(!box) return false;
 
     return
         std::tie(x_, y_, z_)
@@ -152,238 +153,86 @@ void Box::print(std::ostream& os) const
 
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
-    // Calculate intersection of particle trajectory and the box
-    // Surface of the box is defined by six planes:
-    // E1: x1   =   position.GetX() + 0.5*x
-    // E2: x1   =   position.GetX() - 0.5*x
-    // E3: x2   =   position.GetY() + 0.5*y
-    // E4: x2   =   position.GetY() - 0.5*y
-    // E5: x3   =   position.GetZ() + 0.5*z
-    // E6: x3   =   position.GetZ() - 0.5*z
-    // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
-    // *sinth, sinph *sinth , costh)
-    // We are only interested in postive values of t
-    // ( we want to find the intersection in direction of the particle
-    // trajectory)
+    double px = position.GetX(), py = position.GetY(), pz = position.GetZ();
+    double dx = direction.GetX(), dy = direction.GetY(), dz = direction.GetZ();
 
-    double dir_vec_x = direction.GetX();
-    double dir_vec_y = direction.GetY();
-    double dir_vec_z = direction.GetZ();
+    double hx = 0.5 * x_, hy = 0.5 * y_, hz = 0.5 * z_;
 
-    double t;
-    double intersection_x;
-    double intersection_y;
-    double intersection_z;
-    bool entering;
+    // Use the slab method: find the ray parameter ranges where the ray is
+    // inside each pair of parallel planes, then intersect the three ranges.
+    double t_enter, t_exit;
 
-    std::vector<Intersection> dist;
+    // Initialize with the full line
+    t_enter = -std::numeric_limits<double>::infinity();
+    t_exit  =  std::numeric_limits<double>::infinity();
 
-    std::function<void()> save = [&](){
-        Intersection i;
-        i.position = siren::math::Vector3D(intersection_x,intersection_y,intersection_z);
-        i.distance = t;
-        i.hierarchy = 0;
-        i.entering = entering;
-        dist.push_back(i);
-    };
-
-    double x_calc_pos =   0.5 * x_;
-    double x_calc_neg = - 0.5 * x_;
-    double y_calc_pos =   0.5 * y_;
-    double y_calc_neg = - 0.5 * y_;
-    double z_calc_pos =   0.5 * z_;
-    double z_calc_neg = - 0.5 * z_;
-
-    // intersection with E1
-    if (dir_vec_x != 0) // if dir_vec == 0 particle trajectory is parallel to E1
-    {
-        t = (x_calc_pos - position.GetX()) / dir_vec_x;
-
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
-
-        // Check if intersection is inside the box borders
-        intersection_y = position.GetY() + t * dir_vec_y;
-        intersection_z = position.GetZ() + t * dir_vec_z;
-        if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-        {
-            intersection_x = position.GetX() + t * dir_vec_x;
-            entering = direction.GetX() < 0;
-            save();
-        }
+    // X slab
+    if(dx != 0) {
+        double inv = 1.0 / dx;
+        double t1 = (-hx - px) * inv; // -x face
+        double t2 = ( hx - px) * inv; // +x face
+        if(t1 > t2) { std::swap(t1, t2); }
+        if(t1 > t_enter) { t_enter = t1; }
+        if(t2 < t_exit)  { t_exit  = t2; }
+    } else {
+        if(px < -hx || px > hx) return {};
     }
 
-    // intersection with E2
-    if (dir_vec_x != 0) // if dir_vec == 0 particle trajectory is parallel to E2
-    {
-        t = (x_calc_neg - position.GetX()) / dir_vec_x;
-
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
-
-        // Check if intersection is inside the box borders
-        intersection_y = position.GetY() + t * dir_vec_y;
-        intersection_z = position.GetZ() + t * dir_vec_z;
-        if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-        {
-            intersection_x = position.GetX() + t * dir_vec_x;
-            entering = direction.GetX() > 0;
-            save();
-        }
+    // Y slab
+    if(dy != 0) {
+        double inv = 1.0 / dy;
+        double t1 = (-hy - py) * inv;
+        double t2 = ( hy - py) * inv;
+        if(t1 > t2) { std::swap(t1, t2); }
+        if(t1 > t_enter) { t_enter = t1; }
+        if(t2 < t_exit)  { t_exit  = t2; }
+    } else {
+        if(py < -hy || py > hy) return {};
     }
 
-    // intersection with E3
-    if (dir_vec_y != 0) // if dir_vec == 0 particle trajectory is parallel to E3
-    {
-        t = (y_calc_pos - position.GetY()) / dir_vec_y;
-
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
-
-        // Check if intersection is inside the box borders
-        intersection_x = position.GetX() + t * dir_vec_x;
-        intersection_z = position.GetZ() + t * dir_vec_z;
-        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-        {
-            intersection_y = position.GetY() + t * dir_vec_y;
-            entering = direction.GetY() < 0;
-            save();
-        }
+    // Z slab
+    if(dz != 0) {
+        double inv = 1.0 / dz;
+        double t1 = (-hz - pz) * inv;
+        double t2 = ( hz - pz) * inv;
+        if(t1 > t2) { std::swap(t1, t2); }
+        if(t1 > t_enter) { t_enter = t1; }
+        if(t2 < t_exit)  { t_exit  = t2; }
+    } else {
+        if(pz < -hz || pz > hz) return {};
     }
 
-    // intersection with E4
-    if (dir_vec_y != 0) // if dir_vec == 0 particle trajectory is parallel to E4
-    {
-        t = (y_calc_neg - position.GetY()) / dir_vec_y;
+    // No intersection if the entry point is past the exit point
+    if(t_enter > t_exit) return {};
 
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
+    // A particle on the border moving inside has one intersection (exit),
+    // a particle on the border moving outside has no intersection.
+    if(t_enter > 0 && t_enter < GEOMETRY_PRECISION) t_enter = 0;
+    if(t_exit > 0 && t_exit < GEOMETRY_PRECISION) t_exit = 0;
 
-        // Check if intersection is inside the box borders
-        intersection_x = position.GetX() + t * dir_vec_x;
-        intersection_z = position.GetZ() + t * dir_vec_z;
-        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-        {
-            intersection_y = position.GetY() + t * dir_vec_y;
-            entering = direction.GetY() > 0;
-            save();
-        }
-    }
+    Intersection hit_enter, hit_exit;
+    hit_enter.distance = t_enter;
+    hit_enter.hierarchy = 0;
+    hit_enter.entering = true;
+    hit_enter.position = siren::math::Vector3D(px + t_enter * dx, py + t_enter * dy, pz + t_enter * dz);
 
-    // intersection with E5
-    if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel to E5
-    {
-        t = (z_calc_pos - position.GetZ()) / dir_vec_z;
+    hit_exit.distance = t_exit;
+    hit_exit.hierarchy = 0;
+    hit_exit.entering = false;
+    hit_exit.position = siren::math::Vector3D(px + t_exit * dx, py + t_exit * dy, pz + t_exit * dz);
 
-        // Computer precision controll
-        if (std::fabs(t) < GEOMETRY_PRECISION)
-            t = 0;
-
-        // Check if intersection is inside the box borders
-        intersection_x = position.GetX() + t * dir_vec_x;
-        intersection_y = position.GetY() + t * dir_vec_y;
-        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
-                intersection_y <= y_calc_pos)
-        {
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            entering = direction.GetZ() < 0;
-            save();
-        }
-    }
-
-    // intersection with E6
-    if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel to E6
-    {
-        t = (z_calc_neg - position.GetZ()) / dir_vec_z;
-
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
-
-        // Check if intersection is inside the box borders
-        intersection_x = position.GetX() + t * dir_vec_x;
-        intersection_y = position.GetY() + t * dir_vec_y;
-        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
-                intersection_y <= y_calc_pos)
-        {
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            entering = direction.GetZ() > 0;
-            save();
-        }
-    }
-
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
-        return a.distance < b.distance;
-    };
-
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
+    return {hit_enter, hit_exit};
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Box::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
-{
-    // Compute the surface intersections
-    std::vector<Intersection> intersections = Intersections(position, direction);
-    std::vector<double> dist;
-    for(unsigned int i=0; i<intersections.size(); ++i) {
-        if(intersections[i].distance > 0) {
-            dist.push_back(intersections[i].distance);
-        }
-    }
-
-    std::pair<double, double> distance;
-
-    if (dist.size() < 1) // No intersection with the box
-    {
-        distance.first  = -1;
-        distance.second = -1;
-    } else if (dist.size() == 1) // Particle is inside the box and we have one
-        // intersection in direction of the particle
-        // trajectory
-    {
-        distance.first  = dist.at(0);
-        distance.second = -1;
-    } else if (dist.size() == 2) // Particle is outside and the box is infront
-        // of the particle trajectory ( two
-        // intersections).
-    {
-        distance.first  = dist.at(0);
-        distance.second = dist.at(1);
-        if (distance.second < distance.first)
-        {
-            std::swap(distance.first, distance.second);
-        }
-
-    } else
-    {
-        //log_error("This point should nerver be reached... (-1/-1) is returned");
-
-        distance.first  = -1;
-        distance.second = -1;
-    }
-
-    // Make a computer precision controll!
-    // This is necessary cause due to numerical effects it meight be happen
-    // that a particle which is located on a gemoetry border is treated as
-    // inside
-    // or outside
-    if (distance.first < GEOMETRY_PRECISION)
-        distance.first = -1;
-    if (distance.second < GEOMETRY_PRECISION)
-        distance.second = -1;
-    if (distance.first < 0)
-        std::swap(distance.first, distance.second);
-
-    return distance;
+AABB Box::GetBoundingBox() const {
+    double hx = x_ * 0.5;
+    double hy = y_ * 0.5;
+    double hz = z_ * 0.5;
+    return AABB(
+        math::Vector3D(-hx, -hy, -hz),
+        math::Vector3D( hx,  hy,  hz)
+    );
 }
 
 } // namespace geometry

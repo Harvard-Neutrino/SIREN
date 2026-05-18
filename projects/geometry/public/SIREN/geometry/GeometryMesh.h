@@ -4,18 +4,18 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 #include <cstdint>
 #include <utility>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
@@ -25,25 +25,19 @@
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Geometry.h"
-#include "SIREN/geometry/MeshBuilder.h"
 
 namespace siren {
 namespace geometry {
 
 class TriangularMesh : public Geometry {
 public:
-    TriangularMesh();
-    TriangularMesh(Mesh::TMesh const &);
-    TriangularMesh(Placement const &);
-    TriangularMesh(Placement const &, Mesh::TMesh const &);
-    TriangularMesh(TriangularMesh const &);
+    using Triangle = std::array<std::array<double, 3>, 3>;
 
-    Mesh::VAttribute & GetVertex(Mesh::Vertex v);
-    Mesh::EAttribute & GetEdge(Mesh::Edge e);
-    Mesh::TAttribute & GetTriangle(Mesh::Triangle t);
-    Mesh::VAttribute const & GetVertex(Mesh::Vertex v) const;
-    Mesh::EAttribute const & GetEdge(Mesh::Edge v) const;
-    Mesh::TAttribute const & GetTriangle(Mesh::Triangle t) const;
+    TriangularMesh();
+    TriangularMesh(std::vector<std::array<math::Vector3D, 3>> const & triangles);
+    TriangularMesh(Placement const &, std::vector<std::array<math::Vector3D, 3>> const & triangles);
+    TriangularMesh(Placement const &);
+    TriangularMesh(TriangularMesh const &);
 
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -51,38 +45,62 @@ public:
             double data_;
             archive(::cereal::make_nvp("", data_));
             archive(cereal::virtual_base_class<Geometry>(this));
+        } else if(version == 1) {
+            // Legacy format: stored as TData (same layout as Triangle)
+            archive(::cereal::make_nvp("TriangleData", triangles_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+            BuildBVH();
+        } else if(version == 2) {
+            archive(::cereal::make_nvp("Triangles", triangles_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+            BuildBVH();
         } else {
-            throw std::runtime_error("TriangularMesh only supports version <= 0!");
+            throw std::runtime_error("TriangularMesh only supports version <= 2!");
         }
     }
 
-    std::shared_ptr<Geometry> create() const override { return std::shared_ptr<Geometry>( new TriangularMesh(*this) ); };
+    std::shared_ptr<Geometry> create() const override { return std::shared_ptr<Geometry>(new TriangularMesh(*this)); }
     void swap(Geometry&) override;
 
     virtual ~TriangularMesh() {}
 
-    // Operators
     TriangularMesh& operator=(const Geometry&) override;
 
-    // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
     std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
+    AABB GetBoundingBox() const override;
+
+    size_t TriangleCount() const { return triangles_.size(); }
+
+    // Validate that the mesh is a closed 2-manifold surface.
+    // Returns empty string if valid, or a description of the defect.
+    std::string ValidateClosed() const;
 
 protected:
     virtual bool equal(const Geometry&) const override;
     virtual bool less(const Geometry&) const override;
 private:
     void print(std::ostream&) const override;
+    void BuildBVH();
 
-    Mesh::TMesh mesh;
+    // Triangle storage: triangles_[i] = {{v0x,v0y,v0z}, {v1x,v1y,v1z}, {v2x,v2y,v2z}}
+    std::vector<Triangle> triangles_;
+
+    // BVH flat-array acceleration structure
+    struct BVHNode {
+        float bounds[6]; // min_x, min_y, min_z, max_x, max_y, max_z
+        uint32_t offset; // leaf: first index into tri_indices_; internal: right child index
+        uint16_t count;  // 0 = internal; >0 = leaf with count triangles
+        uint16_t axis;   // split axis for internal nodes
+    };
+    std::vector<BVHNode> bvh_nodes_;
+    std::vector<uint32_t> tri_indices_;
 };
 
 } // namespace geometry
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::geometry::TriangularMesh, 0);
+CEREAL_CLASS_VERSION(siren::geometry::TriangularMesh, 2);
 CEREAL_REGISTER_TYPE(siren::geometry::TriangularMesh)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::TriangularMesh);
 
 #endif // SIREN_GeometryMesh_H
-

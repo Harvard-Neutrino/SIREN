@@ -21,6 +21,15 @@ LIST (APPEND detector_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/detector/private/RadialAxisPolynomialDensityDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/RadialAxisExponentialDensityDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/DetectorModel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/GDMLParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLDefineParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLExpression.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLMaterialParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLPreprocess.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLReadUtils.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLSolidParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLStructureParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLUnits.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/Path.cxx
 )
@@ -57,6 +66,8 @@ package_add_test(UnitTest_Distribution1D ${PROJECT_SOURCE_DIR}/projects/detector
 package_add_test(UnitTest_DetectorModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DetectorModel_TEST.cxx)
 package_add_test(UnitTest_MaterialModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/MaterialModel_TEST.cxx)
 package_add_test(UnitTest_Path ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Path_TEST.cxx)
+package_add_test(UnitTest_GDMLParser ${PROJECT_SOURCE_DIR}/projects/detector/private/test/GDMLParser_TEST.cxx)
+package_add_test(UnitTest_BVH ${PROJECT_SOURCE_DIR}/projects/detector/private/test/BVH_TEST.cxx)
 
 pybind11_add_module(detector ${PROJECT_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
 target_link_libraries(detector PRIVATE SIREN)

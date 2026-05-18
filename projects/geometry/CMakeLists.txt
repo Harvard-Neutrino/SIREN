@@ -3,15 +3,37 @@
 LIST (APPEND geometry_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Geometry.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Box.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Cone.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Trd.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Cylinder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Sphere.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/ExtrPoly.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Polycone.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Polyhedra.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Placement.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Torus.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/BooleanGeometry.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/EllipticalTube.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/CutTube.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Trap.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Ellipsoid.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Para.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/GenericPolycone.cxx
 )
 add_library(SIREN_geometry OBJECT ${geometry_SOURCES})
 set_property(TARGET SIREN_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+# Woop's watertight ray-triangle intersection requires that each multiply rounds
+# independently (no FMA contraction). noinline prevents cross-call-boundary FMA;
+# this flag prevents FMA within the function body.
+if(NOT MSVC)
+    set_source_files_properties(
+        ${PROJECT_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
+        PROPERTIES COMPILE_OPTIONS "-ffp-contract=off"
+    )
+endif()
 target_include_directories(SIREN_geometry PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/geometry/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/geometry/>
@@ -34,8 +56,10 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
     PATTERN "*.tcc"
 )
 
-package_add_test(UnitTest_Geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
-package_add_test(UnitTest_ExtrPoly ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
+package_add_test(UnitTest_GeometryOperators ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/GeometryOperators_TEST.cxx)
+package_add_test(UnitTest_Containment ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Containment_TEST.cxx)
+package_add_test(UnitTest_ShapeInvariants ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ShapeInvariants_TEST.cxx)
+package_add_test(UnitTest_Serialization ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Serialization_TEST.cxx)
 
 pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
 target_link_libraries(geometry PRIVATE SIREN)
