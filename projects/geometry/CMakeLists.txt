@@ -56,8 +56,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
     PATTERN "*.tcc"
 )
 
-package_add_test(UnitTest_Geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
-package_add_test(UnitTest_ExtrPoly ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
+package_add_test(UnitTest_GeometryOperators ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/GeometryOperators_TEST.cxx)
 package_add_test(UnitTest_Containment ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Containment_TEST.cxx)
 package_add_test(UnitTest_ShapeInvariants ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ShapeInvariants_TEST.cxx)
 package_add_test(UnitTest_Serialization ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Serialization_TEST.cxx)
