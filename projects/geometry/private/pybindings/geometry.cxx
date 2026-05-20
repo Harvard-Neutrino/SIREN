@@ -8,6 +8,7 @@
 #include "../../public/SIREN/geometry/Box.h"
 #include "../../public/SIREN/geometry/Cone.h"
 #include "../../public/SIREN/geometry/Trd.h"
+#include "../../public/SIREN/geometry/Polycone.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/AABB.h"
 
@@ -102,6 +103,20 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Rmin2",&Cone::GetRmin2)
         .def_property_readonly("Rmax2",&Cone::GetRmax2)
         .def_property_readonly("Z",&Cone::GetZ);
+
+    // Polycone
+
+    class_<Polycone, std::shared_ptr<Polycone>, Geometry>(m, "Polycone")
+        .def(init<>())
+        .def(init<std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<std::vector<double>, std::vector<double>, std::vector<double>, double, double>())
+        .def(init<Placement const &, std::vector<double>, std::vector<double>, std::vector<double>, double, double>())
+        .def(init<const Polycone&>())
+        .def_property_readonly("ZPlanes",&Polycone::GetZPlanes)
+        .def_property_readonly("Rmin",&Polycone::GetRmin)
+        .def_property_readonly("Rmax",&Polycone::GetRmax);
 
     // Trd
 

@@ -10,6 +10,7 @@
 #include "SIREN/geometry/GeometryMesh.h"
 #include "SIREN/geometry/MeshBuilder.h"
 #include "SIREN/geometry/Placement.h"
+#include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Trd.h"
 

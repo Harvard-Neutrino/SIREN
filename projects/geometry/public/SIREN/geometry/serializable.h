@@ -4,6 +4,7 @@
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Cone.h"
 #include "SIREN/geometry/Trd.h"
+#include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/GeometryMesh.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Placement.h"
