@@ -7,9 +7,10 @@
 #include "../../public/SIREN/geometry/Cylinder.h"
 #include "../../public/SIREN/geometry/Box.h"
 #include "../../public/SIREN/geometry/Cone.h"
-#include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Polycone.h"
 #include "../../public/SIREN/geometry/Polyhedra.h"
+#include "../../public/SIREN/geometry/GenericPolycone.h"
+#include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Torus.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/BooleanGeometry.h"
@@ -19,7 +20,6 @@
 #include "../../public/SIREN/geometry/Trap.h"
 #include "../../public/SIREN/geometry/Ellipsoid.h"
 #include "../../public/SIREN/geometry/Para.h"
-#include "../../public/SIREN/geometry/GenericPolycone.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -113,6 +113,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Rmax2",&Cone::GetRmax2)
         .def_property_readonly("Z",&Cone::GetZ);
 
+    // Torus
+
+    class_<Torus, std::shared_ptr<Torus>, Geometry>(m, "Torus")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Torus&>())
+        .def_property_readonly("MajorRadius",&Torus::GetMajorRadius)
+        .def_property_readonly("MinorRadius",&Torus::GetMinorRadius)
+        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius)
+        .def_property_readonly("StartPhi",&Torus::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Torus::GetDeltaPhi);
+
     // Polycone
 
     class_<Polycone, std::shared_ptr<Polycone>, Geometry>(m, "Polycone")
@@ -143,21 +159,19 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Rmin",&Polyhedra::GetRmin)
         .def_property_readonly("Rmax",&Polyhedra::GetRmax);
 
-    // Torus
+    // GenericPolycone
 
-    class_<Torus, std::shared_ptr<Torus>, Geometry>(m, "Torus")
+    class_<GenericPolycone, std::shared_ptr<GenericPolycone>, Geometry>(m, "GenericPolycone")
         .def(init<>())
-        .def(init<double, double, double>())
-        .def(init<double, double, double, double, double>())
-        .def(init<Placement const &>())
-        .def(init<Placement const &, double, double, double>())
-        .def(init<Placement const &, double, double, double, double, double>())
-        .def(init<const Torus&>())
-        .def_property_readonly("MajorRadius",&Torus::GetMajorRadius)
-        .def_property_readonly("MinorRadius",&Torus::GetMinorRadius)
-        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius)
-        .def_property_readonly("StartPhi",&Torus::GetStartPhi)
-        .def_property_readonly("DeltaPhi",&Torus::GetDeltaPhi);
+        .def(init<std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &, std::vector<double>, std::vector<double>>())
+        .def(init<std::vector<double>, std::vector<double>, double, double>())
+        .def(init<Placement const &, std::vector<double>, std::vector<double>, double, double>())
+        .def(init<const GenericPolycone&>())
+        .def_property_readonly("R",&GenericPolycone::GetR)
+        .def_property_readonly("Z",&GenericPolycone::GetZ)
+        .def_property_readonly("StartPhi",&GenericPolycone::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&GenericPolycone::GetDeltaPhi);
 
     // Trd
 
@@ -298,20 +312,6 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Alpha",&Para::GetAlpha)
         .def_property_readonly("Theta",&Para::GetTheta)
         .def_property_readonly("Phi",&Para::GetPhi);
-
-    // GenericPolycone
-
-    class_<GenericPolycone, std::shared_ptr<GenericPolycone>, Geometry>(m, "GenericPolycone")
-        .def(init<>())
-        .def(init<std::vector<double>, std::vector<double>>())
-        .def(init<Placement const &, std::vector<double>, std::vector<double>>())
-        .def(init<std::vector<double>, std::vector<double>, double, double>())
-        .def(init<Placement const &, std::vector<double>, std::vector<double>, double, double>())
-        .def(init<const GenericPolycone&>())
-        .def_property_readonly("R",&GenericPolycone::GetR)
-        .def_property_readonly("Z",&GenericPolycone::GetZ)
-        .def_property_readonly("StartPhi",&GenericPolycone::GetStartPhi)
-        .def_property_readonly("DeltaPhi",&GenericPolycone::GetDeltaPhi);
 
     // AABB
 

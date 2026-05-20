@@ -49,6 +49,7 @@ target_link_libraries(SIREN_geometry
 )
 apply_siren_compile_options(SIREN_geometry)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -63,6 +64,7 @@ package_add_test(UnitTest_Serialization ${PROJECT_SOURCE_DIR}/projects/geometry/
 
 pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
 target_link_libraries(geometry PRIVATE SIREN)
+siren_strip_module(geometry)
 if(DEFINED SKBUILD)
 set_target_properties(geometry PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

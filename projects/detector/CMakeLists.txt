@@ -22,14 +22,14 @@ LIST (APPEND detector_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/detector/private/RadialAxisExponentialDensityDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/DetectorModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/GDMLParser.cxx
-    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLExpression.cxx
-    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLUnits.cxx
-    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLReadUtils.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLDefineParser.cxx
-    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLPreprocess.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLExpression.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLMaterialParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLPreprocess.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLReadUtils.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLSolidParser.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLStructureParser.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/gdml/GDMLUnits.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/Path.cxx
 )
@@ -53,6 +53,7 @@ target_link_libraries(SIREN_detector
 )
 apply_siren_compile_options(SIREN_detector)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/detector/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -71,6 +72,7 @@ package_add_test(UnitTest_BVH ${PROJECT_SOURCE_DIR}/projects/detector/private/te
 
 pybind11_add_module(detector ${PROJECT_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
 target_link_libraries(detector PRIVATE SIREN)
+siren_strip_module(detector)
 if(DEFINED SKBUILD)
 set_target_properties(detector PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

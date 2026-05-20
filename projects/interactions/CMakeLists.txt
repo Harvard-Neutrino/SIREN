@@ -51,6 +51,7 @@ target_link_libraries(SIREN_interactions
 )
 apply_siren_compile_options(SIREN_interactions)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -71,6 +72,7 @@ if(TARGET MARLEY)
 endif()
 #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
 #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
+siren_strip_module(interactions)
 if(DEFINED SKBUILD)
 set_target_properties(interactions PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

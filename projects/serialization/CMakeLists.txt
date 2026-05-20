@@ -11,6 +11,7 @@ target_include_directories(SIREN_serialization PUBLIC
 
 apply_siren_compile_options(SIREN_serialization)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/serialization/public/"
     EXPORT ${PROJECT_NAME}Config
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
