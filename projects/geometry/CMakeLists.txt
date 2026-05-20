@@ -3,6 +3,7 @@
 LIST (APPEND geometry_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Geometry.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Box.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Cone.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Cylinder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Sphere.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/ExtrPoly.cxx

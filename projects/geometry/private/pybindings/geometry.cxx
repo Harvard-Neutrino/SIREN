@@ -6,6 +6,7 @@
 #include "../../public/SIREN/geometry/ExtrPoly.h"
 #include "../../public/SIREN/geometry/Cylinder.h"
 #include "../../public/SIREN/geometry/Box.h"
+#include "../../public/SIREN/geometry/Cone.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/AABB.h"
 
@@ -84,6 +85,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property("X",&Box::GetX, &Box::SetX)
         .def_property("Y",&Box::GetY, &Box::SetY)
         .def_property("Z",&Box::GetZ, &Box::SetZ);
+
+    // Cone
+
+    class_<Cone, std::shared_ptr<Cone>, Geometry>(m, "Cone")
+        .def(init<>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<double, double, double, double, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double, double, double>())
+        .def(init<const Cone&>())
+        .def_property_readonly("Rmin1",&Cone::GetRmin1)
+        .def_property_readonly("Rmax1",&Cone::GetRmax1)
+        .def_property_readonly("Rmin2",&Cone::GetRmin2)
+        .def_property_readonly("Rmax2",&Cone::GetRmax2)
+        .def_property_readonly("Z",&Cone::GetZ);
 
     // Cylinder
 

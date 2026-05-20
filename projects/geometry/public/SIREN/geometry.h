@@ -3,6 +3,7 @@
 
 #include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Box.h"
+#include "SIREN/geometry/Cone.h"
 #include "SIREN/geometry/Cylinder.h"
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/Geometry.h"
