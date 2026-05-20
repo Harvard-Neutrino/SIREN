@@ -10,7 +10,6 @@
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/Decay.h"
-#include "../../public/SIREN/interactions/Hadronization.h"
 
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
@@ -24,11 +23,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def(init<>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
-        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Hadronization>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
-        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Hadronization>>>())
-        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>, std::vector<std::shared_ptr<Hadronization>>>())
-        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>, std::vector<std::shared_ptr<Hadronization>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Interaction>>>())
         .def(self == self)
         .def("GetPrimaryType",&InteractionCollection::GetPrimaryType)
@@ -36,7 +31,6 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def("GetDecays",&InteractionCollection::GetDecays, return_value_policy::reference_internal)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)
         .def("HasDecays",&InteractionCollection::HasDecays)
-        .def("HasHadronizations",&InteractionCollection::HasHadronizations)
         .def("GetCrossSectionsForTarget",&InteractionCollection::GetCrossSectionsForTarget, return_value_policy::reference_internal)
         .def("GetCrossSectionsByTarget",&InteractionCollection::GetCrossSectionsByTarget, return_value_policy::reference_internal)
         .def("TotalCrossSectionByTarget",&InteractionCollection::TotalCrossSectionByTarget)

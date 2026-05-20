@@ -10,7 +10,6 @@
 #include "SIREN/interactions/Interaction.h"          // for Interaction
 #include "SIREN/interactions/CrossSection.h"        // for CrossSe...
 #include "SIREN/interactions/Decay.h"               // for Decay 
-#include "SIREN/interactions/Hadronization.h"               // for Decay 
 #include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
@@ -62,21 +61,9 @@ InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType pr
     InitializeTargetTypes();
 }
 
-InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Hadronization>> hadronizations) : primary_type(primary_type), hadronizations(hadronizations) {
-    InitializeTargetTypes();
-}
 
-InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Hadronization>> hadronizations) : primary_type(primary_type), cross_sections(cross_sections), hadronizations(hadronizations) {
-    InitializeTargetTypes();
-}
 
-InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays, std::vector<std::shared_ptr<Hadronization>> hadronizations) : primary_type(primary_type), decays(decays), hadronizations(hadronizations) {
-    InitializeTargetTypes();
-}
 
-InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays, std::vector<std::shared_ptr<Hadronization>> hadronizations) : primary_type(primary_type), cross_sections(cross_sections), decays(decays), hadronizations(hadronizations) {
-    InitializeTargetTypes();
-}
 
 InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Interaction>> interactions) : primary_type(primary_type) {
     for(auto interaction : interactions) {

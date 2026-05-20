@@ -121,9 +121,12 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::ma
         std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            fake_record.signature.primary_type = record.signature.primary_type;
-            fake_record.signature.target_type = target_xs.first;
-            total_xs += xs->TotalCrossSectionAllFinalStates(fake_record);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            for(auto const & signature : signatures) {
+                fake_record.signature = signature;
+                // Add total cross section
+                total_xs += xs->TotalCrossSection(fake_record);
+            }
         }
         total_cross_sections.push_back(total_xs);
     }
@@ -178,9 +181,12 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
         std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            fake_record.signature.primary_type = record.signature.primary_type;
-            fake_record.signature.target_type = target_xs.first;
-            total_xs += xs->TotalCrossSectionAllFinalStates(fake_record);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            for(auto const & signature : signatures) {
+                fake_record.signature = signature;
+                // Add total cross section
+                total_xs += xs->TotalCrossSection(fake_record);
+            }
         }
         total_cross_sections.push_back(total_xs);
     }
@@ -207,28 +213,16 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 
     double physical_probability = 1.0;
     double prob = InteractionProbability(bounds, record);
-    // if (prob == 0) {
-    //     std::cout << "Interaction probability is 0" << std::endl;
-    // }
     physical_probability *= prob;
 
     prob = NormalizedPositionProbability(bounds, record);
-    // if (prob == 0) {
-    //     std::cout << "Position probability is 0" << std::endl;
-    // }
     physical_probability *= prob;
 
     prob = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), record);
-    // if (prob == 0) {
-    //     std::cout << "XSec probability is 0" << std::endl;
-    // }
     physical_probability *= prob;
 
     for(auto physical_dist : unique_phys_distributions) {
         physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
-        // if (physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record) == 0) {
-        //     std::cout << "physical dist Generation probablity is 0" << std::endl;
-        // }
     }
 
     return normalization * physical_probability;
@@ -237,19 +231,10 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
     double gen_probability = siren::injection::CrossSectionProbability(detector_model, inj_process->GetInteractions(), datum.record);
-    // if (gen_probability == 0) {
-    //     std::cout << "Gen Cross section probability is 0" << std::endl;
-    // }
+
     for(auto gen_dist : unique_gen_distributions) {
-        // if (gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record) == 0) {
-        //     std::cout << "generation dist gen probability is 0" << std::endl;
-        // }
         gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
     }
-
-    // if (gen_probability == 0) {
-    //     std::cout << "tcc file gen prob is 0" << std::endl;
-    // }
     return gen_probability;
 }
 

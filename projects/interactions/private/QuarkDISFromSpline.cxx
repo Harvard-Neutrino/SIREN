@@ -239,10 +239,6 @@ double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron
 				return 1.96834; // GeV (PDG 2022); no Constants::DsMass yet
 			case siren::dataclasses::ParticleType::DsMinus:
 				return 1.96834;
-			case siren::dataclasses::ParticleType::Charm:
-				return( siren::utilities::Constants::CharmMass);
-			case siren::dataclasses::ParticleType::CharmBar:
-				return( siren::utilities::Constants::CharmMass);
             default:
                 return(0.0);
         }

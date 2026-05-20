@@ -17,7 +17,6 @@
 #include "../../public/SIREN/interactions/HNLDecay.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
-#include "../../public/SIREN/interactions/Hadronization.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay3Body.h"
 #include "../../public/SIREN/interactions/DMesonELoss.h"
@@ -40,7 +39,6 @@
 #include "./HNLDISFromSpline.h"
 #include "./HNLDecay.h"
 #include "./InteractionCollection.h"
-#include "./Hadronization.h"
 #include "./CharmMesonDecay.h"
 #include "./CharmMesonDecay3Body.h"
 #include "./DMesonELoss.h"
@@ -74,7 +72,6 @@ PYBIND11_MODULE(interactions,m) {
     register_HNLDecay(m);
     register_InteractionCollection(m);
     register_QuarkDISFromSpline(m);
-    register_Hadronization(m);
     register_CharmMesonDecay(m);
     register_CharmMesonDecay3Body(m);
     register_DMesonELoss(m);
