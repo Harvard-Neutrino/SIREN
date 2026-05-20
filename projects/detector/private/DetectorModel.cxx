@@ -1,5 +1,6 @@
 #include "SIREN/detector/DetectorModel.h"
 
+#include <mutex>
 #include <tuple>
 #include <cmath>
 #include <cctype>
@@ -30,11 +31,15 @@
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Cylinder.h"
+#include "SIREN/geometry/Cone.h"
+#include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/ExtrPoly.h"
 
 #include "SIREN/geometry/Placement.h"
 
 #include "SIREN/utilities/Constants.h"
+
+#include "SIREN/detector/GDMLParser.h"
 
 using namespace siren::math;
 using namespace siren::geometry;
@@ -167,6 +172,7 @@ DetectorModel::DetectorModel(std::string const & detector_model, std::string con
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadDetectorModel(detector_model);
+    // RebuildBVH() is called at the end of LoadDetectorModel()
 }
 
 DetectorModel::DetectorModel(std::string const & path, std::string const & detector_model, std::string const & material_model) : path_(path) {
@@ -174,6 +180,7 @@ DetectorModel::DetectorModel(std::string const & path, std::string const & detec
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadDetectorModel(detector_model);
+    // RebuildBVH() is called at the end of LoadDetectorModel()
 }
 
 bool DetectorModel::operator==(DetectorModel const & o) const {
@@ -218,6 +225,7 @@ void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
         sector_name_map_[sectors[i].name] = i;
         sector_map_[sectors[i].level] = i;
     }
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
@@ -247,6 +255,7 @@ void DetectorModel::AddSector(DetectorSector sector) {
     sector_name_map_[sector.name] = sectors_.size();
     sector_map_[sector.level] = sectors_.size();
     sectors_.push_back(sector);
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
@@ -273,6 +282,7 @@ void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
     sector_name_map_.clear();
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 namespace {
@@ -309,6 +319,16 @@ std::shared_ptr<siren::geometry::Geometry> DetectorModel::ParseGeometryObject(st
         double _or, ir, z; // For Cylinder shapes
         ss >> _or >> ir >> z;
         geo = Cylinder(placement, _or, ir, z).create();
+    }
+    else if(shape.find("cone")!=std::string::npos) {
+        double rmin1, rmax1, rmin2, rmax2, z;
+        ss >> rmin1 >> rmax1 >> rmin2 >> rmax2 >> z;
+        geo = Cone(placement, rmin1, rmax1, rmin2, rmax2, z).create();
+    }
+    else if(shape.find("trd")!=std::string::npos) {
+        double dx1, dx2, dy1, dy2, dz;
+        ss >> dx1 >> dx2 >> dy1 >> dy2 >> dz;
+        geo = Trd(placement, dx1, dx2, dy1, dy2, dz).create();
     }
     else if(shape.find("extr")!=std::string::npos) {
         int nverts;
@@ -576,6 +596,7 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
         }
     } // end of the while loop
     in.close();
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 void DetectorModel::LoadDefaultMaterials() {
@@ -609,6 +630,191 @@ void DetectorModel::LoadDefaultSectors() {
 void DetectorModel::LoadMaterialModel(std::string const & material_model) {
     materials_.SetPath(path_);
     materials_.AddModelFile(material_model);
+}
+
+std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, bool strict) {
+    GDMLParseOptions options;
+    options.strict = strict;
+    GDMLData data = ParseGDML(filename, options);
+
+    ClearSectors();
+    LoadDefaultMaterials();
+    LoadDefaultSectors();
+
+    // Recursive helper to resolve a material component to its elemental PDG fractions.
+    // Returns map of PDG code -> fraction.
+    std::set<std::string> resolve_visited;
+    std::function<std::map<int,double>(std::string const &, double)> resolve_component;
+    // Look up a component name across all three GDML material namespaces.
+    // Isotopes first (most specific), then elements, then materials.
+    // This order matches resolveCompRef in the parser and prevents circular
+    // resolution when an element and material share a name (e.g. "C").
+    auto findComponent = [&](std::string const & name) -> GDMLMaterial const * {
+        auto it = data.isotopes.find(name);
+        if(it != data.isotopes.end()) return &it->second;
+        it = data.elements.find(name);
+        if(it != data.elements.end()) return &it->second;
+        it = data.materials.find(name);
+        if(it != data.materials.end()) return &it->second;
+        return nullptr;
+    };
+
+    resolve_component = [&](std::string const & comp_name, double weight) -> std::map<int,double> {
+        std::map<int,double> result;
+        GDMLMaterial const * comp_ptr = findComponent(comp_name);
+        if(!comp_ptr) {
+            throw std::runtime_error("GDML error: material component '" + comp_name + "' not found");
+        }
+        if(resolve_visited.count(comp_name)) {
+            throw std::runtime_error("GDML error: circular material composition involving '" + comp_name + "'");
+        }
+        resolve_visited.insert(comp_name);
+        GDMLMaterial const & comp = *comp_ptr;
+        if(!comp.composition.empty()) {
+            // This component is itself a composite -- recurse
+            for(auto const & sub : comp.composition) {
+                auto sub_result = resolve_component(sub.first, weight * sub.second);
+                for(auto const & p : sub_result) {
+                    result[p.first] += p.second;
+                }
+            }
+        } else {
+            // Simple element
+            int Z = (int)comp.Z;
+            int A = (int)std::round(comp.A);
+            if(Z > 0 && A > 0) {
+                int pdg = 1000000000 + Z * 10000 + A * 10;
+                result[pdg] += weight;
+            }
+        }
+        resolve_visited.erase(comp_name);
+        return result;
+    };
+
+    // Add GDML materials to MaterialModel. Always overwrite any
+    // preloaded material of the same name so the GDML file's
+    // composition is authoritative for its own geometry.
+    for(auto const & mat_pair : data.materials) {
+        std::string const & mat_name = mat_pair.first;
+        GDMLMaterial const & mat = mat_pair.second;
+        if(!mat.composition.empty()) {
+            // Composite material: recursively resolve to elemental PDG codes
+            std::map<int, double> pdg_fracs;
+            for(auto const & comp_pair : mat.composition) {
+                auto resolved = resolve_component(comp_pair.first, comp_pair.second);
+                for(auto const & p : resolved) {
+                    pdg_fracs[p.first] += p.second;
+                }
+            }
+            if(!pdg_fracs.empty()) {
+                materials_.AddMaterial(mat_name, pdg_fracs);
+            }
+        } else {
+            // Simple material
+            int Z = (int)mat.Z;
+            int A = (int)std::round(mat.A);
+            if(Z > 0 && A > 0) {
+                int pdg = 1000000000 + Z * 10000 + A * 10;
+                materials_.AddMaterial(mat_name, {{pdg, 1.0}});
+            }
+        }
+    }
+
+    // Flatten GDML volume hierarchy into sectors.
+    // Uses a recursive helper to walk the tree.
+    struct BuildContext {
+        DetectorModel & dm;
+        GDMLData const & data;
+        int level;
+        std::set<std::string> visited; // cycle detection
+        BuildContext(DetectorModel & dm_, GDMLData const & data_) : dm(dm_), data(data_), level(0) {}
+
+        void BuildVolume(std::string const & raw_name, Placement const & global_placement) {
+            // Resolve through alias map (handles pointer-suffixed and instanced names)
+            auto ait = data.name_aliases.find(raw_name);
+            std::string const & volume_name = (ait != data.name_aliases.end()) ? ait->second : raw_name;
+            if(visited.count(volume_name)) {
+                throw std::runtime_error("GDML error: circular volume reference detected for '" + volume_name + "'");
+            }
+            auto it = data.volumes.find(volume_name);
+            if(it == data.volumes.end()) {
+                throw std::runtime_error("GDML error: volume '" + volume_name + "' not found in structure");
+            }
+
+            visited.insert(volume_name);
+
+            GDMLVolume const & vol = it->second;
+
+            if(!vol.is_assembly) {
+                auto solid_it = data.solids.find(vol.solid_ref);
+                auto mat_it = data.materials.find(vol.material_ref);
+                if(solid_it == data.solids.end() || mat_it == data.materials.end()) {
+                    std::string msg;
+                    if(solid_it == data.solids.end()) {
+                        msg = "GDML error: volume '" + vol.name + "' references unknown solid '" + vol.solid_ref + "'";
+                    } else {
+                        msg = "GDML error: volume '" + vol.name + "' references unknown material '" + vol.material_ref + "'";
+                    }
+                    visited.erase(volume_name);
+                    throw std::runtime_error(msg);
+                }
+
+                DetectorSector sector;
+                std::string base_name = vol.name;
+                std::string unique_name = base_name;
+                int name_suffix = 2;
+                while(dm.sector_name_map_.count(unique_name) > 0) {
+                    unique_name = base_name + "_" + std::to_string(name_suffix++);
+                }
+                sector.name = unique_name;
+                sector.level = level++;
+
+                auto geo = solid_it->second->create();
+                geo->SetPlacement(global_placement);
+                sector.geo = geo;
+
+                if(!dm.materials_.HasMaterial(vol.material_ref)) {
+                    throw std::runtime_error(
+                        "GDML LoadGDML: volume '" + vol.name
+                        + "' references material '" + vol.material_ref
+                        + "' which was not imported into MaterialModel");
+                }
+                sector.material_id = dm.materials_.GetMaterialId(vol.material_ref);
+                sector.density = ConstantDensityDistribution(mat_it->second.density).create();
+
+                dm.AddSector(sector);
+            }
+
+            // Recurse into children (both volumes and assemblies have physvol children)
+            for(auto const & child : vol.children) {
+                Vector3D child_pos = global_placement.LocalToGlobalPosition(child.position);
+                // GDML <physvol> rotation is PASSIVE: Geant4 places the daughter
+                // with G4Transform3D(GetRotationMatrix(angles).inverse(), pos), so
+                // its global->local map is M*(g-pos) with M = Rz*Ry*Rx. SIREN's
+                // Placement applies R(stored)^T for global->local, so the stored
+                // quaternion must be the conjugate of the QuatFromGDMLRotation
+                // building block (which equals M). Boolean operands keep the raw
+                // building block: Geant4's BooleanRead does NOT invert, and the
+                // wrapping G4DisplacedSolid yields M^-1*(p-pos), which the raw
+                // quaternion already reproduces -- so only physvol conjugates.
+                Quaternion child_rot = global_placement.GetQuaternion() * child.rotation.conjugated();
+                Placement child_global(child_pos, child_rot);
+
+                BuildVolume(child.volume_ref, child_global);
+            }
+
+            visited.erase(volume_name);
+        }
+    };
+
+    BuildContext ctx(*this, data);
+    if(!data.world_volume.empty()) {
+        ctx.BuildVolume(data.world_volume, Placement());
+    }
+
+    bvh_dirty_.store(true, std::memory_order_release);
+
+    return data.warnings;
 }
 
 
@@ -653,9 +859,16 @@ double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersec
 }
 
 double DetectorModel::GetMassDensity(GeometryPosition const & p0) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
-    return GetMassDensity(intersections, p0);
+    DetectorSector sector = GetContainingSectorDirect(p0);
+    if(!sector.density) {
+        // Fallback for edge cases where direct containment misses
+        Vector3D direction(1,0,0);
+        Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
+        return GetMassDensity(intersections, p0);
+    }
+    double density = sector.density->Evaluate(p0);
+    assert(density >= 0);
+    return density;
 }
 
 double DetectorModel::GetParticleDensity(Geometry::IntersectionList const & intersections, GeometryPosition const & p0, siren::dataclasses::ParticleType target) const {
@@ -700,7 +913,7 @@ double DetectorModel::GetParticleDensity(Geometry::IntersectionList const & inte
 }
 
 double DetectorModel::GetParticleDensity(GeometryPosition const & p0, siren::dataclasses::ParticleType target) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+    Vector3D direction(1,0,0);
     Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetParticleDensity(intersections, p0, target);
 }
@@ -766,7 +979,10 @@ double DetectorModel::GetInteractionDensity(GeometryPosition const & p0,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+    if(targets.empty()) {
+        return 1.0 / total_decay_length;
+    }
+    Vector3D direction(1,0,0);
     Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetInteractionDensity(intersections, p0, targets, total_cross_sections, total_decay_length);
 }
@@ -943,7 +1159,7 @@ double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersec
 }
 
 double DetectorModel::GetMassDensity(GeometryPosition const & p0,  std::set<siren::dataclasses::ParticleType> targets) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+    Vector3D direction(1,0,0);
     Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetMassDensity(intersections, p0, targets);
 }
@@ -1166,24 +1382,362 @@ DetectorSector DetectorModel::GetContainingSector(Geometry::IntersectionList con
 }
 
 DetectorSector DetectorModel::GetContainingSector(GeometryPosition const & p0) const {
-    Vector3D direction(0, 0, 1);
-    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
-    return GetContainingSector(intersections, p0);
+    return GetContainingSectorDirect(p0);
 }
 
+// ---------------------------------------------------------------------------
+// Direct point containment (no ray intersections needed)
+// ---------------------------------------------------------------------------
+
+void DetectorModel::FindContainingSectorBVH(
+    int node_idx,
+    math::Vector3D const & position,
+    int & best_level,
+    DetectorSector & best_sector) const
+{
+    BVHNode const & node = bvh_nodes_[node_idx];
+
+    // Prune: if the point is outside this node's AABB, skip
+    if(!node.bounds.Contains(position)) {
+        return;
+    }
+
+    if(node.sector_index >= 0) {
+        // Leaf node: test the actual sector geometry
+        DetectorSector const & sector = sectors_[node.sector_index];
+        if(sector.level > best_level && sector.geo->IsInside(position)) {
+            best_level = sector.level;
+            best_sector = sector;
+        }
+    } else {
+        // Internal node: traverse children
+        if(node.left_child >= 0)
+            FindContainingSectorBVH(node.left_child, position, best_level, best_sector);
+        if(node.right_child >= 0)
+            FindContainingSectorBVH(node.right_child, position, best_level, best_sector);
+    }
+}
+
+DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const & p0) const {
+    if(bvh_dirty_.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> lock(bvh_mutex_);
+        if(bvh_dirty_.load(std::memory_order_relaxed)) {
+            RebuildBVH();
+        }
+    }
+
+    int best_level = std::numeric_limits<int>::min();
+    DetectorSector best_sector;
+
+    // Infinite-bounds sectors (canonical case: UNIVERSE) always contain any
+    // finite point. Skip the IsInside call -- it would do inf arithmetic and
+    // return true anyway -- and use >= because UNIVERSE sits at INT_MIN,
+    // which equals best_level's initial value.
+    for(unsigned int idx : bvh_infinite_sectors_) {
+        DetectorSector const & sector = sectors_[idx];
+        if(sector.level >= best_level) {
+            best_level = sector.level;
+            best_sector = sector;
+        }
+    }
+
+    // Invalid-AABB sectors: bounding box is unusable as a pre-filter, but
+    // the geometry's IsInside() is still authoritative. An invalid AABB
+    // does not imply "contains everything" -- e.g. a degenerate boolean
+    // (empty intersection) has no AABB but is also empty -- so we must
+    // ask the geometry.
+    for(unsigned int idx : bvh_invalid_aabb_sectors_) {
+        DetectorSector const & sector = sectors_[idx];
+        if(sector.level > best_level && sector.geo->IsInside(p0)) {
+            best_level = sector.level;
+            best_sector = sector;
+        }
+    }
+
+    // Traverse BVH for sectors with well-formed finite bounds.
+    if(!bvh_nodes_.empty()) {
+        FindContainingSectorBVH(0, p0, best_level, best_sector);
+    }
+    // No fallback: every sector is in exactly one of the three buckets.
+
+    return best_sector;
+}
+
+// ---------------------------------------------------------------------------
+// BVH construction
+// ---------------------------------------------------------------------------
+
+void DetectorModel::RebuildBVH() const {
+    bvh_nodes_.clear();
+    bvh_infinite_sectors_.clear();
+    bvh_invalid_aabb_sectors_.clear();
+
+    // Pre-cache all world AABBs to avoid redundant GetWorldBoundingBox() calls
+    // during sort and bounds computation (each call does 8-corner rotation)
+    std::vector<geometry::AABB> cached_aabb(sectors_.size());
+    std::vector<unsigned int> bvh_indices;
+    for(unsigned int i = 0; i < sectors_.size(); ++i) {
+        cached_aabb[i] = sectors_[i].geo->GetWorldBoundingBox();
+        bool finite = std::isfinite(cached_aabb[i].min_corner.GetX()) &&
+                      std::isfinite(cached_aabb[i].max_corner.GetX()) &&
+                      std::isfinite(cached_aabb[i].min_corner.GetY()) &&
+                      std::isfinite(cached_aabb[i].max_corner.GetY()) &&
+                      std::isfinite(cached_aabb[i].min_corner.GetZ()) &&
+                      std::isfinite(cached_aabb[i].max_corner.GetZ());
+        if(!finite) {
+            // Infinite bounds (canonical case: UNIVERSE). Treat as "contains
+            // every finite point" for containment queries.
+            bvh_infinite_sectors_.push_back(i);
+        } else if(!cached_aabb[i].IsValid()) {
+            // Finite but malformed AABB (min > max on some axis, etc.).
+            // The geometry might still answer IsInside() correctly even if
+            // its bounding-box computation is degenerate; route through
+            // IsInside() at query time.
+            bvh_invalid_aabb_sectors_.push_back(i);
+        } else {
+            bvh_indices.push_back(i);
+        }
+    }
+
+    if(!bvh_indices.empty()) {
+        bvh_nodes_.reserve(2 * bvh_indices.size());
+        BuildBVHRecursive(bvh_indices, cached_aabb, 0, (int)bvh_indices.size());
+    }
+
+    bvh_dirty_.store(false, std::memory_order_release);
+}
+
+int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices,
+                                     std::vector<geometry::AABB> const & aabbs,
+                                     int begin, int end) const {
+    int node_idx = (int)bvh_nodes_.size();
+    bvh_nodes_.push_back(BVHNode());
+
+    // Compute bounds for this node
+    geometry::AABB bounds;
+    for(int i = begin; i < end; ++i) {
+        bounds.ExpandToInclude(aabbs[indices[i]]);
+    }
+    bvh_nodes_[node_idx].bounds = bounds;
+
+    int count = end - begin;
+    if(count == 1) {
+        bvh_nodes_[node_idx].sector_index = (int)indices[begin];
+        bvh_nodes_[node_idx].left_child = -1;
+        bvh_nodes_[node_idx].right_child = -1;
+
+        // Local AABB pre-filter is done during traversal
+    } else {
+        bvh_nodes_[node_idx].sector_index = -1;
+
+        // Find best split using binned SAH over all 3 axes
+        constexpr int N_BINS = 12;
+
+        geometry::AABB centroid_bounds;
+        for(int i = begin; i < end; ++i) {
+            centroid_bounds.ExpandToInclude(aabbs[indices[i]].Centroid());
+        }
+
+        int best_axis = 0;
+        int best_split = count / 2;
+        double best_cost = std::numeric_limits<double>::max();
+        double parent_area = bounds.SurfaceArea();
+        if(parent_area <= 0) parent_area = 1.0;
+
+        for(int axis = 0; axis < 3; ++axis) {
+            double axis_min = centroid_bounds.min_corner.GetX();
+            double axis_max = centroid_bounds.max_corner.GetX();
+            if(axis == 1) { axis_min = centroid_bounds.min_corner.GetY(); axis_max = centroid_bounds.max_corner.GetY(); }
+            if(axis == 2) { axis_min = centroid_bounds.min_corner.GetZ(); axis_max = centroid_bounds.max_corner.GetZ(); }
+
+            if(axis_max - axis_min < 1e-12) continue; // degenerate axis
+
+            // Bin the centroids
+            struct Bin { geometry::AABB bounds; int count = 0; };
+            Bin bins[N_BINS];
+            double inv_extent = N_BINS / (axis_max - axis_min);
+
+            for(int i = begin; i < end; ++i) {
+                double c = aabbs[indices[i]].GetCentroidAxis(axis);
+                int b = std::min((int)((c - axis_min) * inv_extent), N_BINS - 1);
+                bins[b].bounds.ExpandToInclude(aabbs[indices[i]]);
+                bins[b].count++;
+            }
+
+            // Sweep from left to find SAH cost at each split.
+            // Only include non-empty bins: a default AABB has +-DBL_MAX
+            // corners that would blow the accumulated bounds to universal.
+            geometry::AABB left_bounds;
+            int left_count = 0;
+            for(int s = 0; s < N_BINS - 1; ++s) {
+                if(bins[s].count > 0) left_bounds.ExpandToInclude(bins[s].bounds);
+                left_count += bins[s].count;
+                int right_count = count - left_count;
+                if(left_count == 0 || right_count == 0) continue;
+
+                geometry::AABB right_bounds;
+                for(int r = s + 1; r < N_BINS; ++r) {
+                    if(bins[r].count > 0) right_bounds.ExpandToInclude(bins[r].bounds);
+                }
+
+                double cost = 1.0 + (left_count * left_bounds.SurfaceArea()
+                                    + right_count * right_bounds.SurfaceArea()) / parent_area;
+                if(cost < best_cost) {
+                    best_cost = cost;
+                    best_axis = axis;
+                    best_split = left_count;
+                }
+            }
+        }
+
+        // Partition indices by the best split
+        int axis = best_axis;
+        double axis_min = centroid_bounds.min_corner.GetX();
+        double axis_max = centroid_bounds.max_corner.GetX();
+        if(axis == 1) { axis_min = centroid_bounds.min_corner.GetY(); axis_max = centroid_bounds.max_corner.GetY(); }
+        if(axis == 2) { axis_min = centroid_bounds.min_corner.GetZ(); axis_max = centroid_bounds.max_corner.GetZ(); }
+
+        if(axis_max - axis_min < 1e-12) {
+            // Degenerate: all centroids coincide. Fall back to median split.
+            int mid = begin + count / 2;
+            int left = BuildBVHRecursive(indices, aabbs, begin, mid);
+            int right = BuildBVHRecursive(indices, aabbs, mid, end);
+            bvh_nodes_[node_idx].left_child = left;
+            bvh_nodes_[node_idx].right_child = right;
+        } else {
+            // Sort by centroid on best axis and split at best_split
+            std::sort(indices.begin() + begin, indices.begin() + end,
+                [&](unsigned int a, unsigned int b) {
+                    return aabbs[a].GetCentroidAxis(axis) < aabbs[b].GetCentroidAxis(axis);
+                });
+
+            int mid = begin + best_split;
+            // Clamp to avoid empty partitions
+            if(mid <= begin) mid = begin + 1;
+            if(mid >= end) mid = end - 1;
+
+            int left = BuildBVHRecursive(indices, aabbs, begin, mid);
+            int right = BuildBVHRecursive(indices, aabbs, mid, end);
+            bvh_nodes_[node_idx].left_child = left;
+            bvh_nodes_[node_idx].right_child = right;
+        }
+    }
+
+    return node_idx;
+}
+
+// Helper: append a sector's intersections into the output list
+static inline void AppendSectorIntersections(
+    siren::detector::DetectorSector const & sector,
+    siren::math::Vector3D const & position,
+    siren::math::Vector3D const & direction,
+    siren::geometry::Geometry::IntersectionList & intersections) {
+    std::vector<siren::geometry::Geometry::Intersection> hits = sector.geo->Intersections(position, direction);
+    size_t prev_size = intersections.intersections.size();
+    intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
+    for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+        intersections.intersections[j].hierarchy = sector.level;
+        intersections.intersections[j].matID = sector.material_id;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GetIntersections: BVH-accelerated with iterative traversal
+//
+// Thread safety: concurrent reads (GetIntersections, GetContainingSectorDirect)
+// are safe. Concurrent mutation via AddSector during reads is NOT supported
+// and will cause undefined behavior. All sectors must be added before queries.
+// ---------------------------------------------------------------------------
+
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
+    // Lazy BVH rebuild when sectors have changed
+    if(bvh_dirty_.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> lock(bvh_mutex_);
+        if(bvh_dirty_.load(std::memory_order_relaxed)) {
+            RebuildBVH();
+        }
+    }
+
     Geometry::IntersectionList intersections;
     intersections.position = p0;
     intersections.direction = direction;
+    intersections.intersections.reserve(32);
 
-    // Obtain the intersections with each sector geometry
-    for(auto const & sector : sectors_) {
-        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
-        intersections.intersections.reserve(intersections.intersections.size() + std::distance(i.begin(), i.end()));
-        intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
-        for(unsigned int j=intersections.intersections.size(); j>intersections.intersections.size()-i.size(); --j) {
-            intersections.intersections[j-1].hierarchy = sector.level;
-            intersections.intersections[j-1].matID = sector.material_id;
+    // Test sectors excluded from the BVH (infinite bounds, e.g. UNIVERSE,
+    // and finite-but-invalid AABBs). For ray intersections, both kinds need
+    // the same treatment: ask the geometry directly. Unlike the containment
+    // path, an invalid AABB does not let us short-circuit, but it also does
+    // not give us a wrong answer here because AppendSectorIntersections
+    // routes through the geometry's own intersection code.
+    for(unsigned int idx : bvh_infinite_sectors_) {
+        AppendSectorIntersections(sectors_[idx], p0, direction, intersections);
+    }
+    for(unsigned int idx : bvh_invalid_aabb_sectors_) {
+        AppendSectorIntersections(sectors_[idx], p0, direction, intersections);
+    }
+
+    // Iterative BVH traversal using an explicit stack.
+    // Every finite-bounds sector is in the BVH; no linear scan fallback.
+    if(!bvh_nodes_.empty()) {
+        Vector3D dir = direction;
+        Vector3D inv_dir(
+            1.0 / dir.GetX(),
+            1.0 / dir.GetY(),
+            1.0 / dir.GetZ()
+        );
+
+        // Stack of node indices to visit (max depth ~30 for millions of sectors)
+        static constexpr int BVH_STACK_CAPACITY = 64;
+        int stack[BVH_STACK_CAPACITY];
+        int stack_top = 0;
+        std::vector<int> heap_stack;
+        stack[stack_top++] = 0; // root
+
+        while(stack_top > 0 || !heap_stack.empty()) {
+            int node_idx;
+            if(!heap_stack.empty()) {
+                node_idx = heap_stack.back();
+                heap_stack.pop_back();
+            } else {
+                node_idx = stack[--stack_top];
+            }
+            BVHNode const & node = bvh_nodes_[node_idx];
+
+            if(!geometry::RayAABBIntersect(p0, inv_dir, node.bounds))
+                continue;
+
+            if(node.sector_index >= 0) {
+                // Leaf: transform ray to local once, pre-filter with
+                // tight local AABB, then intersect without re-transforming.
+                DetectorSector const & sector = sectors_[node.sector_index];
+                Vector3D lp = sector.geo->GlobalToLocalPosition(p0);
+                Vector3D ld = sector.geo->GlobalToLocalDirection(dir);
+                Vector3D li(1.0 / ld.GetX(), 1.0 / ld.GetY(), 1.0 / ld.GetZ());
+                if(!geometry::RayAABBIntersect(lp, li, sector.geo->GetBoundingBox()))
+                    continue;
+
+                // Pass pre-transformed local coords via tagged types
+                std::vector<Geometry::Intersection> hits = sector.geo->Intersections(
+                    geometry::LocalPosition(lp), geometry::LocalDirection(ld));
+                size_t prev_size = intersections.intersections.size();
+                intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
+                for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+                    intersections.intersections[j].hierarchy = sector.level;
+                    intersections.intersections[j].matID = sector.material_id;
+                }
+            } else {
+                // Internal: push children; fall back to heap if stack is full
+                auto push = [&](int child) {
+                    if(child < 0) return;
+                    if(stack_top < BVH_STACK_CAPACITY) {
+                        stack[stack_top++] = child;
+                    } else {
+                        heap_stack.push_back(child);
+                    }
+                };
+                push(node.left_child);
+                push(node.right_child);
+            }
         }
     }
 
@@ -1191,6 +1745,7 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
 
     return intersections;
 }
+
 
 void DetectorModel::SortIntersections(Geometry::IntersectionList & intersections) {
     SortIntersections(intersections.intersections);
@@ -1253,8 +1808,15 @@ Geometry::IntersectionList DetectorModel::GetOuterBounds(GeometryPosition const 
 }
 
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(GeometryPosition const & vertex) const {
-    Geometry::IntersectionList intersections = GetIntersections(vertex, GeometryDirection(math::Vector3D(0,0,1)));
-    return GetAvailableTargets(intersections, vertex);
+    DetectorSector sector = GetContainingSectorDirect(vertex);
+    if(!sector.density) {
+        Vector3D direction(1,0,0);
+        Geometry::IntersectionList intersections = GetIntersections(vertex, GeometryDirection(direction));
+        return GetAvailableTargets(intersections, vertex);
+    }
+    int matID = sector.material_id;
+    std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+    return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
 }
 
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {

@@ -4,7 +4,9 @@
 
 #include <map>                                      // for map
 #include <set>                                      // for set
+#include <mutex>                                    // for mutex
 #include <array>                                    // for array
+#include <atomic>                                   // for atomic
 #include <memory>                                   // for shared_ptr
 #include <cstdint>                                  // for uint32_t
 #include <stdexcept>                                // for runtime_error
@@ -27,6 +29,7 @@
 #include "SIREN/dataclasses/Particle.h"    // for Particle
 #include "SIREN/detector/MaterialModel.h"  // for MaterialModel
 #include "SIREN/geometry/Geometry.h"       // for Geometry
+#include "SIREN/geometry/AABB.h"           // for AABB, RayAABBIntersect
 #include "SIREN/math/Vector3D.h"           // for Vector3D
 #include "SIREN/math/Quaternion.h"         // for Quaternion
 #include "SIREN/detector/Coordinates.h"
@@ -71,6 +74,40 @@ friend siren::detector::Path;
     std::map<std::string, unsigned int> sector_name_map_;
     math::Vector3D detector_origin_;
     math::Quaternion detector_rotation_;
+
+    // BVH acceleration structure for spatial queries
+    struct BVHNode {
+        geometry::AABB bounds;
+        int left_child = -1;    // index into bvh_nodes_, or -1
+        int right_child = -1;   // index into bvh_nodes_, or -1
+        int sector_index = -1;  // index into sectors_ for leaf nodes, -1 for internal
+    };
+    mutable std::vector<BVHNode> bvh_nodes_;
+    // Indices into sectors_ for volumes excluded from the BVH because their
+    // world AABB is unbounded (every component is +/-infinity). Containment
+    // queries treat these as containing every finite point unconditionally.
+    // The canonical inhabitant is the UNIVERSE sector.
+    mutable std::vector<unsigned int> bvh_infinite_sectors_;
+    // Indices into sectors_ excluded because their world AABB is finite but
+    // not well-formed (IsValid() == false, e.g. a degenerate boolean whose
+    // child intersection produced an empty/inverted box). An invalid AABB
+    // does NOT imply "contains everything" -- it means we have no spatial
+    // pre-filter and must fall back to the geometry's IsInside() to decide
+    // containment.
+    mutable std::vector<unsigned int> bvh_invalid_aabb_sectors_;
+    mutable std::atomic<bool> bvh_dirty_{true};
+    mutable std::mutex bvh_mutex_;
+
+    void RebuildBVH() const;
+    int BuildBVHRecursive(std::vector<unsigned int> & indices, std::vector<geometry::AABB> const & aabbs, int begin, int end) const;
+    // Direct point containment: finds containing sector without ray intersections.
+    // Uses BVH point-in-AABB tests + Geometry::IsInside() for O(log N) containment.
+    DetectorSector GetContainingSectorDirect(GeometryPosition const & p0) const;
+    void FindContainingSectorBVH(int node_idx,
+                                math::Vector3D const & position,
+                                int & best_level,
+                                DetectorSector & best_sector) const;
+
 public:
     DetectorModel();
     DetectorModel(std::string const & detector_model, std::string const & material_model);
@@ -87,6 +124,7 @@ public:
             archive(cereal::make_nvp("SectorMap", sector_map_));
             archive(cereal::make_nvp("SectorNameMap", sector_name_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
+            bvh_dirty_.store(true, std::memory_order_release); // BVH will be rebuilt on next query
         } else {
             throw std::runtime_error("DetectorModel only supports version <= 0!");
         }
@@ -283,6 +321,7 @@ private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
 public:
+    std::vector<std::string> LoadGDML(std::string const & filename, bool strict = false);
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 
     double GetTargetMass(siren::dataclasses::ParticleType target) const;
