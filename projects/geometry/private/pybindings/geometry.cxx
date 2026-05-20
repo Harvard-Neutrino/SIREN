@@ -15,6 +15,7 @@
 #include "../../public/SIREN/geometry/AABB.h"
 #include "../../public/SIREN/geometry/EllipticalTube.h"
 #include "../../public/SIREN/geometry/CutTube.h"
+#include "../../public/SIREN/geometry/Trap.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -226,6 +227,26 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Dz",&CutTube::GetDz)
         .def_property_readonly("LowNorm",&CutTube::GetLowNorm)
         .def_property_readonly("HighNorm",&CutTube::GetHighNorm);
+
+    // Trap
+
+    class_<Trap, std::shared_ptr<Trap>, Geometry>(m, "Trap")
+        .def(init<>())
+        .def(init<double, double, double, double, double, double, double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double, double, double, double, double, double, double>())
+        .def(init<const Trap&>())
+        .def_property_readonly("Dz",&Trap::GetDz)
+        .def_property_readonly("Theta",&Trap::GetTheta)
+        .def_property_readonly("Phi",&Trap::GetPhi)
+        .def_property_readonly("Dy1",&Trap::GetDy1)
+        .def_property_readonly("Dx1",&Trap::GetDx1)
+        .def_property_readonly("Dx2",&Trap::GetDx2)
+        .def_property_readonly("Alpha1",&Trap::GetAlpha1)
+        .def_property_readonly("Dy2",&Trap::GetDy2)
+        .def_property_readonly("Dx3",&Trap::GetDx3)
+        .def_property_readonly("Dx4",&Trap::GetDx4)
+        .def_property_readonly("Alpha2",&Trap::GetAlpha2);
 
     // AABB
 

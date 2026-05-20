@@ -17,5 +17,6 @@
 #include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/EllipticalTube.h"
 #include "SIREN/geometry/CutTube.h"
+#include "SIREN/geometry/Trap.h"
 
 #endif // SIREN_geometry_geometry_H
