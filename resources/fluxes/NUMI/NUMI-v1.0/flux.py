@@ -1,5 +1,27 @@
 import os
 import siren
+from siren.download import ensure_files, writable_data_dir
+
+_ABS_DIR = writable_data_dir(os.path.dirname(os.path.abspath(__file__)))
+_DATA_BASE = "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/main/fluxes/NUMI/NUMI-v1.0"
+
+_DATA_FILES = [
+    {"path": os.path.join(_ABS_DIR, f"NUMI_{mode}_{energy}.dat"),
+     "url": f"{_DATA_BASE}/NUMI_{mode}_{energy}.dat",
+     "sha256": sha}
+    for mode, energy, sha in [
+        ("FHC", "LE", "38fc38719d88dd96fdd0f849c9921fcee224a9faaa6a4f0d0a569d408bc3b372"),
+        ("FHC", "ME", "2401354dc561a51a84de87e5f47308fdb736b2739316b275fd0959e1428c9860"),
+        ("FHC", "ME_unofficial", "3c5e1b3afe0e992602442bac13b07f2359a290dfe31c45a6b0026bf1542befd1"),
+        ("RHC", "LE", "e994bb199e441a0aa695ec4a6b1698dbbf4d876e17e0c650d252c9943cd7da2c"),
+        ("RHC", "ME", "52c538efd182b03bcf45577bdf81172575fe4247eec5cc980a41764e08fbabf4"),
+        ("RHC", "ME_unofficial", "63bfbff1b27303ee04c7aade3841481a22416b2f5b39cd807398a797c61c90d4"),
+    ]
+]
+
+
+def fetch_data():
+    ensure_files(_DATA_FILES)
 
 
 def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=True):
@@ -7,6 +29,8 @@ def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=
     Accepts the following tags:
         {FHC,RHC}_{LE,ME}_{nue,nuebar,numu,numubar}
     '''
+
+    fetch_data()
 
     if tag is None:
         raise TypeError("\"tag\" is a required argument")
@@ -26,8 +50,7 @@ def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=
     if particle not in ["nue","numu","nuebar","numubar"]:
         raise ValueError("%s particle specified in tag %s is not valid"%(particle,tag))
 
-    abs_flux_dir = os.path.dirname(__file__)
-    input_flux_file = os.path.join(abs_flux_dir,
+    input_flux_file = os.path.join(_ABS_DIR,
                                    "NUMI_%s_%s.dat" % (mode, energy))
 
     all_lines = open(input_flux_file, "r").readlines()
