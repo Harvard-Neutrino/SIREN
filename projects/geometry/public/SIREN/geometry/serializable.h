@@ -18,5 +18,6 @@
 #include "SIREN/geometry/Trap.h"
 #include "SIREN/geometry/Ellipsoid.h"
 #include "SIREN/geometry/Para.h"
+#include "SIREN/geometry/GenericPolycone.h"
 
 #endif // SIREN_geometry_serializable_H
