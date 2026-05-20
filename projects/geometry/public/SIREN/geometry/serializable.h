@@ -13,5 +13,6 @@
 #include "SIREN/geometry/Cylinder.h"
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/EllipticalTube.h"
 
 #endif // SIREN_geometry_serializable_H

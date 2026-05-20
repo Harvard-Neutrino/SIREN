@@ -13,6 +13,7 @@
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/BooleanGeometry.h"
 #include "../../public/SIREN/geometry/AABB.h"
+#include "../../public/SIREN/geometry/EllipticalTube.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -196,6 +197,18 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Operation",&BooleanGeometry::GetOperation)
         .def_property_readonly("Left",&BooleanGeometry::GetLeft)
         .def_property_readonly("Right",&BooleanGeometry::GetRight);
+
+    // EllipticalTube
+
+    class_<EllipticalTube, std::shared_ptr<EllipticalTube>, Geometry>(m, "EllipticalTube")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<const EllipticalTube&>())
+        .def_property_readonly("Dx",&EllipticalTube::GetDx)
+        .def_property_readonly("Dy",&EllipticalTube::GetDy)
+        .def_property_readonly("Dz",&EllipticalTube::GetDz);
 
     // AABB
 
