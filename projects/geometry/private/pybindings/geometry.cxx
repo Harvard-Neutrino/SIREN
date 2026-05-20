@@ -16,6 +16,7 @@
 #include "../../public/SIREN/geometry/EllipticalTube.h"
 #include "../../public/SIREN/geometry/CutTube.h"
 #include "../../public/SIREN/geometry/Trap.h"
+#include "../../public/SIREN/geometry/Ellipsoid.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -247,6 +248,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Dx3",&Trap::GetDx3)
         .def_property_readonly("Dx4",&Trap::GetDx4)
         .def_property_readonly("Alpha2",&Trap::GetAlpha2);
+
+    // Ellipsoid
+
+    class_<Ellipsoid, std::shared_ptr<Ellipsoid>, Geometry>(m, "Ellipsoid")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Ellipsoid&>())
+        .def_property_readonly("Ax",&Ellipsoid::GetAx)
+        .def_property_readonly("By",&Ellipsoid::GetBy)
+        .def_property_readonly("Cz",&Ellipsoid::GetCz)
+        .def_property_readonly("Zcut1",&Ellipsoid::GetZcut1)
+        .def_property_readonly("Zcut2",&Ellipsoid::GetZcut2);
 
     // AABB
 

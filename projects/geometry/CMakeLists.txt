@@ -17,6 +17,7 @@ LIST (APPEND geometry_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/EllipticalTube.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/CutTube.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Trap.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Ellipsoid.cxx
 )
 add_library(SIREN_geometry OBJECT ${geometry_SOURCES})
 set_property(TARGET SIREN_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
