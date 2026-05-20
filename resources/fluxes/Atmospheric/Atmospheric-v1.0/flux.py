@@ -1,4 +1,41 @@
 import os
+import numpy as np
+from siren.download import ensure_files, writable_data_dir
+
+_ABS_DIR = writable_data_dir(os.path.dirname(os.path.abspath(__file__)))
+
+_DATA_BASE = (
+    "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
+    "main/fluxes/Atmospheric/Atmospheric-v1.0"
+)
+
+MODELS = ["bartol", "daemonflux", "H3a_SIBYLL21", "H3a_SIBYLL23C", "honda2006"]
+PARTICLES = ["nue", "numu", "nuebar", "numubar", "nutau", "nutaubar"]
+OSC_STATES = ["osc", "unosc"]
+
+_NPZ_SHA256 = {
+    "bartol": "0cc8650a1002b381050fb75b38c5a6d0d50e5f70e54cfaa82398994678dc9d0b",
+    "daemonflux": "e40978ae6fe034494e27c52765399919894693959b749f798789c97352cf2dab",
+    "H3a_SIBYLL21": "ac02b1ae63df576534c55cd9f13547b9edf34751a4c8ab9cef2aab72cf4212fd",
+    "H3a_SIBYLL23C": "3e21cd1442ef13950d391ce5d83765ff45885d5a2cb568756e0255aad0ca8a3f",
+    "honda2006": "de349697a10f37c4b5254805079b71ebe1865b9bdc8d225d8bb2dec7b2d34115",
+}
+
+_NPZ_FILES = [
+    {
+        "path": os.path.join(_ABS_DIR, f"{model}.npz"),
+        "url": f"{_DATA_BASE}/{model}.npz",
+        "sha256": _NPZ_SHA256[model],
+    }
+    for model in MODELS
+]
+
+
+def fetch_data():
+    """Download all atmospheric flux npz files."""
+    ensure_files(_NPZ_FILES)
+
+
 def load_flux(tag):
     '''
     Accepts the following tags:
@@ -9,49 +46,46 @@ def load_flux(tag):
     '''
     fields = tag.split("_")
     if len(fields) < 3:
-        print("Tag %s is not valid. It should be of the form {model}_{osc_status}_{particle1}_{particle2}_...{particleN}"%tag)
-        exit(0)
+        raise ValueError(
+            f"Tag '{tag}' is not valid. Expected "
+            "{{model}}_{{osc_status}}_{{particle1}}_{{particle2}}_...")
     model, osc_status = fields[0], fields[1]
     particles = fields[2:]
-    if model not in ["bartol","daemonflux","H3a_SIBYLL21","H3a_SIBYLL23C","honda2006"]:
-        print("%s model specified in tag %s is not valid"%(model,tag))
-        exit(0)
-    if osc_status not in ["osc","unosc"]:
-        print("%s osc_status specified in tag %s is not valid"%(osc_status,tag))
-        exit(0)
-    if not all(p in ["nue","numu","nuebar","numubar","nutau","nutaubar"] for p in particles):
-        print("%s particles specified in tag %s are not valid"%(particles,tag))
-        exit(0)
+    if model not in MODELS:
+        raise ValueError(f"Unknown model '{model}' in tag '{tag}'")
+    if osc_status not in OSC_STATES:
+        raise ValueError(f"Unknown osc_status '{osc_status}' in tag '{tag}'")
+    for p in particles:
+        if p not in PARTICLES:
+            raise ValueError(f"Unknown particle '{p}' in tag '{tag}'")
 
-    abs_flux_dir = os.path.dirname(__file__)
-    output_flux_file = os.path.join(abs_flux_dir,
-                                    "Atmospheric_%s_flux.txt"%(tag))
+    npz_spec = {"path": os.path.join(_ABS_DIR, f"{model}.npz"),
+                "url": f"{_DATA_BASE}/{model}.npz",
+                "sha256": _NPZ_SHA256.get(model, "")}
+    ensure_files([npz_spec])
+
+    output_flux_file = os.path.join(_ABS_DIR, f"Atmospheric_{tag}_flux.txt")
     if os.path.isfile(output_flux_file):
         return output_flux_file
-    else:
-        with open(output_flux_file,"w") as fout:
-            tot_flux = {}
-            key_list = []
-            for particle in particles:
-                input_flux_file = os.path.join(abs_flux_dir,
-                                               "%s/%s_%s_flux.txt"%(model,particle,osc_status))
-                with open(input_flux_file,"r") as fin:
-                    all_lines = fin.readlines()
-                    data = [line.strip().split() for line in all_lines]
 
-                    for row in data:
-                        Energy,CosTheta,flux = float(row[0]),float(row[1]),float(row[2])
-                        Energy_key = "%3.3e"%Energy
-                        CosTheta_key = "%3.3e"%CosTheta
-                        key = (Energy_key,CosTheta_key)
-                        if key not in tot_flux:
-                            tot_flux[key] = 0.
-                            key_list.append(key)
-                        tot_flux[key] += flux
-            for key in key_list:
-                Energy_key, CosTheta_key = key
-                Energy = float(Energy_key)
-                CosTheta = float(CosTheta_key)
-                flux = tot_flux[key] # already in nu/m^2/GeV/POT
-                print(Energy,CosTheta,flux,file=fout)
+    npz = np.load(npz_spec["path"])
+    energy = npz["energy"]
+    cos_theta = npz["cos_theta"]
+
+    tot_flux = None
+    for particle in particles:
+        key = f"{particle}_{osc_status}"
+        if key not in npz:
+            raise ValueError(f"Variant '{key}' not found in {model}.npz")
+        grid = npz[key].astype(np.float64)
+        if tot_flux is None:
+            tot_flux = grid.copy()
+        else:
+            tot_flux += grid
+
+    with open(output_flux_file, "w") as fout:
+        for i, e in enumerate(energy):
+            for j, c in enumerate(cos_theta):
+                print(e, c, tot_flux[i, j], file=fout)
+
     return output_flux_file

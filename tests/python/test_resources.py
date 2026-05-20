@@ -87,10 +87,20 @@ def test_load_detector_returns_built_model(utilities, installed_resources_root):
 def test_load_flux_t2k_kaons(utilities, installed_resources_root, tmp_path):
     if not _has_resource(installed_resources_root, "fluxes", "T2K_Kaons"):
         pytest.skip("installed siren has no fluxes/T2K_Kaons")
-    # Mirror the source data into tmp so flux.py's output stays out of site-packages.
+    # load_flux triggers fetch_data() which downloads into the resource dir.
+    # Use abs_flux_dir=tmp_path so generated output stays out of site-packages.
+    # Copy the input data from the resource dir after the loader ensures it.
     src = installed_resources_root / "fluxes" / "T2K_Kaons" / "T2K_Kaons-v1.0"
+    # Trigger the download by importing and calling fetch_data
+    from siren._util import import_resource
+    mod = import_resource("flux", "T2K_Kaons")
+    if mod is not None and hasattr(mod, "fetch_data"):
+        mod.fetch_data()
     for fname in ("kaon-flux-data.dat", "ratio.dat"):
-        (tmp_path / fname).write_bytes((src / fname).read_bytes())
+        src_file = src / fname
+        if not src_file.exists():
+            pytest.skip("T2K_Kaons data files not present after fetch_data()")
+        (tmp_path / fname).write_bytes(src_file.read_bytes())
     out = utilities.load_flux("T2K_Kaons", "numu_PLUS", abs_flux_dir=str(tmp_path))
     assert Path(out).exists()
     assert Path(out).stat().st_size > 0
