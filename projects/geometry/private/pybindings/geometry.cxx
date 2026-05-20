@@ -17,6 +17,7 @@
 #include "../../public/SIREN/geometry/CutTube.h"
 #include "../../public/SIREN/geometry/Trap.h"
 #include "../../public/SIREN/geometry/Ellipsoid.h"
+#include "../../public/SIREN/geometry/Para.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -264,6 +265,21 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Cz",&Ellipsoid::GetCz)
         .def_property_readonly("Zcut1",&Ellipsoid::GetZcut1)
         .def_property_readonly("Zcut2",&Ellipsoid::GetZcut2);
+
+    // Para
+
+    class_<Para, std::shared_ptr<Para>, Geometry>(m, "Para")
+        .def(init<>())
+        .def(init<double, double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double, double>())
+        .def(init<const Para&>())
+        .def_property_readonly("Dx",&Para::GetDx)
+        .def_property_readonly("Dy",&Para::GetDy)
+        .def_property_readonly("Dz",&Para::GetDz)
+        .def_property_readonly("Alpha",&Para::GetAlpha)
+        .def_property_readonly("Theta",&Para::GetTheta)
+        .def_property_readonly("Phi",&Para::GetPhi);
 
     // AABB
 
