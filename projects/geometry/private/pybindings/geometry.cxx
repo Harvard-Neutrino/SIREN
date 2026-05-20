@@ -7,6 +7,7 @@
 #include "../../public/SIREN/geometry/Cylinder.h"
 #include "../../public/SIREN/geometry/Box.h"
 #include "../../public/SIREN/geometry/Cone.h"
+#include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/AABB.h"
 
@@ -101,6 +102,20 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Rmin2",&Cone::GetRmin2)
         .def_property_readonly("Rmax2",&Cone::GetRmax2)
         .def_property_readonly("Z",&Cone::GetZ);
+
+    // Trd
+
+    class_<Trd, std::shared_ptr<Trd>, Geometry>(m, "Trd")
+        .def(init<>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Trd&>())
+        .def_property_readonly("Dx1",&Trd::GetDx1)
+        .def_property_readonly("Dx2",&Trd::GetDx2)
+        .def_property_readonly("Dy1",&Trd::GetDy1)
+        .def_property_readonly("Dy2",&Trd::GetDy2)
+        .def_property_readonly("Dz",&Trd::GetDz);
 
     // Cylinder
 
