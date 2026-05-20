@@ -52,20 +52,30 @@
 
 #include "SIREN/serialization/array.h"
 #include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Placement.h"
+#include <NamedType/named_type.hpp>
 
 namespace siren {
 namespace geometry {
+
+// Tagged types for local (body-frame) coordinates.
+// Prevents accidentally passing global coordinates to local-frame methods.
+using LocalPosition = fluent::NamedType<math::Vector3D, struct LocalPositionTag, fluent::Callable, fluent::Comparable>;
+using LocalDirection = fluent::NamedType<math::Vector3D, struct LocalDirectionTag, fluent::Callable, fluent::Comparable>;
 
 class Geometry {
 friend cereal::access;
 public:
     template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {};
-    static constexpr const double GEOMETRY_PRECISION = 1.e-9;
-    struct ParticleLocation {
-        enum Enum { InfrontGeometry= 0, InsideGeometry, BehindGeometry };
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Name", name_));
+            archive(cereal::make_nvp("Placement", placement_));
+            world_aabb_cached_ = false;
+        }
     };
+    static constexpr const double GEOMETRY_PRECISION = 1.e-9;
     struct Intersection {
         double distance;
         int hierarchy;
@@ -131,35 +141,29 @@ public:
     // Member functions
     // ----------------------------------------------------------------- //
 
-    bool IsInside(const math::Vector3D& position, const math::Vector3D& direction) const;
-
-    bool IsInfront(const math::Vector3D& position, const math::Vector3D& direction) const;
-
-    bool IsBehind(const math::Vector3D& position, const math::Vector3D& direction) const;
-
-
-
     /*!
-     * This function calculates the distance of the particle position
-     * to the border of the geometry in direction of the particle trajectory.
-     * If the particle trajectory does not have an intersection with the geometry
-     * (-1 /-1) is returned
-     * If the particle trajectory has two intersections (dist_1 /dist_2) is returned
-     * If the particle has one intersection (dist_1 /-1) is returned
-     * (one intersection means one intersection in direction of the particle trajectory
-     * and one in the opposite direction. Cause we are not interested in this one. it is set to -1)
-     * Note: If the particle is on the geometry border this is not treated as an intersection
-     * A particle on the geometry border which moves inside has one intersection,
-     * a particle on the geometry border which moves outside has no intersection.
-     * Distances smaller then GEOMETRY_PRECISION (1e-9) are also set to -1
+     * Tests whether a point (in global coordinates) is inside this geometry.
      */
-    std::pair<double, double> DistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const;
-
+    bool IsInside(const math::Vector3D& position, const math::Vector3D& direction) const;
+    bool IsInside(const math::Vector3D& position) const;
 
     /*!
-     * Calculates the intersections of a ray with the geometry surface
+     * Calculates the intersections of a ray with the geometry surface.
+     * Takes global coordinates; transforms to local internally.
      */
     std::vector<Intersection> Intersections(math::Vector3D const & position, math::Vector3D const & direction) const;
+
+    /*!
+     * Calculates intersections from pre-transformed local coordinates.
+     * Skips the GlobalToLocal transform. Use with ToLocal() for
+     * efficient pre-filtered intersection queries.
+     */
+    std::vector<Intersection> Intersections(LocalPosition const & position, LocalDirection const & direction) const;
+
+    /*!
+     * Transform global coordinates to this geometry's local frame.
+     */
+    std::pair<LocalPosition, LocalDirection> ToLocal(math::Vector3D const & position, math::Vector3D const & direction) const;
 
     /*!
      * Calculates the distance to the closest approch to the geometry center
@@ -172,31 +176,41 @@ public:
     // Getter & Setter
     // ----------------------------------------------------------------- //
 
-    ParticleLocation::Enum GetLocation(const math::Vector3D& position, const math::Vector3D& direction) const;
-
     //math::Vector3D GetPosition() const { return position_; }
 
     std::string GetName() const { return name_; }
 
     Placement GetPlacement() const { return placement_; }
 
-    void SetPlacement(Placement const & placement) { placement_ = placement; }
+    void SetPlacement(Placement const & placement) { placement_ = placement; world_aabb_cached_ = false; RecomputeWorldAABB(); }
 
     //void SetPosition(const math::Vector3D& position) { position_ = position; };
 
     virtual std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const = 0;
+
+    // Returns the axis-aligned bounding box in local coordinates.
+    // Each subclass must implement this.
+    virtual AABB GetBoundingBox() const = 0;
+
+    // Returns a conservative axis-aligned bounding box in global coordinates.
+    // Transforms the local AABB through the Placement (rotates the 8 corners
+    // and takes the axis-aligned envelope).
+    AABB GetWorldBoundingBox() const;
 
 protected:
     // Implemented in child classes to be able to use equality operator
     virtual bool equal(const Geometry&) const = 0;
     virtual bool less(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
-    virtual std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const = 0;
 
     //math::Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 
+    void RecomputeWorldAABB() const;
+
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
     Placement placement_;
+    mutable bool world_aabb_cached_ = false;
+    mutable AABB cached_world_aabb_;
 
 public:
     math::Vector3D LocalToGlobalPosition(math::Vector3D const & p) const;
@@ -205,9 +219,9 @@ public:
     math::Vector3D GlobalToLocalDirection(math::Vector3D const & d) const;
 };
 
-enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH};
+enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH, CONE, TRD, POLYCONE, POLYHEDRA, BOOLEAN, TORUS, ELTUBE, CUTTUBE, TRAP, ELLIPSOID, PARA, GENERICPOLYCONE};
 
-const std::array<std::string, 5>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
+inline const std::array<std::string, 17>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh", "cone", "trd", "polycone", "polyhedra", "boolean", "torus", "eltube", "cuttube", "trap", "ellipsoid", "para", "genericpolycone"};
 
 } // namespace geometry
 } // namespace siren

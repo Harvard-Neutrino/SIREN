@@ -1,6 +1,7 @@
 #ifndef SIREN_geometry_geometry_H
 #define SIREN_geometry_geometry_H
 
+#include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Cylinder.h"
 #include "SIREN/geometry/ExtrPoly.h"

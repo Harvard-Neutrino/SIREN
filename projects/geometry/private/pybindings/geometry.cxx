@@ -7,6 +7,7 @@
 #include "../../public/SIREN/geometry/Cylinder.h"
 #include "../../public/SIREN/geometry/Box.h"
 #include "../../public/SIREN/geometry/Sphere.h"
+#include "../../public/SIREN/geometry/AABB.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -21,13 +22,10 @@ PYBIND11_MODULE(geometry,m) {
     // geometry
 
     class_<Geometry, std::shared_ptr<Geometry>>(m, "Geometry")
-        .def("IsInside",&Geometry::IsInside)
-        .def("IsInfront",&Geometry::IsInfront)
-        .def("IsBehind",&Geometry::IsBehind)
-        .def("DistanceToBorder",&Geometry::DistanceToBorder)
-        .def("Intersections",&Geometry::Intersections)
+        .def("IsInside", (bool (Geometry::*)(siren::math::Vector3D const &, siren::math::Vector3D const &) const) &Geometry::IsInside)
+        .def("IsInside", (bool (Geometry::*)(siren::math::Vector3D const &) const) &Geometry::IsInside)
+        .def("Intersections", (std::vector<Geometry::Intersection> (Geometry::*)(siren::math::Vector3D const &, siren::math::Vector3D const &) const) &Geometry::Intersections)
         .def("DistanceToClosestApproach",&Geometry::DistanceToClosestApproach)
-        .def("GetLocation",&Geometry::GetLocation)
         .def_property_readonly("name",&Geometry::GetName)
         .def_property("placement",&Geometry::GetPlacement, &Geometry::SetPlacement)
         .def("ComputeIntersections",&Geometry::ComputeIntersections)
@@ -94,6 +92,8 @@ PYBIND11_MODULE(geometry,m) {
         .def(init<double, double, double>())
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
         .def(init<const Cylinder&>())
         .def_property("InnerRadius",&Cylinder::GetInnerRadius, &Cylinder::SetInnerRadius)
         .def_property("Radius",&Cylinder::GetRadius, &Cylinder::SetRadius)
@@ -104,11 +104,31 @@ PYBIND11_MODULE(geometry,m) {
     class_<Sphere, std::shared_ptr<Sphere>, Geometry>(m, "Sphere")
         .def(init<>())
         .def(init<double, double>())
+        .def(init<double, double, double, double, double, double>())
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double>())
+        .def(init<Placement const &, double, double, double, double, double, double>())
         .def(init<const Sphere&>())
-        .def_property("InnerRadius",&Sphere::GetInnerRadius, &Sphere::SetInnerRadius)
-        .def_property("Radius",&Sphere::GetRadius, &Sphere::SetRadius);
+        .def_property_readonly("InnerRadius",&Sphere::GetInnerRadius)
+        .def_property_readonly("Radius",&Sphere::GetRadius)
+        .def_property_readonly("StartPhi",&Sphere::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Sphere::GetDeltaPhi)
+        .def_property_readonly("StartTheta",&Sphere::GetStartTheta)
+        .def_property_readonly("DeltaTheta",&Sphere::GetDeltaTheta);
+
+    // AABB
+
+    class_<AABB>(m, "AABB")
+        .def(init<>())
+        .def(init<siren::math::Vector3D const &, siren::math::Vector3D const &>())
+        .def_readwrite("min_corner", &AABB::min_corner)
+        .def_readwrite("max_corner", &AABB::max_corner)
+        .def("ExpandToInclude", (void (AABB::*)(siren::math::Vector3D const &)) &AABB::ExpandToInclude)
+        .def("Centroid", &AABB::Centroid)
+        .def("SurfaceArea", &AABB::SurfaceArea)
+        .def("LargestAxis", &AABB::LargestAxis)
+        .def("IsValid", &AABB::IsValid)
+        .def("Contains", &AABB::Contains);
 
     class_<Placement, std::shared_ptr<Placement>>(m, "Placement")
         .def(init<>())

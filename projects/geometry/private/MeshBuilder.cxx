@@ -319,7 +319,12 @@ PolygonData Voxel::Clip(TData const & tri) const {
 
 
 ///////////////
-// Fast Box-Triangle intersection check
+// Fast triangle-cube overlap test
+//
+// Douglas Voorhies, "Triangle-Cube Intersection," in Graphics Gems III
+// (David Kirk, ed.), Academic Press, 1992, pp. 236-239.
+// Original source code: https://github.com/erich666/GraphicsGems
+// License: see Graphics Gems license (free for use with attribution).
 ///////////////
 
 #define EPS 10e-5
@@ -888,8 +893,8 @@ void SplitEventsByPlane(std::vector<Event> const & events,
     GeneratePlaneEvents(EBLtemp, EBRtemp, triangle_data, intersecting_tris, voxel, plane);
     std::sort(EBLtemp.begin(), EBLtemp.end(), EventCompare);
     std::sort(EBRtemp.begin(), EBRtemp.end(), EventCompare);
-    std::merge(ELtemp.begin(), ELtemp.end(), EBLtemp.begin(), EBLtemp.end(), EL.begin(), EventCompare);
-    std::merge(ERtemp.begin(), ERtemp.end(), EBRtemp.begin(), EBRtemp.end(), ER.begin(), EventCompare);
+    std::merge(ELtemp.begin(), ELtemp.end(), EBLtemp.begin(), EBLtemp.end(), std::back_inserter(EL), EventCompare);
+    std::merge(ERtemp.begin(), ERtemp.end(), EBRtemp.begin(), EBRtemp.end(), std::back_inserter(ER), EventCompare);
 	for(unsigned int i=0; i<EL.size(); ++i) {
         Event const & e = EL[i];
         if(e.axis != plane.axis)
@@ -949,6 +954,146 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
 
     // Recursively build the tree
     return RecBuild(triangle_data, T, V, events, traversal_cost, intersection_cost, max_depth);
+}
+
+// ---------------------------------------------------------------------------
+// Moller-Trumbore ray-triangle intersection
+//
+// Tomas Moller, Ben Trumbore, "Fast, Minimum Storage Ray/Triangle
+// Intersection," Journal of Graphics Tools 2(1), 1997.
+// ---------------------------------------------------------------------------
+RayTriangleHit RayTriangleIntersect(
+    Point const & origin,
+    Point const & direction,
+    Point const & v0,
+    Point const & v1,
+    Point const & v2,
+    double epsilon) {
+    RayTriangleHit result;
+    result.hit = false;
+    result.t = 0;
+    result.front_face = false;
+
+    Point edge1 = subtract(v1, v0);
+    Point edge2 = subtract(v2, v0);
+
+    // h = direction x edge2
+    Point h = {{
+        direction[1] * edge2[2] - direction[2] * edge2[1],
+        direction[2] * edge2[0] - direction[0] * edge2[2],
+        direction[0] * edge2[1] - direction[1] * edge2[0]
+    }};
+
+    double a = dot(edge1, h);
+
+    // Ray is parallel to triangle
+    if(a > -epsilon && a < epsilon)
+        return result;
+
+    double f = 1.0 / a;
+    Point s = subtract(origin, v0);
+    double u = f * dot(s, h);
+
+    // Slight negative tolerance on barycentric bounds ensures rays hitting
+    // shared edges are accepted by at least one adjacent triangle.
+    static const double BARY_TOL = -1e-10;
+    if(u < BARY_TOL || u > 1.0 - BARY_TOL)
+        return result;
+
+    // q = s x edge1
+    Point q = {{
+        s[1] * edge1[2] - s[2] * edge1[1],
+        s[2] * edge1[0] - s[0] * edge1[2],
+        s[0] * edge1[1] - s[1] * edge1[0]
+    }};
+
+    double v = f * dot(direction, q);
+
+    if(v < BARY_TOL || u + v > 1.0 - BARY_TOL)
+        return result;
+
+    double t = f * dot(edge2, q);
+
+    result.hit = true;
+    result.t = t;
+    // Front face (entering): ray approaches from the side the normal points toward.
+    // Normal = edge1 x edge2. a = -dot(direction, normal).
+    // Front face when dot(direction, normal) < 0, i.e. a > 0.
+    result.front_face = (a > 0);
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Ray-Voxel intersection for KD-tree traversal
+// ---------------------------------------------------------------------------
+bool RayVoxelIntersect(
+    Point const & origin,
+    Point const & inv_direction,
+    Voxel const & voxel,
+    double & tmin,
+    double & tmax) {
+    // Expand voxel by a small epsilon to handle rays originating exactly on
+    // the boundary with zero direction component (produces 0*inf = NaN).
+    static const double EPS = 1e-8;
+    double t1, t2;
+
+    t1 = (voxel.min_extent[0] - EPS - origin[0]) * inv_direction[0];
+    t2 = (voxel.max_extent[0] + EPS - origin[0]) * inv_direction[0];
+
+    tmin = std::fmin(t1, t2);
+    tmax = std::fmax(t1, t2);
+
+    t1 = (voxel.min_extent[1] - EPS - origin[1]) * inv_direction[1];
+    t2 = (voxel.max_extent[1] + EPS - origin[1]) * inv_direction[1];
+
+    tmin = std::fmax(tmin, std::fmin(t1, t2));
+    tmax = std::fmin(tmax, std::fmax(t1, t2));
+
+    t1 = (voxel.min_extent[2] - EPS - origin[2]) * inv_direction[2];
+    t2 = (voxel.max_extent[2] + EPS - origin[2]) * inv_direction[2];
+
+    tmin = std::fmax(tmin, std::fmin(t1, t2));
+    tmax = std::fmin(tmax, std::fmax(t1, t2));
+
+    // Full line test (no tmax >= 0 check) to match SIREN's conventions
+    return tmax >= tmin;
+}
+
+// ---------------------------------------------------------------------------
+// KD-tree traversal
+// ---------------------------------------------------------------------------
+void TraverseKDTree(
+    std::shared_ptr<KDNode> const & node,
+    std::vector<TData> const & triangle_data,
+    Point const & origin,
+    Point const & direction,
+    Point const & inv_direction,
+    std::vector<RayTriangleHit> & hits_out,
+    std::vector<TriangleID> & hit_tri_ids_out) {
+    if(!node) return;
+
+    // Test ray against this node's voxel
+    double tmin, tmax;
+    if(!RayVoxelIntersect(origin, inv_direction, node->V, tmin, tmax)) {
+        return;
+    }
+
+    if(node->terminal) {
+        // Leaf node: test all triangles
+        for(TriangleID tri_id : node->T) {
+            TData const & tri = triangle_data[tri_id];
+            RayTriangleHit hit = RayTriangleIntersect(origin, direction, tri[0], tri[1], tri[2]);
+            if(hit.hit) {
+                hits_out.push_back(hit);
+                hit_tri_ids_out.push_back(tri_id);
+            }
+        }
+    } else {
+        // Internal node: traverse children
+        TraverseKDTree(node->left, triangle_data, origin, direction, inv_direction, hits_out, hit_tri_ids_out);
+        TraverseKDTree(node->right, triangle_data, origin, direction, inv_direction, hits_out, hit_tri_ids_out);
+    }
 }
 
 } // namespace Mesh
