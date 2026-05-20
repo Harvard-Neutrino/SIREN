@@ -11,6 +11,7 @@
 #include "../../public/SIREN/geometry/Polycone.h"
 #include "../../public/SIREN/geometry/Polyhedra.h"
 #include "../../public/SIREN/geometry/Sphere.h"
+#include "../../public/SIREN/geometry/BooleanGeometry.h"
 #include "../../public/SIREN/geometry/AABB.h"
 
 #include <pybind11/pybind11.h>
@@ -179,6 +180,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("DeltaPhi",&Sphere::GetDeltaPhi)
         .def_property_readonly("StartTheta",&Sphere::GetStartTheta)
         .def_property_readonly("DeltaTheta",&Sphere::GetDeltaTheta);
+
+    // BooleanGeometry
+
+    enum_<BooleanOperation>(m, "BooleanOperation")
+        .value("UNION", BooleanOperation::UNION)
+        .value("SUBTRACTION", BooleanOperation::SUBTRACTION)
+        .value("INTERSECTION", BooleanOperation::INTERSECTION);
+
+    class_<BooleanGeometry, std::shared_ptr<BooleanGeometry>, Geometry>(m, "BooleanGeometry")
+        .def(init<>())
+        .def(init<BooleanOperation, std::shared_ptr<const Geometry>, std::shared_ptr<const Geometry>>())
+        .def(init<Placement const &, BooleanOperation, std::shared_ptr<const Geometry>, std::shared_ptr<const Geometry>>())
+        .def(init<const BooleanGeometry&>())
+        .def_property_readonly("Operation",&BooleanGeometry::GetOperation)
+        .def_property_readonly("Left",&BooleanGeometry::GetLeft)
+        .def_property_readonly("Right",&BooleanGeometry::GetRight);
 
     // AABB
 

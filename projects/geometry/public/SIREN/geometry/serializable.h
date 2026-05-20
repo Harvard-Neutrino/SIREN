@@ -2,6 +2,7 @@
 #define SIREN_geometry_serializable_H
 
 #include "SIREN/geometry/Box.h"
+#include "SIREN/geometry/BooleanGeometry.h"
 #include "SIREN/geometry/Cone.h"
 #include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/Polycone.h"
