@@ -10,6 +10,7 @@
 #include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Polycone.h"
 #include "../../public/SIREN/geometry/Polyhedra.h"
+#include "../../public/SIREN/geometry/Torus.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/BooleanGeometry.h"
 #include "../../public/SIREN/geometry/AABB.h"
@@ -141,6 +142,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("ZPlanes",&Polyhedra::GetZPlanes)
         .def_property_readonly("Rmin",&Polyhedra::GetRmin)
         .def_property_readonly("Rmax",&Polyhedra::GetRmax);
+
+    // Torus
+
+    class_<Torus, std::shared_ptr<Torus>, Geometry>(m, "Torus")
+        .def(init<>())
+        .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Torus&>())
+        .def_property_readonly("MajorRadius",&Torus::GetMajorRadius)
+        .def_property_readonly("MinorRadius",&Torus::GetMinorRadius)
+        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius)
+        .def_property_readonly("StartPhi",&Torus::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Torus::GetDeltaPhi);
 
     // Trd
 

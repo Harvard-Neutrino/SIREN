@@ -14,6 +14,7 @@
 #include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/Polyhedra.h"
 #include "SIREN/geometry/Sphere.h"
+#include "SIREN/geometry/Torus.h"
 #include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/EllipticalTube.h"
 #include "SIREN/geometry/CutTube.h"
