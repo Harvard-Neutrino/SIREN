@@ -14,6 +14,7 @@
 #include "../../public/SIREN/geometry/BooleanGeometry.h"
 #include "../../public/SIREN/geometry/AABB.h"
 #include "../../public/SIREN/geometry/EllipticalTube.h"
+#include "../../public/SIREN/geometry/CutTube.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -209,6 +210,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("Dx",&EllipticalTube::GetDx)
         .def_property_readonly("Dy",&EllipticalTube::GetDy)
         .def_property_readonly("Dz",&EllipticalTube::GetDz);
+
+    // CutTube
+
+    class_<CutTube, std::shared_ptr<CutTube>, Geometry>(m, "CutTube")
+        .def(init<>())
+        .def(init<double, double, double, siren::math::Vector3D, siren::math::Vector3D>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, siren::math::Vector3D, siren::math::Vector3D>())
+        .def(init<double, double, double, siren::math::Vector3D, siren::math::Vector3D, double, double>())
+        .def(init<Placement const &, double, double, double, siren::math::Vector3D, siren::math::Vector3D, double, double>())
+        .def(init<const CutTube&>())
+        .def_property_readonly("Rmin",&CutTube::GetRmin)
+        .def_property_readonly("Rmax",&CutTube::GetRmax)
+        .def_property_readonly("Dz",&CutTube::GetDz)
+        .def_property_readonly("LowNorm",&CutTube::GetLowNorm)
+        .def_property_readonly("HighNorm",&CutTube::GetHighNorm);
 
     // AABB
 

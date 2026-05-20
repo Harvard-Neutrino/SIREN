@@ -14,5 +14,6 @@
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/EllipticalTube.h"
+#include "SIREN/geometry/CutTube.h"
 
 #endif // SIREN_geometry_serializable_H
