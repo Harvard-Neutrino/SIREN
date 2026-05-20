@@ -9,6 +9,7 @@
 #include "../../public/SIREN/geometry/Cone.h"
 #include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Polycone.h"
+#include "../../public/SIREN/geometry/Polyhedra.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 #include "../../public/SIREN/geometry/AABB.h"
 
@@ -117,6 +118,22 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("ZPlanes",&Polycone::GetZPlanes)
         .def_property_readonly("Rmin",&Polycone::GetRmin)
         .def_property_readonly("Rmax",&Polycone::GetRmax);
+
+    // Polyhedra
+
+    class_<Polyhedra, std::shared_ptr<Polyhedra>, Geometry>(m, "Polyhedra")
+        .def(init<>())
+        .def(init<int, double, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, int, double, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<int, double, std::vector<double>, std::vector<double>, std::vector<double>, double>())
+        .def(init<Placement const &, int, double, std::vector<double>, std::vector<double>, std::vector<double>, double>())
+        .def(init<const Polyhedra&>())
+        .def_property_readonly("NumSides",&Polyhedra::GetNumSides)
+        .def_property_readonly("StartPhi",&Polyhedra::GetStartPhi)
+        .def_property_readonly("ZPlanes",&Polyhedra::GetZPlanes)
+        .def_property_readonly("Rmin",&Polyhedra::GetRmin)
+        .def_property_readonly("Rmax",&Polyhedra::GetRmax);
 
     // Trd
 

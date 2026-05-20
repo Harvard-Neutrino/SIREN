@@ -9,6 +9,7 @@ LIST (APPEND geometry_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Sphere.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/ExtrPoly.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Polycone.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Polyhedra.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Placement.cxx
