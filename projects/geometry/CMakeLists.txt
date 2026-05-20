@@ -56,6 +56,11 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_GeometryOperators ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/GeometryOperators_TEST.cxx)
+package_add_test(UnitTest_Containment ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Containment_TEST.cxx)
+package_add_test(UnitTest_ShapeInvariants ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ShapeInvariants_TEST.cxx)
+package_add_test(UnitTest_Serialization ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Serialization_TEST.cxx)
+
 pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
 target_link_libraries(geometry PRIVATE SIREN)
 if(DEFINED SKBUILD)
