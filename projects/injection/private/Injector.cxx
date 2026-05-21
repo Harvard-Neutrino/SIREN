@@ -12,7 +12,6 @@
 #include "SIREN/interactions/DarkNewsCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/Decay.h"
-
 #include "SIREN/dataclasses/DecaySignature.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 #include "SIREN/dataclasses/Particle.h"
