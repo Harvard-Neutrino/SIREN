@@ -577,7 +577,6 @@ class SIREN_Controller:
             self.global_times.append(t-self.global_start)
             prev_time = t
             count += 1
-            # print("finished generating one events")
         if hasattr(self, "DN_processes"):
             self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
         return self.events
@@ -695,13 +694,6 @@ class SIREN_Controller:
         self.injector.SaveInjector(filename)
         # weighter saving not yet supported
         self.weighter.SaveWeighter(filename)
-
-        # Add print statements to check the lengths of all datasets
-        # for key, value in datasets.items():
-        #     print(f"Length of {key}: {len(value)}")
-        #     if isinstance(value[0], list):  # If it's a list of lists, check the inner lengths
-        #         for idx, sublist in enumerate(value):
-        #             print(f"    Length of {key}[{idx}]: {len(sublist)}")
 
         # save events
         ak_array = ak.Array(datasets)

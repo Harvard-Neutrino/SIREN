@@ -813,7 +813,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
             m1 *= pow(10.0, iteration);
             m3 *= pow(10.0, iteration);
         }
-        // pqy_lab = 0;
     } else {pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);}
     if (std::isnan(pqy_lab)) {
         throw(siren::utilities::InjectionFailure(
@@ -1007,8 +1006,6 @@ double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::P
 double QuarkDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     // first compute the differential and total cross section
     double dxs = DifferentialCrossSection(interaction);
-    // if (dxs == 0) {
-    // }
     double txs = TotalCrossSection(interaction);
     // fragmentation fraction is now applied inside TotalCrossSection
     if(dxs == 0) {

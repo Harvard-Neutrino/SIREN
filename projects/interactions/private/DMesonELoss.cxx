@@ -28,7 +28,7 @@ namespace interactions {
 DMesonELoss::DMesonELoss() {
 }
 
-    
+
 bool DMesonELoss::equal(CrossSection const & other) const {
     const DMesonELoss* x = dynamic_cast<const DMesonELoss*>(&other);
 
@@ -65,7 +65,7 @@ std::vector<dataclasses::InteractionSignature> DMesonELoss::GetPossibleSignature
     for(auto primary : primary_types_) {
         // hardcode the target type here, this should be fine
       std::vector<dataclasses::InteractionSignature> new_signatures = GetPossibleSignaturesFromParents(primary, siren::dataclasses::Particle::ParticleType::PPlus);
-      signatures.insert(signatures.end(),new_signatures.begin(),new_signatures.end()); 
+      signatures.insert(signatures.end(),new_signatures.begin(),new_signatures.end());
     }
     return signatures;
 }
@@ -89,17 +89,6 @@ std::vector<dataclasses::InteractionSignature> DMesonELoss::GetPossibleSignature
 double DMesonELoss::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    // rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-    // double primary_energy;
-
-    // // make sure of the reference frame before assigning energy
-    // if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-    //     primary_energy = interaction.primary_momentum[0];
-    // } else {
-    //     rk::Boost boost_start_to_lab = p2.restBoost();
-    //     rk::P4 p1_lab = boost_start_to_lab * p1;
-    //     primary_energy = p1_lab.e();
-    // }
     double primary_energy = interaction.primary_momentum[0];
 
 
@@ -119,14 +108,8 @@ double DMesonELoss::TotalCrossSection(siren::dataclasses::Particle::ParticleType
     return xsec * mb_to_cm2;
 }
 
-// double DMesonELoss::TotalCrossSection(siren::dataclasses::Particle::ParticleType primary_type, double primary_energy, siren::dataclasses::Particle::ParticleType target) const {
-// 		return DMesonELoss::TotalCrossSection(primary_type,primary_energy);
-// }
-
-
 double DMesonELoss::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    // rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
     rk::P4 p1_lab;
     primary_energy = interaction.primary_momentum[0];
@@ -135,7 +118,7 @@ double DMesonELoss::DifferentialCrossSection(dataclasses::InteractionRecord cons
 
     double final_energy = interaction.secondary_momenta[0][0];
     double z = 1 - final_energy / primary_energy;
-    
+
     // now normalize the gaussian
     double total_xsec = TotalCrossSection(interaction.signature.primary_type, primary_energy);
     double z0 = 0.56;
@@ -160,14 +143,6 @@ double DMesonELoss::InteractionThreshold(dataclasses::InteractionRecord const & 
 void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& interaction, std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    // rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-
-    // we assume that:
-    // the target is stationary so its energy is just its mass
-    // the incoming neutrino is massless, so its kinetic energy is its total energy
-    // double s = target_mass_ * tinteraction.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
-    // double s = std::pow(rk::invMass(p1, p2), 2);
-
     double primary_energy;
     double Dmass = interaction.primary_mass;
     rk::P4 p1_lab;

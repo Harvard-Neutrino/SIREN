@@ -47,8 +47,7 @@ public:
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(siren::dataclasses::Particle::ParticleType primary, double energy) const;
-    // double TotalCrossSection(siren::dataclasses::Particle::ParticleType primary, double energy, siren::dataclasses::Particle::ParticleType target) const override;
-    
+
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;

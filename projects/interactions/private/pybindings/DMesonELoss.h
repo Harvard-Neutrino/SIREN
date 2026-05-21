@@ -24,7 +24,6 @@ void register_DMesonELoss(pybind11::module_ & m) {
         .def(self == self)
         .def("TotalCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&DMesonELoss::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<siren::dataclasses::Particle::ParticleType, double>(&DMesonELoss::TotalCrossSection, const_))
-        // .def("DifferentialCrossSection",overload_cast<siren::dataclasses::CrossSectionDistributionRecord const &>(&DMesonELoss::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DMesonELoss::InteractionThreshold)
         .def("GetPossibleTargets",&DMesonELoss::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DMesonELoss::GetPossibleTargetsFromPrimary)
