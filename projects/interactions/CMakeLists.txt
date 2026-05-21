@@ -23,7 +23,6 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/QuarkDISFromSpline.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
 
 )
 if(TARGET MARLEY)
@@ -31,22 +30,18 @@ if(TARGET MARLEY)
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/MarleyCrossSection.cxx
     )
 endif()
+if(TARGET PYTHIA8)
+    LIST (APPEND interactions_SOURCES
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
+    )
+endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-# Pythia8 + LHAPDF for PythiaDISCrossSection
-# Defaults target our cluster installs; override via -DPYTHIA8_DIR=... on cmake cmdline
-set(PYTHIA8_DIR "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/miaochenjin/local/pythia8315"
-    CACHE PATH "Pythia8 installation root")
-set(LHAPDF_DIR "/cvmfs/icecube.opensciencegrid.org/py3-v4.1.1/RHEL_8_x86_64"
-    CACHE PATH "LHAPDF installation root")
 
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
     ${PYTHON_INCLUDE_DIRS}
-    ${PYTHIA8_DIR}/include
-    ${LHAPDF_DIR}/include
 )
 find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
@@ -67,8 +62,10 @@ target_link_libraries(SIREN_interactions
 )
 apply_siren_compile_options(SIREN_interactions)
 
-target_link_directories(SIREN_interactions PUBLIC ${PYTHIA8_DIR}/lib ${LHAPDF_DIR}/lib)
-target_link_libraries(SIREN_interactions PUBLIC pythia8 LHAPDF dl pthread)
+if(TARGET PYTHIA8)
+    target_link_libraries(SIREN_interactions PUBLIC PYTHIA8)
+    target_compile_definitions(SIREN_interactions PUBLIC SIREN_HAS_PYTHIA8)
+endif()
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -84,8 +81,11 @@ package_add_test(UnitTest_HNLDecay ${PROJECT_SOURCE_DIR}/projects/interactions/p
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
-target_link_directories(interactions PRIVATE ${PYTHIA8_DIR}/lib ${LHAPDF_DIR}/lib)
-target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::embed GSL::gsl GSL::gslcblas pythia8 LHAPDF dl pthread)
+target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::embed GSL::gsl GSL::gslcblas)
+if(TARGET PYTHIA8)
+    target_link_libraries(interactions PRIVATE PYTHIA8)
+    target_compile_definitions(interactions PRIVATE SIREN_HAS_PYTHIA8)
+endif()
 if(TARGET MARLEY)
     target_compile_definitions(interactions PRIVATE SIREN_HAS_MARLEY)
 endif()

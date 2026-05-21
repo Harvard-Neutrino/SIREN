@@ -7,12 +7,14 @@
 #include <pybind11/stl.h>
 
 #include "../../public/SIREN/interactions/CrossSection.h"
-#include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
+
+#ifdef SIREN_HAS_PYTHIA8
+#include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
 
 void register_PythiaDISCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
@@ -68,3 +70,11 @@ void register_PythiaDISCrossSection(pybind11::module_ & m) {
         .def("GetTargetMass",&PythiaDISCrossSection::GetTargetMass)
         .def("GetInteractionType",&PythiaDISCrossSection::GetInteractionType);
 }
+
+#else
+
+void register_PythiaDISCrossSection(pybind11::module_ & m) {
+    // Pythia8 is not available, so we do not register the PythiaDISCrossSection class.
+}
+
+#endif

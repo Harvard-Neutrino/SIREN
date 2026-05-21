@@ -68,6 +68,3 @@ __pycache__/
 
 # output dirs
 output/
-
-# vendors
-vendor/

@@ -20,7 +20,9 @@
 #include "../../public/SIREN/interactions/CharmMesonDecay.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay3Body.h"
 #include "../../public/SIREN/interactions/DMesonELoss.h"
+#ifdef SIREN_HAS_PYTHIA8
 #include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
+#endif
 
 
 #include "./Interaction.h"
