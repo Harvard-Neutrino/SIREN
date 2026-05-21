@@ -75,8 +75,6 @@ X(TauMinus, 15)
 X(NuTau, 16)
 X(NuTauBar, -16)
 
-
-
 /* Nuclei */
 X(HNucleus, 1000010010)
 X(H2Nucleus, 1000010020)
