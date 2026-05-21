@@ -64,9 +64,32 @@ class SIREN_Controller:
         # Empty list for our interaction trees
         self.events = []
 
-        # Load the detector via upstream load_detector (handles both
-        # materials.dat and densities.dat in the named detector folder).
-        self.detector_model = _util.load_detector(experiment)
+        # Resolve detector model: either named experiment OR explicit file paths.
+        # PR #74 follow-up: previously this called _util.load_detector(experiment)
+        # unconditionally, which raised TypeError(model_regex.match(None)) when
+        # the caller intended to use explicit file overrides.
+        self._densities_file = None  # used as fallback for fiducial volume
+        if detector_model_file is not None and materials_model_file is not None:
+            # Explicit-path branch: build DetectorModel directly from files
+            # (mirrors _util._detector_file_loader; do not call load_detector,
+            # which requires a named experiment).
+            self.detector_model = _detector.DetectorModel()
+            self.detector_model.LoadMaterialModel(materials_model_file)
+            self.detector_model.LoadDetectorModel(detector_model_file)
+            self._densities_file = detector_model_file
+        elif detector_model_file is None and materials_model_file is None:
+            if experiment is None:
+                raise ValueError(
+                    "Must provide either `experiment` (named detector) or "
+                    "both `detector_model_file` and `materials_model_file`."
+                )
+            # Named-experiment branch: defer to upstream load_detector
+            self.detector_model = _util.load_detector(experiment)
+        else:
+            raise ValueError(
+                "Must provide both `detector_model_file` and `materials_model_file`, "
+                "or neither (and supply `experiment` instead)."
+            )
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
@@ -338,7 +361,26 @@ class SIREN_Controller:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
-        return _util.get_fiducial_volume(self.experiment)
+        if self.experiment is not None:
+            return _util.get_fiducial_volume(self.experiment)
+        # Explicit-path branch: parse fiducial directly from the densities file
+        # (mirrors _util.get_fiducial_volume; avoids get_detector_model_path(None)).
+        if self._densities_file is None:
+            return None
+        with open(self._densities_file) as f:
+            fiducial_line = None
+            detector_line = None
+            for line in f:
+                data = line.split()
+                if len(data) <= 0:
+                    continue
+                if data[0] == "fiducial":
+                    fiducial_line = line
+                elif data[0] == "detector":
+                    detector_line = line
+        if fiducial_line is None or detector_line is None:
+            return None
+        return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
 
     def GetVolumePositionDistributionFromSector(self, sector_name):
         geo = self.GetDetectorSectorGeometry(sector_name)
