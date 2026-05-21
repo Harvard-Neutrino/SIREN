@@ -616,6 +616,7 @@ class SIREN_Controller:
         }
         if save_int_probs: datasets["int_probs"] = []
         if save_survival_probs: datasets["survival_probs"] = []
+        if save_int_params: datasets["int_params"] = []
         for ie, event in enumerate(self.events):
             if verbose: print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
@@ -641,7 +642,6 @@ class SIREN_Controller:
                       "num_daughters"]:
                 datasets[k].append([])
             if save_int_params:
-                datasets.setdefault("int_params", [])
                 datasets["int_params"].append({})
             # loop over interactions
             for id, datum in enumerate(event.tree):

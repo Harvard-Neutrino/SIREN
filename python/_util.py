@@ -965,6 +965,9 @@ def SaveEvents(events,
                save_hdf5=True,
                save_parquet=True,
                save_siren_events=True,
+               save_int_params=False,
+               save_int_probs=False,
+               save_survival_probs=False,
                fid_vol=None,
                output_filename=None):
 
@@ -978,6 +981,7 @@ def SaveEvents(events,
         "event_gen_time":[], # generation time of each event
         "event_weight_time":[], # generation time of each event
         "num_interactions":[], # number of interactions per event
+        "primary_initial_position":[], # initial position of primary in each interaction of an event
         "vertex":[], # vertex of each interaction in an event
         "in_fiducial":[], # whether or not each vertex is in the fiducial volume
         "primary_type":[], # primary type of each interaction
@@ -988,15 +992,24 @@ def SaveEvents(events,
         "secondary_momenta":[], # secondary momentum of each interaction
         "parent_idx":[], # index of the parent interaction
     }
+
+    if save_int_probs: datasets["int_probs"] = []
+    if save_survival_probs: datasets["survival_probs"] = []
+    if save_int_params: datasets["int_params"] = []
     for ie, event in enumerate(events):
         print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
         t0 = time.time()
         datasets["event_weight"].append(weighter(event) if weighter is not None else 0)
         datasets["event_oneweight"].append(weighter.one_weight(event) if weighter is not None else 0)
+        if save_int_probs:
+            datasets["int_probs"].append(weighter.__weighter.GetInteractionProbabilities(event))
+        if save_survival_probs:
+            datasets["survival_probs"].append(weighter.__weighter.GetSurvivalProbabilities(event))
         datasets["event_weight_time"].append(time.time()-t0)
         datasets["event_gen_time"].append(gen_times[ie])
         # add empty lists for each per interaction dataset
         for k in ["vertex",
+                  "primary_initial_position",
                   "in_fiducial",
                   "primary_type",
                   "target_type",
@@ -1006,9 +1019,17 @@ def SaveEvents(events,
                   "secondary_momenta",
                   "parent_idx"]:
             datasets[k].append([])
+        if save_int_params:
+                datasets["int_params"].append({})
         # loop over interactions
         for id, datum in enumerate(event.tree):
+            if save_int_params:
+                for param_name, param_value in datum.record.interaction_parameters.items():
+                    if param_name not in datasets["int_params"][-1]:
+                        datasets["int_params"][-1][param_name] = []
+                    datasets["int_params"][-1][param_name].append(param_value)
             datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+            datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
 
              # primary particle stuff
             datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
