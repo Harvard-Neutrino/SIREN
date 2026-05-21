@@ -625,7 +625,6 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
 }
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
-
     record.signature.primary_type = type;
     record.primary_id = GetID();
     record.interaction_vertex = GetInteractionVertex();
@@ -855,13 +854,11 @@ void SecondaryParticleRecord::UpdateMomentum() const {
 }
 
 void SecondaryParticleRecord::Finalize(InteractionRecord & record) const {
-
     assert(record.signature.secondary_types.at(secondary_index) == type);
     record.secondary_ids.at(secondary_index) = GetID();
     record.secondary_masses.at(secondary_index) = GetMass();
     record.secondary_momenta.at(secondary_index) = GetFourMomentum();
     record.secondary_helicities.at(secondary_index) = GetHelicity();
-
 }
 
 /////////////////////////////////////////
@@ -980,7 +977,6 @@ SecondaryParticleRecord const & CrossSectionDistributionRecord::GetSecondaryPart
 }
 
 void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const {
-
     record.target_id = target_id;
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;

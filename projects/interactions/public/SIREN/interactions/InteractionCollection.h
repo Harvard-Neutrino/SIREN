@@ -21,13 +21,12 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/polymorphic.hpp>
-#include <cereal/types/base_class.hpp>  
+#include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
-
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 
@@ -39,7 +38,6 @@ private:
     siren::dataclasses::ParticleType primary_type;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<std::shared_ptr<Decay>> decays;
-
     std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>> cross_sections_by_target;
     std::set<siren::dataclasses::ParticleType> target_types;
     static const std::vector<std::shared_ptr<CrossSection>> empty;
@@ -49,16 +47,13 @@ public:
     virtual ~InteractionCollection() {};
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
-    
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Interaction>> interactions);
     bool operator==(InteractionCollection const & other) const;
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;}
     std::vector<std::shared_ptr<Decay>> const & GetDecays() const {return decays;}
-
     bool const HasCrossSections() const {return cross_sections.size() > 0;}
     bool const HasDecays() const {return decays.size() > 0;}
-
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSectionsForTarget(siren::dataclasses::ParticleType p) const;
     std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
         return cross_sections_by_target;

@@ -10,7 +10,6 @@
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/Decay.h"
-
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"

@@ -23,7 +23,6 @@
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
-
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
 #include "SIREN/geometry/Cylinder.h"       // for Cylinder

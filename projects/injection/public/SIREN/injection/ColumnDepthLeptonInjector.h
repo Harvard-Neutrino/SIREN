@@ -22,7 +22,6 @@
 
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
-
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/DepthFunction.h"

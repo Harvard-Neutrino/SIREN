@@ -55,6 +55,7 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::ut
     siren::math::Vector3D dir = record.direction;
 
     siren::math::Vector3D endcap_0 = pos;
+
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
@@ -135,7 +136,6 @@ double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_pt
     } else {
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
-
 
     return prob_density;
 }
