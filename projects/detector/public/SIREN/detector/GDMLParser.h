@@ -3,10 +3,11 @@
 #define SIREN_GDMLParser_H
 
 #include <map>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include <memory>
+#include <string>
+#include <vector>
+#include <utility>
+#include <unordered_map>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/math/Quaternion.h"

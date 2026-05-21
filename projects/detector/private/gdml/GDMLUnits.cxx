@@ -268,7 +268,7 @@ static GDMLQuantityType TypeFromUnit(std::string const & u) {
 static GDMLQuantityType TypeFromTypeAttr(std::string const & type_str) {
     if(type_str.empty()) return GDMLQuantityType::NONE;
     std::string t = type_str;
-    std::transform(t.begin(), t.end(), t.begin(), ::tolower);
+    std::transform(t.begin(), t.end(), t.begin(), [](unsigned char c){ return std::tolower(c); });
     if(t == "length" || t == "lenght" || t == "coordinate")
         return GDMLQuantityType::LENGTH;
     if(t == "angle") return GDMLQuantityType::ANGLE;
