@@ -50,7 +50,7 @@ inline bool InitialPhiState(double px, double py, double dx, double dy,
     if(rxy2_orig > 1e-20) {
         return PhiInRange(px, py, start_phi, delta_phi);
     }
-    return delta_phi >= M_PI - 1e-9;
+    return delta_phi > 1e-9;
 }
 
 // Correct entering flag for a wedge hit at the z-axis.
@@ -63,7 +63,7 @@ inline bool ZAxisWedgeEntering(double dx, double dy,
     if(dx*dx + dy*dy > 1e-20) {
         return PhiInRange(dx, dy, start_phi, delta_phi);
     }
-    return delta_phi >= M_PI - 1e-9;
+    return true;
 }
 
 } // namespace phi_utils

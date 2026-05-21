@@ -69,11 +69,12 @@ friend cereal::access;
 public:
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            archive(cereal::make_nvp("Name", name_));
-            archive(cereal::make_nvp("Placement", placement_));
-            world_aabb_cached_ = false;
+        if(version > 0) {
+            throw std::runtime_error("Geometry only supports version <= 0!");
         }
+        archive(cereal::make_nvp("Name", name_));
+        archive(cereal::make_nvp("Placement", placement_));
+        world_aabb_cached_ = false;
     };
     static constexpr const double GEOMETRY_PRECISION = 1.e-9;
     struct Intersection {

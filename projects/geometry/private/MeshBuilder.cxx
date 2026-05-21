@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <tuple>
+#include <limits>
 #include <math.h>
 #include <memory>
 #include <vector>
@@ -1033,28 +1034,30 @@ bool RayVoxelIntersect(
     Voxel const & voxel,
     double & tmin,
     double & tmax) {
-    // Expand voxel by a small epsilon to handle rays originating exactly on
-    // the boundary with zero direction component (produces 0*inf = NaN).
     static const double EPS = 1e-8;
-    double t1, t2;
 
-    t1 = (voxel.min_extent[0] - EPS - origin[0]) * inv_direction[0];
-    t2 = (voxel.max_extent[0] + EPS - origin[0]) * inv_direction[0];
+    tmin = -std::numeric_limits<double>::infinity();
+    tmax =  std::numeric_limits<double>::infinity();
 
-    tmin = std::fmin(t1, t2);
-    tmax = std::fmax(t1, t2);
+    auto update_axis = [&](int axis) {
+        double lo = voxel.min_extent[axis] - EPS - origin[axis];
+        double hi = voxel.max_extent[axis] + EPS - origin[axis];
+        double inv = inv_direction[axis];
 
-    t1 = (voxel.min_extent[1] - EPS - origin[1]) * inv_direction[1];
-    t2 = (voxel.max_extent[1] + EPS - origin[1]) * inv_direction[1];
+        if(std::isinf(inv) || inv == 0.0) {
+            return !(lo > 0.0 || hi < 0.0);
+        }
 
-    tmin = std::fmax(tmin, std::fmin(t1, t2));
-    tmax = std::fmin(tmax, std::fmax(t1, t2));
+        double t1 = lo * inv;
+        double t2 = hi * inv;
+        tmin = std::fmax(tmin, std::fmin(t1, t2));
+        tmax = std::fmin(tmax, std::fmax(t1, t2));
+        return tmax >= tmin;
+    };
 
-    t1 = (voxel.min_extent[2] - EPS - origin[2]) * inv_direction[2];
-    t2 = (voxel.max_extent[2] + EPS - origin[2]) * inv_direction[2];
-
-    tmin = std::fmax(tmin, std::fmin(t1, t2));
-    tmax = std::fmin(tmax, std::fmax(t1, t2));
+    if(!update_axis(0)) return false;
+    if(!update_axis(1)) return false;
+    if(!update_axis(2)) return false;
 
     // Full line test (no tmax >= 0 check) to match SIREN's conventions
     return tmax >= tmin;

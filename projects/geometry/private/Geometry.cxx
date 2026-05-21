@@ -57,6 +57,7 @@ Geometry::Geometry(const Geometry& geometry)
     : name_(geometry.name_)
       , placement_(geometry.placement_)
       , cached_world_aabb_(geometry.cached_world_aabb_)
+      , world_aabb_cached_(geometry.world_aabb_cached_)
 {
 }
 
@@ -78,6 +79,7 @@ Geometry& Geometry::operator=(const Geometry& geometry)
         name_     = geometry.name_;
         placement_     = geometry.placement_;
         cached_world_aabb_ = geometry.cached_world_aabb_;
+        world_aabb_cached_ = geometry.world_aabb_cached_;
     }
 
     return *this;

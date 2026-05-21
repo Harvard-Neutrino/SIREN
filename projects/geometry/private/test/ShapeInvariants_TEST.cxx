@@ -1225,6 +1225,29 @@ TEST(ShapeInvariants, TangentRaysGenericPolycone) {
     }
 }
 
+TEST(ShapeInvariants, PhiCutZAxisIncluded) {
+    double sp = M_PI / 5.0;
+    double dp = M_PI / 3.0;
+    Vector3D origin(0, 0, -20);
+    Vector3D direction(0, 0, 1);
+    Vector3D center(0, 0, 0);
+
+    std::vector<std::pair<std::string, std::shared_ptr<Geometry>>> shapes = {
+        {"Cylinder", Cylinder(5, 0, 12, sp, dp).create()},
+        {"Sphere", Sphere(5, 0, sp, dp, 0, M_PI).create()},
+        {"Cone", Cone(0, 5, 0, 5, 12, sp, dp).create()},
+        {"CutTube", CutTube(0, 5, 12, Vector3D(0, 0, -1), Vector3D(0, 0, 1), sp, dp).create()},
+        {"Polycone", Polycone({-5, 5}, {0, 0}, {5, 5}, sp, dp).create()},
+        {"GenericPolycone", GenericPolycone({0, 5, 0}, {-5, 0, 5}, sp, dp).create()},
+    };
+
+    for(auto const & entry : shapes) {
+        auto hits = entry.second->Intersections(origin, direction);
+        EXPECT_EQ(hits.size(), 2u) << entry.first;
+        EXPECT_TRUE(entry.second->IsInside(center)) << entry.first;
+    }
+}
+
 // =========================================================================
 // GenericPolycone horizontal rays at polygon vertex z-values
 // =========================================================================
