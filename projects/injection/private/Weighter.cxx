@@ -25,8 +25,6 @@
 #include "SIREN/injection/Process.h"                     // for Phy...
 #include "SIREN/injection/WeightingUtils.h"              // for Cro...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
-#include "SIREN/dataclasses/Particle.h"
-
 
 
 #include "SIREN/injection/Injector.h"
@@ -133,7 +131,6 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
             }
         }
         inv_weight += generation_probability / physical_probability;
-
     }
     return 1./inv_weight;
 }

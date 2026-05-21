@@ -72,13 +72,12 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
                     fake_record.signature = signature;
                     fake_record.target_mass = detector_model->GetTargetMass(target);
                     // Add total cross section times density to the total prob
-                    double total_xs = cross_section->TotalCrossSection(fake_record);
-                    double target_prob = target_density * total_xs;
+                    double target_prob = target_density * cross_section->TotalCrossSection(fake_record);
                     total_prob += target_prob;
                     // Add up total cross section times density times final state prob for matching signatures
                     if(signature == record.signature) {
-                        double final_prob = cross_section->FinalStateProbability(record);
-                        selected_final_state += target_prob * final_prob;
+                        // selected_prob += target_prob;
+                        selected_final_state += target_prob * cross_section->FinalStateProbability(record);
                     }
                 }
             }
