@@ -124,7 +124,9 @@ public:
             archive(cereal::make_nvp("SectorMap", sector_map_));
             archive(cereal::make_nvp("SectorNameMap", sector_name_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
-            bvh_dirty_.store(true, std::memory_order_release); // BVH will be rebuilt on next query
+            if(Archive::is_loading::value) {
+                bvh_dirty_.store(true, std::memory_order_release); // BVH will be rebuilt on next query after load
+            }
         } else {
             throw std::runtime_error("DetectorModel only supports version <= 0!");
         }
