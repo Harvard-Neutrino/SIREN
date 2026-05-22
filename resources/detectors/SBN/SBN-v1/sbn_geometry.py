@@ -313,14 +313,17 @@ def quaternion_from_matrix(R: np.ndarray) -> tuple[float, float, float, float]:
 
 def gdml_rotation_angles(R: np.ndarray):
     """Decompose rotation matrix to GDML Euler angles (rx, ry, rz) in radians.
-    Convention: R = Rz(rz) @ Ry(ry) @ Rx(rx)."""
-    sy = float(np.clip(R[0, 2], -1.0, 1.0))
+
+    GDML convention is extrinsic XYZ (static frame): R = Rz(rz) @ Ry(ry) @ Rx(rx).
+    This matches the SIREN GDML parser which calls QFromXYZs(rx, ry, rz).
+    """
+    sy = float(np.clip(-R[2, 0], -1.0, 1.0))
     ry = math.asin(sy)
     cy = math.cos(ry)
     if abs(cy) > 1e-10:
-        rx = math.atan2(-R[1, 2], R[2, 2])
-        rz = math.atan2(-R[0, 1], R[0, 0])
+        rx = math.atan2(R[2, 1], R[2, 2])
+        rz = math.atan2(R[1, 0], R[0, 0])
     else:
-        rx = math.atan2(R[1, 0], R[1, 1])
+        rx = math.atan2(-R[1, 2], R[1, 1])
         rz = 0.0
     return rx, ry, rz
