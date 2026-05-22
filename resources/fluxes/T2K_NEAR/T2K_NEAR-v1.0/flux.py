@@ -28,11 +28,9 @@ def load_flux(tag):
     enhance, particle = tag.split("_")
 
     if enhance not in ["MINUS", "PLUS"]:
-        print("%s 250kA enhancement specified in tag %s is not valid"%(enhance))
-        exit(0)
+        raise ValueError("%s 250kA enhancement specified in tag %s is not valid" % (enhance, tag))
     if particle not in ["numu", "numubar", "nue", "nuebar"]:
-        print("%s particle specified in tag %s is not valid"%(particle))
-        exit(0)
+        raise ValueError("%s particle specified in tag %s is not valid" % (particle, tag))
 
     input_flux_file = os.path.join(_ABS_DIR,
                                    "T2K_%s_250kA.dat"%(enhance))
