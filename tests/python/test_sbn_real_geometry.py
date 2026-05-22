@@ -195,6 +195,19 @@ class TestICARUSGold:
             DetectorPosition(Vector3D(*gold_det))))
         np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
 
+    def test_detector_origin_is_in_lar(self, icarus_model):
+        """A point near DetectorPosition(0,0,0) should be in LAr.
+
+        We offset slightly from the origin to avoid the gold nugget
+        placed nearby, and check that the detector center is surrounded
+        by liquid argon as expected.
+        """
+        dm, _ = icarus_model
+        for dx in [-0.1, 0.1]:
+            rho = dm.GetMassDensity(DetectorPosition(Vector3D(dx, 0, 0)))
+            assert abs(rho - LAR_DENSITY) < 0.01, (
+                f"Expected LAr near detector origin (dx={dx}), got {rho:.4f}")
+
 
 # ======================================================================
 # SBND
@@ -260,3 +273,24 @@ class TestSBNDGold:
         actual_bnb = _vec(dm.DetPositionToGeoPosition(
             DetectorPosition(Vector3D(*gold_det))))
         np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
+
+    def test_detector_origin_is_in_lar(self, sbnd_model):
+        """Points near DetectorPosition(0,0,0) should be in LAr.
+
+        The detector origin is at the LAr volume center. The LAr center
+        sits at x=0 (the cathode) so we offset into one drift volume
+        (x=+0.5m) and check that nearby points are all LAr.
+        """
+        dm, _ = sbnd_model
+        base = np.array([0.5, 0.0, 0.0])
+        for axis in range(3):
+            for sign in [-1, 1]:
+                offset = np.zeros(3)
+                offset[axis] = sign * 0.1
+                rho = dm.GetMassDensity(
+                    DetectorPosition(Vector3D(*(base + offset))))
+                label = "xyz"[axis]
+                assert abs(rho - LAR_DENSITY) < 0.01, (
+                    f"Expected LAr near detector center "
+                    f"({label}{'+' if sign > 0 else '-'}10cm), "
+                    f"got {rho:.4f}")
