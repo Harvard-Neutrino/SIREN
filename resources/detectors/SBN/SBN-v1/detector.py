@@ -1,0 +1,140 @@
+"""
+SBN detector loader.
+
+Composes BNB beamline + NuMI beamline + detector GDML files into a single
+composite geometry in BNB-frame coordinates, then loads via the SIREN GDML
+parser. Missing GDML files are downloaded automatically.
+
+Usage:
+    from siren._util import load_detector
+    model = load_detector("SBN", detector="ICARUS")
+    model = load_detector("SBN", detector="SBND")
+    model = load_detector("SBN", detector="MicroBooNE")
+"""
+
+import os
+import sys
+
+_THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, _THIS_DIR)
+import sbn_geometry as geo
+import sbn_loader
+
+_T_numi = geo.transform("NuMI", "BNB")
+_numi_origin_bnb = _T_numi.apply([0.0, 0.0, 0.0])
+_numi_rx, _numi_ry, _numi_rz = geo.gdml_rotation_angles(_T_numi.R)
+
+_DATA_BASE = (
+    "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
+    "main/detectors/SBN/v1"
+)
+
+_BEAMLINE_SOURCES = [
+    {
+        "file": "gdml/BooNE_50m.gdml",
+        "prefix": "bnb",
+        "position": (0.0, 0.0, -geo.BNB_TARGET_Z_SAND_M),
+        "rotation": None,
+        "unwrap": False,
+        "url": f"{_DATA_BASE}/BNB/BooNE_50m.gdml",
+        "sha256": "70d3a5ef55062b8bfc3c94cc7ddc559dce09dec03d670dddd5286518d80f12da",
+    },
+    {
+        "file": "gdml/numi_g4export_2026-05-19.gdml",
+        "prefix": "numi",
+        "position": tuple(_numi_origin_bnb),
+        "rotation": (_numi_rx, _numi_ry, _numi_rz),
+        "unwrap": False,
+        "url": f"{_DATA_BASE}/NuMI/numi_g4export_2026-05-19.gdml",
+        "sha256": "39670d52a6181352a8ae7c798387a9c58de950462c634e57da7d39fb23abe30a",
+    },
+]
+
+_DETECTOR_SPECS = {
+    "ICARUS": {
+        "file": "gdml/icarus_refactored_nounderscore_20230918_nowires.gdml",
+        "prefix": "icarus",
+        "detector_key": "ICARUS",
+        "unwrap": True,
+        "url": f"{_DATA_BASE}/ICARUS/icarus_refactored_nounderscore_20230918_nowires.gdml",
+        "sha256": "3f68961a21fa037d3278c3235e48920cfc85a306adc5437f296dd7c09f095cd1",
+    },
+    "SBND": {
+        "file": "gdml/sbnd_v02_06.gdml",
+        "prefix": "sbnd",
+        "detector_key": "SBND",
+        "unwrap": True,
+        "url": f"{_DATA_BASE}/SBND/sbnd_v02_06.gdml",
+        "sha256": "224a0efa55e66b1fb3b527937e4a899854c2bbab367db3659e55466c4e7f013a",
+    },
+    "MicroBooNE": {
+        "file": None,
+        "prefix": "uboone",
+        "detector_key": "MicroBooNE",
+        "unwrap": False,
+    },
+}
+
+
+def load_detector(detector=None):
+    if detector is None:
+        raise TypeError(
+            '"detector" is a required argument. '
+            'Choose from: ' + ", ".join(_DETECTOR_SPECS.keys()))
+
+    detector = str(detector)
+    if detector not in _DETECTOR_SPECS:
+        raise ValueError(
+            f'Unknown detector "{detector}". '
+            f'Choose from: {", ".join(_DETECTOR_SPECS.keys())}')
+
+    spec = _DETECTOR_SPECS[detector]
+
+    # Full rigid transform from the detector's native (LArSoft) frame to
+    # BNB frame: r_BNB = R @ r_det + t.  Used for both placing the detector
+    # GDML in the composite and for telling SIREN how to convert between
+    # detector-local and geometry-global coordinates.
+    T_det_to_bnb = geo.detector_transform(spec["detector_key"], "BNB")
+    origin_bnb = T_det_to_bnb.t
+    qx, qy, qz, qw = geo.quaternion_from_matrix(T_det_to_bnb.R)
+
+    # GDML Euler angles for the <physvol> placement rotation.  None when
+    # the detector frame is axis-aligned with BNB (pure translation).
+    det_rotation = None
+    if not (qx == 0.0 and qy == 0.0 and qz == 0.0):
+        rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R)
+        det_rotation = (rx, ry, rz)
+
+    sources = list(_BEAMLINE_SOURCES)
+    if spec["file"] is not None:
+        sources.append({
+            "file": spec["file"],
+            "prefix": spec["prefix"],
+            "position": tuple(origin_bnb),
+            "rotation": det_rotation,
+            "unwrap": spec["unwrap"],
+            "url": spec.get("url"),
+            "sha256": spec.get("sha256", ""),
+        })
+
+    cache_name = f"composite_{detector.lower()}.gdml"
+    cache_path = sbn_loader.build_composite(_THIS_DIR, sources, cache_name)
+
+    from siren.detector import DetectorModel
+    from siren.math import Vector3D, Quaternion
+    from siren.detector import GeometryPosition
+
+    model = DetectorModel()
+    model.LoadGDML(cache_path)
+
+    # DetectorOrigin + DetectorRotation define the rigid transform between
+    # detector-local coordinates and geometry (BNB frame) coordinates:
+    #   ToGeo(det_pos) = R @ det_pos + origin
+    #   ToDet(geo_pos) = R^T @ (geo_pos - origin)
+    # Without these, SIREN assumes the detector is at the BNB target
+    # with axes aligned to BNB.
+    model.DetectorOrigin = GeometryPosition(
+        Vector3D(origin_bnb[0], origin_bnb[1], origin_bnb[2]))
+    model.DetectorRotation = Quaternion(qx, qy, qz, qw)
+
+    return model
