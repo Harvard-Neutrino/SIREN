@@ -224,11 +224,25 @@ def _build_detectors() -> dict[str, Detector]:
             np.array([xc - 1.50, _ic_y - _ic_hh, -_ic_hl]),
             np.array([xc + 1.50, _ic_y + _ic_hh, +_ic_hl]))
 
+    # SBND LArSoft World origin is at the cathode plane (x=0).
+    # The LAr volume is symmetric in x (two drift volumes), but offset
+    # in y and z relative to the LArSoft origin.
+    #
+    # LAr extent measured from sbnd_v02_06.gdml (1cm resolution):
+    #   x: -5.19 to +5.19 m  (cathode at x=0, anodes at ~x=+/-2m,
+    #                          inactive LAr fills the rest of the cryostat)
+    #   y: -3.50 to +2.32 m  (center at y=-0.59)
+    #   z: -1.39 to +7.22 m  (center at z=+2.92)
+    #
+    # The center_native below is the geometric center of the LAr volume,
+    # which is offset from the LArSoft origin. This is used as the
+    # DetectorCoordinates origin so that injectors aiming at (0,0,0)
+    # hit the center of the detector.
     detectors["SBND"] = Detector(
         "SBND", "SBND_LArSoft",
-        np.array([0.0, 0.0, 0.0]),
-        np.array([-2.0, -2.0, -2.5]),
-        np.array([+2.0, +2.0, +2.5]))
+        np.array([0.0, -0.59, 2.92]),
+        np.array([-5.19, -3.50, -1.39]),
+        np.array([+5.19, +2.32, +7.22]))
 
     detectors["MicroBooNE"] = Detector(
         "MicroBooNE", "MicroBooNE_LArSoft",

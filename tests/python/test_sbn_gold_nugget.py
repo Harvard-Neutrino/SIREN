@@ -175,10 +175,13 @@ def model_and_transforms(geo):
     dm = DetectorModel()
     dm.LoadGDML(comp_path)
 
-    # DetectorRotation is active: r_geo = R @ r_det + origin
+    # DetectorOrigin is at the LAr center in BNB coords (matching detector.py).
+    # DetectorRotation is the active rotation from det-local to BNB.
+    det_info = geo.DETECTORS["ICARUS"]
+    det_center_bnb = T_ic_bnb.apply(det_info.center_native)
     qx, qy, qz, qw = geo.quaternion_from_matrix(T_ic_bnb.R)
     dm.DetectorOrigin = GeometryPosition(
-        Vector3D(origin_bnb[0], origin_bnb[1], origin_bnb[2]))
+        Vector3D(det_center_bnb[0], det_center_bnb[1], det_center_bnb[2]))
     dm.DetectorRotation = Quaternion(qx, qy, qz, qw)
 
     transforms = {
@@ -205,18 +208,25 @@ def _vec(v3):
 # Tests
 # ======================================================================
 
-class TestGoldInDetectorCoordinates:
-    """Query the gold using ICARUS_LArSoft (detector) coordinates directly."""
+def _to_det_coords(pos_larsoft, geo, det_name="ICARUS"):
+    """Convert LArSoft-frame position to DetectorCoordinates (offset by center)."""
+    return pos_larsoft - geo.DETECTORS[det_name].center_native
 
-    def test_gold_found(self, model_and_transforms):
+
+class TestGoldInDetectorCoordinates:
+    """Query the gold using DetectorCoordinates (centered on LAr volume)."""
+
+    def test_gold_found(self, model_and_transforms, geo):
         dm, _ = model_and_transforms
-        p = DetectorPosition(Vector3D(*GOLD_POS_ICARUS))
+        gold_det = _to_det_coords(GOLD_POS_ICARUS, geo)
+        p = DetectorPosition(Vector3D(*gold_det))
         rho = dm.GetMassDensity(p)
         assert abs(rho - GOLD_DENSITY) < 0.5, f"Expected gold ({GOLD_DENSITY}), got {rho}"
 
-    def test_air_nearby(self, model_and_transforms):
+    def test_air_nearby(self, model_and_transforms, geo):
         dm, _ = model_and_transforms
-        off = GOLD_POS_ICARUS + np.array([1.0, 0.0, 0.0])
+        gold_det = _to_det_coords(GOLD_POS_ICARUS, geo)
+        off = gold_det + np.array([1.0, 0.0, 0.0])
         rho = dm.GetMassDensity(DetectorPosition(Vector3D(*off)))
         assert rho < 0.01, f"Expected air, got {rho}"
 
@@ -234,26 +244,28 @@ class TestGoldInBNBCoordinates:
         rho = dm.GetMassDensity(p_det)
         assert abs(rho - GOLD_DENSITY) < 0.5, f"Expected gold via BNB, got {rho}"
 
-    def test_det_to_geo_matches_frame_graph(self, model_and_transforms):
-        """DetPositionToGeoPosition must agree with the frame graph transform."""
+    def test_det_to_geo_matches_frame_graph(self, model_and_transforms, geo):
+        """DetPositionToGeoPosition must map det coords to the correct BNB position."""
         dm, xforms = model_and_transforms
+        gold_det = _to_det_coords(GOLD_POS_ICARUS, geo)
         gold_bnb_expected = xforms["T_ic_bnb"].apply(GOLD_POS_ICARUS)
 
-        p_det = DetectorPosition(Vector3D(*GOLD_POS_ICARUS))
+        p_det = DetectorPosition(Vector3D(*gold_det))
         p_geo = dm.DetPositionToGeoPosition(p_det)
         gold_bnb_actual = _vec(p_geo)
 
         np.testing.assert_allclose(gold_bnb_actual, gold_bnb_expected, atol=1e-10)
 
-    def test_geo_to_det_roundtrip(self, model_and_transforms):
+    def test_geo_to_det_roundtrip(self, model_and_transforms, geo):
         dm, xforms = model_and_transforms
+        gold_det = _to_det_coords(GOLD_POS_ICARUS, geo)
         gold_bnb = xforms["T_ic_bnb"].apply(GOLD_POS_ICARUS)
 
         p_geo = GeometryPosition(Vector3D(*gold_bnb))
         p_det = dm.GeoPositionToDetPosition(p_geo)
-        gold_ic_roundtrip = _vec(p_det)
+        gold_det_roundtrip = _vec(p_det)
 
-        np.testing.assert_allclose(gold_ic_roundtrip, GOLD_POS_ICARUS, atol=1e-10)
+        np.testing.assert_allclose(gold_det_roundtrip, gold_det, atol=1e-10)
 
     def test_air_in_bnb_coords(self, model_and_transforms):
         dm, xforms = model_and_transforms
@@ -319,10 +331,13 @@ class TestTransformConsistency:
         _, xforms = model_and_transforms
         assert not np.allclose(xforms["T_ic_numi"].R, np.eye(3), atol=1e-3)
 
-    def test_detector_origin_matches_transform(self, model_and_transforms):
+    def test_detector_origin_at_lar_center(self, model_and_transforms, geo):
+        """DetectorOrigin should be at the LAr center in BNB coords."""
         dm, xforms = model_and_transforms
         origin = _vec(dm.GetDetectorOrigin())
-        np.testing.assert_allclose(origin, xforms["T_ic_bnb"].t, atol=1e-10)
+        det_info = geo.DETECTORS["ICARUS"]
+        expected = xforms["T_ic_bnb"].apply(det_info.center_native)
+        np.testing.assert_allclose(origin, expected, atol=1e-10)
 
     def test_compose_ic_bnb_numi_equals_ic_numi(self, model_and_transforms, geo):
         """ICARUS->BNB composed with BNB->NuMI must equal ICARUS->NuMI."""

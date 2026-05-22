@@ -140,14 +140,18 @@ def load_detector(detector=None):
     model = DetectorModel()
     model.LoadGDML(cache_path)
 
-    # DetectorOrigin + DetectorRotation define the rigid transform between
-    # detector-local coordinates and geometry (BNB frame) coordinates:
-    #   ToGeo(det_pos) = R @ det_pos + origin
-    #   ToDet(geo_pos) = R^T @ (geo_pos - origin)
-    # Without these, SIREN assumes the detector is at the BNB target
-    # with axes aligned to BNB.
+    # DetectorOrigin is the point in BNB (geometry) coordinates that
+    # corresponds to (0,0,0) in DetectorCoordinates. We place it at
+    # the geometric center of the LAr volume (from the Detector entry
+    # in sbn_geometry) so that injectors aiming at the detector origin
+    # hit the middle of the active volume, not e.g. the cathode plane.
+    #
+    # DetectorRotation is the active rotation from detector-local axes
+    # to geometry (BNB) axes: r_geo = R @ r_det + DetectorOrigin.
+    det_info = geo.DETECTORS[detector]
+    det_center_bnb = T_det_to_bnb.apply(det_info.center_native)
     model.DetectorOrigin = GeometryPosition(
-        Vector3D(origin_bnb[0], origin_bnb[1], origin_bnb[2]))
+        Vector3D(det_center_bnb[0], det_center_bnb[1], det_center_bnb[2]))
     model.DetectorRotation = Quaternion(qx, qy, qz, qw)
 
     return model

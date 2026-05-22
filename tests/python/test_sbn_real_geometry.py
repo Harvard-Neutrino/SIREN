@@ -122,11 +122,14 @@ def _build_model(geo, det_name, det_gdml_url, det_sha256, gold_pos_det, tmpdir):
 
     dm = DetectorModel()
     dm.LoadGDML(comp_path)
+
+    det_info = geo.DETECTORS[det_name]
+    det_center_bnb = T_det_bnb.apply(det_info.center_native)
     qx, qy, qz, qw = geo.quaternion_from_matrix(T_det_bnb.R)
-    dm.DetectorOrigin = GeometryPosition(Vector3D(*det_origin_bnb))
+    dm.DetectorOrigin = GeometryPosition(Vector3D(*det_center_bnb))
     dm.DetectorRotation = Quaternion(qx, qy, qz, qw)
 
-    return dm
+    return dm, det_info.center_native
 
 
 # ======================================================================
@@ -150,44 +153,46 @@ def icarus_model(geo, tmp_path_factory):
 class TestICARUSGold:
 
     def test_gold_in_det_coords(self, icarus_model):
-        rho = icarus_model.GetMassDensity(
-            DetectorPosition(Vector3D(*ICARUS_GOLD_POS)))
+        dm, center = icarus_model
+        gold_det = ICARUS_GOLD_POS - center
+        rho = dm.GetMassDensity(DetectorPosition(Vector3D(*gold_det)))
         assert abs(rho - GOLD_DENSITY) < 0.5
 
     def test_lar_2cm_away_all_directions(self, icarus_model):
+        dm, center = icarus_model
+        gold_det = ICARUS_GOLD_POS - center
         for axis in range(3):
             for sign in [-1, 1]:
                 offset = np.zeros(3)
                 offset[axis] = sign * 0.02
-                pos = ICARUS_GOLD_POS + offset
-                rho = icarus_model.GetMassDensity(
-                    DetectorPosition(Vector3D(*pos)))
+                rho = dm.GetMassDensity(
+                    DetectorPosition(Vector3D(*(gold_det + offset))))
                 label = "xyz"[axis]
                 assert abs(rho - LAR_DENSITY) < 0.01, (
                     f"Expected LAr at {label}{'+' if sign > 0 else '-'}2cm, "
                     f"got {rho:.4f}")
 
     def test_gold_via_bnb(self, icarus_model, geo):
-        T = geo.transform("ICARUS_LArSoft", "BNB")
-        gold_bnb = T.apply(ICARUS_GOLD_POS)
-        p_det = icarus_model.GeoPositionToDetPosition(
-            GeometryPosition(Vector3D(*gold_bnb)))
-        rho = icarus_model.GetMassDensity(p_det)
+        dm, _ = icarus_model
+        gold_bnb = geo.transform("ICARUS_LArSoft", "BNB").apply(ICARUS_GOLD_POS)
+        p_det = dm.GeoPositionToDetPosition(GeometryPosition(Vector3D(*gold_bnb)))
+        rho = dm.GetMassDensity(p_det)
         assert abs(rho - GOLD_DENSITY) < 0.5
 
     def test_gold_via_numi(self, icarus_model, geo):
+        dm, _ = icarus_model
         gold_numi = geo.transform("ICARUS_LArSoft", "NuMI").apply(ICARUS_GOLD_POS)
         gold_bnb = geo.transform("NuMI", "BNB").apply(gold_numi)
-        p_det = icarus_model.GeoPositionToDetPosition(
-            GeometryPosition(Vector3D(*gold_bnb)))
-        rho = icarus_model.GetMassDensity(p_det)
+        p_det = dm.GeoPositionToDetPosition(GeometryPosition(Vector3D(*gold_bnb)))
+        rho = dm.GetMassDensity(p_det)
         assert abs(rho - GOLD_DENSITY) < 0.5
 
     def test_det_to_geo_matches_frame_graph(self, icarus_model, geo):
-        T = geo.transform("ICARUS_LArSoft", "BNB")
-        expected_bnb = T.apply(ICARUS_GOLD_POS)
-        actual_bnb = _vec(icarus_model.DetPositionToGeoPosition(
-            DetectorPosition(Vector3D(*ICARUS_GOLD_POS))))
+        dm, center = icarus_model
+        gold_det = ICARUS_GOLD_POS - center
+        expected_bnb = geo.transform("ICARUS_LArSoft", "BNB").apply(ICARUS_GOLD_POS)
+        actual_bnb = _vec(dm.DetPositionToGeoPosition(
+            DetectorPosition(Vector3D(*gold_det))))
         np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
 
 
@@ -195,7 +200,8 @@ class TestICARUSGold:
 # SBND
 # ======================================================================
 
-# SBND origin has a cathode at x=0; offset into the LAr drift region
+# SBND LArSoft origin is at the cathode (x=0). Gold placed at x=0.5
+# to be inside the drift volume, away from the cathode.
 SBND_GOLD_POS = np.array([0.5, 0.0, 0.0])
 
 
@@ -212,42 +218,45 @@ def sbnd_model(geo, tmp_path_factory):
 class TestSBNDGold:
 
     def test_gold_in_det_coords(self, sbnd_model):
-        rho = sbnd_model.GetMassDensity(
-            DetectorPosition(Vector3D(*SBND_GOLD_POS)))
+        dm, center = sbnd_model
+        gold_det = SBND_GOLD_POS - center
+        rho = dm.GetMassDensity(DetectorPosition(Vector3D(*gold_det)))
         assert abs(rho - GOLD_DENSITY) < 0.5
 
     def test_lar_2cm_away_all_directions(self, sbnd_model):
+        dm, center = sbnd_model
+        gold_det = SBND_GOLD_POS - center
         for axis in range(3):
             for sign in [-1, 1]:
                 offset = np.zeros(3)
                 offset[axis] = sign * 0.02
-                pos = SBND_GOLD_POS + offset
-                rho = sbnd_model.GetMassDensity(
-                    DetectorPosition(Vector3D(*pos)))
+                rho = dm.GetMassDensity(
+                    DetectorPosition(Vector3D(*(gold_det + offset))))
                 label = "xyz"[axis]
                 assert abs(rho - LAR_DENSITY) < 0.01, (
                     f"Expected LAr at {label}{'+' if sign > 0 else '-'}2cm, "
                     f"got {rho:.4f}")
 
     def test_gold_via_bnb(self, sbnd_model, geo):
-        T = geo.transform("SBND_LArSoft", "BNB")
-        gold_bnb = T.apply(SBND_GOLD_POS)
-        p_det = sbnd_model.GeoPositionToDetPosition(
-            GeometryPosition(Vector3D(*gold_bnb)))
-        rho = sbnd_model.GetMassDensity(p_det)
+        dm, _ = sbnd_model
+        gold_bnb = geo.transform("SBND_LArSoft", "BNB").apply(SBND_GOLD_POS)
+        p_det = dm.GeoPositionToDetPosition(GeometryPosition(Vector3D(*gold_bnb)))
+        rho = dm.GetMassDensity(p_det)
         assert abs(rho - GOLD_DENSITY) < 0.5
 
     def test_gold_via_numi(self, sbnd_model, geo):
+        dm, _ = sbnd_model
         gold_numi = geo.transform("SBND_LArSoft", "NuMI").apply(SBND_GOLD_POS)
         gold_bnb = geo.transform("NuMI", "BNB").apply(gold_numi)
-        p_det = sbnd_model.GeoPositionToDetPosition(
-            GeometryPosition(Vector3D(*gold_bnb)))
-        rho = sbnd_model.GetMassDensity(p_det)
+        p_det = dm.GeoPositionToDetPosition(GeometryPosition(Vector3D(*gold_bnb)))
+        rho = dm.GetMassDensity(p_det)
         assert abs(rho - GOLD_DENSITY) < 0.5
 
     def test_det_to_geo_matches_frame_graph(self, sbnd_model, geo):
+        dm, center = sbnd_model
+        gold_det = SBND_GOLD_POS - center
         T = geo.transform("SBND_LArSoft", "BNB")
         expected_bnb = T.apply(SBND_GOLD_POS)
-        actual_bnb = _vec(sbnd_model.DetPositionToGeoPosition(
-            DetectorPosition(Vector3D(*SBND_GOLD_POS))))
+        actual_bnb = _vec(dm.DetPositionToGeoPosition(
+            DetectorPosition(Vector3D(*gold_det))))
         np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
