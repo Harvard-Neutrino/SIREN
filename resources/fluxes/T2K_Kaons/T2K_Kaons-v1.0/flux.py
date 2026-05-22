@@ -1,7 +1,6 @@
 from scipy.interpolate import interp1d
 import numpy as np
 import os
-import pathlib
 from siren.download import ensure_files, writable_data_dir
 
 _ABS_DIR = writable_data_dir(os.path.dirname(os.path.abspath(__file__)))

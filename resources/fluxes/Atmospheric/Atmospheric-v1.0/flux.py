@@ -44,48 +44,55 @@ def load_flux(tag):
         osc_status is one of {osc,unosc}
         particlei is one of {nue,numu,nuebar,numubar,nutau,nutaubar}
     '''
-    fields = tag.split("_")
-    if len(fields) < 3:
+    # Match model by longest known prefix (handles underscores in names
+    # like H3a_SIBYLL21)
+    model = None
+    for m in sorted(MODELS, key=len, reverse=True):
+        if tag.startswith(m + "_"):
+            model = m
+            break
+    if model is None:
+        raise ValueError(
+            f"Tag '{tag}' does not start with a known model. "
+            f"Expected one of: {', '.join(MODELS)}")
+    rest = tag[len(model) + 1:]
+    parts = rest.split("_")
+    if len(parts) < 2:
         raise ValueError(
             f"Tag '{tag}' is not valid. Expected "
             "{{model}}_{{osc_status}}_{{particle1}}_{{particle2}}_...")
-    model, osc_status = fields[0], fields[1]
-    particles = fields[2:]
-    if model not in MODELS:
-        raise ValueError(f"Unknown model '{model}' in tag '{tag}'")
+    osc_status = parts[0]
+    particles = parts[1:]
     if osc_status not in OSC_STATES:
         raise ValueError(f"Unknown osc_status '{osc_status}' in tag '{tag}'")
     for p in particles:
         if p not in PARTICLES:
             raise ValueError(f"Unknown particle '{p}' in tag '{tag}'")
 
-    npz_spec = {"path": os.path.join(_ABS_DIR, f"{model}.npz"),
-                "url": f"{_DATA_BASE}/{model}.npz",
-                "sha256": _NPZ_SHA256.get(model, "")}
-    ensure_files([npz_spec])
+    fetch_data()
 
     output_flux_file = os.path.join(_ABS_DIR, f"Atmospheric_{tag}_flux.txt")
     if os.path.isfile(output_flux_file):
         return output_flux_file
 
-    npz = np.load(npz_spec["path"])
-    energy = npz["energy"]
-    cos_theta = npz["cos_theta"]
+    npz_path = os.path.join(_ABS_DIR, f"{model}.npz")
+    with np.load(npz_path) as npz:
+        energy = npz["energy"]
+        cos_theta = npz["cos_theta"]
 
-    tot_flux = None
-    for particle in particles:
-        key = f"{particle}_{osc_status}"
-        if key not in npz:
-            raise ValueError(f"Variant '{key}' not found in {model}.npz")
-        grid = npz[key].astype(np.float64)
-        if tot_flux is None:
-            tot_flux = grid.copy()
-        else:
-            tot_flux += grid
+        tot_flux = None
+        for particle in particles:
+            key = f"{particle}_{osc_status}"
+            if key not in npz:
+                raise ValueError(f"Variant '{key}' not found in {model}.npz")
+            grid = npz[key].astype(np.float64)
+            if tot_flux is None:
+                tot_flux = grid.copy()
+            else:
+                tot_flux += grid
 
-    with open(output_flux_file, "w") as fout:
-        for i, e in enumerate(energy):
-            for j, c in enumerate(cos_theta):
-                print(e, c, tot_flux[i, j], file=fout)
+    ee, cc = np.meshgrid(energy, cos_theta, indexing='ij')
+    np.savetxt(output_flux_file,
+               np.column_stack([ee.ravel(), cc.ravel(), tot_flux.ravel()]))
 
     return output_flux_file

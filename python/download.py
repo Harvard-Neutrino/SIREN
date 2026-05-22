@@ -109,6 +109,7 @@ def download_file(url: str, dest: str, sha256: str = "",
             print(f"  Downloading {label} ...")
 
         req = urllib.request.Request(url, headers={"User-Agent": "siren"})
+        h = hashlib.sha256()
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             total = int(resp.headers.get("Content-Length", 0))
             downloaded = 0
@@ -119,6 +120,7 @@ def download_file(url: str, dest: str, sha256: str = "",
                     if not chunk:
                         break
                     out.write(chunk)
+                    h.update(chunk)
                     downloaded += len(chunk)
 
                     if show_progress and total > 0:
@@ -136,10 +138,6 @@ def download_file(url: str, dest: str, sha256: str = "",
                 print()
 
         if sha256:
-            h = hashlib.sha256()
-            with open(tmp, "rb") as f:
-                for block in iter(lambda: f.read(1 << 16), b""):
-                    h.update(block)
             got = h.hexdigest()
             if got != sha256:
                 raise RuntimeError(

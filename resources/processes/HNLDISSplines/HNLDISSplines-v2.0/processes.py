@@ -76,8 +76,7 @@ def load_processes(
     mixings: Optional[List[float]] = None,
     ):
 
-    ensure_zenodo_archive(_ZENODO_RECORD, _ZENODO_FILE, _RESOURCES_ROOT,
-                          prefix=_ZENODO_PREFIX)
+    fetch_data()
 
     primary_types = _get_primary_types(primary_types)
     isoscalar = _get_isoscalar(isoscalar)

@@ -27,11 +27,8 @@ def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=
 
     if tag is None:
         raise TypeError("\"tag\" is a required argument")
-    try:
-        tag = str(tag)
-    except:
-        raise RuntimeError("\"tag\" must convert to a str")
-    if min_energy is None != max_energy is None:
+    tag = str(tag)
+    if (min_energy is None) != (max_energy is None):
         raise RuntimeError("Neither or both \"min_energy\" and \"max_energy\" must be provided")
     has_energy_range = min_energy is not None
 
@@ -43,7 +40,8 @@ def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=
 
     input_flux_file = os.path.join(_ABS_DIR, "BNB_%s.dat" % mode)
 
-    all_lines = open(input_flux_file, "r").readlines()
+    with open(input_flux_file, "r") as f:
+        all_lines = f.readlines()
     headers = all_lines[0].strip().split()
     data = [line.strip().split() for line in all_lines[1:]]
     pid = headers.index(particle)
