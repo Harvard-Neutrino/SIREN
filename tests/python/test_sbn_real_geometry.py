@@ -10,7 +10,7 @@ the real detector geometry plus a 1cm gold cube, then verifies:
   - DetectorPosition(0,0,0) maps to the LAr volume center
   - All coordinate transforms are consistent across frames
 
-Requires network access to download GDML files (~5 MB total).
+Requires --run-network to download GDML files (~5 MB total).
 """
 from __future__ import annotations
 
@@ -23,6 +23,8 @@ import pytest
 
 from siren.detector import DetectorModel, DetectorPosition, GeometryPosition
 from siren.math import Quaternion, Vector3D
+
+pytestmark = pytest.mark.network
 
 GOLD_DENSITY = 19.3
 LAR_DENSITY = 1.39

@@ -13,6 +13,7 @@ Usage:
 
 import importlib.util
 import os
+import sys
 
 _THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -21,7 +22,12 @@ def _load_sibling(name, filename):
     spec = importlib.util.spec_from_file_location(
         name, os.path.join(_THIS_DIR, filename))
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    sys.modules[name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        del sys.modules[name]
+        raise
     return mod
 
 

@@ -13,6 +13,51 @@ _SBN_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "resources", "detectors",
     "SBN", "SBN-v1")
 
+
+def test_detector_loader_imports_without_preloaded_siblings():
+    """Importing detector.py must load dataclass sibling modules itself."""
+    module_names = ("sbn_detector_import_smoke", "sbn_geometry", "sbn_loader")
+    previous_modules = {name: sys.modules.pop(name, None) for name in module_names}
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "sbn_detector_import_smoke",
+            os.path.join(_SBN_DIR, "detector.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        assert callable(mod.load_detector)
+        assert "ICARUS" in mod._DETECTOR_SPECS
+        assert mod.geo.DETECTORS["ICARUS"].name == "ICARUS"
+    finally:
+        for name in module_names:
+            sys.modules.pop(name, None)
+        for name, module in previous_modules.items():
+            if module is not None:
+                sys.modules[name] = module
+
+
+def test_sbn_resource_loader_imports_from_source_tree(monkeypatch):
+    """The public resource loader path must import the SBN detector loader."""
+    from siren import _util
+
+    resources_root = os.path.abspath(os.path.join(_SBN_DIR, "..", "..", ".."))
+    module_names = ("siren-detector-SBN", "sbn_geometry", "sbn_loader")
+    previous_modules = {name: sys.modules.pop(name, None) for name in module_names}
+    monkeypatch.setattr(_util, "resource_package_dir", lambda: resources_root)
+
+    try:
+        loader = _util.get_resource_loader("detector", "SBN")
+        assert callable(loader)
+        assert "ICARUS" in loader._DETECTOR_SPECS
+        assert "SBND" in loader._DETECTOR_SPECS
+    finally:
+        for name in module_names:
+            sys.modules.pop(name, None)
+        for name, module in previous_modules.items():
+            if module is not None:
+                sys.modules[name] = module
+
+
 @pytest.fixture(scope="module")
 def geo():
     spec = importlib.util.spec_from_file_location(
