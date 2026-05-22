@@ -68,7 +68,6 @@ static const double DsPlusMass         = 1.96835; // GeV
 static const double DsMinusMass        = 1.96835; // GeV
 static const double BPlusMass          = 5.27932; // GeV
 static const double BMinusMass         = 5.27932; // GeV
-static const double CharmMass          = 1.27; // GeV (charm-quark mass, meson-context legacy name)
 // Quark masses from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-quark-masses.pdf
 static const double upMass             = 0.00232; // GeV
 static const double downMass           = 0.00471; // GeV

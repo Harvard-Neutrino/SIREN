@@ -60,7 +60,7 @@ bool kinematicallyAllowed(double xi, double y, double E, double M, double m_lep)
     if (y  < 1e-9)                          return false;
     if (y  > 1.0 - m_lep / E)               return false;
 
-    const double mc  = siren::utilities::Constants::CharmMass;
+    const double mc  = siren::utilities::Constants::charmMass;
     const double Mch = siren::utilities::Constants::D0Mass;
 
     const double Q2 = slowRescalingQ2(xi, y, E, M, mc);
@@ -511,7 +511,7 @@ double QuarkDISFromSpline::DifferentialCrossSection(dataclasses::InteractionReco
     double Q2 = -q.dot(q);
     double lepton_mass = GetLeptonMass(interaction.signature.secondary_types[lepton_index]);
 
-    const double mc = siren::utilities::Constants::CharmMass;
+    const double mc = siren::utilities::Constants::charmMass;
     double y  = 1.0 - p2.dot(p3) / p2.dot(p1);
     // xi from inverting Q^2 = 2 M E y xi - m_c^2; guard against y <= 0:
     double xi = (y > 0.0)
@@ -555,7 +555,7 @@ double QuarkDISFromSpline::DifferentialCrossSection(double energy, double xi, do
 
     if (std::isnan(Q2)) {
         Q2 = slowRescalingQ2(xi, y, energy, target_mass_,
-                             siren::utilities::Constants::CharmMass);
+                             siren::utilities::Constants::charmMass);
     }
     if (Q2 < minimum_Q2_) {
         return 0;
@@ -616,7 +616,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
 
-    const double mc      = siren::utilities::Constants::CharmMass;
+    const double mc      = siren::utilities::Constants::charmMass;
     const double Mch     = siren::utilities::Constants::D0Mass;
     const double M_targ  = target_mass_;
     const double E_nu    = primary_energy;
@@ -765,10 +765,10 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     record.interaction_parameters["bjorken_y"]  = final_y;
     record.interaction_parameters["bjorken_x"]  =
         xiToBjorkenX(final_xi, final_y, E1_lab, target_mass_,
-                     siren::utilities::Constants::CharmMass);
+                     siren::utilities::Constants::charmMass);
 
     double Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
-                                siren::utilities::Constants::CharmMass);
+                                siren::utilities::Constants::charmMass);
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
@@ -785,7 +785,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         // loop to resolve precision issue
         while (iteration <= maxIterations) {
             Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
-                                 siren::utilities::Constants::CharmMass);
+                                 siren::utilities::Constants::charmMass);
             p1x_lab = std::sqrt(p1_lab_x * p1_lab_x + p1_lab_y * p1_lab_y + p1_lab_z * p1_lab_z);
             pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
             momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));

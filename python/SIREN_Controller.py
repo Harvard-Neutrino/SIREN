@@ -64,32 +64,20 @@ class SIREN_Controller:
         # Empty list for our interaction trees
         self.events = []
 
-        # Resolve detector model: either named experiment OR explicit file paths.
-        # PR #74 follow-up: previously this called _util.load_detector(experiment)
-        # unconditionally, which raised TypeError(model_regex.match(None)) when
-        # the caller intended to use explicit file overrides.
-        self._densities_file = None  # used as fallback for fiducial volume
-        if detector_model_file is not None and materials_model_file is not None:
-            # Explicit-path branch: build DetectorModel directly from files
-            # (mirrors _util._detector_file_loader; do not call load_detector,
-            # which requires a named experiment).
-            self.detector_model = _detector.DetectorModel()
-            self.detector_model.LoadMaterialModel(materials_model_file)
-            self.detector_model.LoadDetectorModel(detector_model_file)
-            self._densities_file = detector_model_file
-        elif detector_model_file is None and materials_model_file is None:
-            if experiment is None:
-                raise ValueError(
-                    "Must provide either `experiment` (named detector) or "
-                    "both `detector_model_file` and `materials_model_file`."
-                )
-            # Named-experiment branch: defer to upstream load_detector
-            self.detector_model = _util.load_detector(experiment)
-        else:
-            raise ValueError(
-                "Must provide both `detector_model_file` and `materials_model_file`, "
-                "or neither (and supply `experiment` instead)."
-            )
+
+        self.detector_model_file = detector_model_file
+        self.materials_model_file = materials_model_file
+        if experiment is not None:
+            # Find the density and materials files
+            detector_dir = _util.get_detector_model_path(experiment)
+            self.materials_model_file = os.path.join(detector_dir, "materials.dat")
+            self.detector_model_file = os.path.join(detector_dir, "densities.dat")
+        elif (self.detector_model_file is None or self.materials_model_file is None):
+            raise ValueError("Must provide either an experiment name or both a detector model file and materials model file")
+
+        self.detector_model = _detector.DetectorModel()
+        self.detector_model.LoadMaterialModel(self.materials_model_file)
+        self.detector_model.LoadDetectorModel(self.detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
@@ -125,35 +113,43 @@ class SIREN_Controller:
         :param bool fid_vol_secondary: whether to restrict secondary interactions to fiducial volume
         """
 
-        # Define the primary injection process primary type.
-        # Upstream PR #71 replaced Add*Distribution(...) methods with a
-        # list-valued `distributions` property. We accumulate the full list
-        # locally then assign once.
+        # Define the primary injection process primary type
         self.primary_injection_process.primary_type = primary_type
 
-        primary_idist_list = []
+        # Default injection distributions
         if "mass" not in primary_injection_distributions.keys():
-            primary_idist_list.append(_distributions.PrimaryMass(0))
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryMass(0)
+            )
+
         if "helicity" not in primary_injection_distributions.keys():
-            primary_idist_list.append(_distributions.PrimaryNeutrinoHelicityDistribution())
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryNeutrinoHelicityDistribution()
+            )
+
+        # Add all injection distributions
         for _, idist in primary_injection_distributions.items():
-            primary_idist_list.append(idist)
-        self.primary_injection_process.distributions = primary_idist_list
+            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
             secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_injection_process.primary_type = secondary_type
 
-            sec_idist_list = list(secondary_injection_distributions[i_sec])
+            # Add all injection distributions
+            for idist in secondary_injection_distributions[i_sec]:
+                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
 
             # Add the position distribution
-            if self.fid_vol is not None:
-                sec_idist_list.append(_distributions.SecondaryBoundedVertexDistribution(self.fid_vol))
+            if fid_vol_secondary and self.fid_vol is not None:
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
+                )
             else:
-                sec_idist_list.append(_distributions.SecondaryPhysicalVertexDistribution())
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution()
+                )
 
-            secondary_injection_process.distributions = sec_idist_list
             self.secondary_injection_processes.append(secondary_injection_process)
 
     def SetPhysicalProcesses(
@@ -171,25 +167,33 @@ class SIREN_Controller:
         :param list<dict<str,PhysicalDistribution> secondary_physical_distributions: List of dict of physical distributions for each secondary process
         """
 
-        # Define the primary physical process primary type.
-        # Upstream PR #71 replaced AddPhysicalDistribution(...) with the
-        # list-valued `distributions` property.
+        # Define the primary physical process primary type
         self.primary_physical_process.primary_type = primary_type
 
-        primary_pdist_list = []
+        # Default physical distributions
         if "mass" not in primary_physical_distributions.keys():
-            primary_pdist_list.append(_distributions.PrimaryMass(0))
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryMass(0)
+            )
+
         if "helicity" not in primary_physical_distributions.keys():
-            primary_pdist_list.append(_distributions.PrimaryNeutrinoHelicityDistribution())
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryNeutrinoHelicityDistribution()
+            )
+
+        # Add all physical distributions
         for _, pdist in primary_physical_distributions.items():
-            primary_pdist_list.append(pdist)
-        self.primary_physical_process.distributions = primary_pdist_list
+            self.primary_physical_process.AddPhysicalDistribution(pdist)
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_physical_process.primary_type = secondary_type
-            secondary_physical_process.distributions = list(secondary_physical_distributions[i_sec])
+
+            # Add all physical distributions
+            for pdist in secondary_physical_distributions[i_sec]:
+                secondary_physical_process.AddPhysicalDistribution(pdist)
+
             self.secondary_physical_processes.append(secondary_physical_process)
 
     def SetProcesses(
@@ -292,14 +296,14 @@ class SIREN_Controller:
                 secondary_injection_process.primary_type = secondary_type
 
             # Add the secondary position distribution
-            if self.fid_vol is not None:
-                secondary_injection_process.distributions = [
+            if fid_vol_secondary and self.fid_vol is not None:
+                secondary_injection_process.AddSecondaryInjectionDistribution(
                     _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-                ]
+                )
             else:
-                secondary_injection_process.distributions = [
+                secondary_injection_process.AddSecondaryInjectionDistribution(
                     _distributions.SecondaryPhysicalVertexDistribution()
-                ]
+                )
 
             if not inj_sec_defined:
                 self.secondary_injection_processes.append(secondary_injection_process)
@@ -361,26 +365,21 @@ class SIREN_Controller:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
-        if self.experiment is not None:
-            return _util.get_fiducial_volume(self.experiment)
-        # Explicit-path branch: parse fiducial directly from the densities file
-        # (mirrors _util.get_fiducial_volume; avoids get_detector_model_path(None)).
-        if self._densities_file is None:
-            return None
-        with open(self._densities_file) as f:
+        with open(self.detector_model_file) as file:
             fiducial_line = None
             detector_line = None
-            for line in f:
+            for line in file:
                 data = line.split()
                 if len(data) <= 0:
                     continue
-                if data[0] == "fiducial":
+                elif data[0] == "fiducial":
                     fiducial_line = line
                 elif data[0] == "detector":
                     detector_line = line
-        if fiducial_line is None or detector_line is None:
-            return None
-        return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
+            if fiducial_line is None or detector_line is None:
+                return None
+            return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
+        return None
 
     def GetVolumePositionDistributionFromSector(self, sector_name):
         geo = self.GetDetectorSectorGeometry(sector_name)
@@ -511,7 +510,7 @@ class SIREN_Controller:
             assert(self.primary_injection_process.primary_type is not None)
             # Use controller injection objects
             self.injectors.append(
-                _injection._Injector(
+                _injection.Injector(
                     self.events_to_inject,
                     self.detector_model,
                     self.primary_injection_process,
@@ -524,7 +523,7 @@ class SIREN_Controller:
             assert(len(filenames)>0) # require at least one injector filename
             for filename in filenames:
                 self.injectors.append(
-                    _injection._Injector(
+                    _injection.Injector(
                         self.events_to_inject,
                         filename,
                         self.random,
@@ -538,7 +537,7 @@ class SIREN_Controller:
         if filename is None:
             assert(self.primary_physical_process.primary_type is not None)
             # Use controller physical objects
-            self.weighter = _injection._Weighter(
+            self.weighter = _injection.Weighter(
                 self.injectors,
                 self.detector_model,
                 self.primary_physical_process,
@@ -546,7 +545,7 @@ class SIREN_Controller:
             )
         else:
             # Try initilalizing with the provided filename
-            self.weighter = _injection._Weighter(
+            self.weighter = _injection.Weighter(
                 self.injectors,
                 filename
             )
