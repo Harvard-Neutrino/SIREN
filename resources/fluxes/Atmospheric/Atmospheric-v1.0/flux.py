@@ -14,11 +14,11 @@ PARTICLES = ["nue", "numu", "nuebar", "numubar", "nutau", "nutaubar"]
 OSC_STATES = ["osc", "unosc"]
 
 _NPZ_SHA256 = {
-    "bartol": "0cc8650a1002b381050fb75b38c5a6d0d50e5f70e54cfaa82398994678dc9d0b",
-    "daemonflux": "e40978ae6fe034494e27c52765399919894693959b749f798789c97352cf2dab",
-    "H3a_SIBYLL21": "ac02b1ae63df576534c55cd9f13547b9edf34751a4c8ab9cef2aab72cf4212fd",
-    "H3a_SIBYLL23C": "3e21cd1442ef13950d391ce5d83765ff45885d5a2cb568756e0255aad0ca8a3f",
-    "honda2006": "de349697a10f37c4b5254805079b71ebe1865b9bdc8d225d8bb2dec7b2d34115",
+    "bartol": "af0806ea7a6dae9fd0e8196aa4d3896ca33f19638bc9a5e688921f9aa4c12ee4",
+    "daemonflux": "40fcec18c4f66ff556b7c725b2ff84559f7e9a7cd6e150efe7fd120285af57a9",
+    "H3a_SIBYLL21": "9f3280c76c1f3558a4522647a395131cb9f84020dfd18f128fc2b7bc612bfc96",
+    "H3a_SIBYLL23C": "e291e782a2d149a7e979c7332b63e479130c801db6b355d7b140b06968fd84ae",
+    "honda2006": "9afe3fe86e67e6653e95ae1e9629964a73d1063c5abaf6e39eabf5444c964559",
 }
 
 _NPZ_FILES = [
