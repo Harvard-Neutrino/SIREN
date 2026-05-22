@@ -252,3 +252,47 @@ class TestFrameGraph:
     def test_numi_transform_has_rotation(self, geo):
         T = geo.transform("NuMI", "BNB")
         assert not np.allclose(T.R, np.eye(3), atol=1e-3)
+
+
+# ======================================================================
+# GDML placement convention: passive rotation (M^T applied)
+# ======================================================================
+
+class TestGDMLPlacementConvention:
+    """Verify that gdml_rotation_angles produces angles for the GDML passive
+    convention: SIREN applies r_parent = M^T @ r_child + position.
+
+    For a child volume in frame S placed in parent frame P, the GDML rotation
+    matrix M must satisfy M^T = R_child_to_parent, i.e. M = R_parent_to_child.
+    """
+
+    def test_numi_placement_roundtrip(self, geo):
+        """NuMI GDML placed in BNB frame: M^T should equal R(NuMI->BNB)."""
+        from siren.math import Quaternion
+        T = geo.transform("NuMI", "BNB")
+        # GDML angles should encode M = R(NuMI->BNB)^T = R(BNB->NuMI)
+        rx, ry, rz = geo.gdml_rotation_angles(T.R.T)
+        M = _reconstruct_matrix(rx, ry, rz)
+        # SIREN applies M^T, which should equal R(NuMI->BNB)
+        np.testing.assert_allclose(M.T, T.R, atol=1e-9)
+
+    def test_identity_placement(self, geo):
+        """Pure translation (ICARUS/SBND) should give zero angles."""
+        R_identity = np.eye(3)
+        rx, ry, rz = geo.gdml_rotation_angles(R_identity.T)
+        assert abs(rx) < 1e-15
+        assert abs(ry) < 1e-15
+        assert abs(rz) < 1e-15
+
+    @pytest.mark.parametrize("seed", range(5))
+    def test_random_placement(self, geo, seed):
+        """For any rotation R(child->parent), GDML angles of R^T should
+        reconstruct M such that M^T = R."""
+        rng = np.random.RandomState(seed + 100)
+        M = rng.randn(3, 3)
+        R_child_to_parent, _ = np.linalg.qr(M)
+        if np.linalg.det(R_child_to_parent) < 0:
+            R_child_to_parent[:, 0] *= -1
+        rx, ry, rz = geo.gdml_rotation_angles(R_child_to_parent.T)
+        M_gdml = _reconstruct_matrix(rx, ry, rz)
+        np.testing.assert_allclose(M_gdml.T, R_child_to_parent, atol=1e-14)

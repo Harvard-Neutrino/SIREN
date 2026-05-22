@@ -31,9 +31,11 @@ sbn_loader = _load_sibling("sbn_loader", "sbn_loader.py")
 from siren.download import writable_data_dir
 _ABS_DIR = writable_data_dir(_THIS_DIR)
 
+# GDML <physvol> rotation is passive: SIREN applies r_parent = M^T @ r_child + t.
+# So M must be the INVERSE of child-to-parent, i.e. the parent-to-child rotation.
 _T_numi = geo.transform("NuMI", "BNB")
 _numi_origin_bnb = _T_numi.apply([0.0, 0.0, 0.0])
-_numi_rx, _numi_ry, _numi_rz = geo.gdml_rotation_angles(_T_numi.R)
+_numi_rx, _numi_ry, _numi_rz = geo.gdml_rotation_angles(_T_numi.R.T)
 
 _DATA_BASE = (
     "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
@@ -102,19 +104,18 @@ def load_detector(detector=None):
 
     spec = _DETECTOR_SPECS[detector]
 
-    # Full rigid transform from the detector's native (LArSoft) frame to
-    # BNB frame: r_BNB = R @ r_det + t.  Used for both placing the detector
-    # GDML in the composite and for telling SIREN how to convert between
-    # detector-local and geometry-global coordinates.
     T_det_to_bnb = geo.detector_transform(detector, "BNB")
     origin_bnb = T_det_to_bnb.t
+
+    # DetectorRotation is an active rotation (r_geo = R @ r_det + origin),
+    # so it uses the det-to-bnb rotation directly.
     qx, qy, qz, qw = geo.quaternion_from_matrix(T_det_to_bnb.R)
 
-    # GDML Euler angles for the <physvol> placement rotation.  None when
-    # the detector frame is axis-aligned with BNB (pure translation).
+    # GDML <physvol> rotation is passive (SIREN applies M^T), so we need
+    # M = R_det_to_bnb^T (the inverse rotation). None when identity.
     det_rotation = None
     if abs(qx) > 1e-12 or abs(qy) > 1e-12 or abs(qz) > 1e-12:
-        rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R)
+        rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R.T)
         det_rotation = (rx, ry, rz)
 
     sources = list(_BEAMLINE_SOURCES)
