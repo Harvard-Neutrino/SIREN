@@ -72,6 +72,11 @@ _ENV_MATERIALS = """\
     </material>"""
 
 
+# Ground-level elevation in BNB coordinates (meters above the BNB target).
+# Fermilab grade is approximately 7.62 m above the BNB beam axis.
+_GRADE_Y_BNB = 7.62
+
+
 def build_composite(
     abs_dir: str,
     sources: list[dict[str, Any]],
@@ -91,8 +96,6 @@ def build_composite(
     cache_path = os.path.join(abs_dir, cache_name)
 
     _ensure_gdml_files(abs_dir, sources)
-
-    GRADE_Y_BNB = 7.62
 
     physvols = []
     for spec in sources:
@@ -135,7 +138,7 @@ def build_composite(
       <solidref ref="sol_composite_world"/>
       <physvol name="pv_atmosphere">
         <volumeref ref="vol_atmosphere"/>
-        <position unit="m" x="0" y="{GRADE_Y_BNB + 50.0:.2f}" z="300"/>
+        <position unit="m" x="0" y="{_GRADE_Y_BNB + 50.0:.2f}" z="300"/>
       </physvol>
 {source_physvols}
     </volume>

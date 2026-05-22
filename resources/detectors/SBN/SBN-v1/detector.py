@@ -9,7 +9,6 @@ Usage:
     from siren._util import load_detector
     model = load_detector("SBN", detector="ICARUS")
     model = load_detector("SBN", detector="SBND")
-    model = load_detector("SBN", detector="MicroBooNE")
 """
 
 import os
@@ -54,7 +53,6 @@ _DETECTOR_SPECS = {
     "ICARUS": {
         "file": "gdml/icarus_refactored_nounderscore_20230918_nowires.gdml",
         "prefix": "icarus",
-        "detector_key": "ICARUS",
         "unwrap": True,
         "url": f"{_DATA_BASE}/ICARUS/icarus_refactored_nounderscore_20230918_nowires.gdml",
         "sha256": "3f68961a21fa037d3278c3235e48920cfc85a306adc5437f296dd7c09f095cd1",
@@ -62,18 +60,20 @@ _DETECTOR_SPECS = {
     "SBND": {
         "file": "gdml/sbnd_v02_06.gdml",
         "prefix": "sbnd",
-        "detector_key": "SBND",
         "unwrap": True,
         "url": f"{_DATA_BASE}/SBND/sbnd_v02_06.gdml",
         "sha256": "224a0efa55e66b1fb3b527937e4a899854c2bbab367db3659e55466c4e7f013a",
     },
-    "MicroBooNE": {
-        "file": None,
-        "prefix": "uboone",
-        "detector_key": "MicroBooNE",
-        "unwrap": False,
-    },
 }
+
+
+def fetch_data():
+    """Download GDML files for all detectors (called by siren-download --fetch)."""
+    all_sources = list(_BEAMLINE_SOURCES)
+    for spec in _DETECTOR_SPECS.values():
+        if spec.get("file"):
+            all_sources.append(spec)
+    sbn_loader._ensure_gdml_files(_THIS_DIR, all_sources)
 
 
 def load_detector(detector=None):
@@ -94,14 +94,14 @@ def load_detector(detector=None):
     # BNB frame: r_BNB = R @ r_det + t.  Used for both placing the detector
     # GDML in the composite and for telling SIREN how to convert between
     # detector-local and geometry-global coordinates.
-    T_det_to_bnb = geo.detector_transform(spec["detector_key"], "BNB")
+    T_det_to_bnb = geo.detector_transform(detector, "BNB")
     origin_bnb = T_det_to_bnb.t
     qx, qy, qz, qw = geo.quaternion_from_matrix(T_det_to_bnb.R)
 
     # GDML Euler angles for the <physvol> placement rotation.  None when
     # the detector frame is axis-aligned with BNB (pure translation).
     det_rotation = None
-    if not (qx == 0.0 and qy == 0.0 and qz == 0.0):
+    if abs(qx) > 1e-12 or abs(qy) > 1e-12 or abs(qz) > 1e-12:
         rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R)
         det_rotation = (rx, ry, rz)
 
