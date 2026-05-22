@@ -30,7 +30,8 @@ def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=
     input_flux_file = os.path.join(_ABS_DIR,
                                    "dN_dE_SNe_2n_D1_0_s20_t100d_NuMu_d10kpc.txt")
 
-    all_lines = open(input_flux_file, "r").readlines()
+    with open(input_flux_file, "r") as f:
+        all_lines = f.readlines()
     headers = all_lines[0].strip().split()
     data = [line.strip().split() for line in all_lines[1:]]
     e_idx = 0
