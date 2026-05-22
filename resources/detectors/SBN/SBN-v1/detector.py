@@ -11,13 +11,25 @@ Usage:
     model = load_detector("SBN", detector="SBND")
 """
 
+import importlib.util
 import os
-import sys
 
 _THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, _THIS_DIR)
-import sbn_geometry as geo
-import sbn_loader
+
+
+def _load_sibling(name, filename):
+    spec = importlib.util.spec_from_file_location(
+        name, os.path.join(_THIS_DIR, filename))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+geo = _load_sibling("sbn_geometry", "sbn_geometry.py")
+sbn_loader = _load_sibling("sbn_loader", "sbn_loader.py")
+
+from siren.download import writable_data_dir
+_ABS_DIR = writable_data_dir(_THIS_DIR)
 
 _T_numi = geo.transform("NuMI", "BNB")
 _numi_origin_bnb = _T_numi.apply([0.0, 0.0, 0.0])
@@ -73,7 +85,7 @@ def fetch_data():
     for spec in _DETECTOR_SPECS.values():
         if spec.get("file"):
             all_sources.append(spec)
-    sbn_loader._ensure_gdml_files(_THIS_DIR, all_sources)
+    sbn_loader._ensure_gdml_files(_ABS_DIR, all_sources)
 
 
 def load_detector(detector=None):
@@ -118,7 +130,7 @@ def load_detector(detector=None):
         })
 
     cache_name = f"composite_{detector.lower()}.gdml"
-    cache_path = sbn_loader.build_composite(_THIS_DIR, sources, cache_name)
+    cache_path = sbn_loader.build_composite(_ABS_DIR, sources, cache_name)
 
     from siren.detector import DetectorModel
     from siren.math import Vector3D, Quaternion
