@@ -23,12 +23,21 @@ static const double degrees         = pi/180.; // converts degrees into radians.
 // expect angles presented in radians.
 static const double &deg            = degrees; // adding this in too...
 static const double radian          = 1.;
+static const double mrad            = 1.e-3*radian;
 
 // meter
 static const double m               = 1.;
 static const double &meter          = m;
-static const double cm              = 0.01*m;
+static const double nm              = 1.e-9*m;
+static const double &nanometer      = nm;
+static const double um              = 1.e-6*m;
+static const double &micrometer     = um;
+static const double mm              = 1.e-3*m;
+static const double &millimeter     = mm;
+static const double cm              = 1.e-2*m;
 static const double &centimeter     = cm;
+static const double km              = 1.e3*m;
+static const double &kilometer       = km;
 
 // second is a billion to be consistent with IceCube code
 static const double second          = 1.e9;

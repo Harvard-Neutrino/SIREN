@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_Cylinder_H
-#define SIREN_Cylinder_H
+#ifndef SIREN_Cone_H
+#define SIREN_Cone_H
 
 #include <memory>
 #include <vector>
@@ -23,53 +23,53 @@
 namespace siren {
 namespace geometry {
 
-class Cylinder : public Geometry {
+class Cone : public Geometry {
 public:
-    Cylinder();
-    Cylinder(double radius, double inner_radius, double z);
-    Cylinder(Placement const &);
-    Cylinder(Placement const &, double radius, double inner_radius, double z);
-    Cylinder(double radius, double inner_radius, double z, double start_phi, double delta_phi);
-    Cylinder(Placement const &, double radius, double inner_radius, double z, double start_phi, double delta_phi);
-    Cylinder(const Cylinder&);
+    Cone();
+    Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z);
+    Cone(Placement const &);
+    Cone(Placement const &, double rmin1, double rmax1, double rmin2, double rmax2, double z);
+    Cone(double rmin1, double rmax1, double rmin2, double rmax2, double z, double start_phi, double delta_phi);
+    Cone(Placement const &, double rmin1, double rmax1, double rmin2, double rmax2, double z, double start_phi, double delta_phi);
+    Cone(const Cone&);
 
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(::cereal::make_nvp("OuterRadius", radius_));
-            archive(::cereal::make_nvp("InnerRadius", inner_radius_));
+            archive(::cereal::make_nvp("InnerRadius1", rmin1_));
+            archive(::cereal::make_nvp("OuterRadius1", rmax1_));
+            archive(::cereal::make_nvp("InnerRadius2", rmin2_));
+            archive(::cereal::make_nvp("OuterRadius2", rmax2_));
             archive(::cereal::make_nvp("Height", z_));
             archive(::cereal::make_nvp("StartPhi", start_phi_));
             archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
             archive(cereal::virtual_base_class<Geometry>(this));
             has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
         } else {
-            throw std::runtime_error("Cylinder only supports version <= 0!");
+            throw std::runtime_error("Cone only supports version <= 0!");
         }
     }
 
-    std::shared_ptr<Geometry> create() const override { return std::shared_ptr<Geometry>( new Cylinder(*this) ); };
+    std::shared_ptr<Geometry> create() const override { return std::shared_ptr<Geometry>( new Cone(*this) ); };
     void swap(Geometry&) override;
 
-    virtual ~Cylinder() {}
+    virtual ~Cone() {}
 
     // Operators
-    Cylinder& operator=(const Geometry&) override;
+    Cone& operator=(const Geometry&) override;
 
     // Methods
     std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
     AABB GetBoundingBox() const override;
 
     // Getter & Setter
-    double GetInnerRadius() const { return inner_radius_; }
-    double GetRadius() const { return radius_; }
+    double GetRmin1() const { return rmin1_; }
+    double GetRmax1() const { return rmax1_; }
+    double GetRmin2() const { return rmin2_; }
+    double GetRmax2() const { return rmax2_; }
     double GetZ() const { return z_; }
     double GetStartPhi() const { return start_phi_; }
     double GetDeltaPhi() const { return delta_phi_; }
-
-    void SetInnerRadius(double inner_radius) { inner_radius_ = inner_radius; RecomputeWorldAABB(); };
-    void SetRadius(double radius) { radius_ = radius; RecomputeWorldAABB(); };
-    void SetZ(double z) { z_ = z; RecomputeWorldAABB(); };
 
 protected:
     virtual bool equal(const Geometry&) const override;
@@ -77,9 +77,11 @@ protected:
 private:
     void print(std::ostream&) const override;
 
-    double radius_;       //!< the radius of the sphere/ cylinder
-    double inner_radius_; //!< for spherical shells or hollow cylinder (0 for sphere / cylinder)
-    double z_;            //!< height of box/cylinder
+    double rmin1_; //!< inner radius at z = -z/2
+    double rmax1_; //!< outer radius at z = -z/2
+    double rmin2_; //!< inner radius at z = +z/2
+    double rmax2_; //!< outer radius at z = +z/2
+    double z_;     //!< full height along z-axis
     double start_phi_;    //!< starting azimuthal angle (radians, default 0)
     double delta_phi_;    //!< azimuthal extent (radians, default 2*pi)
     bool has_phi_cut_;    //!< true if delta_phi < 2*pi (precomputed)
@@ -89,8 +91,8 @@ private:
 } // namespace geometry
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::geometry::Cylinder, 0);
-CEREAL_REGISTER_TYPE(siren::geometry::Cylinder)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Cylinder);
+CEREAL_CLASS_VERSION(siren::geometry::Cone, 0);
+CEREAL_REGISTER_TYPE(siren::geometry::Cone)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Cone);
 
-#endif // SIREN_Cylinder_H
+#endif // SIREN_Cone_H
