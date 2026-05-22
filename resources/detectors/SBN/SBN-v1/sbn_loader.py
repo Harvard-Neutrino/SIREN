@@ -125,8 +125,8 @@ def build_composite(
 {_ENV_MATERIALS}
   </materials>
   <solids>
-    <box name="sol_composite_world" lunit="m" x="400" y="100" z="800"/>
-    <box name="sol_atmosphere" lunit="m" x="800" y="100" z="1600"/>
+    <box name="sol_composite_world" lunit="m" x="800" y="200" z="1800"/>
+    <box name="sol_atmosphere" lunit="m" x="780" y="80" z="1780"/>
   </solids>
   <structure>
     <volume name="vol_atmosphere">

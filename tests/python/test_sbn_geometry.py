@@ -226,7 +226,7 @@ class TestQuaternionFromMatrix:
     def test_180_about_z(self, geo):
         R = np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=float)
         qx, qy, qz, qw = geo.quaternion_from_matrix(R)
-        assert abs(qz) - 1.0 < 1e-14 or abs(qz) + 1.0 < 1e-14
+        assert abs(abs(qz) - 1.0) < 1e-14
         assert abs(qw) < 1e-14
         assert abs(qx) < 1e-14
         assert abs(qy) < 1e-14
