@@ -146,6 +146,9 @@ def load_detector(detector=None):
     model = DetectorModel()
     model.LoadGDML(cache_path)
 
+    earth = _load_sibling("earth_model", "earth_model.py")
+    earth.add_earth_model(model)
+
     # DetectorOrigin is the point in BNB (geometry) coordinates that
     # corresponds to (0,0,0) in DetectorCoordinates. We place it at
     # the geometric center of the LAr volume (from the Detector entry
