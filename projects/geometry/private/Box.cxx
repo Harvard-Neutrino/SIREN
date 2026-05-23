@@ -19,19 +19,19 @@
 namespace siren {
 namespace geometry {
 
-Box::Box() : Geometry("Box"), x_(0), y_(0), z_(0) { RecomputeWorldAABB(); }
-Box::Box(double x, double y, double z) : Geometry("Box"), x_(x), y_(y), z_(z) { RecomputeWorldAABB(); }
-Box::Box(Placement const & p) : Geometry("Box", p), x_(0), y_(0), z_(0) { RecomputeWorldAABB(); }
-Box::Box(Placement const & p, double x, double y, double z) : Geometry("Box", p), x_(x), y_(y), z_(z) { RecomputeWorldAABB(); }
-Box::Box(const Box& o) : Geometry(o), x_(o.x_), y_(o.y_), z_(o.z_) { RecomputeWorldAABB(); }
+Box::Box() : Geometry("Box"), full_width_x_(0), full_width_y_(0), full_width_z_(0) { RecomputeWorldAABB(); }
+Box::Box(double x, double y, double z) : Geometry("Box"), full_width_x_(x), full_width_y_(y), full_width_z_(z) { RecomputeWorldAABB(); }
+Box::Box(Placement const & p) : Geometry("Box", p), full_width_x_(0), full_width_y_(0), full_width_z_(0) { RecomputeWorldAABB(); }
+Box::Box(Placement const & p, double full_width_x, double full_width_y, double full_width_z) : Geometry("Box", p), full_width_x_(full_width_x), full_width_y_(full_width_y), full_width_z_(full_width_z) { RecomputeWorldAABB(); }
+Box::Box(const Box& o) : Geometry(o), full_width_x_(o.full_width_x_), full_width_y_(o.full_width_y_), full_width_z_(o.full_width_z_) { RecomputeWorldAABB(); }
 
-SIREN_GEOMETRY_SWAP(Box, x_, y_, z_)
+SIREN_GEOMETRY_SWAP(Box, full_width_x_, full_width_y_, full_width_z_)
 SIREN_GEOMETRY_ASSIGN(Box)
-SIREN_GEOMETRY_EQUAL(Box, x_, y_, z_)
-SIREN_GEOMETRY_LESS(Box, x_, y_, z_)
+SIREN_GEOMETRY_EQUAL(Box, full_width_x_, full_width_y_, full_width_z_)
+SIREN_GEOMETRY_LESS(Box, full_width_x_, full_width_y_, full_width_z_)
 
 void Box::print(std::ostream& os) const {
-    os << "Box(" << x_ << ", " << y_ << ", " << z_ << ")\n";
+    os << "Box(" << full_width_x_ << ", " << full_width_y_ << ", " << full_width_z_ << ")\n";
 }
 
 // ------------------------------------------------------------------------- //
@@ -39,7 +39,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
     double px = position.GetX(), py = position.GetY(), pz = position.GetZ();
     double dx = direction.GetX(), dy = direction.GetY(), dz = direction.GetZ();
 
-    double hx = 0.5 * x_, hy = 0.5 * y_, hz = 0.5 * z_;
+    double hx = 0.5 * full_width_x_, hy = 0.5 * full_width_y_, hz = 0.5 * full_width_z_;
 
     // Use the slab method: find the ray parameter ranges where the ray is
     // inside each pair of parallel planes, then intersect the three ranges.
@@ -109,9 +109,9 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
 
 // ------------------------------------------------------------------------- //
 AABB Box::GetBoundingBox() const {
-    double hx = x_ * 0.5;
-    double hy = y_ * 0.5;
-    double hz = z_ * 0.5;
+    double hx = full_width_x_ * 0.5;
+    double hy = full_width_y_ * 0.5;
+    double hz = full_width_z_ * 0.5;
     return AABB(
         math::Vector3D(-hx, -hy, -hz),
         math::Vector3D( hx,  hy,  hz)
