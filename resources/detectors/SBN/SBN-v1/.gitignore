@@ -1,0 +1,4 @@
+# Generated at load time -- do not commit or ship
+composite_*.gdml
+gdml/
+__pycache__/
