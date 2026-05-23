@@ -1,8 +1,8 @@
 import os
 import numpy as np
-from siren.download import ensure_files, writable_data_dir
+from siren.download import ensure_files, writable_data_dir, resolve_data_path
 
-_ABS_DIR = writable_data_dir(os.path.dirname(os.path.abspath(__file__)))
+_INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
 
 _DATA_BASE = (
     "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
@@ -21,19 +21,26 @@ _NPZ_SHA256 = {
     "honda2006": "9afe3fe86e67e6653e95ae1e9629964a73d1063c5abaf6e39eabf5444c964559",
 }
 
-_NPZ_FILES = [
-    {
-        "path": os.path.join(_ABS_DIR, f"{model}.npz"),
-        "url": f"{_DATA_BASE}/{model}.npz",
-        "sha256": _NPZ_SHA256[model],
-    }
-    for model in MODELS
-]
+_ABS_DIR = None
+
+def _get_abs_dir():
+    global _ABS_DIR
+    if _ABS_DIR is None:
+        _ABS_DIR = writable_data_dir(_INSTALL_DIR)
+    return _ABS_DIR
 
 
 def fetch_data():
     """Download all atmospheric flux npz files."""
-    ensure_files(_NPZ_FILES)
+    abs_dir = _get_abs_dir()
+    ensure_files([
+        {
+            "path": os.path.join(abs_dir, f"{model}.npz"),
+            "url": f"{_DATA_BASE}/{model}.npz",
+            "sha256": _NPZ_SHA256[model],
+        }
+        for model in MODELS
+    ])
 
 
 def load_flux(tag):
@@ -71,11 +78,12 @@ def load_flux(tag):
 
     fetch_data()
 
-    output_flux_file = os.path.join(_ABS_DIR, f"Atmospheric_{tag}_flux.txt")
+    abs_dir = _get_abs_dir()
+    output_flux_file = os.path.join(abs_dir, f"Atmospheric_{tag}_flux.txt")
     if os.path.isfile(output_flux_file):
         return output_flux_file
 
-    npz_path = os.path.join(_ABS_DIR, f"{model}.npz")
+    npz_path = resolve_data_path(_INSTALL_DIR, abs_dir, f"{model}.npz")
     with np.load(npz_path) as npz:
         energy = npz["energy"]
         cos_theta = npz["cos_theta"]
@@ -92,7 +100,9 @@ def load_flux(tag):
                 tot_flux += grid
 
     ee, cc = np.meshgrid(energy, cos_theta, indexing='ij')
-    np.savetxt(output_flux_file,
+    tmp = output_flux_file + ".tmp"
+    np.savetxt(tmp,
                np.column_stack([ee.ravel(), cc.ravel(), tot_flux.ravel()]))
+    os.replace(tmp, output_flux_file)
 
     return output_flux_file
