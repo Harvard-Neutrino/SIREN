@@ -108,8 +108,12 @@ std::shared_ptr<Geometry> BuildBooleanGeometry(BooleanOperation op,
 }
 
 std::shared_ptr<Geometry> ParseBox(SolidContext const & ctx) {
-    // GDML <box> x,y,z are half-widths; SIREN Box takes full widths.
-    return Box(L(ctx, "x") * 2.0, L(ctx, "y") * 2.0, L(ctx, "z") * 2.0).create();
+    // GDML <box> x,y,z are half-widths
+    // SIREN Box constructor takes full widths as arguments
+    double const x_full_width = L(ctx, "x") * 2.0;
+    double const y_full_width = L(ctx, "y") * 2.0;
+    double const z_full_width = L(ctx, "z") * 2.0;
+    return Box(x_full_width, y_full_width, z_full_width).create();
 }
 
 std::shared_ptr<Geometry> ParseSphere(SolidContext const & ctx) {
