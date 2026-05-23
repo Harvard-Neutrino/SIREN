@@ -2,19 +2,29 @@ import os
 from typing import Tuple, List, Any, Optional
 import siren
 import collections
-from siren.download import ensure_zenodo_archive, writable_data_dir
+from siren.download import ensure_zenodo_archive, writable_data_dir, resolve_data_path
 
 base_path = os.path.dirname(os.path.abspath(__file__))
 
 _ZENODO_RECORD = "20129082"
 _ZENODO_FILE = "processes.zip"
 _ZENODO_PREFIX = "processes/CSMSDISSplines/CSMSDISSplines-v1.0"
-_RESOURCES_ROOT = writable_data_dir(os.path.normpath(os.path.join(base_path, "..", "..", "..")))
+
+_RESOURCES_ROOT = None
+_DOWNLOAD_DIR = None
+
+def _get_dirs():
+    global _RESOURCES_ROOT, _DOWNLOAD_DIR
+    if _RESOURCES_ROOT is None:
+        _RESOURCES_ROOT = writable_data_dir(os.path.normpath(os.path.join(base_path, "..", "..", "..")))
+        _DOWNLOAD_DIR = os.path.join(_RESOURCES_ROOT, _ZENODO_PREFIX)
+    return _RESOURCES_ROOT, _DOWNLOAD_DIR
 
 
 def fetch_data():
     """Download data files from Zenodo (called by siren-download --fetch)."""
-    ensure_zenodo_archive(_ZENODO_RECORD, _ZENODO_FILE, _RESOURCES_ROOT,
+    resources_root, _ = _get_dirs()
+    ensure_zenodo_archive(_ZENODO_RECORD, _ZENODO_FILE, resources_root,
                           prefix=_ZENODO_PREFIX)
 
 neutrinos = [
@@ -107,11 +117,12 @@ def load_processes(
     primary_processes = []
     primary_processes_dict = collections.defaultdict(list)
 
+    _, download_dir = _get_dirs()
     for process_type in process_types:
         for primaries, nunubar in [[neutrinos, "nu"], [antineutrinos, "nubar"]]:
             if isoscalar:
-                dxs_file = os.path.join(base_path, f"dsdxdy_{nunubar}_{process_type}_iso.fits")
-                xs_file = os.path.join(base_path, f"sigma_{nunubar}_{process_type}_iso.fits")
+                dxs_file = resolve_data_path(base_path, download_dir, f"dsdxdy_{nunubar}_{process_type}_iso.fits")
+                xs_file = resolve_data_path(base_path, download_dir, f"sigma_{nunubar}_{process_type}_iso.fits")
                 xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
                 primary_processes.append(xs)
                 for primary_type in primaries:
