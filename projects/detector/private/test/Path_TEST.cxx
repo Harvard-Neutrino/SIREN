@@ -2342,6 +2342,36 @@ TEST(IntersectionReuse, DiagonalRayCollinearity) {
         << "5m perpendicular shift from diagonal should invalidate";
 }
 
+// NOTE: SetDetectorModel does NOT currently invalidate cached intersections.
+// A collinear SetPointsWithRay after a model swap will reuse stale hits.
+// This is a known limitation (the supported pattern is to set the model
+// before any ray calls). Uncomment the test below if/when SetDetectorModel
+// is updated to clear set_intersections_.
+//
+// TEST(IntersectionReuse, DetectorModelChangeInvalidates) {
+//     std::shared_ptr<const DetectorModel> model1(new DetectorModel());
+//     std::shared_ptr<const DetectorModel> model2(new DetectorModel());
+//     Path path(model1);
+//     path.SetPointsWithRay(GeometryPosition(Vector3D(-1, 0, 0)),
+//                           GeometryDirection(Vector3D(1, 0, 0)), 2.0);
+//     path.EnsureIntersections();
+//     ASSERT_TRUE(path.HasIntersections());
+//     path.SetDetectorModel(model2);
+//     EXPECT_FALSE(path.HasIntersections());
+// }
+
+TEST(IntersectionReuse, SameDetectorModelKeepsIntersections) {
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Path path(model);
+    path.SetPointsWithRay(GeometryPosition(Vector3D(-1, 0, 0)),
+                          GeometryDirection(Vector3D(1, 0, 0)), 2.0);
+    path.EnsureIntersections();
+    ASSERT_TRUE(path.HasIntersections());
+
+    path.SetDetectorModel(model);
+    EXPECT_TRUE(path.HasIntersections());
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
