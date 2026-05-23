@@ -139,6 +139,10 @@ void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model)
     if(set_detector_model_ and set_det_points_) {
         set_points_ = false;
     }
+    // Cached intersections are stale if the model changes.
+    if(set_intersections_ and detector_model_ != detector_model) {
+        set_intersections_ = false;
+    }
     detector_model_ = detector_model;
     set_detector_model_ = true;
     UpdatePoints();
