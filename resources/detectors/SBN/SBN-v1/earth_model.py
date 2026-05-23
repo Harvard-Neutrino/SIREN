@@ -2,9 +2,8 @@
 PREM Earth model for the SBN detector at Fermilab.
 
 Adds concentric PREM spherical shells and a multi-shell atmosphere to
-a DetectorModel that was loaded via LoadGDML. The GDML volumes (which
-carry positive levels) always take priority over these Earth sectors
-(which carry negative levels) wherever both exist.
+a DetectorModel that was loaded via LoadGDML. The GDML volumes always
+take priority over these Earth sectors wherever both exist.
 
 The PREM layers follow Dziewonski & Anderson, PEPI 25 (1981) 297,
 with the standard global-average Moho at 24.4 km depth. A local
