@@ -255,7 +255,27 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
     std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
     });
-    return {hits, hits + n_hits};
+
+    // Net-parity dedup: collapse coincident hits from shared face boundaries.
+    std::vector<Intersection> result;
+    int i = 0;
+    while(i < n_hits) {
+        int j = i + 1;
+        while(j < n_hits && std::fabs(hits[j].distance - hits[i].distance) <= GEOMETRY_PRECISION)
+            ++j;
+        int net = 0;
+        for(int k = i; k < j; ++k)
+            net += hits[k].entering ? 1 : -1;
+        if(net > 0) {
+            hits[i].entering = true;
+            result.push_back(hits[i]);
+        } else if(net < 0) {
+            hits[i].entering = false;
+            result.push_back(hits[i]);
+        }
+        i = j;
+    }
+    return result;
 }
 
 // ------------------------------------------------------------------------- //

@@ -260,13 +260,36 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
         return a.distance < b.distance;
     };
 
+    // Net-parity dedup: collapse coincident hits from shared edge boundaries.
+    auto net_parity_dedup = [](Intersection* hits, int count) -> std::vector<Intersection> {
+        std::vector<Intersection> result;
+        int i = 0;
+        while(i < count) {
+            int j = i + 1;
+            while(j < count && std::fabs(hits[j].distance - hits[i].distance) <= GEOMETRY_PRECISION)
+                ++j;
+            int net = 0;
+            for(int k = i; k < j; ++k)
+                net += hits[k].entering ? 1 : -1;
+            if(net > 0) {
+                hits[i].entering = true;
+                result.push_back(hits[i]);
+            } else if(net < 0) {
+                hits[i].entering = false;
+                result.push_back(hits[i]);
+            }
+            i = j;
+        }
+        return result;
+    };
+
     if(!has_phi_cut_) {
         if(use_heap) {
             std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-            return heap_hits;
+            return net_parity_dedup(heap_hits.data(), n_hits);
         }
         std::sort(stack_hits, stack_hits + n_hits, cmp);
-        return {stack_hits, stack_hits + n_hits};
+        return net_parity_dedup(stack_hits, n_hits);
     }
 
     // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
@@ -345,7 +368,7 @@ std::vector<Geometry::Intersection> GenericPolycone::ComputeIntersections(
         }
         was_inside = now_inside;
     }
-    return result;
+    return net_parity_dedup(result.data(), (int)result.size());
 }
 
 AABB GenericPolycone::GetBoundingBox() const {
