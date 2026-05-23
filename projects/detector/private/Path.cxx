@@ -92,9 +92,6 @@ bool Path::HasIntersections() {
     return set_intersections_;
 }
 
-bool Path::HasColumnDepth() {
-    return set_column_depth_;
-}
 
 std::shared_ptr<const DetectorModel> Path::GetDetectorModel() {
     return detector_model_;
@@ -142,6 +139,10 @@ void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model)
     if(set_detector_model_ and set_det_points_) {
         set_points_ = false;
     }
+    // Cached intersections are stale if the model changes.
+    if(set_intersections_ and detector_model_ != detector_model) {
+        set_intersections_ = false;
+    }
     detector_model_ = detector_model;
     set_detector_model_ = true;
     UpdatePoints();
@@ -162,7 +163,6 @@ void Path::SetPoints(GeometryPosition first_point, GeometryPosition last_point) 
     set_points_ = true;
     set_det_points_ = false;
     set_intersections_ = false;
-    set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point);
     last_inf_ = IsInfinite(last_point);
     RequireBothFinite();
@@ -178,7 +178,6 @@ void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) 
     set_points_ = false;
     set_det_points_ = true;
     set_intersections_ = false;
-    set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point);
     last_inf_ = IsInfinite(last_point);
     RequireBothFinite();
@@ -186,17 +185,33 @@ void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) 
 }
 
 void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection direction, double distance) {
+    // Check if the new ray is collinear with the cached intersections.
+    // Intersections along the same line are reusable: SectorLoop compensates
+    // for origin shifts via the offset calculation.
+    bool can_reuse_intersections = false;
+    if(set_intersections_) {
+        math::Vector3D new_dir = direction;
+        new_dir.normalize();
+        double dot = std::abs(new_dir * intersections_.direction);
+        if(dot > 1.0 - 1e-9) {
+            math::Vector3D offset = math::Vector3D(first_point) - intersections_.position;
+            math::Vector3D perp = math::cross_product(offset, intersections_.direction);
+            if(perp.magnitude() < 1e-6 * (1.0 + offset.magnitude())) {
+                can_reuse_intersections = true;
+            }
+        }
+    }
+
     first_point_ = first_point;
     direction_ = direction;
     direction_->normalize();
-    //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
-    //if(not std::isnan(dif)) assert(dif < 1e-12);
     distance_ = distance;
-    last_point_ = first_point + GeometryPosition(direction * distance);
+    last_point_ = first_point + GeometryPosition(direction_ * distance);
     set_points_ = true;
     set_det_points_ = false;
-    set_intersections_ = false;
-    set_column_depth_ = false;
+    if(!can_reuse_intersections) {
+        set_intersections_ = false;
+    }
     first_inf_ = IsInfinite(first_point_); // Set using GeometryPosition
     last_inf_ = IsInfinite(last_point_); // Set using GeometryPosition
     RequireFirstFinite();
@@ -204,17 +219,35 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection dire
 }
 
 void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection direction, double distance) {
+    // Check if the new ray is collinear with the cached intersections.
+    // intersections_ are stored in geometry frame, so we must convert the
+    // detector-frame arguments before comparing.
+    bool can_reuse_intersections = false;
+    if(set_intersections_ && set_detector_model_) {
+        GeometryDirection geo_dir = detector_model_->ToGeo(direction);
+        GeometryPosition geo_pos = detector_model_->ToGeo(first_point);
+        math::Vector3D new_dir = geo_dir;
+        new_dir.normalize();
+        double dot = std::abs(new_dir * intersections_.direction);
+        if(dot > 1.0 - 1e-9) {
+            math::Vector3D offset = math::Vector3D(geo_pos) - intersections_.position;
+            math::Vector3D perp = math::cross_product(offset, intersections_.direction);
+            if(perp.magnitude() < 1e-6 * (1.0 + offset.magnitude())) {
+                can_reuse_intersections = true;
+            }
+        }
+    }
+
     first_point_det_ = first_point;
     direction_det_ = direction;
     direction_det_->normalize();
-    //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
-    //if(not std::isnan(dif)) assert(dif < 1e-12);
     distance_ = distance;
-    last_point_det_ = first_point + DetectorPosition(direction * distance);
+    last_point_det_ = first_point + DetectorPosition(direction_det_ * distance);
     set_points_ = false;
     set_det_points_ = true;
-    set_intersections_ = false;
-    set_column_depth_ = false;
+    if(!can_reuse_intersections) {
+        set_intersections_ = false;
+    }
     first_inf_ = IsInfinite(first_point_det_); // Set using DetectorPosition
     last_inf_ = IsInfinite(last_point_det_); // Set using DetectorPosition
     RequireFirstFinite();
@@ -274,7 +307,6 @@ void Path::ClipToOuterBounds() {
         }
         if(clip) {
             distance_ = (last_point_ - first_point_)->magnitude();
-            set_column_depth_ = false;
         }
         set_det_points_ = false;
     } else {
@@ -303,7 +335,6 @@ void Path::ExtendFromEndByDistance(double distance) {
         distance_ = 0;
         last_point_ = first_point_;
     }
-    set_column_depth_ = false;
     set_det_points_ = false;
 }
 
@@ -316,7 +347,6 @@ void Path::ExtendFromStartByDistance(double distance) {
         distance_ = 0;
         first_point_ = last_point_;
     }
-    set_column_depth_ = false;
     set_det_points_ = false;
 }
 
@@ -504,13 +534,7 @@ double Path::GetColumnDepthInBounds() {
     EnsureIntersections();
     EnsurePoints();
     RequireBothFinite();
-    if(HasColumnDepth()) {
-        return column_depth_cached_;
-    } else {
-        double column_depth = detector_model_->GetColumnDepthInCGS(intersections_, first_point_, last_point_);
-        column_depth_cached_ = column_depth;
-        return column_depth;
-    }
+    return detector_model_->GetColumnDepthInCGS(intersections_, first_point_, last_point_);
 }
 
 

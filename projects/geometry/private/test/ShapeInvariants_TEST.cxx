@@ -1225,6 +1225,92 @@ TEST(ShapeInvariants, TangentRaysGenericPolycone) {
     }
 }
 
+// =========================================================================
+// Polyhedra edge and vertex-aimed rays
+// =========================================================================
+TEST(ShapeInvariants, PolyhedraEdgeAndVertexRays) {
+    // Solid hexagonal prism: 6 sides, start_phi=0, z from -5 to 5, rmin=0, rmax=4
+    Polyhedra hex(6, 0, {-5, 5}, {0, 0}, {4, 4});
+
+    // Ray aimed at a lateral edge where two side faces meet.
+    // For a regular hexagon, apothem=4, circumradius = 4/cos(pi/6).
+    double cr = 4.0 / std::cos(M_PI / 6.0);
+    // First vertex is at angle 0: (cr, 0, z)
+    {
+        Vector3D dir = Vector3D(cr, 0, 0);
+        dir.normalize();
+        auto hits = hex.Intersections(Vector3D(cr * 2, 0, 0), Vector3D(-dir.GetX(), -dir.GetY(), -dir.GetZ()));
+        EXPECT_TRUE(hits.size() == 0 || hits.size() == 2)
+            << "Polyhedra lateral-edge ray: expected 0 or 2, got " << hits.size();
+    }
+
+    // Ray aimed at a top-cap vertex (cr, 0, 5)
+    {
+        Vector3D target(cr, 0, 5);
+        Vector3D origin = target * 2;
+        Vector3D dir = target - origin;
+        dir.normalize();
+        auto hits = hex.Intersections(origin, dir);
+        EXPECT_TRUE(hits.size() == 0 || hits.size() == 2)
+            << "Polyhedra cap-vertex ray: expected 0 or 2, got " << hits.size();
+    }
+
+    // Tapered polyhedra: different rmax at top and bottom
+    Polyhedra tapered(6, 0, {-5, 5}, {0, 0}, {4, 2});
+    {
+        auto hits = tapered.Intersections(Vector3D(10, 0, 0), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Tapered polyhedra center ray: expected 2, got " << hits.size();
+    }
+
+    // Hollow hexagonal prism: rmin=2, rmax=4
+    Polyhedra hollow(6, 0, {-5, 5}, {2, 2}, {4, 4});
+    {
+        auto hits = hollow.Intersections(Vector3D(10, 0, 0), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size(), 4u)
+            << "Hollow polyhedra center ray: expected 4, got " << hits.size();
+    }
+
+    // Multi-section polyhedra with a step discontinuity
+    Polyhedra stepped(6, 0, {-5, 0, 0, 5}, {0, 0, 0, 0}, {4, 4, 3, 3});
+    {
+        // Ray at the step boundary z=0
+        auto hits = stepped.Intersections(Vector3D(10, 0, 0), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size() % 2, 0u)
+            << "Stepped polyhedra center ray: odd count " << hits.size();
+    }
+}
+
+// =========================================================================
+// Polycone edge rays: verify cap-ownership prevents coincident hits
+// =========================================================================
+TEST(ShapeInvariants, PolyconeEdgeRays) {
+    // Multi-section polycone
+    Polycone pc({-5, 0, 5}, {0, 0, 0}, {4, 5, 3});
+
+    // Horizontal ray at z=0 section boundary
+    {
+        auto hits = pc.Intersections(Vector3D(10, 0, 0), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Polycone section-boundary ray: expected 2, got " << hits.size();
+    }
+
+    // Ray along z-axis
+    {
+        auto hits = pc.Intersections(Vector3D(0, 0, -10), Vector3D(0, 0, 1));
+        EXPECT_EQ(hits.size(), 2u)
+            << "Polycone z-axis ray: expected 2, got " << hits.size();
+    }
+
+    // Hollow polycone at section boundary
+    Polycone hollow_pc({-5, 0, 5}, {2, 3, 1}, {4, 5, 3});
+    {
+        auto hits = hollow_pc.Intersections(Vector3D(10, 0, 0), Vector3D(-1, 0, 0));
+        EXPECT_EQ(hits.size(), 4u)
+            << "Hollow polycone center ray: expected 4, got " << hits.size();
+    }
+}
+
 TEST(ShapeInvariants, PhiCutZAxisIncluded) {
     double sp = M_PI / 5.0;
     double dp = M_PI / 3.0;

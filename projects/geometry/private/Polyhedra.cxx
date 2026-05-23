@@ -667,13 +667,36 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
         return a.distance < b.distance;
     };
 
+    // Net-parity dedup: collapse coincident hits from shared face boundaries.
+    auto net_parity_dedup = [](Intersection* hits, int count) -> std::vector<Intersection> {
+        std::vector<Intersection> result;
+        int i = 0;
+        while(i < count) {
+            int j = i + 1;
+            while(j < count && std::fabs(hits[j].distance - hits[i].distance) <= GEOMETRY_PRECISION)
+                ++j;
+            int net = 0;
+            for(int k = i; k < j; ++k)
+                net += hits[k].entering ? 1 : -1;
+            if(net > 0) {
+                hits[i].entering = true;
+                result.push_back(hits[i]);
+            } else if(net < 0) {
+                hits[i].entering = false;
+                result.push_back(hits[i]);
+            }
+            i = j;
+        }
+        return result;
+    };
+
     if(!has_phi_cut_) {
         if(using_heap) {
             std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-            return heap_hits;
+            return net_parity_dedup(heap_hits.data(), n_hits);
         }
         std::sort(stack_hits, stack_hits + n_hits, cmp);
-        return {stack_hits, stack_hits + n_hits};
+        return net_parity_dedup(stack_hits, n_hits);
     }
 
     // Phi boundary face intersections for partial-phi polyhedra.
@@ -727,10 +750,10 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
 
     if(using_heap) {
         std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-        return heap_hits;
+        return net_parity_dedup(heap_hits.data(), n_hits);
     }
     std::sort(stack_hits, stack_hits + n_hits, cmp);
-    return {stack_hits, stack_hits + n_hits};
+    return net_parity_dedup(stack_hits, n_hits);
 }
 
 // ------------------------------------------------------------------------- //
