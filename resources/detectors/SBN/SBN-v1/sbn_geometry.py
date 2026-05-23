@@ -134,11 +134,11 @@ R_ICARUS_TO_NUMI = np.array([
 ])
 T_ICARUS_IN_NUMI_M = np.array([4.503730, 80.153901, 795.112945])
 
-# Z-position of the BNB target center in the BooNE GDML (SAND) frame,
-# traced through the volume hierarchy:
-#   SAND -> CAVE (+426.8 mm) -> CAVI (0) -> PILE (~0) -> PICV (-426.8 mm) -> TARG (+390.525 mm)
-# Total: 390.525 mm = 0.390525 m
-BNB_TARGET_Z_SAND_M = 0.390525
+# The BNB frame origin coincides with the SAND world volume center
+# in the BooNE GDML. G4BNB bsim::Location detector positions and
+# dk2nu flux ray origins are all expressed relative to this point.
+# The BNB target sits ~39 cm downstream (z = +0.3905 m in SAND).
+BNB_TARGET_Z_SAND_M = 0.0
 
 
 # ======================================================================
@@ -149,7 +149,7 @@ def _build_graph() -> FrameGraph:
 
     g.add_frame(Frame("BNB",
         "Booster Neutrino Beam global frame (g4bnb bsim::Location).",
-        "BNB beryllium target at MI-12",
+        "G4BNB SAND world volume center (target is ~39 cm downstream)",
         "horizontal west", "up", "along BNB beam axis (north)"))
 
     # The NuMI frame origin is MCZERO (Horn 1 upstream face). The GDML
