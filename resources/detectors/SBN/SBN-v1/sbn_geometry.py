@@ -134,7 +134,11 @@ R_ICARUS_TO_NUMI = np.array([
 ])
 T_ICARUS_IN_NUMI_M = np.array([4.503730, 80.153901, 795.112945])
 
-BNB_TARGET_Z_SAND_M = 0.81733
+# Z-position of the BNB target center in the BooNE GDML (SAND) frame,
+# traced through the volume hierarchy:
+#   SAND -> CAVE (+426.8 mm) -> CAVI (0) -> PILE (~0) -> PICV (-426.8 mm) -> TARG (+390.525 mm)
+# Total: 390.525 mm = 0.390525 m
+BNB_TARGET_Z_SAND_M = 0.390525
 
 
 # ======================================================================
