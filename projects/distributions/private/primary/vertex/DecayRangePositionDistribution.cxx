@@ -91,6 +91,10 @@ DecayRangePositionDistribution::DecayRangePositionDistribution() {}
 
 DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function) : radius(radius), endcap_length(endcap_length), range_function(range_function) {}
 
+std::set<DistributionVariable> DecayRangePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy};
+}
+
 std::string DecayRangePositionDistribution::Name() const {
     return "DecayRangePositionDistribution";
 }
