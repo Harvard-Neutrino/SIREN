@@ -14,6 +14,12 @@
 #include "../../public/SIREN/injection/Injector.h"
 #include "../../public/SIREN/injection/Weighter.h"
 #include "../../public/SIREN/injection/WeightingUtils.h"
+#include "../../public/SIREN/injection/PhaseSpaceChannel.h"
+#include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
+#include "../../public/SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "../../public/SIREN/injection/TwoBodyKinematics.h"
+
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 #include "../../../distributions/public/SIREN/distributions/primary/vertex/DepthFunction.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
@@ -45,6 +51,37 @@ PYBIND11_MODULE(injection,m) {
 
   m.def("CrossSectionProbability", &CrossSectionProbability);
 
+  // Phase space channels
+
+  class_<PhaseSpaceChannel, std::shared_ptr<PhaseSpaceChannel>>(m, "PhaseSpaceChannel")
+    .def("Sample", &PhaseSpaceChannel::Sample)
+    .def("Density", &PhaseSpaceChannel::Density)
+    .def("Name", &PhaseSpaceChannel::Name)
+    ;
+
+  class_<MultiChannelPhaseSpace, std::shared_ptr<MultiChannelPhaseSpace>>(m, "MultiChannelPhaseSpace")
+    .def(init<>())
+    .def_readwrite("channels", &MultiChannelPhaseSpace::channels)
+    .def_readwrite("weights", &MultiChannelPhaseSpace::weights)
+    .def("Sample", &MultiChannelPhaseSpace::Sample)
+    .def("Density", &MultiChannelPhaseSpace::Density)
+    ;
+
+  class_<Isotropic2BodyChannel, std::shared_ptr<Isotropic2BodyChannel>, PhaseSpaceChannel>(m, "Isotropic2BodyChannel")
+    .def(init<int>(), arg("daughter_index") = 0)
+    ;
+
+  class_<DetectorDirected2BodyChannel, std::shared_ptr<DetectorDirected2BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected2BodyChannel")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int>(),
+         arg("target"), arg("daughter_index") = 0)
+    ;
+
+  // Two-body kinematics utilities
+
+  m.def("TwoBodyRestMomentum", &TwoBodyRestMomentum);
+  m.def("TwoBodyRestEnergy", &TwoBodyRestEnergy);
+  m.def("Kallen", &Kallen);
+
   // Process
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
@@ -74,6 +111,9 @@ PYBIND11_MODULE(injection,m) {
     .def_property("secondary_type", &SecondaryInjectionProcess::GetSecondaryType, &SecondaryInjectionProcess::SetSecondaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, &SecondaryInjectionProcess::SetSecondaryInjectionDistributions)
+    .def("SetPhaseSpace", &SecondaryInjectionProcess::SetPhaseSpace)
+    .def("GetPhaseSpace", &SecondaryInjectionProcess::GetPhaseSpace)
+    .def("HasPhaseSpace", &SecondaryInjectionProcess::HasPhaseSpace)
     ;
 
   // Injection

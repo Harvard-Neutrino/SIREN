@@ -51,6 +51,7 @@ class Injector:
 
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
+        self.__secondary_phase_spaces = {}
         self.__stopping_condition = None
 
         self.__injector = None
@@ -124,6 +125,8 @@ class Injector:
                 secondary_type, secondary_interaction_collection
             )
             secondary_process.distributions = secondary_injection_distributions[secondary_type]
+            if secondary_type in self.__secondary_phase_spaces:
+                secondary_process.SetPhaseSpace(self.__secondary_phase_spaces[secondary_type])
             secondary_processes.append(secondary_process)
 
         self.__injector = _Injector(
@@ -267,6 +270,14 @@ class Injector:
             for secondary_type, secondary_process in secondary_injection_distributions.items():
                 secondary_process.distributions = secondary_distributions[secondary_type]
         self.__secondary_injection_distributions = secondary_injection_distributions
+
+    @property
+    def secondary_phase_spaces(self):
+        return self.__secondary_phase_spaces
+
+    @secondary_phase_spaces.setter
+    def secondary_phase_spaces(self, phase_spaces):
+        self.__secondary_phase_spaces = phase_spaces
 
     @property
     def stopping_condition(self):
