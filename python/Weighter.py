@@ -308,3 +308,15 @@ class Weighter:
             float: The calculated event weight.
         """
         return self(interaction_tree)
+
+    def weight_all(self, events) -> list:
+        """
+        Calculate weights for a list of events.
+
+        Args:
+            events: A list of InteractionTree objects.
+
+        Returns:
+            list[float]: The calculated event weights.
+        """
+        return [self(event) for event in events]
