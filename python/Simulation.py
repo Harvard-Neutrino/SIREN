@@ -414,8 +414,126 @@ class Simulation:
 
         self._injector = injector
         self._weighter = weighter
+        self._last_events = events
+        self._last_gen_times = gen_times
 
         return Results(events, weights, gen_times, weighter, injector)
+
+    # ------------------------------------------------------------------ #
+    #  Reweight                                                            #
+    # ------------------------------------------------------------------ #
+
+    def reweight(
+        self,
+        *,
+        physical_energy=None,
+        physical_direction=None,
+        interactions=None,
+        secondary_interactions=None,
+    ):
+        """Reweight existing events with new physical parameters.
+
+        Builds a new Weighter with the specified changes and applies it
+        to the events from the last :meth:`run` call.  Does not
+        re-generate events.  Weighter construction is cheap (pointer
+        copies only), so this can be called many times for parameter
+        scans.
+
+        Any parameter not specified is kept from the original simulation.
+
+        Parameters
+        ----------
+        physical_energy : distribution, optional
+            New physical energy distribution.
+        physical_direction : distribution, optional
+            New physical direction distribution.
+        interactions : list, optional
+            New primary interaction list (CrossSection/Decay objects).
+        secondary_interactions : dict, optional
+            New secondary interactions ``{ParticleType: [CrossSection/Decay]}``.
+
+        Returns
+        -------
+        Results
+            A new :class:`Results` with the same events but new weights.
+
+        Raises
+        ------
+        RuntimeError
+            If :meth:`run` has not been called yet.
+
+        Examples
+        --------
+        Flux reweighting::
+
+            results = sim.run()
+            new_results = sim.reweight(
+                physical_energy=siren.load_flux("BNB", tag="FHC_numu",
+                                                physically_normalized=True),
+            )
+
+        Coupling scan::
+
+            results = sim.run()
+            for mu in [1e-6, 1e-7, 1e-8]:
+                bundle = siren.load_processes("DarkNewsTables",
+                                              mu_tr_mu4=mu, ...)
+                new_results = sim.reweight(
+                    interactions=bundle.primary[siren.particles.NuMu],
+                    secondary_interactions=bundle.secondary,
+                )
+        """
+        if self._injector is None:
+            raise RuntimeError(
+                "Must call run() before reweight(). "
+                "No events have been generated yet."
+            )
+
+        # Build new physical distribution list
+        phys_dists = list(self._physical_distributions)
+        if physical_energy is not None:
+            phys_dists = [
+                d for d in phys_dists
+                if not isinstance(d, _distributions.PrimaryEnergyDistribution)
+            ]
+            phys_dists.append(physical_energy)
+        if physical_direction is not None:
+            phys_dists = [
+                d for d in phys_dists
+                if not isinstance(d, _distributions.PrimaryDirectionDistribution)
+            ]
+            phys_dists.append(physical_direction)
+
+        validate_physical_distributions(phys_dists)
+
+        # Resolve interactions
+        primary_interactions = (
+            interactions if interactions is not None
+            else self._primary_interactions
+        )
+        secondary = (
+            secondary_interactions if secondary_interactions is not None
+            else self._secondary_processes
+        )
+
+        # Build a new Weighter (cheap -- just pointer copies)
+        weighter = _injection.Weighter()
+        weighter.injectors = [self._injector]
+        weighter.detector_model = self._detector_model
+        weighter.primary_type = self._primary_type
+        weighter.primary_interactions = primary_interactions
+        weighter.primary_physical_distributions = phys_dists
+
+        if secondary:
+            weighter.secondary_interactions = secondary
+            weighter.secondary_physical_distributions = {}
+
+        weights = [weighter(event) for event in self._last_events]
+
+        return Results(
+            self._last_events, weights, self._last_gen_times,
+            weighter, self._injector,
+        )
 
     # ------------------------------------------------------------------ #
     #  Properties for inspection                                           #
