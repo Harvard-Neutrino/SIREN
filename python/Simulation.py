@@ -102,6 +102,13 @@ class Simulation:
         keys are ParticleType and values are distributions or lists.
     stopping_condition : callable, optional
         ``f(datum, i) -> bool`` controlling secondary generation.
+    bias_targets : Geometry or dict, optional
+        Enable direction biasing for secondary decays.  If a single
+        Geometry (e.g. a fiducial volume), creates
+        ``DetectorDirected2BodyChannel`` for all secondary types,
+        biasing decay products toward that geometry.  If a dict,
+        maps ``{ParticleType: Geometry}`` for per-type targets, or
+        ``{ParticleType: MultiChannelPhaseSpace}`` for full control.
     mass : float, optional
         Primary particle mass in GeV (default: 0 for neutrinos).
     **process_kwargs
@@ -138,6 +145,8 @@ class Simulation:
         secondary_interactions=None,
         secondary_position=None,
         stopping_condition=None,
+        # Secondary biasing
+        bias_targets=None,
         # Particle mass
         mass=None,
         # Forward to load_processes
@@ -193,6 +202,11 @@ class Simulation:
                 "process needs a secondary vertex distribution; pass "
                 "secondary_position= to Simulation().")
 
+        # ---- Resolve secondary biasing ----
+        self._secondary_phase_spaces = {}
+        if bias_targets is not None:
+            self._resolve_bias_targets(bias_targets)
+
         # ---- Store remaining config ----
         self._n_events = n_events
         self._seed = seed
@@ -201,6 +215,8 @@ class Simulation:
         # ---- Built lazily by run() ----
         self._injector = None
         self._weighter = None
+        self._last_events = None
+        self._last_gen_times = None
 
     # ------------------------------------------------------------------ #
     #  Interaction resolution                                              #
@@ -341,6 +357,40 @@ class Simulation:
         self._injection_distributions = [mass_dist, inj_energy, inj_dir, position]
         self._physical_distributions = [phys_energy, phys_dir]
 
+    def _resolve_bias_targets(self, bias_targets):
+        """Build multi-channel phase spaces for secondary direction biasing.
+
+        Parameters
+        ----------
+        bias_targets : Geometry or dict
+            If a single Geometry, creates DetectorDirected2Body channels
+            for all secondary types using that geometry as the target.
+            If a dict, maps ``{ParticleType: Geometry}`` or
+            ``{ParticleType: MultiChannelPhaseSpace}`` for per-type control.
+        """
+        if isinstance(bias_targets, dict):
+            for k, v in bias_targets.items():
+                key = _particles.resolve(k) if isinstance(k, str) else k
+                if isinstance(v, _injection.MultiChannelPhaseSpace):
+                    self._secondary_phase_spaces[key] = v
+                else:
+                    mc = _injection.MultiChannelPhaseSpace()
+                    mc.channels = [
+                        _injection.Isotropic2BodyChannel(0),
+                        _injection.DetectorDirected2BodyChannel(v, 0),
+                    ]
+                    mc.weights = [0.01, 0.99]
+                    self._secondary_phase_spaces[key] = mc
+        else:
+            for sec_type in self._secondary_processes.keys():
+                mc = _injection.MultiChannelPhaseSpace()
+                mc.channels = [
+                    _injection.Isotropic2BodyChannel(0),
+                    _injection.DetectorDirected2BodyChannel(bias_targets, 0),
+                ]
+                mc.weights = [0.01, 0.99]
+                self._secondary_phase_spaces[sec_type] = mc
+
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
         if isinstance(secondary_position, dict):
@@ -378,6 +428,8 @@ class Simulation:
             injector.secondary_injection_distributions = (
                 self._secondary_injection_distributions
             )
+            if self._secondary_phase_spaces:
+                injector.secondary_phase_spaces = self._secondary_phase_spaces
 
         if self._stopping_condition is not None:
             injector.stopping_condition = self._stopping_condition

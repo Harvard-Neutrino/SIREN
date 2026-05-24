@@ -606,6 +606,53 @@ class TestInjectorIterator:
         assert len(injector) == 7
 
 
+class TestSecondaryBiasing:
+    """Phase space channel configuration for secondary biasing."""
+
+    def test_isotropic_channel_construction(self):
+        import siren
+        ch = siren.injection.Isotropic2BodyChannel(0)
+        assert ch.Name() == "Isotropic2Body"
+
+    def test_detector_directed_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+        assert ch.Name() == "DetectorDirected2Body"
+
+    def test_multi_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(fid, 0),
+        ]
+        mc.weights = [0.01, 0.99]
+        assert len(mc.channels) == 2
+
+    def test_secondary_process_phase_space(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        sip = siren.injection.SecondaryInjectionProcess()
+        assert not sip.HasPhaseSpace()
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(fid, 0),
+        ]
+        mc.weights = [0.01, 0.99]
+        sip.SetPhaseSpace(mc)
+        assert sip.HasPhaseSpace()
+
+    def test_kinematics_utilities(self):
+        import siren
+        assert abs(siren.injection.Kallen(1.0, 0.0, 0.0) - 1.0) < 1e-14
+        p = siren.injection.TwoBodyRestMomentum(0.3, 0.106, 0.140)
+        assert p > 0
+
+
 class TestWeighterBatch:
     """Weighter.weight_all should batch-weight events."""
 
