@@ -17,7 +17,6 @@ it available here automatically.
 """
 
 from . import distributions as _d
-from . import math as _math
 
 # ------------------------------------------------------------------ #
 #  Auto-export every class from siren.distributions                    #
@@ -82,28 +81,7 @@ for _alias, _canonical in _short_aliases.items():
 
 del _alias, _canonical
 
-# ------------------------------------------------------------------ #
-#  FixedDirection wrapper: accept list/tuple as well as Vector3D       #
-#                                                                      #
-#  NOTE: This convenience wrapper belongs at the pybind level          #
-#  (accepting py::list/py::tuple in the C++ constructor).  It lives    #
-#  here as a stopgap until that change is made.                        #
-# ------------------------------------------------------------------ #
 
-_OrigFixedDirection = _d.FixedDirection
-
-
-def FixedDirection(direction):
-    """Create a fixed-direction distribution.
-
-    Parameters
-    ----------
-    direction : list, tuple, or Vector3D
-        The direction vector. Lists/tuples of length 3 are auto-converted.
-    """
-    if isinstance(direction, (list, tuple)):
-        direction = _math.Vector3D(*direction)
-    return _OrigFixedDirection(direction)
-
-
-FixedDirection.__wrapped__ = _OrigFixedDirection
+# FixedDirection, Cone, and PointSourcePositionDistribution accept
+# list/tuple natively via pybind11 overloads (std::array<double,3>
+# constructors added in distributions.cxx).  No Python wrapper needed.
