@@ -105,49 +105,117 @@ class TestDistNamespace:
                 )
 
 
-class TestValidationUsesBaseClasses:
-    """Validation should classify distributions via C++ base classes,
-    not hardcoded type lists."""
+class TestDistributionVariableEnum:
+    """DistributionVariable enum and SetVariables/RequiredVariables."""
 
-    def test_energy_classified_via_base(self):
+    def test_enum_exists(self):
         import siren.distributions as d
-        from siren._validation import classify_distribution
+        DV = d.DistributionVariable
+        assert hasattr(DV, "PrimaryEnergy")
+        assert hasattr(DV, "PrimaryDirection")
+        assert hasattr(DV, "InteractionVertex")
+
+    def test_set_variables_energy(self):
+        import siren.distributions as d
+        DV = d.DistributionVariable
         pl = d.PowerLaw(2, 1e3, 1e6)
-        roles = classify_distribution(pl)
-        assert "energy" in roles
+        assert DV.PrimaryEnergy in pl.SetVariables()
 
-    def test_direction_classified_via_base(self):
+    def test_set_variables_direction(self):
         import siren.distributions as d
-        from siren._validation import classify_distribution
+        DV = d.DistributionVariable
         iso = d.IsotropicDirection()
-        roles = classify_distribution(iso)
-        assert "direction" in roles
+        assert DV.PrimaryDirection in iso.SetVariables()
 
-    def test_position_classified_via_base(self):
+    def test_set_variables_position(self):
         import siren.distributions as d
-        from siren._validation import classify_distribution
+        DV = d.DistributionVariable
         col = d.ColumnDepthPositionDistribution(
             600, 600.0, d.LeptonDepthFunction()
         )
-        roles = classify_distribution(col)
-        assert "position" in roles
+        sv = col.SetVariables()
+        assert DV.InitialPosition in sv
+        assert DV.InteractionVertex in sv
 
-    def test_pidar_energy_classified(self):
-        """PiDARNuEDistribution inherits PrimaryEnergyDistribution
-        and should be classified as energy without manual registration."""
+    def test_required_variables_column_depth(self):
+        """ColumnDepthPositionDistribution requires direction, energy, mass."""
         import siren.distributions as d
-        from siren._validation import classify_distribution
-        pidar = d.PiDARNuEDistribution()
-        roles = classify_distribution(pidar)
-        assert "energy" in roles
+        DV = d.DistributionVariable
+        col = d.ColumnDepthPositionDistribution(
+            600, 600.0, d.LeptonDepthFunction()
+        )
+        rv = col.RequiredVariables()
+        assert DV.PrimaryDirection in rv
+        assert DV.PrimaryEnergy in rv
+        assert DV.PrimaryMass in rv
 
-    def test_classify_returns_set(self):
-        """classify_distribution should return a set of roles."""
+    def test_required_variables_energy_empty(self):
+        """Energy distributions have no required variables."""
         import siren.distributions as d
-        from siren._validation import classify_distribution
         pl = d.PowerLaw(2, 1e3, 1e6)
-        roles = classify_distribution(pl)
-        assert isinstance(roles, set)
+        assert len(pl.RequiredVariables()) == 0
+
+    def test_delta_function_detection(self):
+        """Delta functions: SetVariables has the var, DensityVariables does not."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+
+        fd = d.FixedDirection([0, 0, 1])
+        assert DV.PrimaryDirection in fd.SetVariables()
+        assert len(fd.DensityVariables()) == 0
+
+        mono = d.Monoenergetic(1000)
+        assert DV.PrimaryEnergy in mono.SetVariables()
+        assert len(mono.DensityVariables()) == 0
+
+    def test_non_delta_has_density(self):
+        """Non-delta distributions appear in both SetVariables and DensityVariables."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+
+        pl = d.PowerLaw(2, 1e3, 1e6)
+        assert DV.PrimaryEnergy in pl.SetVariables()
+        assert "PrimaryEnergy" in pl.DensityVariables()
+
+    def test_pidar_inherits_set_variables(self):
+        """PiDARNuEDistribution inherits SetVariables from base without
+        manual registration."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        pidar = d.PiDARNuEDistribution()
+        assert DV.PrimaryEnergy in pidar.SetVariables()
+
+
+class TestOrderingValidation:
+    """validate_ordering should catch dependency violations."""
+
+    def test_correct_ordering_passes(self):
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        dists = [
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+            d.ColumnDepthPositionDistribution(
+                600, 600.0, d.LeptonDepthFunction()
+            ),
+        ]
+        validate_ordering(dists)
+
+    def test_wrong_ordering_raises(self):
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        dists = [
+            d.ColumnDepthPositionDistribution(
+                600, 600.0, d.LeptonDepthFunction()
+            ),
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+        ]
+        import pytest
+        with pytest.raises(ValueError, match="requires variables"):
+            validate_ordering(dists)
 
 
 class TestTopLevelExports:

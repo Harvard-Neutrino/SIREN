@@ -35,7 +35,6 @@ from . import math as _math
 from ._util import GenerateEvents as _GenerateEvents
 from .Results import Results
 from ._validation import (
-    classify_distribution,
     validate_injection_distributions,
     validate_physical_distributions,
 )

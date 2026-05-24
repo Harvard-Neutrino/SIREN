@@ -1,120 +1,178 @@
 """
 Input validation helpers for SIREN's Python interface.
 
-Uses the C++ distribution base class hierarchy to classify
-distributions by role.  Adding a new distribution in C++ that
-inherits from the correct base class will be recognized here
-automatically -- no manual plumbing required.
+Uses the C++ distribution methods ``SetVariables()``,
+``RequiredVariables()``, and ``DensityVariables()`` to validate
+distribution lists.  No hardcoded type lists -- adding a new
+distribution in C++ with the correct overrides makes it work here
+automatically.
 """
 
 from . import distributions as _d
 
+DV = _d.DistributionVariable
 
-def classify_distribution(dist):
-    """Return a set of role labels for a distribution.
+_REQUIRED_INJECTION_VARIABLES = {
+    DV.PrimaryEnergy,
+    DV.PrimaryDirection,
+}
 
-    Uses the C++ class hierarchy (``PrimaryEnergyDistribution``,
-    ``PrimaryDirectionDistribution``, ``VertexPositionDistribution``,
-    etc.) rather than enumerating concrete types.
+_REQUIRED_INJECTION_VERTEX = {
+    DV.InitialPosition,
+    DV.InteractionVertex,
+}
 
-    Returns a set that may contain multiple roles (e.g.
-    ``{"energy", "direction"}`` for ``PrimaryEnergyDirectionDistribution``
-    subclasses).
-    """
-    roles = set()
-    if isinstance(dist, _d.PrimaryEnergyDistribution):
-        roles.add("energy")
-    if isinstance(dist, _d.PrimaryDirectionDistribution):
-        roles.add("direction")
-    if isinstance(dist, _d.PrimaryEnergyDirectionDistribution):
-        roles.add("energy")
-        roles.add("direction")
-    if isinstance(dist, _d.VertexPositionDistribution):
-        roles.add("position")
-    if isinstance(dist, _d.PrimaryMass):
-        roles.add("mass")
-    if isinstance(dist, _d.PrimaryNeutrinoHelicityDistribution):
-        roles.add("helicity")
-    if isinstance(dist, _d.NormalizationConstant):
-        roles.add("normalization")
-    if isinstance(dist, _d.PrimaryAreaDistribution):
-        roles.add("area")
-    if not roles and isinstance(dist, _d.PrimaryInjectionDistribution):
-        roles.add("unknown_primary")
-    if not roles and isinstance(dist, _d.SecondaryInjectionDistribution):
-        roles.add("unknown_secondary")
-    return roles if roles else {"unknown"}
+_REQUIRED_PHYSICAL_VARIABLES = {
+    DV.PrimaryEnergy,
+    DV.PrimaryDirection,
+}
 
 
-def collect_roles(distributions):
-    """Return the union of all roles covered by a list of distributions."""
-    roles = set()
+def collect_set_variables(distributions):
+    """Return the union of all SetVariables across a list of distributions."""
+    result = set()
     for d in distributions:
-        roles |= classify_distribution(d)
-    return roles
+        if hasattr(d, "SetVariables"):
+            result |= d.SetVariables()
+    return result
 
 
-def validate_injection_distributions(distributions):
-    """Check that a list of injection distributions covers all required roles.
+def collect_density_variables(distributions):
+    """Return the union of all DensityVariables across a list of distributions."""
+    result = set()
+    for d in distributions:
+        result.update(d.DensityVariables())
+    return result
+
+
+def validate_ordering(distributions):
+    """Check that each distribution's RequiredVariables are satisfied
+    by the SetVariables of preceding distributions.
+
+    Parameters
+    ----------
+    distributions : list
+        Ordered list of PrimaryInjectionDistribution objects.
 
     Raises
     ------
     ValueError
-        If required distribution types are missing, with a message
-        suggesting the relevant C++ base class.
+        If a distribution requires variables that haven't been set yet,
+        with a message naming the distribution and the missing variables.
     """
-    roles = collect_roles(distributions)
+    available = set()
+    for i, dist in enumerate(distributions):
+        if not hasattr(dist, "RequiredVariables"):
+            continue
+        required = dist.RequiredVariables()
+        missing = required - available
+        if missing:
+            missing_names = sorted(v.name for v in missing)
+            raise ValueError(
+                f"Distribution {type(dist).__name__} (index {i}) requires "
+                f"variables {missing_names} to be set first, but they are "
+                f"not covered by preceding distributions. "
+                f"Available so far: {sorted(v.name for v in available)}"
+            )
+        if hasattr(dist, "SetVariables"):
+            available |= dist.SetVariables()
+
+
+def validate_injection_distributions(distributions):
+    """Check that injection distributions are complete and correctly ordered.
+
+    Validates:
+    1. All required variable roles are covered (energy, direction, vertex).
+    2. Ordering constraints are satisfied (RequiredVariables).
+
+    Parameters
+    ----------
+    distributions : list
+        Ordered list of PrimaryInjectionDistribution objects.
+
+    Raises
+    ------
+    ValueError
+        If required distributions are missing or ordering is wrong.
+    """
+    covered = collect_set_variables(distributions)
 
     missing = []
-    if "energy" not in roles:
-        missing.append(
-            "energy (any subclass of PrimaryEnergyDistribution "
-            "or PrimaryEnergyDirectionDistribution)"
-        )
-    if "direction" not in roles:
-        missing.append(
-            "direction (any subclass of PrimaryDirectionDistribution "
-            "or PrimaryEnergyDirectionDistribution)"
-        )
-    if "position" not in roles:
-        missing.append(
-            "position (any subclass of VertexPositionDistribution)"
-        )
+    for var in _REQUIRED_INJECTION_VARIABLES:
+        if var not in covered:
+            missing.append(var.name)
+
+    has_vertex = bool(covered & _REQUIRED_INJECTION_VERTEX)
+    if not has_vertex:
+        missing.append("InitialPosition/InteractionVertex "
+                       "(any VertexPositionDistribution subclass)")
 
     if missing:
         raise ValueError(
-            "Missing injection distributions:\n"
+            "Missing injection distributions for:\n"
             + "\n".join(f"  - {m}" for m in missing)
         )
 
+    validate_ordering(distributions)
+
 
 def validate_physical_distributions(distributions):
-    """Check that a list of physical distributions covers required roles.
+    """Check that physical distributions cover required roles.
 
     Physical distributions need energy and direction but NOT position
     or mass.
+
+    Parameters
+    ----------
+    distributions : list
+        List of WeightableDistribution objects.
 
     Raises
     ------
     ValueError
         If required distribution types are missing.
     """
-    roles = collect_roles(distributions)
+    covered = collect_set_variables(distributions)
 
     missing = []
-    if "energy" not in roles:
-        missing.append(
-            "energy (any subclass of PrimaryEnergyDistribution "
-            "or PrimaryEnergyDirectionDistribution)"
-        )
-    if "direction" not in roles:
-        missing.append(
-            "direction (any subclass of PrimaryDirectionDistribution "
-            "or PrimaryEnergyDirectionDistribution)"
-        )
+    for var in _REQUIRED_PHYSICAL_VARIABLES:
+        if var not in covered:
+            missing.append(var.name)
 
     if missing:
         raise ValueError(
-            "Missing physical distributions:\n"
+            "Missing physical distributions for:\n"
             + "\n".join(f"  - {m}" for m in missing)
+        )
+
+
+def validate_reweighting_compatibility(injection_distributions, physical_distributions):
+    """Check that physical distributions can reweight injection distributions.
+
+    Physical DensityVariables must be a subset of injection DensityVariables.
+    Variables that are delta functions in both injection and physical are OK.
+
+    Parameters
+    ----------
+    injection_distributions : list
+        Injection distributions.
+    physical_distributions : list
+        Physical distributions.
+
+    Raises
+    ------
+    ValueError
+        If physical distributions are differential in variables that the
+        injection distributions don't cover.
+    """
+    inj_density = collect_density_variables(injection_distributions)
+    phys_density = collect_density_variables(physical_distributions)
+
+    extra = phys_density - inj_density
+    if extra:
+        raise ValueError(
+            f"Physical distributions are differential in variables "
+            f"{sorted(extra)} that are not covered by injection distributions. "
+            f"Injection density variables: {sorted(inj_density)}, "
+            f"Physical density variables: {sorted(phys_density)}"
         )
