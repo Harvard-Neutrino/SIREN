@@ -2,6 +2,7 @@
 #ifndef SIREN_SphereVolumePositionDistribution_H
 #define SIREN_SphereVolumePositionDistribution_H
 
+#include <set>
 #include <tuple>
 #include <memory>
 #include <string>
