@@ -5,6 +5,8 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Injector.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/TwoBodyKinematics.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
 )
 add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -50,6 +52,7 @@ package_add_test(UnitTest_CharmSerialization ${PROJECT_SOURCE_DIR}/projects/inje
 # pybind11 headers (header-only; no Python embedding required).
 target_link_libraries(UnitTest_CharmSerialization pybind11::headers)
 endif()
+package_add_test(UnitTest_TwoBodyKinematics ${PROJECT_SOURCE_DIR}/projects/injection/private/test/TwoBodyKinematics_TEST.cxx)
 if(NOT ${CIBUILDWHEEL})
 package_add_test(UnitTest_CCM_HNL ${PROJECT_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
 target_link_libraries(UnitTest_CCM_HNL pybind11::embed)
