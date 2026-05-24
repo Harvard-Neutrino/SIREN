@@ -24,12 +24,25 @@ class TestParticlesNamespace:
         from siren.particles import Nucleon, Neutron, PPlus
         assert Nucleon is not None
 
-    def test_bsm_types_may_be_none(self):
-        """BSM types use _safe() and may be None if not in this build."""
+    def test_bsm_types_available(self):
         from siren import particles
-        # N4 should exist in most builds
-        # But we test the pattern works regardless
         assert hasattr(particles, "N4")
+
+    def test_all_enum_members_auto_exported(self):
+        """Every member of the C++ ParticleType enum should be a
+        module-level attribute of siren.particles."""
+        import siren.dataclasses as dc
+        import siren.particles as particles
+        PT = dc.ParticleType
+        sentinel = PT.NuMu
+        for name in dir(PT):
+            if name.startswith("_"):
+                continue
+            val = getattr(PT, name)
+            if isinstance(val, type(sentinel)):
+                assert hasattr(particles, name), (
+                    f"{name} is in ParticleType enum but not in siren.particles"
+                )
 
     def test_resolve_string(self):
         from siren.particles import resolve, NuMu
@@ -79,6 +92,62 @@ class TestDistNamespace:
         from siren.dist import FixedDirection
         d = FixedDirection((1, 0, 0))
         assert d is not None
+
+    def test_all_concrete_distributions_auto_exported(self):
+        """Every concrete class in siren.distributions should appear in siren.dist."""
+        import siren.distributions as distributions
+        import siren.dist as dist
+        for name in dir(distributions):
+            obj = getattr(distributions, name)
+            if isinstance(obj, type) and not name.startswith("_"):
+                assert hasattr(dist, name), (
+                    f"{name} is in siren.distributions but not in siren.dist"
+                )
+
+
+class TestValidationUsesBaseClasses:
+    """Validation should classify distributions via C++ base classes,
+    not hardcoded type lists."""
+
+    def test_energy_classified_via_base(self):
+        import siren.distributions as d
+        from siren._validation import classify_distribution
+        pl = d.PowerLaw(2, 1e3, 1e6)
+        roles = classify_distribution(pl)
+        assert "energy" in roles
+
+    def test_direction_classified_via_base(self):
+        import siren.distributions as d
+        from siren._validation import classify_distribution
+        iso = d.IsotropicDirection()
+        roles = classify_distribution(iso)
+        assert "direction" in roles
+
+    def test_position_classified_via_base(self):
+        import siren.distributions as d
+        from siren._validation import classify_distribution
+        col = d.ColumnDepthPositionDistribution(
+            600, 600.0, d.LeptonDepthFunction()
+        )
+        roles = classify_distribution(col)
+        assert "position" in roles
+
+    def test_pidar_energy_classified(self):
+        """PiDARNuEDistribution inherits PrimaryEnergyDistribution
+        and should be classified as energy without manual registration."""
+        import siren.distributions as d
+        from siren._validation import classify_distribution
+        pidar = d.PiDARNuEDistribution()
+        roles = classify_distribution(pidar)
+        assert "energy" in roles
+
+    def test_classify_returns_set(self):
+        """classify_distribution should return a set of roles."""
+        import siren.distributions as d
+        from siren._validation import classify_distribution
+        pl = d.PowerLaw(2, 1e3, 1e6)
+        roles = classify_distribution(pl)
+        assert isinstance(roles, set)
 
 
 class TestTopLevelExports:
@@ -215,7 +284,7 @@ class TestSimulationValidation:
 
     def test_no_interactions_raises(self):
         import siren
-        with pytest.raises(ValueError, match="interactions.*darknews_model"):
+        with pytest.raises(TypeError):
             siren.Simulation(
                 n_events=1,
                 detector="IceCube",
