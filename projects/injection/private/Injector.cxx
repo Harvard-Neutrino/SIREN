@@ -277,7 +277,18 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     }
     siren::dataclasses::InteractionRecord record;
     secondary_record.Finalize(record);
-    SampleCrossSection(record, secondary_interactions);
+
+    if (secondary_process->HasPhaseSpace()) {
+        // Use multi-channel phase space for interaction selection + kinematics.
+        // First: select the interaction (target + signature) via the
+        // standard mechanism.
+        SampleCrossSection(record, secondary_interactions);
+        // Now replace the final-state kinematics with the multi-channel
+        // sampler, which may bias the daughter directions.
+        secondary_process->GetPhaseSpace()->Sample(random, detector_model, record);
+    } else {
+        SampleCrossSection(record, secondary_interactions);
+    }
     return record;
 }
 

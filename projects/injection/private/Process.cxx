@@ -210,5 +210,17 @@ std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> cons
     return secondary_injection_distributions;
 }
 
+void SecondaryInjectionProcess::SetPhaseSpace(std::shared_ptr<MultiChannelPhaseSpace> ps) {
+    phase_space_ = std::move(ps);
+}
+
+std::shared_ptr<MultiChannelPhaseSpace> SecondaryInjectionProcess::GetPhaseSpace() const {
+    return phase_space_;
+}
+
+bool SecondaryInjectionProcess::HasPhaseSpace() const {
+    return phase_space_ && !phase_space_->channels.empty();
+}
+
 } // namespace injection
 } // namespace siren

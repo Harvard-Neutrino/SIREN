@@ -12,9 +12,12 @@
 #include <set>                                                    // for set
 #include <stdexcept>                                              // for out...
 
+#include <type_traits>
+
 #include "SIREN/interactions/Decay.h"            // for Dec...
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
 #include "SIREN/interactions/InteractionCollection.h"  // for Cro...
+#include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
 #include "SIREN/dataclasses/InteractionSignature.h"      // for Int...
 #include "SIREN/detector/DetectorModel.h"                   // for Ear...
@@ -230,7 +233,23 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
-    double gen_probability = siren::injection::CrossSectionProbability(detector_model, inj_process->GetInteractions(), datum.record);
+    double gen_probability;
+
+    // If the injection process has a multi-channel phase space,
+    // use its density instead of FinalStateProbability.
+    if constexpr (std::is_same_v<ProcessType, SecondaryInjectionProcess>) {
+        if (inj_process->HasPhaseSpace()) {
+            gen_probability = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+                detector_model, inj_process->GetInteractions(), datum.record,
+                *inj_process->GetPhaseSpace());
+        } else {
+            gen_probability = siren::injection::CrossSectionProbability(
+                detector_model, inj_process->GetInteractions(), datum.record);
+        }
+    } else {
+        gen_probability = siren::injection::CrossSectionProbability(
+            detector_model, inj_process->GetInteractions(), datum.record);
+    }
 
     for(auto gen_dist : unique_gen_distributions) {
         gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);

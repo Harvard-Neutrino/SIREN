@@ -20,6 +20,7 @@
 #include "SIREN/dataclasses/Particle.h"         // for Particle
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/injection/PhaseSpaceChannel.h"
 
 namespace siren {
 namespace injection {
@@ -110,6 +111,7 @@ public:
 class SecondaryInjectionProcess : public PhysicalProcess {
 protected:
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> secondary_injection_distributions;
+    std::shared_ptr<MultiChannelPhaseSpace> phase_space_;
 public:
     typedef distributions::SecondaryInjectionDistribution InjectionType;
     SecondaryInjectionProcess() = default;
@@ -126,6 +128,10 @@ public:
     virtual void AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist);
     void SetSecondaryInjectionDistributions(std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & distributions);
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & GetSecondaryInjectionDistributions() const;
+
+    void SetPhaseSpace(std::shared_ptr<MultiChannelPhaseSpace> ps);
+    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace() const;
+    bool HasPhaseSpace() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

@@ -1,4 +1,5 @@
 #include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/injection/PhaseSpaceChannel.h"
 
 #include <set>                                                    // for set
 #include <array>                                                  // for array
@@ -86,6 +87,85 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
     if (total_prob == 0)
         return 0.0;
     return selected_final_state / total_prob;
+}
+
+double CrossSectionProbabilityWithPhaseSpace(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const & phase_space)
+{
+    // Same interaction selection logic as CrossSectionProbability:
+    // compute total_prob and the contribution from the matched signature.
+    // But replace FinalStateProbability with the multi-channel density.
+
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
+    std::set<siren::dataclasses::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+
+    siren::math::Vector3D interaction_vertex(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
+
+    siren::math::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    primary_direction.normalize();
+
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+
+    double total_prob = 0.0;
+    double selected_channel_prob = 0.0;
+    bool signature_matched = false;
+
+    siren::dataclasses::InteractionRecord fake_record = record;
+
+    // Decays
+    std::vector<std::shared_ptr<siren::interactions::Decay>> decays = interactions->GetDecays();
+    for(auto const & decay : decays) {
+        std::vector<siren::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
+        for(auto const & signature : signatures) {
+            fake_record.signature = signature;
+            double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+            total_prob += decay_prob;
+            if(signature == record.signature) {
+                selected_channel_prob += decay_prob;
+                signature_matched = true;
+            }
+        }
+    }
+
+    // Cross sections
+    for(auto const target : available_targets) {
+        if(possible_targets.find(target) != possible_targets.end()) {
+            double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
+            std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
+            for(auto const & cross_section : target_cross_sections) {
+                std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                for(auto const & signature : signatures) {
+                    fake_record.signature = signature;
+                    fake_record.target_mass = detector_model->GetTargetMass(target);
+                    double target_prob = target_density * cross_section->TotalCrossSection(fake_record);
+                    total_prob += target_prob;
+                    if(signature == record.signature) {
+                        selected_channel_prob += target_prob;
+                        signature_matched = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if (total_prob == 0 || !signature_matched) return 0.0;
+
+    // The multi-channel density replaces FinalStateProbability.
+    // CrossSectionProbability = (channel_rate * FinalStateProbability) / total_rate
+    // Here we replace FinalStateProbability with the multi-channel density.
+    double mc_density = phase_space.Density(detector_model, record);
+
+    return selected_channel_prob * mc_density / total_prob;
 }
 
 } // namespace injection
