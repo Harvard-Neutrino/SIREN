@@ -81,6 +81,8 @@ load_flux = utilities.load_flux
 load_processes = utilities.load_processes
 get_fiducial_volume = utilities.get_fiducial_volume
 
+ProcessBundle = _util.ProcessBundle
 GenerateEvents = _util.GenerateEvents
 SaveEvents = _util.SaveEvents
 LoadEvents = _util.LoadEvents
+get_volume_position_distribution_from_sector = _util.get_volume_position_distribution_from_sector

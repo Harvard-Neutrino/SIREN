@@ -784,8 +784,48 @@ def load_detector(model_name, *args, **kwargs):
     return _detector_file_loader(model_name)
 
 
+class ProcessBundle:
+    """Normalized return type from ``load_processes``.
+
+    Behaves like a 2-tuple ``(primary, secondary)`` for unpacking::
+
+        primary, secondary = siren.load_processes("CSMSDISSplines", ...)
+
+    Any extra return values from the process loader are available as
+    the ``metadata`` attribute (a tuple of additional return values).
+    """
+
+    def __init__(self, primary, secondary, *extra):
+        self.primary = primary
+        self.secondary = secondary
+        self.metadata = extra
+
+    def __iter__(self):
+        yield self.primary
+        yield self.secondary
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, idx):
+        return (self.primary, self.secondary)[idx]
+
+    def __repr__(self):
+        n_primary = sum(len(v) for v in self.primary.values())
+        n_secondary = sum(len(v) for v in self.secondary.values())
+        extra = f", +{len(self.metadata)} metadata" if self.metadata else ""
+        return f"ProcessBundle({n_primary} primary, {n_secondary} secondary{extra})"
+
+
 def load_processes(model_name, *args, **kwargs):
-    return load_resource("processes", model_name, *args, **kwargs)
+    result = load_resource("processes", model_name, *args, **kwargs)
+    if result is None:
+        return None
+    if isinstance(result, tuple):
+        if len(result) >= 2:
+            return ProcessBundle(result[0], result[1], *result[2:])
+        return ProcessBundle(result[0], {})
+    return ProcessBundle(result, {})
 
 def get_fiducial_volume(experiment):
     """
@@ -808,6 +848,62 @@ def get_fiducial_volume(experiment):
         from . import detector as _detector
         return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
     return None
+
+def get_volume_position_distribution_from_sector(detector_model, sector_name):
+    """Create a position distribution from a named detector sector.
+
+    Extracts the geometry from the sector, converts coordinates from
+    geometry frame to detector frame, and returns the appropriate
+    volume position distribution (Cylinder or Sphere).
+
+    Parameters
+    ----------
+    detector_model : DetectorModel
+        The loaded detector model.
+    sector_name : str
+        Name of the sector to use (e.g. "tilecal", "fiducial").
+
+    Returns
+    -------
+    CylinderVolumePositionDistribution or SphereVolumePositionDistribution
+    """
+    from . import detector as _detector
+    from . import geometry as _geometry
+    from . import distributions as _distributions
+
+    geo = None
+    for sector in detector_model.Sectors:
+        if sector.name == sector_name:
+            geo = sector.geo
+            break
+    if geo is None:
+        available = [s.name for s in detector_model.Sectors]
+        raise ValueError(
+            f"Sector {sector_name!r} not found. Available: {available}"
+        )
+
+    det_position = detector_model.GeoPositionToDetPosition(
+        _detector.GeometryPosition(geo.placement.Position)
+    )
+    det_rotation = geo.placement.Quaternion
+    det_placement = _geometry.Placement(det_position.get(), det_rotation)
+
+    if isinstance(geo, _geometry.Cylinder):
+        cylinder = _geometry.Cylinder(
+            det_placement, geo.Radius, geo.InnerRadius, geo.Z
+        )
+        return _distributions.CylinderVolumePositionDistribution(cylinder)
+    elif isinstance(geo, _geometry.Sphere):
+        sphere = _geometry.Sphere(
+            det_placement, geo.Radius, geo.InnerRadius
+        )
+        return _distributions.SphereVolumePositionDistribution(sphere)
+    else:
+        raise TypeError(
+            f"Sector geometry type {type(geo).__name__} not supported "
+            f"for position distribution"
+        )
+
 
 def list_fluxes():
     return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "fluxes"), _model_regex))
