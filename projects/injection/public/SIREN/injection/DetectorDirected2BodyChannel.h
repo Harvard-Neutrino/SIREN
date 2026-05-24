@@ -17,33 +17,36 @@ namespace injection {
 // Biased 2-body decay channel that forces one daughter toward a
 // target geometry (typically the detector fiducial volume).
 //
-// Sampling strategy:
-//   1. Sample a lab-frame direction uniformly over the solid angle
-//      subtended by the target geometry as seen from the decay point.
-//   2. Solve the 2-body kinematics to find the rest-frame angle(s)
-//      that produce this lab direction (0, 1, or 2 solutions for
-//      massive daughters).
-//   3. When 2 solutions exist, pick one with probability proportional
-//      to the kinematic weight (Jacobian).
-//   4. Construct the full final-state 4-momenta.
+// Two sampling modes:
 //
-// Density at any phase-space point:
-//   g(Omega_lab) * |dOmega_lab / dOmega_rest|
+// CONE mode (simple):
+//   Samples uniformly on a bounding cone around the target.
+//   Density = 1/Omega_cone for directions inside the cone, 0 outside.
+//   Directions that miss the actual geometry get density 0 — the
+//   multi-channel isotropic term handles those events.
 //
-// where g is the lab-frame angular density (1/solid_angle for
-// uniform sampling over the target) and the Jacobian converts
-// between the rest-frame and lab-frame solid angle measures.
+// VOLUME mode (accurate):
+//   Samples a point uniformly in the target volume. The direction
+//   from the decay position to that point defines the lab direction.
+//   Density = (1/V) * integral(r^2 dr) over intersection segments,
+//   which is the exact angular density of the volume-uniform
+//   distribution.  Every sampled direction is guaranteed to hit the
+//   target by construction.
 //
-// For phase-space points where the lab direction does NOT intersect
-// the target geometry, the density is 0.
+// In both modes, after choosing a lab direction, the 2-body
+// kinematics are solved to find the rest-frame angle(s) and the
+// Jacobian |dOmega_lab/dOmega_rest|.  If the direction is
+// kinematically forbidden (beyond the critical angle for massive
+// daughters), the event falls back to isotropic sampling and the
+// Density at that point returns 0 from the biased channel.
 class DetectorDirected2BodyChannel : public PhaseSpaceChannel {
 public:
-    // target: the geometry to direct the daughter toward (e.g.,
-    //         the detector fiducial volume)
-    // daughter_index: which secondary (0 or 1) to direct
+    enum class Mode { Cone, Volume };
+
     DetectorDirected2BodyChannel(
         std::shared_ptr<siren::geometry::Geometry const> target,
-        int daughter_index = 0
+        int daughter_index = 0,
+        Mode mode = Mode::Volume
     );
 
     void Sample(
@@ -59,27 +62,42 @@ public:
 
     std::string Name() const override { return "DetectorDirected2Body"; }
 
+    // Set the true volume of the target geometry (for Volume mode).
+    // If not called, the AABB volume is used as an approximation.
+    void SetVolume(double volume);
+
 private:
     std::shared_ptr<siren::geometry::Geometry const> target_;
     int daughter_index_;
+    Mode mode_;
+    double aabb_volume_;
+    double target_volume_;
 
-    // Sample a direction uniformly over the solid angle subtended
-    // by the target geometry as seen from the given position.
-    // Returns (direction, solid_angle).
-    std::pair<siren::math::Vector3D, double> SampleTargetDirection(
+    // ---- Cone mode helpers ----
+
+    // Sample a direction uniformly on a bounding cone.
+    // Returns (direction, cone_solid_angle).
+    std::pair<siren::math::Vector3D, double> SampleConeDirection(
         std::shared_ptr<siren::utilities::SIREN_random> random,
         siren::math::Vector3D const & position
     ) const;
 
-    // Compute the solid angle subtended by the target geometry
-    // as seen from the given position.
-    double TargetSolidAngle(
-        siren::math::Vector3D const & position
+    double ConeSolidAngle(siren::math::Vector3D const & position) const;
+
+    bool DirectionHitsTarget(
+        siren::math::Vector3D const & position,
+        siren::math::Vector3D const & direction
     ) const;
 
-    // Check whether a ray from position in the given direction
-    // intersects the target geometry.
-    bool DirectionHitsTarget(
+    // ---- Volume mode helpers ----
+
+    // Sample a point uniformly inside the target volume (AABB rejection).
+    siren::math::Vector3D SampleVolumePoint(
+        std::shared_ptr<siren::utilities::SIREN_random> random
+    ) const;
+
+    // Exact solid angle density at a direction: (1/V) * sum(r_exit^3 - r_enter^3)/3
+    double SolidAngleDensity(
         siren::math::Vector3D const & position,
         siren::math::Vector3D const & direction
     ) const;
