@@ -71,9 +71,15 @@ PYBIND11_MODULE(injection,m) {
     .def(init<int>(), arg("daughter_index") = 0)
     ;
 
+  enum_<DetectorDirected2BodyChannel::Mode>(m, "DirectedMode")
+    .value("Cone", DetectorDirected2BodyChannel::Mode::Cone)
+    .value("Volume", DetectorDirected2BodyChannel::Mode::Volume);
+
   class_<DetectorDirected2BodyChannel, std::shared_ptr<DetectorDirected2BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected2BodyChannel")
-    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int>(),
-         arg("target"), arg("daughter_index") = 0)
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, DetectorDirected2BodyChannel::Mode>(),
+         arg("target"), arg("daughter_index") = 0,
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
+    .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
     ;
 
   // Two-body kinematics utilities
