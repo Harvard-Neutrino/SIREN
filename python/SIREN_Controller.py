@@ -43,12 +43,23 @@ class SIREN_Controller:
     def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0):
         """
         SIREN controller class constructor.
+
+        .. deprecated::
+            Use :class:`siren.Simulation` instead. ``SIREN_Controller`` will be
+            removed in a future release.
+
         :param int event_to_inject: number of events to generate
         :param str experiment: experiment name in string (default None)
         :param str detector_model_file: path to the detector model file (default None)
         :param str materials_model_file: path to the materials model file (default None)
         :param int seed: Optional random number generator seed (default 0)
         """
+        import warnings
+        warnings.warn(
+            "SIREN_Controller is deprecated. Use siren.Simulation instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         self.global_start = time.time()
 
