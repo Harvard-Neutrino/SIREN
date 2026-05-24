@@ -186,25 +186,35 @@ void DetectorDirected2BodyChannel::Sample(
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    // Sample a lab-frame direction toward the target
-    auto [lab_dir, solid_angle] = SampleTargetDirection(random, decay_pos);
+    // Sample a lab-frame direction toward the target.
+    // Retry if the direction misses the actual geometry (bounding
+    // cone overestimates) or is kinematically forbidden.
+    siren::math::Vector3D lab_dir;
+    double solid_angle;
+    std::array<TwoBodyLabSolution, 2> solutions;
+    int n_valid;
+    int max_attempts = 1000;
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        auto [dir, sa] = SampleTargetDirection(random, decay_pos);
+        lab_dir = dir;
+        solid_angle = sa;
 
-    // cos(theta_lab) = angle between daughter A and parent direction
-    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+        if (!DirectionHitsTarget(decay_pos, lab_dir)) continue;
 
-    // Solve for rest-frame angle(s)
-    auto solutions = SolveLabAngle(
-        beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
-
-    int n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
+        double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+        solutions = SolveLabAngle(
+            beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
+        n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
+        if (n_valid > 0) break;
+    }
 
     if (n_valid == 0) {
-        // This lab direction is kinematically forbidden.
-        // Fall back to isotropic sampling.
         Isotropic2BodyChannel fallback(daughter_index_);
         fallback.Sample(random, nullptr, record);
         return;
     }
+
+    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
 
     // Pick a solution (when 2 exist, pick proportional to Jacobian)
     int chosen = 0;
