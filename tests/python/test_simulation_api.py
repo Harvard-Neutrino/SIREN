@@ -637,3 +637,121 @@ class TestWeighterBatch:
         assert len(batch_weights) == 3
         for bw, rw in zip(batch_weights, results.weights):
             assert abs(bw - rw) < 1e-12
+
+
+# ==================================================================== #
+#  Phase 5: Reweight API                                                #
+# ==================================================================== #
+
+class TestReweight:
+    """Simulation.reweight() should produce new weights without
+    re-generating events."""
+
+    @pytest.fixture
+    def sim_and_results(self):
+        import siren
+        sim = siren.Simulation(
+            n_events=5,
+            detector="IceCube",
+            primary="NuMu",
+            interactions="CSMSDISSplines",
+            target="Nucleon",
+            process="CC",
+            energy=siren.dist.PowerLaw(2, 1e3, 1e6),
+            direction=siren.dist.IsotropicDirection(),
+            position=siren.dist.ColumnDepth(
+                600, 600.0, siren.distributions.LeptonDepthFunction()
+            ),
+        )
+        results = sim.run()
+        return sim, results
+
+    def test_reweight_before_run_raises(self):
+        import siren
+        sim = siren.Simulation(
+            n_events=1,
+            detector="IceCube",
+            primary="NuMu",
+            interactions="CSMSDISSplines",
+            target="Nucleon",
+            process="CC",
+            energy=siren.dist.PowerLaw(2, 1e3, 1e6),
+            direction=siren.dist.IsotropicDirection(),
+            position=siren.dist.ColumnDepth(
+                600, 600.0, siren.distributions.LeptonDepthFunction()
+            ),
+        )
+        with pytest.raises(RuntimeError, match="Must call run"):
+            sim.reweight(physical_energy=siren.dist.PowerLaw(1, 1e3, 1e6))
+
+    def test_reweight_returns_results(self, sim_and_results):
+        import siren
+        from siren.Results import Results
+        sim, original = sim_and_results
+        reweighted = sim.reweight(
+            physical_energy=siren.dist.PowerLaw(1, 1e3, 1e6),
+        )
+        assert isinstance(reweighted, Results)
+
+    def test_reweight_same_event_count(self, sim_and_results):
+        import siren
+        sim, original = sim_and_results
+        reweighted = sim.reweight(
+            physical_energy=siren.dist.PowerLaw(1, 1e3, 1e6),
+        )
+        assert len(reweighted) == len(original)
+
+    def test_reweight_same_events(self, sim_and_results):
+        """Events should be identical objects (not copies)."""
+        import siren
+        sim, original = sim_and_results
+        reweighted = sim.reweight(
+            physical_energy=siren.dist.PowerLaw(1, 1e3, 1e6),
+        )
+        for orig_ev, new_ev in zip(original.events, reweighted.events):
+            assert orig_ev is new_ev
+
+    def test_reweight_different_weights(self, sim_and_results):
+        """Different physical energy should produce different weights."""
+        import siren
+        sim, original = sim_and_results
+        reweighted = sim.reweight(
+            physical_energy=siren.dist.PowerLaw(1, 1e3, 1e6),
+        )
+        # With a different power law index, weights should differ
+        any_different = any(
+            abs(a - b) > 1e-15
+            for a, b in zip(original.weights, reweighted.weights)
+        )
+        assert any_different, "All weights identical despite different energy spectrum"
+
+    def test_reweight_no_changes_same_weights(self, sim_and_results):
+        """Reweighting with no changes should reproduce original weights."""
+        sim, original = sim_and_results
+        reweighted = sim.reweight()
+        for orig_w, new_w in zip(original.weights, reweighted.weights):
+            assert abs(orig_w - new_w) < 1e-12
+
+    def test_reweight_direction(self, sim_and_results):
+        """Reweight to a cone -- must have overlapping support with
+        the injection direction (isotropic) for nonzero weights."""
+        import siren
+        sim, original = sim_and_results
+        reweighted = sim.reweight(
+            physical_direction=siren.dist.Cone([0, 0, 1], 3.14159),
+        )
+        assert len(reweighted) == len(original)
+        assert all(w > 0 for w in reweighted.weights)
+
+    def test_reweight_multiple_calls(self, sim_and_results):
+        """Multiple reweight calls should be independent."""
+        import siren
+        sim, original = sim_and_results
+        r1 = sim.reweight(physical_energy=siren.dist.PowerLaw(1, 1e3, 1e6))
+        r2 = sim.reweight(physical_energy=siren.dist.PowerLaw(3, 1e3, 1e6))
+        # r1 and r2 should have different weights from each other
+        any_different = any(
+            abs(a - b) > 1e-15
+            for a, b in zip(r1.weights, r2.weights)
+        )
+        assert any_different
