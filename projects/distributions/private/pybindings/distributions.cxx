@@ -88,16 +88,19 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability);
 
   class_<Cone, std::shared_ptr<Cone>, PrimaryDirectionDistribution>(m, "Cone")
-    .def(init<siren::math::Vector3D, double>());
-    //.def("GenerationProbability",&Cone::GenerationProbability);
+    .def(init<siren::math::Vector3D, double>())
+    .def(init([](std::array<double, 3> const & dir, double opening_angle) {
+        return Cone(siren::math::Vector3D(dir), opening_angle);
+    }), arg("direction"), arg("opening_angle"));
 
   class_<IsotropicDirection, std::shared_ptr<IsotropicDirection>, PrimaryDirectionDistribution>(m, "IsotropicDirection")
     .def(init<>());
-    //.def("GenerationProbability",&IsotropicDirection::GenerationProbability);
 
   class_<FixedDirection, std::shared_ptr<FixedDirection>, PrimaryDirectionDistribution>(m, "FixedDirection")
-    .def(init<siren::math::Vector3D>());
-    //.def("GenerationProbability",&FixedDirection::GenerationProbability);
+    .def(init<siren::math::Vector3D>())
+    .def(init([](std::array<double, 3> const & dir) {
+        return FixedDirection(siren::math::Vector3D(dir));
+    }), arg("direction"));
 
   // Energy distributions
 
@@ -263,6 +266,9 @@ PYBIND11_MODULE(distributions,m) {
   class_<PointSourcePositionDistribution, std::shared_ptr<PointSourcePositionDistribution>, VertexPositionDistribution>(m, "PointSourcePositionDistribution")
     .def(init<>())
     .def(init<siren::math::Vector3D, double>())
+    .def(init([](std::array<double, 3> const & origin, double max_dist) {
+        return PointSourcePositionDistribution(siren::math::Vector3D(origin), max_dist);
+    }), arg("origin"), arg("max_distance"))
     .def("GenerationProbability",&PointSourcePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&PointSourcePositionDistribution::InjectionBounds)
     .def("Name",&PointSourcePositionDistribution::Name);
