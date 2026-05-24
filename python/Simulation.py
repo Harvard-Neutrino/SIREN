@@ -212,31 +212,19 @@ class Simulation:
                 load_kwargs["process_types"] = [process]
             load_kwargs.update(extra_kwargs)
 
-            result = _utilities.load_processes(interactions, **load_kwargs)
+            bundle = _utilities.load_processes(interactions, **load_kwargs)
 
-            # load_processes returns different shapes depending on model.
-            # Normalize: we always need (primary_dict, secondary_dict).
-            # Extra return values are model-specific metadata that we
-            # store opaquely.
-            if isinstance(result, tuple):
-                primary_procs = result[0]
-                secondary_procs = result[1] if len(result) > 1 else {}
-                self._process_metadata = result[2:] if len(result) > 2 else ()
-            else:
-                primary_procs = result
-                secondary_procs = {}
-                self._process_metadata = ()
-
-            if self._primary_type not in primary_procs:
-                available = list(primary_procs.keys())
+            if self._primary_type not in bundle.primary:
+                available = list(bundle.primary.keys())
                 raise ValueError(
                     f"Interaction model {interactions!r} did not produce "
                     f"processes for {self._primary_type}. "
                     f"Available: {available}"
                 )
-            self._primary_interactions = primary_procs[self._primary_type]
-            if secondary_procs:
-                self._secondary_processes.update(secondary_procs)
+            self._primary_interactions = bundle.primary[self._primary_type]
+            self._process_metadata = bundle.metadata
+            if bundle.secondary:
+                self._secondary_processes.update(bundle.secondary)
         elif isinstance(interactions, list):
             self._primary_interactions = interactions
             self._process_metadata = ()
