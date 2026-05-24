@@ -6,6 +6,9 @@
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/AABB.h"
+#include "SIREN/geometry/Cylinder.h"
+#include "SIREN/geometry/Sphere.h"
+#include "SIREN/geometry/Box.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Random.h"
 
@@ -18,6 +21,60 @@ namespace injection {
 static const double TWO_PI = 2.0 * M_PI;
 static const double FOUR_PI = 4.0 * M_PI;
 
+namespace {
+
+double ComputeVolume(siren::geometry::Geometry const & geo, double aabb_volume) {
+    // Analytic volume for known geometry types
+    if (auto const * cyl = dynamic_cast<siren::geometry::Cylinder const *>(&geo)) {
+        double R = cyl->GetRadius();
+        double r = cyl->GetInnerRadius();
+        double H = cyl->GetZ();
+        return M_PI * (R * R - r * r) * H;
+    }
+    if (auto const * sph = dynamic_cast<siren::geometry::Sphere const *>(&geo)) {
+        double R = sph->GetRadius();
+        double r = sph->GetInnerRadius();
+        return (4.0 / 3.0) * M_PI * (R * R * R - r * r * r);
+    }
+    if (auto const * box = dynamic_cast<siren::geometry::Box const *>(&geo)) {
+        return box->GetX() * box->GetY() * box->GetZ();
+    }
+
+    // Monte Carlo fallback: estimate V from AABB rejection rate
+    auto aabb = geo.GetWorldBoundingBox();
+    int N = 10000;
+    int n_inside = 0;
+    // Deterministic scan (not random — no RNG available here)
+    for (int i = 0; i < N; ++i) {
+        double fi = (i + 0.5) / N;
+        // 3D Halton-like quasi-random sequence
+        int ix = i;
+        double fx = 0, fy = 0, fz = 0;
+        double bx = 1.0/2, by = 1.0/3, bz = 1.0/5;
+        for (int j = 0; j < 15; ++j) {
+            fx += (ix % 2) * bx; bx /= 2; ix /= 2;
+        }
+        ix = i;
+        for (int j = 0; j < 10; ++j) {
+            fy += (ix % 3) * by; by /= 3; ix /= 3;
+        }
+        ix = i;
+        for (int j = 0; j < 7; ++j) {
+            fz += (ix % 5) * bz; bz /= 5; ix /= 5;
+        }
+        double x = aabb.min_corner.GetX() + fx * (aabb.max_corner.GetX() - aabb.min_corner.GetX());
+        double y = aabb.min_corner.GetY() + fy * (aabb.max_corner.GetY() - aabb.min_corner.GetY());
+        double z = aabb.min_corner.GetZ() + fz * (aabb.max_corner.GetZ() - aabb.min_corner.GetZ());
+        if (geo.IsInside(siren::math::Vector3D(x, y, z))) {
+            ++n_inside;
+        }
+    }
+    if (n_inside == 0) return aabb_volume;
+    return aabb_volume * static_cast<double>(n_inside) / N;
+}
+
+} // anonymous namespace
+
 DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
     std::shared_ptr<siren::geometry::Geometry const> target,
     int daughter_index,
@@ -29,7 +86,7 @@ DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
     auto aabb = target_->GetWorldBoundingBox();
     siren::math::Vector3D extent = aabb.max_corner - aabb.min_corner;
     aabb_volume_ = extent.GetX() * extent.GetY() * extent.GetZ();
-    target_volume_ = aabb_volume_;
+    target_volume_ = ComputeVolume(*target_, aabb_volume_);
 }
 
 void DetectorDirected2BodyChannel::SetVolume(double volume) {
