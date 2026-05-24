@@ -7,6 +7,8 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/TwoBodyKinematics.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected2BodyChannel.cxx
 )
 add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
