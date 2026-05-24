@@ -41,8 +41,8 @@ public:
     pyDarkNewsDecay(DarkNewsDecay && parent);
     pyDarkNewsDecay(DarkNewsDecay const & parent);
 
+    double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
-    double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     double DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;

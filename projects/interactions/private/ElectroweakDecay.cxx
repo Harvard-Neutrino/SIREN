@@ -85,7 +85,7 @@ bool ElectroweakDecay::equal(Decay const & other) const {
             primary_types == x->primary_types;
 }
 
-double ElectroweakDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double ElectroweakDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
     return TotalDecayWidth(record.signature.primary_type);
 }
 
@@ -101,12 +101,12 @@ double ElectroweakDecay::TotalDecayWidth(siren::dataclasses::ParticleType primar
   }
   for(auto signature : signatures) {
     record.signature = signature;
-    gamma_tot += TotalDecayWidthForFinalState(record);
+    gamma_tot += TotalDecayWidth(record);
   }
   return gamma_tot;
 }
 
-double ElectroweakDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double ElectroweakDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
     double m1 = secondary_masses.at(record.signature.secondary_types[0]);
     double m2 = secondary_masses.at(record.signature.secondary_types[1]);
     if (m1+m2>=record.primary_mass) return 0;
@@ -189,7 +189,7 @@ std::vector<std::string> ElectroweakDecay::DensityVariables() const {
 double ElectroweakDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
     // For now assume isotropic
     // dGamma / dCosTheta = Gamma/2
-    return 1./2.*TotalDecayWidthForFinalState(record);
+    return 1./2.*TotalDecayWidth(record);
 
 }
 
@@ -241,7 +241,7 @@ void ElectroweakDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
 
 double ElectroweakDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
     double dd = DifferentialDecayWidth(record);
-    double td = TotalDecayWidthForFinalState(record);
+    double td = TotalDecayWidth(record);
     if (dd == 0) return 0.;
     else if (td == 0) return 0.;
     else return dd/td;

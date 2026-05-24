@@ -20,16 +20,16 @@ bool Decay::operator==(Decay const & other) const {
         return this->equal(other);
 }
 
-double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
-    double tau = 1./TotalDecayWidth(interaction); // in inverse GeV
+double Decay::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    double tau = 1./TotalDecayWidthAllFinalStates(interaction); // in inverse GeV
     std::array<double, 4> const & p4 = interaction.primary_momentum;
     double const & mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(p4[1], p4[2], p4[3]), mass);
     return p1.beta() * p1.gamma() * tau * siren::utilities::Constants::hbarc;
 }
 
-double Decay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-    double tau = 1./TotalDecayWidthForFinalState(interaction); // in inverse GeV
+double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
+    double tau = 1./TotalDecayWidth(interaction); // in inverse GeV
     std::array<double, 4> const & p4 = interaction.primary_momentum;
     double const & mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(p4[1], p4[2], p4[3]), mass);

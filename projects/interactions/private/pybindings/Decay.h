@@ -19,7 +19,19 @@ void register_Decay(pybind11::module_ & m) {
     using namespace siren::interactions;
 
     class_<Decay, std::shared_ptr<Decay>, pyDecay, Interaction>(m, "Decay")
-        .def("TotalDecayLength",&Decay::TotalDecayLength)
-        .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState);
+        .def(init<>())
+        .def("__eq__", [](const Decay &self, const Decay &other){ return self == other; })
+        .def("equal", &Decay::equal)
+        .def("TotalDecayWidthAllFinalStates", &Decay::TotalDecayWidthAllFinalStates)
+        .def("TotalDecayWidth", (double (Decay::*)(siren::dataclasses::ParticleType) const)(&Decay::TotalDecayWidth))
+        .def("TotalDecayWidth", (double (Decay::*)(siren::dataclasses::InteractionRecord const &) const)(&Decay::TotalDecayWidth))
+        .def("TotalDecayLengthAllFinalStates", &Decay::TotalDecayLengthAllFinalStates)
+        .def("TotalDecayLength", &Decay::TotalDecayLength)
+        .def("DifferentialDecayWidth", &Decay::DifferentialDecayWidth)
+        .def("SampleFinalState", &Decay::SampleFinalState)
+        .def("GetPossibleSignatures", &Decay::GetPossibleSignatures)
+        .def("GetPossibleSignaturesFromParent", &Decay::GetPossibleSignaturesFromParent)
+        .def("FinalStateProbability", &Decay::FinalStateProbability)
+        .def("DensityVariables", &Decay::DensityVariables);
 
 }
