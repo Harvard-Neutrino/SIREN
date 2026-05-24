@@ -1,88 +1,84 @@
 """
 Input validation helpers for SIREN's Python interface.
 
-Provides early, human-readable error messages instead of letting
-misconfiguration propagate into the C++ layer.
+Uses the C++ distribution base class hierarchy to classify
+distributions by role.  Adding a new distribution in C++ that
+inherits from the correct base class will be recognized here
+automatically -- no manual plumbing required.
 """
 
 from . import distributions as _d
 
-# Categories of concrete distribution types
-_ENERGY_TYPES = (
-    _d.PowerLaw,
-    _d.Monoenergetic,
-    _d.TabulatedFluxDistribution,
-)
-
-_DIRECTION_TYPES = (
-    _d.IsotropicDirection,
-    _d.FixedDirection,
-    _d.Cone,
-)
-
-_POSITION_TYPES = (
-    _d.ColumnDepthPositionDistribution,
-    _d.CylinderVolumePositionDistribution,
-    _d.PointSourcePositionDistribution,
-    _d.RangePositionDistribution,
-    _d.VertexPositionDistribution,
-)
-
-_MASS_TYPES = (
-    _d.PrimaryMass,
-)
-
 
 def classify_distribution(dist):
-    """Return a string label for what role a distribution fills.
+    """Return a set of role labels for a distribution.
 
-    Returns one of: ``"energy"``, ``"direction"``, ``"position"``,
-    ``"mass"``, ``"helicity"``, or ``"unknown"``.
+    Uses the C++ class hierarchy (``PrimaryEnergyDistribution``,
+    ``PrimaryDirectionDistribution``, ``VertexPositionDistribution``,
+    etc.) rather than enumerating concrete types.
+
+    Returns a set that may contain multiple roles (e.g.
+    ``{"energy", "direction"}`` for ``PrimaryEnergyDirectionDistribution``
+    subclasses).
     """
-    if isinstance(dist, _ENERGY_TYPES):
-        return "energy"
-    if isinstance(dist, _DIRECTION_TYPES):
-        return "direction"
-    if isinstance(dist, _POSITION_TYPES):
-        return "position"
-    if isinstance(dist, _MASS_TYPES):
-        return "mass"
+    roles = set()
+    if isinstance(dist, _d.PrimaryEnergyDistribution):
+        roles.add("energy")
+    if isinstance(dist, _d.PrimaryDirectionDistribution):
+        roles.add("direction")
+    if isinstance(dist, _d.PrimaryEnergyDirectionDistribution):
+        roles.add("energy")
+        roles.add("direction")
+    if isinstance(dist, _d.VertexPositionDistribution):
+        roles.add("position")
+    if isinstance(dist, _d.PrimaryMass):
+        roles.add("mass")
     if isinstance(dist, _d.PrimaryNeutrinoHelicityDistribution):
-        return "helicity"
+        roles.add("helicity")
     if isinstance(dist, _d.NormalizationConstant):
-        return "normalization"
-    return "unknown"
+        roles.add("normalization")
+    if isinstance(dist, _d.PrimaryAreaDistribution):
+        roles.add("area")
+    if not roles and isinstance(dist, _d.PrimaryInjectionDistribution):
+        roles.add("unknown_primary")
+    if not roles and isinstance(dist, _d.SecondaryInjectionDistribution):
+        roles.add("unknown_secondary")
+    return roles if roles else {"unknown"}
+
+
+def collect_roles(distributions):
+    """Return the union of all roles covered by a list of distributions."""
+    roles = set()
+    for d in distributions:
+        roles |= classify_distribution(d)
+    return roles
 
 
 def validate_injection_distributions(distributions):
     """Check that a list of injection distributions covers all required roles.
 
-    Parameters
-    ----------
-    distributions : list
-        List of PrimaryInjectionDistribution objects.
-
     Raises
     ------
     ValueError
-        If required distribution types are missing, with a message listing
-        what is needed and suggesting concrete classes.
+        If required distribution types are missing, with a message
+        suggesting the relevant C++ base class.
     """
-    roles = {classify_distribution(d) for d in distributions}
+    roles = collect_roles(distributions)
 
     missing = []
     if "energy" not in roles:
         missing.append(
-            "energy (e.g. PowerLaw, Monoenergetic, TabulatedFluxDistribution)"
+            "energy (any subclass of PrimaryEnergyDistribution "
+            "or PrimaryEnergyDirectionDistribution)"
         )
     if "direction" not in roles:
         missing.append(
-            "direction (e.g. IsotropicDirection, FixedDirection, Cone)"
+            "direction (any subclass of PrimaryDirectionDistribution "
+            "or PrimaryEnergyDirectionDistribution)"
         )
     if "position" not in roles:
         missing.append(
-            "position (e.g. ColumnDepthPositionDistribution, "
-            "CylinderVolumePositionDistribution, PointSourcePositionDistribution)"
+            "position (any subclass of VertexPositionDistribution)"
         )
 
     if missing:
@@ -95,28 +91,26 @@ def validate_injection_distributions(distributions):
 def validate_physical_distributions(distributions):
     """Check that a list of physical distributions covers required roles.
 
-    Physical distributions need energy and direction but NOT position or mass.
-
-    Parameters
-    ----------
-    distributions : list
-        List of WeightableDistribution objects.
+    Physical distributions need energy and direction but NOT position
+    or mass.
 
     Raises
     ------
     ValueError
         If required distribution types are missing.
     """
-    roles = {classify_distribution(d) for d in distributions}
+    roles = collect_roles(distributions)
 
     missing = []
     if "energy" not in roles:
         missing.append(
-            "energy (e.g. PowerLaw, Monoenergetic, TabulatedFluxDistribution)"
+            "energy (any subclass of PrimaryEnergyDistribution "
+            "or PrimaryEnergyDirectionDistribution)"
         )
     if "direction" not in roles:
         missing.append(
-            "direction (e.g. IsotropicDirection, FixedDirection, Cone)"
+            "direction (any subclass of PrimaryDirectionDistribution "
+            "or PrimaryEnergyDirectionDistribution)"
         )
 
     if missing:
