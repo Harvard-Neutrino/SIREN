@@ -1,4 +1,5 @@
 
+#include <set>
 #include <vector>
 #include <string>
 
@@ -51,6 +52,16 @@ using namespace pybind11;
 PYBIND11_MODULE(distributions,m) {
   using namespace siren::distributions;
 
+  enum_<DistributionVariable>(m, "DistributionVariable")
+    .value("PrimaryMass", DistributionVariable::PrimaryMass)
+    .value("PrimaryEnergy", DistributionVariable::PrimaryEnergy)
+    .value("PrimaryDirection", DistributionVariable::PrimaryDirection)
+    .value("PrimaryHelicity", DistributionVariable::PrimaryHelicity)
+    .value("PrimaryArea", DistributionVariable::PrimaryArea)
+    .value("InitialPosition", DistributionVariable::InitialPosition)
+    .value("InteractionVertex", DistributionVariable::InteractionVertex)
+    .value("InteractionParameters", DistributionVariable::InteractionParameters);
+
   class_<PhysicallyNormalizedDistribution, std::shared_ptr<PhysicallyNormalizedDistribution>>(m, "PhysicallyNormalizedDistribution")
     .def(init<>())
     .def(init<double>())
@@ -68,6 +79,8 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<PrimaryInjectionDistribution, std::shared_ptr<PrimaryInjectionDistribution>, WeightableDistribution>(m, "PrimaryInjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
+    .def("SetVariables",&PrimaryInjectionDistribution::SetVariables)
+    .def("RequiredVariables",&PrimaryInjectionDistribution::RequiredVariables)
     ;
 
   // External distribution
