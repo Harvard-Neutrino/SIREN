@@ -264,6 +264,82 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
     xsec_record.Finalize(record);
 }
 
+void Injector::SelectChannel(siren::dataclasses::InteractionRecord & record, std::shared_ptr<siren::interactions::InteractionCollection> interactions) const {
+    // Make sure the particle has interacted
+    if(std::isnan(record.interaction_vertex[0]) ||
+            std::isnan(record.interaction_vertex[1]) ||
+            std::isnan(record.interaction_vertex[2])) {
+        throw(siren::utilities::InjectionFailure("No particle interaction!"));
+    }
+
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+
+    siren::math::Vector3D interaction_vertex(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
+
+    siren::math::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    primary_direction.normalize();
+
+    siren::geometry::Geometry::IntersectionList intersections_list = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::set<siren::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections_list, DetectorPosition(record.interaction_vertex));
+
+    double total_prob = 0.0;
+    double xsec_prob = 0.0;
+    std::vector<double> probs;
+    std::vector<siren::dataclasses::ParticleType> matching_targets;
+    std::vector<siren::dataclasses::InteractionSignature> matching_signatures;
+    siren::dataclasses::InteractionRecord fake_record = record;
+    double fake_prob;
+    if (interactions->HasCrossSections()) {
+        for(auto const target : available_targets) {
+            if(possible_targets.find(target) != possible_targets.end()) {
+                double target_density = detector_model->GetParticleDensity(intersections_list, DetectorPosition(interaction_vertex), target);
+                std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
+                for(auto const & cross_section : target_cross_sections) {
+                    std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                    for(auto const & signature : signatures) {
+                        fake_record.signature = signature;
+                        fake_record.target_mass = detector_model->GetTargetMass(target);
+                        fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
+                        total_prob += fake_prob;
+                        xsec_prob += fake_prob;
+                        probs.push_back(total_prob);
+                        matching_targets.push_back(target);
+                        matching_signatures.push_back(signature);
+                    }
+                }
+            }
+        }
+    }
+    if (interactions->HasDecays()) {
+        for(auto const & decay : interactions->GetDecays()) {
+            for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+                fake_record.signature = signature;
+                fake_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
+                total_prob += fake_prob;
+                probs.push_back(total_prob);
+                matching_targets.push_back(siren::dataclasses::ParticleType::Decay);
+                matching_signatures.push_back(signature);
+            }
+        }
+    }
+
+    if(total_prob == 0)
+        throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
+
+    // Random selection among channels
+    double r = random->Uniform(0, total_prob);
+    unsigned int index = 0;
+    for(; (index+1 < probs.size()) and (r > probs[index]); ++index) {}
+    record.signature = matching_signatures[index];
+    record.target_mass = detector_model->GetTargetMass(matching_targets[index]);
+}
+
 // Function to sample secondary processes
 //
 // Modifies an InteractionRecord with the new event
@@ -279,14 +355,11 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     secondary_record.Finalize(record);
 
     if (secondary_process->HasPhaseSpace()) {
-        // Use multi-channel phase space for interaction selection + kinematics.
-        // First: select the interaction (target + signature) via the
-        // standard mechanism.
-        SampleCrossSection(record, secondary_interactions);
-        // Now replace the final-state kinematics with the multi-channel
-        // sampler, which may bias the daughter directions.
+        // Factored path: select channel, then sample kinematics separately.
+        SelectChannel(record, secondary_interactions);
         secondary_process->GetPhaseSpace()->Sample(random, detector_model, record);
     } else {
+        // Legacy path: channel selection + kinematics in one call.
         SampleCrossSection(record, secondary_interactions);
     }
     return record;
