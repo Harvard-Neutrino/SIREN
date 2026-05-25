@@ -221,13 +221,13 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
     prob = NormalizedPositionProbability(bounds, record);
     physical_probability *= prob;
 
-    // Use phase space channel density if the physical process has one,
-    // otherwise fall back to CrossSectionProbability (which uses
-    // FinalStateProbability from the Decay/CrossSection models).
-    if (phys_process->HasPhaseSpace()) {
+    // Use phase space channel density if one is registered for this
+    // signature, otherwise fall back to CrossSectionProbability (which
+    // uses FinalStateProbability from the Decay/CrossSection models).
+    if (phys_process->HasPhaseSpace(record.signature)) {
         prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
             detector_model, phys_process->GetInteractions(), record,
-            *phys_process->GetPhaseSpace());
+            *phys_process->GetPhaseSpace(record.signature));
     } else {
         prob = siren::injection::CrossSectionProbability(
             detector_model, phys_process->GetInteractions(), record);
@@ -245,14 +245,12 @@ template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
     double gen_probability;
 
-    // Use phase space channel density if the injection process has one,
-    // otherwise fall back to CrossSectionProbability.
-    // Both PrimaryInjectionProcess and SecondaryInjectionProcess inherit
-    // HasPhaseSpace from PhysicalProcess, so no if-constexpr needed.
-    if (inj_process->HasPhaseSpace()) {
+    // Use phase space channel density if one is registered for this
+    // signature, otherwise fall back to CrossSectionProbability.
+    if (inj_process->HasPhaseSpace(datum.record.signature)) {
         gen_probability = siren::injection::CrossSectionProbabilityWithPhaseSpace(
             detector_model, inj_process->GetInteractions(), datum.record,
-            *inj_process->GetPhaseSpace());
+            *inj_process->GetPhaseSpace(datum.record.signature));
     } else {
         gen_probability = siren::injection::CrossSectionProbability(
             detector_model, inj_process->GetInteractions(), datum.record);

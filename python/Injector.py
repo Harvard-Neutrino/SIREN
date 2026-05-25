@@ -129,7 +129,8 @@ class Injector:
             )
             secondary_process.distributions = secondary_injection_distributions[secondary_type]
             if secondary_type in self.__secondary_phase_spaces:
-                secondary_process.SetPhaseSpace(self.__secondary_phase_spaces[secondary_type])
+                for sig, ps in self.__secondary_phase_spaces[secondary_type].items():
+                    secondary_process.SetPhaseSpace(sig, ps)
             secondary_processes.append(secondary_process)
 
         self.__injector = _Injector(
@@ -172,8 +173,8 @@ class Injector:
         for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap().items():
             self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
-            if secondary_process.HasPhaseSpace():
-                self.__secondary_phase_spaces[secondary_type] = secondary_process.GetPhaseSpace()
+            # Phase spaces are now per-signature; skip recovery for now
+            # (phase spaces are not serialized through cereal)
 
     @property
     def seed(self):
@@ -288,7 +289,8 @@ class Injector:
             for secondary_type, phase_space in phase_spaces.items():
                 if secondary_type not in secondary_processes:
                     raise ValueError("Cannot set a phase space for an unknown secondary type")
-                secondary_processes[secondary_type].SetPhaseSpace(phase_space)
+                for sig, ps in phase_space.items():
+                    secondary_processes[secondary_type].SetPhaseSpace(sig, ps)
         self.__secondary_phase_spaces = phase_spaces
 
     @property
