@@ -19,6 +19,7 @@
 #include "../../public/SIREN/injection/DetectorDirected2BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirected3BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirectedScatteringChannel.h"
+#include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
 #include "../../public/SIREN/injection/TwoBodyKinematics.h"
 
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
@@ -116,6 +117,18 @@ PYBIND11_MODULE(injection,m) {
          arg("variable") = DetectorDirectedScatteringChannel::Variable::Q2,
          arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
     .def("SetVolume", &DetectorDirectedScatteringChannel::SetVolume)
+    ;
+
+  // Physical channel adapters
+
+  class_<PhysicalDecayChannel, std::shared_ptr<PhysicalDecayChannel>, PhaseSpaceChannel>(m, "PhysicalDecayChannel")
+    .def(init<std::shared_ptr<siren::interactions::Decay>>())
+    .def("GetDecay", &PhysicalDecayChannel::GetDecay)
+    ;
+
+  class_<PhysicalCrossSectionChannel, std::shared_ptr<PhysicalCrossSectionChannel>, PhaseSpaceChannel>(m, "PhysicalCrossSectionChannel")
+    .def(init<std::shared_ptr<siren::interactions::CrossSection>>())
+    .def("GetCrossSection", &PhysicalCrossSectionChannel::GetCrossSection)
     ;
 
   // Two-body kinematics utilities
