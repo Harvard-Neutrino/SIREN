@@ -128,7 +128,7 @@ double CrossSectionProbabilityWithPhaseSpace(
         std::vector<siren::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
         for(auto const & signature : signatures) {
             fake_record.signature = signature;
-            double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+            double decay_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
             total_prob += decay_prob;
             if(signature == record.signature) {
                 selected_channel_prob += decay_prob;
@@ -170,4 +170,3 @@ double CrossSectionProbabilityWithPhaseSpace(
 
 } // namespace injection
 } // namespace siren
-

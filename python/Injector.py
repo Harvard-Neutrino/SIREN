@@ -39,6 +39,7 @@ class Injector:
         primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
         secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
         secondary_injection_distributions: Optional[Dict[_dataclasses.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
+        secondary_phase_spaces: Optional[Dict[_dataclasses.ParticleType, _injection.MultiChannelPhaseSpace]] = None,
         stopping_condition: Optional[Callable[[_dataclasses.InteractionTreeDatum, int], bool]] = None,
     ):
         self.__seed = None
@@ -72,6 +73,8 @@ class Injector:
             self.__secondary_interactions = secondary_interactions
         if secondary_injection_distributions is not None:
             self.__secondary_injection_distributions = secondary_injection_distributions
+        if secondary_phase_spaces is not None:
+            self.__secondary_phase_spaces = secondary_phase_spaces
         if stopping_condition is not None:
             self.__stopping_condition = stopping_condition
 
@@ -165,9 +168,12 @@ class Injector:
 
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
-        for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap():
+        self.__secondary_phase_spaces = {}
+        for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap().items():
             self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
+            if secondary_process.HasPhaseSpace():
+                self.__secondary_phase_spaces[secondary_type] = secondary_process.GetPhaseSpace()
 
     @property
     def seed(self):
@@ -262,13 +268,13 @@ class Injector:
     @secondary_injection_distributions.setter
     def secondary_injection_distributions(self, secondary_injection_distributions):
         if self.__injector is not None:
-            secondary_processes = self.__injector.GetSecondaryProcesses()
+            secondary_processes = self.__injector.GetSecondaryProcessMap()
             current_secondary_types = sorted(list(secondary_processes.keys()))
             new_secondary_types = sorted(list(secondary_injection_distributions.keys()))
             if current_secondary_types != new_secondary_types:
                 raise ValueError("Cannot change the secondary types after initialization")
-            for secondary_type, secondary_process in secondary_injection_distributions.items():
-                secondary_process.distributions = secondary_distributions[secondary_type]
+            for secondary_type, secondary_process in secondary_processes.items():
+                secondary_process.distributions = secondary_injection_distributions[secondary_type]
         self.__secondary_injection_distributions = secondary_injection_distributions
 
     @property
@@ -277,6 +283,12 @@ class Injector:
 
     @secondary_phase_spaces.setter
     def secondary_phase_spaces(self, phase_spaces):
+        if self.__injector is not None:
+            secondary_processes = self.__injector.GetSecondaryProcessMap()
+            for secondary_type, phase_space in phase_spaces.items():
+                if secondary_type not in secondary_processes:
+                    raise ValueError("Cannot set a phase space for an unknown secondary type")
+                secondary_processes[secondary_type].SetPhaseSpace(phase_space)
         self.__secondary_phase_spaces = phase_spaces
 
     @property
@@ -360,4 +372,3 @@ class Injector:
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
 
         self.__stopping_condition = self.__injector.GetStoppingCondition()
-

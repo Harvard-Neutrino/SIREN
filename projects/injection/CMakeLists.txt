@@ -9,6 +9,8 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected2BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected3BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirectedScatteringChannel.cxx
 )
 add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -45,6 +47,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
 #package_add_test(UnitTest_Injector ${PROJECT_SOURCE_DIR}/projects/injection/private/test/Injector_TEST.cxx)
 package_add_test(UnitTest_Weighter ${PROJECT_SOURCE_DIR}/projects/injection/private/test/Weighter_TEST.cxx)
 package_add_test(UnitTest_TwoBodyKinematics ${PROJECT_SOURCE_DIR}/projects/injection/private/test/TwoBodyKinematics_TEST.cxx)
+package_add_test(UnitTest_PhaseSpaceChannels ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceChannels_TEST.cxx)
 if(NOT ${CIBUILDWHEEL})
 package_add_test(UnitTest_CCM_HNL ${PROJECT_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
 target_link_libraries(UnitTest_CCM_HNL pybind11::embed)
