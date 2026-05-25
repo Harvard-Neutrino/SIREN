@@ -224,6 +224,15 @@ DetectorDirectedScatteringChannel::DetectorDirectedScatteringChannel(
     }
     double aabb_volume = detail::AABBVolume(*target_);
     target_volume_ = detail::ComputeGeometryVolume(*target_, aabb_volume);
+
+    if (mode_ == DetectorDirected2BodyChannel::Mode::Volume) {
+        if (aabb_volume <= 0.0) {
+            throw std::runtime_error("Target bounding box has zero volume");
+        }
+        if (target_volume_ / aabb_volume < 1e-4) {
+            throw std::runtime_error("Target volume is too small relative to its bounding box for sampling to be viable");
+        }
+    }
 }
 
 void DetectorDirectedScatteringChannel::SetVolume(double volume) {
