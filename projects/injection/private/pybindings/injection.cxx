@@ -17,6 +17,8 @@
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "../../public/SIREN/injection/DetectorDirected3BodyChannel.h"
+#include "../../public/SIREN/injection/DetectorDirectedScatteringChannel.h"
 #include "../../public/SIREN/injection/TwoBodyKinematics.h"
 
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
@@ -80,6 +82,40 @@ PYBIND11_MODULE(injection,m) {
          arg("target"), arg("daughter_index") = 0,
          arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
     .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
+    ;
+
+  enum_<DetectorDirected3BodyChannel::InvariantMassMode>(m, "InvariantMassMode")
+    .value("Uniform", DetectorDirected3BodyChannel::InvariantMassMode::Uniform)
+    .value("BreitWigner", DetectorDirected3BodyChannel::InvariantMassMode::BreitWigner)
+    .value("PowerLaw", DetectorDirected3BodyChannel::InvariantMassMode::PowerLaw);
+
+  class_<DetectorDirected3BodyChannel, std::shared_ptr<DetectorDirected3BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected3BodyChannel")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, int, int, int,
+              DetectorDirected3BodyChannel::InvariantMassMode, double, double, double, double,
+              DetectorDirected2BodyChannel::Mode>(),
+         arg("target"), arg("spectator_index") = 0,
+         arg("pair_first_index") = 1, arg("pair_second_index") = 2,
+         arg("directed_pair_index") = 1,
+         arg("mass_mode") = DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
+         arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
+         arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
+    .def("SetVolume", &DetectorDirected3BodyChannel::SetVolume)
+    ;
+
+  enum_<DetectorDirectedScatteringChannel::Variable>(m, "ScatteringVariable")
+    .value("Q2", DetectorDirectedScatteringChannel::Variable::Q2)
+    .value("BjorkenY", DetectorDirectedScatteringChannel::Variable::BjorkenY)
+    .value("RecoilY", DetectorDirectedScatteringChannel::Variable::RecoilY);
+
+  class_<DetectorDirectedScatteringChannel, std::shared_ptr<DetectorDirectedScatteringChannel>, PhaseSpaceChannel>(m, "DetectorDirectedScatteringChannel")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int,
+              DetectorDirectedScatteringChannel::Variable,
+              DetectorDirected2BodyChannel::Mode>(),
+         arg("target"), arg("directed_index") = 0,
+         arg("variable") = DetectorDirectedScatteringChannel::Variable::Q2,
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
+    .def("SetVolume", &DetectorDirectedScatteringChannel::SetVolume)
     ;
 
   // Two-body kinematics utilities
@@ -211,4 +247,3 @@ PYBIND11_MODULE(injection,m) {
     ))
     ;
 }
-

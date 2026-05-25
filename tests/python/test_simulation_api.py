@@ -620,6 +620,29 @@ class TestSecondaryBiasing:
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Name() == "DetectorDirected2Body"
 
+    def test_detector_directed_3body_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected3BodyChannel(
+            fid,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=1,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+        )
+        assert ch.Name() == "DetectorDirected3Body"
+
+    def test_detector_directed_scattering_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirectedScatteringChannel(
+            fid,
+            directed_index=0,
+            variable=siren.injection.ScatteringVariable.Q2,
+        )
+        assert ch.Name() == "DetectorDirectedScattering"
+
     def test_multi_channel_construction(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
