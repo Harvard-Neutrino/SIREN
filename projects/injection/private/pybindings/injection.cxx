@@ -152,10 +152,11 @@ PYBIND11_MODULE(injection,m) {
     .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
     .def("SetPhaseSpace", &PhysicalProcess::SetPhaseSpace)
     .def("GetPhaseSpace", &PhysicalProcess::GetPhaseSpace)
-    .def("HasPhaseSpace", &PhysicalProcess::HasPhaseSpace)
+    .def("HasPhaseSpace", overload_cast<siren::dataclasses::InteractionSignature const &>(&PhysicalProcess::HasPhaseSpace, const_))
+    .def("HasAnyPhaseSpace", &PhysicalProcess::HasAnyPhaseSpace)
     ;
 
-  class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
+  class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, PhysicalProcess>(m, "PrimaryInjectionProcess")
     .def(init<>())
     .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
@@ -163,15 +164,12 @@ PYBIND11_MODULE(injection,m) {
     .def_property("distributions", &PrimaryInjectionProcess::GetPrimaryInjectionDistributions, &PrimaryInjectionProcess::SetPrimaryInjectionDistributions)
     ;
 
-  class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, Process>(m, "SecondaryInjectionProcess")
+  class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, PhysicalProcess>(m, "SecondaryInjectionProcess")
     .def(init<>())
     .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
     .def_property("secondary_type", &SecondaryInjectionProcess::GetSecondaryType, &SecondaryInjectionProcess::SetSecondaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, &SecondaryInjectionProcess::SetSecondaryInjectionDistributions)
-    .def("SetPhaseSpace", &SecondaryInjectionProcess::SetPhaseSpace)
-    .def("GetPhaseSpace", &SecondaryInjectionProcess::GetPhaseSpace)
-    .def("HasPhaseSpace", &SecondaryInjectionProcess::HasPhaseSpace)
     ;
 
   // Injection

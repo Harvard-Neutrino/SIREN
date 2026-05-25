@@ -354,13 +354,43 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     siren::dataclasses::InteractionRecord record;
     secondary_record.Finalize(record);
 
-    if (secondary_process->HasPhaseSpace()) {
-        // Factored path: select channel, then sample kinematics separately.
-        SelectChannel(record, secondary_interactions);
-        secondary_process->GetPhaseSpace()->Sample(random, detector_model, record);
+    // Select which interaction occurs (sets signature + target_mass).
+    SelectChannel(record, secondary_interactions);
+
+    if (secondary_process->HasPhaseSpace(record.signature)) {
+        // Factored path: use multi-channel phase space for kinematics.
+        secondary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
     } else {
-        // Legacy path: channel selection + kinematics in one call.
-        SampleCrossSection(record, secondary_interactions);
+        // Legacy path: sample kinematics from the Decay/CrossSection model.
+        siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+        // Find the matching interaction and sample its final state.
+        auto const & interactions = secondary_interactions;
+        bool sampled = false;
+        if (interactions->HasDecays()) {
+            for (auto const & decay : interactions->GetDecays()) {
+                for (auto const & sig : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+                    if (sig == record.signature) {
+                        decay->SampleFinalState(xsec_record, random);
+                        sampled = true;
+                        break;
+                    }
+                }
+                if (sampled) break;
+            }
+        }
+        if (!sampled && interactions->HasCrossSections()) {
+            for (auto const & xs : interactions->GetCrossSectionsForTarget(record.signature.target_type)) {
+                for (auto const & sig : xs->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type)) {
+                    if (sig == record.signature) {
+                        xs->SampleFinalState(xsec_record, random);
+                        sampled = true;
+                        break;
+                    }
+                }
+                if (sampled) break;
+            }
+        }
+        xsec_record.Finalize(record);
     }
     return record;
 }

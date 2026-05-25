@@ -2,6 +2,7 @@
 #ifndef SIREN_Process_H
 #define SIREN_Process_H
 
+#include <map>                                           // for map
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
@@ -18,6 +19,7 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"         // for Particle
+#include "SIREN/dataclasses/InteractionSignature.h"
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
@@ -59,7 +61,8 @@ public:
 class PhysicalProcess : public Process {
 protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
-    std::shared_ptr<MultiChannelPhaseSpace> phase_space_;
+    std::map<siren::dataclasses::InteractionSignature,
+             std::shared_ptr<MultiChannelPhaseSpace>> phase_space_map_;
 public:
     PhysicalProcess() = default;
     PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
@@ -72,9 +75,13 @@ public:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & GetPhysicalDistributions() const;
     virtual void SetPhysicalDistributions(std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & distributions);
 
-    void SetPhaseSpace(std::shared_ptr<MultiChannelPhaseSpace> ps);
-    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace() const;
-    bool HasPhaseSpace() const;
+    // Per-signature phase space channels.
+    void SetPhaseSpace(siren::dataclasses::InteractionSignature const & sig,
+                       std::shared_ptr<MultiChannelPhaseSpace> ps);
+    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace(
+        siren::dataclasses::InteractionSignature const & sig) const;
+    bool HasPhaseSpace(siren::dataclasses::InteractionSignature const & sig) const;
+    bool HasAnyPhaseSpace() const;
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -117,7 +124,6 @@ public:
 class SecondaryInjectionProcess : public PhysicalProcess {
 protected:
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> secondary_injection_distributions;
-    std::shared_ptr<MultiChannelPhaseSpace> phase_space_;
 public:
     typedef distributions::SecondaryInjectionDistribution InjectionType;
     SecondaryInjectionProcess() = default;
@@ -134,10 +140,6 @@ public:
     virtual void AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist);
     void SetSecondaryInjectionDistributions(std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & distributions);
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & GetSecondaryInjectionDistributions() const;
-
-    void SetPhaseSpace(std::shared_ptr<MultiChannelPhaseSpace> ps);
-    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace() const;
-    bool HasPhaseSpace() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
