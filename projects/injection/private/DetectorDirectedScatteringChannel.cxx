@@ -230,6 +230,13 @@ void DetectorDirectedScatteringChannel::SetVolume(double volume) {
     target_volume_ = volume;
 }
 
+PhaseSpaceConvention DetectorDirectedScatteringChannel::Convention() const {
+    if (variable_ == Variable::Q2) {
+        return PhaseSpaceConvention::MandelstamST;
+    }
+    return PhaseSpaceConvention::BjorkenXY;
+}
+
 void DetectorDirectedScatteringChannel::Sample(
     std::shared_ptr<siren::utilities::SIREN_random> random,
     std::shared_ptr<siren::detector::DetectorModel const>,

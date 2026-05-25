@@ -56,10 +56,23 @@ PYBIND11_MODULE(injection,m) {
 
   // Phase space channels
 
+  enum_<PhaseSpaceConvention>(m, "PhaseSpaceConvention")
+    .value("RestFrameSolidAngle", PhaseSpaceConvention::RestFrameSolidAngle)
+    .value("LabFrameSolidAngle", PhaseSpaceConvention::LabFrameSolidAngle)
+    .value("Recursive2Body", PhaseSpaceConvention::Recursive2Body)
+    .value("Dalitz", PhaseSpaceConvention::Dalitz)
+    .value("HelicityAngles", PhaseSpaceConvention::HelicityAngles)
+    .value("BjorkenXY", PhaseSpaceConvention::BjorkenXY)
+    .value("MandelstamST", PhaseSpaceConvention::MandelstamST)
+    .value("Custom", PhaseSpaceConvention::Custom);
+
+  m.def("PhaseSpaceConventionName", &PhaseSpaceConventionName);
+
   class_<PhaseSpaceChannel, std::shared_ptr<PhaseSpaceChannel>>(m, "PhaseSpaceChannel")
     .def("Sample", &PhaseSpaceChannel::Sample)
     .def("Density", &PhaseSpaceChannel::Density)
     .def("Name", &PhaseSpaceChannel::Name)
+    .def("Convention", &PhaseSpaceChannel::Convention)
     ;
 
   class_<MultiChannelPhaseSpace, std::shared_ptr<MultiChannelPhaseSpace>>(m, "MultiChannelPhaseSpace")
@@ -68,6 +81,8 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("weights", &MultiChannelPhaseSpace::weights)
     .def("Sample", &MultiChannelPhaseSpace::Sample)
     .def("Density", &MultiChannelPhaseSpace::Density)
+    .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
+    .def("ValidateConventions", &MultiChannelPhaseSpace::ValidateConventions)
     .def("ValidateChannels", &MultiChannelPhaseSpace::ValidateChannels,
          arg("random"), arg("detector_model"), arg("template_record"),
          arg("samples_per_channel") = 100)
@@ -126,11 +141,17 @@ PYBIND11_MODULE(injection,m) {
 
   class_<PhysicalDecayChannel, std::shared_ptr<PhysicalDecayChannel>, PhaseSpaceChannel>(m, "PhysicalDecayChannel")
     .def(init<std::shared_ptr<siren::interactions::Decay>>())
+    .def(init<std::shared_ptr<siren::interactions::Decay>,
+              siren::dataclasses::InteractionSignature const &>())
+    .def(init<std::shared_ptr<siren::interactions::Decay>, PhaseSpaceConvention>())
     .def("GetDecay", &PhysicalDecayChannel::GetDecay)
     ;
 
   class_<PhysicalCrossSectionChannel, std::shared_ptr<PhysicalCrossSectionChannel>, PhaseSpaceChannel>(m, "PhysicalCrossSectionChannel")
     .def(init<std::shared_ptr<siren::interactions::CrossSection>>())
+    .def(init<std::shared_ptr<siren::interactions::CrossSection>,
+              siren::dataclasses::InteractionSignature const &>())
+    .def(init<std::shared_ptr<siren::interactions::CrossSection>, PhaseSpaceConvention>())
     .def("GetCrossSection", &PhysicalCrossSectionChannel::GetCrossSection)
     ;
 

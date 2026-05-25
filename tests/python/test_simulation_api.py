@@ -620,12 +620,14 @@ class TestSecondaryBiasing:
         import siren
         ch = siren.injection.Isotropic2BodyChannel(0)
         assert ch.Name() == "Isotropic2Body"
+        assert ch.Convention() == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
 
     def test_detector_directed_channel_construction(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Name() == "DetectorDirected2Body"
+        assert ch.Convention() == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
 
     def test_detector_directed_3body_channel_construction(self):
         import siren
@@ -639,6 +641,7 @@ class TestSecondaryBiasing:
             mass_mode=siren.injection.InvariantMassMode.Uniform,
         )
         assert ch.Name() == "DetectorDirected3Body"
+        assert ch.Convention() == siren.injection.PhaseSpaceConvention.Recursive2Body
 
     def test_detector_directed_scattering_channel_construction(self):
         import siren
@@ -649,6 +652,7 @@ class TestSecondaryBiasing:
             variable=siren.injection.ScatteringVariable.Q2,
         )
         assert ch.Name() == "DetectorDirectedScattering"
+        assert ch.Convention() == siren.injection.PhaseSpaceConvention.MandelstamST
 
     def test_multi_channel_construction(self):
         import siren
@@ -660,6 +664,8 @@ class TestSecondaryBiasing:
         ]
         mc.weights = [0.01, 0.99]
         assert len(mc.channels) == 2
+        assert mc.CommonConvention() == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
+        assert mc.ValidateConventions() == []
 
     def test_secondary_process_phase_space(self):
         import siren

@@ -41,6 +41,9 @@ public:
     ) const override;
 
     std::string Name() const override { return "Isotropic2Body"; }
+    PhaseSpaceConvention Convention() const override {
+        return PhaseSpaceConvention::RestFrameSolidAngle;
+    }
 
 private:
     int daughter_index_;

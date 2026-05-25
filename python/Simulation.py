@@ -428,10 +428,10 @@ class Simulation:
 
         # Physical channel (fallback for events that miss the target)
         if isinstance(interaction, _interactions.Decay):
-            channels.append(_injection.PhysicalDecayChannel(interaction))
+            channels.append(_injection.PhysicalDecayChannel(interaction, sig))
         else:
             channels.append(
-                _injection.PhysicalCrossSectionChannel(interaction))
+                _injection.PhysicalCrossSectionChannel(interaction, sig))
         weights.append(0.01)
 
         if n_sec == 2:

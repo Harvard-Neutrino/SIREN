@@ -22,7 +22,7 @@ namespace injection {
 // CONE mode (simple):
 //   Samples uniformly on a bounding cone around the target.
 //   Density = 1/Omega_cone for directions inside the cone, 0 outside.
-//   Directions that miss the actual geometry get density 0 — the
+//   Directions that miss the actual geometry get density 0; the
 //   multi-channel isotropic term handles those events.
 //
 // VOLUME mode (accurate):
@@ -61,6 +61,9 @@ public:
     ) const override;
 
     std::string Name() const override { return "DetectorDirected2Body"; }
+    PhaseSpaceConvention Convention() const override {
+        return PhaseSpaceConvention::RestFrameSolidAngle;
+    }
 
     // Set the true volume of the target geometry (for Volume mode).
     // If not called, the AABB volume is used as an approximation.

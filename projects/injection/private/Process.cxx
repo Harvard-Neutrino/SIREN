@@ -109,6 +109,9 @@ void PhysicalProcess::SetPhaseSpace(
     siren::dataclasses::InteractionSignature const & sig,
     std::shared_ptr<MultiChannelPhaseSpace> ps)
 {
+    if (ps) {
+        ps->ValidateConventions();
+    }
     phase_space_map_[sig] = ps;
 }
 
