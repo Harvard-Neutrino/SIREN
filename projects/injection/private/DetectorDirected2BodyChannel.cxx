@@ -14,6 +14,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <algorithm>
 
 namespace siren {
 namespace injection {
@@ -83,10 +84,22 @@ DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
     , daughter_index_(daughter_index)
     , mode_(mode)
 {
+    if (!target_) {
+        throw std::runtime_error("DetectorDirected2BodyChannel requires a target geometry");
+    }
     auto aabb = target_->GetWorldBoundingBox();
     siren::math::Vector3D extent = aabb.max_corner - aabb.min_corner;
     aabb_volume_ = extent.GetX() * extent.GetY() * extent.GetZ();
     target_volume_ = ComputeVolume(*target_, aabb_volume_);
+
+    if (mode_ == Mode::Volume) {
+        if (aabb_volume_ <= 0.0) {
+            throw std::runtime_error("Target bounding box has zero volume");
+        }
+        if (target_volume_ / aabb_volume_ < 1e-4) {
+            throw std::runtime_error("Target volume is too small relative to its bounding box for sampling to be viable");
+        }
+    }
 }
 
 void DetectorDirected2BodyChannel::SetVolume(double volume) {
@@ -200,7 +213,7 @@ siren::math::Vector3D DetectorDirected2BodyChannel::SampleVolumePoint(
         siren::math::Vector3D point(x, y, z);
         if (target_->IsInside(point)) return point;
     }
-    return (aabb.min_corner + aabb.max_corner) * 0.5;
+    throw std::runtime_error("Failed to sample a point inside target volume after 10000 attempts");
 }
 
 double DetectorDirected2BodyChannel::SolidAngleDensity(
@@ -209,22 +222,42 @@ double DetectorDirected2BodyChannel::SolidAngleDensity(
 {
     auto intersections = target_->Intersections(position, direction);
 
+    std::vector<siren::geometry::Geometry::Intersection> pos_intersections;
+    for (auto const & isec : intersections) {
+        if (isec.distance > 0) {
+            pos_intersections.push_back(isec);
+        }
+    }
+    std::sort(pos_intersections.begin(), pos_intersections.end(),
+              [](auto const & a, auto const & b) { return a.distance < b.distance; });
+
     // g(omega) = (1/V) * integral of r^2 dr over intersection segments
     //          = (1/V) * sum_segments (r_exit^3 - r_enter^3) / 3
     double r2_integral = 0.0;
-    for (size_t i = 0; i < intersections.size(); ++i) {
-        if (intersections[i].entering && intersections[i].distance > 0) {
-            double r_enter = intersections[i].distance;
-            double r_exit = r_enter;
-            for (size_t j = i + 1; j < intersections.size(); ++j) {
-                if (!intersections[j].entering) {
-                    r_exit = intersections[j].distance;
-                    break;
+    if (!pos_intersections.empty()) {
+        size_t start_idx = 0;
+        if (!pos_intersections[0].entering) {
+            // Origin is inside the volume.
+            // First segment is from 0 to the first exit.
+            double r_exit = pos_intersections[0].distance;
+            r2_integral += (r_exit * r_exit * r_exit) / 3.0;
+            start_idx = 1;
+        }
+
+        for (size_t i = start_idx; i < pos_intersections.size(); ++i) {
+            if (pos_intersections[i].entering) {
+                double r_enter = pos_intersections[i].distance;
+                double r_exit = r_enter;
+                for (size_t j = i + 1; j < pos_intersections.size(); ++j) {
+                    if (!pos_intersections[j].entering) {
+                        r_exit = pos_intersections[j].distance;
+                        break;
+                    }
                 }
-            }
-            if (r_exit > r_enter) {
-                r2_integral += (r_exit * r_exit * r_exit
-                              - r_enter * r_enter * r_enter) / 3.0;
+                if (r_exit > r_enter) {
+                    r2_integral += (r_exit * r_exit * r_exit
+                                  - r_enter * r_enter * r_enter) / 3.0;
+                }
             }
         }
     }
@@ -285,8 +318,21 @@ void DetectorDirected2BodyChannel::Sample(
         auto [dir, sa] = SampleConeDirection(random, decay_pos);
         lab_dir = dir;
     } else {
-        siren::math::Vector3D target_point = SampleVolumePoint(random);
-        lab_dir = target_point - decay_pos;
+        siren::math::Vector3D target_point;
+        siren::math::Vector3D diff;
+        double diff_mag = 0.0;
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            target_point = SampleVolumePoint(random);
+            diff = target_point - decay_pos;
+            diff_mag = diff.magnitude();
+            if (diff_mag > 1e-6) {
+                break;
+            }
+        }
+        if (diff_mag <= 1e-6) {
+            throw std::runtime_error("Failed to sample a target point sufficiently separated from decay vertex after 100 attempts");
+        }
+        lab_dir = diff;
         lab_dir.normalize();
     }
 

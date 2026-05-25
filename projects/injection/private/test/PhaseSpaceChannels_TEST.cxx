@@ -429,3 +429,17 @@ TEST(PhaseSpaceChannels, SampleVolumeWhenInsideVolume) {
     ExpectConserved(record, 1e-8);
     EXPECT_GT(channel.Density(nullptr, record), 0.0);
 }
+
+TEST(PhaseSpaceChannels, ThrowsEarlyOnExtremelySmallVolumeRatio) {
+    // Extremely hollow sphere: R = 10.0, r = 9.9999
+    auto target = Sphere(Placement(Vector3D(0.0, 0.0, 0.0)), 10.0, 9.9999).create();
+
+    EXPECT_THROW(
+        DetectorDirected2BodyChannel(target, 0, DetectorDirected2BodyChannel::Mode::Volume),
+        std::runtime_error
+    );
+
+    EXPECT_NO_THROW(
+        DetectorDirected2BodyChannel(target, 0, DetectorDirected2BodyChannel::Mode::Cone)
+    );
+}

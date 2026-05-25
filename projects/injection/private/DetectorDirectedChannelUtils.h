@@ -14,6 +14,7 @@
 #include <cmath>
 #include <memory>
 #include <utility>
+#include <algorithm>
 
 namespace siren {
 namespace injection {
@@ -179,7 +180,7 @@ inline siren::math::Vector3D SampleVolumePoint(
         siren::math::Vector3D point(x, y, z);
         if (target.IsInside(point)) return point;
     }
-    return (aabb.min_corner + aabb.max_corner) * 0.5;
+    throw std::runtime_error("Failed to sample a point inside target volume after 10000 attempts");
 }
 
 inline double SolidAngleDensity(
@@ -189,20 +190,40 @@ inline double SolidAngleDensity(
     siren::math::Vector3D const & direction)
 {
     auto intersections = target.Intersections(position, direction);
+    std::vector<siren::geometry::Geometry::Intersection> pos_intersections;
+    for (auto const & isec : intersections) {
+        if (isec.distance > 0) {
+            pos_intersections.push_back(isec);
+        }
+    }
+    std::sort(pos_intersections.begin(), pos_intersections.end(),
+              [](auto const & a, auto const & b) { return a.distance < b.distance; });
+
     double r2_integral = 0.0;
-    for (size_t i = 0; i < intersections.size(); ++i) {
-        if (intersections[i].entering && intersections[i].distance > 0) {
-            double r_enter = intersections[i].distance;
-            double r_exit = r_enter;
-            for (size_t j = i + 1; j < intersections.size(); ++j) {
-                if (!intersections[j].entering) {
-                    r_exit = intersections[j].distance;
-                    break;
+    if (!pos_intersections.empty()) {
+        size_t start_idx = 0;
+        if (!pos_intersections[0].entering) {
+            // Origin is inside the volume.
+            // First segment is from 0 to the first exit.
+            double r_exit = pos_intersections[0].distance;
+            r2_integral += (r_exit * r_exit * r_exit) / 3.0;
+            start_idx = 1;
+        }
+
+        for (size_t i = start_idx; i < pos_intersections.size(); ++i) {
+            if (pos_intersections[i].entering) {
+                double r_enter = pos_intersections[i].distance;
+                double r_exit = r_enter;
+                for (size_t j = i + 1; j < pos_intersections.size(); ++j) {
+                    if (!pos_intersections[j].entering) {
+                        r_exit = pos_intersections[j].distance;
+                        break;
+                    }
                 }
-            }
-            if (r_exit > r_enter) {
-                r2_integral += (r_exit * r_exit * r_exit
-                              - r_enter * r_enter * r_enter) / 3.0;
+                if (r_exit > r_enter) {
+                    r2_integral += (r_exit * r_exit * r_exit
+                                  - r_enter * r_enter * r_enter) / 3.0;
+                }
             }
         }
     }
@@ -220,8 +241,20 @@ inline siren::math::Vector3D SampleDirectedDirection(
     if (mode == DetectorDirected2BodyChannel::Mode::Cone) {
         return SampleConeDirection(target, random, position).first;
     }
-    siren::math::Vector3D target_point = SampleVolumePoint(target, random);
-    siren::math::Vector3D direction = target_point - position;
+    siren::math::Vector3D target_point;
+    siren::math::Vector3D direction;
+    double diff_mag = 0.0;
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        target_point = SampleVolumePoint(target, random);
+        direction = target_point - position;
+        diff_mag = direction.magnitude();
+        if (diff_mag > 1e-6) {
+            break;
+        }
+    }
+    if (diff_mag <= 1e-6) {
+        throw std::runtime_error("Failed to sample a target point sufficiently separated from decay vertex after 100 attempts");
+    }
     direction.normalize();
     return direction;
 }
