@@ -150,6 +150,9 @@ PYBIND11_MODULE(injection,m) {
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
+    .def("SetPhaseSpace", &PhysicalProcess::SetPhaseSpace)
+    .def("GetPhaseSpace", &PhysicalProcess::GetPhaseSpace)
+    .def("HasPhaseSpace", &PhysicalProcess::HasPhaseSpace)
     ;
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
