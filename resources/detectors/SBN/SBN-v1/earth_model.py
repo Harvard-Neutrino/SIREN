@@ -120,8 +120,10 @@ def add_earth_model(model: Any) -> None:
     """Add PREM + atmosphere sectors to a DetectorModel loaded from GDML.
 
     Must be called after model.LoadGDML() so that the GDML volumes already
-    have positive levels. The PREM sectors get negative levels and serve
-    as the background Earth wherever the GDML geometry does not reach.
+    have assigned levels. The PREM and atmosphere sectors are inserted at
+    the lowest levels, and the pre-existing GDML sector levels are shifted
+    upward so the Earth model serves as the background wherever the GDML
+    geometry does not reach.
 
     A local crustal thickening sector is added between the PREM upper
     mantle and crustal layers. It is an Earth-centered spherical shell
