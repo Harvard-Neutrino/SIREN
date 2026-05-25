@@ -531,8 +531,13 @@ class Simulation:
                         )
                         self._secondary_phase_spaces[sig] = mc
                     except ValueError:
-                        # daughter_type not in this signature — skip
-                        pass
+                        import warnings
+                        warnings.warn(
+                            f"Skipping biasing for signature {sig}: "
+                            f"bias_daughter {daughter_type} not found "
+                            f"or ambiguous in this channel.",
+                            stacklevel=3,
+                        )
 
             for xs in cross_sections:
                 for sig in xs.GetPossibleSignatures():
@@ -543,7 +548,13 @@ class Simulation:
                         )
                         self._secondary_phase_spaces[sig] = mc
                     except ValueError:
-                        pass
+                        import warnings
+                        warnings.warn(
+                            f"Skipping biasing for signature {sig}: "
+                            f"bias_daughter {daughter_type} not found "
+                            f"or ambiguous in this channel.",
+                            stacklevel=3,
+                        )
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
@@ -779,6 +790,17 @@ class Simulation:
     def physical_distributions(self):
         """List of physical distributions (read-only)."""
         return list(self._physical_distributions)
+
+    @property
+    def phase_spaces(self):
+        """Per-signature phase space configurations (read-only).
+
+        Returns a dict mapping ``InteractionSignature`` to
+        ``MultiChannelPhaseSpace`` for all signatures that have
+        biased phase space channels registered.  Empty if no biasing
+        is configured.
+        """
+        return dict(self._secondary_phase_spaces)
 
     @property
     def process_metadata(self):
