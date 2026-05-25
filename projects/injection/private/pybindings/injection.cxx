@@ -68,6 +68,9 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("weights", &MultiChannelPhaseSpace::weights)
     .def("Sample", &MultiChannelPhaseSpace::Sample)
     .def("Density", &MultiChannelPhaseSpace::Density)
+    .def("ValidateChannels", &MultiChannelPhaseSpace::ValidateChannels,
+         arg("random"), arg("detector_model"), arg("template_record"),
+         arg("samples_per_channel") = 100)
     ;
 
   class_<Isotropic2BodyChannel, std::shared_ptr<Isotropic2BodyChannel>, PhaseSpaceChannel>(m, "Isotropic2BodyChannel")

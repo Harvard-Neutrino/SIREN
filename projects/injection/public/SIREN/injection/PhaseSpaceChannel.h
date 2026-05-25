@@ -87,6 +87,28 @@ struct MultiChannelPhaseSpace {
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
         siren::dataclasses::InteractionRecord const & record
     ) const;
+
+    // Structural validation: sample from each channel and verify
+    // that every OTHER channel returns a finite, non-negative
+    // density at that point.
+    //
+    // Returns a list of diagnostic strings (empty if all checks pass).
+    // Each diagnostic describes which channel pair failed and why.
+    //
+    // This catches common bugs:
+    //   - A channel returning 0 for events from another channel
+    //     (incompatible measure or missing coverage)
+    //   - A channel returning NaN or negative density
+    //   - Extreme density ratios that indicate measure mismatch
+    //
+    // The template_record must have the correct primary momentum,
+    // mass, interaction vertex, and signature already set.
+    std::vector<std::string> ValidateChannels(
+        std::shared_ptr<siren::utilities::SIREN_random> random,
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord template_record,
+        int samples_per_channel = 100
+    ) const;
 };
 
 } // namespace injection
