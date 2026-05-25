@@ -357,16 +357,109 @@ class Simulation:
         self._injection_distributions = [mass_dist, inj_energy, inj_dir, position]
         self._physical_distributions = [phys_energy, phys_dir]
 
+    @staticmethod
+    def _build_phase_space_for_process(target, interactions_list):
+        """Build a MultiChannelPhaseSpace for a secondary process.
+
+        Inspects the Decay/CrossSection objects to determine the
+        right channel types (2-body vs 3-body vs scattering) and
+        uses PhysicalDecayChannel/PhysicalCrossSectionChannel for
+        the physical channel instead of a naive isotropic
+        approximation.
+
+        Parameters
+        ----------
+        target : Geometry
+            The target geometry to direct daughters toward.
+        interactions_list : list
+            List of CrossSection/Decay objects for this secondary type.
+
+        Returns
+        -------
+        MultiChannelPhaseSpace
+        """
+        channels = []
+        weights = []
+
+        # Separate decays and cross sections
+        decays = [x for x in interactions_list
+                  if isinstance(x, _interactions.Decay)]
+        cross_sections = [x for x in interactions_list
+                          if isinstance(x, _interactions.CrossSection)]
+
+        # Determine body counts from decay signatures
+        has_2body = False
+        has_3body = False
+        for decay in decays:
+            for sig in decay.GetPossibleSignatures():
+                n_sec = len(sig.secondary_types)
+                if n_sec == 2:
+                    has_2body = True
+                elif n_sec >= 3:
+                    has_3body = True
+
+        # Physical channels: wrap actual Decay/CrossSection objects
+        for decay in decays:
+            channels.append(_injection.PhysicalDecayChannel(decay))
+            weights.append(0.005)
+        for xs in cross_sections:
+            channels.append(_injection.PhysicalCrossSectionChannel(xs))
+            weights.append(0.005)
+
+        # If no physical channels, add a fallback isotropic
+        if not channels:
+            channels.append(_injection.Isotropic2BodyChannel(0))
+            weights.append(0.01)
+
+        # Biased channels based on detected topology
+        if has_2body:
+            channels.append(_injection.DetectorDirected2BodyChannel(target, 0))
+            weights.append(0.49 if has_3body else 0.99)
+
+        if has_3body:
+            # 3-body with uniform invariant mass (safe default).
+            # Power users can pass a pre-built MultiChannelPhaseSpace
+            # with BreitWigner mapping for better efficiency.
+            channels.append(_injection.DetectorDirected3BodyChannel(
+                target,
+                0,    # spectator index (first secondary)
+                1,    # pair first
+                2,    # pair second
+                1,    # directed pair index
+            ))
+            weights.append(0.49 if has_2body else 0.99)
+
+        if cross_sections and not has_2body and not has_3body:
+            # Pure scattering secondary (no decays)
+            channels.append(
+                _injection.DetectorDirectedScatteringChannel(target, 0))
+            weights.append(0.99)
+
+        # Normalize weights
+        total = sum(weights)
+        weights = [w / total for w in weights]
+
+        mc = _injection.MultiChannelPhaseSpace()
+        mc.channels = channels
+        mc.weights = weights
+        return mc
+
     def _resolve_bias_targets(self, bias_targets):
         """Build multi-channel phase spaces for secondary direction biasing.
+
+        Inspects the Decay/CrossSection objects in the secondary
+        processes to auto-detect the decay topology (2-body, 3-body,
+        scattering) and constructs the appropriate biased channels
+        using the actual physics models for the physical channel.
 
         Parameters
         ----------
         bias_targets : Geometry or dict
-            If a single Geometry, creates DetectorDirected2Body channels
-            for all secondary types using that geometry as the target.
+            If a single Geometry, creates biased channels for all
+            secondary types using that geometry as the target.
             If a dict, maps ``{ParticleType: Geometry}`` or
-            ``{ParticleType: MultiChannelPhaseSpace}`` for per-type control.
+            ``{ParticleType: MultiChannelPhaseSpace}`` for per-type
+            control.
         """
         if isinstance(bias_targets, dict):
             for k, v in bias_targets.items():
@@ -374,22 +467,16 @@ class Simulation:
                 if isinstance(v, _injection.MultiChannelPhaseSpace):
                     self._secondary_phase_spaces[key] = v
                 else:
-                    mc = _injection.MultiChannelPhaseSpace()
-                    mc.channels = [
-                        _injection.Isotropic2BodyChannel(0),
-                        _injection.DetectorDirected2BodyChannel(v, 0),
-                    ]
-                    mc.weights = [0.01, 0.99]
-                    self._secondary_phase_spaces[key] = mc
+                    interactions_list = self._secondary_processes.get(key, [])
+                    self._secondary_phase_spaces[key] = (
+                        self._build_phase_space_for_process(v, interactions_list)
+                    )
         else:
-            for sec_type in self._secondary_processes.keys():
-                mc = _injection.MultiChannelPhaseSpace()
-                mc.channels = [
-                    _injection.Isotropic2BodyChannel(0),
-                    _injection.DetectorDirected2BodyChannel(bias_targets, 0),
-                ]
-                mc.weights = [0.01, 0.99]
-                self._secondary_phase_spaces[sec_type] = mc
+            for sec_type, interactions_list in self._secondary_processes.items():
+                self._secondary_phase_spaces[sec_type] = (
+                    self._build_phase_space_for_process(
+                        bias_targets, interactions_list)
+                )
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
