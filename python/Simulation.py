@@ -103,12 +103,23 @@ class Simulation:
     stopping_condition : callable, optional
         ``f(datum, i) -> bool`` controlling secondary generation.
     bias_targets : Geometry or dict, optional
-        Enable direction biasing for secondary decays.  If a single
-        Geometry (e.g. a fiducial volume), creates
-        ``DetectorDirected2BodyChannel`` for all secondary types,
-        biasing decay products toward that geometry.  If a dict,
+        Enable direction biasing for secondary decays/scattering.
+        If a single Geometry (e.g. a fiducial volume), creates
+        biased channels for all secondary signatures, directing
+        the ``bias_daughter`` toward that geometry.  If a dict,
         maps ``{ParticleType: Geometry}`` for per-type targets, or
-        ``{ParticleType: MultiChannelPhaseSpace}`` for full control.
+        ``{InteractionSignature: MultiChannelPhaseSpace}`` for full
+        control.
+    bias_daughter : str or ParticleType, optional
+        Which daughter particle to bias toward the target.  Required
+        when ``bias_targets`` is set.  Specified by ParticleType
+        (e.g. ``"EMinus"``).  Must appear exactly once in each
+        signature for the index to be unambiguous.
+    bias_spectator : str or ParticleType, optional
+        For 3-body decays, which daughter is the spectator (produced
+        in the first 2-body step of the recursive decomposition).
+        If not specified, defaults to the first daughter that is
+        neither the ``bias_daughter`` nor its antiparticle.
     mass : float, optional
         Primary particle mass in GeV (default: 0 for neutrinos).
     **process_kwargs
@@ -147,6 +158,8 @@ class Simulation:
         stopping_condition=None,
         # Secondary biasing
         bias_targets=None,
+        bias_daughter=None,
+        bias_spectator=None,
         # Particle mass
         mass=None,
         # Forward to load_processes
@@ -203,9 +216,19 @@ class Simulation:
                 "secondary_position= to Simulation().")
 
         # ---- Resolve secondary biasing ----
-        self._secondary_phase_spaces = {}
+        self._secondary_phase_spaces = {}  # {InteractionSignature: MultiChannelPhaseSpace}
         if bias_targets is not None:
-            self._resolve_bias_targets(bias_targets)
+            if bias_daughter is None:
+                raise ValueError(
+                    "'bias_daughter' is required when 'bias_targets' is set. "
+                    "Specify which daughter particle to direct toward the "
+                    "target (e.g. bias_daughter='EMinus')."
+                )
+            self._resolve_bias_targets(
+                bias_targets,
+                _particles.resolve(bias_daughter),
+                _particles.resolve(bias_spectator) if bias_spectator else None,
+            )
 
         # ---- Store remaining config ----
         self._n_events = n_events
@@ -358,84 +381,108 @@ class Simulation:
         self._physical_distributions = [phys_energy, phys_dir]
 
     @staticmethod
-    def _build_phase_space_for_process(target, interactions_list):
-        """Build a MultiChannelPhaseSpace for a secondary process.
+    def _find_daughter_index(signature, daughter_type):
+        """Find the index of a daughter type in a signature.
 
-        Inspects the Decay/CrossSection objects to determine the
-        right channel types (2-body vs 3-body vs scattering) and
-        uses PhysicalDecayChannel/PhysicalCrossSectionChannel for
-        the physical channel instead of a naive isotropic
-        approximation.
+        Raises ValueError if the type is absent or ambiguous (appears
+        more than once).
+        """
+        indices = [
+            i for i, t in enumerate(signature.secondary_types)
+            if t == daughter_type
+        ]
+        if len(indices) == 0:
+            raise ValueError(
+                f"Daughter type {daughter_type} not found in signature "
+                f"{signature}. Available: {list(signature.secondary_types)}"
+            )
+        if len(indices) > 1:
+            raise ValueError(
+                f"Daughter type {daughter_type} appears {len(indices)} times "
+                f"in signature {signature}. Use the per-signature API with "
+                f"explicit indices instead."
+            )
+        return indices[0]
+
+    @staticmethod
+    def _build_phase_space_for_signature(
+        target, sig, interaction, daughter_type, spectator_type=None
+    ):
+        """Build a MultiChannelPhaseSpace for one signature.
 
         Parameters
         ----------
         target : Geometry
-            The target geometry to direct daughters toward.
-        interactions_list : list
-            List of CrossSection/Decay objects for this secondary type.
+            Target geometry to direct the daughter toward.
+        sig : InteractionSignature
+            The specific final-state signature.
+        interaction : Decay or CrossSection
+            The physics model for this interaction.
+        daughter_type : ParticleType
+            Which daughter to bias toward the target.
+        spectator_type : ParticleType, optional
+            For 3-body: which daughter is the spectator.
 
         Returns
         -------
         MultiChannelPhaseSpace
         """
+        n_sec = len(sig.secondary_types)
+        daughter_idx = Simulation._find_daughter_index(sig, daughter_type)
+
         channels = []
         weights = []
 
-        # Separate decays and cross sections
-        decays = [x for x in interactions_list
-                  if isinstance(x, _interactions.Decay)]
-        cross_sections = [x for x in interactions_list
-                          if isinstance(x, _interactions.CrossSection)]
-
-        # Determine body counts from decay signatures
-        has_2body = False
-        has_3body = False
-        for decay in decays:
-            for sig in decay.GetPossibleSignatures():
-                n_sec = len(sig.secondary_types)
-                if n_sec == 2:
-                    has_2body = True
-                elif n_sec >= 3:
-                    has_3body = True
-
-        # Physical channels: wrap actual Decay/CrossSection objects
-        for decay in decays:
-            channels.append(_injection.PhysicalDecayChannel(decay))
-            weights.append(0.005)
-        for xs in cross_sections:
-            channels.append(_injection.PhysicalCrossSectionChannel(xs))
-            weights.append(0.005)
-
-        # If no physical channels, add a fallback isotropic
-        if not channels:
-            channels.append(_injection.Isotropic2BodyChannel(0))
-            weights.append(0.01)
-
-        # Biased channels based on detected topology
-        if has_2body:
-            channels.append(_injection.DetectorDirected2BodyChannel(target, 0))
-            weights.append(0.49 if has_3body else 0.99)
-
-        if has_3body:
-            # 3-body with uniform invariant mass (safe default).
-            # Power users can pass a pre-built MultiChannelPhaseSpace
-            # with BreitWigner mapping for better efficiency.
-            channels.append(_injection.DetectorDirected3BodyChannel(
-                target,
-                0,    # spectator index (first secondary)
-                1,    # pair first
-                2,    # pair second
-                1,    # directed pair index
-            ))
-            weights.append(0.49 if has_2body else 0.99)
-
-        if cross_sections and not has_2body and not has_3body:
-            # Pure scattering secondary (no decays)
+        # Physical channel (fallback for events that miss the target)
+        if isinstance(interaction, _interactions.Decay):
+            channels.append(_injection.PhysicalDecayChannel(interaction))
+        else:
             channels.append(
-                _injection.DetectorDirectedScatteringChannel(target, 0))
+                _injection.PhysicalCrossSectionChannel(interaction))
+        weights.append(0.01)
+
+        if n_sec == 2:
+            channels.append(
+                _injection.DetectorDirected2BodyChannel(
+                    target, daughter_idx))
             weights.append(0.99)
 
-        # Normalize weights
+        elif n_sec >= 3:
+            # Determine spectator and pair indices
+            if spectator_type is not None:
+                spectator_idx = Simulation._find_daughter_index(
+                    sig, spectator_type)
+            else:
+                # Default: first daughter that isn't the biased one
+                spectator_idx = next(
+                    i for i in range(n_sec) if i != daughter_idx
+                )
+            pair_indices = [
+                i for i in range(n_sec)
+                if i != spectator_idx
+            ]
+            directed_pair_idx = (
+                daughter_idx if daughter_idx in pair_indices
+                else pair_indices[0]
+            )
+
+            channels.append(
+                _injection.DetectorDirected3BodyChannel(
+                    target,
+                    spectator_idx,
+                    pair_indices[0],
+                    pair_indices[1],
+                    directed_pair_idx,
+                ))
+            weights.append(0.99)
+
+        elif isinstance(interaction, _interactions.CrossSection):
+            channels.append(
+                _injection.DetectorDirectedScatteringChannel(
+                    target, daughter_idx))
+            weights.append(0.99)
+
+        # Normalize
         total = sum(weights)
         weights = [w / total for w in weights]
 
@@ -444,39 +491,59 @@ class Simulation:
         mc.weights = weights
         return mc
 
-    def _resolve_bias_targets(self, bias_targets):
-        """Build multi-channel phase spaces for secondary direction biasing.
-
-        Inspects the Decay/CrossSection objects in the secondary
-        processes to auto-detect the decay topology (2-body, 3-body,
-        scattering) and constructs the appropriate biased channels
-        using the actual physics models for the physical channel.
+    def _resolve_bias_targets(self, bias_targets, daughter_type,
+                              spectator_type):
+        """Build per-signature phase spaces for direction biasing.
 
         Parameters
         ----------
         bias_targets : Geometry or dict
-            If a single Geometry, creates biased channels for all
-            secondary types using that geometry as the target.
-            If a dict, maps ``{ParticleType: Geometry}`` or
-            ``{ParticleType: MultiChannelPhaseSpace}`` for per-type
-            control.
+            If a Geometry, biases all secondary signatures toward it.
+            If a dict, maps ``{InteractionSignature: MultiChannelPhaseSpace}``
+            for full control.
+        daughter_type : ParticleType
+            Which daughter to direct toward the target.
+        spectator_type : ParticleType or None
+            For 3-body: which daughter is the spectator.
         """
         if isinstance(bias_targets, dict):
             for k, v in bias_targets.items():
-                key = _particles.resolve(k) if isinstance(k, str) else k
                 if isinstance(v, _injection.MultiChannelPhaseSpace):
-                    self._secondary_phase_spaces[key] = v
-                else:
-                    interactions_list = self._secondary_processes.get(key, [])
-                    self._secondary_phase_spaces[key] = (
-                        self._build_phase_space_for_process(v, interactions_list)
-                    )
-        else:
-            for sec_type, interactions_list in self._secondary_processes.items():
-                self._secondary_phase_spaces[sec_type] = (
-                    self._build_phase_space_for_process(
-                        bias_targets, interactions_list)
-                )
+                    self._secondary_phase_spaces[k] = v
+                # else: v is a Geometry, k is a signature
+                # (not yet supported, could add)
+            return
+
+        # Single geometry: build per-signature for all secondaries
+        target = bias_targets
+        for sec_type, interactions_list in self._secondary_processes.items():
+            decays = [x for x in interactions_list
+                      if isinstance(x, _interactions.Decay)]
+            cross_sections = [x for x in interactions_list
+                              if isinstance(x, _interactions.CrossSection)]
+
+            for decay in decays:
+                for sig in decay.GetPossibleSignatures():
+                    try:
+                        mc = self._build_phase_space_for_signature(
+                            target, sig, decay,
+                            daughter_type, spectator_type,
+                        )
+                        self._secondary_phase_spaces[sig] = mc
+                    except ValueError:
+                        # daughter_type not in this signature — skip
+                        pass
+
+            for xs in cross_sections:
+                for sig in xs.GetPossibleSignatures():
+                    try:
+                        mc = self._build_phase_space_for_signature(
+                            target, sig, xs,
+                            daughter_type, spectator_type,
+                        )
+                        self._secondary_phase_spaces[sig] = mc
+                    except ValueError:
+                        pass
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
@@ -516,7 +583,15 @@ class Simulation:
                 self._secondary_injection_distributions
             )
             if self._secondary_phase_spaces:
-                injector.secondary_phase_spaces = self._secondary_phase_spaces
+                # Group per-signature phase spaces by primary type
+                # for the Injector wrapper's {ParticleType: {sig: mc}} format
+                by_type = {}
+                for sig, mc in self._secondary_phase_spaces.items():
+                    pt = sig.primary_type
+                    if pt not in by_type:
+                        by_type[pt] = {}
+                    by_type[pt][sig] = mc
+                injector.secondary_phase_spaces = by_type
 
         if self._stopping_condition is not None:
             injector.stopping_condition = self._stopping_condition
