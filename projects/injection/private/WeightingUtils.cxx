@@ -23,9 +23,6 @@ using detector::DetectorPosition;
 using detector::DetectorDirection;
 
 double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) {
-    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
-    std::set<siren::dataclasses::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
-    std::set<siren::dataclasses::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
@@ -39,6 +36,9 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
     primary_direction.normalize();
 
     siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> available_targets_list = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
+    std::set<siren::dataclasses::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     double total_prob = 0.0;
     // double selected_prob = 0.0;
@@ -51,7 +51,7 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
       for(auto const & signature : signatures) {
         fake_record.signature = signature;
         // fake_prob has units of 1/cm to match cross section probabilities
-        double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+        double decay_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
         total_prob += decay_prob;
         if(signature == record.signature) {
             selected_final_state += decay_prob * decay->FinalStateProbability(record);
@@ -83,6 +83,8 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
             }
         }
     }
+    if (total_prob == 0)
+        return 0.0;
     return selected_final_state / total_prob;
 }
 

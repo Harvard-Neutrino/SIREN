@@ -39,6 +39,17 @@ namespace interactions {
     }
     //pybind11::object self;
 
+double pyDarkNewsDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+        SELF_OVERRIDE(
+            self,
+            DarkNewsDecay,
+            double,
+            TotalDecayWidthAllFinalStates,
+            "TotalDecayWidthAllFinalStates",
+            std::cref(interaction)
+        )
+    }
+
 double pyDarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const {
         SELF_OVERRIDE(
             self,
@@ -46,17 +57,6 @@ double pyDarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & i
             double,
             TotalDecayWidth,
             "TotalDecayWidth",
-            std::cref(interaction)
-        )
-    }
-
-double pyDarkNewsDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-        SELF_OVERRIDE(
-            self,
-            DarkNewsDecay,
-            double,
-            TotalDecayWidthForFinalState,
-            "TotalDecayWidthForFinalState",
             std::cref(interaction)
         )
     }

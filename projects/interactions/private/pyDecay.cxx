@@ -33,6 +33,17 @@ bool pyDecay::equal(Decay const & other) const {
     )
 }
 
+double pyDecay::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        double,
+        TotalDecayLengthAllFinalStates,
+        "TotalDecayLengthAllFinalStates",
+        interaction
+    )
+}
+
 double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
     SELF_OVERRIDE(
         self,
@@ -44,13 +55,13 @@ double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interact
     )
 }
 
-double pyDecay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-    SELF_OVERRIDE(
+double pyDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    SELF_OVERRIDE_PURE(
         self,
         Decay,
         double,
-        TotalDecayLengthForFinalState,
-        "TotalDecayLengthForFinalState",
+        TotalDecayWidthAllFinalStates,
+        "TotalDecayWidthAllFinalStates",
         interaction
     )
 }
@@ -62,17 +73,6 @@ double pyDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interacti
         double,
         TotalDecayWidth,
         "TotalDecayWidth",
-        interaction
-    )
-}
-
-double pyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-    SELF_OVERRIDE_PURE(
-        self,
-        Decay,
-        double,
-        TotalDecayWidthForFinalState,
-        "TotalDecayWidthForFinalState",
         interaction
     )
 }
@@ -126,8 +126,8 @@ std::vector<siren::dataclasses::InteractionSignature> pyDecay::GetPossibleSignat
         self,
         Decay,
         std::vector<siren::dataclasses::InteractionSignature>,
-        GetPossibleSignaturesFromParents,
-        "GetPossibleSignaturesFromParents",
+        GetPossibleSignaturesFromParent,
+        "GetPossibleSignaturesFromParent",
         primary_type
     )
 }
