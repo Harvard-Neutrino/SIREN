@@ -6,7 +6,8 @@ Provides composable frame-to-frame transforms for the Fermilab SBN program
 detectors (ICARUS, SBND, MicroBooNE) and beamlines (BNB, NuMI).
 
 World coordinate system (BNB frame):
-  Origin : BNB beryllium target at MI-12
+  Origin : SAND center, close to BNB beryllium target at MI-12
+           The BNB beryllium target is centered at z = +0.3905 m
   x      : horizontal west
   y      : up
   z      : along BNB beam axis (approximately north)
