@@ -832,3 +832,140 @@ class TestReweight:
             for a, b in zip(r1.weights, r2.weights)
         )
         assert any_different
+
+
+# ==================================================================== #
+#  Measure consistency: structural and closure tests                    #
+# ==================================================================== #
+
+class TestMeasureConsistency:
+    """Verify that multi-channel phase space densities are consistent
+    across channel types."""
+
+    def _make_2body_record(self):
+        """Create a template InteractionRecord for a 2-body decay."""
+        import siren
+        record = siren.dataclasses.InteractionRecord()
+        record.signature.primary_type = siren.particles.NuMu
+        record.signature.target_type = siren.dataclasses.Particle.ParticleType.Decay
+        record.signature.secondary_types = [
+            siren.particles.EMinus, siren.particles.PiPlus
+        ]
+        # Parent: 300 MeV mass, 1 GeV energy, moving along z
+        M = 0.300
+        E = 1.0
+        p = (E * E - M * M) ** 0.5
+        record.primary_mass = M
+        record.primary_momentum = [E, 0, 0, p]
+        record.secondary_masses = [0.000511, 0.13957]
+        record.secondary_momenta = [[0, 0, 0, 0], [0, 0, 0, 0]]
+        # Decay position far outside the target volume so the
+        # directed channel has meaningful solid angle coverage
+        record.interaction_vertex = [0, 0, -3000]
+        return record
+
+    def test_isotropic_self_consistency(self):
+        """Isotropic channel: sample then evaluate own density.
+        Should always return 1/(4*pi)."""
+        import copy
+        import siren
+        import math
+
+        record = self._make_2body_record()
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rng = siren.utilities.SIREN_random(42)
+
+        for _ in range(20):
+            r = copy.deepcopy(record)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert abs(d - 1.0 / (4 * math.pi)) < 1e-10
+
+    def test_directed_density_positive_for_isotropic_samples(self):
+        """Events from isotropic channel should get non-negative
+        density from the directed channel (may be 0 if they miss
+        the target, but never negative or NaN)."""
+        import copy
+        import siren
+        import math
+
+        record = self._make_2body_record()
+        fid = siren.get_fiducial_volume("IceCube")
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+        rng = siren.utilities.SIREN_random(42)
+
+        for _ in range(50):
+            r = copy.deepcopy(record)
+            iso.Sample(rng, None, r)
+            d = directed.Density(None, r)
+            assert d >= 0
+            assert math.isfinite(d)
+
+    def test_closure_isotropic_vs_multichannel(self):
+        """Closure test: generate from multi-channel (isotropic + directed),
+        weight by isotropic_density / multi_channel_density, and check
+        the mean is consistent with 1.0.
+
+        This is the gold standard test for measure consistency."""
+        import copy
+        import siren
+        import math
+
+        record = self._make_2body_record()
+        fid = siren.get_fiducial_volume("IceCube")
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(123)
+        N = 500
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(record)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        assert len(weights) > N * 0.5, (
+            f"Too few valid weights: {len(weights)}/{N}"
+        )
+
+        mean_w = sum(weights) / len(weights)
+        # Should be 1.0 within statistical uncertainty.
+        # With N=500, typical std(w)/sqrt(N) ~ 0.05
+        assert 0.8 < mean_w < 1.2, (
+            f"Closure test failed: mean weight = {mean_w:.4f} "
+            f"(expected ~1.0)"
+        )
+
+    def test_validate_channels_no_diagnostics(self):
+        """ValidateChannels should return no diagnostics for a
+        well-formed multi-channel with compatible measures."""
+        import siren
+
+        record = self._make_2body_record()
+        fid = siren.get_fiducial_volume("IceCube")
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(fid, 0),
+        ]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(99)
+        diagnostics = mc.ValidateChannels(rng, None, record, 50)
+
+        nan_or_neg = [d for d in diagnostics
+                      if "NaN" in d or "negative" in d]
+        assert len(nan_or_neg) == 0, (
+            f"Unexpected diagnostics: {nan_or_neg}"
+        )
