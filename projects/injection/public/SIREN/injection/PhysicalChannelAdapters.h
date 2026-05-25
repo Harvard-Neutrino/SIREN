@@ -9,6 +9,7 @@
 
 namespace siren { namespace interactions { class Decay; } }
 namespace siren { namespace interactions { class CrossSection; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
 
 namespace siren {
 namespace injection {
@@ -32,6 +33,12 @@ class PhysicalDecayChannel : public PhaseSpaceChannel {
 public:
     explicit PhysicalDecayChannel(
         std::shared_ptr<siren::interactions::Decay> decay);
+    PhysicalDecayChannel(
+        std::shared_ptr<siren::interactions::Decay> decay,
+        siren::dataclasses::InteractionSignature const & signature);
+    PhysicalDecayChannel(
+        std::shared_ptr<siren::interactions::Decay> decay,
+        PhaseSpaceConvention convention);
 
     void Sample(
         std::shared_ptr<siren::utilities::SIREN_random> random,
@@ -45,11 +52,13 @@ public:
     ) const override;
 
     std::string Name() const override;
+    PhaseSpaceConvention Convention() const override;
 
     std::shared_ptr<siren::interactions::Decay> GetDecay() const;
 
 private:
     std::shared_ptr<siren::interactions::Decay> decay_;
+    PhaseSpaceConvention convention_;
 };
 
 // Wraps an existing CrossSection as a PhaseSpaceChannel.
@@ -60,6 +69,12 @@ class PhysicalCrossSectionChannel : public PhaseSpaceChannel {
 public:
     explicit PhysicalCrossSectionChannel(
         std::shared_ptr<siren::interactions::CrossSection> cross_section);
+    PhysicalCrossSectionChannel(
+        std::shared_ptr<siren::interactions::CrossSection> cross_section,
+        siren::dataclasses::InteractionSignature const & signature);
+    PhysicalCrossSectionChannel(
+        std::shared_ptr<siren::interactions::CrossSection> cross_section,
+        PhaseSpaceConvention convention);
 
     void Sample(
         std::shared_ptr<siren::utilities::SIREN_random> random,
@@ -73,11 +88,13 @@ public:
     ) const override;
 
     std::string Name() const override;
+    PhaseSpaceConvention Convention() const override;
 
     std::shared_ptr<siren::interactions::CrossSection> GetCrossSection() const;
 
 private:
     std::shared_ptr<siren::interactions::CrossSection> cross_section_;
+    PhaseSpaceConvention convention_;
 };
 
 } // namespace injection

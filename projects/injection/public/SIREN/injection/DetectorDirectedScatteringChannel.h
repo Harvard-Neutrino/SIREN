@@ -42,6 +42,7 @@ public:
     ) const override;
 
     std::string Name() const override { return "DetectorDirectedScattering"; }
+    PhaseSpaceConvention Convention() const override;
 
     void SetVolume(double volume);
 

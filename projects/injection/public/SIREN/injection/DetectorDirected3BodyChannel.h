@@ -50,6 +50,9 @@ public:
     ) const override;
 
     std::string Name() const override { return "DetectorDirected3Body"; }
+    PhaseSpaceConvention Convention() const override {
+        return PhaseSpaceConvention::Recursive2Body;
+    }
 
     void SetVolume(double volume);
 

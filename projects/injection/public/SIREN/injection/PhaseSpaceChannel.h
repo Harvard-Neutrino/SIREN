@@ -13,6 +13,19 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace injection {
 
+enum class PhaseSpaceConvention {
+    RestFrameSolidAngle,
+    LabFrameSolidAngle,
+    Recursive2Body,
+    Dalitz,
+    HelicityAngles,
+    BjorkenXY,
+    MandelstamST,
+    Custom
+};
+
+std::string PhaseSpaceConventionName(PhaseSpaceConvention convention);
+
 // A single parameterization of a final-state phase space, used
 // in multi-channel importance sampling of interaction/decay
 // kinematics.
@@ -26,10 +39,9 @@ namespace injection {
 // is g(x) = sum_i alpha_i * g_i(x), which requires evaluating
 // every channel's density at every sampled point.
 //
-// The density is with respect to the Lorentz-invariant phase space
-// measure (LIPS).  Different channels may use different internal
-// parameterizations, but the density they report must be in the
-// same measure so that the multi-channel weight is correct.
+// The density is reported with respect to Convention().  All channels
+// in a MultiChannelPhaseSpace must use the same convention unless all
+// channels are explicitly tagged Custom.
 class PhaseSpaceChannel {
 public:
     virtual ~PhaseSpaceChannel() = default;
@@ -60,6 +72,8 @@ public:
     ) const = 0;
 
     virtual std::string Name() const = 0;
+
+    virtual PhaseSpaceConvention Convention() const = 0;
 };
 
 // A set of PhaseSpaceChannels combined with weights for
@@ -73,6 +87,7 @@ public:
 struct MultiChannelPhaseSpace {
     std::vector<std::shared_ptr<PhaseSpaceChannel>> channels;
     std::vector<double> weights;  // alpha_i, must sum to 1
+    mutable bool convention_warning_emitted = false;
 
     // Sample from the multi-channel mixture.
     // Returns the index of the channel that was used.
@@ -87,6 +102,18 @@ struct MultiChannelPhaseSpace {
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
         siren::dataclasses::InteractionRecord const & record
     ) const;
+
+    // Return the preferred common convention for this channel set.
+    // If the set mixes Custom with non-Custom channels, throws.
+    // If the set mixes multiple non-Custom conventions, this picks a
+    // stable convention for diagnostics using majority vote and a
+    // numerical-stability tie break.
+    PhaseSpaceConvention CommonConvention() const;
+
+    // Validate channel conventions. Returns warning diagnostics for
+    // non-Custom convention mismatches and throws if Custom is mixed
+    // with any non-Custom convention.
+    std::vector<std::string> ValidateConventions() const;
 
     // Structural validation: sample from each channel and verify
     // that every OTHER channel returns a finite, non-negative
@@ -109,6 +136,9 @@ struct MultiChannelPhaseSpace {
         siren::dataclasses::InteractionRecord template_record,
         int samples_per_channel = 100
     ) const;
+
+private:
+    void WarnOnConventionMismatch() const;
 };
 
 } // namespace injection
