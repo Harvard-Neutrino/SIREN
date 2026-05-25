@@ -59,6 +59,7 @@ public:
 class PhysicalProcess : public Process {
 protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
+    std::shared_ptr<MultiChannelPhaseSpace> phase_space_;
 public:
     PhysicalProcess() = default;
     PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
@@ -70,6 +71,11 @@ public:
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist);
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & GetPhysicalDistributions() const;
     virtual void SetPhysicalDistributions(std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & distributions);
+
+    void SetPhaseSpace(std::shared_ptr<MultiChannelPhaseSpace> ps);
+    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace() const;
+    bool HasPhaseSpace() const;
+
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

@@ -65,19 +65,21 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
 
 PhysicalProcess::PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions), phase_space_(other.phase_space_) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(std::move(other.physical_distributions)), phase_space_(std::move(other.phase_space_)) {};
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess const & other) {
     Process::operator=(other);
     physical_distributions = other.physical_distributions;
+    phase_space_ = other.phase_space_;
     return *this;
 };
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess && other) {
     Process::operator=(other);
-    physical_distributions = other.physical_distributions;
+    physical_distributions = std::move(other.physical_distributions);
+    phase_space_ = std::move(other.phase_space_);
     return *this;
 };
 
@@ -101,6 +103,18 @@ void PhysicalProcess::SetPhysicalDistributions(std::vector<std::shared_ptr<distr
         }
     }
     physical_distributions = distributions;
+}
+
+void PhysicalProcess::SetPhaseSpace(std::shared_ptr<MultiChannelPhaseSpace> ps) {
+    phase_space_ = ps;
+}
+
+std::shared_ptr<MultiChannelPhaseSpace> PhysicalProcess::GetPhaseSpace() const {
+    return phase_space_;
+}
+
+bool PhysicalProcess::HasPhaseSpace() const {
+    return phase_space_ != nullptr;
 }
 
 PrimaryInjectionProcess::PrimaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
