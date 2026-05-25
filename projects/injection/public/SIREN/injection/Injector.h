@@ -96,9 +96,14 @@ public:
 
     // Factored version: select interaction channel only (no kinematics).
     // Sets record.signature and record.target_mass.
-    // Returns the index into cross_sections/decays for the selected channel.
     void SelectChannel(siren::dataclasses::InteractionRecord & record,
                        std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
+
+    // Find the Decay/CrossSection matching record.signature and call
+    // SampleFinalState.  Used as the fallback when no PhaseSpaceChannel
+    // is registered for this signature.
+    void SampleMatchingFinalState(siren::dataclasses::InteractionRecord & record,
+                                  std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
 
     siren::dataclasses::InteractionRecord SampleSecondaryProcess(siren::dataclasses::SecondaryDistributionRecord & secondary_record) const;
     siren::dataclasses::InteractionTree GenerateEvent();

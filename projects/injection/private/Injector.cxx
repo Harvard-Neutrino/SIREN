@@ -340,6 +340,41 @@ void Injector::SelectChannel(siren::dataclasses::InteractionRecord & record, std
     record.target_mass = detector_model->GetTargetMass(matching_targets[index]);
 }
 
+// Find the Decay or CrossSection matching the record's signature
+// and call SampleFinalState on it.
+void Injector::SampleMatchingFinalState(
+    siren::dataclasses::InteractionRecord & record,
+    std::shared_ptr<siren::interactions::InteractionCollection> interactions) const
+{
+    siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+    bool sampled = false;
+    if (interactions->HasDecays()) {
+        for (auto const & decay : interactions->GetDecays()) {
+            for (auto const & sig : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+                if (sig == record.signature) {
+                    decay->SampleFinalState(xsec_record, random);
+                    sampled = true;
+                    break;
+                }
+            }
+            if (sampled) break;
+        }
+    }
+    if (!sampled && interactions->HasCrossSections()) {
+        for (auto const & xs : interactions->GetCrossSectionsForTarget(record.signature.target_type)) {
+            for (auto const & sig : xs->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type)) {
+                if (sig == record.signature) {
+                    xs->SampleFinalState(xsec_record, random);
+                    sampled = true;
+                    break;
+                }
+            }
+            if (sampled) break;
+        }
+    }
+    xsec_record.Finalize(record);
+}
+
 // Function to sample secondary processes
 //
 // Modifies an InteractionRecord with the new event
@@ -358,39 +393,9 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     SelectChannel(record, secondary_interactions);
 
     if (secondary_process->HasPhaseSpace(record.signature)) {
-        // Factored path: use multi-channel phase space for kinematics.
         secondary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
     } else {
-        // Legacy path: sample kinematics from the Decay/CrossSection model.
-        siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
-        // Find the matching interaction and sample its final state.
-        auto const & interactions = secondary_interactions;
-        bool sampled = false;
-        if (interactions->HasDecays()) {
-            for (auto const & decay : interactions->GetDecays()) {
-                for (auto const & sig : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
-                    if (sig == record.signature) {
-                        decay->SampleFinalState(xsec_record, random);
-                        sampled = true;
-                        break;
-                    }
-                }
-                if (sampled) break;
-            }
-        }
-        if (!sampled && interactions->HasCrossSections()) {
-            for (auto const & xs : interactions->GetCrossSectionsForTarget(record.signature.target_type)) {
-                for (auto const & sig : xs->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type)) {
-                    if (sig == record.signature) {
-                        xs->SampleFinalState(xsec_record, random);
-                        sampled = true;
-                        break;
-                    }
-                }
-                if (sampled) break;
-            }
-        }
-        xsec_record.Finalize(record);
+        SampleMatchingFinalState(record, secondary_interactions);
     }
     return record;
 }
@@ -408,7 +413,15 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
             distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
         }
         primary_record.Finalize(record);
-        SampleCrossSection(record);
+
+        // Select which interaction channel occurs.
+        SelectChannel(record, primary_process->GetInteractions());
+
+        if (primary_process->HasPhaseSpace(record.signature)) {
+            primary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
+        } else {
+            SampleMatchingFinalState(record, primary_process->GetInteractions());
+        }
     } catch(siren::utilities::InjectionFailure const & e) {
         return siren::dataclasses::InteractionTree();
     }
