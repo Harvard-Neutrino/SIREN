@@ -52,13 +52,16 @@ public:
     ) const override;
 
     std::string Name() const override;
+    PhaseSpaceTopology Topology() const override;
+    PhaseSpaceMeasure Measure() const override;
     PhaseSpaceConvention Convention() const override;
 
     std::shared_ptr<siren::interactions::Decay> GetDecay() const;
 
 private:
     std::shared_ptr<siren::interactions::Decay> decay_;
-    PhaseSpaceConvention convention_;
+    PhaseSpaceTopology topology_;
+    PhaseSpaceMeasure measure_;
 };
 
 // Wraps an existing CrossSection as a PhaseSpaceChannel.
@@ -88,13 +91,16 @@ public:
     ) const override;
 
     std::string Name() const override;
+    PhaseSpaceTopology Topology() const override;
+    PhaseSpaceMeasure Measure() const override;
     PhaseSpaceConvention Convention() const override;
 
     std::shared_ptr<siren::interactions::CrossSection> GetCrossSection() const;
 
 private:
     std::shared_ptr<siren::interactions::CrossSection> cross_section_;
-    PhaseSpaceConvention convention_;
+    PhaseSpaceTopology topology_;
+    PhaseSpaceMeasure measure_;
 };
 
 } // namespace injection

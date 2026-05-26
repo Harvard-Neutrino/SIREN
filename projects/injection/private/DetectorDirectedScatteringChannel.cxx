@@ -239,11 +239,11 @@ void DetectorDirectedScatteringChannel::SetVolume(double volume) {
     target_volume_ = volume;
 }
 
-PhaseSpaceConvention DetectorDirectedScatteringChannel::Convention() const {
+PhaseSpaceMeasure DetectorDirectedScatteringChannel::Measure() const {
     if (variable_ == Variable::Q2) {
-        return PhaseSpaceConvention::MandelstamST;
+        return PhaseSpaceMeasure::MandelstamQ2;
     }
-    return PhaseSpaceConvention::BjorkenXY;
+    return PhaseSpaceMeasure::BjorkenXY;
 }
 
 void DetectorDirectedScatteringChannel::Sample(

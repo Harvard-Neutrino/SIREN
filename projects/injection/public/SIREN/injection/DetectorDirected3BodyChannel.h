@@ -50,8 +50,11 @@ public:
     ) const override;
 
     std::string Name() const override { return "DetectorDirected3Body"; }
-    PhaseSpaceConvention Convention() const override {
-        return PhaseSpaceConvention::Recursive2Body;
+    PhaseSpaceTopology Topology() const override {
+        return PhaseSpaceTopology::Decay3Body;
+    }
+    PhaseSpaceMeasure Measure() const override {
+        return PhaseSpaceMeasure::Recursive2Body;
     }
 
     void SetVolume(double volume);
