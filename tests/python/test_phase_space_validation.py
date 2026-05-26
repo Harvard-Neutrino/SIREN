@@ -1,0 +1,614 @@
+"""
+Comprehensive phase space validation tests.
+
+Tests cover normalization integrals, cross-measure integral agreement,
+closure tests, phase space coverage, and topology/measure validation.
+"""
+
+import copy
+import math
+
+import pytest
+
+siren = pytest.importorskip("siren")
+
+
+# ------------------------------------------------------------------ #
+#  Helpers                                                             #
+# ------------------------------------------------------------------ #
+
+
+def _make_2body_record(M=1.0, E=None, mA=0.0, mB=0.0,
+                       vertex=(0.0, 0.0, 0.0)):
+    """Build an InteractionRecord for a 2-body decay.
+
+    Parameters
+    ----------
+    M : float
+        Parent mass.
+    E : float or None
+        Parent energy. If None, parent is at rest (E = M).
+    mA, mB : float
+        Daughter masses.
+    vertex : tuple
+        Interaction vertex position.
+    """
+    if E is None:
+        E = M
+    pz = math.sqrt(max(E * E - M * M, 0.0))
+
+    rec = siren.dataclasses.InteractionRecord()
+    rec.signature.primary_type = siren.dataclasses.ParticleType.N4
+    rec.signature.target_type = siren.dataclasses.ParticleType.Decay
+    rec.signature.secondary_types = [
+        siren.dataclasses.ParticleType.NuLight,
+        siren.dataclasses.ParticleType.Gamma,
+    ]
+    rec.primary_mass = M
+    rec.primary_momentum = [E, 0.0, 0.0, pz]
+    rec.secondary_masses = [mA, mB]
+    rec.secondary_momenta = [[0, 0, 0, 0], [0, 0, 0, 0]]
+    rec.secondary_helicities = [0, 0]
+    rec.interaction_vertex = list(vertex)
+    rec.primary_initial_position = list(vertex)
+    return rec
+
+
+def _make_3body_record(M=1.0, E=2.0, masses=(0.1, 0.3, 0.2)):
+    """Build an InteractionRecord for a 3-body decay."""
+    pz = math.sqrt(max(E * E - M * M, 0.0))
+
+    rec = siren.dataclasses.InteractionRecord()
+    sig = siren.dataclasses.InteractionSignature()
+    sig.primary_type = siren.dataclasses.ParticleType(211)
+    sig.secondary_types = [
+        siren.dataclasses.ParticleType(-13),
+        siren.dataclasses.ParticleType(14),
+        siren.dataclasses.ParticleType(5922),
+    ]
+    rec.signature = sig
+    rec.primary_mass = M
+    rec.primary_momentum = [E, 0.0, 0.0, pz]
+    rec.secondary_masses = list(masses)
+    rec.secondary_momenta = [[0, 0, 0, 0]] * 3
+    rec.secondary_helicities = [0, 0, 0]
+    rec.interaction_vertex = [0, 0, 0]
+    rec.primary_initial_position = [0, 0, 0]
+    return rec
+
+
+def _make_box_at(x, y, z, wx, wy, wz):
+    """Create a Box geometry centered at (x, y, z) with full-widths (wx, wy, wz)."""
+    placement = siren.geometry.Placement(siren.math.Vector3D(x, y, z))
+    return siren.geometry.Box(placement, wx, wy, wz)
+
+
+def _daughter_hits_box(record, daughter_index, box):
+    """Check if the daughter's momentum direction from the vertex hits the box."""
+    vx, vy, vz = record.interaction_vertex
+    pos = siren.math.Vector3D(vx, vy, vz)
+    mom = record.secondary_momenta[daughter_index]
+    px, py, pz = mom[1], mom[2], mom[3]
+    p_mag = math.sqrt(px * px + py * py + pz * pz)
+    if p_mag < 1e-30:
+        return False
+    direction = siren.math.Vector3D(px / p_mag, py / p_mag, pz / p_mag)
+    intersections = box.Intersections(pos, direction)
+    return len(intersections) > 0
+
+
+# ================================================================== #
+#  Category 2: Normalization integrals (Python-side Monte Carlo)       #
+# ================================================================== #
+
+
+class TestNormalizationIntegrals:
+
+    def test_isotropic_2body_density_integrates_to_one(self):
+        """Isotropic channel density should be 1/(4*pi) everywhere.
+
+        Sample 5000 events and verify every single density evaluation
+        returns exactly 1/(4*pi) to floating point precision.
+        """
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rec = _make_2body_record(M=1.0, E=1.0, mA=0.0, mB=0.0)
+        rng = siren.utilities.SIREN_random(42)
+        expected = 1.0 / (4.0 * math.pi)
+
+        for _ in range(5000):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert abs(d - expected) < 1e-12, (
+                "Isotropic density {:.15e} != expected {:.15e}".format(
+                    d, expected)
+            )
+
+    def test_directed_2body_density_integrates_to_one(self):
+        """Importance-sampling estimate of the directed density integral.
+
+        Sample from the multi-channel (isotropic + directed), compute
+        weights w_i = iso_density / mc_density. The mean weight should
+        be 1.0 because both densities integrate to 1 over the full
+        solid angle.
+        """
+        box = _make_box_at(0, 0, 100, 0.2, 0.2, 0.2)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(123)
+        N = 2000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        assert len(weights) > N * 0.5, (
+            "Too few valid weights: {}/{}".format(len(weights), N)
+        )
+
+        mean_w = sum(weights) / len(weights)
+        assert 0.9 < mean_w < 1.1, (
+            "Directed density integral estimate {:.4f} not in [0.9, 1.1]"
+            .format(mean_w)
+        )
+
+    def test_multichannel_density_sums_correctly(self):
+        """MultiChannelPhaseSpace.Density() must equal the weighted sum
+        of individual channel densities. This is exact (no numerical
+        approximation), so we check for exact floating-point equality.
+        """
+        box = _make_box_at(0, 0, 100, 0.2, 0.2, 0.2)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        w_iso = 0.3
+        w_dir = 0.7
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [w_iso, w_dir]
+
+        rng = siren.utilities.SIREN_random(77)
+
+        for _ in range(1000):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+
+            d_mc = mc.Density(None, r)
+            d_iso = iso.Density(None, r)
+            d_dir = directed.Density(None, r)
+            expected = w_iso * d_iso + w_dir * d_dir
+
+            # Allow a tiny relative tolerance for floating-point summation
+            if expected > 0:
+                rel_err = abs(d_mc - expected) / expected
+                assert rel_err < 1e-12, (
+                    "MC density {:.15e} != weighted sum {:.15e} "
+                    "(rel err {:.2e})"
+                    .format(d_mc, expected, rel_err)
+                )
+            else:
+                assert abs(d_mc) < 1e-30
+
+
+# ================================================================== #
+#  Category 3: Cross-measure integral agreement                       #
+# ================================================================== #
+
+
+class TestCrossMeasureAgreement:
+
+    def test_rest_lab_integral_agreement_mc(self):
+        """For a boosted 2-body decay, the rest-frame density
+        (1/(4*pi)) should integrate to 1 over the rest-frame solid
+        angle, regardless of the lab frame boost.
+
+        We verify this by sampling from the isotropic channel (which
+        samples uniformly in the rest frame) and confirming that the
+        density is always 1/(4*pi). The Monte Carlo integral
+        mean(density) * (4*pi) must equal 1.0.
+        """
+        M = 1.0
+        E = 5.0
+        mA = 0.1
+        mB = 0.2
+        rec = _make_2body_record(M=M, E=E, mA=mA, mB=mB)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rng = siren.utilities.SIREN_random(42)
+        expected = 1.0 / (4.0 * math.pi)
+
+        densities = []
+        for _ in range(3000):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            densities.append(d)
+
+        mean_d = sum(densities) / len(densities)
+        mc_integral = mean_d * (4.0 * math.pi)
+
+        # Isotropic density is constant, so the integral should be
+        # exactly 1.0 (up to floating point)
+        assert abs(mc_integral - 1.0) < 1e-10, (
+            "Rest-frame integral estimate {:.6f} != 1.0".format(mc_integral)
+        )
+
+        # Also check each density is 1/(4*pi)
+        for d in densities:
+            assert abs(d - expected) < 1e-12
+
+
+# ================================================================== #
+#  Category 4: Closure tests                                           #
+# ================================================================== #
+
+
+class TestClosureTests:
+
+    def test_2body_closure_directed_vs_isotropic(self):
+        """Closure test: biased sampling with correct weighting must
+        reproduce unbiased expectations.
+
+        We use a large target box so that a measurable fraction of
+        isotropic events hit it. Then we compare the hit fractions
+        estimated by:
+          (A) brute-force isotropic sampling
+          (B) importance-weighted multichannel sampling
+
+        Both should agree within statistical error.
+        """
+        M = 0.5
+        E = 3.0
+        rec = _make_2body_record(M=M, E=E, mA=0.0, mB=0.0)
+
+        # Large box at z=20 to get measurable hit fraction
+        box = _make_box_at(0, 0, 20, 10.0, 10.0, 10.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.01, 0.99]
+
+        rng_iso = siren.utilities.SIREN_random(100)
+        rng_mc = siren.utilities.SIREN_random(200)
+
+        # --- Method A: brute force isotropic ---
+        N_iso = 20000
+        hits_iso = 0
+        for _ in range(N_iso):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng_iso, None, r)
+            if _daughter_hits_box(r, 0, box):
+                hits_iso += 1
+
+        frac_iso = hits_iso / float(N_iso)
+
+        # --- Method B: importance-weighted multichannel ---
+        N_mc = 2000
+        weighted_hits = 0.0
+        sum_weights = 0.0
+        for _ in range(N_mc):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng_mc, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                w = d_iso / d_mc
+                sum_weights += w
+                if _daughter_hits_box(r, 0, box):
+                    weighted_hits += w
+
+        frac_mc = weighted_hits / sum_weights if sum_weights > 0 else 0.0
+
+        # Both estimates should agree. The isotropic estimate has
+        # Poisson noise; with 20000 events and ~1% hit rate, expect
+        # ~200 hits, so sigma ~ sqrt(200)/20000 ~ 0.07%.
+        # Allow generous tolerance of 50% relative error.
+        if frac_iso > 0:
+            rel_diff = abs(frac_mc - frac_iso) / frac_iso
+            assert rel_diff < 0.5, (
+                "Closure test failed: isotropic hit fraction {:.5f}, "
+                "multichannel estimate {:.5f}, relative diff {:.2f}"
+                .format(frac_iso, frac_mc, rel_diff)
+            )
+        else:
+            # If isotropic had zero hits, the MC estimate should also
+            # be very small
+            assert frac_mc < 0.01
+
+    def test_multichannel_effective_sample_size(self):
+        """The effective sample size of multichannel importance sampling
+        should be a reasonable fraction of the total sample count.
+
+        N_eff = (sum w_i)^2 / sum(w_i^2) measures sampling efficiency.
+        For a well-designed multichannel, N_eff should be > N/10.
+        """
+        M = 0.5
+        E = 3.0
+        rec = _make_2body_record(M=M, E=E, mA=0.0, mB=0.0)
+
+        box = _make_box_at(0, 0, 20, 10.0, 10.0, 10.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.01, 0.99]
+
+        rng = siren.utilities.SIREN_random(42)
+        N = 2000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        sum_w = sum(weights)
+        sum_w2 = sum(w * w for w in weights)
+        n_eff = (sum_w * sum_w) / sum_w2 if sum_w2 > 0 else 0.0
+
+        assert n_eff > N / 10.0, (
+            "Effective sample size {:.1f} is less than N/10 = {:.1f}"
+            .format(n_eff, N / 10.0)
+        )
+
+
+# ================================================================== #
+#  Category 5: Phase space coverage                                    #
+# ================================================================== #
+
+
+class TestPhaseSpaceCoverage:
+
+    def test_no_density_holes_2body(self):
+        """Verify there are no density holes in the multi-channel.
+
+        - Isotropic samples evaluated by directed: density >= 0
+          (may be 0 for directions missing the target)
+        - Directed samples evaluated by isotropic: density must always
+          be > 0 and finite (isotropic has no holes)
+        """
+        box = _make_box_at(0, 0, 100, 0.2, 0.2, 0.2)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        rng = siren.utilities.SIREN_random(42)
+
+        # Isotropic samples -> directed density
+        for _ in range(500):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng, None, r)
+            d = directed.Density(None, r)
+            assert d >= 0, "Directed density is negative: {}".format(d)
+            assert not math.isnan(d), "Directed density is NaN"
+
+        # Directed samples -> isotropic density
+        for _ in range(500):
+            r = copy.deepcopy(rec)
+            directed.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert d > 0, "Isotropic density is not positive: {}".format(d)
+            assert math.isfinite(d), "Isotropic density is not finite: {}".format(d)
+
+    def test_boundary_densities_finite(self):
+        """Density should be finite at kinematic boundary cases:
+        - Parent at rest (E = M)
+        - Ultra-relativistic parent (E = 1000*M)
+        - Near-threshold (M = mA + mB + epsilon)
+        """
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rng = siren.utilities.SIREN_random(42)
+        expected = 1.0 / (4.0 * math.pi)
+
+        # Parent at rest
+        rec_rest = _make_2body_record(M=1.0, E=1.0, mA=0.0, mB=0.0)
+        for _ in range(50):
+            r = copy.deepcopy(rec_rest)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert math.isfinite(d), "Density NaN/Inf at rest"
+            assert abs(d - expected) < 1e-12
+
+        # Ultra-relativistic
+        rec_ultra = _make_2body_record(M=1.0, E=1000.0, mA=0.0, mB=0.0)
+        for _ in range(50):
+            r = copy.deepcopy(rec_ultra)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert math.isfinite(d), "Density NaN/Inf at ultra-relativistic"
+            assert abs(d - expected) < 1e-12
+
+        # Near-threshold
+        mA = 0.3
+        mB = 0.4
+        M = mA + mB + 1e-8
+        rec_thresh = _make_2body_record(M=M, E=M, mA=mA, mB=mB)
+        for _ in range(50):
+            r = copy.deepcopy(rec_thresh)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert math.isfinite(d), "Density NaN/Inf at near-threshold"
+            assert not math.isnan(d), "Density is NaN near threshold"
+
+        # Forward/backward daughters in boosted frame
+        rec_boost = _make_2body_record(M=1.0, E=5.0, mA=0.1, mB=0.2)
+        for _ in range(100):
+            r = copy.deepcopy(rec_boost)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert math.isfinite(d), "Density NaN/Inf for boosted case"
+
+
+# ================================================================== #
+#  Category 6: Topology/measure validation                             #
+# ================================================================== #
+
+
+class TestTopologyMeasureValidation:
+
+    def test_topology_mismatch_raises(self):
+        """Mixing Decay2Body (isotropic) with Scatter2to2 (scattering)
+        in a MultiChannelPhaseSpace must raise RuntimeError when
+        CommonTopology() is called.
+        """
+        box = _make_box_at(0, 0, 100, 1.0, 1.0, 1.0)
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        sc = siren.injection.DetectorDirectedScatteringChannel(
+            box, 0, siren.injection.ScatteringVariable.Q2)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, sc]
+        mc.weights = [0.5, 0.5]
+
+        with pytest.raises(RuntimeError, match="mismatch"):
+            mc.CommonTopology()
+
+    def test_measure_compatibility_within_topology(self):
+        """Isotropic2BodyChannel + DetectorDirected2BodyChannel share
+        the same topology (Decay2Body) and measure (SolidAngleRest).
+
+        ValidateChannels() should return no error diagnostics.
+        """
+        box = _make_box_at(0, 0, 100, 1.0, 1.0, 1.0)
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.5, 0.5]
+
+        # Should not raise
+        topo = mc.CommonTopology()
+        assert topo == siren.injection.PhaseSpaceTopology.Decay2Body
+
+        measure = mc.CommonMeasure()
+        assert measure == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+
+        diagnostics = mc.ValidateChannels()
+        # Filter for error-level diagnostics (mismatch / incompatibility)
+        errors = [d for d in diagnostics
+                  if "mismatch" in d.lower() or "incompatib" in d.lower()]
+        assert len(errors) == 0, (
+            "Unexpected error diagnostics: {}".format(errors)
+        )
+
+    def test_channel_reports_correct_topology_and_measure(self):
+        """Each channel type should report the expected topology
+        and measure.
+        """
+        box = _make_box_at(0, 0, 100, 1.0, 1.0, 1.0)
+
+        # Isotropic2BodyChannel
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        assert iso.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert iso.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+
+        # DetectorDirected2BodyChannel
+        dir2 = siren.injection.DetectorDirected2BodyChannel(box, 0)
+        assert dir2.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert dir2.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+
+        # DetectorDirected3BodyChannel
+        dir3 = siren.injection.DetectorDirected3BodyChannel(
+            box,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=1,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+        )
+        assert dir3.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
+        assert dir3.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body
+
+        # DetectorDirectedScatteringChannel with Q2
+        sc_q2 = siren.injection.DetectorDirectedScatteringChannel(
+            box, directed_index=0,
+            variable=siren.injection.ScatteringVariable.Q2)
+        assert sc_q2.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert sc_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+
+        # DetectorDirectedScatteringChannel with BjorkenY
+        sc_by = siren.injection.DetectorDirectedScatteringChannel(
+            box, directed_index=0,
+            variable=siren.injection.ScatteringVariable.BjorkenY)
+        assert sc_by.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert sc_by.Measure() == siren.injection.PhaseSpaceMeasure.BjorkenXY
+
+    def test_legacy_convention_matches_new_system(self):
+        """The legacy Convention() method should return values
+        consistent with the new Topology() + Measure() system.
+
+        Each (Measure -> Convention) mapping is defined in
+        PhaseSpaceChannel::Convention().
+        """
+        box = _make_box_at(0, 0, 100, 1.0, 1.0, 1.0)
+
+        # Map from Measure -> expected legacy Convention
+        measure_to_convention = {
+            siren.injection.PhaseSpaceMeasure.SolidAngleRest:
+                siren.injection.PhaseSpaceConvention.RestFrameSolidAngle,
+            siren.injection.PhaseSpaceMeasure.SolidAngleLab:
+                siren.injection.PhaseSpaceConvention.LabFrameSolidAngle,
+            siren.injection.PhaseSpaceMeasure.Recursive2Body:
+                siren.injection.PhaseSpaceConvention.Recursive2Body,
+            siren.injection.PhaseSpaceMeasure.DalitzPair:
+                siren.injection.PhaseSpaceConvention.Dalitz,
+            siren.injection.PhaseSpaceMeasure.HelicityAngles:
+                siren.injection.PhaseSpaceConvention.HelicityAngles,
+            siren.injection.PhaseSpaceMeasure.MandelstamQ2:
+                siren.injection.PhaseSpaceConvention.MandelstamST,
+            siren.injection.PhaseSpaceMeasure.BjorkenXY:
+                siren.injection.PhaseSpaceConvention.BjorkenXY,
+        }
+
+        channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(box, 0),
+            siren.injection.DetectorDirected3BodyChannel(
+                box, spectator_index=0, pair_first_index=1,
+                pair_second_index=2, directed_pair_index=1,
+                mass_mode=siren.injection.InvariantMassMode.Uniform),
+            siren.injection.DetectorDirectedScatteringChannel(
+                box, directed_index=0,
+                variable=siren.injection.ScatteringVariable.Q2),
+            siren.injection.DetectorDirectedScatteringChannel(
+                box, directed_index=0,
+                variable=siren.injection.ScatteringVariable.BjorkenY),
+        ]
+
+        for ch in channels:
+            measure = ch.Measure()
+            convention = ch.Convention()
+            expected_convention = measure_to_convention.get(measure)
+            assert expected_convention is not None, (
+                "No convention mapping for measure {} on channel {}"
+                .format(measure, ch.Name())
+            )
+            assert convention == expected_convention, (
+                "Channel {} has Measure={} but Convention={}, expected {}"
+                .format(ch.Name(), measure, convention, expected_convention)
+            )
