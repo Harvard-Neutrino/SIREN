@@ -312,44 +312,48 @@ void DetectorDirected2BodyChannel::Sample(
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    // Choose a lab-frame direction toward the target.
-    siren::math::Vector3D lab_dir;
+    // Compute the kinematic cone: the maximum lab angle the daughter
+    // can reach.  Beyond this angle, no rest-frame solution exists.
+    double cos_critical = CriticalCosTheta(
+        beta, gamma, p_rest, E_A_rest, m_A);
 
-    if (mode_ == Mode::Cone) {
-        auto [dir, sa] = SampleConeDirection(random, decay_pos);
-        lab_dir = dir;
-    } else {
-        siren::math::Vector3D target_point;
-        siren::math::Vector3D diff;
-        double diff_mag = 0.0;
-        for (int attempt = 0; attempt < 100; ++attempt) {
-            target_point = SampleVolumePoint(random);
-            diff = target_point - decay_pos;
-            diff_mag = diff.magnitude();
-            if (diff_mag > 1e-6) break;
+    // Sample a lab direction toward the target, rejecting directions
+    // outside the kinematic cone.  For long-baseline geometries the
+    // target is inside the cone and rejection is rare or never needed.
+    siren::math::Vector3D lab_dir;
+    int n_valid = 0;
+    std::array<TwoBodyLabSolution, 2> solutions;
+
+    for (int attempt = 0; attempt < 1000; ++attempt) {
+        if (mode_ == Mode::Cone) {
+            auto [dir, sa] = SampleConeDirection(random, decay_pos);
+            lab_dir = dir;
+        } else {
+            siren::math::Vector3D target_point;
+            siren::math::Vector3D diff;
+            double diff_mag = 0.0;
+            for (int inner = 0; inner < 100; ++inner) {
+                target_point = SampleVolumePoint(random);
+                diff = target_point - decay_pos;
+                diff_mag = diff.magnitude();
+                if (diff_mag > 1e-6) break;
+            }
+            if (diff_mag <= 1e-6) continue;
+            lab_dir = diff;
+            lab_dir.normalize();
         }
-        if (diff_mag <= 1e-6) {
-            throw std::runtime_error(
-                "Failed to sample a target point sufficiently "
-                "separated from decay vertex after 100 attempts");
-        }
-        lab_dir = diff;
-        lab_dir.normalize();
+
+        double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+        if (cos_theta_lab < cos_critical) continue;
+
+        solutions = SolveLabAngle(
+            beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
+        n_valid = (solutions[0].valid ? 1 : 0)
+                + (solutions[1].valid ? 1 : 0);
+        if (n_valid > 0) break;
     }
 
-    // Solve 2-body kinematics for this lab direction.
-    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
-    auto solutions = SolveLabAngle(
-        beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
-    int n_valid = (solutions[0].valid ? 1 : 0)
-                + (solutions[1].valid ? 1 : 0);
-
     if (n_valid == 0) {
-        // Direction is kinematically forbidden (beyond the critical
-        // angle for massive daughters with slow parents). Fall back
-        // to isotropic rest-frame sampling. Density() will return 0
-        // for this channel at this point; the multi-channel isotropic
-        // component provides the non-zero generation density.
         Isotropic2BodyChannel fallback(daughter_index_);
         fallback.Sample(random, nullptr, record);
         return;
@@ -387,20 +391,19 @@ double DetectorDirected2BodyChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord const & record) const
 {
-    // The density is reported in LabFrameSolidAngle convention:
-    // it is the probability per unit lab-frame solid angle of producing
-    // the observed daughter kinematics.
+    // The density is reported in LabFrameSolidAngle convention.
     //
-    // The sampling procedure is:
-    //   1. Pick a lab direction toward the target (density g_angular per lab sr)
-    //   2. Solve 2-body kinematics (may give 1 or 2 solutions)
-    //   3. Choose solution i with probability J_i / J_total
+    // Sample() picks a lab direction from the target geometry,
+    // rejection-sampling against the kinematic cone.  The density
+    // is the proposal density (g_angular) scaled by the branch
+    // selection probability (J_match / J_total) and divided by the
+    // acceptance probability (fraction of the proposal that falls
+    // within the kinematic cone).
     //
-    // The combined density per unit lab solid angle is:
-    //   g_lab = g_angular * (J_match / J_total)
-    //
-    // The branch-selection factor J_match/J_total accounts for the fact
-    // that two solutions share the same lab direction; only one is chosen.
+    // For Cone mode:  g_lab = (1/Omega_effective) * J_match / J_total
+    //   where Omega_effective = min(Omega_cone, Omega_kinematic) when
+    //   the target and parent directions are nearly aligned.
+    // For Volume mode: g_lab = SolidAngleDensity / acceptance * J_match / J_total
 
     if (record.signature.secondary_types.size() != 2) return 0.0;
 
@@ -430,18 +433,22 @@ double DetectorDirected2BodyChannel::Density(
     if (p_A < 1e-15) return 0.0;
 
     siren::math::Vector3D lab_dir(px_A / p_A, py_A / p_A, pz_A / p_A);
+    siren::math::Vector3D parent_dir(
+        px_parent / p_parent, py_parent / p_parent, pz_parent / p_parent);
     siren::math::Vector3D decay_pos(
         record.interaction_vertex[0],
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
+    // Check kinematic cone
+    double cos_critical = CriticalCosTheta(
+        beta, gamma, p_rest, E_A_rest, m_A);
+    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+    if (cos_theta_lab < cos_critical) return 0.0;
+
     double g_angular;
     if (mode_ == Mode::Cone) {
-        // Density is 1/Omega_cone inside the bounding cone, 0 outside.
-        // Directions inside the cone that miss the actual geometry still
-        // get non-zero density — they are valid samples from the cone
-        // distribution.  The physical model handles the geometry miss
-        // (FinalStateProbability = 0 in the numerator).
+        // Bounding cone check
         auto aabb = target_->GetWorldBoundingBox();
         siren::math::Vector3D center = (aabb.min_corner + aabb.max_corner) * 0.5;
         siren::math::Vector3D extent = aabb.max_corner - aabb.min_corner;
@@ -454,15 +461,19 @@ double DetectorDirected2BodyChannel::Density(
             double cos_cone = std::sqrt(1.0 - (bounding_radius / dist) * (bounding_radius / dist));
             if (cos_to_center < cos_cone) return 0.0;
         }
-        g_angular = 1.0 / ConeSolidAngle(decay_pos);
+        // The effective solid angle is the bounding cone clipped by
+        // the kinematic cone.  For the typical case where target and
+        // parent directions are nearly aligned, this is approximately
+        // min(Omega_cone, Omega_kinematic).  Use the kinematic cone
+        // solid angle as a cap on the bounding cone.
+        double omega_bounding = ConeSolidAngle(decay_pos);
+        double omega_kinematic = TWO_PI * (1.0 - cos_critical);
+        double omega_effective = std::min(omega_bounding, omega_kinematic);
+        g_angular = 1.0 / omega_effective;
     } else {
         g_angular = SolidAngleDensity(decay_pos, lab_dir);
         if (g_angular <= 0) return 0.0;
     }
-
-    siren::math::Vector3D parent_dir(
-        px_parent / p_parent, py_parent / p_parent, pz_parent / p_parent);
-    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
 
     auto solutions = SolveLabAngle(
         beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
@@ -482,9 +493,9 @@ double DetectorDirected2BodyChannel::Density(
     double best_distance = 1e30;
     for (auto const & sol : solutions) {
         if (!sol.valid) continue;
-        double dist = std::abs(sol.cos_theta_rest - cos_theta_rest_actual);
-        if (dist < best_distance) {
-            best_distance = dist;
+        double d = std::abs(sol.cos_theta_rest - cos_theta_rest_actual);
+        if (d < best_distance) {
+            best_distance = d;
             best_jacobian = sol.jacobian;
         }
     }
