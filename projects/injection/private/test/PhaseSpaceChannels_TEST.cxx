@@ -457,3 +457,653 @@ TEST(PhaseSpaceChannels, ThrowsEarlyOnExtremelySmallVolumeRatio) {
         DetectorDirected2BodyChannel(target, 0, DetectorDirected2BodyChannel::Mode::Cone)
     );
 }
+
+// ================================================================== //
+//  Category 1: Jacobian invertibility                                 //
+// ================================================================== //
+
+TEST(JacobianInvertibility, RestLabRoundTrip) {
+    // Five kinematic configurations:
+    // (M, mA, mB, gamma) covering massless daughter, equal masses,
+    // threshold, moderate boost, ultra-relativistic
+    struct Config {
+        double M, mA, mB, gamma;
+    };
+    Config configs[] = {
+        {1.0,  0.0,   0.2,  3.0},     // massless daughter A
+        {1.0,  0.3,   0.3,  5.0},     // equal masses
+        {0.7 + 1e-6, 0.3, 0.4, 2.0},  // threshold: M barely > mA+mB
+        {2.0,  0.5,   0.8,  1.5},     // moderate boost
+        {10.0, 0.1,   0.2, 100.0},    // ultra-relativistic
+    };
+
+    for (auto const & c : configs) {
+        double beta = std::sqrt(1.0 - 1.0 / (c.gamma * c.gamma));
+        double p_rest = siren::injection::TwoBodyRestMomentum(c.M, c.mA, c.mB);
+        double e_rest = siren::injection::TwoBodyRestEnergy(c.M, c.mA, c.mB);
+
+        for (int i = 0; i < 10; ++i) {
+            double cos_theta_rest = -1.0 + (i + 0.5) * 2.0 / 10.0;
+            auto lab = siren::injection::BoostToLab(
+                beta, c.gamma, p_rest, e_rest, cos_theta_rest);
+            auto solutions = siren::injection::SolveLabAngle(
+                beta, c.gamma, p_rest, e_rest, c.mA, lab.cos_theta_lab);
+
+            bool found = false;
+            for (int s = 0; s < 2; ++s) {
+                if (solutions[s].valid &&
+                    std::abs(solutions[s].cos_theta_rest - cos_theta_rest) < 1e-6) {
+                    EXPECT_NEAR(solutions[s].cos_theta_rest, cos_theta_rest, 1e-8);
+                    found = true;
+                }
+            }
+            EXPECT_TRUE(found)
+                << "RestLabRoundTrip failed for M=" << c.M
+                << " mA=" << c.mA << " mB=" << c.mB
+                << " gamma=" << c.gamma
+                << " cos_theta_rest=" << cos_theta_rest;
+        }
+    }
+}
+
+TEST(JacobianInvertibility, JacobianProductIsUnity) {
+    struct Config {
+        double M, mA, mB, gamma;
+    };
+    Config configs[] = {
+        {1.0,  0.0,   0.2,  3.0},
+        {1.0,  0.3,   0.3,  5.0},
+        {0.7 + 1e-6, 0.3, 0.4, 2.0},
+        {2.0,  0.5,   0.8,  1.5},
+        {10.0, 0.1,   0.2, 100.0},
+    };
+
+    for (auto const & c : configs) {
+        double beta = std::sqrt(1.0 - 1.0 / (c.gamma * c.gamma));
+        double p_rest = siren::injection::TwoBodyRestMomentum(c.M, c.mA, c.mB);
+        double e_rest = siren::injection::TwoBodyRestEnergy(c.M, c.mA, c.mB);
+
+        for (int i = 0; i < 10; ++i) {
+            double cos_theta_rest = -1.0 + (i + 0.5) * 2.0 / 10.0;
+            auto lab = siren::injection::BoostToLab(
+                beta, c.gamma, p_rest, e_rest, cos_theta_rest);
+
+            // Find which solution matches
+            auto solutions = siren::injection::SolveLabAngle(
+                beta, c.gamma, p_rest, e_rest, c.mA, lab.cos_theta_lab);
+            for (int s = 0; s < 2; ++s) {
+                if (!solutions[s].valid) continue;
+                if (std::abs(solutions[s].cos_theta_rest - cos_theta_rest) > 1e-8)
+                    continue;
+
+                double rest_to_lab =
+                    siren::injection::phase_space_jacobian::RestFrameToLabSolidAngleJacobian(
+                        beta, c.gamma, p_rest, e_rest, c.mA, lab.cos_theta_lab, s);
+                double lab_to_rest =
+                    siren::injection::phase_space_jacobian::LabToRestFrameSolidAngleJacobian(
+                        beta, c.gamma, p_rest, e_rest, c.mA, lab.cos_theta_lab, s);
+
+                if (rest_to_lab > 0.0 && lab_to_rest > 0.0) {
+                    EXPECT_NEAR(rest_to_lab * lab_to_rest, 1.0, 1e-10)
+                        << "Product != 1 for M=" << c.M
+                        << " gamma=" << c.gamma
+                        << " cos_theta_rest=" << cos_theta_rest;
+                }
+            }
+        }
+    }
+}
+
+TEST(JacobianInvertibility, BjorkenQ2RoundTrip) {
+    double M = 0.938;
+    double E = 5.0;
+    int N = 20;
+    for (int i = 0; i < N; ++i) {
+        double x = 0.1 + (i + 0.5) * 0.8 / N;
+        for (int j = 0; j < N; ++j) {
+            double y = 0.2 + (j + 0.5) * 0.6 / N;
+            double q2 = siren::injection::phase_space_jacobian::Q2FromBjorkenXY(
+                x, y, M, E);
+            double x_back = siren::injection::phase_space_jacobian::BjorkenXFromQ2Y(
+                q2, y, M, E);
+            EXPECT_NEAR(x_back, x, 1e-12)
+                << "BjorkenQ2RoundTrip failed at x=" << x << " y=" << y;
+        }
+    }
+}
+
+TEST(JacobianInvertibility, BjorkenQ2JacobianProductIsUnity) {
+    double M = 0.938;
+    double E = 5.0;
+    int N = 20;
+    for (int i = 0; i < N; ++i) {
+        double y = 0.1 + (i + 0.5) * 0.8 / N;
+        double j_fwd = siren::injection::phase_space_jacobian::BjorkenXYToQ2YAbsJacobian(
+            y, M, E);
+        double j_inv = siren::injection::phase_space_jacobian::Q2YToBjorkenXYAbsJacobian(
+            y, M, E);
+        EXPECT_NEAR(j_fwd * j_inv, 1.0, 1e-12)
+            << "BjorkenQ2 Jacobian product != 1 at y=" << y;
+    }
+}
+
+TEST(JacobianInvertibility, SolidAngleMandelstamJacobianProductIsUnity) {
+    // Several (s, m_beam, m_target) configurations
+    struct Config {
+        double s, m_beam, m_target;
+    };
+    // s must exceed (m_beam + m_target)^2 for physical scattering
+    Config configs[] = {
+        {10.0, 0.0,   0.938},    // massless beam
+        {5.0,  0.106, 0.938},    // muon on proton
+        {100.0, 0.5,  1.0},      // heavy particles
+        {2.0,  0.01,  0.5},      // light beam, moderate target
+        {50.0, 0.0,   0.0},      // both massless
+    };
+
+    for (auto const & c : configs) {
+        double j_fwd =
+            siren::injection::phase_space_jacobian::SolidAngleRestToMandelstamQ2AbsJacobian(
+                c.s, c.m_beam, c.m_target);
+        double j_inv =
+            siren::injection::phase_space_jacobian::MandelstamQ2ToSolidAngleRestAbsJacobian(
+                c.s, c.m_beam, c.m_target);
+        if (j_fwd > 0.0 && j_inv > 0.0) {
+            EXPECT_NEAR(j_fwd * j_inv, 1.0, 1e-12)
+                << "SolidAngle-Mandelstam product != 1 at s=" << c.s
+                << " m_beam=" << c.m_beam << " m_target=" << c.m_target;
+        }
+    }
+}
+
+// ================================================================== //
+//  Category 2: Normalization integrals                                //
+// ================================================================== //
+
+TEST(JacobianIntegrals, SolidAngleRestToMandelstamQ2IntegralAgreement) {
+    // 2->2 scattering: m_beam=0.008, m_target=37.215, E_beam=1.0
+    // In the lab frame the target is at rest.
+    double m_beam = 0.008;
+    double m_target = 37.215;
+    double E_beam = 1.0;
+    double s = m_beam * m_beam + m_target * m_target + 2.0 * m_target * E_beam;
+    double p_CM_sq = siren::injection::Kallen(
+        s, m_beam * m_beam, m_target * m_target) / (4.0 * s);
+    ASSERT_GT(p_CM_sq, 0.0);
+    double Q2_max = 4.0 * p_CM_sq;  // backward scattering: cos_theta = -1
+
+    // Isotropic density in solid angle: rho_Omega = 1/(4*pi)
+    // Integral of rho_Omega dOmega over full sphere = 1.
+    //
+    // Converting to Q2 (azimuth-integrated):
+    //   rho(Q2) = rho_Omega * 2*pi / (2*p_CM^2) = 1/(4*pi) * 2*pi / (2*p_CM^2)
+    //           = 1 / (4*p_CM^2)
+    //
+    // Integral of rho(Q2) dQ2 from 0 to Q2_max:
+    //   = (1 / (4*p_CM^2)) * 4*p_CM^2 = 1
+    double rho_omega = 1.0 / (4.0 * M_PI);
+
+    // The converted density is constant (does not depend on Q2), so
+    // the integral is simply rho_Q2 * Q2_max.
+    double rho_Q2 =
+        siren::injection::phase_space_jacobian::SolidAngleRestDensityToMandelstamQ2Density(
+            rho_omega, s, m_beam, m_target);
+    double integral = rho_Q2 * Q2_max;
+
+    EXPECT_NEAR(integral, 1.0, 5e-3)
+        << "SolidAngle->MandelstamQ2 integral = " << integral;
+}
+
+// ================================================================== //
+//  Category 5: Boundary and edge cases                                //
+// ================================================================== //
+
+TEST(JacobianBoundary, ZeroBoostJacobianIsUnity) {
+    double beta = 0.0;
+    double gamma = 1.0;
+    double M = 1.0;
+    double mA = 0.3;
+    double mB = 0.4;
+    double p_rest = siren::injection::TwoBodyRestMomentum(M, mA, mB);
+    double e_rest = siren::injection::TwoBodyRestEnergy(M, mA, mB);
+
+    for (int i = 0; i < 20; ++i) {
+        double cos_theta = -1.0 + (i + 0.5) * 2.0 / 20.0;
+        double jac =
+            siren::injection::phase_space_jacobian::RestFrameToLabSolidAngleJacobian(
+                beta, gamma, p_rest, e_rest, mA, cos_theta, 0);
+        EXPECT_NEAR(jac, 1.0, 1e-10)
+            << "Zero-boost Jacobian != 1 at cos_theta=" << cos_theta;
+    }
+}
+
+TEST(JacobianBoundary, MasslessDaughterNoCriticalAngle) {
+    // Massless daughter: all lab angles accessible, critical cos = -1
+    double M = 2.0;
+    double mA = 0.0;
+    double mB = 0.5;
+    double p_rest = siren::injection::TwoBodyRestMomentum(M, mA, mB);
+    double e_rest = siren::injection::TwoBodyRestEnergy(M, mA, mB);
+
+    // Several boost values
+    double gammas[] = {1.5, 3.0, 10.0, 100.0};
+    for (double gamma : gammas) {
+        double beta = std::sqrt(1.0 - 1.0 / (gamma * gamma));
+        double cos_crit = siren::injection::CriticalCosTheta(
+            beta, gamma, p_rest, e_rest, mA);
+        EXPECT_DOUBLE_EQ(cos_crit, -1.0)
+            << "Massless daughter should have cos_crit=-1 at gamma=" << gamma;
+    }
+}
+
+TEST(JacobianBoundary, ThresholdDecaySmallMomentum) {
+    double mA = 0.3;
+    double mB = 0.4;
+    double M = mA + mB + 1e-6;  // barely above threshold
+    double p_rest = siren::injection::TwoBodyRestMomentum(M, mA, mB);
+    EXPECT_GT(p_rest, 0.0);
+    EXPECT_LT(p_rest, 1e-2);  // should be very small
+
+    double e_rest = siren::injection::TwoBodyRestEnergy(M, mA, mB);
+    double gamma = 2.0;
+    double beta = std::sqrt(1.0 - 1.0 / (gamma * gamma));
+
+    // SolveLabAngle should not produce NaN even at threshold
+    auto lab = siren::injection::BoostToLab(
+        beta, gamma, p_rest, e_rest, 0.0);
+    EXPECT_TRUE(std::isfinite(lab.cos_theta_lab));
+    EXPECT_TRUE(std::isfinite(lab.p_lab));
+
+    auto solutions = siren::injection::SolveLabAngle(
+        beta, gamma, p_rest, e_rest, mA, lab.cos_theta_lab);
+    for (int s = 0; s < 2; ++s) {
+        if (solutions[s].valid) {
+            EXPECT_TRUE(std::isfinite(solutions[s].cos_theta_rest));
+            EXPECT_TRUE(std::isfinite(solutions[s].p_lab));
+            EXPECT_TRUE(std::isfinite(solutions[s].jacobian));
+        }
+    }
+}
+
+TEST(JacobianBoundary, CriticalAngleMergePoint) {
+    // Setup where beta_daughter_rest < beta_parent (two solutions exist)
+    // Use a heavy daughter with a fast parent
+    double M = 1.0;
+    double mA = 0.9;   // heavy daughter
+    double mB = 0.05;
+    double p_rest = siren::injection::TwoBodyRestMomentum(M, mA, mB);
+    double e_rest = siren::injection::TwoBodyRestEnergy(M, mA, mB);
+    double beta_daughter_rest = p_rest / e_rest;
+
+    // Need beta_parent > beta_daughter_rest
+    double gamma = 3.0;
+    double beta = std::sqrt(1.0 - 1.0 / (gamma * gamma));
+    ASSERT_GT(beta, beta_daughter_rest)
+        << "Test requires beta_parent > beta_daughter_rest";
+
+    double cos_crit = siren::injection::CriticalCosTheta(
+        beta, gamma, p_rest, e_rest, mA);
+    ASSERT_GT(cos_crit, -1.0) << "Expected a finite critical angle";
+
+    // Approach the critical angle from the accessible side (slightly
+    // larger cos_theta_lab = slightly smaller angle from beam axis).
+    // At the exact boundary the discriminant may be numerically zero
+    // or negative, so nudge inward by a small amount.
+    // Verify SolveLabAngle works near the critical angle.
+    // Approach from the accessible side with decreasing offsets and
+    // verify the two solutions converge.
+    double offsets[] = {1e-4, 1e-6, 1e-8, 1e-10};
+    double prev_gap = 1e10;
+    for (double eps : offsets) {
+        double cos_near = cos_crit + eps;
+        if (cos_near > 1.0) cos_near = 1.0;
+
+        auto solutions = siren::injection::SolveLabAngle(
+            beta, gamma, p_rest, e_rest, mA, cos_near);
+        int n_valid = 0;
+        for (int s = 0; s < 2; ++s) {
+            if (solutions[s].valid) {
+                EXPECT_TRUE(std::isfinite(solutions[s].cos_theta_rest))
+                    << "NaN near critical angle, solution " << s
+                    << " eps=" << eps;
+                n_valid++;
+            }
+        }
+        if (n_valid < 2) continue;
+
+        // The gap between the two solutions should shrink as eps -> 0
+        double gap = std::abs(
+            solutions[0].cos_theta_rest - solutions[1].cos_theta_rest);
+        EXPECT_LT(gap, prev_gap + 1e-12)
+            << "Gap should decrease approaching critical angle";
+        prev_gap = gap;
+    }
+}
+
+TEST(JacobianBoundary, ForwardBackwardAngles) {
+    double M = 2.0;
+    double mA = 0.3;
+    double mB = 0.5;
+    double gamma = 4.0;
+    double beta = std::sqrt(1.0 - 1.0 / (gamma * gamma));
+    double p_rest = siren::injection::TwoBodyRestMomentum(M, mA, mB);
+    double e_rest = siren::injection::TwoBodyRestEnergy(M, mA, mB);
+
+    // Forward: cos_theta_rest = +1
+    {
+        auto lab = siren::injection::BoostToLab(
+            beta, gamma, p_rest, e_rest, 1.0);
+        EXPECT_TRUE(std::isfinite(lab.cos_theta_lab));
+        EXPECT_TRUE(std::isfinite(lab.p_lab));
+
+        auto solutions = siren::injection::SolveLabAngle(
+            beta, gamma, p_rest, e_rest, mA, lab.cos_theta_lab);
+        bool found_forward = false;
+        for (int s = 0; s < 2; ++s) {
+            if (solutions[s].valid &&
+                std::abs(solutions[s].cos_theta_rest - 1.0) < 1e-8) {
+                found_forward = true;
+                EXPECT_NEAR(solutions[s].cos_theta_rest, 1.0, 1e-10);
+            }
+        }
+        EXPECT_TRUE(found_forward) << "Could not recover cos_theta_rest = +1";
+    }
+
+    // Backward: cos_theta_rest = -1
+    {
+        auto lab = siren::injection::BoostToLab(
+            beta, gamma, p_rest, e_rest, -1.0);
+        EXPECT_TRUE(std::isfinite(lab.cos_theta_lab));
+        EXPECT_TRUE(std::isfinite(lab.p_lab));
+
+        auto solutions = siren::injection::SolveLabAngle(
+            beta, gamma, p_rest, e_rest, mA, lab.cos_theta_lab);
+        bool found_backward = false;
+        for (int s = 0; s < 2; ++s) {
+            if (solutions[s].valid &&
+                std::abs(solutions[s].cos_theta_rest - (-1.0)) < 1e-8) {
+                found_backward = true;
+                EXPECT_NEAR(solutions[s].cos_theta_rest, -1.0, 1e-10);
+            }
+        }
+        EXPECT_TRUE(found_backward) << "Could not recover cos_theta_rest = -1";
+    }
+}
+
+// ================================================================== //
+//  Category 6: Convertibility group table                             //
+// ================================================================== //
+
+TEST(ConvertibilityGroups, ExhaustiveTable) {
+    using siren::dataclasses::PhaseSpaceTopology;
+    using siren::dataclasses::PhaseSpaceMeasure;
+    using siren::dataclasses::MeasureConvertibilityGroup;
+
+    // Decay2Body
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::SolidAngleRest), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::SolidAngleLab), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::Recursive2Body), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::DalitzPair), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::HelicityAngles), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::MandelstamQ2), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::BjorkenXY), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
+              PhaseSpaceMeasure::Unspecified), -1);
+
+    // Decay3Body
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::Recursive2Body), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::DalitzPair), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::HelicityAngles), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::SolidAngleRest), 1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::SolidAngleLab), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::MandelstamQ2), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::BjorkenXY), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
+              PhaseSpaceMeasure::Unspecified), -1);
+
+    // DecayNBody
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::SolidAngleRest), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::SolidAngleLab), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::Recursive2Body), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::DalitzPair), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::HelicityAngles), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::MandelstamQ2), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::BjorkenXY), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
+              PhaseSpaceMeasure::Unspecified), -1);
+
+    // Scatter2to2
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::SolidAngleRest), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::SolidAngleLab), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::MandelstamQ2), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::BjorkenXY), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::Recursive2Body), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::DalitzPair), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::HelicityAngles), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::Unspecified), -1);
+
+    // Scatter2to3
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::Recursive2Body), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::DalitzPair), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::SolidAngleRest), 1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::SolidAngleLab), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::HelicityAngles), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::MandelstamQ2), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::BjorkenXY), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
+              PhaseSpaceMeasure::Unspecified), -1);
+
+    // Unspecified topology: all measures give -1
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::SolidAngleRest), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::SolidAngleLab), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::Recursive2Body), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::DalitzPair), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::HelicityAngles), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::MandelstamQ2), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::BjorkenXY), -1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
+              PhaseSpaceMeasure::Unspecified), -1);
+}
+
+TEST(ConvertibilityGroups, CompatibilityIsSymmetric) {
+    using siren::dataclasses::PhaseSpaceTopology;
+    using siren::dataclasses::PhaseSpaceMeasure;
+    using siren::dataclasses::PhaseSpaceCompatible;
+
+    // Enumerate all topology-measure pairs
+    PhaseSpaceTopology topologies[] = {
+        PhaseSpaceTopology::Decay2Body,
+        PhaseSpaceTopology::Decay3Body,
+        PhaseSpaceTopology::DecayNBody,
+        PhaseSpaceTopology::Scatter2to2,
+        PhaseSpaceTopology::Scatter2to3,
+        PhaseSpaceTopology::Unspecified,
+    };
+    PhaseSpaceMeasure measures[] = {
+        PhaseSpaceMeasure::SolidAngleRest,
+        PhaseSpaceMeasure::SolidAngleLab,
+        PhaseSpaceMeasure::Recursive2Body,
+        PhaseSpaceMeasure::DalitzPair,
+        PhaseSpaceMeasure::HelicityAngles,
+        PhaseSpaceMeasure::MandelstamQ2,
+        PhaseSpaceMeasure::BjorkenXY,
+        PhaseSpaceMeasure::Unspecified,
+    };
+
+    // For every pair (T, Ma) x (T, Mb), verify symmetry
+    for (auto topo : topologies) {
+        for (auto ma : measures) {
+            for (auto mb : measures) {
+                bool ab = PhaseSpaceCompatible(topo, ma, topo, mb);
+                bool ba = PhaseSpaceCompatible(topo, mb, topo, ma);
+                EXPECT_EQ(ab, ba)
+                    << "Asymmetric compatibility for topology="
+                    << static_cast<int>(topo)
+                    << " ma=" << static_cast<int>(ma)
+                    << " mb=" << static_cast<int>(mb);
+            }
+        }
+    }
+}
+
+TEST(ConvertibilityGroups, LegacyConventionRoundTrip) {
+    using siren::dataclasses::PhaseSpaceConvention;
+    using siren::dataclasses::PhaseSpaceTopology;
+    using siren::dataclasses::PhaseSpaceMeasure;
+    using siren::dataclasses::TopologyFromConvention;
+    using siren::dataclasses::MeasureFromConvention;
+
+    // RestFrameSolidAngle + n=2 -> (Decay2Body, SolidAngleRest)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::RestFrameSolidAngle, 2),
+              PhaseSpaceTopology::Decay2Body);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::RestFrameSolidAngle),
+              PhaseSpaceMeasure::SolidAngleRest);
+
+    // LabFrameSolidAngle + n=2 -> (Decay2Body, SolidAngleLab)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::LabFrameSolidAngle, 2),
+              PhaseSpaceTopology::Decay2Body);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::LabFrameSolidAngle),
+              PhaseSpaceMeasure::SolidAngleLab);
+
+    // Recursive2Body + n=3 -> (Decay3Body, Recursive2Body)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::Recursive2Body, 3),
+              PhaseSpaceTopology::Decay3Body);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::Recursive2Body),
+              PhaseSpaceMeasure::Recursive2Body);
+
+    // Dalitz + n=3 -> (Decay3Body, DalitzPair)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::Dalitz, 3),
+              PhaseSpaceTopology::Decay3Body);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::Dalitz),
+              PhaseSpaceMeasure::DalitzPair);
+
+    // HelicityAngles + n=3 -> (Decay3Body, HelicityAngles)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::HelicityAngles, 3),
+              PhaseSpaceTopology::Decay3Body);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::HelicityAngles),
+              PhaseSpaceMeasure::HelicityAngles);
+
+    // BjorkenXY -> (Scatter2to2, BjorkenXY)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::BjorkenXY, 2),
+              PhaseSpaceTopology::Scatter2to2);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::BjorkenXY),
+              PhaseSpaceMeasure::BjorkenXY);
+
+    // MandelstamST -> (Scatter2to2, MandelstamQ2)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::MandelstamST, 2),
+              PhaseSpaceTopology::Scatter2to2);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::MandelstamST),
+              PhaseSpaceMeasure::MandelstamQ2);
+
+    // Custom -> (Unspecified, Unspecified)
+    EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::Custom, 2),
+              PhaseSpaceTopology::Unspecified);
+    EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::Custom),
+              PhaseSpaceMeasure::Unspecified);
+}
+
+// ================================================================== //
+//  Category 7: Known analytic values                                  //
+// ================================================================== //
+
+TEST(JacobianAnalytic, KnownRestToLabValue) {
+    double M = 1.0;
+    double mA = 0.1;
+    double mB = 0.2;
+    double E_parent = 3.0;
+    double gamma = E_parent / M;
+    double beta = std::sqrt(1.0 - 1.0 / (gamma * gamma));
+
+    double p_rest = siren::injection::TwoBodyRestMomentum(M, mA, mB);
+    double e_rest = siren::injection::TwoBodyRestEnergy(M, mA, mB);
+
+    // At cos_theta_rest = 0 (theta_rest = pi/2):
+    //   p_parallel_rest = 0
+    //   p_perp = p_rest
+    //   p_lab_parallel = gamma * beta * e_rest
+    //   p_lab_perp = p_rest
+    //   p_lab = sqrt(p_rest^2 + gamma^2 * beta^2 * e_rest^2)
+    //   E_lab = gamma * e_rest  (since p_parallel = 0)
+    double cos_theta_rest = 0.0;
+    auto lab = siren::injection::BoostToLab(
+        beta, gamma, p_rest, e_rest, cos_theta_rest);
+
+    double p_lab_par_expected = gamma * beta * e_rest;
+    double p_lab_expected = std::sqrt(
+        p_rest * p_rest + gamma * gamma * beta * beta * e_rest * e_rest);
+    double E_lab_expected = gamma * e_rest;
+
+    EXPECT_NEAR(lab.p_lab, p_lab_expected, 1e-12);
+    EXPECT_NEAR(lab.E_lab, E_lab_expected, 1e-12);
+    EXPECT_NEAR(lab.cos_theta_lab, p_lab_par_expected / p_lab_expected, 1e-12);
+
+    // Verify the Jacobian from the framework matches the analytic
+    // calculation via the definitions.
+    //
+    // From SolveLabAngle, the Jacobian dOmega_lab/dOmega_rest is:
+    //   gamma * p_rest * |p_lab - beta * E_lab * cos_theta_lab| / p_lab^2
+    //
+    // At cos_theta_rest=0:
+    //   dp_factor = |p_lab - beta * E_lab * cos_theta_lab|
+    double dp_factor = std::abs(lab.p_lab - beta * lab.E_lab * lab.cos_theta_lab);
+    double jac_analytic = gamma * p_rest * dp_factor / (lab.p_lab * lab.p_lab);
+
+    // Get the framework Jacobian
+    auto solutions = siren::injection::SolveLabAngle(
+        beta, gamma, p_rest, e_rest, mA, lab.cos_theta_lab);
+
+    bool found = false;
+    for (int s = 0; s < 2; ++s) {
+        if (!solutions[s].valid) continue;
+        if (std::abs(solutions[s].cos_theta_rest - cos_theta_rest) > 1e-8)
+            continue;
+        EXPECT_NEAR(solutions[s].jacobian, jac_analytic, 1e-12)
+            << "Jacobian mismatch: framework=" << solutions[s].jacobian
+            << " analytic=" << jac_analytic;
+        found = true;
+    }
+    EXPECT_TRUE(found) << "Could not find matching solution for cos_theta_rest=0";
+}
