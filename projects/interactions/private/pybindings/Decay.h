@@ -29,6 +29,8 @@ void register_Decay(pybind11::module_ & m) {
         .def("TotalDecayLength", &Decay::TotalDecayLength)
         .def("DifferentialDecayWidth", &Decay::DifferentialDecayWidth)
         .def("SampleFinalState", &Decay::SampleFinalState)
+        .def("SecondaryMasses", &Decay::SecondaryMasses)
+        .def("SecondaryHelicities", &Decay::SecondaryHelicities)
         .def("GetPossibleSignatures", &Decay::GetPossibleSignatures)
         .def("GetPossibleSignaturesFromParent", &Decay::GetPossibleSignaturesFromParent)
         .def("FinalStateProbability", &Decay::FinalStateProbability)
