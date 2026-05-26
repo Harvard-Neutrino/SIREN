@@ -42,7 +42,10 @@ public:
     ) const override;
 
     std::string Name() const override { return "DetectorDirectedScattering"; }
-    PhaseSpaceConvention Convention() const override;
+    PhaseSpaceTopology Topology() const override {
+        return PhaseSpaceTopology::Scatter2to2;
+    }
+    PhaseSpaceMeasure Measure() const override;
 
     void SetVolume(double volume);
 

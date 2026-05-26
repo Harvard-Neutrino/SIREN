@@ -27,6 +27,8 @@ using siren::injection::DetectorDirectedScatteringChannel;
 using siren::injection::Isotropic2BodyChannel;
 using siren::injection::MultiChannelPhaseSpace;
 using siren::injection::PhaseSpaceConvention;
+using siren::injection::PhaseSpaceTopology;
+using siren::injection::PhaseSpaceMeasure;
 using siren::injection::PhysicalDecayChannel;
 using siren::math::Vector3D;
 
@@ -73,8 +75,12 @@ public:
         return "CustomTest";
     }
 
-    PhaseSpaceConvention Convention() const override {
-        return PhaseSpaceConvention::Custom;
+    PhaseSpaceTopology Topology() const override {
+        return PhaseSpaceTopology::Unspecified;
+    }
+
+    PhaseSpaceMeasure Measure() const override {
+        return PhaseSpaceMeasure::Unspecified;
     }
 };
 
@@ -255,7 +261,7 @@ TEST(PhaseSpaceChannels, DetectorDirectedScatteringSamplesConservedPointingEvent
     EXPECT_EQ(channel.Convention(), PhaseSpaceConvention::MandelstamST);
 }
 
-TEST(PhaseSpaceChannels, ConventionValidationWarnsOnNonCustomMismatch) {
+TEST(PhaseSpaceChannels, TopologyMismatchDetected) {
     auto target = Sphere(Placement(Vector3D(0, 0, 100000)), 1.0, 0.0).create();
 
     MultiChannelPhaseSpace mc;
@@ -269,13 +275,14 @@ TEST(PhaseSpaceChannels, ConventionValidationWarnsOnNonCustomMismatch) {
     };
     mc.weights = {0.5, 0.5};
 
-    auto diagnostics = mc.ValidateConventions();
+    // Mixing Decay2Body with Scatter2to2 is a topology mismatch
+    EXPECT_THROW(mc.CommonTopology(), std::runtime_error);
+    auto diagnostics = mc.ValidateChannels();
     ASSERT_FALSE(diagnostics.empty());
-    EXPECT_NE(diagnostics.front().find("RestFrameSolidAngle"), std::string::npos);
-    EXPECT_EQ(mc.CommonConvention(), PhaseSpaceConvention::RestFrameSolidAngle);
+    EXPECT_NE(diagnostics.front().find("Topology"), std::string::npos);
 }
 
-TEST(PhaseSpaceChannels, ConventionValidationRejectsCustomMix) {
+TEST(PhaseSpaceChannels, UnspecifiedTopologyMismatchDetected) {
     MultiChannelPhaseSpace mc;
     mc.channels = {
         std::make_shared<Isotropic2BodyChannel>(0),
@@ -283,7 +290,8 @@ TEST(PhaseSpaceChannels, ConventionValidationRejectsCustomMix) {
     };
     mc.weights = {0.5, 0.5};
 
-    EXPECT_THROW(mc.ValidateConventions(), std::runtime_error);
+    // Mixing Decay2Body with Unspecified is a topology mismatch
+    EXPECT_THROW(mc.CommonTopology(), std::runtime_error);
 }
 
 TEST(PhaseSpaceChannels, PhysicalDecayConventionFromModel) {

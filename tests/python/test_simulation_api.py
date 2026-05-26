@@ -988,7 +988,7 @@ class TestMeasureConsistency:
         mc.weights = [0.5, 0.5]
 
         rng = siren.utilities.SIREN_random(99)
-        diagnostics = mc.ValidateChannels(rng, None, record, 50)
+        diagnostics = mc.ValidateChannelDensities(rng, None, record, 50)
 
         nan_or_neg = [d for d in diagnostics
                       if "NaN" in d or "negative" in d]

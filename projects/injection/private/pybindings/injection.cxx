@@ -58,6 +58,29 @@ PYBIND11_MODULE(injection,m) {
 
   // Phase space channels
 
+  // New topology/measure enums
+  enum_<PhaseSpaceTopology>(m, "PhaseSpaceTopology")
+    .value("Decay2Body", PhaseSpaceTopology::Decay2Body)
+    .value("Decay3Body", PhaseSpaceTopology::Decay3Body)
+    .value("DecayNBody", PhaseSpaceTopology::DecayNBody)
+    .value("Scatter2to2", PhaseSpaceTopology::Scatter2to2)
+    .value("Scatter2to3", PhaseSpaceTopology::Scatter2to3)
+    .value("Unspecified", PhaseSpaceTopology::Unspecified);
+
+  enum_<PhaseSpaceMeasure>(m, "PhaseSpaceMeasure")
+    .value("SolidAngleRest", PhaseSpaceMeasure::SolidAngleRest)
+    .value("SolidAngleLab", PhaseSpaceMeasure::SolidAngleLab)
+    .value("Recursive2Body", PhaseSpaceMeasure::Recursive2Body)
+    .value("DalitzPair", PhaseSpaceMeasure::DalitzPair)
+    .value("HelicityAngles", PhaseSpaceMeasure::HelicityAngles)
+    .value("MandelstamQ2", PhaseSpaceMeasure::MandelstamQ2)
+    .value("BjorkenXY", PhaseSpaceMeasure::BjorkenXY)
+    .value("Unspecified", PhaseSpaceMeasure::Unspecified);
+
+  m.def("PhaseSpaceTopologyName", &PhaseSpaceTopologyName);
+  m.def("PhaseSpaceMeasureName", &PhaseSpaceMeasureName);
+
+  // Legacy convention enum (kept for backward compatibility)
   enum_<PhaseSpaceConvention>(m, "PhaseSpaceConvention")
     .value("RestFrameSolidAngle", PhaseSpaceConvention::RestFrameSolidAngle)
     .value("LabFrameSolidAngle", PhaseSpaceConvention::LabFrameSolidAngle)
@@ -74,6 +97,8 @@ PYBIND11_MODULE(injection,m) {
     .def("Sample", &PhaseSpaceChannel::Sample)
     .def("Density", &PhaseSpaceChannel::Density)
     .def("Name", &PhaseSpaceChannel::Name)
+    .def("Topology", &PhaseSpaceChannel::Topology)
+    .def("Measure", &PhaseSpaceChannel::Measure)
     .def("Convention", &PhaseSpaceChannel::Convention)
     ;
 
@@ -83,9 +108,11 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("weights", &MultiChannelPhaseSpace::weights)
     .def("Sample", &MultiChannelPhaseSpace::Sample)
     .def("Density", &MultiChannelPhaseSpace::Density)
+    .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
+    .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
-    .def("ValidateConventions", &MultiChannelPhaseSpace::ValidateConventions)
-    .def("ValidateChannels", &MultiChannelPhaseSpace::ValidateChannels,
+    .def("ValidateChannels", &MultiChannelPhaseSpace::ValidateChannels)
+    .def("ValidateChannelDensities", &MultiChannelPhaseSpace::ValidateChannelDensities,
          arg("random"), arg("detector_model"), arg("template_record"),
          arg("samples_per_channel") = 100)
     ;

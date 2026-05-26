@@ -195,6 +195,70 @@ inline double Q2YDensityToBjorkenXYDensity(
         y, target_mass, incident_energy);
 }
 
+// ------------------------------------------------------------------ //
+//  SolidAngleRest <-> MandelstamQ2  (Scatter2to2 topology)            //
+// ------------------------------------------------------------------ //
+//
+// For 2->2 scattering in the CM frame:
+//   Q^2 = -t = 2 p_CM^2 (1 - cos theta_CM)
+//   |dQ^2 / d(cos theta_CM)| = 2 p_CM^2
+//
+// To convert a density from dOmega_CM to dQ^2 (integrating uniform phi):
+//   rho(Q^2) = rho(Omega_CM) * 2*pi / (2 * p_CM^2)
+//
+// To convert a density from dQ^2 to dOmega_CM:
+//   rho(Omega_CM) = rho(Q^2) * (2 * p_CM^2) / (2*pi)
+//
+// The factor of 2*pi accounts for the azimuthal integration: dOmega
+// is 2D (cos_theta, phi) while Q^2 is 1D. If both densities include
+// the azimuth explicitly, drop the 2*pi factor and use
+// SolidAngleRestToMandelstamQ2AbsJacobian directly.
+
+inline double SolidAngleRestToMandelstamQ2AbsJacobian(
+    double s,
+    double m_beam,
+    double m_target)
+{
+    double p_cm_sq = Kallen(s, m_beam * m_beam, m_target * m_target)
+                     / (4.0 * s);
+    if (p_cm_sq <= 0.0) return 0.0;
+    return 2.0 * p_cm_sq;
+}
+
+inline double MandelstamQ2ToSolidAngleRestAbsJacobian(
+    double s,
+    double m_beam,
+    double m_target)
+{
+    return SafeInverse(SolidAngleRestToMandelstamQ2AbsJacobian(
+        s, m_beam, m_target));
+}
+
+// Density conversions (azimuth-integrated: include 2*pi factor)
+
+inline double SolidAngleRestDensityToMandelstamQ2Density(
+    double solid_angle_density,
+    double s,
+    double m_beam,
+    double m_target)
+{
+    double jacobian = SolidAngleRestToMandelstamQ2AbsJacobian(
+        s, m_beam, m_target);
+    if (jacobian <= 0.0) return 0.0;
+    return solid_angle_density * 2.0 * M_PI / jacobian;
+}
+
+inline double MandelstamQ2DensityToSolidAngleRestDensity(
+    double q2_density,
+    double s,
+    double m_beam,
+    double m_target)
+{
+    double jacobian = SolidAngleRestToMandelstamQ2AbsJacobian(
+        s, m_beam, m_target);
+    return q2_density * jacobian / (2.0 * M_PI);
+}
+
 } // namespace phase_space_jacobian
 } // namespace injection
 } // namespace siren
