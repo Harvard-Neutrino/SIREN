@@ -1,10 +1,13 @@
 """Regression tests for the self-contained Dutta-Kim vector portal models."""
 
 import math
+import os
 
 import pytest
 
 siren = pytest.importorskip("siren")
+from siren.Injector import Injector as _Injector
+from siren.Weighter import Weighter as _Weighter
 
 
 @pytest.fixture(scope="module")
@@ -289,3 +292,238 @@ def test_dutta_kim_directed_phase_space_topology(vector_portal, processes_dir):
     chi_prime_channel.Sample(random, None, chi_prime_record)
     assert chi_prime_channel.Density(None, chi_prime_record) > 0.0
     assert chi_prime_decay.FinalStateProbability(chi_prime_record) > 0.0
+
+
+# ------------------------------------------------------------------ #
+#  End-to-end chain test                                               #
+# ------------------------------------------------------------------ #
+
+M_CHI = 8e-3
+M_CHI_PRIME = 50e-3
+M_V1 = 17e-3
+M_V2 = 200e-3
+M_PION = 0.13957039
+M_MUON = 0.10565837
+M_ARGON40 = 37.215
+
+G_D = 1.0
+EPSILON_1 = 7e-5
+EPSILON_2 = 1e-4
+G_MU = 1e-3
+
+PDGID_PION = 211
+PDGID_MUPLUS = -13
+PDGID_NUMU = 14
+PDGID_V1_PROD = 5922
+PDGID_CHI = 5917
+PDGID_CHI_PRIME = 5918
+PDGID_V1_SIGNAL = 5923
+PDGID_ARGON40 = 1000180400
+
+
+def _pt(pdgid):
+    return siren.dataclasses.Particle.ParticleType(pdgid)
+
+
+def _make_mc(channels, weights):
+    mc = siren.injection.MultiChannelPhaseSpace()
+    mc.channels = channels
+    mc.weights = weights
+    return mc
+
+
+def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
+    """Generate events through the full 5-vertex on-shell chain and weight them.
+
+    Uses the SBND detector (LAr TPC) from the SBN loader. The pion is
+    the primary (monoenergetic at 2 GeV, fixed +z direction from the
+    BNB target). Secondaries are:
+      V1_prod -> chi chi
+      chi Ar40 -> chi' Ar40
+      chi' -> chi V1_signal
+      V1_signal -> e+ e-
+
+    Each secondary vertex has detector-directed biasing toward a box
+    approximating the SBND fiducial volume. The test asserts that
+    generated events reach the full chain depth and that weights are
+    finite and positive.
+    """
+    from siren import _util
+
+    meson = _util.load_module(
+        "test_e2e_MesonProduction",
+        str(processes_dir / "DarkNewsTables" / "MesonProduction.py"),
+    )
+
+    # -- Detector --
+    detector_model = siren.utilities.load_detector("SBN", detector="SBND")
+    det_origin = detector_model.DetectorOrigin.get()
+    det_x, det_y, det_z = det_origin.GetX(), det_origin.GetY(), det_origin.GetZ()
+
+    fiducial = siren.geometry.Box(2.0, 2.0, 2.5)
+
+    # -- Physics models --
+    pion_decay = meson.MesonThreeBodySIRENDecay(
+        m_meson=M_PION,
+        m_lepton=M_MUON,
+        m_mediator=M_V1,
+        g_mu=G_MU,
+        pdgid_meson=PDGID_PION,
+        pdgid_lepton=PDGID_MUPLUS,
+        pdgid_neutrino=PDGID_NUMU,
+        pdgid_mediator=PDGID_V1_PROD,
+    )
+
+    v1_to_chi = vector_portal.DarkPhotonToChiDecay(
+        M_V1, M_CHI, G_D,
+        pdgid_V1=PDGID_V1_PROD,
+        pdgid_chi=PDGID_CHI,
+    )
+
+    upscatter = vector_portal.VectorPortalUpscatteringXS(
+        M_CHI, M_CHI_PRIME, M_V2, G_D, EPSILON_2,
+        pdgid_chi=PDGID_CHI,
+        pdgid_chi_prime=PDGID_CHI_PRIME,
+        nuclear_pdgid=PDGID_ARGON40,
+        nuclear_mass=M_ARGON40,
+        A=40, Z=18,
+    )
+
+    chi_prime_decay = vector_portal.ChiPrimeDecay(
+        M_CHI, M_CHI_PRIME, M_V1, G_D,
+        pdgid_chi_prime=PDGID_CHI_PRIME,
+        pdgid_chi=PDGID_CHI,
+        pdgid_V1=PDGID_V1_SIGNAL,
+    )
+
+    visible_decay = vector_portal.DarkPhotonDecay(
+        M_V1, EPSILON_1,
+        pdgid_V1=PDGID_V1_SIGNAL,
+    )
+
+    # -- Primary injection distributions --
+    primary_mass = siren.distributions.PrimaryMass(M_PION)
+    primary_energy = siren.distributions.Monoenergetic(2.0)
+    primary_direction = siren.distributions.FixedDirection(
+        siren.math.Vector3D(0, 0, 1)
+    )
+    primary_position = siren.distributions.PointSourcePositionDistribution(
+        [0.0, 0.0, 0.0],
+        300.0,
+    )
+
+    # -- Secondary distributions --
+    secondary_vertex = siren.distributions.SecondaryPhysicalVertexDistribution()
+
+    # -- Biased phase spaces for each secondary --
+    v1_prod_sig = v1_to_chi.GetPossibleSignatures()[0]
+    chi_sig = upscatter.GetPossibleSignatures()[0]
+    chi_prime_sig = chi_prime_decay.GetPossibleSignatures()[0]
+    v1_signal_sig = visible_decay.GetPossibleSignatures()[0]
+
+    secondary_phase_spaces = {
+        _pt(PDGID_V1_PROD): {
+            v1_prod_sig: _make_mc(
+                [siren.injection.DetectorDirected2BodyChannel(fiducial, 0)],
+                [1.0],
+            ),
+        },
+        _pt(PDGID_CHI): {
+            chi_sig: _make_mc(
+                [siren.injection.DetectorDirectedScatteringChannel(
+                    fiducial,
+                    directed_index=0,
+                    variable=siren.injection.ScatteringVariable.Q2,
+                )],
+                [1.0],
+            ),
+        },
+        _pt(PDGID_CHI_PRIME): {
+            chi_prime_sig: _make_mc(
+                [siren.injection.DetectorDirected2BodyChannel(fiducial, 1)],
+                [1.0],
+            ),
+        },
+        _pt(PDGID_V1_SIGNAL): {
+            v1_signal_sig: _make_mc(
+                [siren.injection.Isotropic2BodyChannel(0)],
+                [1.0],
+            ),
+        },
+    }
+
+    # -- Build Injector --
+    N_EVENTS = 5
+    injector = _Injector(
+        number_of_events=N_EVENTS,
+        detector_model=detector_model,
+        seed=42,
+        primary_type=_pt(PDGID_PION),
+        primary_interactions=[pion_decay],
+        primary_injection_distributions=[
+            primary_mass,
+            primary_energy,
+            primary_direction,
+            primary_position,
+        ],
+        secondary_interactions={
+            _pt(PDGID_V1_PROD): [v1_to_chi],
+            _pt(PDGID_CHI): [upscatter],
+            _pt(PDGID_CHI_PRIME): [chi_prime_decay],
+            _pt(PDGID_V1_SIGNAL): [visible_decay],
+        },
+        secondary_injection_distributions={
+            _pt(PDGID_V1_PROD): [secondary_vertex],
+            _pt(PDGID_CHI): [secondary_vertex],
+            _pt(PDGID_CHI_PRIME): [secondary_vertex],
+            _pt(PDGID_V1_SIGNAL): [secondary_vertex],
+        },
+        secondary_phase_spaces=secondary_phase_spaces,
+        stopping_condition=lambda datum, i: not (
+            int(datum.record.signature.secondary_types[i]) == PDGID_V1_PROD
+            or (int(datum.record.signature.secondary_types[i]) == PDGID_CHI
+                and int(datum.record.signature.primary_type) == PDGID_V1_PROD)
+            or int(datum.record.signature.secondary_types[i]) == PDGID_CHI_PRIME
+            or int(datum.record.signature.secondary_types[i]) == PDGID_V1_SIGNAL
+        ),
+    )
+
+    # -- Generate events --
+    events = []
+    for event in injector:
+        if event.tree:
+            events.append(event)
+        if len(events) >= N_EVENTS:
+            break
+
+    assert len(events) > 0, "No events were generated"
+
+    for event in events:
+        records = list(event.tree)
+        assert len(records) >= 2, (
+            f"Event tree has only {len(records)} records, "
+            f"expected at least the primary + one secondary"
+        )
+
+    # -- Build Weighter and compute weights --
+    weighter = _Weighter(
+        injectors=[injector],
+        detector_model=detector_model,
+        primary_type=_pt(PDGID_PION),
+        primary_interactions=[pion_decay],
+        primary_physical_distributions=[
+            primary_energy,
+            primary_direction,
+        ],
+        secondary_interactions={
+            _pt(PDGID_V1_PROD): [v1_to_chi],
+            _pt(PDGID_CHI): [upscatter],
+            _pt(PDGID_CHI_PRIME): [chi_prime_decay],
+            _pt(PDGID_V1_SIGNAL): [visible_decay],
+        },
+    )
+
+    for event in events:
+        w = weighter(event)
+        assert not math.isnan(w), f"Weight is NaN"
+        assert w >= 0.0, f"Weight is negative: {w}"
