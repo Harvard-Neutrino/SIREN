@@ -6,6 +6,7 @@
 #include <rk/geom3.hh>                                     // for Vector3
 
 #include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/ParticleMasses.h"
 #include "SIREN/utilities/Constants.h"
 
 namespace siren {
@@ -36,6 +37,18 @@ double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interactio
     return p1.beta() * p1.gamma() * tau * siren::utilities::Constants::hbarc;
 }
 
+std::vector<double> Decay::SecondaryMasses(std::vector<siren::dataclasses::ParticleType> const & secondary_types) const {
+    std::vector<double> masses;
+    masses.reserve(secondary_types.size());
+    for(auto const & type : secondary_types) {
+        masses.push_back(siren::dataclasses::GetParticleMass(type));
+    }
+    return masses;
+}
+
+std::vector<double> Decay::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    return std::vector<double>(record.signature.secondary_types.size(), 0.0);
+}
+
 } // namespace interactions
 } // namespace siren
-

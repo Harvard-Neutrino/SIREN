@@ -1,5 +1,6 @@
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/ParticleMasses.h"
 
 namespace siren {
 namespace interactions {
@@ -21,6 +22,19 @@ double CrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::Interac
         total_cross_section += this->TotalCrossSection(fake_record);
     }
     return total_cross_section;
+}
+
+std::vector<double> CrossSection::SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const {
+    std::vector<double> masses;
+    masses.reserve(secondary_types.size());
+    for(auto const & type : secondary_types) {
+        masses.push_back(siren::dataclasses::GetParticleMass(type));
+    }
+    return masses;
+}
+
+std::vector<double> CrossSection::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    return std::vector<double>(record.signature.secondary_types.size(), 0.0);
 }
 
 bool CrossSection::operator==(CrossSection const & other) const {

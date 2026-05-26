@@ -373,6 +373,62 @@ void Injector::SampleMatchingFinalState(
     xsec_record.Finalize(record);
 }
 
+void PreparePhaseSpaceFinalState(
+    siren::dataclasses::InteractionRecord & record,
+    std::shared_ptr<siren::interactions::InteractionCollection> interactions)
+{
+    std::vector<double> secondary_masses;
+    std::vector<double> secondary_helicities;
+    bool found = false;
+
+    if (interactions->HasDecays()) {
+        for (auto const & decay : interactions->GetDecays()) {
+            for (auto const & sig : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+                if (sig == record.signature) {
+                    secondary_masses = decay->SecondaryMasses(sig.secondary_types);
+                    secondary_helicities = decay->SecondaryHelicities(record);
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+    }
+    if (!found && interactions->HasCrossSections()) {
+        for (auto const & xs : interactions->GetCrossSectionsForTarget(record.signature.target_type)) {
+            for (auto const & sig : xs->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type)) {
+                if (sig == record.signature) {
+                    secondary_masses = xs->SecondaryMasses(sig.secondary_types);
+                    secondary_helicities = xs->SecondaryHelicities(record);
+                    found = true;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+    }
+
+    if (!found) {
+        throw(siren::utilities::InjectionFailure("No interaction matched phase-space signature!"));
+    }
+
+    size_t n_secondaries = record.signature.secondary_types.size();
+    if (secondary_masses.size() != n_secondaries) {
+        throw(siren::utilities::InjectionFailure("SecondaryMasses returned the wrong number of masses!"));
+    }
+    if (secondary_helicities.size() != n_secondaries) {
+        secondary_helicities.assign(n_secondaries, 0.0);
+    }
+
+    record.secondary_masses = secondary_masses;
+    record.secondary_helicities = secondary_helicities;
+    record.secondary_ids.resize(n_secondaries);
+    for (auto & id : record.secondary_ids) {
+        id = siren::dataclasses::ParticleID::GenerateID();
+    }
+    record.secondary_momenta.assign(n_secondaries, {0.0, 0.0, 0.0, 0.0});
+}
+
 // Function to sample secondary processes
 //
 // Modifies an InteractionRecord with the new event
@@ -391,6 +447,7 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     SelectChannel(record, secondary_interactions);
 
     if (secondary_process->HasPhaseSpace(record.signature)) {
+        PreparePhaseSpaceFinalState(record, secondary_interactions);
         secondary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
     } else {
         SampleMatchingFinalState(record, secondary_interactions);
@@ -416,6 +473,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         SelectChannel(record, primary_process->GetInteractions());
 
         if (primary_process->HasPhaseSpace(record.signature)) {
+            PreparePhaseSpaceFinalState(record, primary_process->GetInteractions());
             primary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
         } else {
             SampleMatchingFinalState(record, primary_process->GetInteractions());

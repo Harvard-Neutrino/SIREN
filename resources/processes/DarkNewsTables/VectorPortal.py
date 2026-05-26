@@ -793,6 +793,12 @@ class ChiPrimeDecay(_Decay):
     def DensityVariables(self):
         return ["cos_theta"]
 
+    def SecondaryMasses(self, secondary_types):
+        return [self.m_chi, self.m_V1]
+
+    def SecondaryHelicities(self, record):
+        return [record.primary_helicity, 0]
+
     def save_to_table(self, table_subdir=None):
         pass
 
@@ -912,6 +918,12 @@ class DarkPhotonDecay(_Decay):
     def DensityVariables(self):
         return ["cos_theta"]
 
+    def SecondaryMasses(self, secondary_types):
+        return [_M_ELECTRON, _M_ELECTRON]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0]
+
     def save_to_table(self, table_subdir=None):
         pass
 
@@ -1030,6 +1042,12 @@ class DarkPhotonToChiDecay(_Decay):
 
     def DensityVariables(self):
         return ["cos_theta"]
+
+    def SecondaryMasses(self, secondary_types):
+        return [self.m_chi, self.m_chi]
+
+    def SecondaryHelicities(self, record):
+        return [record.primary_helicity, record.primary_helicity]
 
     def save_to_table(self, table_subdir=None):
         pass
@@ -1187,6 +1205,12 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 
     def DensityVariables(self):
         return ["lab_cone_chi"]
+
+    def SecondaryMasses(self, secondary_types):
+        return [self.m_chi, self.m_chi]
+
+    def SecondaryHelicities(self, record):
+        return [record.primary_helicity, record.primary_helicity]
 
     def save_to_table(self, table_subdir=None):
         pass

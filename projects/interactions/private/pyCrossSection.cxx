@@ -103,6 +103,28 @@ void pyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecor
         } while (false);
 }
 
+std::vector<double> pyCrossSection::SecondaryMasses(std::vector<siren::dataclasses::ParticleType> const & secondary_types) const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        std::vector<double>,
+        SecondaryMasses,
+        "SecondaryMasses",
+        secondary_types
+    )
+}
+
+std::vector<double> pyCrossSection::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        std::vector<double>,
+        SecondaryHelicities,
+        "SecondaryHelicities",
+        record
+    )
+}
+
 std::vector<siren::dataclasses::ParticleType> pyCrossSection::GetPossibleTargets() const {
     SELF_OVERRIDE_PURE(
         self,
@@ -177,4 +199,3 @@ std::vector<std::string> pyCrossSection::DensityVariables() const {
 
 } // namespace interactions
 } // namespace siren
-

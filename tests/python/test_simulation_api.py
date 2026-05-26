@@ -682,6 +682,23 @@ class TestSecondaryBiasing:
         assert sip.HasPhaseSpace(sig)
         assert sip.HasAnyPhaseSpace()
 
+    def test_injector_primary_phase_space(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        injector = siren.injection.Injector()
+
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.NuMu
+        sig.target_type = siren.particles.Nucleon
+        sig.secondary_types = [siren.particles.MuMinus, siren.particles.PPlus]
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [siren.injection.DetectorDirected2BodyChannel(fid, 0)]
+        mc.weights = [1.0]
+
+        injector.primary_phase_spaces = {sig: mc}
+        assert injector.primary_phase_spaces[sig] is mc
+
     def test_kinematics_utilities(self):
         import siren
         assert abs(siren.injection.Kallen(1.0, 0.0, 0.0) - 1.0) < 1e-14

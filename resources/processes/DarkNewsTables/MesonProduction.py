@@ -395,6 +395,12 @@ class MesonSimpleDecay(_Decay):
     def DensityVariables(self):
         return ["cos_theta"]
 
+    def SecondaryMasses(self, secondary_types):
+        return [self.m_lepton, self.m_nu]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0]
+
     def save_to_table(self, table_subdir=None):
         pass
 
@@ -727,6 +733,12 @@ class MesonThreeBodySIRENDecay(_Decay):
     def DensityVariables(self):
         return ["E_V", "cos_theta_V"]
 
+    def SecondaryMasses(self, secondary_types):
+        return [self.m_lepton, self.m_nu, self.m_mediator]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0, 0]
+
     def save_to_table(self, table_subdir=None):
         pass
 
@@ -981,6 +993,12 @@ class BiasedMesonThreeBodyDecay(_Decay):
 
     def DensityVariables(self):
         return ["lab_E_V", "lab_cos_theta_V"]
+
+    def SecondaryMasses(self, secondary_types):
+        return [self.m_lepton, self.m_nu, self.m_mediator]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0, 0]
 
     def save_to_table(self, table_subdir=None):
         pass

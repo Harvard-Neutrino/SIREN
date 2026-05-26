@@ -35,11 +35,12 @@ class Injector:
         detector_model: Optional[_detector.DetectorModel] = None,
         seed: Optional[int] = None,
         primary_type: Optional[_dataclasses.ParticleType] = None,
-        primary_interactions: Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]] = None,
+        primary_interactions: List[Union[_interactions.CrossSection, _interactions.Decay]] = None,
         primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
+        primary_phase_spaces: Optional[Dict[_dataclasses.InteractionSignature, _injection.MultiChannelPhaseSpace]] = None,
         secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
         secondary_injection_distributions: Optional[Dict[_dataclasses.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
-        secondary_phase_spaces: Optional[Dict[_dataclasses.ParticleType, _injection.MultiChannelPhaseSpace]] = None,
+        secondary_phase_spaces: Optional[Dict[_dataclasses.ParticleType, Dict[_dataclasses.InteractionSignature, _injection.MultiChannelPhaseSpace]]] = None,
         stopping_condition: Optional[Callable[[_dataclasses.InteractionTreeDatum, int], bool]] = None,
     ):
         self.__seed = None
@@ -49,6 +50,7 @@ class Injector:
         self.__primary_type = None
         self.__primary_interactions = []
         self.__primary_injection_distributions = []
+        self.__primary_phase_spaces = {}
 
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
@@ -69,6 +71,8 @@ class Injector:
             self.__primary_interactions = primary_interactions
         if primary_injection_distributions is not None:
             self.__primary_injection_distributions = primary_injection_distributions
+        if primary_phase_spaces is not None:
+            self.__primary_phase_spaces = primary_phase_spaces
         if secondary_interactions is not None:
             self.__secondary_interactions = secondary_interactions
         if secondary_injection_distributions is not None:
@@ -114,6 +118,8 @@ class Injector:
             primary_type, primary_interaction_collection
         )
         primary_process.distributions = self.primary_injection_distributions
+        for sig, ps in self.__primary_phase_spaces.items():
+            primary_process.SetPhaseSpace(sig, ps)
 
         secondary_interactions = self.secondary_interactions
         secondary_injection_distributions = self.secondary_injection_distributions
@@ -166,6 +172,7 @@ class Injector:
         self.__primary_type = primary_process.primary_type
         self.__primary_interactions = list(primary_process.interactions.GetCrossSections()) + list(primary_process.interactions.GetDecays())
         self.__primary_injection_distributions = list(primary_process.distributions)
+        self.__primary_phase_spaces = {}
 
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
@@ -245,6 +252,18 @@ class Injector:
             primary_process = self.__injector.GetPrimaryProcess()
             primary_process.distributions = primary_injection_distributions
         self.__primary_injection_distributions = primary_injection_distributions
+
+    @property
+    def primary_phase_spaces(self):
+        return self.__primary_phase_spaces
+
+    @primary_phase_spaces.setter
+    def primary_phase_spaces(self, phase_spaces):
+        if self.__injector is not None:
+            primary_process = self.__injector.GetPrimaryProcess()
+            for sig, ps in phase_spaces.items():
+                primary_process.SetPhaseSpace(sig, ps)
+        self.__primary_phase_spaces = phase_spaces
 
     @property
     def secondary_interactions(self):

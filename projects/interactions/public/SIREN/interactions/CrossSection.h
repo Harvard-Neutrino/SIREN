@@ -41,6 +41,8 @@ public:
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
+    virtual std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const;
+    virtual std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const;
 
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const = 0;
@@ -64,4 +66,3 @@ CEREAL_REGISTER_TYPE(siren::interactions::CrossSection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Interaction, siren::interactions::CrossSection);
 
 #endif // SIREN_CrossSection_H
-

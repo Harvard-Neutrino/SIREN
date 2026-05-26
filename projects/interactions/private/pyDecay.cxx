@@ -111,6 +111,28 @@ void pyDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & rec
     )
 }
 
+std::vector<double> pyDecay::SecondaryMasses(std::vector<siren::dataclasses::ParticleType> const & secondary_types) const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        std::vector<double>,
+        SecondaryMasses,
+        "SecondaryMasses",
+        secondary_types
+    )
+}
+
+std::vector<double> pyDecay::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        std::vector<double>,
+        SecondaryHelicities,
+        "SecondaryHelicities",
+        record
+    )
+}
+
 std::vector<siren::dataclasses::InteractionSignature> pyDecay::GetPossibleSignatures() const {
     SELF_OVERRIDE_PURE(
         self,
