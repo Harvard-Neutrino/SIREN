@@ -24,16 +24,6 @@ struct FourVector {
     siren::math::Vector3D p;
 };
 
-FourVector ReadPrimary(siren::dataclasses::InteractionRecord const & record) {
-    return FourVector{
-        record.primary_momentum[0],
-        siren::math::Vector3D(
-            record.primary_momentum[1],
-            record.primary_momentum[2],
-            record.primary_momentum[3])
-    };
-}
-
 FourVector ReadSecondary(siren::dataclasses::InteractionRecord const & record, int index) {
     return FourVector{
         record.secondary_momenta[index][0],
@@ -44,127 +34,12 @@ FourVector ReadSecondary(siren::dataclasses::InteractionRecord const & record, i
     };
 }
 
-void WriteSecondary(
-    siren::dataclasses::InteractionRecord & record,
-    int index,
-    FourVector const & p4)
-{
-    record.secondary_momenta[index] = {
-        p4.e,
-        p4.p.GetX(),
-        p4.p.GetY(),
-        p4.p.GetZ()
-    };
-}
-
 double MassSquared(FourVector const & p4) {
     return p4.e * p4.e - p4.p * p4.p;
 }
 
 FourVector Add(FourVector const & a, FourVector const & b) {
     return FourVector{a.e + b.e, a.p + b.p};
-}
-
-bool DirectedTwoBody(
-    FourVector const & parent,
-    double parent_mass,
-    double directed_mass,
-    double other_mass,
-    siren::math::Vector3D const & lab_dir,
-    std::shared_ptr<siren::utilities::SIREN_random> random,
-    FourVector & directed,
-    FourVector & other,
-    double & jacobian)
-{
-    double p_rest = TwoBodyRestMomentum(parent_mass, directed_mass, other_mass);
-    double E_rest = TwoBodyRestEnergy(parent_mass, directed_mass, other_mass);
-    if (p_rest <= 0.0 || E_rest <= 0.0) return false;
-
-    double p_parent = parent.p.magnitude();
-    if (p_parent < 1e-15) {
-        directed = FourVector{E_rest, lab_dir * p_rest};
-        other = FourVector{
-            parent.e - directed.e,
-            parent.p - directed.p
-        };
-        jacobian = 1.0;
-        return true;
-    }
-
-    siren::math::Vector3D parent_dir = parent.p / p_parent;
-    double beta = p_parent / parent.e;
-    double gamma = parent.e / parent_mass;
-    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
-    cos_theta_lab = std::clamp(cos_theta_lab, -1.0, 1.0);
-
-    auto solutions = SolveLabAngle(
-        beta, gamma, p_rest, E_rest, directed_mass, cos_theta_lab);
-
-    double total_j = 0.0;
-    for (auto const & sol : solutions) {
-        if (sol.valid) total_j += sol.jacobian;
-    }
-    if (total_j <= 0.0) return false;
-
-    double r = random->Uniform(0, total_j);
-    TwoBodyLabSolution chosen = solutions[0];
-    double cumulative = 0.0;
-    for (auto const & sol : solutions) {
-        if (!sol.valid) continue;
-        cumulative += sol.jacobian;
-        if (r <= cumulative) {
-            chosen = sol;
-            break;
-        }
-    }
-
-    double E_lab = std::sqrt(chosen.p_lab * chosen.p_lab
-                           + directed_mass * directed_mass);
-    directed = FourVector{E_lab, lab_dir * chosen.p_lab};
-    other = FourVector{
-        parent.e - directed.e,
-        parent.p - directed.p
-    };
-    jacobian = chosen.jacobian;
-    return true;
-}
-
-double DirectedTwoBodyJacobian(
-    FourVector const & parent,
-    double parent_mass,
-    double directed_mass,
-    double other_mass,
-    FourVector const & directed)
-{
-    double p_rest = TwoBodyRestMomentum(parent_mass, directed_mass, other_mass);
-    double E_rest = TwoBodyRestEnergy(parent_mass, directed_mass, other_mass);
-    if (p_rest <= 0.0 || E_rest <= 0.0) return 0.0;
-
-    double p_parent = parent.p.magnitude();
-    double p_directed = directed.p.magnitude();
-    if (p_directed <= 0.0) return 0.0;
-    if (p_parent < 1e-15) return 1.0;
-
-    siren::math::Vector3D parent_dir = parent.p / p_parent;
-    siren::math::Vector3D lab_dir = directed.p / p_directed;
-    double beta = p_parent / parent.e;
-    double gamma = parent.e / parent_mass;
-    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
-    cos_theta_lab = std::clamp(cos_theta_lab, -1.0, 1.0);
-
-    auto solutions = SolveLabAngle(
-        beta, gamma, p_rest, E_rest, directed_mass, cos_theta_lab);
-
-    double p_par_lab = p_directed * cos_theta_lab;
-    double p_par_rest = gamma * (p_par_lab - beta * directed.e);
-    double cos_theta_rest_actual = p_par_rest / p_rest;
-
-    for (auto const & sol : solutions) {
-        if (sol.valid && std::abs(sol.cos_theta_rest - cos_theta_rest_actual) < 1e-6) {
-            return sol.jacobian;
-        }
-    }
-    return 0.0;
 }
 
 } // anonymous namespace
@@ -279,47 +154,61 @@ void DetectorDirected3BodyChannel::Sample(
         throw std::runtime_error("DetectorDirected3BodyChannel has no allowed invariant-mass range");
     }
 
+    // Step 0: sample invariant mass of the pair system
     double s_pair = SampleInvariantMassSquared(random, s_min, s_max);
     double m_pair = std::sqrt(s_pair);
 
-    FourVector parent = ReadPrimary(record);
     siren::math::Vector3D vertex(
         record.interaction_vertex[0],
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    siren::math::Vector3D pair_dir = detail::SampleDirectedDirection(
-        *target_, mode_, random, vertex);
+    // Step 1: P -> pair + spectator (directed toward target)
+    auto step1 = detail::SampleDirectedStep(
+        record.primary_momentum[0],
+        record.primary_momentum[1],
+        record.primary_momentum[2],
+        record.primary_momentum[3],
+        M, m_pair, m_spectator,
+        vertex, *target_, target_volume_, mode_, random);
 
-    FourVector pair;
-    FourVector spectator;
-    double first_jacobian = 0.0;
-    if (!DirectedTwoBody(parent, M, m_pair, m_spectator, pair_dir,
-                         random, pair, spectator, first_jacobian)) {
-        throw std::runtime_error("DetectorDirected3BodyChannel could not solve parent two-body step");
-    }
+    // Construct pair and spectator 4-vectors
+    double pair_E = step1.E_lab;
+    double pair_px = step1.p_lab * step1.lab_dir.GetX();
+    double pair_py = step1.p_lab * step1.lab_dir.GetY();
+    double pair_pz = step1.p_lab * step1.lab_dir.GetZ();
 
+    double spec_E = record.primary_momentum[0] - pair_E;
+    double spec_px = record.primary_momentum[1] - pair_px;
+    double spec_py = record.primary_momentum[2] - pair_py;
+    double spec_pz = record.primary_momentum[3] - pair_pz;
+
+    // Step 2: pair -> directed + other (directed toward target)
     int other_pair_index = (directed_pair_index_ == pair_first_index_)
-        ? pair_second_index_
-        : pair_first_index_;
-
+        ? pair_second_index_ : pair_first_index_;
     double m_directed = record.secondary_masses[directed_pair_index_];
     double m_other = record.secondary_masses[other_pair_index];
 
-    siren::math::Vector3D daughter_dir = detail::SampleDirectedDirection(
-        *target_, mode_, random, vertex);
+    auto step2 = detail::SampleDirectedStep(
+        pair_E, pair_px, pair_py, pair_pz,
+        m_pair, m_directed, m_other,
+        vertex, *target_, target_volume_, mode_, random);
 
-    FourVector directed;
-    FourVector other;
-    double second_jacobian = 0.0;
-    if (!DirectedTwoBody(pair, m_pair, m_directed, m_other, daughter_dir,
-                         random, directed, other, second_jacobian)) {
-        throw std::runtime_error("DetectorDirected3BodyChannel could not solve pair two-body step");
-    }
+    // Construct directed and other daughter 4-vectors
+    double dir_E = step2.E_lab;
+    double dir_px = step2.p_lab * step2.lab_dir.GetX();
+    double dir_py = step2.p_lab * step2.lab_dir.GetY();
+    double dir_pz = step2.p_lab * step2.lab_dir.GetZ();
 
-    WriteSecondary(record, spectator_index_, spectator);
-    WriteSecondary(record, directed_pair_index_, directed);
-    WriteSecondary(record, other_pair_index, other);
+    double oth_E = pair_E - dir_E;
+    double oth_px = pair_px - dir_px;
+    double oth_py = pair_py - dir_py;
+    double oth_pz = pair_pz - dir_pz;
+
+    // Write results
+    record.secondary_momenta[spectator_index_] = {spec_E, spec_px, spec_py, spec_pz};
+    record.secondary_momenta[directed_pair_index_] = {dir_E, dir_px, dir_py, dir_pz};
+    record.secondary_momenta[other_pair_index] = {oth_E, oth_px, oth_py, oth_pz};
     record.interaction_parameters["phase_space_s_pair"] = s_pair;
 }
 
@@ -341,6 +230,7 @@ double DetectorDirected3BodyChannel::Density(
     double s_max = (M - m_spectator) * (M - m_spectator);
     if (s_max <= s_min) return 0.0;
 
+    // Reconstruct pair 4-vector
     FourVector first = ReadSecondary(record, pair_first_index_);
     FourVector second = ReadSecondary(record, pair_second_index_);
     FourVector pair = Add(first, second);
@@ -348,40 +238,41 @@ double DetectorDirected3BodyChannel::Density(
     if (s_pair <= 0.0) return 0.0;
     double m_pair = std::sqrt(s_pair);
 
-    FourVector parent = ReadPrimary(record);
-    FourVector spectator = ReadSecondary(record, spectator_index_);
-    FourVector directed = ReadSecondary(record, directed_pair_index_);
-    int other_pair_index = (directed_pair_index_ == pair_first_index_)
-        ? pair_second_index_
-        : pair_first_index_;
+    // Invariant mass density
+    double s_density = InvariantMassDensity(s_pair, s_min, s_max);
+    if (s_density <= 0.0) return 0.0;
 
     siren::math::Vector3D vertex(
         record.interaction_vertex[0],
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    double pair_p = pair.p.magnitude();
-    double directed_p = directed.p.magnitude();
-    if (pair_p <= 0.0 || directed_p <= 0.0) return 0.0;
+    // Step 1 density: P -> pair + spectator
+    double step1_density = detail::DensityDirectedStep(
+        record.primary_momentum[0],
+        record.primary_momentum[1],
+        record.primary_momentum[2],
+        record.primary_momentum[3],
+        M, m_pair, m_spectator,
+        pair.e, pair.p.GetX(), pair.p.GetY(), pair.p.GetZ(),
+        vertex, *target_, target_volume_, mode_);
+    if (step1_density <= 0.0) return 0.0;
 
-    siren::math::Vector3D pair_dir = pair.p / pair_p;
-    siren::math::Vector3D directed_dir = directed.p / directed_p;
+    // Step 2 density: pair -> directed + other
+    int other_pair_index = (directed_pair_index_ == pair_first_index_)
+        ? pair_second_index_ : pair_first_index_;
+    FourVector directed = ReadSecondary(record, directed_pair_index_);
 
-    double g_pair = detail::AngularDensity(*target_, target_volume_, mode_, vertex, pair_dir);
-    double g_directed = detail::AngularDensity(*target_, target_volume_, mode_, vertex, directed_dir);
-    if (g_pair <= 0.0 || g_directed <= 0.0) return 0.0;
-
-    double j_pair = DirectedTwoBodyJacobian(parent, M, m_pair, m_spectator, pair);
-    double j_directed = DirectedTwoBodyJacobian(
-        pair,
+    double step2_density = detail::DensityDirectedStep(
+        pair.e, pair.p.GetX(), pair.p.GetY(), pair.p.GetZ(),
         m_pair,
         record.secondary_masses[directed_pair_index_],
         record.secondary_masses[other_pair_index],
-        directed);
-    if (j_pair <= 0.0 || j_directed <= 0.0) return 0.0;
+        directed.e, directed.p.GetX(), directed.p.GetY(), directed.p.GetZ(),
+        vertex, *target_, target_volume_, mode_);
+    if (step2_density <= 0.0) return 0.0;
 
-    double s_density = InvariantMassDensity(s_pair, s_min, s_max);
-    return s_density * g_pair * j_pair * g_directed * j_directed;
+    return s_density * step1_density * step2_density;
 }
 
 } // namespace injection
