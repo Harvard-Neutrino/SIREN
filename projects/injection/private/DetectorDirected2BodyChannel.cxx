@@ -512,9 +512,28 @@ void DetectorDirected2BodyChannel::Sample(
         double cos_rest = siren::math::scalar_product(lab_dir, geo.to_center);
         solutions[0].cos_theta_rest = cos_rest;
     } else if (geo.regime == DirectedRegime::BoundInKin) {
-        // Bounding cone fully inside kinematic cone: sample bounding cone
-        auto [dir, sa] = SampleConeDirection(random, decay_pos);
-        lab_dir = dir;
+        // Bounding cone fully inside kinematic cone: sample toward target
+        if (mode_ == Mode::Volume) {
+            siren::math::Vector3D target_point;
+            siren::math::Vector3D diff;
+            double diff_mag = 0.0;
+            for (int attempt = 0; attempt < 100; ++attempt) {
+                target_point = SampleVolumePoint(random);
+                diff = target_point - decay_pos;
+                diff_mag = diff.magnitude();
+                if (diff_mag > 1e-6) break;
+            }
+            if (diff_mag > 1e-6) {
+                lab_dir = diff;
+                lab_dir.normalize();
+            } else {
+                auto [dir, sa] = SampleConeDirection(random, decay_pos);
+                lab_dir = dir;
+            }
+        } else {
+            auto [dir, sa] = SampleConeDirection(random, decay_pos);
+            lab_dir = dir;
+        }
         double cos_lab = siren::math::scalar_product(lab_dir, parent_dir);
         solutions = SolveLabAngle(beta, gamma, p_rest, E_A_rest, m_A, cos_lab);
         n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
@@ -674,15 +693,6 @@ double DetectorDirected2BodyChannel::Density(
     double cos_to = siren::math::scalar_product(lab_dir, geo.to_center);
     if (cos_to < std::cos(geo.theta_bound)) return 0.0;
 
-    // Lab-frame solid angle of the sampling region
-    double omega;
-    if (geo.regime == DirectedRegime::BoundInKin) {
-        omega = geo.omega_bound;
-    } else {
-        omega = geo.omega_eff;
-    }
-    if (omega <= 0.0) return 0.0;
-
     // Solve kinematics and find the matching branch
     auto solutions = SolveLabAngle(
         beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
@@ -710,10 +720,29 @@ double DetectorDirected2BodyChannel::Density(
     }
     if (best_dist > 0.01) return 0.0;
 
-    // Lab-frame density: (1/omega) * J_chosen/J_total
-    // Convert to rest-frame: multiply by J_chosen (= |dOmega_lab/dOmega_rest|)
-    // Result: (1/omega) * J_chosen^2 / J_total
-    return J_chosen * J_chosen / (omega * J_total);
+    // Lab-frame angular density of the sampling region.
+    // Volume mode uses SolidAngleDensity (exact target shape);
+    // Cone mode uses 1/Omega (uniform on circular cone).
+    double g_angular;
+    if (geo.regime == DirectedRegime::BoundInKin && mode_ == Mode::Volume) {
+        siren::math::Vector3D decay_pos(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
+        g_angular = SolidAngleDensity(decay_pos, lab_dir);
+        if (g_angular <= 0.0) return 0.0;
+    } else if (geo.regime == DirectedRegime::BoundInKin) {
+        g_angular = 1.0 / geo.omega_bound;
+    } else {
+        // Overlap
+        if (geo.omega_eff <= 0.0) return 0.0;
+        g_angular = 1.0 / geo.omega_eff;
+    }
+
+    // Rest-frame density = lab-frame density * J_chosen
+    //   lab-frame density = g_angular * J_chosen / J_total
+    //   rest-frame density = g_angular * J_chosen^2 / J_total
+    return g_angular * J_chosen * J_chosen / J_total;
 }
 
 } // namespace injection
