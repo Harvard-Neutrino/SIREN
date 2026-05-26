@@ -412,9 +412,14 @@ inline DirectedGeometry ClassifyDirectedRegime(
         geo.axis_sep = std::acos(std::clamp(cos_sep, -1.0, 1.0));
     }
 
-    // Intersection
-    geo.omega_eff = ConeIntersectionSolidAngle(
-        geo.theta_bound, geo.theta_kin, geo.axis_sep);
+    // Intersection: if the kinematic cone is the full sphere
+    // (all lab angles accessible), the intersection is the bounding cone.
+    if (cos_critical <= -1.0 + 1e-10) {
+        geo.omega_eff = geo.omega_bound;
+    } else {
+        geo.omega_eff = ConeIntersectionSolidAngle(
+            geo.theta_bound, geo.theta_kin, geo.axis_sep);
+    }
 
     // Classify
     double tol = 1e-12;
@@ -698,8 +703,13 @@ inline double DensityDirectedStep(
     double cos_critical = CriticalCosTheta(beta, gamma, p_rest, E_rest, daughter_mass);
     if (cos_theta_lab < cos_critical) return 0.0;
 
-    double cos_to = siren::math::scalar_product(lab_dir, geo.to_center);
-    if (cos_to < std::cos(geo.theta_bound)) return 0.0;
+    // In BoundInKin, Sample() always produces directions inside the
+    // bounding cone, so skip the boundary check (avoids floating-point
+    // edge rejections).  In Overlap, the direction must be inside both cones.
+    if (geo.regime != DirectedRegime::BoundInKin) {
+        double cos_to = siren::math::scalar_product(lab_dir, geo.to_center);
+        if (cos_to < std::cos(geo.theta_bound)) return 0.0;
+    }
 
     auto solutions = SolveLabAngle(beta, gamma, p_rest, E_rest, daughter_mass, cos_theta_lab);
 
@@ -723,13 +733,13 @@ inline double DensityDirectedStep(
             J_chosen = sol.jacobian;
         }
     }
-    if (best_dist > 0.01) return 0.0;
+    if (best_dist > 0.1) return 0.0;
 
     double g_angular;
     if (geo.regime == DirectedRegime::BoundInKin &&
         mode == DetectorDirected2BodyChannel::Mode::Volume) {
         g_angular = SolidAngleDensity(target, target_volume, decay_pos, lab_dir);
-        if (g_angular <= 0.0) return 0.0;
+        if (g_angular <= 0.0) g_angular = 1.0 / geo.omega_bound;
     } else if (geo.regime == DirectedRegime::BoundInKin) {
         g_angular = 1.0 / geo.omega_bound;
     } else {

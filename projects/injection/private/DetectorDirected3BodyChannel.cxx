@@ -158,30 +158,62 @@ void DetectorDirected3BodyChannel::Sample(
     double s_pair = SampleInvariantMassSquared(random, s_min, s_max);
     double m_pair = std::sqrt(s_pair);
 
-    siren::math::Vector3D vertex(
-        record.interaction_vertex[0],
-        record.interaction_vertex[1],
-        record.interaction_vertex[2]);
+    double E_parent = record.primary_momentum[0];
+    double px_parent = record.primary_momentum[1];
+    double py_parent = record.primary_momentum[2];
+    double pz_parent = record.primary_momentum[3];
+    double p_parent = std::sqrt(px_parent*px_parent + py_parent*py_parent + pz_parent*pz_parent);
 
-    // Step 1: P -> pair + spectator (directed toward target)
-    auto step1 = detail::SampleDirectedStep(
-        record.primary_momentum[0],
-        record.primary_momentum[1],
-        record.primary_momentum[2],
-        record.primary_momentum[3],
-        M, m_pair, m_spectator,
-        vertex, *target_, target_volume_, mode_, random);
+    // Step 1: P -> pair + spectator (isotropic in rest frame)
+    // The pair direction is not biased — it is just a bookkeeping
+    // device for factorizing the 3-body phase space.
+    double p1_rest = TwoBodyRestMomentum(M, m_pair, m_spectator);
+    double E1_rest = TwoBodyRestEnergy(M, m_pair, m_spectator);
 
-    // Construct pair and spectator 4-vectors
-    double pair_E = step1.E_lab;
-    double pair_px = step1.p_lab * step1.lab_dir.GetX();
-    double pair_py = step1.p_lab * step1.lab_dir.GetY();
-    double pair_pz = step1.p_lab * step1.lab_dir.GetZ();
+    double cos1 = 2.0 * random->Uniform(0, 1) - 1.0;
+    double phi1 = 2.0 * M_PI * random->Uniform(0, 1);
+    double sin1 = std::sqrt(1.0 - cos1 * cos1);
 
-    double spec_E = record.primary_momentum[0] - pair_E;
-    double spec_px = record.primary_momentum[1] - pair_px;
-    double spec_py = record.primary_momentum[2] - pair_py;
-    double spec_pz = record.primary_momentum[3] - pair_pz;
+    double pair_E, pair_px, pair_py, pair_pz;
+    if (p_parent < 1e-15) {
+        // Parent at rest: lab = rest
+        pair_px = p1_rest * sin1 * std::cos(phi1);
+        pair_py = p1_rest * sin1 * std::sin(phi1);
+        pair_pz = p1_rest * cos1;
+        pair_E = E1_rest;
+    } else {
+        double beta = p_parent / E_parent;
+        double gamma = E_parent / M;
+        siren::math::Vector3D parent_dir(px_parent/p_parent, py_parent/p_parent, pz_parent/p_parent);
+
+        siren::math::Vector3D perp1, perp2;
+        if (std::abs(parent_dir.GetX()) < 0.9)
+            perp1 = siren::math::Vector3D(1, 0, 0);
+        else
+            perp1 = siren::math::Vector3D(0, 1, 0);
+        perp2 = siren::math::vector_product(parent_dir, perp1);
+        perp2.normalize();
+        perp1 = siren::math::vector_product(perp2, parent_dir);
+        perp1.normalize();
+
+        double p_rest_par = p1_rest * cos1;
+        double p_rest_perp1 = p1_rest * sin1 * std::cos(phi1);
+        double p_rest_perp2 = p1_rest * sin1 * std::sin(phi1);
+
+        pair_E = gamma * (E1_rest + beta * p_rest_par);
+        double p_lab_par = gamma * (p_rest_par + beta * E1_rest);
+
+        siren::math::Vector3D p_vec =
+            parent_dir * p_lab_par + perp1 * p_rest_perp1 + perp2 * p_rest_perp2;
+        pair_px = p_vec.GetX();
+        pair_py = p_vec.GetY();
+        pair_pz = p_vec.GetZ();
+    }
+
+    double spec_E = E_parent - pair_E;
+    double spec_px = px_parent - pair_px;
+    double spec_py = py_parent - pair_py;
+    double spec_pz = pz_parent - pair_pz;
 
     // Step 2: pair -> directed + other (directed toward target)
     int other_pair_index = (directed_pair_index_ == pair_first_index_)
@@ -189,12 +221,16 @@ void DetectorDirected3BodyChannel::Sample(
     double m_directed = record.secondary_masses[directed_pair_index_];
     double m_other = record.secondary_masses[other_pair_index];
 
+    siren::math::Vector3D vertex(
+        record.interaction_vertex[0],
+        record.interaction_vertex[1],
+        record.interaction_vertex[2]);
+
     auto step2 = detail::SampleDirectedStep(
         pair_E, pair_px, pair_py, pair_pz,
         m_pair, m_directed, m_other,
         vertex, *target_, target_volume_, mode_, random);
 
-    // Construct directed and other daughter 4-vectors
     double dir_E = step2.E_lab;
     double dir_px = step2.p_lab * step2.lab_dir.GetX();
     double dir_py = step2.p_lab * step2.lab_dir.GetY();
@@ -242,26 +278,19 @@ double DetectorDirected3BodyChannel::Density(
     double s_density = InvariantMassDensity(s_pair, s_min, s_max);
     if (s_density <= 0.0) return 0.0;
 
+    // Step 1 density: P -> pair + spectator (isotropic)
+    static const double INV_FOUR_PI = 1.0 / (4.0 * M_PI);
+    double step1_density = INV_FOUR_PI;
+
+    // Step 2 density: pair -> directed + other (directed toward target)
+    int other_pair_index = (directed_pair_index_ == pair_first_index_)
+        ? pair_second_index_ : pair_first_index_;
+    FourVector directed = ReadSecondary(record, directed_pair_index_);
+
     siren::math::Vector3D vertex(
         record.interaction_vertex[0],
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
-
-    // Step 1 density: P -> pair + spectator
-    double step1_density = detail::DensityDirectedStep(
-        record.primary_momentum[0],
-        record.primary_momentum[1],
-        record.primary_momentum[2],
-        record.primary_momentum[3],
-        M, m_pair, m_spectator,
-        pair.e, pair.p.GetX(), pair.p.GetY(), pair.p.GetZ(),
-        vertex, *target_, target_volume_, mode_);
-    if (step1_density <= 0.0) return 0.0;
-
-    // Step 2 density: pair -> directed + other
-    int other_pair_index = (directed_pair_index_ == pair_first_index_)
-        ? pair_second_index_ : pair_first_index_;
-    FourVector directed = ReadSecondary(record, directed_pair_index_);
 
     double step2_density = detail::DensityDirectedStep(
         pair.e, pair.p.GetX(), pair.p.GetY(), pair.p.GetZ(),
