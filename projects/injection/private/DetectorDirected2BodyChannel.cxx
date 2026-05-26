@@ -387,6 +387,21 @@ double DetectorDirected2BodyChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord const & record) const
 {
+    // The density is reported in LabFrameSolidAngle convention:
+    // it is the probability per unit lab-frame solid angle of producing
+    // the observed daughter kinematics.
+    //
+    // The sampling procedure is:
+    //   1. Pick a lab direction toward the target (density g_angular per lab sr)
+    //   2. Solve 2-body kinematics (may give 1 or 2 solutions)
+    //   3. Choose solution i with probability J_i / J_total
+    //
+    // The combined density per unit lab solid angle is:
+    //   g_lab = g_angular * (J_match / J_total)
+    //
+    // The branch-selection factor J_match/J_total accounts for the fact
+    // that two solutions share the same lab direction; only one is chosen.
+
     if (record.signature.secondary_types.size() != 2) return 0.0;
 
     double M_parent = record.primary_mass;
@@ -420,18 +435,14 @@ double DetectorDirected2BodyChannel::Density(
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    // Compute the lab-frame angular density based on the mode.
     double g_angular;
-
     if (mode_ == Mode::Cone) {
-        if (!DirectionHitsTarget(decay_pos, lab_dir)) return 0.0;
         g_angular = 1.0 / ConeSolidAngle(decay_pos);
     } else {
         g_angular = SolidAngleDensity(decay_pos, lab_dir);
         if (g_angular <= 0) return 0.0;
     }
 
-    // Jacobian: rest-frame to lab-frame solid angle
     siren::math::Vector3D parent_dir(
         px_parent / p_parent, py_parent / p_parent, pz_parent / p_parent);
     double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
@@ -439,16 +450,17 @@ double DetectorDirected2BodyChannel::Density(
     auto solutions = SolveLabAngle(
         beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
 
-    // Find the matching solution
     double E_A_lab = record.secondary_momenta[daughter_index_][0];
     double p_par_lab = p_A * cos_theta_lab;
     double p_par_rest = gamma * (p_par_lab - beta * E_A_lab);
     double cos_theta_rest_actual = p_par_rest / p_rest;
 
-    // Match the solution that agrees with the record's kinematics.
-    // Use a generous tolerance: numerical Lorentz boosts accumulate
-    // ~1e-10 relative error, but extreme boosts or near-critical angles
-    // can amplify it.
+    double J_total = 0.0;
+    for (auto const & sol : solutions) {
+        if (sol.valid) J_total += sol.jacobian;
+    }
+    if (J_total <= 0.0) return 0.0;
+
     double best_jacobian = 0.0;
     double best_distance = 1e30;
     for (auto const & sol : solutions) {
@@ -461,7 +473,7 @@ double DetectorDirected2BodyChannel::Density(
     }
 
     if (best_distance > 0.01) return 0.0;
-    return g_angular * best_jacobian;
+    return g_angular * best_jacobian / J_total;
 }
 
 } // namespace injection

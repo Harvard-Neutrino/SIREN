@@ -152,10 +152,69 @@ double ConvertDensity(
             PhaseSpaceConvention::Recursive2Body, record);
     }
 
-    // RestFrame <-> LabFrame: requires knowing which daughter the
-    // density is defined for. Not yet implemented — needs
-    // additional metadata on the channel.
-    // Fall through to returning unconverted density.
+    // RestFrameSolidAngle <-> LabFrameSolidAngle for 2-body decays.
+    // Uses the Jacobian |dOmega_lab/dOmega_rest| computed from the
+    // record's kinematics (daughter 0 by default).
+    if ((from == PhaseSpaceConvention::RestFrameSolidAngle &&
+         to == PhaseSpaceConvention::LabFrameSolidAngle) ||
+        (from == PhaseSpaceConvention::LabFrameSolidAngle &&
+         to == PhaseSpaceConvention::RestFrameSolidAngle)) {
+        if (record.secondary_masses.size() < 2) return density;
+
+        double M = record.primary_mass;
+        double m_A = record.secondary_masses[0];
+        double m_B = record.secondary_masses[1];
+        double p_rest = siren::injection::TwoBodyRestMomentum(M, m_A, m_B);
+        double E_rest = siren::injection::TwoBodyRestEnergy(M, m_A, m_B);
+
+        double E_parent = record.primary_momentum[0];
+        double px = record.primary_momentum[1];
+        double py = record.primary_momentum[2];
+        double pz = record.primary_momentum[3];
+        double p_parent = std::sqrt(px*px + py*py + pz*pz);
+        if (p_parent < 1e-15) return density;
+
+        double beta_parent = p_parent / E_parent;
+        double gamma_parent = E_parent / M;
+
+        double px_A = record.secondary_momenta[0][1];
+        double py_A = record.secondary_momenta[0][2];
+        double pz_A = record.secondary_momenta[0][3];
+        double p_A = std::sqrt(px_A*px_A + py_A*py_A + pz_A*pz_A);
+        if (p_A < 1e-15) return density;
+
+        double cos_theta_lab =
+            (px_A*px + py_A*py + pz_A*pz) / (p_A * p_parent);
+
+        // Compute the actual rest-frame angle to match the correct solution.
+        double E_A_lab = record.secondary_momenta[0][0];
+        double p_par_lab = p_A * cos_theta_lab;
+        double p_par_rest = gamma_parent * (p_par_lab - beta_parent * E_A_lab);
+        double cos_theta_rest_actual = (p_rest > 0) ? p_par_rest / p_rest : 0.0;
+
+        auto solutions = siren::injection::SolveLabAngle(
+            beta_parent, gamma_parent, p_rest, E_rest,
+            m_A, cos_theta_lab);
+
+        double best_J = 0.0;
+        double best_dist = 1e30;
+        for (auto const & sol : solutions) {
+            if (!sol.valid) continue;
+            double dist = std::abs(sol.cos_theta_rest - cos_theta_rest_actual);
+            if (dist < best_dist) {
+                best_dist = dist;
+                best_J = sol.jacobian;
+            }
+        }
+
+        if (best_J <= 0.0 || !std::isfinite(best_J)) return density;
+
+        if (from == PhaseSpaceConvention::RestFrameSolidAngle) {
+            return density / best_J;
+        } else {
+            return density * best_J;
+        }
+    }
 
     return density;
 }

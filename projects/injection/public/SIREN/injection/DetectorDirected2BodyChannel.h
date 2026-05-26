@@ -62,7 +62,7 @@ public:
 
     std::string Name() const override { return "DetectorDirected2Body"; }
     PhaseSpaceConvention Convention() const override {
-        return PhaseSpaceConvention::RestFrameSolidAngle;
+        return PhaseSpaceConvention::LabFrameSolidAngle;
     }
 
     // Set the true volume of the target geometry (for Volume mode).
