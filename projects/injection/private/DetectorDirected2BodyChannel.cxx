@@ -312,44 +312,47 @@ void DetectorDirected2BodyChannel::Sample(
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    // Choose a lab-frame direction toward the target and solve
-    // kinematics. Resample if the direction is kinematically
-    // forbidden (beyond the critical angle for massive daughters).
+    // Choose a lab-frame direction toward the target.
     siren::math::Vector3D lab_dir;
-    std::array<TwoBodyLabSolution, 2> solutions;
-    int n_valid = 0;
 
-    for (int attempt = 0; attempt < 1000; ++attempt) {
-        if (mode_ == Mode::Cone) {
-            auto [dir, sa] = SampleConeDirection(random, decay_pos);
-            lab_dir = dir;
-        } else {
-            siren::math::Vector3D target_point;
-            siren::math::Vector3D diff;
-            double diff_mag = 0.0;
-            for (int inner = 0; inner < 100; ++inner) {
-                target_point = SampleVolumePoint(random);
-                diff = target_point - decay_pos;
-                diff_mag = diff.magnitude();
-                if (diff_mag > 1e-6) break;
-            }
-            if (diff_mag <= 1e-6) continue;
-            lab_dir = diff;
-            lab_dir.normalize();
+    if (mode_ == Mode::Cone) {
+        auto [dir, sa] = SampleConeDirection(random, decay_pos);
+        lab_dir = dir;
+    } else {
+        siren::math::Vector3D target_point;
+        siren::math::Vector3D diff;
+        double diff_mag = 0.0;
+        for (int attempt = 0; attempt < 100; ++attempt) {
+            target_point = SampleVolumePoint(random);
+            diff = target_point - decay_pos;
+            diff_mag = diff.magnitude();
+            if (diff_mag > 1e-6) break;
         }
-
-        double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
-        solutions = SolveLabAngle(
-            beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
-        n_valid = (solutions[0].valid ? 1 : 0)
-                + (solutions[1].valid ? 1 : 0);
-        if (n_valid > 0) break;
+        if (diff_mag <= 1e-6) {
+            throw std::runtime_error(
+                "Failed to sample a target point sufficiently "
+                "separated from decay vertex after 100 attempts");
+        }
+        lab_dir = diff;
+        lab_dir.normalize();
     }
 
+    // Solve 2-body kinematics for this lab direction.
+    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+    auto solutions = SolveLabAngle(
+        beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
+    int n_valid = (solutions[0].valid ? 1 : 0)
+                + (solutions[1].valid ? 1 : 0);
+
     if (n_valid == 0) {
-        throw siren::utilities::InjectionFailure(
-            "DetectorDirected2BodyChannel: no kinematically valid "
-            "direction found toward target after 1000 attempts");
+        // Direction is kinematically forbidden (beyond the critical
+        // angle for massive daughters with slow parents). Fall back
+        // to isotropic rest-frame sampling. Density() will return 0
+        // for this channel at this point; the multi-channel isotropic
+        // component provides the non-zero generation density.
+        Isotropic2BodyChannel fallback(daughter_index_);
+        fallback.Sample(random, nullptr, record);
+        return;
     }
 
     int chosen = 0;
