@@ -360,7 +360,9 @@ def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
     det_origin = detector_model.DetectorOrigin.get()
     det_x, det_y, det_z = det_origin.GetX(), det_origin.GetY(), det_origin.GetZ()
 
-    fiducial = siren.geometry.Box(2.0, 2.0, 2.5)
+    placement = siren.geometry.Placement(
+        siren.math.Vector3D(det_x, det_y, det_z))
+    fiducial = siren.geometry.Box(placement, 2.0, 2.0, 2.5)
 
     # -- Physics models --
     pion_decay = meson.MesonThreeBodySIRENDecay(
@@ -414,6 +416,7 @@ def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
 
     # -- Secondary distributions --
     secondary_vertex = siren.distributions.SecondaryPhysicalVertexDistribution()
+    secondary_bounded_vertex = siren.distributions.SecondaryBoundedVertexDistribution(fiducial, 1000.0)
 
     # -- Biased phase spaces for each secondary --
     v1_prod_sig = v1_to_chi.GetPossibleSignatures()[0]
@@ -424,24 +427,27 @@ def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
     secondary_phase_spaces = {
         _pt(PDGID_V1_PROD): {
             v1_prod_sig: _make_mc(
-                [siren.injection.DetectorDirected2BodyChannel(fiducial, 0)],
-                [1.0],
+                [siren.injection.PhysicalDecayChannel(v1_to_chi, v1_prod_sig),
+                 siren.injection.DetectorDirected2BodyChannel(fiducial, 0)],
+                [0.01, 0.99],
             ),
         },
         _pt(PDGID_CHI): {
             chi_sig: _make_mc(
-                [siren.injection.DetectorDirectedScatteringChannel(
+                [siren.injection.PhysicalCrossSectionChannel(upscatter, chi_sig),
+                 siren.injection.DetectorDirectedScatteringChannel(
                     fiducial,
                     directed_index=0,
                     variable=siren.injection.ScatteringVariable.Q2,
                 )],
-                [1.0],
+                [0.01, 0.99],
             ),
         },
         _pt(PDGID_CHI_PRIME): {
             chi_prime_sig: _make_mc(
-                [siren.injection.DetectorDirected2BodyChannel(fiducial, 1)],
-                [1.0],
+                [siren.injection.PhysicalDecayChannel(chi_prime_decay, chi_prime_sig),
+                 siren.injection.DetectorDirected2BodyChannel(fiducial, 1)],
+                [0.01, 0.99],
             ),
         },
         _pt(PDGID_V1_SIGNAL): {
@@ -476,7 +482,7 @@ def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
             _pt(PDGID_V1_PROD): [secondary_vertex],
             _pt(PDGID_CHI): [secondary_vertex],
             _pt(PDGID_CHI_PRIME): [secondary_vertex],
-            _pt(PDGID_V1_SIGNAL): [secondary_vertex],
+            _pt(PDGID_V1_SIGNAL): [secondary_bounded_vertex],
         },
         secondary_phase_spaces=secondary_phase_spaces,
         stopping_condition=lambda datum, i: not (
@@ -525,5 +531,5 @@ def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
 
     for event in events:
         w = weighter(event)
-        assert not math.isnan(w), f"Weight is NaN"
-        assert w >= 0.0, f"Weight is negative: {w}"
+        assert math.isfinite(w), f"Weight is not finite: {w}"
+        assert w > 0.0, f"Weight is not positive: {w}"

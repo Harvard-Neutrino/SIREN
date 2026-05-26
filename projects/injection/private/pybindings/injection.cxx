@@ -53,6 +53,8 @@ PYBIND11_MODULE(injection,m) {
   // Utils function
 
   m.def("CrossSectionProbability", &CrossSectionProbability);
+  m.def("CrossSectionProbabilityWithPhaseSpace", &CrossSectionProbabilityWithPhaseSpace);
+  m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
 
   // Phase space channels
 
@@ -224,6 +226,8 @@ PYBIND11_MODULE(injection,m) {
     .def("EventsToInject",&Injector::EventsToInject)
     .def("__len__", &Injector::EventsToInject)
     .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
+    .def("PrimaryInjectionBounds",&Injector::PrimaryInjectionBounds)
+    .def("SecondaryInjectionBounds",&Injector::SecondaryInjectionBounds)
     .def("SaveInjector",&Injector::SaveInjector)
     .def("LoadInjector",&Injector::LoadInjector)
     .def(pybind11::pickle(
