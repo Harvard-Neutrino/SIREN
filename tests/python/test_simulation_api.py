@@ -627,7 +627,7 @@ class TestSecondaryBiasing:
         fid = siren.get_fiducial_volume("IceCube")
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Name() == "DetectorDirected2Body"
-        assert ch.Convention() == siren.injection.PhaseSpaceConvention.LabFrameSolidAngle
+        assert ch.Convention() == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
 
     def test_detector_directed_3body_channel_construction(self):
         import siren
