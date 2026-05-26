@@ -4,6 +4,7 @@
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/detector/DetectorModel.h"
+#include "SIREN/utilities/Errors.h"
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Cylinder.h"
@@ -311,44 +312,44 @@ void DetectorDirected2BodyChannel::Sample(
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
 
-    // Choose a lab-frame direction based on the mode
+    // Choose a lab-frame direction toward the target and solve
+    // kinematics. Resample if the direction is kinematically
+    // forbidden (beyond the critical angle for massive daughters).
     siren::math::Vector3D lab_dir;
+    std::array<TwoBodyLabSolution, 2> solutions;
+    int n_valid = 0;
 
-    if (mode_ == Mode::Cone) {
-        auto [dir, sa] = SampleConeDirection(random, decay_pos);
-        lab_dir = dir;
-    } else {
-        siren::math::Vector3D target_point;
-        siren::math::Vector3D diff;
-        double diff_mag = 0.0;
-        for (int attempt = 0; attempt < 100; ++attempt) {
-            target_point = SampleVolumePoint(random);
-            diff = target_point - decay_pos;
-            diff_mag = diff.magnitude();
-            if (diff_mag > 1e-6) {
-                break;
+    for (int attempt = 0; attempt < 1000; ++attempt) {
+        if (mode_ == Mode::Cone) {
+            auto [dir, sa] = SampleConeDirection(random, decay_pos);
+            lab_dir = dir;
+        } else {
+            siren::math::Vector3D target_point;
+            siren::math::Vector3D diff;
+            double diff_mag = 0.0;
+            for (int inner = 0; inner < 100; ++inner) {
+                target_point = SampleVolumePoint(random);
+                diff = target_point - decay_pos;
+                diff_mag = diff.magnitude();
+                if (diff_mag > 1e-6) break;
             }
+            if (diff_mag <= 1e-6) continue;
+            lab_dir = diff;
+            lab_dir.normalize();
         }
-        if (diff_mag <= 1e-6) {
-            throw std::runtime_error("Failed to sample a target point sufficiently separated from decay vertex after 100 attempts");
-        }
-        lab_dir = diff;
-        lab_dir.normalize();
+
+        double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+        solutions = SolveLabAngle(
+            beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
+        n_valid = (solutions[0].valid ? 1 : 0)
+                + (solutions[1].valid ? 1 : 0);
+        if (n_valid > 0) break;
     }
 
-    // Solve 2-body kinematics
-    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
-    auto solutions = SolveLabAngle(
-        beta, gamma, p_rest, E_A_rest, m_A, cos_theta_lab);
-    int n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
-
     if (n_valid == 0) {
-        // Kinematically forbidden — fall back to isotropic.
-        // Density() will return 0 for this channel, so the
-        // multi-channel weight comes entirely from the isotropic term.
-        Isotropic2BodyChannel fallback(daughter_index_);
-        fallback.Sample(random, nullptr, record);
-        return;
+        throw siren::utilities::InjectionFailure(
+            "DetectorDirected2BodyChannel: no kinematically valid "
+            "direction found toward target after 1000 attempts");
     }
 
     int chosen = 0;
@@ -441,13 +442,23 @@ double DetectorDirected2BodyChannel::Density(
     double p_par_rest = gamma * (p_par_lab - beta * E_A_lab);
     double cos_theta_rest_actual = p_par_rest / p_rest;
 
+    // Match the solution that agrees with the record's kinematics.
+    // Use a generous tolerance: numerical Lorentz boosts accumulate
+    // ~1e-10 relative error, but extreme boosts or near-critical angles
+    // can amplify it.
+    double best_jacobian = 0.0;
+    double best_distance = 1e30;
     for (auto const & sol : solutions) {
-        if (sol.valid && std::abs(sol.cos_theta_rest - cos_theta_rest_actual) < 1e-6) {
-            return g_angular * sol.jacobian;
+        if (!sol.valid) continue;
+        double dist = std::abs(sol.cos_theta_rest - cos_theta_rest_actual);
+        if (dist < best_distance) {
+            best_distance = dist;
+            best_jacobian = sol.jacobian;
         }
     }
 
-    return 0.0;
+    if (best_distance > 0.01) return 0.0;
+    return g_angular * best_jacobian;
 }
 
 } // namespace injection
