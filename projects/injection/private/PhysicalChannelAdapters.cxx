@@ -48,6 +48,10 @@ PhaseSpaceConvention InferDecayConvention(
     size_t n_secondaries)
 {
     if (n_secondaries == 2) {
+        auto variables = decay->DensityVariables();
+        if (ContainsAny(variables, {"energy", "e_", "lab", "cone", "biased"})) {
+            return PhaseSpaceConvention::Custom;
+        }
         return PhaseSpaceConvention::RestFrameSolidAngle;
     }
 

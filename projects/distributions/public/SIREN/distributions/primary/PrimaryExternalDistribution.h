@@ -3,8 +3,10 @@
 #define SIREN_PrimaryExternalDistribution_H
 
 #include <memory>                                        // for shared_ptr
+#include <array>                                         // for array
 #include <set>                                           // for set
 #include <string>                                        // for string
+#include <tuple>                                         // for tuple
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
 #include <stdexcept>                                     // for runtime_error
@@ -17,8 +19,10 @@
 #include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 
-#include "SIREN/distributions/Distributions.h"       // for WeightableDi...
-#include "SIREN/distributions/DistributionVariable.h" // for DistributionVariable
+#include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/DistributionVariable.h"
+#include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "SIREN/math/Vector3D.h"
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -29,7 +33,7 @@ namespace cereal { class access; }
 namespace siren {
 namespace distributions {
 
-class PrimaryExternalDistribution : virtual public PrimaryInjectionDistribution {
+class PrimaryExternalDistribution : virtual public VertexPositionDistribution {
 friend cereal::access;
 protected:
     PrimaryExternalDistribution() {};
@@ -43,21 +47,26 @@ private:
     bool mom_set = false;
     double emin = 0;
     std::set<DistributionVariable> set_variables_;
+    mutable std::array<double, 3> _cached_position = {0.0, 0.0, 0.0};
 public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, double emin);
     PrimaryExternalDistribution(PrimaryExternalDistribution const & other) = default;
     size_t GetPhysicalNumEvents() const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::set<DistributionVariable> SetVariables() const override;
+    virtual std::set<DistributionVariable> RequiredVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
             archive(::cereal::make_nvp("InputData", input_data));
@@ -72,7 +81,7 @@ public:
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
             archive(::cereal::make_nvp("InputData", input_data));
@@ -84,6 +93,8 @@ public:
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
         }
     }
+private:
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
 protected:
     virtual bool equal(WeightableDistribution const & distribution) const override;
     virtual bool less(WeightableDistribution const & distribution) const override;
@@ -94,6 +105,6 @@ protected:
 
 CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::PrimaryExternalDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryInjectionDistribution, siren::distributions::PrimaryExternalDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PrimaryExternalDistribution);
 
 #endif // SIREN_PrimaryExternalDistribution_H

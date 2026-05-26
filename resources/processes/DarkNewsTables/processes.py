@@ -8,17 +8,32 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 logger_file = os.path.join(base_path, "logger.py")
 siren._util.load_module("logger", logger_file)
 
-from siren.DNModelContainer import ModelContainer
-from DarkNews.nuclear_tools import NuclearTarget
+def _load_local_module(module_name):
+    return siren._util.load_module(
+        f"siren.resources.processes.DarkNewsTables.{module_name}",
+        os.path.join(base_path, f"{module_name}.py"),
+    )
 
-# Import PyDarkNewsDecay and PyDarkNewsCrossSection
-decay_file = os.path.join(base_path, "DarkNewsDecay.py")
-cross_section_file = os.path.join(base_path, "DarkNewsCrossSection.py")
-DarkNewsDecay = siren._util.load_module("siren.resources.processes.DarkNewsTables.DarkNewsDecay", decay_file)
-DarkNewsCrossSection = siren._util.load_module("siren.resources.processes.DarkNewsTables.DarkNewsCrossSection", cross_section_file)
 
-PyDarkNewsCrossSection = DarkNewsCrossSection.PyDarkNewsCrossSection
-PyDarkNewsDecay = DarkNewsDecay.PyDarkNewsDecay
+try:
+    from siren.DNModelContainer import ModelContainer
+    from DarkNews.nuclear_tools import NuclearTarget
+
+    DarkNewsDecay = _load_local_module("DarkNewsDecay")
+    DarkNewsCrossSection = _load_local_module("DarkNewsCrossSection")
+
+    PyDarkNewsCrossSection = DarkNewsCrossSection.PyDarkNewsCrossSection
+    PyDarkNewsDecay = DarkNewsDecay.PyDarkNewsDecay
+    _DARKNEWS_AVAILABLE = True
+except ImportError:
+    ModelContainer = None
+
+    class NuclearTarget:
+        pass
+
+    PyDarkNewsCrossSection = None
+    PyDarkNewsDecay = None
+    _DARKNEWS_AVAILABLE = False
 
 xs_path = siren.utilities.get_processes_model_path(
     f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False
@@ -434,6 +449,12 @@ def load_processes(
         raise ValueError(
             'Either "nuclear_targets" or "detector_model" must be provided'
         )
+    if not _DARKNEWS_AVAILABLE:
+        raise ImportError(
+            "DarkNews is required for the generic DarkNewsTables loader. "
+            "Use load_vector_portal_offshell or load_meson_scalar for the "
+            "self-contained Dutta-Kim models."
+        )
 
     if nuclear_targets is None:
         nuclear_targets = GetDetectorModelTargets(detector_model)[1]
@@ -525,3 +546,274 @@ def SaveDarkNewsProcesses(table_dir,
             if pickles:
                 with open(os.path.join(table_subdir, "dec_object.pkl"),"wb") as f:
                     pickle.dump(dec,f)
+
+def SaveDarkNewsProcesses(table_dir,
+                          primary_processes,
+                          primary_ups_keys,
+                          secondary_processes,
+                          secondary_dec_keys,
+                          pickles=True):
+    for primary in primary_processes.keys():
+        for xs, ups_key in zip(primary_processes[primary], primary_ups_keys[primary]):
+            subdir = "_".join(["CrossSection"] + [str(x) if type(x)!=NuclearTarget else str(x.name) for x in ups_key])
+            table_subdir = os.path.join(table_dir, subdir)
+            os.makedirs(table_subdir,exist_ok=True)
+            print("Saving cross section table at %s" % table_subdir)
+            xs.FillInterpolationTables()
+            xs.save_to_table(table_subdir)
+            # if pickles:
+            #     with open(os.path.join(table_subdir, "xs_object.pkl"),"wb") as f:
+            #         pickle.dump(xs,f)
+    for secondary in secondary_processes.keys():
+        for dec, dec_key in zip(secondary_processes[secondary],secondary_dec_keys[secondary]):
+            subdir = "_".join(["Decay"] + [str(x) if type(x)!=NuclearTarget else str(x.name) for x in dec_key])
+            table_subdir = os.path.join(table_dir, subdir)
+            os.makedirs(table_subdir,exist_ok=True)
+            print("Saving decay object at %s" % table_subdir)
+            dec.save_to_table(table_subdir)
+            if pickles:
+                with open(os.path.join(table_subdir, "dec_object.pkl"),"wb") as f:
+                    pickle.dump(dec,f)
+
+
+# ===================================================================
+#  Factory functions for Dutta-Kim models (no DarkNews dependency)
+# ===================================================================
+
+def load_vector_portal(
+    m_chi,
+    m_chi_prime,
+    m_V1,
+    m_V2,
+    g_D,
+    epsilon_1,
+    epsilon_2,
+    detector_model,
+    *,
+    pdgid_chi=5917,
+    pdgid_chi_prime=5918,
+    pdgid_V1=5922,
+    flux_tag="pion_numu",
+    m_meson=0.13957,
+    m_lepton=0.10566,
+    min_energy=None,
+    max_energy=3.0,
+    table_dir=None,
+    physically_normalized=True,
+):
+    """
+    Construct primary and secondary process dicts for the vector-portal
+    dark matter model:  chi N -> chi' N,  chi' -> chi V1,  V1 -> e+ e-.
+
+    Parameters
+    ----------
+    m_chi, m_chi_prime, m_V1, m_V2 : float
+        Particle masses in GeV.  m_V2 is the heavy mediator for upscattering.
+    g_D : float
+        Dark gauge coupling.
+    epsilon_1, epsilon_2 : float
+        Kinetic mixing parameters for V1 and V2.
+    detector_model : siren.detector.DetectorModel
+        Detector model (used to determine target nuclei).
+    flux_tag : str
+        Flux table tag, e.g. "pion_numu", "kaon_numu".
+    m_meson, m_lepton : float
+        Parent meson and lepton masses for the production channel.
+
+    Returns
+    -------
+    primary_processes : dict
+        {chi_type: [PyDarkNewsCrossSection]}
+    secondary_processes : dict
+        {chi_prime_type: [ChiPrimeDecay], v1_type: [DarkPhotonDecay]}
+    chi_flux : siren.distributions.TabulatedFluxDistribution
+    """
+    if not _DARKNEWS_AVAILABLE:
+        raise ImportError(
+            "load_vector_portal uses PyDarkNewsCrossSection and requires DarkNews. "
+            "Use load_vector_portal_offshell for the self-contained Dutta-Kim model."
+        )
+
+    VectorPortal = _load_local_module("VectorPortal")
+    (
+        VectorPortalUpsCase,
+        ChiPrimeDecay,
+        DarkPhotonDecay,
+        compute_chi_flux,
+    ) = (
+        VectorPortal.VectorPortalUpsCase,
+        VectorPortal.ChiPrimeDecay,
+        VectorPortal.DarkPhotonDecay,
+        VectorPortal.compute_chi_flux,
+    )
+
+    _, target_strs = GetDetectorModelTargets(detector_model)
+
+    chi_type = siren.dataclasses.Particle.ParticleType(pdgid_chi)
+    chi_prime_type = siren.dataclasses.Particle.ParticleType(pdgid_chi_prime)
+    v1_type = siren.dataclasses.Particle.ParticleType(pdgid_V1)
+
+    target_db = {
+        "Ar40": (1000180400, 37.215, 40, 18),
+        "C12":  (1000060120, 11.178, 12, 6),
+        "O16":  (1000080160, 14.899, 16, 8),
+        "H1":   (1000010010,  0.938,  1, 1),
+        "Fe56": (1000260560, 52.103, 56, 26),
+        "Si28": (1000140280, 26.060, 28, 14),
+        "Ca40": (1000200400, 37.225, 40, 20),
+        "N14":  (1000070140, 13.044, 14, 7),
+    }
+
+    primary_processes = {chi_type: []}
+    for tname in target_strs:
+        if tname not in target_db:
+            continue
+        nuc_pdgid, nuc_mass, nuc_A, nuc_Z = target_db[tname]
+        ups_case = VectorPortalUpsCase(
+            m_chi=m_chi,
+            m_chi_prime=m_chi_prime,
+            m_V=m_V2,
+            g_D=g_D,
+            epsilon=epsilon_2,
+            pdgid_chi=pdgid_chi,
+            pdgid_chi_prime=pdgid_chi_prime,
+            nuclear_pdgid=nuc_pdgid,
+            nuclear_mass=nuc_mass,
+            nuclear_name=tname,
+            A=nuc_A,
+            Z=nuc_Z,
+        )
+        xs = PyDarkNewsCrossSection(ups_case, always_interpolate=True)
+        primary_processes[chi_type].append(xs)
+
+    td = table_dir or "."
+    chi_prime_decay = ChiPrimeDecay(
+        m_chi, m_chi_prime, m_V1, g_D,
+        pdgid_chi_prime=pdgid_chi_prime,
+        pdgid_chi=pdgid_chi,
+        pdgid_V1=pdgid_V1,
+        table_dir=td,
+    )
+    v1_decay = DarkPhotonDecay(
+        m_V1, epsilon_1,
+        pdgid_V1=pdgid_V1,
+        table_dir=td,
+    )
+
+    secondary_processes = {
+        chi_prime_type: [chi_prime_decay],
+        v1_type: [v1_decay],
+    }
+
+    if min_energy is None:
+        min_energy = ups_case.Ethreshold if primary_processes[chi_type] else 0.001
+
+    chi_flux = compute_chi_flux(
+        m_meson=m_meson,
+        m_lepton=m_lepton,
+        m_V1=m_V1,
+        m_chi=m_chi,
+        m_chi_prime=m_chi_prime,
+        g_D=g_D,
+        epsilon=epsilon_1,
+        flux_tag=flux_tag,
+        min_energy=min_energy,
+        max_energy=max_energy,
+        physically_normalized=physically_normalized,
+    )
+
+    return primary_processes, secondary_processes, chi_flux
+
+
+def load_vector_portal_offshell(
+    m_chi,
+    m_chi_prime,
+    m_V1,
+    m_V2,
+    g_D,
+    epsilon_1,
+    epsilon_2,
+    detector_model,
+    *,
+    pdgid_chi=5917,
+    pdgid_V1=5922,
+    nuclear_pdgid=1000180400,
+    nuclear_mass=37.215,
+    nuclear_name="Ar40",
+    A=40,
+    Z=18,
+    table_dir=None,
+):
+    """Construct self-contained Dutta-Kim off-shell scattering processes."""
+    VectorPortal = _load_local_module("VectorPortal")
+
+    chi_type = siren.dataclasses.Particle.ParticleType(pdgid_chi)
+    v1_type = siren.dataclasses.Particle.ParticleType(pdgid_V1)
+
+    xs = VectorPortal.VectorPortalOffShellXS(
+        m_chi=m_chi,
+        m_chi_prime=m_chi_prime,
+        m_V1=m_V1,
+        m_V2=m_V2,
+        g_D=g_D,
+        epsilon=epsilon_2,
+        pdgid_chi=pdgid_chi,
+        pdgid_V1=pdgid_V1,
+        nuclear_pdgid=nuclear_pdgid,
+        nuclear_mass=nuclear_mass,
+        nuclear_name=nuclear_name,
+        A=A,
+        Z=Z,
+    )
+    v1_decay = VectorPortal.DarkPhotonDecay(
+        m_V1,
+        epsilon_1,
+        pdgid_V1=pdgid_V1,
+        table_dir=table_dir or ".",
+    )
+
+    return {chi_type: [xs]}, {v1_type: [v1_decay]}
+
+
+def load_meson_scalar(
+    m_meson,
+    m_lepton,
+    m_phi,
+    g_mu,
+    mediator_type="scalar",
+    flux_tag="pion_numu",
+    min_energy=0.0,
+    max_energy=3.0,
+    n_bins=50,
+    physically_normalized=True,
+):
+    """
+    Construct the scalar/pseudoscalar mediator flux from charged meson
+    three-body decay.
+
+    Returns
+    -------
+    phi_flux : siren.distributions.TabulatedFluxDistribution
+    decay_info : MesonThreeBodyDecay
+        The decay object (for inspecting widths, branching ratios, etc.)
+    """
+    MesonProduction = _load_local_module("MesonProduction")
+    MesonThreeBodyDecay = MesonProduction.MesonThreeBodyDecay
+    build_phi_flux = MesonProduction.build_phi_flux
+
+    decay = MesonThreeBodyDecay(m_meson, m_lepton, m_phi, g_mu, mediator_type)
+
+    phi_flux = build_phi_flux(
+        m_meson=m_meson,
+        m_lepton=m_lepton,
+        m_phi=m_phi,
+        g_mu=g_mu,
+        mediator_type=mediator_type,
+        flux_tag=flux_tag,
+        min_energy=min_energy,
+        max_energy=max_energy,
+        n_bins=n_bins,
+        physically_normalized=physically_normalized,
+    )
+
+    return phi_flux, decay

@@ -100,7 +100,7 @@ double pyDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & in
 }
 
 void pyDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    SELF_OVERRIDE_PURE(
+    SELF_OVERRIDE_PURE_REF(
         self,
         Decay,
         void,
@@ -155,4 +155,3 @@ double pyDecay::FinalStateProbability(dataclasses::InteractionRecord const & rec
 
 } // namespace interactions
 } // namespace siren
-

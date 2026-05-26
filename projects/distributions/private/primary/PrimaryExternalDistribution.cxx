@@ -3,14 +3,16 @@
 #include <algorithm>                                       // for min
 #include <array>                                           // for array
 #include <fstream>                                         // for ifstream
-#include <set>                                             // for set
 #include <sstream>                                         // for stringstream
 #include <string>                                          // for basic_string
 #include <stdexcept>                                       // for runtime_error
+#include <set>                                             // for set
 #include <tuple>                                           // for tie
 
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/distributions/DistributionVariable.h"
 #include "SIREN/utilities/Random.h"               // for SIREN_random
+#include "SIREN/math/Vector3D.h"
 
 namespace siren {
 namespace distributions {
@@ -102,23 +104,18 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
         throw std::runtime_error("No valid data rows in " + filename);
     }
 
-    // Compute set_variables_ from the CSV columns
+    // Compute set_variables_ from the column headers
     set_variables_.clear();
     for (auto const & k : keys) {
-        if (k == "E") {
-            set_variables_.insert(DistributionVariable::PrimaryEnergy);
-        } else if (k == "m") {
-            set_variables_.insert(DistributionVariable::PrimaryMass);
-        } else if (k == "px" || k == "py" || k == "pz") {
+        if (k == "E") set_variables_.insert(DistributionVariable::PrimaryEnergy);
+        else if (k == "m") set_variables_.insert(DistributionVariable::PrimaryMass);
+        else if (k == "px" || k == "py" || k == "pz") {
             set_variables_.insert(DistributionVariable::PrimaryDirection);
             set_variables_.insert(DistributionVariable::PrimaryEnergy);
-        } else if (k == "x" || k == "y" || k == "z") {
-            set_variables_.insert(DistributionVariable::InteractionVertex);
-        } else if (k == "x0" || k == "y0" || k == "z0") {
-            set_variables_.insert(DistributionVariable::InitialPosition);
-        } else {
-            set_variables_.insert(DistributionVariable::InteractionParameters);
         }
+        else if (k == "x" || k == "y" || k == "z") set_variables_.insert(DistributionVariable::InteractionVertex);
+        else if (k == "x0" || k == "y0" || k == "z0") set_variables_.insert(DistributionVariable::InitialPosition);
+        else set_variables_.insert(DistributionVariable::InteractionParameters);
     }
 }
 
@@ -130,6 +127,68 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename) 
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename, double emin) : emin(emin)
 {
     LoadInputFile(_filename);
+}
+
+PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data)
+    : emin(0)
+{
+    keys = std::move(_keys);
+    input_data = std::move(_data);
+    filename = "<in-memory>";
+
+    // Require all three components for each flag
+    bool has_x0 = false, has_y0 = false, has_z0 = false;
+    bool has_x = false, has_y = false, has_z = false;
+    bool has_px = false, has_py = false, has_pz = false;
+    for (auto const & k : keys) {
+        if (k == "x0") has_x0 = true;
+        else if (k == "y0") has_y0 = true;
+        else if (k == "z0") has_z0 = true;
+        else if (k == "x") has_x = true;
+        else if (k == "y") has_y = true;
+        else if (k == "z") has_z = true;
+        else if (k == "px") has_px = true;
+        else if (k == "py") has_py = true;
+        else if (k == "pz") has_pz = true;
+    }
+    init_pos_set = has_x0 && has_y0 && has_z0;
+    vertex_set = has_x && has_y && has_z;
+    mom_set = has_px && has_py && has_pz;
+
+    // Compute set_variables_ from the column headers
+    set_variables_.clear();
+    for (auto const & k : keys) {
+        if (k == "E") set_variables_.insert(DistributionVariable::PrimaryEnergy);
+        else if (k == "m") set_variables_.insert(DistributionVariable::PrimaryMass);
+        else if (k == "px" || k == "py" || k == "pz") {
+            set_variables_.insert(DistributionVariable::PrimaryDirection);
+            set_variables_.insert(DistributionVariable::PrimaryEnergy);
+        }
+        else if (k == "x" || k == "y" || k == "z") set_variables_.insert(DistributionVariable::InteractionVertex);
+        else if (k == "x0" || k == "y0" || k == "z0") set_variables_.insert(DistributionVariable::InitialPosition);
+        else set_variables_.insert(DistributionVariable::InteractionParameters);
+    }
+}
+
+PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, double emin)
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data))
+{
+    this->emin = emin;
+    auto energy_it = std::find(keys.begin(), keys.end(), "E");
+    if (energy_it != keys.end()) {
+        size_t energy_index = static_cast<size_t>(
+            std::distance(keys.begin(), energy_it));
+        std::vector<std::vector<double>> filtered;
+        for (auto const & row : input_data) {
+            if (energy_index < row.size() && row[energy_index] >= emin) {
+                filtered.push_back(row);
+            }
+        }
+        input_data = std::move(filtered);
+        if (input_data.empty()) {
+            throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
+        }
+    }
 }
 
 // Accounts for events above threshold only!
@@ -187,19 +246,49 @@ void PrimaryExternalDistribution::Sample(
         }
     }
     if(mom_set) record.SetThreeMomentum(_momentum);
-    if(init_pos_set) record.SetInitialPosition(_initial_position);
+    if(init_pos_set) {
+        record.SetInitialPosition(_initial_position);
+        if(!vertex_set) record.SetInteractionVertex(_initial_position);
+        _cached_position = _initial_position;
+    }
     if(vertex_set) {
         record.SetInteractionVertex(_vertex);
         if(!init_pos_set) record.SetInitialPosition(_vertex);
+        _cached_position = _vertex;
     }
+}
+
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryExternalDistribution::SamplePosition(
+        std::shared_ptr<siren::utilities::SIREN_random> rand,
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+        siren::dataclasses::PrimaryDistributionRecord & record) const {
+    siren::math::Vector3D pos(_cached_position[0], _cached_position[1], _cached_position[2]);
+    siren::math::Vector3D dir(0, 0, 1);
+    return std::make_tuple(pos, dir);
+}
+
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryExternalDistribution::InjectionBounds(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+        siren::dataclasses::InteractionRecord const & interaction) const {
+    siren::math::Vector3D pos(interaction.interaction_vertex[0],
+                               interaction.interaction_vertex[1],
+                               interaction.interaction_vertex[2]);
+    siren::math::Vector3D end = pos;
+    return std::make_tuple(pos, end);
+}
+
+std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {
+    return std::vector<std::string>{"External"};
 }
 
 std::set<DistributionVariable> PrimaryExternalDistribution::SetVariables() const {
     return set_variables_;
 }
 
-std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {
-    return std::vector<std::string>{"External"};
+std::set<DistributionVariable> PrimaryExternalDistribution::RequiredVariables() const {
+    return {};
 }
 
 std::string PrimaryExternalDistribution::Name() const {
