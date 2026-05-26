@@ -16,6 +16,7 @@
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 #include "SIREN/dataclasses/InteractionSignature.h" // for InteractionSignature
+#include "SIREN/dataclasses/PhaseSpaceConvention.h"
 #include "SIREN/utilities/Random.h" // for SIREN_random
 #include "SIREN/interactions/Interaction.h" // for Interaction
 
@@ -52,6 +53,7 @@ public:
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
+    virtual siren::dataclasses::PhaseSpaceConvention Convention() const;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {};
     template<class Archive>

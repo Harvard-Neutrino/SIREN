@@ -20,6 +20,7 @@ import scipy.integrate as _integrate
 from siren.interactions import Decay as _Decay
 from siren import dataclasses
 from siren.dataclasses import Particle
+from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +396,9 @@ class MesonSimpleDecay(_Decay):
     def DensityVariables(self):
         return ["cos_theta"]
 
+    def Convention(self):
+        return _PhaseSpaceConvention.RestFrameSolidAngle
+
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu]
 
@@ -733,6 +737,9 @@ class MesonThreeBodySIRENDecay(_Decay):
     def DensityVariables(self):
         return ["E_V", "cos_theta_V"]
 
+    def Convention(self):
+        return _PhaseSpaceConvention.Custom
+
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]
 
@@ -993,6 +1000,9 @@ class BiasedMesonThreeBodyDecay(_Decay):
 
     def DensityVariables(self):
         return ["lab_E_V", "lab_cos_theta_V"]
+
+    def Convention(self):
+        return _PhaseSpaceConvention.Custom
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]

@@ -286,16 +286,22 @@ TEST(PhaseSpaceChannels, ConventionValidationRejectsCustomMix) {
     EXPECT_THROW(mc.ValidateConventions(), std::runtime_error);
 }
 
-TEST(PhaseSpaceChannels, PhysicalDecayConventionCanUseSpecificSignature) {
+TEST(PhaseSpaceChannels, PhysicalDecayConventionFromModel) {
     auto decay = std::make_shared<MixedArityDecay>();
 
     PhysicalDecayChannel generic(decay);
     PhysicalDecayChannel two_body(decay, MixedArityDecay::TwoBodySignature());
     PhysicalDecayChannel three_body(decay, MixedArityDecay::ThreeBodySignature());
 
+    // MixedArityDecay doesn't override Convention(); the base class
+    // detects mixed arities and returns Custom for all constructors.
     EXPECT_EQ(generic.Convention(), PhaseSpaceConvention::Custom);
-    EXPECT_EQ(two_body.Convention(), PhaseSpaceConvention::RestFrameSolidAngle);
-    EXPECT_EQ(three_body.Convention(), PhaseSpaceConvention::HelicityAngles);
+    EXPECT_EQ(two_body.Convention(), PhaseSpaceConvention::Custom);
+    EXPECT_EQ(three_body.Convention(), PhaseSpaceConvention::Custom);
+
+    // The explicit-convention constructor always honors the user's choice.
+    PhysicalDecayChannel explicit_rest(decay, PhaseSpaceConvention::RestFrameSolidAngle);
+    EXPECT_EQ(explicit_rest.Convention(), PhaseSpaceConvention::RestFrameSolidAngle);
 }
 
 TEST(PhaseSpaceJacobians, RestFrameAndLabSolidAngleIntegralsAgree) {

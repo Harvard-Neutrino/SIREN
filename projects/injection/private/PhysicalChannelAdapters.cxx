@@ -6,129 +6,10 @@
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/utilities/Random.h"
 
-#include <algorithm>
-#include <cctype>
 #include <stdexcept>
 
 namespace siren {
 namespace injection {
-
-namespace {
-
-std::string Lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
-bool ContainsAny(std::vector<std::string> const & values,
-                 std::vector<std::string> const & needles) {
-    for (auto const & value : values) {
-        std::string lower = Lower(value);
-        for (auto const & needle : needles) {
-            if (lower.find(needle) != std::string::npos) return true;
-        }
-    }
-    return false;
-}
-
-bool EqualsAny(std::vector<std::string> const & values,
-               std::vector<std::string> const & needles) {
-    for (auto const & value : values) {
-        std::string lower = Lower(value);
-        for (auto const & needle : needles) {
-            if (lower == needle) return true;
-        }
-    }
-    return false;
-}
-
-PhaseSpaceConvention InferDecayConvention(
-    std::shared_ptr<siren::interactions::Decay> const & decay,
-    size_t n_secondaries)
-{
-    if (n_secondaries == 2) {
-        auto variables = decay->DensityVariables();
-        if (ContainsAny(variables, {"energy", "e_", "lab", "cone", "biased"})) {
-            return PhaseSpaceConvention::Custom;
-        }
-        return PhaseSpaceConvention::RestFrameSolidAngle;
-    }
-
-    if (n_secondaries == 3) {
-        auto variables = decay->DensityVariables();
-        if (ContainsAny(variables, {"energy", "e_", "lab"})) {
-            return PhaseSpaceConvention::Custom;
-        }
-        if (ContainsAny(variables, {"dalitz", "s12", "s13", "s23", "s_12", "s_13", "s_23"})) {
-            return PhaseSpaceConvention::Dalitz;
-        }
-        if (ContainsAny(variables, {"theta", "cos"})) {
-            return PhaseSpaceConvention::HelicityAngles;
-        }
-        return PhaseSpaceConvention::Custom;
-    }
-
-    return PhaseSpaceConvention::Custom;
-}
-
-PhaseSpaceConvention InferDecayConvention(
-    std::shared_ptr<siren::interactions::Decay> const & decay)
-{
-    auto signatures = decay->GetPossibleSignatures();
-    if (signatures.empty()) return PhaseSpaceConvention::Custom;
-
-    size_t n_secondaries = signatures.front().secondary_types.size();
-    for (auto const & sig : signatures) {
-        if (sig.secondary_types.size() != n_secondaries) {
-            return PhaseSpaceConvention::Custom;
-        }
-    }
-
-    return InferDecayConvention(decay, n_secondaries);
-}
-
-PhaseSpaceConvention InferDecayConvention(
-    std::shared_ptr<siren::interactions::Decay> const & decay,
-    siren::dataclasses::InteractionSignature const & signature)
-{
-    return InferDecayConvention(decay, signature.secondary_types.size());
-}
-
-PhaseSpaceConvention InferCrossSectionConvention(
-    std::shared_ptr<siren::interactions::CrossSection> const & cross_section)
-{
-    auto variables = cross_section->DensityVariables();
-    bool has_bjorken_x =
-        ContainsAny(variables, {"bjorken x", "bjorken_x", "log10(x)", "log x"}) ||
-        EqualsAny(variables, {"x"});
-    bool has_bjorken_y =
-        ContainsAny(variables, {"bjorken y", "bjorken_y", "log10(y)", "log y"}) ||
-        EqualsAny(variables, {"y"});
-    bool has_q2 =
-        ContainsAny(variables, {"q^2", "mandelstam"}) ||
-        EqualsAny(variables, {"q2", "q^2", "t", "-t"});
-
-    if (has_bjorken_x && has_bjorken_y) {
-        return PhaseSpaceConvention::BjorkenXY;
-    }
-    if (has_q2) {
-        return PhaseSpaceConvention::MandelstamST;
-    }
-    if (has_bjorken_y) {
-        return PhaseSpaceConvention::BjorkenXY;
-    }
-    return PhaseSpaceConvention::Custom;
-}
-
-PhaseSpaceConvention InferCrossSectionConvention(
-    std::shared_ptr<siren::interactions::CrossSection> const & cross_section,
-    siren::dataclasses::InteractionSignature const &)
-{
-    return InferCrossSectionConvention(cross_section);
-}
-
-} // anonymous namespace
 
 // ================================================================ //
 //  PhysicalDecayChannel                                              //
@@ -142,7 +23,7 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
     }
-    convention_ = InferDecayConvention(decay_);
+    convention_ = decay_->Convention();
 }
 
 PhysicalDecayChannel::PhysicalDecayChannel(
@@ -154,7 +35,7 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
     }
-    convention_ = InferDecayConvention(decay_, signature);
+    convention_ = decay_->Convention();
 }
 
 PhysicalDecayChannel::PhysicalDecayChannel(
@@ -214,7 +95,7 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
         throw std::runtime_error(
             "PhysicalCrossSectionChannel requires a non-null CrossSection");
     }
-    convention_ = InferCrossSectionConvention(cross_section_);
+    convention_ = cross_section_->Convention();
 }
 
 PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
@@ -227,7 +108,7 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
         throw std::runtime_error(
             "PhysicalCrossSectionChannel requires a non-null CrossSection");
     }
-    convention_ = InferCrossSectionConvention(cross_section_, signature);
+    convention_ = cross_section_->Convention();
 }
 
 PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
