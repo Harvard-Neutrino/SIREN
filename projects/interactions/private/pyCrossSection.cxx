@@ -197,5 +197,15 @@ std::vector<std::string> pyCrossSection::DensityVariables() const {
     );
 }
 
+siren::dataclasses::PhaseSpaceConvention pyCrossSection::Convention() const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        siren::dataclasses::PhaseSpaceConvention,
+        Convention,
+        "Convention"
+    )
+}
+
 } // namespace interactions
 } // namespace siren

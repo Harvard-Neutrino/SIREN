@@ -175,5 +175,15 @@ double pyDecay::FinalStateProbability(dataclasses::InteractionRecord const & rec
     )
 }
 
+siren::dataclasses::PhaseSpaceConvention pyDecay::Convention() const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        siren::dataclasses::PhaseSpaceConvention,
+        Convention,
+        "Convention"
+    )
+}
+
 } // namespace interactions
 } // namespace siren

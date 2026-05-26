@@ -49,6 +49,7 @@ public:
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<std::string> DensityVariables() const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
+    siren::dataclasses::PhaseSpaceConvention Convention() const override;
 
     Pybind11TrampolineCerealMethods(Decay, pyDecay);
 }; // class pyDecay

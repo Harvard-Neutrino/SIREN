@@ -1,6 +1,11 @@
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/ParticleMasses.h"
+#include "SIREN/dataclasses/PhaseSpaceConvention.h"
+
+#include <algorithm>
+#include <cctype>
+#include <iostream>
 
 namespace siren {
 namespace interactions {
@@ -42,6 +47,63 @@ bool CrossSection::operator==(CrossSection const & other) const {
         return true;
     else
         return this->equal(other);
+}
+
+siren::dataclasses::PhaseSpaceConvention CrossSection::Convention() const {
+    using C = siren::dataclasses::PhaseSpaceConvention;
+    auto variables = DensityVariables();
+
+    auto lower_match = [](std::vector<std::string> const & vars,
+                          std::string const & needle) {
+        for (auto const & v : vars) {
+            std::string lv = v;
+            std::transform(lv.begin(), lv.end(), lv.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (lv.find(needle) != std::string::npos) return true;
+        }
+        return false;
+    };
+    auto lower_eq = [](std::vector<std::string> const & vars,
+                       std::string const & needle) {
+        for (auto const & v : vars) {
+            std::string lv = v;
+            std::transform(lv.begin(), lv.end(), lv.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (lv == needle) return true;
+        }
+        return false;
+    };
+
+    bool has_bjorken_x =
+        lower_match(variables, "bjorken x") ||
+        lower_match(variables, "bjorken_x") ||
+        lower_eq(variables, "x");
+    bool has_bjorken_y =
+        lower_match(variables, "bjorken y") ||
+        lower_match(variables, "bjorken_y") ||
+        lower_eq(variables, "y");
+    bool has_q2 =
+        lower_match(variables, "q^2") ||
+        lower_match(variables, "mandelstam") ||
+        lower_eq(variables, "q2") ||
+        lower_eq(variables, "t") ||
+        lower_eq(variables, "-t");
+
+    C result = C::Custom;
+    if (has_bjorken_x && has_bjorken_y) {
+        result = C::BjorkenXY;
+    } else if (has_q2) {
+        result = C::MandelstamST;
+    } else if (has_bjorken_y) {
+        result = C::BjorkenXY;
+    }
+
+    std::cerr << "Warning: CrossSection subclass does not override Convention(); "
+              << "auto-detected "
+              << siren::dataclasses::PhaseSpaceConventionName(result)
+              << " from DensityVariables(). Override Convention() to silence "
+              << "this warning." << std::endl;
+    return result;
 }
 
 } // namespace interactions

@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "SIREN/dataclasses/PhaseSpaceConvention.h"
+
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace utilities { class SIREN_random; } }
@@ -13,18 +15,8 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace injection {
 
-enum class PhaseSpaceConvention {
-    RestFrameSolidAngle,
-    LabFrameSolidAngle,
-    Recursive2Body,
-    Dalitz,
-    HelicityAngles,
-    BjorkenXY,
-    MandelstamST,
-    Custom
-};
-
-std::string PhaseSpaceConventionName(PhaseSpaceConvention convention);
+using PhaseSpaceConvention = siren::dataclasses::PhaseSpaceConvention;
+using siren::dataclasses::PhaseSpaceConventionName;
 
 // A single parameterization of a final-state phase space, used
 // in multi-channel importance sampling of interaction/decay

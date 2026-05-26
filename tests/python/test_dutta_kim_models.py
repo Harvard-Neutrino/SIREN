@@ -173,7 +173,7 @@ def test_vector_portal_offshell_cross_section_channel_samples(vector_portal):
         cross_section,
         signature,
     )
-    assert channel.Convention() == siren.injection.PhaseSpaceConvention.MandelstamST
+    assert channel.Convention() == siren.injection.PhaseSpaceConvention.Custom
 
     channel.Sample(siren.utilities.SIREN_random(2), None, record)
 

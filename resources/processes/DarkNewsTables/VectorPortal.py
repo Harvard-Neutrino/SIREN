@@ -24,6 +24,7 @@ import scipy.integrate as _integrate
 from siren.interactions import Decay as _Decay, CrossSection as _CrossSection
 from siren import dataclasses
 from siren.dataclasses import Particle
+from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
 
 _ALPHA_EM = 1.0 / 137.036
 _GEV2_TO_CM2 = 3.8938e-28
@@ -414,6 +415,9 @@ class VectorPortalUpscatteringXS(_CrossSection):
     def DensityVariables(self):
         return ["Q2"]
 
+    def Convention(self):
+        return _PhaseSpaceConvention.MandelstamST
+
     def equal(self, other):
         return self is other
 
@@ -629,6 +633,9 @@ class VectorPortalOffShellXS(_CrossSection):
     def DensityVariables(self):
         return ["Q2"]
 
+    def Convention(self):
+        return _PhaseSpaceConvention.Custom
+
     def equal(self, other):
         return self is other
 
@@ -793,6 +800,9 @@ class ChiPrimeDecay(_Decay):
     def DensityVariables(self):
         return ["cos_theta"]
 
+    def Convention(self):
+        return _PhaseSpaceConvention.RestFrameSolidAngle
+
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_V1]
 
@@ -918,6 +928,9 @@ class DarkPhotonDecay(_Decay):
     def DensityVariables(self):
         return ["cos_theta"]
 
+    def Convention(self):
+        return _PhaseSpaceConvention.RestFrameSolidAngle
+
     def SecondaryMasses(self, secondary_types):
         return [_M_ELECTRON, _M_ELECTRON]
 
@@ -1042,6 +1055,9 @@ class DarkPhotonToChiDecay(_Decay):
 
     def DensityVariables(self):
         return ["cos_theta"]
+
+    def Convention(self):
+        return _PhaseSpaceConvention.RestFrameSolidAngle
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]
@@ -1205,6 +1221,9 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 
     def DensityVariables(self):
         return ["lab_cone_chi"]
+
+    def Convention(self):
+        return _PhaseSpaceConvention.Custom
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]

@@ -38,5 +38,6 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents", &CrossSection::GetPossibleSignaturesFromParents)
         .def("FinalStateProbability", &CrossSection::FinalStateProbability)
         .def("DensityVariables", &CrossSection::DensityVariables)
+        .def("Convention", &CrossSection::Convention)
         ;
 }

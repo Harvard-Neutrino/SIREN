@@ -1,6 +1,8 @@
 #include "SIREN/injection/PhaseSpaceChannel.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/injection/PhaseSpaceJacobian.h"
+#include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/utilities/Random.h"
 
 #include <cmath>
@@ -12,28 +14,6 @@
 
 namespace siren {
 namespace injection {
-
-std::string PhaseSpaceConventionName(PhaseSpaceConvention convention) {
-    switch (convention) {
-        case PhaseSpaceConvention::RestFrameSolidAngle:
-            return "RestFrameSolidAngle";
-        case PhaseSpaceConvention::LabFrameSolidAngle:
-            return "LabFrameSolidAngle";
-        case PhaseSpaceConvention::Recursive2Body:
-            return "Recursive2Body";
-        case PhaseSpaceConvention::Dalitz:
-            return "Dalitz";
-        case PhaseSpaceConvention::HelicityAngles:
-            return "HelicityAngles";
-        case PhaseSpaceConvention::BjorkenXY:
-            return "BjorkenXY";
-        case PhaseSpaceConvention::MandelstamST:
-            return "MandelstamST";
-        case PhaseSpaceConvention::Custom:
-            return "Custom";
-    }
-    return "Unknown";
-}
 
 namespace {
 
@@ -57,6 +37,127 @@ int ConventionPriority(PhaseSpaceConvention convention) {
             return 7;
     }
     return 8;
+}
+
+bool ConventionsCompatible(PhaseSpaceConvention a, PhaseSpaceConvention b) {
+    if (a == b) return true;
+    if (a == PhaseSpaceConvention::Custom || b == PhaseSpaceConvention::Custom) {
+        return false;
+    }
+    auto group = [](PhaseSpaceConvention c) -> int {
+        switch (c) {
+            case PhaseSpaceConvention::RestFrameSolidAngle:
+            case PhaseSpaceConvention::LabFrameSolidAngle:
+                return 0;
+            case PhaseSpaceConvention::Recursive2Body:
+            case PhaseSpaceConvention::Dalitz:
+            case PhaseSpaceConvention::HelicityAngles:
+                return 1;
+            case PhaseSpaceConvention::BjorkenXY:
+            case PhaseSpaceConvention::MandelstamST:
+                return 2;
+            default:
+                return -1;
+        }
+    };
+    return group(a) == group(b);
+}
+
+double ConvertDensity(
+    double density,
+    PhaseSpaceConvention from,
+    PhaseSpaceConvention to,
+    siren::dataclasses::InteractionRecord const & record)
+{
+    if (from == to || density == 0.0) return density;
+    namespace J = siren::injection::phase_space_jacobian;
+
+    // BjorkenXY <-> MandelstamST
+    if (from == PhaseSpaceConvention::BjorkenXY &&
+        to == PhaseSpaceConvention::MandelstamST) {
+        auto it = record.interaction_parameters.find("bjorken_y");
+        if (it == record.interaction_parameters.end()) {
+            it = record.interaction_parameters.find("y");
+        }
+        if (it == record.interaction_parameters.end()) return density;
+        double y = it->second;
+        double target_mass = record.target_mass;
+        double E_inc = record.primary_momentum[0];
+        return J::BjorkenXYDensityToQ2YDensity(density, y, target_mass, E_inc);
+    }
+    if (from == PhaseSpaceConvention::MandelstamST &&
+        to == PhaseSpaceConvention::BjorkenXY) {
+        auto it = record.interaction_parameters.find("bjorken_y");
+        if (it == record.interaction_parameters.end()) {
+            it = record.interaction_parameters.find("y");
+        }
+        if (it == record.interaction_parameters.end()) return density;
+        double y = it->second;
+        double target_mass = record.target_mass;
+        double E_inc = record.primary_momentum[0];
+        return J::Q2YDensityToBjorkenXYDensity(density, y, target_mass, E_inc);
+    }
+
+    // Recursive2Body <-> HelicityAngles (trivial)
+    if ((from == PhaseSpaceConvention::Recursive2Body &&
+         to == PhaseSpaceConvention::HelicityAngles) ||
+        (from == PhaseSpaceConvention::HelicityAngles &&
+         to == PhaseSpaceConvention::Recursive2Body)) {
+        return density;
+    }
+
+    // Recursive2Body <-> Dalitz
+    if (from == PhaseSpaceConvention::Recursive2Body &&
+        to == PhaseSpaceConvention::Dalitz) {
+        if (record.secondary_masses.size() < 3) return density;
+        double parent_mass = record.primary_mass;
+        double m0 = record.secondary_masses[0];
+        double m1 = record.secondary_masses[1];
+        double m2 = record.secondary_masses[2];
+        auto const & p1 = record.secondary_momenta[1];
+        auto const & p2 = record.secondary_momenta[2];
+        double E_pair = p1[0] + p2[0];
+        double px = p1[1] + p2[1], py = p1[2] + p2[2], pz = p1[3] + p2[3];
+        double s_pair = E_pair * E_pair - px * px - py * py - pz * pz;
+        return J::Recursive2BodyDensityToDalitzDensity(
+            density, parent_mass, m0, m1, m2, s_pair);
+    }
+    if (from == PhaseSpaceConvention::Dalitz &&
+        to == PhaseSpaceConvention::Recursive2Body) {
+        if (record.secondary_masses.size() < 3) return density;
+        double parent_mass = record.primary_mass;
+        double m0 = record.secondary_masses[0];
+        double m1 = record.secondary_masses[1];
+        double m2 = record.secondary_masses[2];
+        auto const & p1 = record.secondary_momenta[1];
+        auto const & p2 = record.secondary_momenta[2];
+        double E_pair = p1[0] + p2[0];
+        double px = p1[1] + p2[1], py = p1[2] + p2[2], pz = p1[3] + p2[3];
+        double s_pair = E_pair * E_pair - px * px - py * py - pz * pz;
+        return J::DalitzDensityToRecursive2BodyDensity(
+            density, parent_mass, m0, m1, m2, s_pair);
+    }
+
+    // HelicityAngles <-> Dalitz: compose through Recursive2Body
+    if (from == PhaseSpaceConvention::HelicityAngles &&
+        to == PhaseSpaceConvention::Dalitz) {
+        return ConvertDensity(density,
+            PhaseSpaceConvention::Recursive2Body,
+            PhaseSpaceConvention::Dalitz, record);
+    }
+    if (from == PhaseSpaceConvention::Dalitz &&
+        to == PhaseSpaceConvention::HelicityAngles) {
+        return ConvertDensity(density,
+            PhaseSpaceConvention::Dalitz,
+            PhaseSpaceConvention::Recursive2Body, record);
+    }
+
+    // RestFrame <-> LabFrame: requires knowing which daughter the
+    // density is defined for. Not yet implemented — needs
+    // additional metadata on the channel.
+    // Fall through to returning unconverted density.
+
+    return density;
 }
 
 } // anonymous namespace
@@ -94,9 +195,16 @@ double MultiChannelPhaseSpace::Density(
 {
     WarnOnConventionMismatch();
 
+    PhaseSpaceConvention common = CommonConvention();
+
     double density = 0.0;
     for (size_t i = 0; i < channels.size(); ++i) {
-        density += weights[i] * channels[i]->Density(detector_model, record);
+        double d = channels[i]->Density(detector_model, record);
+        PhaseSpaceConvention ch_conv = channels[i]->Convention();
+        if (ch_conv != common && ch_conv != PhaseSpaceConvention::Custom) {
+            d = ConvertDensity(d, ch_conv, common, record);
+        }
+        density += weights[i] * d;
     }
     return density;
 }
