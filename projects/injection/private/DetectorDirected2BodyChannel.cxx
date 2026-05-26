@@ -437,6 +437,23 @@ double DetectorDirected2BodyChannel::Density(
 
     double g_angular;
     if (mode_ == Mode::Cone) {
+        // Density is 1/Omega_cone inside the bounding cone, 0 outside.
+        // Directions inside the cone that miss the actual geometry still
+        // get non-zero density — they are valid samples from the cone
+        // distribution.  The physical model handles the geometry miss
+        // (FinalStateProbability = 0 in the numerator).
+        auto aabb = target_->GetWorldBoundingBox();
+        siren::math::Vector3D center = (aabb.min_corner + aabb.max_corner) * 0.5;
+        siren::math::Vector3D extent = aabb.max_corner - aabb.min_corner;
+        double bounding_radius = 0.5 * extent.magnitude();
+        siren::math::Vector3D to_center = center - decay_pos;
+        double dist = to_center.magnitude();
+        if (dist > bounding_radius) {
+            to_center.normalize();
+            double cos_to_center = siren::math::scalar_product(lab_dir, to_center);
+            double cos_cone = std::sqrt(1.0 - (bounding_radius / dist) * (bounding_radius / dist));
+            if (cos_to_center < cos_cone) return 0.0;
+        }
         g_angular = 1.0 / ConeSolidAngle(decay_pos);
     } else {
         g_angular = SolidAngleDensity(decay_pos, lab_dir);
