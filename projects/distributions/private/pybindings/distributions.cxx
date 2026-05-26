@@ -83,17 +83,10 @@ PYBIND11_MODULE(distributions,m) {
     .def("RequiredVariables",&PrimaryInjectionDistribution::RequiredVariables)
     ;
 
-  // External distribution
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution")
-    .def(init<std::string>())
-    .def(init<std::string, double>())
-    .def("Sample",&PrimaryExternalDistribution::Sample)
-    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
-    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
-    .def("Name",&PrimaryExternalDistribution::Name);
+  // NOTE: PrimaryExternalDistribution is defined after VertexPositionDistribution
+  // because it now inherits from VertexPositionDistribution.
 
-  // Direciton distributions
+  // Direction distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
@@ -318,6 +311,18 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&FixedTargetPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
     .def("Name",&FixedTargetPositionDistribution::Name);
+
+  // External distribution (inherits VertexPositionDistribution, must come after it)
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution>(m,"PrimaryExternalDistribution")
+    .def(init<std::string>())
+    .def(init<std::string, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, double>())
+    .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
+    .def("Name",&PrimaryExternalDistribution::Name);
 
   class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution")
     .def("DensityVariables",&PrimaryAreaDistribution::DensityVariables)
