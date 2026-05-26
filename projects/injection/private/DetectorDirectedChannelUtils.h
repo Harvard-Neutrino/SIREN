@@ -185,6 +185,109 @@ inline siren::math::Vector3D SampleVolumePoint(
     throw std::runtime_error("Failed to sample a point inside target volume after 10000 attempts");
 }
 
+// Sample a direction uniformly within a spherical cap centered on
+// `axis` with half-angle whose cosine is `cos_half`.
+inline siren::math::Vector3D SampleCapDirection(
+    siren::math::Vector3D const & axis,
+    double cos_half,
+    std::shared_ptr<siren::utilities::SIREN_random> random)
+{
+    double cos_theta = cos_half + (1.0 - cos_half) * random->Uniform(0, 1);
+    double sin_theta = std::sqrt(std::max(0.0, 1.0 - cos_theta * cos_theta));
+    double phi = kTwoPi * random->Uniform(0, 1);
+
+    siren::math::Vector3D perp1, perp2;
+    if (std::abs(axis.GetX()) < 0.9)
+        perp1 = siren::math::Vector3D(1, 0, 0);
+    else
+        perp1 = siren::math::Vector3D(0, 1, 0);
+    perp2 = siren::math::vector_product(axis, perp1);
+    perp2.normalize();
+    perp1 = siren::math::vector_product(perp2, axis);
+    perp1.normalize();
+
+    siren::math::Vector3D dir = axis * cos_theta
+        + perp1 * (sin_theta * std::cos(phi))
+        + perp2 * (sin_theta * std::sin(phi));
+    dir.normalize();
+    return dir;
+}
+
+// Compute a tight spherical cap that encloses the intersection
+// (overlap lens) of the kinematic cone and bounding cone.
+// Returns (center, cos_half_angle).  On failure returns cos_half = 1
+// (a degenerate cap), signaling callers to fall back.
+inline std::pair<siren::math::Vector3D, double> ComputeOverlapCap(
+    double theta_kin, double theta_bound, double axis_sep,
+    siren::math::Vector3D const & kin_axis,
+    siren::math::Vector3D const & bound_axis)
+{
+    auto invalid = std::make_pair(kin_axis, 1.0);
+
+    double sin_kin = std::sin(theta_kin);
+    double cos_kin = std::cos(theta_kin);
+    double sin_sep = std::sin(axis_sep);
+    double cos_sep = std::cos(axis_sep);
+
+    if (sin_kin < 1e-15 || sin_sep < 1e-15) return invalid;
+
+    double cos_phi = (std::cos(theta_bound) - cos_kin * cos_sep)
+                   / (sin_kin * sin_sep);
+    if (cos_phi >= 1.0 - 1e-10 || cos_phi <= -1.0 + 1e-10) return invalid;
+    cos_phi = std::clamp(cos_phi, -1.0, 1.0);
+    double sin_phi = std::sqrt(1.0 - cos_phi * cos_phi);
+
+    siren::math::Vector3D in_plane = bound_axis - kin_axis * cos_sep;
+    double ip_mag = in_plane.magnitude();
+    if (ip_mag < 1e-15) return invalid;
+    in_plane = in_plane / ip_mag;
+
+    siren::math::Vector3D out_plane =
+        siren::math::vector_product(kin_axis, in_plane);
+    out_plane.normalize();
+
+    // Intersection points of the two cone boundaries
+    siren::math::Vector3D P1 = kin_axis * cos_kin
+        + in_plane * (sin_kin * cos_phi) + out_plane * (sin_kin * sin_phi);
+    siren::math::Vector3D P2 = kin_axis * cos_kin
+        + in_plane * (sin_kin * cos_phi) - out_plane * (sin_kin * sin_phi);
+
+    // Midpoint of the kinematic arc (on kin boundary at phi=0)
+    siren::math::Vector3D M_kin = kin_axis * cos_kin
+        + in_plane * (sin_kin * cos_phi);
+    double mk_mag = M_kin.magnitude();
+    if (mk_mag > 1e-15) M_kin = M_kin / mk_mag;
+    else                 M_kin = kin_axis;
+
+    // Deepest point: on the bounding boundary at the midline
+    double theta_D = axis_sep - theta_bound;
+    siren::math::Vector3D D;
+    if (theta_D > 1e-15) {
+        D = kin_axis * std::cos(theta_D) + in_plane * std::sin(theta_D);
+    } else {
+        D = kin_axis;
+    }
+
+    // Cap center: midpoint of M_kin and D on the unit sphere
+    siren::math::Vector3D center = M_kin + D;
+    double c_mag = center.magnitude();
+    if (c_mag < 1e-15) return invalid;
+    center = center / c_mag;
+
+    // Cap half-angle: must enclose P1, P2, M_kin, D
+    double cos_min = std::min({
+        siren::math::scalar_product(center, P1),
+        siren::math::scalar_product(center, P2),
+        siren::math::scalar_product(center, M_kin),
+        siren::math::scalar_product(center, D)
+    });
+
+    double half_angle = std::acos(std::clamp(cos_min, -1.0, 1.0));
+    half_angle = std::min(half_angle * 1.2, M_PI);
+
+    return std::make_pair(center, std::cos(half_angle));
+}
+
 inline double SolidAngleDensity(
     siren::geometry::Geometry const & target,
     double target_volume,
@@ -421,9 +524,14 @@ inline DirectedGeometry ClassifyDirectedRegime(
             geo.theta_bound, geo.theta_kin, geo.axis_sep);
     }
 
-    // Classify
+    // Classify.
+    // Near-zero overlaps (< 0.1% of the smaller cone) are treated as
+    // Disjoint: the directed contribution is negligible and the
+    // rejection sampler cannot reliably find the overlap region.
     double tol = 1e-12;
-    if (geo.omega_eff <= tol) {
+    double min_omega = std::min(geo.omega_kin, geo.omega_bound);
+    if (geo.omega_eff <= tol ||
+        (min_omega > tol && geo.omega_eff < 1e-3 * min_omega)) {
         geo.regime = DirectedRegime::Disjoint;
     } else if (geo.omega_eff >= geo.omega_kin - tol) {
         geo.regime = DirectedRegime::KinInBound;
@@ -545,55 +653,76 @@ inline DirectedStepResult SampleDirectedStep(
         solutions[0].jacobian = 1.0;
         solutions[0].cos_theta_rest = siren::math::scalar_product(lab_dir, geo.to_center);
     } else if (geo.regime == DirectedRegime::BoundInKin) {
-        if (mode == DetectorDirected2BodyChannel::Mode::Volume) {
-            siren::math::Vector3D diff;
-            double diff_mag = 0.0;
-            for (int attempt = 0; attempt < 100; ++attempt) {
-                siren::math::Vector3D pt = SampleVolumePoint(target, random);
-                diff = pt - decay_pos;
-                diff_mag = diff.magnitude();
-                if (diff_mag > 1e-6) break;
-            }
-            if (diff_mag > 1e-6) {
-                lab_dir = diff / diff_mag;
+        for (int retry = 0; retry < 100; ++retry) {
+            if (mode == DetectorDirected2BodyChannel::Mode::Volume) {
+                siren::math::Vector3D diff;
+                double diff_mag = 0.0;
+                for (int attempt = 0; attempt < 100; ++attempt) {
+                    siren::math::Vector3D pt = SampleVolumePoint(target, random);
+                    diff = pt - decay_pos;
+                    diff_mag = diff.magnitude();
+                    if (diff_mag > 1e-6) break;
+                }
+                if (diff_mag > 1e-6) {
+                    lab_dir = diff / diff_mag;
+                } else {
+                    lab_dir = SampleConeDirection(target, random, decay_pos).first;
+                }
             } else {
                 lab_dir = SampleConeDirection(target, random, decay_pos).first;
-            }
-        } else {
-            lab_dir = SampleConeDirection(target, random, decay_pos).first;
-        }
-        double cos_lab = siren::math::scalar_product(lab_dir, parent_dir);
-        solutions = SolveLabAngle(beta, gamma, p_rest, E_rest, daughter_mass, cos_lab);
-        n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
-    } else {
-        // Overlap: rejection from smaller cone
-        bool bound_smaller = geo.omega_bound <= geo.omega_kin;
-        for (int attempt = 0; attempt < 10000; ++attempt) {
-            if (bound_smaller) {
-                lab_dir = SampleConeDirection(target, random, decay_pos).first;
-                double cos_lab = siren::math::scalar_product(lab_dir, parent_dir);
-                if (cos_lab < cos_critical) continue;
-            } else {
-                double cos_theta = cos_critical + (1.0 - cos_critical) * random->Uniform(0, 1);
-                double sin_theta = std::sqrt(1.0 - cos_theta * cos_theta);
-                double phi_val = kTwoPi * random->Uniform(0, 1);
-                siren::math::Vector3D perp1, perp2;
-                if (std::abs(parent_dir.GetX()) < 0.9)
-                    perp1 = siren::math::Vector3D(1, 0, 0);
-                else
-                    perp1 = siren::math::Vector3D(0, 1, 0);
-                perp2 = siren::math::vector_product(parent_dir, perp1);
-                perp2.normalize();
-                perp1 = siren::math::vector_product(perp2, parent_dir);
-                perp1.normalize();
-                lab_dir = parent_dir * cos_theta
-                    + perp1 * (sin_theta * std::cos(phi_val))
-                    + perp2 * (sin_theta * std::sin(phi_val));
-                lab_dir.normalize();
-                double cos_to = siren::math::scalar_product(lab_dir, geo.to_center);
-                if (cos_to < std::cos(geo.theta_bound)) continue;
             }
             double cos_lab = siren::math::scalar_product(lab_dir, parent_dir);
+            solutions = SolveLabAngle(beta, gamma, p_rest, E_rest, daughter_mass, cos_lab);
+            n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
+            if (n_valid > 0) {
+                if (mode == DetectorDirected2BodyChannel::Mode::Volume &&
+                    SolidAngleDensity(target, target_volume, decay_pos, lab_dir) <= 0.0) {
+                    n_valid = 0;
+                    continue;
+                }
+                break;
+            }
+        }
+    } else {
+        // Overlap: sample from a tight cap around the intersection lens.
+        // Falls back to the smaller-cone approach if the cap cannot be
+        // computed (should not happen for genuine Overlap events).
+        auto [cap_center, cap_cos_half] = ComputeOverlapCap(
+            geo.theta_kin, geo.theta_bound, geo.axis_sep,
+            parent_dir, geo.to_center);
+        bool use_cap = (cap_cos_half < 1.0 - 1e-10);
+        double cos_bound = std::cos(geo.theta_bound);
+
+        for (int attempt = 0; attempt < 10000; ++attempt) {
+            if (use_cap) {
+                lab_dir = SampleCapDirection(cap_center, cap_cos_half, random);
+            } else {
+                bool bound_smaller = geo.omega_bound <= geo.omega_kin;
+                if (bound_smaller) {
+                    lab_dir = SampleConeDirection(target, random, decay_pos).first;
+                } else {
+                    double ct = cos_critical + (1.0 - cos_critical) * random->Uniform(0, 1);
+                    double st = std::sqrt(1.0 - ct * ct);
+                    double pv = kTwoPi * random->Uniform(0, 1);
+                    siren::math::Vector3D perp1, perp2;
+                    if (std::abs(parent_dir.GetX()) < 0.9)
+                        perp1 = siren::math::Vector3D(1, 0, 0);
+                    else
+                        perp1 = siren::math::Vector3D(0, 1, 0);
+                    perp2 = siren::math::vector_product(parent_dir, perp1);
+                    perp2.normalize();
+                    perp1 = siren::math::vector_product(perp2, parent_dir);
+                    perp1.normalize();
+                    lab_dir = parent_dir * ct + perp1 * (st * std::cos(pv))
+                            + perp2 * (st * std::sin(pv));
+                    lab_dir.normalize();
+                }
+            }
+            double cos_lab = siren::math::scalar_product(lab_dir, parent_dir);
+            if (cos_lab < cos_critical) continue;
+            double cos_to = siren::math::scalar_product(lab_dir, geo.to_center);
+            if (cos_to < cos_bound) continue;
+
             solutions = SolveLabAngle(beta, gamma, p_rest, E_rest, daughter_mass, cos_lab);
             n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
             if (n_valid > 0) break;
@@ -601,10 +730,36 @@ inline DirectedStepResult SampleDirectedStep(
     }
 
     if (n_valid == 0) {
-        // Defensive fallback (should not happen in classified regimes)
-        result.lab_dir = parent_dir;
-        result.p_lab = p_rest;
-        result.E_lab = E_rest;
+        // Fallback: isotropic rest-frame sample with proper boost to lab.
+        // This can happen when the kinematic and bounding cones barely
+        // overlap and floating-point precision in SolveLabAngle rejects
+        // directions near the kinematic cone boundary.
+        double cos_theta_fb = 2.0 * random->Uniform(0, 1) - 1.0;
+        double phi_fb = kTwoPi * random->Uniform(0, 1);
+        double sin_theta_fb = std::sqrt(1.0 - cos_theta_fb * cos_theta_fb);
+
+        siren::math::Vector3D perp1_fb, perp2_fb;
+        if (std::abs(parent_dir.GetX()) < 0.9)
+            perp1_fb = siren::math::Vector3D(1, 0, 0);
+        else
+            perp1_fb = siren::math::Vector3D(0, 1, 0);
+        perp2_fb = siren::math::vector_product(parent_dir, perp1_fb);
+        perp2_fb.normalize();
+        perp1_fb = siren::math::vector_product(perp2_fb, parent_dir);
+        perp1_fb.normalize();
+
+        double p_rest_par = p_rest * cos_theta_fb;
+        double p_rest_perp1 = p_rest * sin_theta_fb * std::cos(phi_fb);
+        double p_rest_perp2 = p_rest * sin_theta_fb * std::sin(phi_fb);
+
+        double p_lab_par = gamma * (p_rest_par + beta * E_rest);
+
+        siren::math::Vector3D p_lab_vec =
+            parent_dir * p_lab_par + perp1_fb * p_rest_perp1 + perp2_fb * p_rest_perp2;
+        result.p_lab = p_lab_vec.magnitude();
+        result.lab_dir = (result.p_lab > 1e-15) ? p_lab_vec / result.p_lab
+                       : parent_dir;
+        result.E_lab = std::sqrt(result.p_lab * result.p_lab + daughter_mass * daughter_mass);
         result.rest_density = 1.0 / kFourPi;
         return result;
     }
@@ -639,7 +794,6 @@ inline DirectedStepResult SampleDirectedStep(
         if (geo.regime == DirectedRegime::BoundInKin &&
             mode == DetectorDirected2BodyChannel::Mode::Volume) {
             g_angular = SolidAngleDensity(target, target_volume, decay_pos, lab_dir);
-            if (g_angular <= 0.0) g_angular = 1.0 / geo.omega_bound;
         } else if (geo.regime == DirectedRegime::BoundInKin) {
             g_angular = 1.0 / geo.omega_bound;
         } else {
@@ -703,10 +857,7 @@ inline double DensityDirectedStep(
     double cos_critical = CriticalCosTheta(beta, gamma, p_rest, E_rest, daughter_mass);
     if (cos_theta_lab < cos_critical) return 0.0;
 
-    // In BoundInKin, Sample() always produces directions inside the
-    // bounding cone, so skip the boundary check (avoids floating-point
-    // edge rejections).  In Overlap, the direction must be inside both cones.
-    if (geo.regime != DirectedRegime::BoundInKin) {
+    {
         double cos_to = siren::math::scalar_product(lab_dir, geo.to_center);
         if (cos_to < std::cos(geo.theta_bound)) return 0.0;
     }
@@ -739,7 +890,7 @@ inline double DensityDirectedStep(
     if (geo.regime == DirectedRegime::BoundInKin &&
         mode == DetectorDirected2BodyChannel::Mode::Volume) {
         g_angular = SolidAngleDensity(target, target_volume, decay_pos, lab_dir);
-        if (g_angular <= 0.0) g_angular = 1.0 / geo.omega_bound;
+        if (g_angular <= 0.0) return 0.0;
     } else if (geo.regime == DirectedRegime::BoundInKin) {
         g_angular = 1.0 / geo.omega_bound;
     } else {

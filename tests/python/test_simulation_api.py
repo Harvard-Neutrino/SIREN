@@ -988,3 +988,133 @@ class TestMeasureConsistency:
         assert len(nan_or_neg) == 0, (
             f"Unexpected diagnostics: {nan_or_neg}"
         )
+
+    # ---- 3-body channel tests ----
+
+    @staticmethod
+    def _make_3body_record():
+        import siren
+        import math
+
+        record = siren.dataclasses.InteractionRecord()
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.dataclasses.ParticleType(211)
+        sig.secondary_types = [
+            siren.dataclasses.ParticleType(-13),
+            siren.dataclasses.ParticleType(14),
+            siren.dataclasses.ParticleType(5922),
+        ]
+        record.signature = sig
+        M = 1.0
+        E = 2.0
+        record.primary_mass = M
+        record.primary_momentum = [E, 0, 0, math.sqrt(E * E - M * M)]
+        record.secondary_masses = [0.1, 0.3, 0.2]
+        record.secondary_momenta = [[0, 0, 0, 0]] * 3
+        record.secondary_helicities = [0, 0, 0]
+        record.interaction_vertex = [0, 0, 0]
+        record.primary_initial_position = [0, 0, 0]
+        return record
+
+    def test_3body_closure(self):
+        """Closure test for DetectorDirected3BodyChannel.
+
+        Mix a flat (isotropic) 3-body channel with the directed one
+        via MultiChannelPhaseSpace. The importance weights
+        flat_density / mixture_density must average to 1.0."""
+        import copy
+        import math
+        import siren
+
+        Cone = siren.injection.DirectedMode.Cone
+        huge = siren.geometry.Box(1e6, 1e6, 1e6)
+        placement = siren.geometry.Placement(
+            siren.math.Vector3D(0, 0, 10))
+        target = siren.geometry.Box(placement, 2.0, 2.0, 2.0)
+
+        kw = dict(
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+            mode=Cone,
+        )
+        flat = siren.injection.DetectorDirected3BodyChannel(huge, **kw)
+        directed = siren.injection.DetectorDirected3BodyChannel(
+            target, **kw)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [flat, directed]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(999)
+        N = 5000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(self._make_3body_record())
+            mc.Sample(rng, None, r)
+            d_flat = flat.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_flat / d_mc)
+
+        assert len(weights) > N * 0.5, (
+            f"Too few valid weights: {len(weights)}/{N}"
+        )
+
+        mean_w = sum(weights) / len(weights)
+        assert 0.85 < mean_w < 1.15, (
+            f"3-body closure test failed: mean weight = {mean_w:.4f} "
+            f"(expected ~1.0)"
+        )
+
+    def test_3body_density_normalization(self):
+        """Check that the directed 3-body density integrates to 1.
+
+        Sample from a flat (isotropic) reference and compute the mean
+        of directed_density / flat_density. This estimates the integral
+        of the directed density over the phase space."""
+        import copy
+        import math
+        import siren
+
+        Cone = siren.injection.DirectedMode.Cone
+        huge = siren.geometry.Box(1e6, 1e6, 1e6)
+        placement = siren.geometry.Placement(
+            siren.math.Vector3D(0, 0, 10))
+        target = siren.geometry.Box(placement, 2.0, 2.0, 2.0)
+
+        kw = dict(
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+            mode=Cone,
+        )
+        flat = siren.injection.DetectorDirected3BodyChannel(huge, **kw)
+        directed = siren.injection.DetectorDirected3BodyChannel(
+            target, **kw)
+
+        rng = siren.utilities.SIREN_random(777)
+        N = 50000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(self._make_3body_record())
+            flat.Sample(rng, None, r)
+            d_flat = flat.Density(None, r)
+            d_dir = directed.Density(None, r)
+            if d_flat > 0:
+                weights.append(d_dir / d_flat)
+
+        assert len(weights) > N * 0.5
+        mean_w = sum(weights) / len(weights)
+        se = (sum((w - mean_w) ** 2 for w in weights)
+              / len(weights)) ** 0.5 / len(weights) ** 0.5
+        assert abs(mean_w - 1.0) < max(5 * se, 0.15), (
+            f"Density normalization failed: mean = {mean_w:.4f} "
+            f"+/- {se:.4f} (expected 1.0)"
+        )
