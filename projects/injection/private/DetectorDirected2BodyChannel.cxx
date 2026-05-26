@@ -25,6 +25,45 @@ static const double FOUR_PI = 4.0 * M_PI;
 
 namespace {
 
+// Solid angle of the intersection of two circular cones with half-angles
+// theta1, theta2 and axis separation angle alpha.
+// From Mazonka (2012), arXiv:1205.1396, Eqs 45, 48-50.
+double ConeIntersectionSolidAngle(
+    double theta1, double theta2, double alpha)
+{
+    double omega1 = TWO_PI * (1.0 - std::cos(theta1));
+    double omega2 = TWO_PI * (1.0 - std::cos(theta2));
+
+    if (alpha <= 0.0) return std::min(omega1, omega2);
+    if (alpha >= M_PI) return std::max(omega1 + omega2 - FOUR_PI, 0.0);
+    if (theta1 <= 0.0 || theta2 <= 0.0) return 0.0;
+
+    auto clamp = [](double x) -> double {
+        if (x > 1.0) return 1.0;
+        if (x < -1.0) return -1.0;
+        return x;
+    };
+
+    auto segment = [&](double theta, double theta_other) -> double {
+        double ct = std::cos(theta);
+        double st = std::sin(theta);
+        double co = std::cos(theta_other);
+        double ca = std::cos(alpha);
+        double sa = std::sin(alpha);
+
+        double ty = co - ca * ct;
+        double tx = sa * ct;
+
+        double cos_phi = clamp((ty * ct) / (tx * st));
+        double cos_beta = clamp(ty / (st * std::sqrt(tx * tx + ty * ty)));
+        double phi = std::acos(cos_phi);
+        double beta = std::acos(cos_beta);
+        return 2.0 * (beta - phi * ct);
+    };
+
+    return segment(theta1, theta2) + segment(theta2, theta1);
+}
+
 double ComputeVolume(siren::geometry::Geometry const & geo, double aabb_volume) {
     // Analytic volume for known geometry types
     if (auto const * cyl = dynamic_cast<siren::geometry::Cylinder const *>(&geo)) {
@@ -448,27 +487,33 @@ double DetectorDirected2BodyChannel::Density(
 
     double g_angular;
     if (mode_ == Mode::Cone) {
-        // Bounding cone check
         auto aabb = target_->GetWorldBoundingBox();
         siren::math::Vector3D center = (aabb.min_corner + aabb.max_corner) * 0.5;
         siren::math::Vector3D extent = aabb.max_corner - aabb.min_corner;
         double bounding_radius = 0.5 * extent.magnitude();
         siren::math::Vector3D to_center = center - decay_pos;
         double dist = to_center.magnitude();
-        if (dist > bounding_radius) {
+
+        double theta_bounding;
+        double axis_sep = 0.0;
+        if (dist <= bounding_radius) {
+            theta_bounding = M_PI;
+        } else {
             to_center.normalize();
             double cos_to_center = siren::math::scalar_product(lab_dir, to_center);
-            double cos_cone = std::sqrt(1.0 - (bounding_radius / dist) * (bounding_radius / dist));
+            double sin_cone = bounding_radius / dist;
+            double cos_cone = std::sqrt(1.0 - sin_cone * sin_cone);
             if (cos_to_center < cos_cone) return 0.0;
+            theta_bounding = std::asin(sin_cone);
+            double cos_axis_sep = siren::math::scalar_product(to_center, parent_dir);
+            axis_sep = std::acos(std::clamp(cos_axis_sep, -1.0, 1.0));
         }
-        // The effective solid angle is the bounding cone clipped by
-        // the kinematic cone.  For the typical case where target and
-        // parent directions are nearly aligned, this is approximately
-        // min(Omega_cone, Omega_kinematic).  Use the kinematic cone
-        // solid angle as a cap on the bounding cone.
-        double omega_bounding = ConeSolidAngle(decay_pos);
-        double omega_kinematic = TWO_PI * (1.0 - cos_critical);
-        double omega_effective = std::min(omega_bounding, omega_kinematic);
+
+        double theta_kinematic = std::acos(cos_critical);
+
+        double omega_effective = ConeIntersectionSolidAngle(
+            theta_bounding, theta_kinematic, axis_sep);
+        if (omega_effective <= 0.0) return 0.0;
         g_angular = 1.0 / omega_effective;
     } else {
         g_angular = SolidAngleDensity(decay_pos, lab_dir);
