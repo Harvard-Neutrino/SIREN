@@ -775,6 +775,83 @@ def load_vector_portal_offshell(
     return {chi_type: [xs]}, {v1_type: [v1_decay]}
 
 
+def load_vector_portal_onshell(
+    m_chi,
+    m_chi_prime,
+    m_V1,
+    m_V2,
+    g_D,
+    epsilon_1,
+    epsilon_2,
+    detector_model,
+    *,
+    pdgid_chi=5917,
+    pdgid_chi_prime=5918,
+    pdgid_V1_prod=5922,
+    pdgid_V1_signal=5923,
+    nuclear_pdgid=1000180400,
+    nuclear_mass=37.215,
+    nuclear_name="Ar40",
+    A=40,
+    Z=18,
+    table_dir=None,
+):
+    """Construct topology-preserving Dutta-Kim on-shell processes."""
+    VectorPortal = _load_local_module("VectorPortal")
+
+    chi_type = siren.dataclasses.Particle.ParticleType(pdgid_chi)
+    chi_prime_type = siren.dataclasses.Particle.ParticleType(pdgid_chi_prime)
+    v1_prod_type = siren.dataclasses.Particle.ParticleType(pdgid_V1_prod)
+    v1_signal_type = siren.dataclasses.Particle.ParticleType(pdgid_V1_signal)
+
+    v1_to_chi = VectorPortal.DarkPhotonToChiDecay(
+        m_V1,
+        m_chi,
+        g_D,
+        pdgid_V1=pdgid_V1_prod,
+        pdgid_chi=pdgid_chi,
+        table_dir=table_dir or ".",
+    )
+    upscatter = VectorPortal.VectorPortalUpscatteringXS(
+        m_chi=m_chi,
+        m_chi_prime=m_chi_prime,
+        m_V2=m_V2,
+        g_D=g_D,
+        epsilon=epsilon_2,
+        pdgid_chi=pdgid_chi,
+        pdgid_chi_prime=pdgid_chi_prime,
+        nuclear_pdgid=nuclear_pdgid,
+        nuclear_mass=nuclear_mass,
+        nuclear_name=nuclear_name,
+        A=A,
+        Z=Z,
+    )
+    chi_prime_decay = VectorPortal.ChiPrimeDecay(
+        m_chi,
+        m_chi_prime,
+        m_V1,
+        g_D,
+        pdgid_chi_prime=pdgid_chi_prime,
+        pdgid_chi=pdgid_chi,
+        pdgid_V1=pdgid_V1_signal,
+        table_dir=table_dir or ".",
+    )
+    visible_decay = VectorPortal.DarkPhotonDecay(
+        m_V1,
+        epsilon_1,
+        pdgid_V1=pdgid_V1_signal,
+        table_dir=table_dir or ".",
+    )
+
+    primary_processes = {chi_type: [upscatter]}
+    secondary_processes = {
+        v1_prod_type: [v1_to_chi],
+        chi_prime_type: [chi_prime_decay],
+        v1_signal_type: [visible_decay],
+    }
+    return primary_processes, secondary_processes
+
+
 def load_meson_scalar(
     m_meson,
     m_lepton,

@@ -289,7 +289,6 @@ void Injector::SelectChannel(siren::dataclasses::InteractionRecord & record, std
     std::set<siren::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections_list, DetectorPosition(record.interaction_vertex));
 
     double total_prob = 0.0;
-    double xsec_prob = 0.0;
     std::vector<double> probs;
     std::vector<siren::dataclasses::ParticleType> matching_targets;
     std::vector<siren::dataclasses::InteractionSignature> matching_signatures;
@@ -307,7 +306,6 @@ void Injector::SelectChannel(siren::dataclasses::InteractionRecord & record, std
                         fake_record.target_mass = detector_model->GetTargetMass(target);
                         fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
                         total_prob += fake_prob;
-                        xsec_prob += fake_prob;
                         probs.push_back(total_prob);
                         matching_targets.push_back(target);
                         matching_signatures.push_back(signature);
@@ -478,7 +476,16 @@ double Injector::SecondaryGenerationProbability(std::shared_ptr<siren::dataclass
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    double prob = siren::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
+    double prob;
+    auto phase_space = process->GetPhaseSpace(datum->record.signature);
+    if(phase_space) {
+        prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+            detector_model, process->GetInteractions(), datum->record,
+            *phase_space);
+    } else {
+        prob = siren::injection::CrossSectionProbability(
+            detector_model, process->GetInteractions(), datum->record);
+    }
     probability *= prob;
     return probability;
 }
@@ -506,7 +513,16 @@ double Injector::GenerationProbability(std::shared_ptr<siren::dataclasses::Inter
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    double prob = siren::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
+    double prob;
+    auto phase_space = process->GetPhaseSpace(datum->record.signature);
+    if(phase_space) {
+        prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+            detector_model, process->GetInteractions(), datum->record,
+            *phase_space);
+    } else {
+        prob = siren::injection::CrossSectionProbability(
+            detector_model, process->GetInteractions(), datum->record);
+    }
     probability *= prob;
     return probability;
 }
@@ -615,4 +631,3 @@ void Injector::LoadInjector(std::string const & filename) {
 
 } // namespace injection
 } // namespace siren
-
