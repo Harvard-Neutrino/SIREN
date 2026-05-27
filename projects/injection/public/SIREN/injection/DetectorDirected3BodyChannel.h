@@ -35,7 +35,8 @@ public:
         double resonance_width = 0.0,
         double power_law_nu = 0.8,
         double power_law_offset = 0.0,
-        DetectorDirected2BodyChannel::Mode mode = DetectorDirected2BodyChannel::Mode::Volume
+        DetectorDirected2BodyChannel::Mode mode = DetectorDirected2BodyChannel::Mode::Volume,
+        PhaseSpaceTopology topology = PhaseSpaceTopology::Decay3Body
     );
 
     void Sample(
@@ -51,7 +52,7 @@ public:
 
     std::string Name() const override { return "DetectorDirected3Body"; }
     PhaseSpaceTopology Topology() const override {
-        return PhaseSpaceTopology::Decay3Body;
+        return topology_;
     }
     PhaseSpaceMeasure Measure() const override {
         return PhaseSpaceMeasure::Recursive2Body(
@@ -72,6 +73,7 @@ private:
     double power_law_nu_;
     double power_law_offset_;
     DetectorDirected2BodyChannel::Mode mode_;
+    PhaseSpaceTopology topology_;
     double target_volume_;
 
     double SampleInvariantMassSquared(

@@ -55,7 +55,8 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     double resonance_width,
     double power_law_nu,
     double power_law_offset,
-    DetectorDirected2BodyChannel::Mode mode)
+    DetectorDirected2BodyChannel::Mode mode,
+    PhaseSpaceTopology topology)
     : target_(std::move(target))
     , spectator_index_(spectator_index)
     , pair_first_index_(pair_first_index)
@@ -67,6 +68,7 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     , power_law_nu_(power_law_nu)
     , power_law_offset_(power_law_offset)
     , mode_(mode)
+    , topology_(topology)
 {
     if (!target_) {
         throw std::runtime_error("DetectorDirected3BodyChannel requires a target geometry");

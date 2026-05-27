@@ -669,6 +669,11 @@ class MesonThreeBodySIRENDecay(_Decay):
         self._total_width = self._decay.total_width()
         self._max_matel = self._find_max_matel()
 
+        # Recursive2Body factorization: pi -> lepton(spectator) + (nu V1)(pair)
+        self._spectator_index = 0
+        self._pair_first_index = 1
+        self._pair_second_index = 2
+
     def _find_max_matel(self, n_samples=10000):
         d = self._decay
         max_val = 0.0
@@ -736,23 +741,103 @@ class MesonThreeBodySIRENDecay(_Decay):
         return _dGamma_dEV_dcosV(E_V, cos_V, E_pi, p_pi, self._decay)
 
     def FinalStateProbability(self, record):
-        """For the physical decay, the generation density equals the
-        physical density: p_gen = (dGamma/dE_V dcosV) / Gamma_total."""
+        """Physical density in Recursive2Body measure:
+        dGamma / (ds_pair * dOmega_pair * dOmega_sub * Gamma_total).
+
+        The factorization is pi -> mu(spectator) + (nu V1)(pair).
+        For an unpolarized pion the pair direction is isotropic, so
+        the density is 1/(4*pi) in dOmega_pair and depends on
+        (s_pair, cos_theta_sub) through the matrix element.
+        """
         if self._total_width <= 0:
             return 0.0
-        return self.DifferentialDecayWidth(record) / self._total_width
+
+        d = self._decay
+        m_M = d.m_M
+        m_l = d.m_l
+        m_phi = d.m_phi
+
+        # Extract rest-frame energies from the secondary momenta.
+        # Boost secondaries back to parent rest frame if needed.
+        P_parent = np.array(record.primary_momentum)
+        E_parent = P_parent[0]
+        p_parent = np.linalg.norm(P_parent[1:])
+        parent_mass_sq = max(E_parent**2 - p_parent**2, 0.0)
+        parent_mass = math.sqrt(parent_mass_sq) if parent_mass_sq > 0 else m_M
+
+        # Find neutrino and mediator indices
+        idx_nu = idx_phi = -1
+        for idx, stype in enumerate(record.signature.secondary_types):
+            pid = int(stype)
+            if pid == self.pdgid_neutrino:
+                idx_nu = idx
+            elif pid == self.pdgid_mediator:
+                idx_phi = idx
+        if idx_nu < 0 or idx_phi < 0:
+            return 0.0
+
+        P_nu = np.array(record.secondary_momenta[idx_nu])
+        P_phi = np.array(record.secondary_momenta[idx_phi])
+
+        if p_parent < 1e-12:
+            E_nu_rf = P_nu[0]
+            E_phi_rf = P_phi[0]
+        else:
+            beta = p_parent / E_parent
+            gamma = E_parent / parent_mass
+            beta_hat = P_parent[1:] / p_parent
+
+            p_nu_par = float(np.dot(P_nu[1:], beta_hat))
+            E_nu_rf = gamma * (P_nu[0] - beta * p_nu_par)
+
+            p_phi_par = float(np.dot(P_phi[1:], beta_hat))
+            E_phi_rf = gamma * (P_phi[0] - beta * p_phi_par)
+
+        if E_nu_rf < 0 or E_phi_rf < m_phi:
+            return 0.0
+
+        matel_sq = d._matel_sq(E_nu_rf, E_phi_rf)
+        if matel_sq <= 0:
+            return 0.0
+
+        # Pair invariant mass: s_pair = (p_nu + p_V)^2
+        E_mu_rf = m_M - E_nu_rf - E_phi_rf
+        s_pair = m_M**2 + m_l**2 - 2.0 * m_M * E_mu_rf
+        if s_pair <= 0:
+            return 0.0
+        sqrt_s = math.sqrt(s_pair)
+
+        # Recursive2Body-to-Dalitz Jacobian |ds13/dcos_sub|
+        # = 2 * p_spectator_in_pair_frame * p_sub_in_pair_frame
+        lam_parent = (m_M**2 - (m_l + sqrt_s)**2) * (m_M**2 - (m_l - sqrt_s)**2)
+        lam_pair = (s_pair - m_phi**2) * (s_pair - m_phi**2)
+        if lam_parent <= 0 or lam_pair <= 0:
+            return 0.0
+        p_spec_pair = math.sqrt(lam_parent) / (2.0 * sqrt_s)
+        p_sub_pair = math.sqrt(lam_pair) / (2.0 * sqrt_s)
+        jacobian = 2.0 * p_spec_pair * p_sub_pair
+
+        # Dalitz density: |M|^2 / (256 pi^3 M^3)
+        # R2B density: dalitz * jacobian / (4*pi [pair dir] * 2*pi [sub azimuth])
+        prefactor = jacobian / (2048.0 * math.pi**5 * m_M**3)
+
+        return matel_sq * prefactor / self._total_width
 
     def DensityVariables(self):
-        return ["E_V", "cos_theta_V"]
+        return ["s_pair", "cos_theta_sub"]
 
     def Convention(self):
-        return _PhaseSpaceConvention.Custom
+        return _PhaseSpaceConvention.Recursive2Body
 
     def Topology(self):
         return _Topology.Decay3Body
 
     def Measure(self):
-        return _Measure.Unspecified()
+        return _Measure.Recursive2Body(
+            spectator=self._spectator_index,
+            pair_first=self._pair_first_index,
+            pair_second=self._pair_second_index,
+        )
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]

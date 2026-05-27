@@ -636,19 +636,77 @@ class VectorPortalOffShellXS(_CrossSection):
         return [record.primary_helicity, 0, record.target_helicity]
 
     def FinalStateProbability(self, record):
-        return 1.0
+        """Physical density in Recursive2Body measure for the 2->3 process.
+
+        Factorization: chi N -> N(spectator=2) + {chi(0) V1(1)}(pair).
+        Uses the narrow-width approximation: the pair invariant mass is
+        fixed at m_chi_prime, giving a delta function in s_pair.
+
+        The density per ds * dOmega_pair * dOmega_sub is:
+        dσ/dQ2 * |dQ2/dcos_pair| / (sigma_total * 2*pi * 4*pi)
+        times a Breit-Wigner in s_pair.
+        """
+        E_chi = record.primary_momentum[0]
+        M = self.m_target
+
+        total_xs = self.TotalCrossSection(record)
+        if total_xs <= 0:
+            return 0.0
+
+        diff_xs = self.DifferentialCrossSection(record)
+        if diff_xs <= 0:
+            return 0.0
+
+        # Scattering kinematics for |dQ2/dcos_pair|
+        s = self.m_chi**2 + M**2 + 2.0 * M * E_chi
+        m_chi_prime = self.m_chi_prime
+
+        E_in_cm = (s + self.m_chi**2 - M**2) / (2.0 * math.sqrt(s))
+        E_out_cm = (s + m_chi_prime**2 - M**2) / (2.0 * math.sqrt(s))
+        p_in_cm = math.sqrt(max(E_in_cm**2 - self.m_chi**2, 0.0))
+        p_out_cm = math.sqrt(max(E_out_cm**2 - m_chi_prime**2, 0.0))
+
+        dQ2_dcos = 2.0 * p_in_cm * p_out_cm
+        if dQ2_dcos <= 0:
+            return 0.0
+
+        # Pair invariant mass: Breit-Wigner peaked at m_chi_prime^2.
+        # In the narrow-width limit this is a delta function;
+        # evaluate a normalized BW at the actual s_pair from the record.
+        P_chi_out = np.array(record.secondary_momenta[0])
+        P_V1 = np.array(record.secondary_momenta[1])
+        P_pair = P_chi_out + P_V1
+        s_pair = P_pair[0]**2 - np.dot(P_pair[1:], P_pair[1:])
+
+        chi_prime_width = self._chi_prime_width()
+        bw_norm = chi_prime_width * m_chi_prime / math.pi
+        bw = bw_norm / ((s_pair - m_chi_prime**2)**2
+                        + m_chi_prime**2 * chi_prime_width**2)
+
+        # density per ds * dOmega_pair * dOmega_sub:
+        # = (dsigma/dQ2 * |dQ2/dcos|) / (sigma_total * 2*pi * 4*pi) * BW(s)
+        return diff_xs * dQ2_dcos * bw / (total_xs * 8.0 * math.pi**2)
+
+    def _chi_prime_width(self):
+        """Total decay width of chi' -> chi + V1."""
+        m_cp = self.m_chi_prime
+        m_chi = self.m_chi
+        m_V1 = self.m_V1
+        g_D = self._ups.g_D
+        p_star = _two_body_p_cm(m_cp, m_chi, m_V1)
+        return g_D**2 * p_star**3 / (6.0 * math.pi * m_cp**2)
 
     def DensityVariables(self):
-        return ["Q2"]
+        return ["s_pair", "cos_theta_sub"]
 
     def Convention(self):
-        return _PhaseSpaceConvention.Custom
+        return _PhaseSpaceConvention.Recursive2Body
 
     def Topology(self):
         return _Topology.Scatter2to3
 
     def Measure(self):
-        return _Measure.Unspecified()
+        return _Measure.Recursive2Body(spectator=2, pair_first=0, pair_second=1)
 
     def equal(self, other):
         return self is other
