@@ -413,10 +413,26 @@ class Weighter:
             primary_type, primary_interaction_collection
         )
         primary_process.distributions = self.primary_physical_distributions
+
+        # Copy weighting mode from the injector's primary process
+        inj0 = injectors[0]
+        if isinstance(inj0, _PyInjector):
+            inj0_cpp = inj0._Injector__injector
+        else:
+            inj0_cpp = inj0
+        if inj0_cpp is not None:
+            primary_process.weighting_mode = inj0_cpp.GetPrimaryProcess().GetWeightingMode()
+
         self.__weighter_primary_phys = primary_process
 
         secondary_interactions = self.secondary_interactions
         secondary_physical_distributions = self.secondary_physical_distributions
+
+        # Copy weighting modes from injector's secondary processes
+        sec_modes = {}
+        if inj0_cpp is not None:
+            for ptype, proc in inj0_cpp.GetSecondaryProcessMap().items():
+                sec_modes[ptype] = proc.GetWeightingMode()
 
         secondary_processes = []
         self.__weighter_secondary_phys = {}
@@ -431,6 +447,8 @@ class Weighter:
                 secondary_process.distributions = secondary_physical_distributions[secondary_type]
             else:
                 secondary_process.distributions = []
+            if secondary_type in sec_modes:
+                secondary_process.weighting_mode = sec_modes[secondary_type]
             secondary_processes.append(secondary_process)
             self.__weighter_secondary_phys[secondary_type] = secondary_process
 

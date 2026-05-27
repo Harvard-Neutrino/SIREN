@@ -56,6 +56,26 @@ PYBIND11_MODULE(injection,m) {
   m.def("CrossSectionProbabilityWithPhaseSpace", &CrossSectionProbabilityWithPhaseSpace);
   m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
 
+  // Vertex weighting mode
+  using VWM = siren::dataclasses::VertexWeightingMode;
+
+  enum_<VWM::BoundSource>(m, "BoundSource")
+    .value("Geometry", VWM::BoundSource::Geometry)
+    .value("Distribution", VWM::BoundSource::Distribution)
+    .value("None", VWM::BoundSource::None);
+
+  class_<VWM>(m, "VertexWeightingMode")
+    .def(init<>())
+    .def_readwrite("compute_interaction_probability", &VWM::compute_interaction_probability)
+    .def_readwrite("compute_position_probability", &VWM::compute_position_probability)
+    .def_readwrite("bound_source", &VWM::bound_source)
+    .def("__eq__", &VWM::operator==)
+    .def("__ne__", &VWM::operator!=)
+    .def_static("Propagated", &VWM::Propagated)
+    .def_static("Fixed", &VWM::Fixed)
+    .def_static("ExternalBounds", &VWM::ExternalBounds)
+    ;
+
   // Phase space channels
 
   // New topology/measure enums
@@ -236,6 +256,9 @@ PYBIND11_MODULE(injection,m) {
     .def("GetPhaseSpace", &PhysicalProcess::GetPhaseSpace)
     .def("HasPhaseSpace", overload_cast<siren::dataclasses::InteractionSignature const &>(&PhysicalProcess::HasPhaseSpace, const_))
     .def("HasAnyPhaseSpace", &PhysicalProcess::HasAnyPhaseSpace)
+    .def("SetWeightingMode", &PhysicalProcess::SetWeightingMode)
+    .def("GetWeightingMode", &PhysicalProcess::GetWeightingMode)
+    .def_property("weighting_mode", &PhysicalProcess::GetWeightingMode, &PhysicalProcess::SetWeightingMode)
     ;
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, PhysicalProcess>(m, "PrimaryInjectionProcess")

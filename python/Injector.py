@@ -38,9 +38,11 @@ class Injector:
         primary_interactions: List[Union[_interactions.CrossSection, _interactions.Decay]] = None,
         primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
         primary_phase_spaces: Optional[Dict[_dataclasses.InteractionSignature, _injection.MultiChannelPhaseSpace]] = None,
+        primary_weighting_mode = None,
         secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
         secondary_injection_distributions: Optional[Dict[_dataclasses.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
         secondary_phase_spaces: Optional[Dict[_dataclasses.ParticleType, Dict[_dataclasses.InteractionSignature, _injection.MultiChannelPhaseSpace]]] = None,
+        secondary_weighting_modes: Optional[Dict[_dataclasses.ParticleType, object]] = None,
         stopping_condition: Optional[Callable[[_dataclasses.InteractionTreeDatum, int], bool]] = None,
     ):
         self.__seed = None
@@ -55,6 +57,8 @@ class Injector:
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
         self.__secondary_phase_spaces = {}
+        self.__primary_weighting_mode = None
+        self.__secondary_weighting_modes = {}
         self.__stopping_condition = None
 
         self.__injector = None
@@ -79,6 +83,10 @@ class Injector:
             self.__secondary_injection_distributions = secondary_injection_distributions
         if secondary_phase_spaces is not None:
             self.__secondary_phase_spaces = secondary_phase_spaces
+        if primary_weighting_mode is not None:
+            self.__primary_weighting_mode = primary_weighting_mode
+        if secondary_weighting_modes is not None:
+            self.__secondary_weighting_modes = secondary_weighting_modes
         if stopping_condition is not None:
             self.__stopping_condition = stopping_condition
 
@@ -120,6 +128,8 @@ class Injector:
         primary_process.distributions = self.primary_injection_distributions
         for sig, ps in self.__primary_phase_spaces.items():
             primary_process.SetPhaseSpace(sig, ps)
+        if self.__primary_weighting_mode is not None:
+            primary_process.weighting_mode = self.__primary_weighting_mode
 
         secondary_interactions = self.secondary_interactions
         secondary_injection_distributions = self.secondary_injection_distributions
@@ -137,6 +147,8 @@ class Injector:
             if secondary_type in self.__secondary_phase_spaces:
                 for sig, ps in self.__secondary_phase_spaces[secondary_type].items():
                     secondary_process.SetPhaseSpace(sig, ps)
+            if secondary_type in self.__secondary_weighting_modes:
+                secondary_process.weighting_mode = self.__secondary_weighting_modes[secondary_type]
             secondary_processes.append(secondary_process)
 
         self.__injector = _Injector(

@@ -215,24 +215,44 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
         siren::dataclasses::InteractionRecord const & record ) const {
 
     double physical_probability = 1.0;
-    double prob = InteractionProbability(bounds, record);
-    physical_probability *= prob;
+    auto mode = phys_process->GetWeightingMode();
 
-    prob = NormalizedPositionProbability(bounds, record);
-    physical_probability *= prob;
-
-    // Use phase space channel density if one is registered for this
-    // signature, otherwise fall back to CrossSectionProbability (which
-    // uses FinalStateProbability from the Decay/CrossSection models).
-    if (phys_process->HasPhaseSpace(record.signature)) {
-        prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
-            detector_model, phys_process->GetInteractions(), record,
-            *phys_process->GetPhaseSpace(record.signature));
-    } else {
-        prob = siren::injection::CrossSectionProbability(
-            detector_model, phys_process->GetInteractions(), record);
+    if (mode.compute_interaction_probability) {
+        double prob = InteractionProbability(bounds, record);
+        physical_probability *= prob;
     }
-    physical_probability *= prob;
+
+    if (mode.compute_position_probability) {
+        double prob = NormalizedPositionProbability(bounds, record);
+        physical_probability *= prob;
+    }
+
+    // Final-state probability: use rate-weighted cross section
+    // probability for Propagated vertices, or direct FinalStateProbability
+    // for Fixed vertices (no rate competition at an externally-determined
+    // vertex).
+    if (mode.compute_interaction_probability) {
+        double prob;
+        if (phys_process->HasPhaseSpace(record.signature)) {
+            prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+                detector_model, phys_process->GetInteractions(), record,
+                *phys_process->GetPhaseSpace(record.signature));
+        } else {
+            prob = siren::injection::CrossSectionProbability(
+                detector_model, phys_process->GetInteractions(), record);
+        }
+        physical_probability *= prob;
+    } else {
+        double prob;
+        if (phys_process->HasPhaseSpace(record.signature)) {
+            prob = phys_process->GetPhaseSpace(record.signature)->Density(
+                detector_model, record);
+        } else {
+            prob = siren::injection::SelectedFinalStateProbability(
+                detector_model, phys_process->GetInteractions(), record);
+        }
+        physical_probability *= prob;
+    }
 
     for(auto physical_dist : unique_phys_distributions) {
         physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
@@ -244,16 +264,28 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
     double gen_probability;
+    auto mode = inj_process->GetWeightingMode();
 
-    // Use phase space channel density if one is registered for this
-    // signature, otherwise fall back to CrossSectionProbability.
-    if (inj_process->HasPhaseSpace(datum.record.signature)) {
-        gen_probability = siren::injection::CrossSectionProbabilityWithPhaseSpace(
-            detector_model, inj_process->GetInteractions(), datum.record,
-            *inj_process->GetPhaseSpace(datum.record.signature));
+    if (mode.compute_interaction_probability) {
+        // Standard: rate-weighted cross section probability
+        if (inj_process->HasPhaseSpace(datum.record.signature)) {
+            gen_probability = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+                detector_model, inj_process->GetInteractions(), datum.record,
+                *inj_process->GetPhaseSpace(datum.record.signature));
+        } else {
+            gen_probability = siren::injection::CrossSectionProbability(
+                detector_model, inj_process->GetInteractions(), datum.record);
+        }
     } else {
-        gen_probability = siren::injection::CrossSectionProbability(
-            detector_model, inj_process->GetInteractions(), datum.record);
+        // Fixed vertex: no rate competition. Use FinalStateProbability
+        // directly (or phase space density if registered).
+        if (inj_process->HasPhaseSpace(datum.record.signature)) {
+            gen_probability = inj_process->GetPhaseSpace(datum.record.signature)->Density(
+                detector_model, datum.record);
+        } else {
+            gen_probability = siren::injection::SelectedFinalStateProbability(
+                detector_model, inj_process->GetInteractions(), datum.record);
+        }
     }
 
     for(auto gen_dist : unique_gen_distributions) {
