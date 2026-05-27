@@ -35,6 +35,8 @@ void register_Decay(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParent", &Decay::GetPossibleSignaturesFromParent)
         .def("FinalStateProbability", &Decay::FinalStateProbability)
         .def("DensityVariables", &Decay::DensityVariables)
+        .def("Topology", &Decay::Topology)
+        .def("Measure", &Decay::Measure)
         .def("Convention", &Decay::Convention);
 
 }

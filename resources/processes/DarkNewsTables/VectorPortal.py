@@ -25,6 +25,8 @@ from siren.interactions import Decay as _Decay, CrossSection as _CrossSection
 from siren import dataclasses
 from siren.dataclasses import Particle
 from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
+from siren.injection import PhaseSpaceTopology as _Topology
+from siren.injection import PhaseSpaceMeasure as _Measure
 
 _ALPHA_EM = 1.0 / 137.036
 _GEV2_TO_CM2 = 3.8938e-28
@@ -418,6 +420,12 @@ class VectorPortalUpscatteringXS(_CrossSection):
     def Convention(self):
         return _PhaseSpaceConvention.MandelstamST
 
+    def Topology(self):
+        return _Topology.Scatter2to2
+
+    def Measure(self):
+        return _Measure.MandelstamQ2
+
     def equal(self, other):
         return self is other
 
@@ -636,6 +644,12 @@ class VectorPortalOffShellXS(_CrossSection):
     def Convention(self):
         return _PhaseSpaceConvention.Custom
 
+    def Topology(self):
+        return _Topology.Scatter2to3
+
+    def Measure(self):
+        return _Measure.Unspecified
+
     def equal(self, other):
         return self is other
 
@@ -803,6 +817,12 @@ class ChiPrimeDecay(_Decay):
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
 
+    def Topology(self):
+        return _Topology.Decay2Body
+
+    def Measure(self):
+        return _Measure.SolidAngleRest
+
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_V1]
 
@@ -931,6 +951,12 @@ class DarkPhotonDecay(_Decay):
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
 
+    def Topology(self):
+        return _Topology.Decay2Body
+
+    def Measure(self):
+        return _Measure.SolidAngleRest
+
     def SecondaryMasses(self, secondary_types):
         return [_M_ELECTRON, _M_ELECTRON]
 
@@ -1058,6 +1084,12 @@ class DarkPhotonToChiDecay(_Decay):
 
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
+
+    def Topology(self):
+        return _Topology.Decay2Body
+
+    def Measure(self):
+        return _Measure.SolidAngleRest
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]
@@ -1224,6 +1256,12 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 
     def Convention(self):
         return _PhaseSpaceConvention.Custom
+
+    def Topology(self):
+        return _Topology.Decay2Body
+
+    def Measure(self):
+        return _Measure.Unspecified
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]

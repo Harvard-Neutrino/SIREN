@@ -54,6 +54,24 @@ std::vector<double> Decay::SecondaryHelicities(dataclasses::InteractionRecord co
     return std::vector<double>(record.signature.secondary_types.size(), 0.0);
 }
 
+siren::dataclasses::PhaseSpaceTopology Decay::Topology() const {
+    using T = siren::dataclasses::PhaseSpaceTopology;
+    auto signatures = GetPossibleSignatures();
+    if (signatures.empty()) return T::Unspecified;
+    size_t n = signatures.front().secondary_types.size();
+    for (auto const & sig : signatures) {
+        if (sig.secondary_types.size() != n) return T::Unspecified;
+    }
+    if (n == 2) return T::Decay2Body;
+    if (n == 3) return T::Decay3Body;
+    if (n > 3)  return T::DecayNBody;
+    return T::Unspecified;
+}
+
+siren::dataclasses::PhaseSpaceMeasure Decay::Measure() const {
+    return siren::dataclasses::MeasureFromConvention(Convention());
+}
+
 siren::dataclasses::PhaseSpaceConvention Decay::Convention() const {
     using C = siren::dataclasses::PhaseSpaceConvention;
     auto variables = DensityVariables();

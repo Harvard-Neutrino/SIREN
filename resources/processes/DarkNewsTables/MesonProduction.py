@@ -21,6 +21,8 @@ from siren.interactions import Decay as _Decay
 from siren import dataclasses
 from siren.dataclasses import Particle
 from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
+from siren.injection import PhaseSpaceTopology as _Topology
+from siren.injection import PhaseSpaceMeasure as _Measure
 
 
 # ---------------------------------------------------------------------------
@@ -399,6 +401,12 @@ class MesonSimpleDecay(_Decay):
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
 
+    def Topology(self):
+        return _Topology.Decay2Body
+
+    def Measure(self):
+        return _Measure.SolidAngleRest
+
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu]
 
@@ -740,6 +748,12 @@ class MesonThreeBodySIRENDecay(_Decay):
     def Convention(self):
         return _PhaseSpaceConvention.Custom
 
+    def Topology(self):
+        return _Topology.Decay3Body
+
+    def Measure(self):
+        return _Measure.Unspecified
+
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]
 
@@ -1003,6 +1017,12 @@ class BiasedMesonThreeBodyDecay(_Decay):
 
     def Convention(self):
         return _PhaseSpaceConvention.Custom
+
+    def Topology(self):
+        return _Topology.Decay3Body
+
+    def Measure(self):
+        return _Measure.Unspecified
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]
