@@ -1044,3 +1044,610 @@ class TestTighterNormalization:
             "Directed density integral = {:.4f}, expected 1.0 "
             "(tolerance 0.03)".format(mean_w)
         )
+
+
+# ================================================================== #
+#  Mock physics models for testing channels with real Decay/XS        #
+# ================================================================== #
+
+
+class _MockIsotropic2BodyDecay(siren.interactions.Decay):
+    """Isotropic 2-body decay with known masses.
+
+    SampleFinalState produces uniform rest-frame cos_theta.
+    FinalStateProbability returns 1/(4*pi) (isotropic).
+    Convention returns RestFrameSolidAngle.
+    """
+
+    def __init__(self, parent_mass, daughter_mass_a, daughter_mass_b):
+        siren.interactions.Decay.__init__(self)
+        self._M = parent_mass
+        self._mA = daughter_mass_a
+        self._mB = daughter_mass_b
+        self._sig = siren.dataclasses.InteractionSignature()
+        self._sig.primary_type = siren.dataclasses.ParticleType.N4
+        self._sig.target_type = siren.dataclasses.ParticleType.Decay
+        self._sig.secondary_types = [
+            siren.dataclasses.ParticleType.NuLight,
+            siren.dataclasses.ParticleType.Gamma,
+        ]
+
+    def equal(self, other):
+        return self is other
+
+    def TotalDecayWidthAllFinalStates(self, record):
+        return 1.0
+
+    def TotalDecayWidth(self, record_or_type):
+        return 1.0
+
+    def DifferentialDecayWidth(self, record):
+        return 1.0 / (4.0 * math.pi)
+
+    def SampleFinalState(self, csdr, random):
+        cos_theta = random.Uniform(-1, 1)
+        phi = random.Uniform(0, 2 * math.pi)
+        sin_theta = math.sqrt(max(1.0 - cos_theta**2, 0.0))
+
+        p_rest = siren.injection.TwoBodyRestMomentum(
+            self._M, self._mA, self._mB)
+        E_A = (self._M**2 + self._mA**2 - self._mB**2) / (2 * self._M)
+        E_B = self._M - E_A
+
+        px = p_rest * sin_theta * math.cos(phi)
+        py = p_rest * sin_theta * math.sin(phi)
+        pz = p_rest * cos_theta
+
+        sp0 = csdr.get_secondary_particle_record(0)
+        sp0.four_momentum = [E_A, px, py, pz]
+        sp1 = csdr.get_secondary_particle_record(1)
+        sp1.four_momentum = [E_B, -px, -py, -pz]
+
+    def SecondaryMasses(self, secondary_types):
+        return [self._mA, self._mB]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0]
+
+    def GetPossibleSignatures(self):
+        return [self._sig]
+
+    def GetPossibleSignaturesFromParent(self, primary_type):
+        return [self._sig]
+
+    def FinalStateProbability(self, record):
+        return 1.0 / (4.0 * math.pi)
+
+    def DensityVariables(self):
+        return ["cos_theta"]
+
+    def Convention(self):
+        return siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
+
+
+class _MockAnisotropic2BodyDecay(siren.interactions.Decay):
+    """2-body decay with angular distribution (1 + cos^2 theta).
+
+    Normalized density: (3/(16*pi)) * (1 + cos^2 theta).
+    Uses accept-reject to sample from this distribution.
+    """
+
+    def __init__(self, parent_mass, daughter_mass_a, daughter_mass_b):
+        siren.interactions.Decay.__init__(self)
+        self._M = parent_mass
+        self._mA = daughter_mass_a
+        self._mB = daughter_mass_b
+        self._sig = siren.dataclasses.InteractionSignature()
+        self._sig.primary_type = siren.dataclasses.ParticleType.N4
+        self._sig.target_type = siren.dataclasses.ParticleType.Decay
+        self._sig.secondary_types = [
+            siren.dataclasses.ParticleType.NuLight,
+            siren.dataclasses.ParticleType.Gamma,
+        ]
+
+    def equal(self, other):
+        return self is other
+
+    def TotalDecayWidthAllFinalStates(self, record):
+        return 1.0
+
+    def TotalDecayWidth(self, record_or_type):
+        return 1.0
+
+    def DifferentialDecayWidth(self, record):
+        ct = self._cos_theta_rest(record)
+        return (3.0 / (16.0 * math.pi)) * (1.0 + ct * ct)
+
+    def _cos_theta_rest(self, record):
+        return _rest_frame_cos_theta(record, 0)
+
+    def SampleFinalState(self, csdr, random):
+        # Accept-reject with envelope 2/(4*pi)
+        while True:
+            cos_theta = random.Uniform(-1, 1)
+            u = random.Uniform(0, 1)
+            f = 0.75 * (1.0 + cos_theta**2)  # max = 1.5 at cos=+-1
+            if u * 1.5 < f:
+                break
+
+        phi = random.Uniform(0, 2 * math.pi)
+        sin_theta = math.sqrt(max(1.0 - cos_theta**2, 0.0))
+
+        p_rest = siren.injection.TwoBodyRestMomentum(
+            self._M, self._mA, self._mB)
+        E_A = (self._M**2 + self._mA**2 - self._mB**2) / (2 * self._M)
+        E_B = self._M - E_A
+
+        px = p_rest * sin_theta * math.cos(phi)
+        py = p_rest * sin_theta * math.sin(phi)
+        pz = p_rest * cos_theta
+
+        sp0 = csdr.get_secondary_particle_record(0)
+        sp0.four_momentum = [E_A, px, py, pz]
+        sp1 = csdr.get_secondary_particle_record(1)
+        sp1.four_momentum = [E_B, -px, -py, -pz]
+
+    def SecondaryMasses(self, secondary_types):
+        return [self._mA, self._mB]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0]
+
+    def GetPossibleSignatures(self):
+        return [self._sig]
+
+    def GetPossibleSignaturesFromParent(self, primary_type):
+        return [self._sig]
+
+    def FinalStateProbability(self, record):
+        ct = self._cos_theta_rest(record)
+        return (3.0 / (16.0 * math.pi)) * (1.0 + ct * ct)
+
+    def DensityVariables(self):
+        return ["cos_theta"]
+
+    def Convention(self):
+        return siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
+
+
+class _MockElasticScattering(siren.interactions.CrossSection):
+    """Mock 2->2 elastic scattering with isotropic angular distribution.
+
+    dsigma/dQ2 = sigma_total / Q2_max = const.
+    Reports MandelstamST convention.
+    """
+
+    def __init__(self, m_beam, m_target):
+        siren.interactions.CrossSection.__init__(self)
+        self._m_beam = m_beam
+        self._m_target = m_target
+        self._sigma = 1e-30  # cm^2, irrelevant for density test
+        self._sig = siren.dataclasses.InteractionSignature()
+        self._sig.primary_type = siren.dataclasses.ParticleType(5917)
+        self._sig.target_type = siren.dataclasses.ParticleType(1000180400)
+        self._sig.secondary_types = [
+            siren.dataclasses.ParticleType(5917),
+            siren.dataclasses.ParticleType(1000180400),
+        ]
+
+    def equal(self, other):
+        return self is other
+
+    def _Q2_max(self, E):
+        s = (self._m_beam**2 + self._m_target**2
+             + 2 * self._m_target * E)
+        lam = siren.injection.Kallen(
+            s, self._m_beam**2, self._m_target**2)
+        if lam <= 0 or s <= 0:
+            return 0
+        return lam / s
+
+    def TotalCrossSection(self, record):
+        return self._sigma
+
+    def DifferentialCrossSection(self, record):
+        E = record.primary_momentum[0]
+        q2max = self._Q2_max(E)
+        if q2max <= 0:
+            return 0
+        return self._sigma / q2max
+
+    def InteractionThreshold(self, record):
+        return self._m_beam
+
+    def SampleFinalState(self, csdr, random):
+        E = csdr.primary_momentum[0]
+        q2max = self._Q2_max(E)
+        Q2 = random.Uniform(0, q2max)
+        csdr.interaction_parameters = {"Q2": Q2}
+
+        # Solve 2-body kinematics from Q2
+        s = (self._m_beam**2 + self._m_target**2
+             + 2 * self._m_target * E)
+        p_cm_sq = siren.injection.Kallen(
+            s, self._m_beam**2, self._m_target**2) / (4 * s)
+        p_cm = math.sqrt(max(p_cm_sq, 0))
+        cos_cm = 1.0 - Q2 / (2 * p_cm_sq) if p_cm_sq > 0 else 1.0
+        sin_cm = math.sqrt(max(1 - cos_cm**2, 0))
+        phi = random.Uniform(0, 2 * math.pi)
+
+        E_cm_beam = math.sqrt(p_cm**2 + self._m_beam**2)
+        E_cm_target = math.sqrt(p_cm**2 + self._m_target**2)
+
+        # Outgoing momenta in CM frame
+        px1 = p_cm * sin_cm * math.cos(phi)
+        py1 = p_cm * sin_cm * math.sin(phi)
+        pz1 = p_cm * cos_cm
+
+        sp0 = csdr.get_secondary_particle_record(0)
+        sp0.four_momentum = [E_cm_beam, px1, py1, pz1]
+        sp1 = csdr.get_secondary_particle_record(1)
+        sp1.four_momentum = [E_cm_target, -px1, -py1, -pz1]
+
+    def SecondaryMasses(self, secondary_types):
+        return [self._m_beam, self._m_target]
+
+    def SecondaryHelicities(self, record):
+        return [0, 0]
+
+    def GetPossibleTargets(self):
+        return [self._sig.target_type]
+
+    def GetPossibleTargetsFromPrimary(self, primary_type):
+        return [self._sig.target_type]
+
+    def GetPossiblePrimaries(self):
+        return [self._sig.primary_type]
+
+    def GetPossibleSignatures(self):
+        return [self._sig]
+
+    def GetPossibleSignaturesFromParents(self, primary_type, target_type):
+        return [self._sig]
+
+    def FinalStateProbability(self, record):
+        E = record.primary_momentum[0]
+        q2max = self._Q2_max(E)
+        if q2max <= 0:
+            return 0
+        return 1.0 / q2max
+
+    def DensityVariables(self):
+        return ["Q2"]
+
+    def Convention(self):
+        return siren.injection.PhaseSpaceConvention.MandelstamST
+
+
+# ================================================================== #
+#  Gap 4: Cross-measure conversion in multi-channel                    #
+# ================================================================== #
+
+
+class TestCrossMeasureConversion:
+
+    def test_physical_decay_with_directed_multichannel(self):
+        """Combine a PhysicalDecayChannel (isotropic, SolidAngleRest)
+        with a DetectorDirected2BodyChannel (SolidAngleRest) in a
+        MultiChannelPhaseSpace. Both use the same measure so no
+        conversion is needed. The multi-channel density integral
+        (via importance sampling) should be 1.0.
+
+        Uses parent at rest to avoid rest/lab frame boost mismatch
+        between the mock SampleFinalState and the directed channel.
+        """
+        decay = _MockIsotropic2BodyDecay(1.0, 0.1, 0.2)
+        sig = decay.GetPossibleSignatures()[0]
+        box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
+        rec = _make_2body_record(M=1.0, E=1.0, mA=0.1, mB=0.2)
+
+        phys = siren.injection.PhysicalDecayChannel(decay, sig)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        assert phys.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert phys.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert directed.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [phys, directed]
+        mc.weights = [0.1, 0.9]
+
+        rng = siren.utilities.SIREN_random(42)
+        N = 10000
+        weights = []
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_phys = phys.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_phys / d_mc)
+
+        mean_w = sum(weights) / len(weights)
+        assert abs(mean_w - 1.0) < 0.05, (
+            "PhysicalDecay+Directed integral = {:.4f}".format(mean_w)
+        )
+
+    def test_anisotropic_decay_closure(self):
+        """Closure test for a non-trivial angular distribution
+        (1 + cos^2 theta). The PhysicalDecayChannel wraps the
+        anisotropic mock, and the multi-channel must correctly
+        combine its density with the directed channel.
+
+        Uses parent at rest to avoid rest/lab frame boost mismatch.
+
+        Importance sampling: E_mc[phys/mc] = 1.
+        """
+        decay = _MockAnisotropic2BodyDecay(1.0, 0.1, 0.2)
+        sig = decay.GetPossibleSignatures()[0]
+        box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
+        rec = _make_2body_record(M=1.0, E=1.0, mA=0.1, mB=0.2)
+
+        phys = siren.injection.PhysicalDecayChannel(decay, sig)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [phys, directed]
+        mc.weights = [0.01, 0.99]
+
+        rng = siren.utilities.SIREN_random(42)
+        N = 5000
+        weights = []
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_phys = phys.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_phys / d_mc)
+
+        mean_w = sum(weights) / len(weights)
+        assert abs(mean_w - 1.0) < 0.05, (
+            "Anisotropic decay closure = {:.4f}".format(mean_w)
+        )
+
+    def test_anisotropic_sampling_matches_density(self):
+        """Verify the mock anisotropic decay's sampling distribution
+        matches its density. Bin by rest-frame cos_theta and check
+        the histogram against the expected (1 + cos^2) shape.
+        """
+        decay = _MockAnisotropic2BodyDecay(1.0, 0.0, 0.0)
+        sig = decay.GetPossibleSignatures()[0]
+        rec = _make_2body_record(M=1.0, E=1.0, mA=0.0, mB=0.0)
+
+        phys = siren.injection.PhysicalDecayChannel(decay, sig)
+        rng = siren.utilities.SIREN_random(42)
+
+        N = 20000
+        n_bins = 20
+        counts = [0] * n_bins
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            phys.Sample(rng, None, r)
+            ct = _rest_frame_cos_theta(r, 0)
+            b = min(int((ct + 1.0) / 2.0 * n_bins), n_bins - 1)
+            counts[b] += 1
+
+        # Expected: proportional to (1 + cos^2)
+        # Bin centers
+        bin_width = 2.0 / n_bins
+        for b in range(n_bins):
+            ct = -1.0 + (b + 0.5) * bin_width
+            expected_frac = 0.75 * (1.0 + ct * ct) * bin_width / 2.0
+            actual_frac = counts[b] / N
+            # Allow 30% relative deviation (statistical)
+            if expected_frac > 0.01:
+                rel = abs(actual_frac - expected_frac) / expected_frac
+                assert rel < 0.3, (
+                    "Bin {}: expected {:.4f}, got {:.4f}, rel={:.2f}"
+                    .format(b, expected_frac, actual_frac, rel)
+                )
+
+
+# ================================================================== #
+#  Gap 7: Scattering channel density tests                             #
+# ================================================================== #
+
+
+class TestScatteringChannelDensity:
+
+    def _make_scatter_record(self, m_beam=0.008, m_target=37.215, E=1.0):
+        rec = siren.dataclasses.InteractionRecord()
+        rec.signature.primary_type = siren.dataclasses.ParticleType(5917)
+        rec.signature.target_type = siren.dataclasses.ParticleType(1000180400)
+        rec.signature.secondary_types = [
+            siren.dataclasses.ParticleType(5917),
+            siren.dataclasses.ParticleType(1000180400),
+        ]
+        rec.primary_mass = m_beam
+        pz = math.sqrt(max(E**2 - m_beam**2, 0))
+        rec.primary_momentum = [E, 0, 0, pz]
+        rec.target_mass = m_target
+        rec.secondary_masses = [m_beam, m_target]
+        rec.secondary_momenta = [[0, 0, 0, 0], [0, 0, 0, 0]]
+        rec.secondary_helicities = [0, 0]
+        rec.interaction_vertex = [0, 0, 0]
+        rec.primary_initial_position = [0, 0, 0]
+        return rec
+
+    def test_scattering_channel_density_positive(self):
+        """DetectorDirectedScatteringChannel should produce positive
+        finite densities for all sampled events.
+        """
+        box = _make_box_at(0, 0, 50, 1.0, 1.0, 1.0)
+        rec = self._make_scatter_record(m_beam=0.008, m_target=37.215, E=1.0)
+
+        sc = siren.injection.DetectorDirectedScatteringChannel(
+            box, directed_index=0,
+            variable=siren.injection.ScatteringVariable.Q2)
+        rng = siren.utilities.SIREN_random(42)
+
+        N = 1000
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            sc.Sample(rng, None, r)
+            d = sc.Density(None, r)
+            assert d >= 0, "Scattering density negative: {}".format(d)
+            assert math.isfinite(d), "Scattering density infinite/NaN"
+
+    def test_physical_scattering_with_directed_multichannel(self):
+        """Combine PhysicalCrossSectionChannel (MandelstamQ2) with
+        DetectorDirectedScatteringChannel (MandelstamQ2) in a
+        MultiChannelPhaseSpace. Both use MandelstamQ2 measure.
+
+        The multi-channel integral E_mc[phys/mc] should be 1.
+        """
+        xs = _MockElasticScattering(0.008, 37.215)
+        sig = xs.GetPossibleSignatures()[0]
+        box = _make_box_at(0, 0, 50, 1.0, 1.0, 1.0)
+        rec = self._make_scatter_record(m_beam=0.008, m_target=37.215, E=1.0)
+
+        phys = siren.injection.PhysicalCrossSectionChannel(xs, sig)
+        directed = siren.injection.DetectorDirectedScatteringChannel(
+            box, directed_index=0,
+            variable=siren.injection.ScatteringVariable.Q2)
+
+        assert phys.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert phys.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+        assert directed.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert directed.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [phys, directed]
+        mc.weights = [0.3, 0.7]
+
+        rng = siren.utilities.SIREN_random(42)
+        N = 3000
+        weights = []
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_phys = phys.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_phys / d_mc)
+
+        mean_w = sum(weights) / len(weights)
+        assert abs(mean_w - 1.0) < 0.05, (
+            "Scattering multichannel integral = {:.4f}".format(mean_w)
+        )
+
+
+# ================================================================== #
+#  Gap 6: 3-body channel tests                                        #
+# ================================================================== #
+
+
+class TestThreeBodyChannel:
+
+    def test_3body_channel_density_positive(self):
+        """DetectorDirected3BodyChannel should produce positive finite
+        densities for all sampled events.
+        """
+        box = _make_box_at(0, 0, 50, 1.0, 1.0, 1.0)
+        rec = _make_3body_record(M=1.0, E=3.0, masses=(0.1, 0.05, 0.1))
+
+        dir3 = siren.injection.DetectorDirected3BodyChannel(
+            box,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+        )
+        rng = siren.utilities.SIREN_random(42)
+
+        N = 1000
+        n_positive = 0
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            dir3.Sample(rng, None, r)
+            d = dir3.Density(None, r)
+            assert d >= 0, "3-body density negative"
+            assert math.isfinite(d), "3-body density NaN/Inf"
+            if d > 0:
+                n_positive += 1
+
+        assert n_positive > N * 0.8, (
+            "3-body channel produced too many zero-density events: "
+            "{}/{}".format(n_positive, N)
+        )
+
+    def test_3body_channel_topology_and_measure(self):
+        """3-body channel reports Decay3Body topology and
+        Recursive2Body measure.
+        """
+        box = _make_box_at(0, 0, 50, 1.0, 1.0, 1.0)
+        dir3 = siren.injection.DetectorDirected3BodyChannel(
+            box,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=1,
+        )
+
+        assert dir3.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
+        assert dir3.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body
+
+    def test_3body_channel_conserves_4momentum(self):
+        """3-body channel must conserve 4-momentum."""
+        box = _make_box_at(0, 0, 50, 1.0, 1.0, 1.0)
+        rec = _make_3body_record(M=1.0, E=3.0, masses=(0.1, 0.05, 0.1))
+
+        dir3 = siren.injection.DetectorDirected3BodyChannel(
+            box,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+        )
+        rng = siren.utilities.SIREN_random(42)
+
+        for _ in range(200):
+            r = copy.deepcopy(rec)
+            dir3.Sample(rng, None, r)
+
+            # Sum secondary 4-momenta
+            E_sum = sum(p[0] for p in r.secondary_momenta)
+            px_sum = sum(p[1] for p in r.secondary_momenta)
+            py_sum = sum(p[2] for p in r.secondary_momenta)
+            pz_sum = sum(p[3] for p in r.secondary_momenta)
+
+            # Should equal primary 4-momentum
+            assert abs(E_sum - r.primary_momentum[0]) < 1e-8, (
+                "Energy not conserved: {:.8f} vs {:.8f}".format(
+                    E_sum, r.primary_momentum[0])
+            )
+            assert abs(px_sum - r.primary_momentum[1]) < 1e-8
+            assert abs(py_sum - r.primary_momentum[2]) < 1e-8
+            assert abs(pz_sum - r.primary_momentum[3]) < 1e-8
+
+    def test_3body_secondary_masses_correct(self):
+        """3-body channel must produce secondaries with the correct masses."""
+        box = _make_box_at(0, 0, 50, 1.0, 1.0, 1.0)
+        masses = (0.1, 0.05, 0.15)
+        rec = _make_3body_record(M=1.0, E=3.0, masses=masses)
+
+        dir3 = siren.injection.DetectorDirected3BodyChannel(
+            box,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_pair_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+        )
+        rng = siren.utilities.SIREN_random(42)
+
+        for _ in range(100):
+            r = copy.deepcopy(rec)
+            dir3.Sample(rng, None, r)
+
+            for i, m_expected in enumerate(masses):
+                p = r.secondary_momenta[i]
+                m_sq = p[0]**2 - p[1]**2 - p[2]**2 - p[3]**2
+                m_actual = math.sqrt(max(m_sq, 0))
+                assert abs(m_actual - m_expected) < 1e-6, (
+                    "Secondary {} mass: expected {:.4f}, got {:.4f}".format(
+                        i, m_expected, m_actual)
+                )
