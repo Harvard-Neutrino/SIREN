@@ -1051,10 +1051,48 @@ class TestTighterNormalization:
 # ================================================================== #
 
 
+def _boost_to_lab(P_parent, p_cm, cos_theta, phi, m_daughter):
+    """Boost a rest-frame 2-body daughter to the lab frame.
+
+    Matches the _boost_to_lab helper used by all production
+    Decay classes in VectorPortal.py / MesonProduction.py.
+    """
+    E_parent = P_parent[0]
+    px_p, py_p, pz_p = P_parent[1], P_parent[2], P_parent[3]
+    p_mag = math.sqrt(px_p**2 + py_p**2 + pz_p**2)
+    M_parent = math.sqrt(max(E_parent**2 - p_mag**2, 0.0))
+
+    sin_theta = math.sqrt(max(1.0 - cos_theta**2, 0.0))
+    E_rf = math.sqrt(p_cm**2 + m_daughter**2)
+    p_rf_x = p_cm * sin_theta * math.cos(phi)
+    p_rf_y = p_cm * sin_theta * math.sin(phi)
+    p_rf_z = p_cm * cos_theta
+
+    if p_mag < 1e-12 or M_parent < 1e-12:
+        return [E_rf, p_rf_x, p_rf_y, p_rf_z]
+
+    beta = p_mag / E_parent
+    gamma = E_parent / M_parent
+    bx, by, bz = px_p / p_mag, py_p / p_mag, pz_p / p_mag
+
+    p_par = p_rf_x * bx + p_rf_y * by + p_rf_z * bz
+    perp_x = p_rf_x - p_par * bx
+    perp_y = p_rf_y - p_par * by
+    perp_z = p_rf_z - p_par * bz
+
+    E_lab = gamma * (E_rf + beta * p_par)
+    p_par_lab = gamma * (p_par + beta * E_rf)
+    return [E_lab,
+            p_par_lab * bx + perp_x,
+            p_par_lab * by + perp_y,
+            p_par_lab * bz + perp_z]
+
+
 class _MockIsotropic2BodyDecay(siren.interactions.Decay):
     """Isotropic 2-body decay with known masses.
 
-    SampleFinalState produces uniform rest-frame cos_theta.
+    SampleFinalState samples uniform rest-frame cos_theta, boosts
+    to the lab frame (matching production Decay conventions).
     FinalStateProbability returns 1/(4*pi) (isotropic).
     Convention returns RestFrameSolidAngle.
     """
@@ -1087,21 +1125,19 @@ class _MockIsotropic2BodyDecay(siren.interactions.Decay):
     def SampleFinalState(self, csdr, random):
         cos_theta = random.Uniform(-1, 1)
         phi = random.Uniform(0, 2 * math.pi)
-        sin_theta = math.sqrt(max(1.0 - cos_theta**2, 0.0))
 
-        p_rest = siren.injection.TwoBodyRestMomentum(
+        P_parent = list(csdr.primary_momentum)
+        p_cm = siren.injection.TwoBodyRestMomentum(
             self._M, self._mA, self._mB)
-        E_A = (self._M**2 + self._mA**2 - self._mB**2) / (2 * self._M)
-        E_B = self._M - E_A
 
-        px = p_rest * sin_theta * math.cos(phi)
-        py = p_rest * sin_theta * math.sin(phi)
-        pz = p_rest * cos_theta
+        P_A = _boost_to_lab(P_parent, p_cm, cos_theta, phi, self._mA)
+        P_B = _boost_to_lab(P_parent, p_cm, -cos_theta,
+                            phi + math.pi, self._mB)
 
         sp0 = csdr.get_secondary_particle_record(0)
-        sp0.four_momentum = [E_A, px, py, pz]
+        sp0.four_momentum = P_A
         sp1 = csdr.get_secondary_particle_record(1)
-        sp1.four_momentum = [E_B, -px, -py, -pz]
+        sp1.four_momentum = P_B
 
     def SecondaryMasses(self, secondary_types):
         return [self._mA, self._mB]
@@ -1129,7 +1165,7 @@ class _MockAnisotropic2BodyDecay(siren.interactions.Decay):
     """2-body decay with angular distribution (1 + cos^2 theta).
 
     Normalized density: (3/(16*pi)) * (1 + cos^2 theta).
-    Uses accept-reject to sample from this distribution.
+    Uses accept-reject to sample, then boosts to lab frame.
     """
 
     def __init__(self, parent_mass, daughter_mass_a, daughter_mass_b):
@@ -1162,30 +1198,28 @@ class _MockAnisotropic2BodyDecay(siren.interactions.Decay):
         return _rest_frame_cos_theta(record, 0)
 
     def SampleFinalState(self, csdr, random):
-        # Accept-reject with envelope 2/(4*pi)
+        # Accept-reject with envelope max = 1.5
         while True:
             cos_theta = random.Uniform(-1, 1)
             u = random.Uniform(0, 1)
-            f = 0.75 * (1.0 + cos_theta**2)  # max = 1.5 at cos=+-1
+            f = 0.75 * (1.0 + cos_theta**2)
             if u * 1.5 < f:
                 break
 
         phi = random.Uniform(0, 2 * math.pi)
-        sin_theta = math.sqrt(max(1.0 - cos_theta**2, 0.0))
 
-        p_rest = siren.injection.TwoBodyRestMomentum(
+        P_parent = list(csdr.primary_momentum)
+        p_cm = siren.injection.TwoBodyRestMomentum(
             self._M, self._mA, self._mB)
-        E_A = (self._M**2 + self._mA**2 - self._mB**2) / (2 * self._M)
-        E_B = self._M - E_A
 
-        px = p_rest * sin_theta * math.cos(phi)
-        py = p_rest * sin_theta * math.sin(phi)
-        pz = p_rest * cos_theta
+        P_A = _boost_to_lab(P_parent, p_cm, cos_theta, phi, self._mA)
+        P_B = _boost_to_lab(P_parent, p_cm, -cos_theta,
+                            phi + math.pi, self._mB)
 
         sp0 = csdr.get_secondary_particle_record(0)
-        sp0.four_momentum = [E_A, px, py, pz]
+        sp0.four_momentum = P_A
         sp1 = csdr.get_secondary_particle_record(1)
-        sp1.four_momentum = [E_B, -px, -py, -pz]
+        sp1.four_momentum = P_B
 
     def SecondaryMasses(self, secondary_types):
         return [self._mA, self._mB]
@@ -1333,13 +1367,11 @@ class TestCrossMeasureConversion:
         conversion is needed. The multi-channel density integral
         (via importance sampling) should be 1.0.
 
-        Uses parent at rest to avoid rest/lab frame boost mismatch
-        between the mock SampleFinalState and the directed channel.
         """
         decay = _MockIsotropic2BodyDecay(1.0, 0.1, 0.2)
         sig = decay.GetPossibleSignatures()[0]
         box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
-        rec = _make_2body_record(M=1.0, E=1.0, mA=0.1, mB=0.2)
+        rec = _make_2body_record(M=1.0, E=5.0, mA=0.1, mB=0.2)
 
         phys = siren.injection.PhysicalDecayChannel(decay, sig)
         directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
@@ -1374,24 +1406,24 @@ class TestCrossMeasureConversion:
         anisotropic mock, and the multi-channel must correctly
         combine its density with the directed channel.
 
-        Uses parent at rest to avoid rest/lab frame boost mismatch.
-
         Importance sampling: E_mc[phys/mc] = 1.
+        Uses a boosted parent (gamma=5) to concentrate daughters
+        forward, reducing weight variance.
         """
         decay = _MockAnisotropic2BodyDecay(1.0, 0.1, 0.2)
         sig = decay.GetPossibleSignatures()[0]
         box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
-        rec = _make_2body_record(M=1.0, E=1.0, mA=0.1, mB=0.2)
+        rec = _make_2body_record(M=1.0, E=5.0, mA=0.1, mB=0.2)
 
         phys = siren.injection.PhysicalDecayChannel(decay, sig)
         directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
 
         mc = siren.injection.MultiChannelPhaseSpace()
         mc.channels = [phys, directed]
-        mc.weights = [0.01, 0.99]
+        mc.weights = [0.1, 0.9]
 
         rng = siren.utilities.SIREN_random(42)
-        N = 5000
+        N = 10000
         weights = []
         for _ in range(N):
             r = copy.deepcopy(rec)
