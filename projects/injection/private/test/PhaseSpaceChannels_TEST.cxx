@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <memory>
+#include <numeric>
 
 using siren::dataclasses::InteractionRecord;
 using siren::dataclasses::ParticleType;
@@ -30,6 +31,8 @@ using siren::injection::PhaseSpaceConvention;
 using siren::injection::PhaseSpaceTopology;
 using siren::injection::PhaseSpaceMeasure;
 using siren::injection::PhysicalDecayChannel;
+using siren::injection::TwoBodyRestMomentum;
+using siren::injection::TwoBodyRestEnergy;
 using siren::math::Vector3D;
 
 namespace {
@@ -1150,4 +1153,255 @@ TEST(JacobianIntegrals, NonTrivialAngularDistributionIntegralAgreement) {
 
     EXPECT_NEAR(integral, 1.0, 1e-3)
         << "Non-trivial angular distribution integral via Q2 = " << integral;
+}
+
+// ================================================================ //
+//  Auto-conversion integration tests                                 //
+// ================================================================ //
+//
+// These tests put channels with different measures into a single
+// MultiChannelPhaseSpace and verify that Density() auto-converts
+// correctly.
+
+namespace {
+
+// Helper: build a 2-body decay record for a boosted parent.
+InteractionRecord Make2BodyRecord(
+    double M, double m_A, double m_B, double E_parent)
+{
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.target_type = ParticleType::Decay;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = M;
+    double p_parent = std::sqrt(E_parent * E_parent - M * M);
+    record.primary_momentum = {E_parent, 0.0, 0.0, p_parent};
+    record.primary_initial_position = {0.0, 0.0, 0.0};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {m_A, m_B};
+    record.secondary_momenta = {{0, 0, 0, 0}, {0, 0, 0, 0}};
+    record.secondary_helicities = {0, 0};
+    return record;
+}
+
+// A test channel that wraps Isotropic2BodyChannel but reports
+// SolidAngleLab and evaluates its density in lab-frame measure.
+class LabFrameIsotropicChannel : public siren::injection::PhaseSpaceChannel {
+public:
+    LabFrameIsotropicChannel() : iso_(0) {}
+
+    void Sample(
+        std::shared_ptr<siren::utilities::SIREN_random> random,
+        std::shared_ptr<siren::detector::DetectorModel const> dm,
+        InteractionRecord & record) const override
+    {
+        iso_.Sample(random, dm, record);
+    }
+
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord const & record) const override
+    {
+        // Isotropic in rest frame means 1/(4*pi) per dOmega_rest.
+        // Convert to density per dOmega_lab using the Jacobian.
+        double rest_density = 1.0 / (4.0 * M_PI);
+
+        double M = record.primary_mass;
+        double m_A = record.secondary_masses[0];
+        double m_B = record.secondary_masses[1];
+        double p_rest = TwoBodyRestMomentum(M, m_A, m_B);
+        double E_rest = TwoBodyRestEnergy(M, m_A, m_B);
+
+        double E_parent = record.primary_momentum[0];
+        double px = record.primary_momentum[1];
+        double py = record.primary_momentum[2];
+        double pz = record.primary_momentum[3];
+        double p_parent = std::sqrt(px*px + py*py + pz*pz);
+        if (p_parent < 1e-15) return rest_density;
+
+        double beta = p_parent / E_parent;
+        double gamma = E_parent / M;
+
+        double px_A = record.secondary_momenta[0][1];
+        double py_A = record.secondary_momenta[0][2];
+        double pz_A = record.secondary_momenta[0][3];
+        double p_A = std::sqrt(px_A*px_A + py_A*py_A + pz_A*pz_A);
+        if (p_A < 1e-15) return rest_density;
+
+        double cos_theta_lab = (px_A*px + py_A*py + pz_A*pz) / (p_A * p_parent);
+
+        // Find the matching Lorentz boost solution
+        double E_A_lab = record.secondary_momenta[0][0];
+        double p_par_lab = p_A * cos_theta_lab;
+        double p_par_rest = gamma * (p_par_lab - beta * E_A_lab);
+        double cos_rest_actual = (p_rest > 0) ? p_par_rest / p_rest : 0.0;
+
+        auto solutions = siren::injection::SolveLabAngle(
+            beta, gamma, p_rest, E_rest, m_A, cos_theta_lab);
+
+        // |dOmega_lab/dOmega_rest| for the correct solution
+        double J = 0.0;
+        double best_dist = 1e30;
+        for (auto const & sol : solutions) {
+            if (!sol.valid) continue;
+            double dist = std::abs(sol.cos_theta_rest - cos_rest_actual);
+            if (dist < best_dist) {
+                best_dist = dist;
+                J = sol.jacobian;
+            }
+        }
+        if (J <= 0.0 || !std::isfinite(J)) return 0.0;
+
+        // rest_density / J converts from per-dOmega_rest to per-dOmega_lab
+        return rest_density / J;
+    }
+
+    std::string Name() const override { return "LabFrameIsotropic"; }
+    PhaseSpaceTopology Topology() const override { return PhaseSpaceTopology::Decay2Body; }
+    PhaseSpaceMeasure Measure() const override { return PhaseSpaceMeasure::SolidAngleLab; }
+
+private:
+    Isotropic2BodyChannel iso_;
+};
+
+} // anonymous namespace
+
+
+TEST(AutoConversion, Decay2BodyRestPlusLabDensityAgreesWithPureRest) {
+    // Two channels that sample identically (isotropic 2-body) but
+    // report densities in different measures.  The MultiChannelPhaseSpace
+    // should auto-convert so the combined density equals the individual
+    // density (since both channels are isotropic, the combined density
+    // should be 1/(4*pi) in rest-frame measure regardless of weights).
+
+    auto rest_channel = std::make_shared<Isotropic2BodyChannel>(0);
+    auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
+
+    // Verify they report different measures
+    ASSERT_EQ(rest_channel->Measure(), PhaseSpaceMeasure::SolidAngleRest);
+    ASSERT_EQ(lab_channel->Measure(), PhaseSpaceMeasure::SolidAngleLab);
+
+    // Same topology
+    ASSERT_EQ(rest_channel->Topology(), lab_channel->Topology());
+
+    MultiChannelPhaseSpace mc;
+    mc.channels = {rest_channel, lab_channel};
+    mc.weights = {0.5, 0.5};
+
+    // CommonMeasure should pick SolidAngleRest (higher priority)
+    EXPECT_EQ(mc.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest);
+
+    // Validation should pass (same topology, compatible measures)
+    auto diags = mc.ValidateChannels();
+    // Should have an info diagnostic about auto-conversion, not an error
+    for (auto const & d : diags) {
+        EXPECT_EQ(d.find("incompatibility"), std::string::npos)
+            << "Unexpected incompatibility: " << d;
+    }
+
+    // Sample many events and verify the combined density equals 1/(4*pi)
+    // for each event (since both channels sample isotropically).
+    double M = 1.0, m_A = 0.1, m_B = 0.2, E = 5.0;
+    InteractionRecord record = Make2BodyRecord(M, m_A, m_B, E);
+    auto random = std::make_shared<siren::utilities::SIREN_random>(42);
+
+    int N = 500;
+    double max_deviation = 0.0;
+    for (int i = 0; i < N; ++i) {
+        InteractionRecord r = record;
+        mc.Sample(random, nullptr, r);
+        double combined = mc.Density(nullptr, r);
+        double expected = 1.0 / (4.0 * M_PI);
+        double deviation = std::abs(combined - expected) / expected;
+        if (deviation > max_deviation) max_deviation = deviation;
+    }
+
+    EXPECT_LT(max_deviation, 1e-8)
+        << "Combined rest+lab density deviates from 1/(4*pi) by "
+        << max_deviation * 100 << "%";
+}
+
+TEST(AutoConversion, Decay2BodyMixedWeightsClosure) {
+    // Closure test: sample from the multichannel with unequal weights,
+    // compute the multichannel density, compute the physical density
+    // (1/(4*pi)), and verify the ratio is stable (constant).
+
+    auto rest_channel = std::make_shared<Isotropic2BodyChannel>(0);
+    auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
+
+    MultiChannelPhaseSpace mc;
+    mc.channels = {rest_channel, lab_channel};
+    mc.weights = {0.1, 0.9};
+
+    double M = 0.5, m_A = 0.05, m_B = 0.1, E = 3.0;
+    InteractionRecord record = Make2BodyRecord(M, m_A, m_B, E);
+    auto random = std::make_shared<siren::utilities::SIREN_random>(123);
+
+    double physical = 1.0 / (4.0 * M_PI);
+    int N = 2000;
+    double sum_w = 0.0;
+    int n_valid = 0;
+
+    for (int i = 0; i < N; ++i) {
+        InteractionRecord r = record;
+        mc.Sample(random, nullptr, r);
+        double gen = mc.Density(nullptr, r);
+        if (gen <= 0 || !std::isfinite(gen)) continue;
+        double w = physical / gen;
+        sum_w += w;
+        ++n_valid;
+    }
+
+    ASSERT_GT(n_valid, N / 2) << "Too many invalid samples";
+
+    // The average weight should be close to 1.0 (unbiased estimator
+    // of the integral of the physical density, which is 1.0).
+    double mean_w = sum_w / n_valid;
+    EXPECT_NEAR(mean_w, 1.0, 0.05)
+        << "Closure test: mean weight = " << mean_w
+        << " (expected 1.0 for unbiased sampling)";
+}
+
+TEST(AutoConversion, Scatter2to2Q2PlusSolidAngleClosure) {
+    // Test the SolidAngleRest <-> MandelstamQ2 auto-conversion for
+    // Scatter2to2 topology.  We create two channels that sample from
+    // the same isotropic (in CM) distribution but report density in
+    // different measures.
+
+    // Simple 2->2 scattering: m_beam=0.1, m_target=1.0 at E_lab=2.0
+    double m_beam = 0.1;
+    double m_target = 1.0;
+    double E_lab = 2.0;
+    double s = m_beam*m_beam + m_target*m_target + 2.0*m_target*E_lab;
+    double p_CM_sq = siren::injection::Kallen(s, m_beam*m_beam, m_target*m_target) / (4.0 * s);
+    double Q2_max = 4.0 * p_CM_sq;
+
+    // Channel A: reports density per dOmega_rest = 1/(4*pi)
+    // Channel B: reports density per dQ2 = 1/(4*pi) * 2*pi / (2*p_CM^2)
+    //            = 1 / (4 * p_CM^2)
+    // These are the same physical distribution (isotropic in CM)
+    // expressed in different measures.
+
+    double density_rest = 1.0 / (4.0 * M_PI);
+    double density_Q2 = density_rest * 2.0 * M_PI / (2.0 * p_CM_sq);
+
+    // We can verify the densities integrate to 1:
+    // rest: integral of 1/(4pi) dOmega = 1
+    // Q2:   integral of density_Q2 dQ2 from 0 to Q2_max = density_Q2 * 4*p_CM^2 = 1
+    EXPECT_NEAR(density_Q2 * Q2_max, 1.0, 1e-10);
+
+    // Now verify the auto-conversion: if we ask MultiChannelPhaseSpace
+    // for the density in the common measure (SolidAngleRest), the
+    // Q2 density should be converted back to rest-frame and yield
+    // 1/(4*pi).
+
+    // We test this by computing the conversion manually and checking
+    // it matches:
+    namespace J = siren::injection::phase_space_jacobian;
+    double converted_back = J::MandelstamQ2DensityToSolidAngleRestDensity(
+        density_Q2, s, m_beam, m_target);
+
+    EXPECT_NEAR(converted_back, density_rest, 1e-10)
+        << "Manual Q2->rest conversion: got " << converted_back
+        << ", expected " << density_rest;
 }

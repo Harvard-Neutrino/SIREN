@@ -622,12 +622,25 @@ class TestSecondaryBiasing:
         assert ch.Name() == "Isotropic2Body"
         assert ch.Convention() == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
 
+    def test_isotropic_channel_topology_measure(self):
+        import siren
+        ch = siren.injection.Isotropic2BodyChannel(0)
+        assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+
     def test_detector_directed_channel_construction(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Name() == "DetectorDirected2Body"
         assert ch.Convention() == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
+
+    def test_detector_directed_channel_topology_measure(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+        assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
 
     def test_detector_directed_3body_channel_construction(self):
         import siren
@@ -643,6 +656,13 @@ class TestSecondaryBiasing:
         assert ch.Name() == "DetectorDirected3Body"
         assert ch.Convention() == siren.injection.PhaseSpaceConvention.Recursive2Body
 
+    def test_3body_channel_topology_measure(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected3BodyChannel(fid)
+        assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body
+
     def test_detector_directed_scattering_channel_construction(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
@@ -654,6 +674,18 @@ class TestSecondaryBiasing:
         assert ch.Name() == "DetectorDirectedScattering"
         assert ch.Convention() == siren.injection.PhaseSpaceConvention.MandelstamST
 
+    def test_scattering_channel_topology_measure(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch_q2 = siren.injection.DetectorDirectedScatteringChannel(
+            fid, variable=siren.injection.ScatteringVariable.Q2)
+        ch_by = siren.injection.DetectorDirectedScatteringChannel(
+            fid, variable=siren.injection.ScatteringVariable.BjorkenY)
+        assert ch_q2.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert ch_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+        assert ch_by.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert ch_by.Measure() == siren.injection.PhaseSpaceMeasure.BjorkenXY
+
     def test_multi_channel_construction(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
@@ -664,11 +696,23 @@ class TestSecondaryBiasing:
         ]
         mc.weights = [0.01, 0.99]
         assert len(mc.channels) == 2
+        assert mc.CommonTopology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert mc.CommonMeasure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
         common = mc.CommonConvention()
-        assert common in (
-            siren.injection.PhaseSpaceConvention.RestFrameSolidAngle,
-            siren.injection.PhaseSpaceConvention.LabFrameSolidAngle,
-        )
+        assert common == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
+
+    def test_topology_mismatch_raises(self):
+        """Mixing Decay2Body with Scatter2to2 should throw."""
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirectedScatteringChannel(fid),
+        ]
+        mc.weights = [0.5, 0.5]
+        with pytest.raises(RuntimeError, match="[Tt]opology"):
+            mc.CommonTopology()
 
     def test_secondary_process_phase_space(self):
         import siren
