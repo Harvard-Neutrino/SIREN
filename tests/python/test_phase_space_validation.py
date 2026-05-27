@@ -506,7 +506,7 @@ class TestTopologyMeasureValidation:
         assert topo == siren.injection.PhaseSpaceTopology.Decay2Body
 
         measure = mc.CommonMeasure()
-        assert measure == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert measure == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
         diagnostics = mc.ValidateChannels()
         # Filter for error-level diagnostics (mismatch / incompatibility)
@@ -525,12 +525,12 @@ class TestTopologyMeasureValidation:
         # Isotropic2BodyChannel
         iso = siren.injection.Isotropic2BodyChannel(0)
         assert iso.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
-        assert iso.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert iso.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
         # DetectorDirected2BodyChannel
         dir2 = siren.injection.DetectorDirected2BodyChannel(box, 0)
         assert dir2.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
-        assert dir2.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert dir2.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
         # DetectorDirected3BodyChannel
         dir3 = siren.injection.DetectorDirected3BodyChannel(
@@ -542,21 +542,21 @@ class TestTopologyMeasureValidation:
             mass_mode=siren.injection.InvariantMassMode.Uniform,
         )
         assert dir3.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
-        assert dir3.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body
+        assert dir3.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body()
 
         # DetectorDirectedScatteringChannel with Q2
         sc_q2 = siren.injection.DetectorDirectedScatteringChannel(
             box, directed_index=0,
             variable=siren.injection.ScatteringVariable.Q2)
         assert sc_q2.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
-        assert sc_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+        assert sc_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2()
 
         # DetectorDirectedScatteringChannel with BjorkenY
         sc_by = siren.injection.DetectorDirectedScatteringChannel(
             box, directed_index=0,
             variable=siren.injection.ScatteringVariable.BjorkenY)
         assert sc_by.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
-        assert sc_by.Measure() == siren.injection.PhaseSpaceMeasure.BjorkenXY
+        assert sc_by.Measure() == siren.injection.PhaseSpaceMeasure.BjorkenXY()
 
     def test_legacy_convention_matches_new_system(self):
         """The legacy Convention() method should return values
@@ -569,19 +569,19 @@ class TestTopologyMeasureValidation:
 
         # Map from Measure -> expected legacy Convention
         measure_to_convention = {
-            siren.injection.PhaseSpaceMeasure.SolidAngleRest:
+            siren.injection.PhaseSpaceMeasure.SolidAngleRest():
                 siren.injection.PhaseSpaceConvention.RestFrameSolidAngle,
-            siren.injection.PhaseSpaceMeasure.SolidAngleLab:
+            siren.injection.PhaseSpaceMeasure.SolidAngleLab():
                 siren.injection.PhaseSpaceConvention.LabFrameSolidAngle,
-            siren.injection.PhaseSpaceMeasure.Recursive2Body:
+            siren.injection.PhaseSpaceMeasure.Recursive2Body():
                 siren.injection.PhaseSpaceConvention.Recursive2Body,
-            siren.injection.PhaseSpaceMeasure.DalitzPair:
+            siren.injection.PhaseSpaceMeasure.DalitzPair():
                 siren.injection.PhaseSpaceConvention.Dalitz,
-            siren.injection.PhaseSpaceMeasure.HelicityAngles:
+            siren.injection.PhaseSpaceMeasure.HelicityAngles():
                 siren.injection.PhaseSpaceConvention.HelicityAngles,
-            siren.injection.PhaseSpaceMeasure.MandelstamQ2:
+            siren.injection.PhaseSpaceMeasure.MandelstamQ2():
                 siren.injection.PhaseSpaceConvention.MandelstamST,
-            siren.injection.PhaseSpaceMeasure.BjorkenXY:
+            siren.injection.PhaseSpaceMeasure.BjorkenXY():
                 siren.injection.PhaseSpaceConvention.BjorkenXY,
         }
 
@@ -1377,8 +1377,8 @@ class TestCrossMeasureConversion:
         directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
 
         assert phys.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
-        assert phys.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
-        assert directed.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert phys.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
+        assert directed.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
         mc = siren.injection.MultiChannelPhaseSpace()
         mc.channels = [phys, directed]
@@ -1540,9 +1540,9 @@ class TestScatteringChannelDensity:
             variable=siren.injection.ScatteringVariable.Q2)
 
         assert phys.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
-        assert phys.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+        assert phys.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2()
         assert directed.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
-        assert directed.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+        assert directed.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2()
 
         mc = siren.injection.MultiChannelPhaseSpace()
         mc.channels = [phys, directed]
@@ -1619,7 +1619,7 @@ class TestThreeBodyChannel:
         )
 
         assert dir3.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
-        assert dir3.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body
+        assert dir3.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body()
 
     def test_3body_channel_conserves_4momentum(self):
         """3-body channel must conserve 4-momentum."""

@@ -45,7 +45,7 @@ public:
         return PhaseSpaceTopology::Decay2Body;
     }
     PhaseSpaceMeasure Measure() const override {
-        return PhaseSpaceMeasure::SolidAngleRest;
+        return PhaseSpaceMeasure::SolidAngleRest();
     }
 
 private:

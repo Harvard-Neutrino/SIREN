@@ -65,7 +65,7 @@ public:
         return PhaseSpaceTopology::Decay2Body;
     }
     PhaseSpaceMeasure Measure() const override {
-        return PhaseSpaceMeasure::SolidAngleRest;
+        return PhaseSpaceMeasure::SolidAngleRest();
     }
 
     // Set the true volume of the target geometry (for Volume mode).

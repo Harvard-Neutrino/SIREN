@@ -241,9 +241,9 @@ void DetectorDirectedScatteringChannel::SetVolume(double volume) {
 
 PhaseSpaceMeasure DetectorDirectedScatteringChannel::Measure() const {
     if (variable_ == Variable::Q2) {
-        return PhaseSpaceMeasure::MandelstamQ2;
+        return PhaseSpaceMeasure::MandelstamQ2();
     }
-    return PhaseSpaceMeasure::BjorkenXY;
+    return PhaseSpaceMeasure::BjorkenXY();
 }
 
 void DetectorDirectedScatteringChannel::Sample(

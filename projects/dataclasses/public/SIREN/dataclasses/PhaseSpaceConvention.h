@@ -26,34 +26,58 @@ std::string PhaseSpaceTopologyName(PhaseSpaceTopology topology);
 //  Measure: parameterization the density is differential in           //
 // ------------------------------------------------------------------ //
 
-enum class PhaseSpaceMeasure {
-    SolidAngleRest,   // dOmega_rest
-    SolidAngleLab,    // dOmega_lab
-    Recursive2Body,   // ds_pair dOmega_pair dOmega_sub
-    DalitzPair,       // ds_12 ds_23
-    HelicityAngles,   // ds_pair dOmega_hel dOmega_sub
-    MandelstamQ2,     // dQ^2
-    BjorkenXY,        // dx dy
-    Unspecified        // model-specific, no auto-conversion
+struct PhaseSpaceMeasure {
+    enum class Type {
+        SolidAngleRest,   // dOmega_rest
+        SolidAngleLab,    // dOmega_lab
+        Recursive2Body,   // ds_pair dOmega_pair dOmega_sub
+        DalitzPair,       // ds_12 ds_23
+        HelicityAngles,   // ds_pair dOmega_hel dOmega_sub
+        MandelstamQ2,     // dQ^2
+        BjorkenXY,        // dx dy
+        Unspecified       // model-specific, no auto-conversion
+    };
+
+    Type type = Type::Unspecified;
+
+    // 3-body factorization indices (secondary_momenta/masses indices).
+    // Meaningful for Recursive2Body, DalitzPair, HelicityAngles.
+    // Ignored for other types.
+    int spectator = 0;
+    int pair_first = 1;
+    int pair_second = 2;
+
+    bool operator==(PhaseSpaceMeasure const & o) const;
+    bool operator!=(PhaseSpaceMeasure const & o) const { return !(*this == o); }
+
+    // Convenience factories
+    static PhaseSpaceMeasure SolidAngleRest();
+    static PhaseSpaceMeasure SolidAngleLab();
+    static PhaseSpaceMeasure Recursive2Body(int spectator = 0,
+                                            int pair_first = 1,
+                                            int pair_second = 2);
+    static PhaseSpaceMeasure DalitzPair(int spectator = 0,
+                                        int pair_first = 1,
+                                        int pair_second = 2);
+    static PhaseSpaceMeasure HelicityAngles(int spectator = 0,
+                                            int pair_first = 1,
+                                            int pair_second = 2);
+    static PhaseSpaceMeasure MandelstamQ2();
+    static PhaseSpaceMeasure BjorkenXY();
+    static PhaseSpaceMeasure Unspecified();
 };
 
-std::string PhaseSpaceMeasureName(PhaseSpaceMeasure measure);
+std::string PhaseSpaceMeasureName(PhaseSpaceMeasure const & measure);
 
 // ------------------------------------------------------------------ //
 //  Convertibility                                                     //
 // ------------------------------------------------------------------ //
 
-// Returns the convertibility group index for a (topology, measure) pair.
-// Measures in the same group within the same topology can be converted
-// via analytic Jacobians.  Returns -1 for Unspecified or incompatible
-// combinations.
 int MeasureConvertibilityGroup(PhaseSpaceTopology topology,
-                               PhaseSpaceMeasure measure);
+                               PhaseSpaceMeasure const & measure);
 
-// Returns true if two (topology, measure) pairs can be combined in a
-// MultiChannelPhaseSpace (same topology, same convertibility group).
-bool PhaseSpaceCompatible(PhaseSpaceTopology topo_a, PhaseSpaceMeasure meas_a,
-                          PhaseSpaceTopology topo_b, PhaseSpaceMeasure meas_b);
+bool PhaseSpaceCompatible(PhaseSpaceTopology topo_a, PhaseSpaceMeasure const & meas_a,
+                          PhaseSpaceTopology topo_b, PhaseSpaceMeasure const & meas_b);
 
 // ------------------------------------------------------------------ //
 //  Legacy PhaseSpaceConvention (deprecated, kept for transition)       //
@@ -72,8 +96,6 @@ enum class PhaseSpaceConvention {
 
 std::string PhaseSpaceConventionName(PhaseSpaceConvention convention);
 
-// Convert legacy convention to the new (topology, measure) pair.
-// Topology is inferred from convention + n_secondaries.
 PhaseSpaceTopology TopologyFromConvention(PhaseSpaceConvention convention,
                                           int n_secondaries);
 PhaseSpaceMeasure MeasureFromConvention(PhaseSpaceConvention convention);

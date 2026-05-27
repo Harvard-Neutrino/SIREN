@@ -424,7 +424,7 @@ class VectorPortalUpscatteringXS(_CrossSection):
         return _Topology.Scatter2to2
 
     def Measure(self):
-        return _Measure.MandelstamQ2
+        return _Measure.MandelstamQ2()
 
     def equal(self, other):
         return self is other
@@ -648,7 +648,7 @@ class VectorPortalOffShellXS(_CrossSection):
         return _Topology.Scatter2to3
 
     def Measure(self):
-        return _Measure.Unspecified
+        return _Measure.Unspecified()
 
     def equal(self, other):
         return self is other
@@ -821,7 +821,7 @@ class ChiPrimeDecay(_Decay):
         return _Topology.Decay2Body
 
     def Measure(self):
-        return _Measure.SolidAngleRest
+        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_V1]
@@ -955,7 +955,7 @@ class DarkPhotonDecay(_Decay):
         return _Topology.Decay2Body
 
     def Measure(self):
-        return _Measure.SolidAngleRest
+        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [_M_ELECTRON, _M_ELECTRON]
@@ -1089,7 +1089,7 @@ class DarkPhotonToChiDecay(_Decay):
         return _Topology.Decay2Body
 
     def Measure(self):
-        return _Measure.SolidAngleRest
+        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]
@@ -1261,7 +1261,7 @@ class BiasedDarkPhotonToChiDecay(_Decay):
         return _Topology.Decay2Body
 
     def Measure(self):
-        return _Measure.Unspecified
+        return _Measure.Unspecified()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]

@@ -619,7 +619,7 @@ class TestSecondaryBiasing:
         import siren
         ch = siren.injection.Isotropic2BodyChannel(0)
         assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
-        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
     def test_detector_directed_channel_construction(self):
         import siren
@@ -633,7 +633,7 @@ class TestSecondaryBiasing:
         fid = siren.get_fiducial_volume("IceCube")
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
-        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
     def test_detector_directed_3body_channel_construction(self):
         import siren
@@ -654,7 +654,7 @@ class TestSecondaryBiasing:
         fid = siren.get_fiducial_volume("IceCube")
         ch = siren.injection.DetectorDirected3BodyChannel(fid)
         assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
-        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body()
 
     def test_detector_directed_scattering_channel_construction(self):
         import siren
@@ -675,9 +675,9 @@ class TestSecondaryBiasing:
         ch_by = siren.injection.DetectorDirectedScatteringChannel(
             fid, variable=siren.injection.ScatteringVariable.BjorkenY)
         assert ch_q2.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
-        assert ch_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2
+        assert ch_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2()
         assert ch_by.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
-        assert ch_by.Measure() == siren.injection.PhaseSpaceMeasure.BjorkenXY
+        assert ch_by.Measure() == siren.injection.PhaseSpaceMeasure.BjorkenXY()
 
     def test_multi_channel_construction(self):
         import siren
@@ -690,7 +690,7 @@ class TestSecondaryBiasing:
         mc.weights = [0.01, 0.99]
         assert len(mc.channels) == 2
         assert mc.CommonTopology() == siren.injection.PhaseSpaceTopology.Decay2Body
-        assert mc.CommonMeasure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest
+        assert mc.CommonMeasure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
         common = mc.CommonConvention()
         assert common == siren.injection.PhaseSpaceConvention.RestFrameSolidAngle
 

@@ -54,7 +54,8 @@ public:
         return PhaseSpaceTopology::Decay3Body;
     }
     PhaseSpaceMeasure Measure() const override {
-        return PhaseSpaceMeasure::Recursive2Body;
+        return PhaseSpaceMeasure::Recursive2Body(
+            spectator_index_, pair_first_index_, pair_second_index_);
     }
 
     void SetVolume(double volume);
