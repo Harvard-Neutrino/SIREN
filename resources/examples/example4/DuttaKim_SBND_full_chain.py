@@ -1,5 +1,5 @@
 """
-Full Dutta-Kim vector-portal chain at SBND with detector-directed biasing.
+Full Dutta-Kim vector-portal chain at SBND with multi-channel biasing.
 
 Generates weighted events through the 5-vertex on-shell chain:
 
@@ -9,16 +9,20 @@ Generates weighted events through the 5-vertex on-shell chain:
   4. chi' -> chi V1_signal    (de-excitation 2-body decay)
   5. V1_signal -> e+ e-       (visible signal)
 
-Each secondary vertex uses detector-directed phase-space biasing toward
-the SBND LAr TPC fiducial volume.
+Each secondary vertex uses a MultiChannelPhaseSpace combining a
+physical channel (correct angular distribution) with a detector-directed
+biasing channel. The --optimize flag runs iterative Kleiss-Pittau
+weight optimization to minimize total event weight variance.
 
 Usage:
-    python DuttaKim_SBND_full_chain.py [--n-events N] [--seed S]
+    python DuttaKim_SBND_full_chain.py [--n-events N] [--seed S] [--optimize]
 """
 
 import argparse
 import math
 import os
+
+import numpy as np
 
 import siren
 from siren import _util, dataclasses, distributions, injection
@@ -86,38 +90,53 @@ def build_models():
     return pion_decay, v1_to_chi, upscatter, chi_prime_decay, visible_decay
 
 
-def build_biased_phase_spaces(fiducial, models):
+def _mc(channels, weights):
+    m = injection.MultiChannelPhaseSpace()
+    m.channels = channels
+    m.weights = weights
+    return m
+
+
+def build_multichannel_phase_spaces(fiducial, models):
     """Build MultiChannelPhaseSpace for each secondary vertex.
 
-    Each secondary gets a single detector-directed channel that biases
-    one daughter toward the fiducial volume.
+    Each vertex gets a physical channel (correct density, isotropic
+    sampling) and a detector-directed biasing channel. The initial
+    weights are 10% physical / 90% biased.
     """
     _, v1_to_chi, upscatter, chi_prime_decay, visible_decay = models
 
-    def mc(channels, weights):
-        m = injection.MultiChannelPhaseSpace()
-        m.channels = channels
-        m.weights = weights
-        return m
+    v1_sig = v1_to_chi.GetPossibleSignatures()[0]
+    chi_sig = upscatter.GetPossibleSignatures()[0]
+    chip_sig = chi_prime_decay.GetPossibleSignatures()[0]
+    vis_sig = visible_decay.GetPossibleSignatures()[0]
 
     return {
         V1_PROD: {
-            v1_to_chi.GetPossibleSignatures()[0]: mc(
-                [injection.DetectorDirected2BodyChannel(fiducial, 0)], [1.0]),
+            v1_sig: _mc([
+                injection.PhysicalDecayChannel(v1_to_chi, v1_sig),
+                injection.DetectorDirected2BodyChannel(fiducial, 0),
+            ], [0.10, 0.90]),
         },
         CHI: {
-            upscatter.GetPossibleSignatures()[0]: mc(
-                [injection.DetectorDirectedScatteringChannel(
+            chi_sig: _mc([
+                injection.PhysicalCrossSectionChannel(upscatter, chi_sig),
+                injection.DetectorDirectedScatteringChannel(
                     fiducial, directed_index=0,
-                    variable=injection.ScatteringVariable.Q2)], [1.0]),
+                    variable=injection.ScatteringVariable.Q2),
+            ], [0.10, 0.90]),
         },
         CHI_PRIME: {
-            chi_prime_decay.GetPossibleSignatures()[0]: mc(
-                [injection.DetectorDirected2BodyChannel(fiducial, 1)], [1.0]),
+            chip_sig: _mc([
+                injection.PhysicalDecayChannel(chi_prime_decay, chip_sig),
+                injection.DetectorDirected2BodyChannel(fiducial, 1),
+            ], [0.10, 0.90]),
         },
         V1_SIGNAL: {
-            visible_decay.GetPossibleSignatures()[0]: mc(
-                [injection.Isotropic2BodyChannel(0)], [1.0]),
+            vis_sig: _mc([
+                injection.PhysicalDecayChannel(visible_decay, vis_sig),
+                injection.Isotropic2BodyChannel(0),
+            ], [0.50, 0.50]),
         },
     }
 
@@ -141,7 +160,17 @@ def stopping_condition(datum, i):
     return True                # everything else: stop
 
 
-def run(n_events=10, seed=42):
+def effective_sample_fraction(weights):
+    """Compute ESS / N for an array of weights."""
+    w = np.asarray(weights)
+    w = w[(np.isfinite(w)) & (w > 0)]
+    if len(w) == 0:
+        return 0.0
+    return (w.sum() ** 2) / (len(w) * (w ** 2).sum())
+
+
+def run(n_events=100, seed=42, optimize=False, opt_iterations=5,
+        opt_batch=200):
     """Generate and weight events through the full chain."""
 
     # -- Detector --
@@ -152,28 +181,34 @@ def run(n_events=10, seed=42):
     models = build_models()
     pion_decay, v1_to_chi, upscatter, chi_prime_decay, visible_decay = models
 
-    # -- Primary distributions (monoenergetic pion along +z from BNB target) --
-    primary_mass = distributions.PrimaryMass(M_PION)
-    primary_energy = distributions.Monoenergetic(2.0)
-    primary_dir = distributions.FixedDirection(siren.math.Vector3D(0, 0, 1))
-    primary_pos = distributions.PointSourcePositionDistribution(
-        [0.0, 0.0, 0.0], 300.0)
+    # -- Primary distributions --
+    primary_dists = [
+        distributions.PrimaryMass(M_PION),
+        distributions.Monoenergetic(2.0),
+        distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
+        distributions.PointSourcePositionDistribution(
+            [0.0, 0.0, 0.0], 300.0),
+    ]
 
     # -- Secondary distributions --
     sv = distributions.SecondaryPhysicalVertexDistribution()
 
-    # -- Biased phase spaces --
-    phase_spaces = build_biased_phase_spaces(fiducial, models)
+    # -- Multi-channel phase spaces --
+    phase_spaces = build_multichannel_phase_spaces(fiducial, models)
+
+    # -- Total events budget: optimization batches + production --
+    total_budget = n_events
+    if optimize:
+        total_budget += opt_iterations * opt_batch * 10
 
     # -- Build Injector --
     injector = Injector(
-        number_of_events=n_events,
+        number_of_events=total_budget,
         detector_model=detector_model,
         seed=seed,
         primary_type=PION,
         primary_interactions=[pion_decay],
-        primary_injection_distributions=[
-            primary_mass, primary_energy, primary_dir, primary_pos],
+        primary_injection_distributions=primary_dists,
         secondary_interactions={
             V1_PROD: [v1_to_chi], CHI: [upscatter],
             CHI_PRIME: [chi_prime_decay], V1_SIGNAL: [visible_decay],
@@ -185,7 +220,42 @@ def run(n_events=10, seed=42):
         stopping_condition=stopping_condition,
     )
 
-    # -- Generate events --
+    # Force initialization
+    for ev in injector:
+        break
+    injector._Injector__injector.ResetInjectedEvents()
+
+    # -- Build Weighter --
+    weighter = Weighter(
+        injectors=[injector],
+        detector_model=detector_model,
+        primary_type=PION,
+        primary_interactions=[pion_decay],
+        primary_physical_distributions=[
+            distributions.Monoenergetic(2.0),
+            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
+        ],
+        secondary_interactions={
+            V1_PROD: [v1_to_chi], CHI: [upscatter],
+            CHI_PRIME: [chi_prime_decay], V1_SIGNAL: [visible_decay],
+        },
+    )
+
+    # -- Optimize channel weights --
+    if optimize:
+        from siren.optimize import optimize_chain_weights
+        print("Optimizing multi-channel weights...")
+        optimize_chain_weights(
+            injector, weighter,
+            n_iterations=opt_iterations,
+            batch_size=opt_batch,
+            damping=0.5,
+            verbose=True,
+        )
+        print()
+
+    # -- Generate production events --
+    injector._Injector__injector.ResetInjectedEvents()
     events = []
     for event in injector:
         if event.tree:
@@ -195,41 +265,32 @@ def run(n_events=10, seed=42):
 
     print(f"Generated {len(events)} / {n_events} events")
 
-    # -- Build Weighter --
-    weighter = Weighter(
-        injectors=[injector],
-        detector_model=detector_model,
-        primary_type=PION,
-        primary_interactions=[pion_decay],
-        primary_physical_distributions=[primary_energy, primary_dir],
-        secondary_interactions={
-            V1_PROD: [v1_to_chi], CHI: [upscatter],
-            CHI_PRIME: [chi_prime_decay], V1_SIGNAL: [visible_decay],
-        },
-    )
-
     # -- Compute weights --
-    print(f"\n{'Event':>5}  {'Records':>7}  {'Weight':>14}  Chain")
-    print("-" * 65)
+    weights = np.array([weighter(event) for event in events])
+    valid_mask = np.isfinite(weights) & (weights > 0)
+    valid_weights = weights[valid_mask]
 
-    for i, event in enumerate(events):
-        w = weighter(event)
+    print(f"\n{'Event':>5}  {'Records':>7}  {'Weight':>14}  Chain")
+    print("-" * 70)
+    for i, (event, w) in enumerate(zip(events, weights)):
         records = list(event.tree)
         chain = " -> ".join(
             str(int(d.record.signature.primary_type)) for d in records)
-        status = "OK" if math.isfinite(w) and w > 0 else "BAD"
+        status = "OK" if valid_mask[i] else "BAD"
         print(f"{i:5d}  {len(records):7d}  {w:14.4e}  {chain}  [{status}]")
 
-    weights = [weighter(ev) for ev in events]
-    finite_weights = [w for w in weights if math.isfinite(w) and w > 0]
-    print(f"\n{len(finite_weights)} / {len(events)} events have finite positive weights")
+    # -- Summary statistics --
+    print(f"\n{'='*50}")
+    print(f"Valid events: {valid_mask.sum()} / {len(events)}")
 
-    if finite_weights:
-        import numpy as np
-        w = np.array(finite_weights)
-        print(f"Weight range: [{w.min():.4e}, {w.max():.4e}]")
-        print(f"Weight mean:  {w.mean():.4e}")
-        print(f"Weight std:   {w.std():.4e}")
+    if len(valid_weights) > 0:
+        eff = effective_sample_fraction(valid_weights) * 100
+        cv = valid_weights.std() / valid_weights.mean()
+        print(f"Weight range:  [{valid_weights.min():.4e}, "
+              f"{valid_weights.max():.4e}]")
+        print(f"Weight mean:   {valid_weights.mean():.4e}")
+        print(f"Weight CV:     {cv:.2f}")
+        print(f"Eff. sample:   {eff:.1f}%")
 
     return events, weights
 
@@ -237,9 +298,16 @@ def run(n_events=10, seed=42):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Dutta-Kim vector-portal chain at SBND")
-    parser.add_argument("--n-events", type=int, default=10,
-                        help="Number of events to generate")
+    parser.add_argument("--n-events", type=int, default=100,
+                        help="Number of production events")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random number seed")
+    parser.add_argument("--optimize", action="store_true",
+                        help="Run iterative weight optimization before production")
+    parser.add_argument("--opt-iterations", type=int, default=5,
+                        help="Number of optimization iterations")
+    parser.add_argument("--opt-batch", type=int, default=200,
+                        help="Events per optimization iteration")
     args = parser.parse_args()
-    run(n_events=args.n_events, seed=args.seed)
+    run(n_events=args.n_events, seed=args.seed, optimize=args.optimize,
+        opt_iterations=args.opt_iterations, opt_batch=args.opt_batch)
