@@ -1107,3 +1107,47 @@ TEST(JacobianAnalytic, KnownRestToLabValue) {
     }
     EXPECT_TRUE(found) << "Could not find matching solution for cos_theta_rest=0";
 }
+
+TEST(JacobianIntegrals, NonTrivialAngularDistributionIntegralAgreement) {
+    // Use f(cos_theta) = (3/4) * (1 + cos^2(theta)) which integrates
+    // to 1 over the unit sphere: integral (3/4)(1+cos^2) dOmega =
+    // (3/4) * 2*pi * integral_{-1}^{1} (1+cos^2) d(cos) = (3/4)*2*pi*(8/3) = 4*pi
+    // So f_Omega = (3/16*pi) * (1 + cos^2(theta)) is a normalized density.
+    //
+    // Convert to Q2 via the Jacobian and numerically integrate:
+    //   f(Q2) = f_Omega * 2*pi / (2*p_CM^2)
+    // where cos_theta = 1 - Q2/(2*p_CM^2)
+    //
+    // The integral of f(Q2) dQ2 from 0 to Q2_max should equal 1.
+
+    double m_beam = 0.1;
+    double m_target = 0.938;
+    double E_beam = 3.0;
+    double s = m_beam * m_beam + m_target * m_target + 2.0 * m_target * E_beam;
+    double p_CM_sq = siren::injection::Kallen(
+        s, m_beam * m_beam, m_target * m_target) / (4.0 * s);
+    ASSERT_GT(p_CM_sq, 0.0);
+    double Q2_max = 4.0 * p_CM_sq;
+
+    // Numerically integrate the converted density
+    int N = 10000;
+    double integral = 0.0;
+    double dQ2 = Q2_max / N;
+    for (int i = 0; i < N; ++i) {
+        double Q2 = (i + 0.5) * dQ2;
+        double cos_theta = 1.0 - Q2 / (2.0 * p_CM_sq);
+
+        // Normalized angular density: (3/(16*pi)) * (1 + cos^2)
+        double f_omega = (3.0 / (16.0 * M_PI)) * (1.0 + cos_theta * cos_theta);
+
+        // Convert to Q2 density using the Jacobian
+        double f_Q2 = siren::injection::phase_space_jacobian::
+            SolidAngleRestDensityToMandelstamQ2Density(
+                f_omega, s, m_beam, m_target);
+
+        integral += f_Q2 * dQ2;
+    }
+
+    EXPECT_NEAR(integral, 1.0, 1e-3)
+        << "Non-trivial angular distribution integral via Q2 = " << integral;
+}
