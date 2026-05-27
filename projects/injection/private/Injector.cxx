@@ -669,6 +669,7 @@ unsigned int Injector::EventsToInject() const {
 
 void Injector::ResetInjectedEvents() {
     injected_events = 0;
+    injection_attempts = 0;
 }
 
 Injector::operator bool() const {
