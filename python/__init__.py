@@ -7,6 +7,8 @@ from . import interactions
 from . import distributions
 from . import injection
 
+from . import optimize
+
 from . import _util
 from . import resources
 
