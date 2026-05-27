@@ -42,6 +42,37 @@ FourVector Add(FourVector const & a, FourVector const & b) {
     return FourVector{a.e + b.e, a.p + b.p};
 }
 
+// Compute the initial-state invariant mass and total 4-momentum.
+// For decays: M = primary_mass, P = primary_momentum.
+// For scattering (target at rest): M = sqrt(s), P = beam + target.
+struct InitialState {
+    double M;
+    double E, px, py, pz;
+};
+
+InitialState GetInitialState(
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceTopology topology)
+{
+    double E = record.primary_momentum[0];
+    double px = record.primary_momentum[1];
+    double py = record.primary_momentum[2];
+    double pz = record.primary_momentum[3];
+
+    if (topology == PhaseSpaceTopology::Scatter2to3) {
+        // Target at rest: add target 4-momentum (m_target, 0, 0, 0)
+        double m_beam = record.primary_mass;
+        double m_target = record.target_mass;
+        double E_total = E + m_target;
+        double s = m_beam * m_beam + m_target * m_target + 2.0 * m_target * E;
+        if (s <= 0.0) return {0, 0, 0, 0, 0};
+        return {std::sqrt(s), E_total, px, py, pz};
+    }
+
+    // Decay: parent 4-momentum is the initial state
+    return {record.primary_mass, E, px, py, pz};
+}
+
 } // anonymous namespace
 
 DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
@@ -146,7 +177,8 @@ void DetectorDirected3BodyChannel::Sample(
         throw std::runtime_error("DetectorDirected3BodyChannel requires exactly 3 secondaries");
     }
 
-    double M = record.primary_mass;
+    InitialState init = GetInitialState(record, topology_);
+    double M = init.M;
     double m_spectator = record.secondary_masses[spectator_index_];
     double m_first = record.secondary_masses[pair_first_index_];
     double m_second = record.secondary_masses[pair_second_index_];
@@ -160,10 +192,10 @@ void DetectorDirected3BodyChannel::Sample(
     double s_pair = SampleInvariantMassSquared(random, s_min, s_max);
     double m_pair = std::sqrt(s_pair);
 
-    double E_parent = record.primary_momentum[0];
-    double px_parent = record.primary_momentum[1];
-    double py_parent = record.primary_momentum[2];
-    double pz_parent = record.primary_momentum[3];
+    double E_parent = init.E;
+    double px_parent = init.px;
+    double py_parent = init.py;
+    double pz_parent = init.pz;
     double p_parent = std::sqrt(px_parent*px_parent + py_parent*py_parent + pz_parent*pz_parent);
 
     // Step 1: P -> pair + spectator (isotropic in rest frame)
@@ -260,7 +292,8 @@ double DetectorDirected3BodyChannel::Density(
         return 0.0;
     }
 
-    double M = record.primary_mass;
+    InitialState init = GetInitialState(record, topology_);
+    double M = init.M;
     double m_spectator = record.secondary_masses[spectator_index_];
     double m_first = record.secondary_masses[pair_first_index_];
     double m_second = record.secondary_masses[pair_second_index_];
