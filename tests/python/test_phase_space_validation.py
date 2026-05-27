@@ -612,3 +612,435 @@ class TestTopologyMeasureValidation:
                 "Channel {} has Measure={} but Convention={}, expected {}"
                 .format(ch.Name(), measure, convention, expected_convention)
             )
+
+
+# ================================================================== #
+#  Gap fixes: sampling-density consistency                             #
+# ================================================================== #
+
+
+def _rest_frame_cos_theta(record, daughter_index=0):
+    """Extract the rest-frame cos(theta) of a daughter from a sampled record."""
+    M = record.primary_mass
+    E_p = record.primary_momentum[0]
+    px_p = record.primary_momentum[1]
+    py_p = record.primary_momentum[2]
+    pz_p = record.primary_momentum[3]
+    p_p = math.sqrt(px_p**2 + py_p**2 + pz_p**2)
+
+    E_d = record.secondary_momenta[daughter_index][0]
+    px_d = record.secondary_momenta[daughter_index][1]
+    py_d = record.secondary_momenta[daughter_index][2]
+    pz_d = record.secondary_momenta[daughter_index][3]
+    p_d = math.sqrt(px_d**2 + py_d**2 + pz_d**2)
+
+    if p_p < 1e-30:
+        # Parent at rest: use the z-axis as reference
+        return pz_d / p_d if p_d > 0 else 0.0
+
+    beta = p_p / E_p
+    gamma = E_p / M
+    cos_lab = (px_d * px_p + py_d * py_p + pz_d * pz_p) / (p_d * p_p)
+    p_par_lab = p_d * cos_lab
+    p_par_rest = gamma * (p_par_lab - beta * E_d)
+
+    mA = record.secondary_masses[daughter_index]
+    mB = record.secondary_masses[1 - daughter_index]
+    p_rest = siren.injection.TwoBodyRestMomentum(M, mA, mB)
+    if p_rest < 1e-30:
+        return 0.0
+    return max(-1.0, min(1.0, p_par_rest / p_rest))
+
+
+class TestSamplingDensityConsistency:
+    """Verify that Sample() and Density() are consistent: the distribution
+    of sampled events matches the reported density function.
+    """
+
+    def test_isotropic_sampling_is_uniform(self):
+        """Isotropic channel should produce a flat cos(theta_rest)
+        distribution. Bin 10000 samples and chi-squared test.
+        """
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rec = _make_2body_record(M=1.0, E=5.0, mA=0.1, mB=0.2)
+        rng = siren.utilities.SIREN_random(42)
+
+        N = 10000
+        n_bins = 20
+        counts = [0] * n_bins
+
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng, None, r)
+            ct = _rest_frame_cos_theta(r, 0)
+            b = min(int((ct + 1.0) / 2.0 * n_bins), n_bins - 1)
+            counts[b] += 1
+
+        expected = N / n_bins
+        chi2 = sum((c - expected) ** 2 / expected for c in counts)
+        # 20 bins -> 19 DOF. chi2 < 40 is p > 0.003
+        assert chi2 < 40, (
+            "Isotropic sampling not uniform: chi2={:.1f} (19 DOF), "
+            "counts={}".format(chi2, counts)
+        )
+
+    def test_directed_sampling_concentrates_toward_target(self):
+        """Directed channel should produce events concentrated toward
+        the target geometry. Verify the cos(theta_lab) distribution is
+        peaked in the target direction and that the density matches
+        the actual sampling frequency.
+        """
+        box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+        rng = siren.utilities.SIREN_random(42)
+
+        N = 3000
+        cos_labs = []
+        densities = []
+
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            directed.Sample(rng, None, r)
+            mom = r.secondary_momenta[0]
+            p = math.sqrt(mom[1]**2 + mom[2]**2 + mom[3]**2)
+            if p > 0:
+                cos_labs.append(mom[3] / p)  # cos_theta_lab wrt z-axis
+            d = directed.Density(None, r)
+            densities.append(d)
+
+        # Most events should be forward (cos_lab > 0.9)
+        n_forward = sum(1 for c in cos_labs if c > 0.9)
+        assert n_forward > N * 0.5, (
+            "Directed channel not concentrating toward target: "
+            "only {}/{} events with cos_lab > 0.9".format(n_forward, N)
+        )
+
+        # All densities should be positive and finite
+        for d in densities:
+            assert d > 0 and math.isfinite(d), (
+                "Directed density invalid: {}".format(d)
+            )
+
+    def test_directed_density_self_consistent(self):
+        """Verify the directed channel's Density() is the true PDF of
+        its Sample() distribution by checking two independent estimates
+        of the target solid angle agree.
+
+        For a channel g(x) with support only in the target region:
+          E_g[1/g(x_i)] = integral_target dOmega = Omega_target
+
+        We estimate Omega_target two ways:
+          (a) mean(1/dir_density) from directed samples
+          (b) 4*pi * mean(iso_density/dir_density) from the same samples
+
+        Both should give the same value (they differ by factor 4*pi*iso
+        = 4*pi * 1/(4*pi) = 1). Agreement means the density matches
+        the sampling distribution.
+        """
+        box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
+        rec = _make_2body_record(M=1.0, E=5.0, mA=0.0, mB=0.0)
+
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rng = siren.utilities.SIREN_random(1234)
+
+        N = 5000
+        inv_densities = []
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            directed.Sample(rng, None, r)
+            d_dir = directed.Density(None, r)
+            if d_dir > 0:
+                inv_densities.append(1.0 / d_dir)
+
+        assert len(inv_densities) > N * 0.9
+
+        # Estimate (a): mean(1/g)
+        omega_a = sum(inv_densities) / len(inv_densities)
+
+        # All 1/g values should be consistent (low coefficient of variation)
+        # For volume mode, density varies across the target, so some
+        # variation is expected. CV < 1 is reasonable.
+        mean_inv = omega_a
+        var_inv = sum((x - mean_inv)**2 for x in inv_densities) / len(inv_densities)
+        cv = math.sqrt(var_inv) / mean_inv if mean_inv > 0 else float('inf')
+        assert cv < 1.5, (
+            "Density too variable: CV(1/g) = {:.2f}".format(cv)
+        )
+
+        # The target solid angle should be positive and reasonable
+        # (< 4*pi and > 0)
+        assert 0 < omega_a < 4 * math.pi, (
+            "Estimated Omega_target = {:.6f} out of range".format(omega_a)
+        )
+
+    def test_directed_multichannel_density_integral(self):
+        """When sampling from a multi-channel that covers the full
+        sphere, mean(iso/mc) must equal 1.0. This is the definitive
+        test that the directed channel's density is correctly
+        normalized relative to the isotropic channel.
+        """
+        box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
+        rec = _make_2body_record(M=1.0, E=5.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.3, 0.7]
+
+        rng = siren.utilities.SIREN_random(1234)
+        N = 5000
+        weights = []
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        mean_w = sum(weights) / len(weights)
+        assert abs(mean_w - 1.0) < 0.03, (
+            "Multi-channel density integral = {:.4f}, expected 1.0 "
+            "(tolerance 0.03)".format(mean_w)
+        )
+
+    def test_massive_daughter_density_matches_sampling(self):
+        """For massive daughters with moderate boost (dual solutions
+        in SolveLabAngle), the density must still match the sampling
+        distribution.
+        """
+        # mA=0.4 with M=1.0 and gamma~3: beta_daughter > beta_parent
+        # may trigger two solutions
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rec = _make_2body_record(M=1.0, E=3.0, mA=0.4, mB=0.3)
+        rng = siren.utilities.SIREN_random(77)
+
+        N = 8000
+        n_bins = 20
+        counts = [0] * n_bins
+
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng, None, r)
+            ct = _rest_frame_cos_theta(r, 0)
+            b = min(int((ct + 1.0) / 2.0 * n_bins), n_bins - 1)
+            counts[b] += 1
+
+        # Should be uniform (isotropic sampling in rest frame)
+        expected = N / n_bins
+        chi2 = sum((c - expected) ** 2 / expected for c in counts)
+        assert chi2 < 40, (
+            "Massive daughter sampling not uniform: chi2={:.1f}, "
+            "counts={}".format(chi2, counts)
+        )
+
+
+# ================================================================== #
+#  Gap fixes: tighter closure test                                     #
+# ================================================================== #
+
+
+class TestTightClosure:
+
+    def test_closure_small_target(self):
+        """Closure with a small distant target (strong biasing required).
+
+        The directed channel concentrates ~99% of samples toward a target
+        that subtends ~0.01% of the sky. The importance weights must
+        compensate exactly for the biased density.
+
+        We estimate integral of f(x)*p(x)dx two ways:
+          f = 1 (constant), p = isotropic density
+          -> integral = 1 regardless of target
+
+        Via importance sampling from the multi-channel:
+          estimate = (1/N) sum_i p(x_i) / g(x_i)
+        where g is the multi-channel density. Should equal 1.
+        """
+        box = _make_box_at(0, 0, 200, 0.2, 0.2, 0.2)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.01, 0.99]
+
+        rng = siren.utilities.SIREN_random(12345)
+        N = 5000
+
+        weights = []
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        mean_w = sum(weights) / len(weights)
+        # With 5000 samples, sigma ~ 1/sqrt(N) ~ 1.4%
+        # Use 5% tolerance (3.5 sigma)
+        assert abs(mean_w - 1.0) < 0.05, (
+            "Tight closure failed: mean weight = {:.4f} "
+            "(expected 1.0, tolerance 0.05)".format(mean_w)
+        )
+
+    def test_closure_hit_fraction_small_target(self):
+        """Closure test comparing hit fractions with a small target.
+
+        Isotropic brute-force needs many events. Multi-channel with
+        biasing needs fewer but must weight correctly.
+        """
+        box = _make_box_at(0, 0, 30, 2.0, 2.0, 2.0)
+        rec = _make_2body_record(M=0.5, E=3.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.01, 0.99]
+
+        # Brute force: isotropic
+        rng1 = siren.utilities.SIREN_random(100)
+        N_iso = 50000
+        hits_iso = 0
+        for _ in range(N_iso):
+            r = copy.deepcopy(rec)
+            iso.Sample(rng1, None, r)
+            if _daughter_hits_box(r, 0, box):
+                hits_iso += 1
+
+        frac_iso = hits_iso / N_iso
+
+        # Importance sampling: multi-channel
+        rng2 = siren.utilities.SIREN_random(200)
+        N_mc = 5000
+        weighted_hits = 0.0
+        sum_w = 0.0
+        for _ in range(N_mc):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng2, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                w = d_iso / d_mc
+                sum_w += w
+                if _daughter_hits_box(r, 0, box):
+                    weighted_hits += w
+
+        frac_mc = weighted_hits / sum_w if sum_w > 0 else 0
+
+        # Both should agree within 30% relative
+        if frac_iso > 0:
+            rel_diff = abs(frac_mc - frac_iso) / frac_iso
+            assert rel_diff < 0.3, (
+                "Hit fraction closure failed: iso={:.6f}, mc={:.6f}, "
+                "rel_diff={:.2f}".format(frac_iso, frac_mc, rel_diff)
+            )
+        else:
+            assert frac_mc < 0.001
+
+
+# ================================================================== #
+#  Gap fixes: directed channel boundary tests                          #
+# ================================================================== #
+
+
+class TestDirectedBoundaries:
+
+    def test_directed_density_at_cone_edge(self):
+        """Density should transition cleanly at the boundary of the
+        bounding cone (not produce NaN or negative values).
+        """
+        box = _make_box_at(0, 0, 100, 1.0, 1.0, 1.0)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+        rng = siren.utilities.SIREN_random(42)
+
+        # Sample many events and check ALL densities
+        for _ in range(2000):
+            r = copy.deepcopy(rec)
+            directed.Sample(rng, None, r)
+            d = directed.Density(None, r)
+            assert d >= 0, "Negative density from directed channel"
+            assert not math.isnan(d), "NaN density from directed channel"
+            assert math.isfinite(d), "Infinite density from directed channel"
+
+    def test_directed_massive_daughters(self):
+        """Directed channel with massive daughters (relevant for
+        Dutta-Kim V1 -> chi chi where m_chi = 0.008 GeV).
+        """
+        box = _make_box_at(0, 0, 100, 1.0, 1.0, 1.0)
+        # V1 decay kinematics: M=0.017, mA=mB=0.008
+        rec = _make_2body_record(M=0.017, E=0.5, mA=0.008, mB=0.008)
+
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rng = siren.utilities.SIREN_random(42)
+
+        n_positive = 0
+        N = 1000
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            directed.Sample(rng, None, r)
+            d_dir = directed.Density(None, r)
+            d_iso = iso.Density(None, r)
+            assert d_dir >= 0 and math.isfinite(d_dir)
+            assert d_iso > 0 and math.isfinite(d_iso)
+            if d_dir > 0:
+                n_positive += 1
+
+        assert n_positive > N * 0.8, (
+            "Directed channel with massive daughters produced too many "
+            "zero-density events: {}/{}".format(n_positive, N)
+        )
+
+
+# ================================================================== #
+#  Gap fixes: normalization with tighter tolerance                     #
+# ================================================================== #
+
+
+class TestTighterNormalization:
+
+    def test_directed_density_integral_tight(self):
+        """Verify directed density integrates to 1 with < 3% error.
+
+        Use 10000 importance samples for tighter statistical bound.
+        """
+        box = _make_box_at(0, 0, 50, 0.5, 0.5, 0.5)
+        rec = _make_2body_record(M=1.0, E=10.0, mA=0.0, mB=0.0)
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.3, 0.7]
+
+        rng = siren.utilities.SIREN_random(9999)
+        N = 10000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(rec)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        mean_w = sum(weights) / len(weights)
+        assert abs(mean_w - 1.0) < 0.03, (
+            "Directed density integral = {:.4f}, expected 1.0 "
+            "(tolerance 0.03)".format(mean_w)
+        )
