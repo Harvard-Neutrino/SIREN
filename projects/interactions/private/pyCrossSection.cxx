@@ -197,6 +197,26 @@ std::vector<std::string> pyCrossSection::DensityVariables() const {
     );
 }
 
+siren::dataclasses::PhaseSpaceTopology pyCrossSection::Topology() const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        siren::dataclasses::PhaseSpaceTopology,
+        Topology,
+        "Topology"
+    )
+}
+
+siren::dataclasses::PhaseSpaceMeasure pyCrossSection::Measure() const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        siren::dataclasses::PhaseSpaceMeasure,
+        Measure,
+        "Measure"
+    )
+}
+
 siren::dataclasses::PhaseSpaceConvention pyCrossSection::Convention() const {
     SELF_OVERRIDE(
         self,

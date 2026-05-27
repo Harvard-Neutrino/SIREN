@@ -12,41 +12,6 @@
 namespace siren {
 namespace injection {
 
-namespace {
-
-// Infer topology from a Decay's signatures.
-PhaseSpaceTopology InferDecayTopology(
-    std::shared_ptr<siren::interactions::Decay> const & decay)
-{
-    auto sigs = decay->GetPossibleSignatures();
-    if (sigs.empty()) return PhaseSpaceTopology::Unspecified;
-    size_t n = sigs.front().secondary_types.size();
-    for (auto const & sig : sigs) {
-        if (sig.secondary_types.size() != n) return PhaseSpaceTopology::Unspecified;
-    }
-    if (n == 2) return PhaseSpaceTopology::Decay2Body;
-    if (n == 3) return PhaseSpaceTopology::Decay3Body;
-    if (n > 3)  return PhaseSpaceTopology::DecayNBody;
-    return PhaseSpaceTopology::Unspecified;
-}
-
-// Infer topology from a CrossSection's signatures.
-PhaseSpaceTopology InferCrossSectionTopology(
-    std::shared_ptr<siren::interactions::CrossSection> const & xs)
-{
-    auto sigs = xs->GetPossibleSignatures();
-    if (sigs.empty()) return PhaseSpaceTopology::Unspecified;
-    size_t n = sigs.front().secondary_types.size();
-    for (auto const & sig : sigs) {
-        if (sig.secondary_types.size() != n) return PhaseSpaceTopology::Unspecified;
-    }
-    if (n == 2) return PhaseSpaceTopology::Scatter2to2;
-    if (n == 3) return PhaseSpaceTopology::Scatter2to3;
-    return PhaseSpaceTopology::Unspecified;
-}
-
-} // anonymous namespace
-
 // ================================================================ //
 //  PhysicalDecayChannel                                              //
 // ================================================================ //
@@ -60,8 +25,8 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
     }
-    topology_ = InferDecayTopology(decay_);
-    measure_ = siren::dataclasses::MeasureFromConvention(decay_->Convention());
+    topology_ = decay_->Topology();
+    measure_ = decay_->Measure();
 }
 
 PhysicalDecayChannel::PhysicalDecayChannel(
@@ -74,13 +39,8 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
     }
-    size_t n = signature.secondary_types.size();
-    if (n == 2) topology_ = PhaseSpaceTopology::Decay2Body;
-    else if (n == 3) topology_ = PhaseSpaceTopology::Decay3Body;
-    else if (n > 3) topology_ = PhaseSpaceTopology::DecayNBody;
-    else topology_ = PhaseSpaceTopology::Unspecified;
-
-    measure_ = siren::dataclasses::MeasureFromConvention(decay_->Convention());
+    topology_ = decay_->Topology();
+    measure_ = decay_->Measure();
 }
 
 PhysicalDecayChannel::PhysicalDecayChannel(
@@ -93,13 +53,8 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
     }
-    topology_ = InferDecayTopology(decay_);
+    topology_ = decay_->Topology();
     measure_ = siren::dataclasses::MeasureFromConvention(convention);
-    // Override topology from convention if it carries topology info
-    auto conv_topo = siren::dataclasses::TopologyFromConvention(convention, 0);
-    if (conv_topo != PhaseSpaceTopology::Unspecified) {
-        topology_ = conv_topo;
-    }
 }
 
 void PhysicalDecayChannel::Sample(
@@ -155,9 +110,8 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
         throw std::runtime_error(
             "PhysicalCrossSectionChannel requires a non-null CrossSection");
     }
-    topology_ = InferCrossSectionTopology(cross_section_);
-    measure_ = siren::dataclasses::MeasureFromConvention(
-        cross_section_->Convention());
+    topology_ = cross_section_->Topology();
+    measure_ = cross_section_->Measure();
 }
 
 PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
@@ -171,13 +125,8 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
         throw std::runtime_error(
             "PhysicalCrossSectionChannel requires a non-null CrossSection");
     }
-    size_t n = signature.secondary_types.size();
-    if (n == 2) topology_ = PhaseSpaceTopology::Scatter2to2;
-    else if (n == 3) topology_ = PhaseSpaceTopology::Scatter2to3;
-    else topology_ = PhaseSpaceTopology::Unspecified;
-
-    measure_ = siren::dataclasses::MeasureFromConvention(
-        cross_section_->Convention());
+    topology_ = cross_section_->Topology();
+    measure_ = cross_section_->Measure();
 }
 
 PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
@@ -191,7 +140,7 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
         throw std::runtime_error(
             "PhysicalCrossSectionChannel requires a non-null CrossSection");
     }
-    topology_ = InferCrossSectionTopology(cross_section_);
+    topology_ = cross_section_->Topology();
     measure_ = siren::dataclasses::MeasureFromConvention(convention);
 }
 

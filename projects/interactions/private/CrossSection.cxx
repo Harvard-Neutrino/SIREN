@@ -49,6 +49,23 @@ bool CrossSection::operator==(CrossSection const & other) const {
         return this->equal(other);
 }
 
+siren::dataclasses::PhaseSpaceTopology CrossSection::Topology() const {
+    using T = siren::dataclasses::PhaseSpaceTopology;
+    auto signatures = GetPossibleSignatures();
+    if (signatures.empty()) return T::Unspecified;
+    size_t n = signatures.front().secondary_types.size();
+    for (auto const & sig : signatures) {
+        if (sig.secondary_types.size() != n) return T::Unspecified;
+    }
+    if (n == 2) return T::Scatter2to2;
+    if (n == 3) return T::Scatter2to3;
+    return T::Unspecified;
+}
+
+siren::dataclasses::PhaseSpaceMeasure CrossSection::Measure() const {
+    return siren::dataclasses::MeasureFromConvention(Convention());
+}
+
 siren::dataclasses::PhaseSpaceConvention CrossSection::Convention() const {
     using C = siren::dataclasses::PhaseSpaceConvention;
     auto variables = DensityVariables();

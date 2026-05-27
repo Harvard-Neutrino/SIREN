@@ -175,6 +175,26 @@ double pyDecay::FinalStateProbability(dataclasses::InteractionRecord const & rec
     )
 }
 
+siren::dataclasses::PhaseSpaceTopology pyDecay::Topology() const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        siren::dataclasses::PhaseSpaceTopology,
+        Topology,
+        "Topology"
+    )
+}
+
+siren::dataclasses::PhaseSpaceMeasure pyDecay::Measure() const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        siren::dataclasses::PhaseSpaceMeasure,
+        Measure,
+        "Measure"
+    )
+}
+
 siren::dataclasses::PhaseSpaceConvention pyDecay::Convention() const {
     SELF_OVERRIDE(
         self,

@@ -50,6 +50,8 @@ public:
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
     std::vector<std::string> DensityVariables() const override;
+    siren::dataclasses::PhaseSpaceTopology Topology() const override;
+    siren::dataclasses::PhaseSpaceMeasure Measure() const override;
     siren::dataclasses::PhaseSpaceConvention Convention() const override;
 
     Pybind11TrampolineCerealMethods(CrossSection, pyCrossSection);

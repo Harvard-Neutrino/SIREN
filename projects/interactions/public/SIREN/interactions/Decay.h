@@ -49,6 +49,8 @@ public:
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
+    virtual siren::dataclasses::PhaseSpaceTopology Topology() const;
+    virtual siren::dataclasses::PhaseSpaceMeasure Measure() const;
     virtual siren::dataclasses::PhaseSpaceConvention Convention() const;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {};
