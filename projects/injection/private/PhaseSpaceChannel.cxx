@@ -207,13 +207,6 @@ double ConvertDensity(
     if (topology == PhaseSpaceTopology::Decay3Body ||
         topology == PhaseSpaceTopology::Scatter2to3) {
 
-        // Recursive2Body <-> HelicityAngles: trivial
-        if ((from.type == MType::Recursive2Body && to.type == MType::HelicityAngles) ||
-            (from.type == MType::HelicityAngles && to.type == MType::Recursive2Body)) {
-            return density;
-        }
-
-        // Recursive2Body <-> DalitzPair: use FROM's indices to read kinematics
         auto compute_s_pair = [&](PhaseSpaceMeasure const & m) -> double {
             int i1 = m.pair_first;
             int i2 = m.pair_second;
@@ -231,6 +224,41 @@ double ConvertDensity(
             return E*E - px*px - py*py - pz*pz;
         };
 
+        // Same type, different indices: cross-factorization conversion.
+        // Route through Dalitz (index-independent) as intermediate.
+        if (from.type == to.type && from != to) {
+            // Convert from's factorization to Dalitz, then Dalitz to to's factorization.
+            PhaseSpaceMeasure dalitz_from = PhaseSpaceMeasure::DalitzPair(
+                from.spectator, from.pair_first, from.pair_second);
+            PhaseSpaceMeasure dalitz_to = PhaseSpaceMeasure::DalitzPair(
+                to.spectator, to.pair_first, to.pair_second);
+
+            // Step 1: convert from's Recursive2Body to Dalitz using from's indices
+            double s_pair_from = compute_s_pair(from);
+            if (s_pair_from < 0) return density;
+            double dalitz_density = J::Recursive2BodyDensityToDalitzDensity(
+                density, record.primary_mass,
+                record.secondary_masses[from.spectator],
+                record.secondary_masses[from.pair_first],
+                record.secondary_masses[from.pair_second], s_pair_from);
+
+            // Step 2: convert Dalitz to to's Recursive2Body using to's indices
+            double s_pair_to = compute_s_pair(to);
+            if (s_pair_to < 0) return dalitz_density;
+            return J::DalitzDensityToRecursive2BodyDensity(
+                dalitz_density, record.primary_mass,
+                record.secondary_masses[to.spectator],
+                record.secondary_masses[to.pair_first],
+                record.secondary_masses[to.pair_second], s_pair_to);
+        }
+
+        // Recursive2Body <-> HelicityAngles: trivial (same measure, different angular reference)
+        if ((from.type == MType::Recursive2Body && to.type == MType::HelicityAngles) ||
+            (from.type == MType::HelicityAngles && to.type == MType::Recursive2Body)) {
+            return density;
+        }
+
+        // Recursive2Body <-> DalitzPair
         if (from.type == MType::Recursive2Body && to.type == MType::DalitzPair) {
             double s_pair = compute_s_pair(from);
             if (s_pair < 0) return density;
@@ -241,13 +269,13 @@ double ConvertDensity(
                 record.secondary_masses[from.pair_second], s_pair);
         }
         if (from.type == MType::DalitzPair && to.type == MType::Recursive2Body) {
-            double s_pair = compute_s_pair(from);
+            double s_pair = compute_s_pair(to);
             if (s_pair < 0) return density;
             return J::DalitzDensityToRecursive2BodyDensity(
                 density, record.primary_mass,
-                record.secondary_masses[from.spectator],
-                record.secondary_masses[from.pair_first],
-                record.secondary_masses[from.pair_second], s_pair);
+                record.secondary_masses[to.spectator],
+                record.secondary_masses[to.pair_first],
+                record.secondary_masses[to.pair_second], s_pair);
         }
 
         // HelicityAngles <-> DalitzPair: compose through Recursive2Body
@@ -258,7 +286,7 @@ double ConvertDensity(
         }
         if (from.type == MType::DalitzPair && to.type == MType::HelicityAngles) {
             PhaseSpaceMeasure intermediate = PhaseSpaceMeasure::Recursive2Body(
-                from.spectator, from.pair_first, from.pair_second);
+                to.spectator, to.pair_first, to.pair_second);
             return ConvertDensity(density, from, intermediate, topology, record);
         }
     }
