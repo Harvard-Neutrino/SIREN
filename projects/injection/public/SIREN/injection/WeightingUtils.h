@@ -49,6 +49,14 @@ double CrossSectionProbabilityWithPhaseSpace(
     siren::dataclasses::InteractionRecord const & record,
     MultiChannelPhaseSpace const & phase_space);
 
+// Compute FinalStateProbability for the matched interaction only,
+// without rate weighting. Used for Fixed vertices where there is no
+// rate competition between channels.
+double SelectedFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
 } // namespace injection
 } // namespace siren
 

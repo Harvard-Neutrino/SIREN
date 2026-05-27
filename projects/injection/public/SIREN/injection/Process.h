@@ -20,6 +20,7 @@
 
 #include "SIREN/dataclasses/Particle.h"         // for Particle
 #include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/VertexWeightingMode.h"
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
@@ -63,6 +64,7 @@ protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
     std::map<siren::dataclasses::InteractionSignature,
              std::shared_ptr<MultiChannelPhaseSpace>> phase_space_map_;
+    siren::dataclasses::VertexWeightingMode weighting_mode_;
 public:
     PhysicalProcess() = default;
     PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
@@ -82,6 +84,9 @@ public:
         siren::dataclasses::InteractionSignature const & sig) const;
     bool HasPhaseSpace(siren::dataclasses::InteractionSignature const & sig) const;
     bool HasAnyPhaseSpace() const;
+
+    void SetWeightingMode(siren::dataclasses::VertexWeightingMode mode) { weighting_mode_ = mode; }
+    siren::dataclasses::VertexWeightingMode GetWeightingMode() const { return weighting_mode_; }
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {

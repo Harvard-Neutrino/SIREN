@@ -107,7 +107,7 @@ std::pair<double, double> AccumulateRates(
 
 // Find the FinalStateProbability for the matched interaction.
 // Returns rate-weighted FinalStateProbability for the selected signature.
-double SelectedFinalStateProbability(
+double RateWeightedFinalStateProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record)
@@ -186,6 +186,41 @@ double SelectedFinalStateProbability(
 
 } // anonymous namespace
 
+double SelectedFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record)
+{
+    // Find the matching Decay or CrossSection and return its
+    // FinalStateProbability directly (no rate weighting).
+    if (interactions->HasDecays()) {
+        for (auto const & decay : interactions->GetDecays()) {
+            for (auto const & sig :
+                 decay->GetPossibleSignaturesFromParent(
+                     record.signature.primary_type)) {
+                if (sig == record.signature) {
+                    return decay->FinalStateProbability(record);
+                }
+            }
+        }
+    }
+    if (interactions->HasCrossSections()) {
+        for (auto const & xs_list : interactions->GetCrossSectionsByTarget()) {
+            for (auto const & xs : xs_list.second) {
+                for (auto const & sig :
+                     xs->GetPossibleSignaturesFromParents(
+                         record.signature.primary_type,
+                         xs_list.first)) {
+                    if (sig == record.signature) {
+                        return xs->FinalStateProbability(record);
+                    }
+                }
+            }
+        }
+    }
+    return 0.0;
+}
+
 double ChannelSelectionProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
@@ -207,7 +242,7 @@ double CrossSectionProbability(
     if (total_rate == 0) return 0.0;
 
     double selected_final_state =
-        SelectedFinalStateProbability(
+        RateWeightedFinalStateProbability(
             detector_model, interactions, record);
 
     return selected_final_state / total_rate;

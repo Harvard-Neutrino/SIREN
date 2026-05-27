@@ -233,6 +233,14 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     if optimize:
         total_budget += opt_iterations * opt_batch * 10
 
+    # -- Weighting mode --
+    # For dk2nu pions, the vertex is externally determined (Fixed).
+    # For monoenergetic, the pion propagates and decays (Propagated).
+    if monoenergetic:
+        primary_mode = injection.VertexWeightingMode.Propagated()
+    else:
+        primary_mode = injection.VertexWeightingMode.Fixed()
+
     # -- Build Injector --
     print(f"\nBuilding injector ({total_budget} event budget) ...")
     injector = Injector(
@@ -242,6 +250,7 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         primary_type=PION,
         primary_interactions=[pion_decay],
         primary_injection_distributions=primary_dists,
+        primary_weighting_mode=primary_mode,
         secondary_interactions={
             V1_PROD: [v1_to_chi], CHI: [upscatter],
             CHI_PRIME: [chi_prime_decay], V1_SIGNAL: [visible_decay],
