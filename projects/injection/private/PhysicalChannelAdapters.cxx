@@ -20,7 +20,7 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     std::shared_ptr<siren::interactions::Decay> decay)
     : decay_(std::move(decay))
     , topology_(PhaseSpaceTopology::Unspecified)
-    , measure_(PhaseSpaceMeasure::Unspecified)
+    , measure_(PhaseSpaceMeasure::Unspecified())
 {
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
@@ -34,7 +34,7 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     siren::dataclasses::InteractionSignature const & signature)
     : decay_(std::move(decay))
     , topology_(PhaseSpaceTopology::Unspecified)
-    , measure_(PhaseSpaceMeasure::Unspecified)
+    , measure_(PhaseSpaceMeasure::Unspecified())
 {
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
@@ -48,7 +48,7 @@ PhysicalDecayChannel::PhysicalDecayChannel(
     PhaseSpaceConvention convention)
     : decay_(std::move(decay))
     , topology_(PhaseSpaceTopology::Unspecified)
-    , measure_(PhaseSpaceMeasure::Unspecified)
+    , measure_(PhaseSpaceMeasure::Unspecified())
 {
     if (!decay_) {
         throw std::runtime_error("PhysicalDecayChannel requires a non-null Decay");
@@ -104,7 +104,7 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
     std::shared_ptr<siren::interactions::CrossSection> cross_section)
     : cross_section_(std::move(cross_section))
     , topology_(PhaseSpaceTopology::Unspecified)
-    , measure_(PhaseSpaceMeasure::Unspecified)
+    , measure_(PhaseSpaceMeasure::Unspecified())
 {
     if (!cross_section_) {
         throw std::runtime_error(
@@ -119,7 +119,7 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
     siren::dataclasses::InteractionSignature const & signature)
     : cross_section_(std::move(cross_section))
     , topology_(PhaseSpaceTopology::Unspecified)
-    , measure_(PhaseSpaceMeasure::Unspecified)
+    , measure_(PhaseSpaceMeasure::Unspecified())
 {
     if (!cross_section_) {
         throw std::runtime_error(
@@ -134,7 +134,7 @@ PhysicalCrossSectionChannel::PhysicalCrossSectionChannel(
     PhaseSpaceConvention convention)
     : cross_section_(std::move(cross_section))
     , topology_(PhaseSpaceTopology::Unspecified)
-    , measure_(PhaseSpaceMeasure::Unspecified)
+    , measure_(PhaseSpaceMeasure::Unspecified())
 {
     if (!cross_section_) {
         throw std::runtime_error(

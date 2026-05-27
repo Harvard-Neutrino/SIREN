@@ -405,7 +405,7 @@ class MesonSimpleDecay(_Decay):
         return _Topology.Decay2Body
 
     def Measure(self):
-        return _Measure.SolidAngleRest
+        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu]
@@ -752,7 +752,7 @@ class MesonThreeBodySIRENDecay(_Decay):
         return _Topology.Decay3Body
 
     def Measure(self):
-        return _Measure.Unspecified
+        return _Measure.Unspecified()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]
@@ -1022,7 +1022,7 @@ class BiasedMesonThreeBodyDecay(_Decay):
         return _Topology.Decay3Body
 
     def Measure(self):
-        return _Measure.Unspecified
+        return _Measure.Unspecified()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]

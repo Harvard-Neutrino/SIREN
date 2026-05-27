@@ -20,19 +20,60 @@ std::string PhaseSpaceTopologyName(PhaseSpaceTopology topology) {
 }
 
 // ------------------------------------------------------------------ //
-//  Measure names                                                      //
+//  PhaseSpaceMeasure                                                  //
 // ------------------------------------------------------------------ //
 
-std::string PhaseSpaceMeasureName(PhaseSpaceMeasure measure) {
-    switch (measure) {
-        case PhaseSpaceMeasure::SolidAngleRest:  return "SolidAngleRest";
-        case PhaseSpaceMeasure::SolidAngleLab:   return "SolidAngleLab";
-        case PhaseSpaceMeasure::Recursive2Body:  return "Recursive2Body";
-        case PhaseSpaceMeasure::DalitzPair:      return "DalitzPair";
-        case PhaseSpaceMeasure::HelicityAngles:  return "HelicityAngles";
-        case PhaseSpaceMeasure::MandelstamQ2:    return "MandelstamQ2";
-        case PhaseSpaceMeasure::BjorkenXY:       return "BjorkenXY";
-        case PhaseSpaceMeasure::Unspecified:     return "Unspecified";
+namespace {
+bool IndicesRelevant(PhaseSpaceMeasure::Type t) {
+    return t == PhaseSpaceMeasure::Type::Recursive2Body
+        || t == PhaseSpaceMeasure::Type::DalitzPair
+        || t == PhaseSpaceMeasure::Type::HelicityAngles;
+}
+} // anonymous namespace
+
+bool PhaseSpaceMeasure::operator==(PhaseSpaceMeasure const & o) const {
+    if (type != o.type) return false;
+    if (!IndicesRelevant(type)) return true;
+    return spectator == o.spectator
+        && pair_first == o.pair_first
+        && pair_second == o.pair_second;
+}
+
+PhaseSpaceMeasure PhaseSpaceMeasure::SolidAngleRest() {
+    return {Type::SolidAngleRest, 0, 1, 2};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::SolidAngleLab() {
+    return {Type::SolidAngleLab, 0, 1, 2};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::Recursive2Body(int s, int f, int sec) {
+    return {Type::Recursive2Body, s, f, sec};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::DalitzPair(int s, int f, int sec) {
+    return {Type::DalitzPair, s, f, sec};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::HelicityAngles(int s, int f, int sec) {
+    return {Type::HelicityAngles, s, f, sec};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::MandelstamQ2() {
+    return {Type::MandelstamQ2, 0, 1, 2};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::BjorkenXY() {
+    return {Type::BjorkenXY, 0, 1, 2};
+}
+PhaseSpaceMeasure PhaseSpaceMeasure::Unspecified() {
+    return {Type::Unspecified, 0, 1, 2};
+}
+
+std::string PhaseSpaceMeasureName(PhaseSpaceMeasure const & measure) {
+    switch (measure.type) {
+        case PhaseSpaceMeasure::Type::SolidAngleRest:  return "SolidAngleRest";
+        case PhaseSpaceMeasure::Type::SolidAngleLab:   return "SolidAngleLab";
+        case PhaseSpaceMeasure::Type::Recursive2Body:  return "Recursive2Body";
+        case PhaseSpaceMeasure::Type::DalitzPair:      return "DalitzPair";
+        case PhaseSpaceMeasure::Type::HelicityAngles:  return "HelicityAngles";
+        case PhaseSpaceMeasure::Type::MandelstamQ2:    return "MandelstamQ2";
+        case PhaseSpaceMeasure::Type::BjorkenXY:       return "BjorkenXY";
+        case PhaseSpaceMeasure::Type::Unspecified:     return "Unspecified";
     }
     return "Unknown";
 }
@@ -40,78 +81,57 @@ std::string PhaseSpaceMeasureName(PhaseSpaceMeasure measure) {
 // ------------------------------------------------------------------ //
 //  Convertibility groups                                              //
 // ------------------------------------------------------------------ //
-//
-// Within each topology, measures in the same group can be converted
-// via analytic Jacobians.  The group numbering is per-topology.
-//
-//   Decay2Body:
-//     Group 0: SolidAngleRest, SolidAngleLab
-//
-//   Decay3Body:
-//     Group 0: Recursive2Body, DalitzPair, HelicityAngles
-//     Group 1: SolidAngleRest  (orientation-separated, not convertible to Group 0)
-//
-//   DecayNBody:
-//     Group 0: SolidAngleRest
-//
-//   Scatter2to2:
-//     Group 0: SolidAngleRest, SolidAngleLab, MandelstamQ2, BjorkenXY
-//              (all fully interconvertible)
-//
-//   Scatter2to3:
-//     Group 0: Recursive2Body, DalitzPair
-//     Group 1: SolidAngleRest
-//
 
 int MeasureConvertibilityGroup(PhaseSpaceTopology topology,
-                               PhaseSpaceMeasure measure)
+                               PhaseSpaceMeasure const & measure)
 {
-    if (measure == PhaseSpaceMeasure::Unspecified) return -1;
+    using T = PhaseSpaceMeasure::Type;
+    if (measure.type == T::Unspecified) return -1;
 
     switch (topology) {
 
     case PhaseSpaceTopology::Decay2Body:
-        switch (measure) {
-            case PhaseSpaceMeasure::SolidAngleRest:
-            case PhaseSpaceMeasure::SolidAngleLab:
+        switch (measure.type) {
+            case T::SolidAngleRest:
+            case T::SolidAngleLab:
                 return 0;
             default: return -1;
         }
 
     case PhaseSpaceTopology::Decay3Body:
-        switch (measure) {
-            case PhaseSpaceMeasure::Recursive2Body:
-            case PhaseSpaceMeasure::DalitzPair:
-            case PhaseSpaceMeasure::HelicityAngles:
+        switch (measure.type) {
+            case T::Recursive2Body:
+            case T::DalitzPair:
+            case T::HelicityAngles:
                 return 0;
-            case PhaseSpaceMeasure::SolidAngleRest:
+            case T::SolidAngleRest:
                 return 1;
             default: return -1;
         }
 
     case PhaseSpaceTopology::DecayNBody:
-        switch (measure) {
-            case PhaseSpaceMeasure::SolidAngleRest:
+        switch (measure.type) {
+            case T::SolidAngleRest:
                 return 0;
             default: return -1;
         }
 
     case PhaseSpaceTopology::Scatter2to2:
-        switch (measure) {
-            case PhaseSpaceMeasure::SolidAngleRest:
-            case PhaseSpaceMeasure::SolidAngleLab:
-            case PhaseSpaceMeasure::MandelstamQ2:
-            case PhaseSpaceMeasure::BjorkenXY:
+        switch (measure.type) {
+            case T::SolidAngleRest:
+            case T::SolidAngleLab:
+            case T::MandelstamQ2:
+            case T::BjorkenXY:
                 return 0;
             default: return -1;
         }
 
     case PhaseSpaceTopology::Scatter2to3:
-        switch (measure) {
-            case PhaseSpaceMeasure::Recursive2Body:
-            case PhaseSpaceMeasure::DalitzPair:
+        switch (measure.type) {
+            case T::Recursive2Body:
+            case T::DalitzPair:
                 return 0;
-            case PhaseSpaceMeasure::SolidAngleRest:
+            case T::SolidAngleRest:
                 return 1;
             default: return -1;
         }
@@ -122,12 +142,11 @@ int MeasureConvertibilityGroup(PhaseSpaceTopology topology,
     return -1;
 }
 
-bool PhaseSpaceCompatible(PhaseSpaceTopology topo_a, PhaseSpaceMeasure meas_a,
-                          PhaseSpaceTopology topo_b, PhaseSpaceMeasure meas_b)
+bool PhaseSpaceCompatible(PhaseSpaceTopology topo_a, PhaseSpaceMeasure const & meas_a,
+                          PhaseSpaceTopology topo_b, PhaseSpaceMeasure const & meas_b)
 {
     if (topo_a != topo_b) return false;
     if (topo_a == PhaseSpaceTopology::Unspecified) {
-        // Unspecified topology: only compatible if measures also match
         return meas_a == meas_b;
     }
     if (meas_a == meas_b) return true;
@@ -190,23 +209,23 @@ PhaseSpaceMeasure MeasureFromConvention(PhaseSpaceConvention convention)
 {
     switch (convention) {
         case PhaseSpaceConvention::RestFrameSolidAngle:
-            return PhaseSpaceMeasure::SolidAngleRest;
+            return PhaseSpaceMeasure::SolidAngleRest();
         case PhaseSpaceConvention::LabFrameSolidAngle:
-            return PhaseSpaceMeasure::SolidAngleLab;
+            return PhaseSpaceMeasure::SolidAngleLab();
         case PhaseSpaceConvention::Recursive2Body:
-            return PhaseSpaceMeasure::Recursive2Body;
+            return PhaseSpaceMeasure::Recursive2Body();
         case PhaseSpaceConvention::Dalitz:
-            return PhaseSpaceMeasure::DalitzPair;
+            return PhaseSpaceMeasure::DalitzPair();
         case PhaseSpaceConvention::HelicityAngles:
-            return PhaseSpaceMeasure::HelicityAngles;
+            return PhaseSpaceMeasure::HelicityAngles();
         case PhaseSpaceConvention::BjorkenXY:
-            return PhaseSpaceMeasure::BjorkenXY;
+            return PhaseSpaceMeasure::BjorkenXY();
         case PhaseSpaceConvention::MandelstamST:
-            return PhaseSpaceMeasure::MandelstamQ2;
+            return PhaseSpaceMeasure::MandelstamQ2();
         case PhaseSpaceConvention::Custom:
-            return PhaseSpaceMeasure::Unspecified;
+            return PhaseSpaceMeasure::Unspecified();
     }
-    return PhaseSpaceMeasure::Unspecified;
+    return PhaseSpaceMeasure::Unspecified();
 }
 
 } // namespace dataclasses

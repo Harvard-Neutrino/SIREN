@@ -67,15 +67,43 @@ PYBIND11_MODULE(injection,m) {
     .value("Scatter2to3", PhaseSpaceTopology::Scatter2to3)
     .value("Unspecified", PhaseSpaceTopology::Unspecified);
 
-  enum_<PhaseSpaceMeasure>(m, "PhaseSpaceMeasure")
-    .value("SolidAngleRest", PhaseSpaceMeasure::SolidAngleRest)
-    .value("SolidAngleLab", PhaseSpaceMeasure::SolidAngleLab)
-    .value("Recursive2Body", PhaseSpaceMeasure::Recursive2Body)
-    .value("DalitzPair", PhaseSpaceMeasure::DalitzPair)
-    .value("HelicityAngles", PhaseSpaceMeasure::HelicityAngles)
-    .value("MandelstamQ2", PhaseSpaceMeasure::MandelstamQ2)
-    .value("BjorkenXY", PhaseSpaceMeasure::BjorkenXY)
-    .value("Unspecified", PhaseSpaceMeasure::Unspecified);
+  enum_<PhaseSpaceMeasure::Type>(m, "PhaseSpaceMeasureType")
+    .value("SolidAngleRest", PhaseSpaceMeasure::Type::SolidAngleRest)
+    .value("SolidAngleLab", PhaseSpaceMeasure::Type::SolidAngleLab)
+    .value("Recursive2Body", PhaseSpaceMeasure::Type::Recursive2Body)
+    .value("DalitzPair", PhaseSpaceMeasure::Type::DalitzPair)
+    .value("HelicityAngles", PhaseSpaceMeasure::Type::HelicityAngles)
+    .value("MandelstamQ2", PhaseSpaceMeasure::Type::MandelstamQ2)
+    .value("BjorkenXY", PhaseSpaceMeasure::Type::BjorkenXY)
+    .value("Unspecified", PhaseSpaceMeasure::Type::Unspecified);
+
+  class_<PhaseSpaceMeasure>(m, "PhaseSpaceMeasure")
+    .def(init<>())
+    .def_readwrite("type", &PhaseSpaceMeasure::type)
+    .def_readwrite("spectator", &PhaseSpaceMeasure::spectator)
+    .def_readwrite("pair_first", &PhaseSpaceMeasure::pair_first)
+    .def_readwrite("pair_second", &PhaseSpaceMeasure::pair_second)
+    .def("__eq__", &PhaseSpaceMeasure::operator==)
+    .def("__ne__", &PhaseSpaceMeasure::operator!=)
+    .def("__hash__", [](PhaseSpaceMeasure const & m) {
+        size_t h = std::hash<int>()(static_cast<int>(m.type));
+        h ^= std::hash<int>()(m.spectator) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        h ^= std::hash<int>()(m.pair_first) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        h ^= std::hash<int>()(m.pair_second) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        return h;
+    })
+    .def_static("SolidAngleRest", &PhaseSpaceMeasure::SolidAngleRest)
+    .def_static("SolidAngleLab", &PhaseSpaceMeasure::SolidAngleLab)
+    .def_static("Recursive2Body", &PhaseSpaceMeasure::Recursive2Body,
+         arg("spectator") = 0, arg("pair_first") = 1, arg("pair_second") = 2)
+    .def_static("DalitzPair", &PhaseSpaceMeasure::DalitzPair,
+         arg("spectator") = 0, arg("pair_first") = 1, arg("pair_second") = 2)
+    .def_static("HelicityAngles", &PhaseSpaceMeasure::HelicityAngles,
+         arg("spectator") = 0, arg("pair_first") = 1, arg("pair_second") = 2)
+    .def_static("MandelstamQ2", &PhaseSpaceMeasure::MandelstamQ2)
+    .def_static("BjorkenXY", &PhaseSpaceMeasure::BjorkenXY)
+    .def_static("Unspecified", &PhaseSpaceMeasure::Unspecified)
+    ;
 
   m.def("PhaseSpaceTopologyName", &PhaseSpaceTopologyName);
   m.def("PhaseSpaceMeasureName", &PhaseSpaceMeasureName);

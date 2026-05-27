@@ -83,7 +83,7 @@ public:
     }
 
     PhaseSpaceMeasure Measure() const override {
-        return PhaseSpaceMeasure::Unspecified;
+        return PhaseSpaceMeasure::Unspecified();
     }
 };
 
@@ -844,111 +844,111 @@ TEST(ConvertibilityGroups, ExhaustiveTable) {
 
     // Decay2Body
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::SolidAngleRest), 0);
+              PhaseSpaceMeasure::SolidAngleRest()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::SolidAngleLab), 0);
+              PhaseSpaceMeasure::SolidAngleLab()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::Recursive2Body), -1);
+              PhaseSpaceMeasure::Recursive2Body()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::DalitzPair), -1);
+              PhaseSpaceMeasure::DalitzPair()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::HelicityAngles), -1);
+              PhaseSpaceMeasure::HelicityAngles()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::MandelstamQ2), -1);
+              PhaseSpaceMeasure::MandelstamQ2()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::BjorkenXY), -1);
+              PhaseSpaceMeasure::BjorkenXY()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay2Body,
-              PhaseSpaceMeasure::Unspecified), -1);
+              PhaseSpaceMeasure::Unspecified()), -1);
 
     // Decay3Body
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::Recursive2Body), 0);
+              PhaseSpaceMeasure::Recursive2Body()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::DalitzPair), 0);
+              PhaseSpaceMeasure::DalitzPair()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::HelicityAngles), 0);
+              PhaseSpaceMeasure::HelicityAngles()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::SolidAngleRest), 1);
+              PhaseSpaceMeasure::SolidAngleRest()), 1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::SolidAngleLab), -1);
+              PhaseSpaceMeasure::SolidAngleLab()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::MandelstamQ2), -1);
+              PhaseSpaceMeasure::MandelstamQ2()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::BjorkenXY), -1);
+              PhaseSpaceMeasure::BjorkenXY()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Decay3Body,
-              PhaseSpaceMeasure::Unspecified), -1);
+              PhaseSpaceMeasure::Unspecified()), -1);
 
     // DecayNBody
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::SolidAngleRest), 0);
+              PhaseSpaceMeasure::SolidAngleRest()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::SolidAngleLab), -1);
+              PhaseSpaceMeasure::SolidAngleLab()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::Recursive2Body), -1);
+              PhaseSpaceMeasure::Recursive2Body()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::DalitzPair), -1);
+              PhaseSpaceMeasure::DalitzPair()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::HelicityAngles), -1);
+              PhaseSpaceMeasure::HelicityAngles()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::MandelstamQ2), -1);
+              PhaseSpaceMeasure::MandelstamQ2()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::BjorkenXY), -1);
+              PhaseSpaceMeasure::BjorkenXY()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::DecayNBody,
-              PhaseSpaceMeasure::Unspecified), -1);
+              PhaseSpaceMeasure::Unspecified()), -1);
 
     // Scatter2to2
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::SolidAngleRest), 0);
+              PhaseSpaceMeasure::SolidAngleRest()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::SolidAngleLab), 0);
+              PhaseSpaceMeasure::SolidAngleLab()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::MandelstamQ2), 0);
+              PhaseSpaceMeasure::MandelstamQ2()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::BjorkenXY), 0);
+              PhaseSpaceMeasure::BjorkenXY()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::Recursive2Body), -1);
+              PhaseSpaceMeasure::Recursive2Body()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::DalitzPair), -1);
+              PhaseSpaceMeasure::DalitzPair()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::HelicityAngles), -1);
+              PhaseSpaceMeasure::HelicityAngles()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::Unspecified), -1);
+              PhaseSpaceMeasure::Unspecified()), -1);
 
     // Scatter2to3
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::Recursive2Body), 0);
+              PhaseSpaceMeasure::Recursive2Body()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::DalitzPair), 0);
+              PhaseSpaceMeasure::DalitzPair()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::SolidAngleRest), 1);
+              PhaseSpaceMeasure::SolidAngleRest()), 1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::SolidAngleLab), -1);
+              PhaseSpaceMeasure::SolidAngleLab()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::HelicityAngles), -1);
+              PhaseSpaceMeasure::HelicityAngles()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::MandelstamQ2), -1);
+              PhaseSpaceMeasure::MandelstamQ2()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::BjorkenXY), -1);
+              PhaseSpaceMeasure::BjorkenXY()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to3,
-              PhaseSpaceMeasure::Unspecified), -1);
+              PhaseSpaceMeasure::Unspecified()), -1);
 
     // Unspecified topology: all measures give -1
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::SolidAngleRest), -1);
+              PhaseSpaceMeasure::SolidAngleRest()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::SolidAngleLab), -1);
+              PhaseSpaceMeasure::SolidAngleLab()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::Recursive2Body), -1);
+              PhaseSpaceMeasure::Recursive2Body()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::DalitzPair), -1);
+              PhaseSpaceMeasure::DalitzPair()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::HelicityAngles), -1);
+              PhaseSpaceMeasure::HelicityAngles()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::MandelstamQ2), -1);
+              PhaseSpaceMeasure::MandelstamQ2()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::BjorkenXY), -1);
+              PhaseSpaceMeasure::BjorkenXY()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Unspecified,
-              PhaseSpaceMeasure::Unspecified), -1);
+              PhaseSpaceMeasure::Unspecified()), -1);
 }
 
 TEST(ConvertibilityGroups, CompatibilityIsSymmetric) {
@@ -966,14 +966,14 @@ TEST(ConvertibilityGroups, CompatibilityIsSymmetric) {
         PhaseSpaceTopology::Unspecified,
     };
     PhaseSpaceMeasure measures[] = {
-        PhaseSpaceMeasure::SolidAngleRest,
-        PhaseSpaceMeasure::SolidAngleLab,
-        PhaseSpaceMeasure::Recursive2Body,
-        PhaseSpaceMeasure::DalitzPair,
-        PhaseSpaceMeasure::HelicityAngles,
-        PhaseSpaceMeasure::MandelstamQ2,
-        PhaseSpaceMeasure::BjorkenXY,
-        PhaseSpaceMeasure::Unspecified,
+        PhaseSpaceMeasure::SolidAngleRest(),
+        PhaseSpaceMeasure::SolidAngleLab(),
+        PhaseSpaceMeasure::Recursive2Body(),
+        PhaseSpaceMeasure::DalitzPair(),
+        PhaseSpaceMeasure::HelicityAngles(),
+        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceMeasure::BjorkenXY(),
+        PhaseSpaceMeasure::Unspecified(),
     };
 
     // For every pair (T, Ma) x (T, Mb), verify symmetry
@@ -985,8 +985,8 @@ TEST(ConvertibilityGroups, CompatibilityIsSymmetric) {
                 EXPECT_EQ(ab, ba)
                     << "Asymmetric compatibility for topology="
                     << static_cast<int>(topo)
-                    << " ma=" << static_cast<int>(ma)
-                    << " mb=" << static_cast<int>(mb);
+                    << " ma=" << static_cast<int>(ma.type)
+                    << " mb=" << static_cast<int>(mb.type);
             }
         }
     }
@@ -1003,49 +1003,49 @@ TEST(ConvertibilityGroups, LegacyConventionRoundTrip) {
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::RestFrameSolidAngle, 2),
               PhaseSpaceTopology::Decay2Body);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::RestFrameSolidAngle),
-              PhaseSpaceMeasure::SolidAngleRest);
+              PhaseSpaceMeasure::SolidAngleRest());
 
     // LabFrameSolidAngle + n=2 -> (Decay2Body, SolidAngleLab)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::LabFrameSolidAngle, 2),
               PhaseSpaceTopology::Decay2Body);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::LabFrameSolidAngle),
-              PhaseSpaceMeasure::SolidAngleLab);
+              PhaseSpaceMeasure::SolidAngleLab());
 
     // Recursive2Body + n=3 -> (Decay3Body, Recursive2Body)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::Recursive2Body, 3),
               PhaseSpaceTopology::Decay3Body);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::Recursive2Body),
-              PhaseSpaceMeasure::Recursive2Body);
+              PhaseSpaceMeasure::Recursive2Body());
 
     // Dalitz + n=3 -> (Decay3Body, DalitzPair)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::Dalitz, 3),
               PhaseSpaceTopology::Decay3Body);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::Dalitz),
-              PhaseSpaceMeasure::DalitzPair);
+              PhaseSpaceMeasure::DalitzPair());
 
     // HelicityAngles + n=3 -> (Decay3Body, HelicityAngles)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::HelicityAngles, 3),
               PhaseSpaceTopology::Decay3Body);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::HelicityAngles),
-              PhaseSpaceMeasure::HelicityAngles);
+              PhaseSpaceMeasure::HelicityAngles());
 
     // BjorkenXY -> (Scatter2to2, BjorkenXY)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::BjorkenXY, 2),
               PhaseSpaceTopology::Scatter2to2);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::BjorkenXY),
-              PhaseSpaceMeasure::BjorkenXY);
+              PhaseSpaceMeasure::BjorkenXY());
 
     // MandelstamST -> (Scatter2to2, MandelstamQ2)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::MandelstamST, 2),
               PhaseSpaceTopology::Scatter2to2);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::MandelstamST),
-              PhaseSpaceMeasure::MandelstamQ2);
+              PhaseSpaceMeasure::MandelstamQ2());
 
     // Custom -> (Unspecified, Unspecified)
     EXPECT_EQ(TopologyFromConvention(PhaseSpaceConvention::Custom, 2),
               PhaseSpaceTopology::Unspecified);
     EXPECT_EQ(MeasureFromConvention(PhaseSpaceConvention::Custom),
-              PhaseSpaceMeasure::Unspecified);
+              PhaseSpaceMeasure::Unspecified());
 }
 
 // ================================================================== //
@@ -1258,7 +1258,7 @@ public:
 
     std::string Name() const override { return "LabFrameIsotropic"; }
     PhaseSpaceTopology Topology() const override { return PhaseSpaceTopology::Decay2Body; }
-    PhaseSpaceMeasure Measure() const override { return PhaseSpaceMeasure::SolidAngleLab; }
+    PhaseSpaceMeasure Measure() const override { return PhaseSpaceMeasure::SolidAngleLab(); }
 
 private:
     Isotropic2BodyChannel iso_;
@@ -1278,8 +1278,8 @@ TEST(AutoConversion, Decay2BodyRestPlusLabDensityAgreesWithPureRest) {
     auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
 
     // Verify they report different measures
-    ASSERT_EQ(rest_channel->Measure(), PhaseSpaceMeasure::SolidAngleRest);
-    ASSERT_EQ(lab_channel->Measure(), PhaseSpaceMeasure::SolidAngleLab);
+    ASSERT_EQ(rest_channel->Measure(), PhaseSpaceMeasure::SolidAngleRest());
+    ASSERT_EQ(lab_channel->Measure(), PhaseSpaceMeasure::SolidAngleLab());
 
     // Same topology
     ASSERT_EQ(rest_channel->Topology(), lab_channel->Topology());
@@ -1289,7 +1289,7 @@ TEST(AutoConversion, Decay2BodyRestPlusLabDensityAgreesWithPureRest) {
     mc.weights = {0.5, 0.5};
 
     // CommonMeasure should pick SolidAngleRest (higher priority)
-    EXPECT_EQ(mc.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest);
+    EXPECT_EQ(mc.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest());
 
     // Validation should pass (same topology, compatible measures)
     auto diags = mc.ValidateChannels();
