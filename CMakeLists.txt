@@ -95,6 +95,35 @@ function(apply_siren_compile_options target)
     endif()
 endfunction()
 
+# Helper: strip local symbols from a shared object after build, in non-Debug
+# configurations. Safe for both single- and multi-config generators:
+#   * Single-config (Make, Ninja): gates on CMAKE_BUILD_TYPE at configure time,
+#     because CMAKE_BUILD_TYPE is fixed.
+#   * Multi-config (Xcode, Visual Studio, Ninja Multi-Config): gates on
+#     $<CONFIG:Debug> at build time, because CMAKE_BUILD_TYPE is empty and
+#     the actual config is only known at build time. When the config is
+#     Debug, every generator expression evaluates to an empty string, the
+#     COMMAND tokens are all empty, and CMake skips the rule.
+# Skips silently if CMAKE_STRIP is not available on the host toolchain.
+function(siren_strip_module target)
+    if(NOT CMAKE_STRIP)
+        return()
+    endif()
+    get_property(_is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    if(_is_multi_config)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND $<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP}>
+                    $<$<NOT:$<CONFIG:Debug>>:-x>
+                    $<$<NOT:$<CONFIG:Debug>>:$<TARGET_FILE:${target}>>
+            COMMAND_EXPAND_LISTS
+            COMMENT "Stripping local symbols from ${target} (release configs only)")
+    elseif(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:${target}>
+            COMMENT "Stripping local symbols from ${target}")
+    endif()
+endfunction()
+
 
 # override install locations when building python extensions
 if(DEFINED SKBUILD_PLATLIB_DIR)
@@ -185,6 +214,7 @@ add_subdirectory(projects/injection)
 add_library(SIREN SHARED)
 set_property(TARGET SIREN PROPERTY POSITION_INDEPENDENT_CODE ON)
 apply_siren_compile_options(SIREN)
+siren_strip_module(SIREN)
 
 if(DEFINED MACOSX AND MACOSX)
 if(CMAKE_VERSION VERSION_LESS 3.13)

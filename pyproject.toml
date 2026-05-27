@@ -81,6 +81,9 @@ dependencies = [
 [project.optional-dependencies]
 DarkNews = ["DarkNews>=0.4.2"]
 
+[project.scripts]
+siren-download = "siren.download:main"
+
 [project.urls]
 Homepage = "https://github.com/Harvard-Neutrino/SIREN"
 Documentation = "https://readthedocs.org"

@@ -68,3 +68,12 @@ __pycache__/
 
 # output dirs
 output/
+
+# flux/processes dirs
+resources/fluxes/**/*txt
+resources/fluxes/**/*dat
+resources/processes/**/*fits
+
+# download cache and extraction sentinels
+.download_cache/
+.zenodo_extracted

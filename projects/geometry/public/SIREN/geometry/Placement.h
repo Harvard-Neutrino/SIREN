@@ -46,6 +46,7 @@ public:
     // getter and setter functions
     siren::math::Vector3D GetPosition() const;
     siren::math::Quaternion GetQuaternion() const;
+    bool IsIdentity() const { return is_identity_; }
 
     void SetPosition(siren::math::Vector3D const &);
     void SetQuaternion(siren::math::Quaternion const &);
@@ -66,6 +67,7 @@ public:
         if(version == 0) {
             archive(cereal::make_nvp("Position", position_));
             archive(cereal::make_nvp("Quaternion", quaternion_));
+            UpdateIdentityFlag();
         } else {
             throw std::runtime_error("Placement only supports version <= 0!");
         }
@@ -80,6 +82,8 @@ private:
     // Connecting to Aerospace rotation conventions, the "active" rotation is the same as the
     // Passive Body To World" (PBTW) transformation as described in https://arxiv.org/abs/1801.07478
     siren::math::Quaternion quaternion_;
+    bool is_identity_ = true;
+    void UpdateIdentityFlag();
 };
 
 } // namespace geometry

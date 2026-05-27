@@ -34,6 +34,7 @@ add_custom_command(
       distributions
       injection
       "${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_STAGING_DIR}/siren"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:utilities>"
         "${PACKAGE_STAGING_DIR}/siren/"

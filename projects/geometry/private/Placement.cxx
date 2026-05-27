@@ -1,5 +1,6 @@
 #include "SIREN/geometry/Placement.h"
 
+#include <cmath>
 #include <tuple>
 #include <memory>
 #include <utility>
@@ -20,17 +21,20 @@ Placement::Placement() :
     quaternion_(siren::math::QFromZXZr(0,0,0))
 {
     quaternion_.normalize();
+    UpdateIdentityFlag();
 }
 
 Placement::Placement(siren::math::Vector3D const & position) :
     position_(position)
 {
+    UpdateIdentityFlag();
 }
 
 Placement::Placement(siren::math::Quaternion const & quaternion) :
     quaternion_(quaternion)
 {
     quaternion_.normalize();
+    UpdateIdentityFlag();
 }
 
 Placement::Placement(siren::math::Vector3D const & position, siren::math::Quaternion const & quaternion) :
@@ -38,17 +42,20 @@ Placement::Placement(siren::math::Vector3D const & position, siren::math::Quater
     quaternion_(quaternion)
 {
     quaternion_.normalize();
+    UpdateIdentityFlag();
 }
 
 Placement::Placement(const Placement& placement) :
     position_(placement.position_),
-    quaternion_(placement.quaternion_)
+    quaternion_(placement.quaternion_),
+    is_identity_(placement.is_identity_)
 {
 }
 
 Placement::Placement(Placement&& other) :
     position_(std::move(other.position_)),
-    quaternion_(std::move(other.quaternion_))
+    quaternion_(std::move(other.quaternion_)),
+    is_identity_(other.is_identity_)
 {
 }
 
@@ -72,12 +79,14 @@ Placement& Placement::operator=(Placement const & placement) {
 Placement& Placement::operator=(Placement && other) {
     position_ = std::move(other.position_);
     quaternion_ = std::move(other.quaternion_);
+    is_identity_ = other.is_identity_;
     return *this;
 }
 
 Placement& Placement::operator=(Placement const && other) {
     position_ = std::move(other.position_);
     quaternion_ = std::move(other.quaternion_);
+    is_identity_ = other.is_identity_;
     return *this;
 }
 
@@ -108,6 +117,7 @@ void Placement::swap(Placement& placement)
 
     swap(position_, placement.position_);
     swap(quaternion_, placement.quaternion_);
+    swap(is_identity_, placement.is_identity_);
 }
 
 namespace siren {
@@ -130,11 +140,25 @@ siren::math::Vector3D Placement::GetPosition() const { return position_; }
 
 siren::math::Quaternion Placement::GetQuaternion() const { return quaternion_; }
 
-void Placement::SetPosition(siren::math::Vector3D const & p) { position_ = p; }
+void Placement::UpdateIdentityFlag() {
+    double px = position_.GetX(), py = position_.GetY(), pz = position_.GetZ();
+    if(px != 0 || py != 0 || pz != 0) { is_identity_ = false; return; }
+    double qw = quaternion_.GetW();
+    double qx = quaternion_.GetX();
+    double qy = quaternion_.GetY();
+    double qz = quaternion_.GetZ();
+    is_identity_ = (std::fabs(std::fabs(qw) - 1.0) < 1e-12
+         && std::fabs(qx) < 1e-12
+         && std::fabs(qy) < 1e-12
+         && std::fabs(qz) < 1e-12);
+}
+
+void Placement::SetPosition(siren::math::Vector3D const & p) { position_ = p; UpdateIdentityFlag(); }
 
 void Placement::SetQuaternion(siren::math::Quaternion const & q) {
     quaternion_ = q;
     quaternion_.normalize();
+    UpdateIdentityFlag();
 }
 
 siren::math::Vector3D Placement::Rotate(siren::math::Vector3D const & p0, bool inv) const

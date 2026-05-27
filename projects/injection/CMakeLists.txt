@@ -30,6 +30,7 @@ target_link_libraries(SIREN_injection
 )
 apply_siren_compile_options(SIREN_injection)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -46,6 +47,7 @@ endif()
 
 pybind11_add_module(injection ${PROJECT_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
 target_link_libraries(injection PRIVATE SIREN photospline pybind11::embed)
+siren_strip_module(injection)
 if(DEFINED SKBUILD)
 set_target_properties(injection PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

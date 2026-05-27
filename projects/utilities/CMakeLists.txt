@@ -14,6 +14,7 @@ target_include_directories(SIREN_utilities PUBLIC
 
 apply_siren_compile_options(SIREN_utilities)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -23,6 +24,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
 
 pybind11_add_module(utilities ${PROJECT_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
 target_link_libraries(utilities PRIVATE SIREN rk_static)
+siren_strip_module(utilities)
 if(DEFINED SKBUILD)
 set_target_properties(utilities PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

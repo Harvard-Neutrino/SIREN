@@ -91,6 +91,7 @@ if(TARGET MARLEY)
 endif()
 #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
 #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
+siren_strip_module(interactions)
 if(DEFINED SKBUILD)
 set_target_properties(interactions PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

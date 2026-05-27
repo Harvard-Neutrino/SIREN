@@ -2,8 +2,20 @@ import os
 from typing import Tuple, List, Any, Optional
 import siren
 import collections
+from siren.download import ensure_zenodo_archive, writable_data_dir
 
 base_path = os.path.dirname(os.path.abspath(__file__))
+
+_ZENODO_RECORD = "20129082"
+_ZENODO_FILE = "processes.zip"
+_ZENODO_PREFIX = "processes/CSMSDISSplines/CSMSDISSplines-v1.0"
+_RESOURCES_ROOT = writable_data_dir(os.path.normpath(os.path.join(base_path, "..", "..", "..")))
+
+
+def fetch_data():
+    """Download data files from Zenodo (called by siren-download --fetch)."""
+    ensure_zenodo_archive(_ZENODO_RECORD, _ZENODO_FILE, _RESOURCES_ROOT,
+                          prefix=_ZENODO_PREFIX)
 
 neutrinos = [
         siren.dataclasses.Particle.ParticleType.NuE,
@@ -81,6 +93,8 @@ def load_processes(
     isoscalar: Optional[bool] = None,
     process_types: Optional[List[str]] = None,
     ):
+
+    fetch_data()
 
     primary_types = _get_primary_types(primary_types)
     isoscalar = _get_isoscalar(isoscalar)
