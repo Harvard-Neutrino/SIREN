@@ -1267,43 +1267,99 @@ private:
 } // anonymous namespace
 
 
-TEST(MeasureValidation, MixedMeasureSameTopologyDetected) {
-    // Mixing SolidAngleRest and SolidAngleLab in the same
-    // MultiChannelPhaseSpace is a measure mismatch.  ValidateChannels
-    // must report it.
+TEST(AutoConversion, Decay2BodyRestPlusLabDensityAgreesWithPureRest) {
+    // Two channels that sample identically (isotropic 2-body) but
+    // report densities in different measures.  The MultiChannelPhaseSpace
+    // should auto-convert so the combined density equals the individual
+    // density (since both channels are isotropic, the combined density
+    // should be 1/(4*pi) in rest-frame measure regardless of weights).
 
     auto rest_channel = std::make_shared<Isotropic2BodyChannel>(0);
     auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
 
+    // Verify they report different measures
+    ASSERT_EQ(rest_channel->Measure(), PhaseSpaceMeasure::SolidAngleRest);
+    ASSERT_EQ(lab_channel->Measure(), PhaseSpaceMeasure::SolidAngleLab);
+
+    // Same topology
     ASSERT_EQ(rest_channel->Topology(), lab_channel->Topology());
-    ASSERT_NE(rest_channel->Measure(), lab_channel->Measure());
 
     MultiChannelPhaseSpace mc;
     mc.channels = {rest_channel, lab_channel};
     mc.weights = {0.5, 0.5};
 
+    // CommonMeasure should pick SolidAngleRest (higher priority)
+    EXPECT_EQ(mc.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest);
+
+    // Validation should pass (same topology, compatible measures)
     auto diags = mc.ValidateChannels();
-    ASSERT_FALSE(diags.empty());
-    EXPECT_NE(diags.front().find("Measure mismatch"), std::string::npos);
+    // Should have an info diagnostic about auto-conversion, not an error
+    for (auto const & d : diags) {
+        EXPECT_EQ(d.find("incompatibility"), std::string::npos)
+            << "Unexpected incompatibility: " << d;
+    }
+
+    // Sample many events and verify the combined density equals 1/(4*pi)
+    // for each event (since both channels sample isotropically).
+    double M = 1.0, m_A = 0.1, m_B = 0.2, E = 5.0;
+    InteractionRecord record = Make2BodyRecord(M, m_A, m_B, E);
+    auto random = std::make_shared<siren::utilities::SIREN_random>(42);
+
+    int N = 500;
+    double max_deviation = 0.0;
+    for (int i = 0; i < N; ++i) {
+        InteractionRecord r = record;
+        mc.Sample(random, nullptr, r);
+        double combined = mc.Density(nullptr, r);
+        double expected = 1.0 / (4.0 * M_PI);
+        double deviation = std::abs(combined - expected) / expected;
+        if (deviation > max_deviation) max_deviation = deviation;
+    }
+
+    EXPECT_LT(max_deviation, 1e-8)
+        << "Combined rest+lab density deviates from 1/(4*pi) by "
+        << max_deviation * 100 << "%";
 }
 
-TEST(MeasureValidation, SameMeasureSameTopologyPasses) {
-    // Two channels with the same topology and measure should validate
-    // cleanly.
+TEST(AutoConversion, Decay2BodyMixedWeightsClosure) {
+    // Closure test: sample from the multichannel with unequal weights,
+    // compute the multichannel density, compute the physical density
+    // (1/(4*pi)), and verify the ratio is stable (constant).
 
-    auto target = Sphere(Placement(Vector3D(0, 0, 100000)), 1.0, 0.0).create();
-    auto iso = std::make_shared<Isotropic2BodyChannel>(0);
-    auto directed = std::make_shared<DetectorDirected2BodyChannel>(target, 0);
-
-    ASSERT_EQ(iso->Topology(), directed->Topology());
-    ASSERT_EQ(iso->Measure(), directed->Measure());
+    auto rest_channel = std::make_shared<Isotropic2BodyChannel>(0);
+    auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
 
     MultiChannelPhaseSpace mc;
-    mc.channels = {iso, directed};
-    mc.weights = {0.01, 0.99};
+    mc.channels = {rest_channel, lab_channel};
+    mc.weights = {0.1, 0.9};
 
-    auto diags = mc.ValidateChannels();
-    EXPECT_TRUE(diags.empty()) << diags.front();
+    double M = 0.5, m_A = 0.05, m_B = 0.1, E = 3.0;
+    InteractionRecord record = Make2BodyRecord(M, m_A, m_B, E);
+    auto random = std::make_shared<siren::utilities::SIREN_random>(123);
+
+    double physical = 1.0 / (4.0 * M_PI);
+    int N = 2000;
+    double sum_w = 0.0;
+    int n_valid = 0;
+
+    for (int i = 0; i < N; ++i) {
+        InteractionRecord r = record;
+        mc.Sample(random, nullptr, r);
+        double gen = mc.Density(nullptr, r);
+        if (gen <= 0 || !std::isfinite(gen)) continue;
+        double w = physical / gen;
+        sum_w += w;
+        ++n_valid;
+    }
+
+    ASSERT_GT(n_valid, N / 2) << "Too many invalid samples";
+
+    // The average weight should be close to 1.0 (unbiased estimator
+    // of the integral of the physical density, which is 1.0).
+    double mean_w = sum_w / n_valid;
+    EXPECT_NEAR(mean_w, 1.0, 0.05)
+        << "Closure test: mean weight = " << mean_w
+        << " (expected 1.0 for unbiased sampling)";
 }
 
 TEST(AutoConversion, Scatter2to2Q2PlusSolidAngleClosure) {
