@@ -168,14 +168,15 @@ PYBIND11_MODULE(injection,m) {
   class_<DetectorDirected3BodyChannel, std::shared_ptr<DetectorDirected3BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected3BodyChannel")
     .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, int, int, int,
               DetectorDirected3BodyChannel::InvariantMassMode, double, double, double, double,
-              DetectorDirected2BodyChannel::Mode>(),
+              DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology>(),
          arg("target"), arg("spectator_index") = 0,
          arg("pair_first_index") = 1, arg("pair_second_index") = 2,
          arg("directed_pair_index") = 1,
          arg("mass_mode") = DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
          arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
          arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
-         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+         arg("topology") = PhaseSpaceTopology::Decay3Body)
     .def("SetVolume", &DetectorDirected3BodyChannel::SetVolume)
     ;
 

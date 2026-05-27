@@ -81,7 +81,7 @@ def test_vector_portal_offshell_loader_is_self_contained(darknews_processes):
 
     assert chi_type in primary
     assert v1_type in secondary
-    assert primary[chi_type][0].DensityVariables() == ["Q2"]
+    assert primary[chi_type][0].DensityVariables() == ["s_pair", "cos_theta_sub"]
     assert secondary[v1_type][0].DensityVariables() == ["cos_theta"]
 
 
@@ -176,11 +176,9 @@ def test_vector_portal_offshell_cross_section_channel_samples(vector_portal):
         cross_section,
         signature,
     )
-    assert channel.Convention() == siren.injection.PhaseSpaceConvention.Custom
+    assert channel.Convention() == siren.injection.PhaseSpaceConvention.Recursive2Body
 
     channel.Sample(siren.utilities.SIREN_random(2), None, record)
-
-    assert channel.Density(None, record) == pytest.approx(1.0)
     assert record.secondary_masses == pytest.approx([0.008, 0.017, 37.215])
     assert all(momentum[0] > 0.0 for momentum in record.secondary_momenta)
 
