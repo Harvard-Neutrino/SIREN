@@ -1233,7 +1233,7 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
     if(targets.empty()) {
       return distance / total_decay_length; // m / m --> dimensionless
     }
-    if(direction.magnitude() <= 1e-5) {
+    if(direction.magnitude() <= distance_threshold) {
         return 0.0;
     }
     direction.normalize();
