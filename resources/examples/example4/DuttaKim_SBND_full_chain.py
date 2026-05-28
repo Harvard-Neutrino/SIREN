@@ -24,6 +24,7 @@ Options:
     --offshell          Use off-shell chi' (single 2->3 scattering vertex)
     --n-events N        Number of production events (default: 100)
     --seed S            Random number seed (default: 42)
+    --sampling-bias     Bias pion selection (energy, angle, position)
     --optimize          Run weight optimization before production
     --opt-iterations N  Optimization iterations (default: 5)
     --opt-batch N       Events per optimization iteration (default: 200)
@@ -85,7 +86,24 @@ _P_STAR = injection.TwoBodyRestMomentum(M_CHI_PRIME, M_CHI, M_V1)
 CHI_PRIME_WIDTH = G_D**2 * _P_STAR**3 / (6.0 * math.pi * M_CHI_PRIME**2)
 
 
-def load_dk2nu_pions(dk2nu_dir, detector_model):
+def default_pion_bias(E, px, py, pz, vx, vy, vz):
+    """Bias toward pions likely to produce observable signal events.
+
+    Combines three factors (all in geometry/beam coordinates):
+      - Energy: higher-energy pions produce more energetic V1/chi,
+        increasing the upscattering cross section.
+      - Forward angle: pions decaying forward along the beam axis
+        are more likely to send secondaries toward the detector.
+      - Transverse position: pions closer to the beam axis have
+        better geometric acceptance for a downstream detector.
+    """
+    p = np.sqrt(px**2 + py**2 + pz**2)
+    cos_theta = np.where(p > 0, pz / p, 0.0)
+    r_trans = np.sqrt(vx**2 + vy**2)
+    return E * np.maximum(cos_theta, 0.01) * np.exp(-r_trans / 200.0)
+
+
+def load_dk2nu_pions(dk2nu_dir, detector_model, sampling_bias=None):
     """Read pi+ kinematics from dk2nu files."""
     dk2nu_files = sorted(glob.glob(os.path.join(dk2nu_dir, "*dk2nu*.root")))
     if not dk2nu_files:
@@ -103,7 +121,10 @@ def load_dk2nu_pions(dk2nu_dir, detector_model):
     print(f"  {n_pions} pi+ entries, {pot:.3e} POT")
 
     primary_dist = _DK.dk2nu_to_primary_distribution(
-        dk2nu_data, detector_model, parent_pdg=_DK.PTYPE_PIPLUS)
+        dk2nu_data, detector_model, parent_pdg=_DK.PTYPE_PIPLUS,
+        sampling_bias=sampling_bias)
+    if sampling_bias is not None:
+        print("  Biased pion selection enabled")
     return primary_dist, pot
 
 
@@ -385,7 +406,7 @@ def make_fiducial_metric(fiducial, signal_pdgids=(5923,)):
 
 def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         opt_iterations=5, opt_batch=200, monoenergetic=False,
-        offshell=False):
+        offshell=False, sampling_bias=False):
 
     # -- Detector --
     print("Loading SBND detector model ...")
@@ -441,7 +462,9 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         primary_mode = injection.VertexWeightingMode.Propagated()
     else:
         print()
-        pion_dist, pot = load_dk2nu_pions(dk2nu_dir, detector_model)
+        bias_fn = default_pion_bias if sampling_bias else None
+        pion_dist, pot = load_dk2nu_pions(dk2nu_dir, detector_model,
+                                          sampling_bias=bias_fn)
         primary_dists = [pion_dist]
         # For Fixed mode (dk2nu), the pion already decayed via SM.
         # The BSM branching ratio must be included explicitly in the
@@ -490,13 +513,13 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         secondary_interactions=secondary_interactions,
     )
 
+    # Build the fiducial volume in detector coordinates for the metric
+    fiducial_geo = list(targets.values())[0]  # the "fiducial" Box
+    fid_metric = make_fiducial_metric(fiducial_geo)
+
     # -- Optimize --
     if optimize:
         from siren.optimize import optimize_chain_weights
-
-        # Build the fiducial volume in detector coordinates for the metric
-        fiducial_geo = list(targets.values())[0]  # the "fiducial" Box
-        fid_metric = make_fiducial_metric(fiducial_geo)
 
         print("\nOptimizing multi-channel weights ...")
         print("  Metric: signal vertex inside fiducial volume")
@@ -523,6 +546,7 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
 
     # -- Compute weights --
     weights = np.array([weighter(event) for event in events])
+    weights = np.array([fid_metric(event, w) for event, w in zip(events, weights)])
     valid_mask = np.isfinite(weights) & (weights > 0)
     valid_weights = weights[valid_mask]
 
@@ -576,6 +600,9 @@ if __name__ == "__main__":
                         help="Number of production events")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random number seed")
+    parser.add_argument("--sampling-bias", action="store_true",
+                        help="Bias pion selection toward higher-energy, "
+                             "forward, on-axis entries")
     parser.add_argument("--optimize", action="store_true",
                         help="Run iterative weight optimization")
     parser.add_argument("--opt-iterations", type=int, default=5,
@@ -586,4 +613,4 @@ if __name__ == "__main__":
     run(dk2nu_dir=args.dk2nu_dir, n_events=args.n_events, seed=args.seed,
         optimize=args.optimize, opt_iterations=args.opt_iterations,
         opt_batch=args.opt_batch, monoenergetic=args.monoenergetic,
-        offshell=args.offshell)
+        offshell=args.offshell, sampling_bias=args.sampling_bias)
