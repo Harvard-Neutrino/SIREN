@@ -165,12 +165,14 @@ def build_geometric_targets(detector_model, fiducial):
     # Positions are in detector coordinates where the detector center is
     # at the origin and the BNB target is at z ~ -113m.
     #
-    # Each segment is defined by (center_z, half_length) in detector coords.
+    # Each segment is defined by (center_z, full_length) in detector coords.
+    # Note: Cylinder(placement, radius, inner_radius, z) uses FULL height z,
+    # so a cylinder with z=50 extends from center_z-25 to center_z+25.
     cyl_segments = {
-        "target":   (-88.0, 25.0),   # z = -113 to -63  (near BNB target)
-        "mid":      (-38.0, 25.0),   # z = -63  to -13  (mid-range)
-        "near_det": ( -3.0, 20.0),   # z = -23  to +17  (near detector)
-        "down":     ( 52.0, 35.0),   # z = +17  to +87  (downstream)
+        "target":   (-88.0, 50.0),   # z = -113 to -63  (near BNB target)
+        "mid":      (-38.0, 50.0),   # z = -63  to -13  (mid-range)
+        "near_det": ( -3.0, 40.0),   # z = -23  to +17  (near detector)
+        "down":     ( 52.0, 70.0),   # z = +17  to +87  (downstream)
     }
     cyl_radii = [2.0, 5.0]
 
@@ -181,11 +183,11 @@ def build_geometric_targets(detector_model, fiducial):
         "sphere_20m": Sphere(det_placement, 20.0, 0.0).create(),
     }
 
-    for seg_name, (center_z, half_len) in cyl_segments.items():
+    for seg_name, (center_z, full_len) in cyl_segments.items():
         for radius in cyl_radii:
             name = f"cyl_r{radius:.0f}m_{seg_name}"
             placement = Placement(Vector3D(0, 0, center_z))
-            targets[name] = Cylinder(placement, radius, 0.0, half_len).create()
+            targets[name] = Cylinder(placement, radius, 0.0, full_len).create()
 
     return targets
 
@@ -370,7 +372,7 @@ def make_fiducial_metric(fiducial, signal_pdgids=(5923,)):
                 vtx = Vector3D(r.interaction_vertex[0],
                                r.interaction_vertex[1],
                                r.interaction_vertex[2])
-                if fiducial.IsInside(vtx, Vector3D(0, 0, 0)):
+                if fiducial.IsInside(vtx):
                     return w
         return 0.0
 
