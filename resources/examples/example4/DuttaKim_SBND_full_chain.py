@@ -144,7 +144,7 @@ def build_onshell_models():
     }
 
 
-def build_geometric_targets(detector_model):
+def build_geometric_targets(detector_model, fiducial):
     """Build a set of biasing target geometries of increasing size.
 
     Returns a dict with named targets:
@@ -158,21 +158,16 @@ def build_geometric_targets(detector_model):
     from siren.math import Vector3D
     from siren.geometry import Placement, Sphere, Cylinder
 
-    # Detector center in geometry (BNB) coordinates
-    det_origin = detector_model.DetectorOrigin.get()
-    cx = det_origin.GetX()
-    cy = det_origin.GetY()
-    cz = det_origin.GetZ()
-    det_placement = Placement(Vector3D(cx, cy, cz))
+    det_placement = Placement(Vector3D(0, 0, 0))
 
     # Beam axis: along +z, centered at the detector z-coordinate
     # Cylinders span from z=0 (BNB target) to z=200m
     beam_center_z = 100.0  # midpoint of 0..200m
     beam_half_length = 100.0
-    beam_placement = Placement(Vector3D(cx, cy, beam_center_z))
+    beam_placement = Placement(Vector3D(0, 0, -beam_center_z))
 
     targets = {
-        "fiducial": siren.geometry.Box(4.0, 4.0, 5.0),
+        "fiducial": fiducial,
         "sphere_5m": Sphere(det_placement, 5.0, 0.0).create(),
         "sphere_10m": Sphere(det_placement, 10.0, 0.0).create(),
         "sphere_20m": Sphere(det_placement, 20.0, 0.0).create(),
@@ -342,7 +337,31 @@ def effective_sample_fraction(weights):
     w = w[(np.isfinite(w)) & (w > 0)]
     if len(w) == 0:
         return 0.0
-    return (w.sum() ** 2) / (len(w) * (w ** 2).sum())
+    return (w.sum() ** 2) / (len(w) * (w ** 2).sum()) * len(w) / len(weights)
+
+
+def make_fiducial_metric(fiducial, signal_pdgids=(5923,)):
+    """Build a metric that selects events with a signal vertex in the fiducial volume.
+
+    Returns a callable ``metric(event, weight) -> float`` suitable for
+    ``optimize_chain_weights(metric=...)``.  Returns the weight if any
+    interaction vertex for a signal particle (default: V1_signal, PDG 5923)
+    is inside the fiducial geometry; returns 0 otherwise.
+    """
+    from siren.math import Vector3D
+
+    def metric(event, w):
+        for datum in event.tree:
+            r = datum.record
+            if int(r.signature.primary_type) in signal_pdgids:
+                vtx = Vector3D(r.interaction_vertex[0],
+                               r.interaction_vertex[1],
+                               r.interaction_vertex[2])
+                if fiducial.IsInside(vtx, Vector3D(0, 0, 0)):
+                    return w
+        return 0.0
+
+    return metric
 
 
 # ------------------------------------------------------------------ #
@@ -358,7 +377,11 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     detector_model = siren.utilities.load_detector("SBN", detector="SBND")
 
     # -- Biasing targets of increasing size --
-    targets = build_geometric_targets(detector_model)
+    x_half_width = 4.5 + 2.022
+    y_half_width = 4.074645
+    z_half_width = 5.010
+    fiducial = siren.geometry.Box(x_half_width*2, y_half_width*2, z_half_width*2)
+    targets = build_geometric_targets(detector_model, fiducial)
     print(f"  Built {len(targets)} biasing targets: {list(targets.keys())}")
 
     # -- Chain topology --
@@ -455,13 +478,21 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     # -- Optimize --
     if optimize:
         from siren.optimize import optimize_chain_weights
+
+        # Build the fiducial volume in detector coordinates for the metric
+        fiducial_geo = list(targets.values())[0]  # the "fiducial" Box
+        fid_metric = make_fiducial_metric(fiducial_geo)
+
         print("\nOptimizing multi-channel weights ...")
+        print("  Metric: signal vertex inside fiducial volume")
         optimize_chain_weights(
             injector, weighter,
             n_iterations=opt_iterations,
             batch_size=opt_batch,
             damping=0.5,
+            metric=fid_metric,
             verbose=True,
+            min_weight=1e-4,
         )
 
     # -- Generate production events --
@@ -500,7 +531,7 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     print(f"Simulated POT: {pot:.3e}")
 
     if len(valid_weights) > 0:
-        eff = effective_sample_fraction(valid_weights) * 100
+        eff = effective_sample_fraction(weights) * 100
         sigma_over_mu = valid_weights.std() / valid_weights.mean()
         print(f"Weight range:  [{valid_weights.min():.4e}, "
               f"{valid_weights.max():.4e}]")
