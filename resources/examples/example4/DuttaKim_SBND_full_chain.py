@@ -144,7 +144,94 @@ def build_onshell_models():
     }
 
 
-def build_onshell_phase_spaces(fiducial, models):
+def build_geometric_targets(detector_model):
+    """Build a set of biasing target geometries of increasing size.
+
+    Returns a dict with named targets:
+      - fiducial: tight box matching the SBND TPC active volume
+      - sphere_5m, sphere_10m, sphere_20m: spheres centered on the
+        detector origin with increasing radius
+      - cylinder_2m, cylinder_5m: cylinders along the beam axis (+z)
+        with varying radius, spanning from the BNB target (z=0) to
+        well past the detector (z=200m)
+    """
+    from siren.math import Vector3D
+    from siren.geometry import Placement, Sphere, Cylinder
+
+    # Detector center in geometry (BNB) coordinates
+    det_origin = detector_model.DetectorOrigin.get()
+    cx = det_origin.GetX()
+    cy = det_origin.GetY()
+    cz = det_origin.GetZ()
+    det_placement = Placement(Vector3D(cx, cy, cz))
+
+    # Beam axis: along +z, centered at the detector z-coordinate
+    # Cylinders span from z=0 (BNB target) to z=200m
+    beam_center_z = 100.0  # midpoint of 0..200m
+    beam_half_length = 100.0
+    beam_placement = Placement(Vector3D(cx, cy, beam_center_z))
+
+    targets = {
+        "fiducial": siren.geometry.Box(4.0, 4.0, 5.0),
+        "sphere_5m": Sphere(det_placement, 5.0, 0.0).create(),
+        "sphere_10m": Sphere(det_placement, 10.0, 0.0).create(),
+        "sphere_20m": Sphere(det_placement, 20.0, 0.0).create(),
+        "cylinder_2m": Cylinder(beam_placement, 2.0, 0.0, beam_half_length).create(),
+        "cylinder_5m": Cylinder(beam_placement, 5.0, 0.0, beam_half_length).create(),
+    }
+    return targets
+
+
+def _build_2body_channels(targets, daughter_index, decay, sig):
+    """Build multi-channel for a 2-body decay vertex.
+
+    Physical channel + one directed channel per target geometry.
+    """
+    channels = [injection.PhysicalDecayChannel(decay, sig)]
+    for target in targets:
+        channels.append(
+            injection.DetectorDirected2BodyChannel(target, daughter_index))
+
+    n = len(channels)
+    # Physical gets a small weight, rest split equally
+    weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
+    return _mc(channels, weights)
+
+
+def _build_scatter_channels(targets, directed_index, xs, sig):
+    """Build multi-channel for a 2->2 scattering vertex."""
+    channels = [injection.PhysicalCrossSectionChannel(xs, sig)]
+    for target in targets:
+        channels.append(
+            injection.DetectorDirectedScatteringChannel(
+                target, directed_index=directed_index,
+                variable=injection.ScatteringVariable.Q2))
+
+    n = len(channels)
+    weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
+    return _mc(channels, weights)
+
+
+def _build_scatter_3body_channels(targets, xs, sig):
+    """Build multi-channel for a 2->3 off-shell scattering vertex."""
+    channels = [injection.PhysicalCrossSectionChannel(xs, sig)]
+    for target in targets:
+        channels.append(
+            injection.DetectorDirected3BodyChannel(
+                target,
+                spectator_index=2, pair_first_index=0, pair_second_index=1,
+                directed_pair_index=0,
+                mass_mode=injection.InvariantMassMode.BreitWigner,
+                resonance_mass=M_CHI_PRIME,
+                resonance_width=CHI_PRIME_WIDTH,
+                topology=injection.PhaseSpaceTopology.Scatter2to3))
+
+    n = len(channels)
+    weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
+    return _mc(channels, weights)
+
+
+def build_onshell_phase_spaces(targets, models):
     """Multi-channel phase spaces for on-shell chain."""
     m = models["models"]
     v1_sig = m["v1_to_chi"].GetPossibleSignatures()[0]
@@ -152,21 +239,15 @@ def build_onshell_phase_spaces(fiducial, models):
     chip_sig = m["chi_prime_decay"].GetPossibleSignatures()[0]
     vis_sig = m["visible_decay"].GetPossibleSignatures()[0]
 
+    geo_list = list(targets.values())
+
     return {
-        V1_PROD: {v1_sig: _mc([
-            injection.PhysicalDecayChannel(m["v1_to_chi"], v1_sig),
-            injection.DetectorDirected2BodyChannel(fiducial, 0),
-        ], [0.10, 0.90])},
-        CHI: {chi_sig: _mc([
-            injection.PhysicalCrossSectionChannel(m["upscatter"], chi_sig),
-            injection.DetectorDirectedScatteringChannel(
-                fiducial, directed_index=0,
-                variable=injection.ScatteringVariable.Q2),
-        ], [0.10, 0.90])},
-        CHI_PRIME: {chip_sig: _mc([
-            injection.PhysicalDecayChannel(m["chi_prime_decay"], chip_sig),
-            injection.DetectorDirected2BodyChannel(fiducial, 1),
-        ], [0.10, 0.90])},
+        V1_PROD: {v1_sig: _build_2body_channels(
+            geo_list, 0, m["v1_to_chi"], v1_sig)},
+        CHI: {chi_sig: _build_scatter_channels(
+            geo_list, 0, m["upscatter"], chi_sig)},
+        CHI_PRIME: {chip_sig: _build_2body_channels(
+            geo_list, 1, m["chi_prime_decay"], chip_sig)},
         V1_SIGNAL: {vis_sig: _mc([
             injection.PhysicalDecayChannel(m["visible_decay"], vis_sig),
             injection.Isotropic2BodyChannel(0),
@@ -215,29 +296,20 @@ def build_offshell_models():
     }
 
 
-def build_offshell_phase_spaces(fiducial, models):
+def build_offshell_phase_spaces(targets, models):
     """Multi-channel phase spaces for off-shell chain."""
     m = models["models"]
     v1_sig = m["v1_to_chi"].GetPossibleSignatures()[0]
     offshell_sig = m["offshell_xs"].GetPossibleSignatures()[0]
     vis_sig = m["visible_decay"].GetPossibleSignatures()[0]
 
+    geo_list = list(targets.values())
+
     return {
-        V1_PROD: {v1_sig: _mc([
-            injection.PhysicalDecayChannel(m["v1_to_chi"], v1_sig),
-            injection.DetectorDirected2BodyChannel(fiducial, 0),
-        ], [0.10, 0.90])},
-        CHI: {offshell_sig: _mc([
-            injection.PhysicalCrossSectionChannel(m["offshell_xs"], offshell_sig),
-            injection.DetectorDirected3BodyChannel(
-                fiducial,
-                spectator_index=2, pair_first_index=0, pair_second_index=1,
-                directed_pair_index=0,
-                mass_mode=injection.InvariantMassMode.BreitWigner,
-                resonance_mass=M_CHI_PRIME,
-                resonance_width=CHI_PRIME_WIDTH,
-                topology=injection.PhaseSpaceTopology.Scatter2to3),
-        ], [0.10, 0.90])},
+        V1_PROD: {v1_sig: _build_2body_channels(
+            geo_list, 0, m["v1_to_chi"], v1_sig)},
+        CHI: {offshell_sig: _build_scatter_3body_channels(
+            geo_list, m["offshell_xs"], offshell_sig)},
         V1_SIGNAL: {vis_sig: _mc([
             injection.PhysicalDecayChannel(m["visible_decay"], vis_sig),
             injection.Isotropic2BodyChannel(0),
@@ -284,21 +356,21 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     # -- Detector --
     print("Loading SBND detector model ...")
     detector_model = siren.utilities.load_detector("SBN", detector="SBND")
-    x_half_width = 4.5 + 2.022
-    y_half_width = 4.074645
-    z_half_width = 5.010
-    fiducial = siren.geometry.Box(x_half_width*2, y_half_width*2, z_half_width*2)
+
+    # -- Biasing targets of increasing size --
+    targets = build_geometric_targets(detector_model)
+    print(f"  Built {len(targets)} biasing targets: {list(targets.keys())}")
 
     # -- Chain topology --
     if offshell:
         print("\nUsing off-shell chi' chain (4 vertices, virtual chi')")
         chain = build_offshell_models()
-        phase_spaces = build_offshell_phase_spaces(fiducial, chain)
+        phase_spaces = build_offshell_phase_spaces(targets, chain)
         stop_fn = offshell_stopping_condition
     else:
         print("\nUsing on-shell chain (5 vertices)")
         chain = build_onshell_models()
-        phase_spaces = build_onshell_phase_spaces(fiducial, chain)
+        phase_spaces = build_onshell_phase_spaces(targets, chain)
         stop_fn = onshell_stopping_condition
 
     pion_decay = chain["pion_decay"]
