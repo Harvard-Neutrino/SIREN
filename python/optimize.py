@@ -173,10 +173,12 @@ def optimize_chain_weights(
             # Generate one event to trigger init
             for _ in injector:
                 break
-            injector._Injector__injector.ResetInjectedEvents()
+            injector._Injector__injector.ResetInjectedEvents(batch_size)
         cpp_inj = injector._Injector__injector
     else:
         cpp_inj = injector
+
+    prev_events_to_inject = cpp_inj.EventsToInject()
 
     # Collect all secondary processes with phase spaces
     sec_map = cpp_inj.GetSecondaryProcessMap()
@@ -220,13 +222,11 @@ def optimize_chain_weights(
 
     for iteration in range(n_iterations):
         # Generate full-chain events
-        cpp_inj.ResetInjectedEvents()
+        cpp_inj.ResetInjectedEvents(batch_size)
         events = []
         total_weights = []
 
-        for attempt in range(batch_size * 10):
-            if len(events) >= batch_size:
-                break
+        for attempt in range(batch_size):
             event = cpp_inj.GenerateEvent()
             if not event.tree:
                 continue
@@ -297,6 +297,8 @@ def optimize_chain_weights(
                 print(f"    {ptype_int}: "
                       f"{[f'{w:.3f}' for w in old]} -> "
                       f"{[f'{w:.3f}' for w in mc.weights]}")
+
+    cpp_inj.ResetInjectedEvents(prev_events_to_inject)
 
     if verbose:
         print("\nOptimization complete. Final weights:")

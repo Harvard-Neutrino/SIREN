@@ -667,7 +667,8 @@ unsigned int Injector::EventsToInject() const {
     return events_to_inject;
 }
 
-void Injector::ResetInjectedEvents() {
+void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
+    this->events_to_inject = events_to_inject;
     injected_events = 0;
     injection_attempts = 0;
 }
