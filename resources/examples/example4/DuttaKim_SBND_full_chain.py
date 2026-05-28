@@ -151,29 +151,42 @@ def build_geometric_targets(detector_model, fiducial):
       - fiducial: tight box matching the SBND TPC active volume
       - sphere_5m, sphere_10m, sphere_20m: spheres centered on the
         detector origin with increasing radius
-      - cylinder_2m, cylinder_5m: cylinders along the beam axis (+z)
-        with varying radius, spanning from the BNB target (z=0) to
-        well past the detector (z=200m)
+      - Cylinder segments along the beam axis at two radii (2m, 5m),
+        covering four z-ranges in detector coordinates:
+          near-target (z=-113 to -63m), mid-range (-63 to -13m),
+          near-detector (-23 to +17m), downstream (+17 to +87m)
     """
     from siren.math import Vector3D
     from siren.geometry import Placement, Sphere, Cylinder
 
     det_placement = Placement(Vector3D(0, 0, 0))
 
-    # Beam axis: along +z, centered at the detector z-coordinate
-    # Cylinders span from z=0 (BNB target) to z=200m
-    beam_center_z = 100.0  # midpoint of 0..200m
-    beam_half_length = 100.0
-    beam_placement = Placement(Vector3D(0, 0, -beam_center_z))
+    # Cylinder segments along the beam axis (+z in detector coordinates).
+    # Positions are in detector coordinates where the detector center is
+    # at the origin and the BNB target is at z ~ -113m.
+    #
+    # Each segment is defined by (center_z, half_length) in detector coords.
+    cyl_segments = {
+        "target":   (-88.0, 25.0),   # z = -113 to -63  (near BNB target)
+        "mid":      (-38.0, 25.0),   # z = -63  to -13  (mid-range)
+        "near_det": ( -3.0, 20.0),   # z = -23  to +17  (near detector)
+        "down":     ( 52.0, 35.0),   # z = +17  to +87  (downstream)
+    }
+    cyl_radii = [2.0, 5.0]
 
     targets = {
         "fiducial": fiducial,
         "sphere_5m": Sphere(det_placement, 5.0, 0.0).create(),
         "sphere_10m": Sphere(det_placement, 10.0, 0.0).create(),
         "sphere_20m": Sphere(det_placement, 20.0, 0.0).create(),
-        "cylinder_2m": Cylinder(beam_placement, 2.0, 0.0, beam_half_length).create(),
-        "cylinder_5m": Cylinder(beam_placement, 5.0, 0.0, beam_half_length).create(),
     }
+
+    for seg_name, (center_z, half_len) in cyl_segments.items():
+        for radius in cyl_radii:
+            name = f"cyl_r{radius:.0f}m_{seg_name}"
+            placement = Placement(Vector3D(0, 0, center_z))
+            targets[name] = Cylinder(placement, radius, 0.0, half_len).create()
+
     return targets
 
 
