@@ -284,7 +284,10 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     # -- Detector --
     print("Loading SBND detector model ...")
     detector_model = siren.utilities.load_detector("SBN", detector="SBND")
-    fiducial = siren.geometry.Box(4.0, 4.0, 5.0)
+    x_half_width = 4.5 + 2.022
+    y_half_width = 4.074645
+    z_half_width = 5.010
+    fiducial = siren.geometry.Box(x_half_width*2, y_half_width*2, z_half_width*2)
 
     # -- Chain topology --
     if offshell:
