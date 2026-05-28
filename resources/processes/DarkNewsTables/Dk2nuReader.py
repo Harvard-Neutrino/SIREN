@@ -318,6 +318,8 @@ def dk2nu_to_primary_distribution(
     else:
         mask = np.ones(len(ptype), dtype=bool)
 
+    simulated_pot = dk2nu_data["pot"]
+
     E = dk2nu_data["E"][mask]
     px = dk2nu_data["px"][mask]
     py = dk2nu_data["py"][mask]
@@ -328,6 +330,8 @@ def dk2nu_to_primary_distribution(
     nimpwt = dk2nu_data["nimpwt"][mask]
     pt = ptype[mask]
 
+    weight = nimpwt / simulated_pot
+
     mass_map = {
         211: 0.13957039, -211: 0.13957039,
         321: 0.49368,    -321: 0.49368,
@@ -335,7 +339,7 @@ def dk2nu_to_primary_distribution(
         13: 0.10566,     -13: 0.10566,
     }
 
-    keys = ["E", "px", "py", "pz", "x0", "y0", "z0", "m", "nimpwt"]
+    keys = ["E", "px", "py", "pz", "x", "y", "z", "m", "weight"]
     data = []
     for i in range(len(E)):
         geo_pos = GeometryPosition(Vector3D(
@@ -346,7 +350,7 @@ def dk2nu_to_primary_distribution(
         data.append([
             float(E[i]), float(px[i]), float(py[i]), float(pz[i]),
             det_pos.GetX(), det_pos.GetY(), det_pos.GetZ(),
-            m, float(nimpwt[i]),
+            m, float(weight[i]),
         ])
 
     return siren.distributions.PrimaryExternalDistribution(keys, data)
@@ -418,7 +422,7 @@ def dk2nu_to_csv(
     }
 
     with open(output_path, "w") as f:
-        f.write("E,px,py,pz,x0,y0,z0,m,nimpwt\n")
+        f.write("E,px,py,pz,x,y,z,m,nimpwt\n")
         for i in range(len(E)):
             m = mass_map.get(int(pt[i]), 0.13957)
             f.write(
