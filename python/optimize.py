@@ -127,6 +127,7 @@ def optimize_chain_weights(
     batch_size: int = 500,
     damping: float = 0.5,
     min_weight: float = 0.005,
+    metric=None,
     verbose: bool = False,
 ) -> None:
     """Optimize all multi-channel weights across a full injection chain.
@@ -149,6 +150,19 @@ def optimize_chain_weights(
         Blending factor for weight updates.
     min_weight : float
         Minimum per-channel weight.
+    metric : callable(event, weight) -> float, optional
+        Transforms the event weight before it enters the variance
+        computation.  The optimizer minimizes variance of metric(event, w)
+        rather than variance of w.
+
+        Common patterns:
+          - ``None`` (default): minimize variance of the raw weight.
+          - Selection: ``lambda ev, w: w if passes_cut(ev) else 0``
+            concentrates sampling on events that pass the cut.
+          - Observable: ``lambda ev, w: w * observable(ev)``
+            minimizes variance of a weighted observable.
+          - Region: ``lambda ev, w: w if in_fiducial(ev) else 0``
+            optimizes for events in a specific detector region.
     verbose : bool
         Print progress and weight updates.
     """
@@ -233,6 +247,11 @@ def optimize_chain_weights(
             w = weighter(event)
             if not math.isfinite(w) or w <= 0:
                 continue
+            # Apply metric to transform the weight
+            if metric is not None:
+                w = metric(event, w)
+                if not math.isfinite(w):
+                    continue
             events.append(event)
             total_weights.append(w)
 
@@ -241,11 +260,15 @@ def optimize_chain_weights(
                 print(f"  Iteration {iteration}: no valid events generated")
             continue
 
+        n_nonzero = sum(1 for w in total_weights if w != 0)
         if verbose:
-            w = np.array(total_weights)
-            eff = (w.sum()**2) / (len(w) * (w**2).sum()) * 100
-            print(f"\n  Iteration {iteration}: {len(events)} events, "
-                  f"eff = {eff:.1f}%")
+            w_nz = np.array([x for x in total_weights if x != 0])
+            if len(w_nz) > 0:
+                eff = (w_nz.sum()**2) / (len(w_nz) * (w_nz**2).sum()) * 100
+            else:
+                eff = 0.0
+            print(f"\n  Iteration {iteration}: {len(events)} events "
+                  f"({n_nonzero} pass metric), eff = {eff:.1f}%")
 
         # Update weights for each vertex using total event weights
         for vi in vertex_info:
