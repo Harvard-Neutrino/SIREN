@@ -177,7 +177,7 @@ def onshell_stopping_condition(datum, i):
     sec = int(datum.record.signature.secondary_types[i])
     parent = int(datum.record.signature.primary_type)
     if sec == 5922:   return False          # V1_prod
-    if sec == 5917:   return parent != 5922 # chi only from V1 decay
+    if sec == 5917:   return parent != 5922 or i != 0 # chi only from V1 decay
     if sec == 5918:   return False          # chi'
     if sec == 5923:   return False          # V1_signal
     return True
@@ -248,7 +248,7 @@ def offshell_stopping_condition(datum, i):
     sec = int(datum.record.signature.secondary_types[i])
     parent = int(datum.record.signature.primary_type)
     if sec == 5922:   return False          # V1_prod
-    if sec == 5917:   return parent != 5922 # chi only from V1 decay
+    if sec == 5917:   return parent != 5922 or i != 0 # chi only from V1 decay (only one of two produced chi)
     if sec == 5923:   return False          # V1_signal
     return True
 
@@ -396,9 +396,9 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     print(f"\n{'Event':>5}  {'Records':>7}  {'Weight':>14}  Chain")
     print("-" * 70)
     for i, (event, w) in enumerate(zip(events, weights)):
-        records = list(event.tree)
+        records = list(sorted(event.tree, key=lambda r: r.depth()))
         chain_str = " -> ".join(
-            str(int(d.record.signature.primary_type)) for d in records)
+            f"{int(d.record.signature.primary_type)}({d.depth()})" for d in records)
         status = "OK" if valid_mask[i] else "BAD"
         if i < 20 or not valid_mask[i]:
             print(f"{i:5d}  {len(records):7d}  {w:14.4e}  {chain_str}  [{status}]")
