@@ -60,6 +60,7 @@ _DK = _util.load_module("DuttaKim_Dk2nuReader",
 
 M_PION = 0.13957039
 M_MUON = 0.10565837
+GAMMA_PION_SM = 2.5281e-17  # GeV, PDG total width of pi+
 
 M_CHI = 8e-3
 M_CHI_PRIME = 50e-3
@@ -302,8 +303,17 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
 
     # -- Primary distributions --
     pot = 0.0
+    bsm_width = pion_decay._total_width
+    br_bsm = bsm_width / GAMMA_PION_SM
+    print(f"  BSM pion decay width: {bsm_width:.4e} GeV")
+    print(f"  SM pion total width:  {GAMMA_PION_SM:.4e} GeV")
+    print(f"  BSM branching ratio:  {br_bsm:.4e}")
+
     if monoenergetic:
-        print("Using monoenergetic 2 GeV pion along +z")
+        print("\nUsing monoenergetic 2 GeV pion along +z")
+        # For Propagated mode, the InteractionProbability already
+        # accounts for the tiny BSM decay rate (long decay length),
+        # so we do NOT add the branching ratio here.
         primary_dists = [
             distributions.PrimaryMass(M_PION),
             distributions.Monoenergetic(2.0),
@@ -320,7 +330,11 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         print()
         pion_dist, pot = load_dk2nu_pions(dk2nu_dir, detector_model)
         primary_dists = [pion_dist]
-        physical_dists = [pion_dist]
+        # For Fixed mode (dk2nu), the pion already decayed via SM.
+        # The BSM branching ratio must be included explicitly in the
+        # physical probability since InteractionProbability is skipped.
+        br_dist = distributions.NormalizationConstant(br_bsm)
+        physical_dists = [pion_dist, br_dist]
         primary_mode = injection.VertexWeightingMode.Fixed()
 
     # -- Secondary distributions --
