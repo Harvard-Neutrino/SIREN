@@ -330,12 +330,12 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     # -- Budget --
     total_budget = n_events
     if optimize:
-        total_budget += opt_iterations * opt_batch * 10
+        total_budget += opt_iterations * opt_batch
 
     # -- Build Injector --
     print(f"\nBuilding injector ({total_budget} event budget) ...")
     injector = Injector(
-        number_of_events=total_budget,
+        number_of_events=n_events,
         detector_model=detector_model,
         seed=seed,
         primary_type=PION,
@@ -351,7 +351,7 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     # Force initialization
     for ev in injector:
         break
-    injector._Injector__injector.ResetInjectedEvents()
+    injector._Injector__injector.ResetInjectedEvents(n_events)
 
     # -- Build Weighter --
     weighter = Weighter(
@@ -377,7 +377,6 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
 
     # -- Generate production events --
     print(f"\nGenerating {n_events} production events ...")
-    injector._Injector__injector.ResetInjectedEvents()
     events = []
     for event in injector:
         if event.tree:
@@ -413,12 +412,13 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
 
     if len(valid_weights) > 0:
         eff = effective_sample_fraction(valid_weights) * 100
-        cv = valid_weights.std() / valid_weights.mean()
+        sigma_over_mu = valid_weights.std() / valid_weights.mean()
         print(f"Weight range:  [{valid_weights.min():.4e}, "
               f"{valid_weights.max():.4e}]")
         print(f"Weight mean:   {valid_weights.mean():.4e}")
-        print(f"Weight CV:     {cv:.2f}")
+        print(f"Weight stddev/mean:     {sigma_over_mu:.2f}")
         print(f"Eff. sample:   {eff:.1f}%")
+        print(f"Total weight:   {valid_weights.sum():.4e} per POT ({valid_weights.sum() * 1e21:.3e} per 1e21 POT)")
 
     return events, weights
 
