@@ -245,13 +245,11 @@ def optimize_chain_weights(
             if not event.tree:
                 continue
             w = weighter(event)
-            if not math.isfinite(w) or w <= 0:
-                continue
             # Apply metric to transform the weight
             if metric is not None:
                 w = metric(event, w)
-                if not math.isfinite(w):
-                    continue
+            if not math.isfinite(w):
+                w = 0.0
             events.append(event)
             total_weights.append(w)
 
@@ -264,7 +262,7 @@ def optimize_chain_weights(
         if verbose:
             w_nz = np.array([x for x in total_weights if x != 0])
             if len(w_nz) > 0:
-                eff = (w_nz.sum()**2) / (len(w_nz) * (w_nz**2).sum()) * 100
+                eff = (w_nz.sum()**2) / (len(w_nz) * (w_nz**2).sum()) * 100 * n_nonzero / len(events)
             else:
                 eff = 0.0
             print(f"\n  Iteration {iteration}: {len(events)} events "
