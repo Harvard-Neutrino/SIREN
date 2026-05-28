@@ -307,7 +307,7 @@ def dk2nu_to_primary_distribution(
     siren.distributions.PrimaryExternalDistribution
     """
     import siren
-    from siren.detector import GeometryPosition
+    from siren.detector import GeometryPosition, GeometryDirection
     from siren.math import Vector3D
 
     ptype = dk2nu_data["ptype"]
@@ -342,13 +342,29 @@ def dk2nu_to_primary_distribution(
     keys = ["E", "px", "py", "pz", "x", "y", "z", "m", "weight"]
     data = []
     for i in range(len(E)):
+        # Convert position from geometry (BNB) to detector coordinates
         geo_pos = GeometryPosition(Vector3D(
             vx[i] * 0.01, vy[i] * 0.01, vz[i] * 0.01
         ))
         det_pos = detector_model.GeoPositionToDetPosition(geo_pos).get()
+
+        # Convert momentum direction from geometry to detector coordinates.
+        # Energy is a scalar and is unchanged; the 3-momentum direction
+        # must be rotated if the detector axes differ from geometry axes.
+        geo_dir = GeometryDirection(Vector3D(
+            float(px[i]), float(py[i]), float(pz[i])))
+        det_dir = detector_model.GeoDirectionToDetDirection(geo_dir).get()
+        p_mag = math.sqrt(float(px[i])**2 + float(py[i])**2 + float(pz[i])**2)
+        if p_mag > 0:
+            px_det = det_dir.GetX() * p_mag
+            py_det = det_dir.GetY() * p_mag
+            pz_det = det_dir.GetZ() * p_mag
+        else:
+            px_det = py_det = pz_det = 0.0
+
         m = mass_map.get(int(pt[i]), 0.13957)
         data.append([
-            float(E[i]), float(px[i]), float(py[i]), float(pz[i]),
+            float(E[i]), px_det, py_det, pz_det,
             det_pos.GetX(), det_pos.GetY(), det_pos.GetZ(),
             m, float(weight[i]),
         ])
