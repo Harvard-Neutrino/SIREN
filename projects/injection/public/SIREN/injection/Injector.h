@@ -123,7 +123,7 @@ public:
     unsigned int InjectedEvents() const;
     unsigned int InjectionAttempts() const;
     unsigned int EventsToInject() const;
-    void ResetInjectedEvents();
+    void ResetInjectedEvents(unsigned int events_to_inject);
     operator bool() const;
     void SaveInjector(std::string const & filename) const;
     void LoadInjector(std::string const & filename);

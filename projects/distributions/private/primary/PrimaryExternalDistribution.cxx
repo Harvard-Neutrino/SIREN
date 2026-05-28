@@ -241,6 +241,9 @@ void PrimaryExternalDistribution::Sample(
         else if (keys[i_key] == "m") {
             record.SetMass(value);
         }
+        else if (keys[i_key] == "weight") {
+            record.SetInteractionParameter("PrimaryExternalDistribution_weight", value);
+        }
         else {
             record.SetInteractionParameter(keys[i_key], value);
         }
@@ -300,6 +303,9 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
                                                           siren::dataclasses::InteractionRecord const & record) const {
     double energy = record.primary_momentum[0];
     if (energy >= emin) return 1;
+    if (record.interaction_parameters.find("PrimaryExternalDistribution_weight") != record.interaction_parameters.end()) {
+        return record.interaction_parameters.at("PrimaryExternalDistribution_weight");
+    }
     return 0;
 }
 
