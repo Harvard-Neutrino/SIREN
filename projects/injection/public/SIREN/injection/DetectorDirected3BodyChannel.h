@@ -82,7 +82,7 @@ public:
     PhaseSpaceMeasure Measure() const override {
         if (factorization_ == Factorization::Direct) {
             return PhaseSpaceMeasure::Recursive2Body(
-                other_a_index_, other_b_index_, directed_index_);
+                directed_index_, other_a_index_, other_b_index_);
         }
         return PhaseSpaceMeasure::Recursive2Body(
             spectator_index_, pair_first_index_, pair_second_index_);

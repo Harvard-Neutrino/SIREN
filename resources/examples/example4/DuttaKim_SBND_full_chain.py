@@ -247,14 +247,20 @@ def _build_scatter_channels(targets, directed_index, xs, sig):
 
 
 def _build_scatter_3body_channels(targets, xs, sig):
-    """Build multi-channel for a 2->3 off-shell scattering vertex."""
+    """Build multi-channel for a 2->3 off-shell scattering vertex.
+
+    Signature: chi -> [chi, V1_sig, Ar].  Direct V1_sig (index 1)
+    toward the detector.  BW on the pair mass M(chi+V1_sig) targets
+    the chi' resonance.  Recursive mode is fine here because the
+    CM boost is small (beta ~ 0.03).
+    """
     channels = [injection.PhysicalCrossSectionChannel(xs, sig)]
     for target in targets:
         channels.append(
             injection.DetectorDirected3BodyChannel(
                 target,
                 spectator_index=2, pair_first_index=0, pair_second_index=1,
-                directed_pair_index=0,
+                directed_pair_index=1,
                 mass_mode=injection.InvariantMassMode.BreitWigner,
                 resonance_mass=M_CHI_PRIME,
                 resonance_width=CHI_PRIME_WIDTH,
@@ -498,8 +504,15 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         primary_mode = injection.VertexWeightingMode.Fixed()
 
     # -- Secondary distributions --
+    # Most secondaries use physical vertex sampling (decay/scatter
+    # anywhere along the path).  For chi, use bounded vertex sampling
+    # to confine the scattering to the fiducial volume — the LAr
+    # cryostat extends well beyond the TPC, and without bounding,
+    # ~50% of chi scatters land outside the fiducial.
     sv = distributions.SecondaryPhysicalVertexDistribution()
+    sv_bounded = distributions.SecondaryBoundedVertexDistribution(fiducial)
     sec_dists = {pt: [sv] for pt in secondary_interactions}
+    sec_dists[CHI] = [sv_bounded]
 
     # -- Primary phase space biasing --
     primary_ps = build_primary_phase_spaces(targets, pion_decay)

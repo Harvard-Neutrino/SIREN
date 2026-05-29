@@ -207,6 +207,17 @@ double ConvertDensity(
     if (topology == PhaseSpaceTopology::Decay3Body ||
         topology == PhaseSpaceTopology::Scatter2to3) {
 
+        // For scattering, the parent mass in the Jacobian is the CM
+        // energy sqrt(s), not the beam particle mass.
+        double parent_mass = record.primary_mass;
+        if (topology == PhaseSpaceTopology::Scatter2to3) {
+            double E = record.primary_momentum[0];
+            double m_beam = record.primary_mass;
+            double m_target = record.target_mass;
+            double s = m_beam * m_beam + m_target * m_target + 2.0 * m_target * E;
+            if (s > 0) parent_mass = std::sqrt(s);
+        }
+
         auto compute_s_pair = [&](PhaseSpaceMeasure const & m) -> double {
             int i1 = m.pair_first;
             int i2 = m.pair_second;
@@ -237,7 +248,7 @@ double ConvertDensity(
             double s_pair_from = compute_s_pair(from);
             if (s_pair_from < 0) return density;
             double dalitz_density = J::Recursive2BodyDensityToDalitzDensity(
-                density, record.primary_mass,
+                density, parent_mass,
                 record.secondary_masses[from.spectator],
                 record.secondary_masses[from.pair_first],
                 record.secondary_masses[from.pair_second], s_pair_from);
@@ -246,7 +257,7 @@ double ConvertDensity(
             double s_pair_to = compute_s_pair(to);
             if (s_pair_to < 0) return dalitz_density;
             return J::DalitzDensityToRecursive2BodyDensity(
-                dalitz_density, record.primary_mass,
+                dalitz_density, parent_mass,
                 record.secondary_masses[to.spectator],
                 record.secondary_masses[to.pair_first],
                 record.secondary_masses[to.pair_second], s_pair_to);
@@ -263,7 +274,7 @@ double ConvertDensity(
             double s_pair = compute_s_pair(from);
             if (s_pair < 0) return density;
             return J::Recursive2BodyDensityToDalitzDensity(
-                density, record.primary_mass,
+                density, parent_mass,
                 record.secondary_masses[from.spectator],
                 record.secondary_masses[from.pair_first],
                 record.secondary_masses[from.pair_second], s_pair);
@@ -272,7 +283,7 @@ double ConvertDensity(
             double s_pair = compute_s_pair(to);
             if (s_pair < 0) return density;
             return J::DalitzDensityToRecursive2BodyDensity(
-                density, record.primary_mass,
+                density, parent_mass,
                 record.secondary_masses[to.spectator],
                 record.secondary_masses[to.pair_first],
                 record.secondary_masses[to.pair_second], s_pair);
