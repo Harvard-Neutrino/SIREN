@@ -285,6 +285,7 @@ def dk2nu_to_primary_distribution(
     dk2nu_data,
     detector_model,
     parent_pdg=None,
+    sampling_bias=None,
 ):
     """
     Build a PrimaryExternalDistribution directly from dk2nu data.
@@ -301,6 +302,14 @@ def dk2nu_to_primary_distribution(
         Detector model (provides the geometry-to-detector transform).
     parent_pdg : int or list of int, optional
         Filter to specific parent PDG code(s).
+    sampling_bias : callable, optional
+        Function f(E, px, py, pz, vx, vy, vz) -> weight that computes
+        per-entry sampling weights from the pion kinematics (in geometry
+        coordinates, before the detector transform).  Entries are selected
+        with probability proportional to these weights.  The generation
+        probability accounts for the bias so event weights remain correct.
+        Arguments are numpy arrays; the return value should broadcast to
+        the same length.  When None (default), uniform selection is used.
 
     Returns
     -------
@@ -351,11 +360,11 @@ def dk2nu_to_primary_distribution(
         # Convert momentum direction from geometry to detector coordinates.
         # Energy is a scalar and is unchanged; the 3-momentum direction
         # must be rotated if the detector axes differ from geometry axes.
-        geo_dir = GeometryDirection(Vector3D(
-            float(px[i]), float(py[i]), float(pz[i])))
-        det_dir = detector_model.GeoDirectionToDetDirection(geo_dir).get()
         p_mag = math.sqrt(float(px[i])**2 + float(py[i])**2 + float(pz[i])**2)
         if p_mag > 0:
+            geo_dir = GeometryDirection(Vector3D(
+                float(px[i]) / p_mag, float(py[i]) / p_mag, float(pz[i]) / p_mag))
+            det_dir = detector_model.GeoDirectionToDetDirection(geo_dir).get()
             px_det = det_dir.GetX() * p_mag
             py_det = det_dir.GetY() * p_mag
             pz_det = det_dir.GetZ() * p_mag
@@ -363,11 +372,25 @@ def dk2nu_to_primary_distribution(
             px_det = py_det = pz_det = 0.0
 
         m = mass_map.get(int(pt[i]), 0.13957)
+        # dk2nu stores momentum at decay (pdpx/pdpy/pdpz) but energy
+        # at production (ppenergy). Compute on-shell energy from the
+        # decay-point momentum and known mass.
+        E_decay = math.sqrt(p_mag * p_mag + m * m)
         data.append([
-            float(E[i]), px_det, py_det, pz_det,
+            E_decay, px_det, py_det, pz_det,
             det_pos.GetX(), det_pos.GetY(), det_pos.GetZ(),
             m, float(weight[i]),
         ])
+
+    if sampling_bias is not None:
+        sw = np.asarray(
+            sampling_bias(E, px, py, pz, vx, vy, vz),
+            dtype=float,
+        )
+        np.maximum(sw, 0.0, out=sw)
+        return siren.distributions.PrimaryExternalDistribution(
+            keys, data, sw.tolist()
+        )
 
     return siren.distributions.PrimaryExternalDistribution(keys, data)
 

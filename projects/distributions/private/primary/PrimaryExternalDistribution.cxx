@@ -119,6 +119,28 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
     }
 }
 
+void PrimaryExternalDistribution::BuildSamplingCDF() {
+    if (sampling_weights_.empty()) {
+        sampling_weights_sum_ = 0;
+        sampling_cdf_.clear();
+        return;
+    }
+    sampling_weights_sum_ = 0;
+    for (double w : sampling_weights_) {
+        if (w < 0) throw std::runtime_error("Sampling weights must be non-negative");
+        sampling_weights_sum_ += w;
+    }
+    if (sampling_weights_sum_ <= 0) {
+        throw std::runtime_error("Sum of sampling weights must be positive");
+    }
+    sampling_cdf_.resize(sampling_weights_.size());
+    double cumsum = 0;
+    for (size_t i = 0; i < sampling_weights_.size(); ++i) {
+        cumsum += sampling_weights_[i];
+        sampling_cdf_[i] = cumsum / sampling_weights_sum_;
+    }
+}
+
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename) : emin(0)
 {
     LoadInputFile(_filename);
@@ -191,6 +213,56 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string
     }
 }
 
+PrimaryExternalDistribution::PrimaryExternalDistribution(
+    std::vector<std::string> _keys,
+    std::vector<std::vector<double>> _data,
+    std::vector<double> _sampling_weights)
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data))
+{
+    if (!_sampling_weights.empty()) {
+        if (_sampling_weights.size() != input_data.size()) {
+            throw std::runtime_error(
+                "sampling_weights length (" + std::to_string(_sampling_weights.size()) +
+                ") must match data length (" + std::to_string(input_data.size()) + ")");
+        }
+        sampling_weights_ = std::move(_sampling_weights);
+        BuildSamplingCDF();
+    }
+}
+
+PrimaryExternalDistribution::PrimaryExternalDistribution(
+    std::vector<std::string> _keys,
+    std::vector<std::vector<double>> _data,
+    std::vector<double> _sampling_weights,
+    double emin)
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data), std::move(_sampling_weights))
+{
+    this->emin = emin;
+    auto energy_it = std::find(keys.begin(), keys.end(), "E");
+    if (energy_it != keys.end()) {
+        size_t energy_index = static_cast<size_t>(
+            std::distance(keys.begin(), energy_it));
+        std::vector<std::vector<double>> filtered_data;
+        std::vector<double> filtered_weights;
+        for (size_t j = 0; j < input_data.size(); ++j) {
+            if (energy_index < input_data[j].size() && input_data[j][energy_index] >= emin) {
+                filtered_data.push_back(input_data[j]);
+                if (!sampling_weights_.empty()) {
+                    filtered_weights.push_back(sampling_weights_[j]);
+                }
+            }
+        }
+        input_data = std::move(filtered_data);
+        if (!sampling_weights_.empty()) {
+            sampling_weights_ = std::move(filtered_weights);
+            BuildSamplingCDF();
+        }
+        if (input_data.empty()) {
+            throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
+        }
+    }
+}
+
 // Accounts for events above threshold only!
 size_t PrimaryExternalDistribution::GetPhysicalNumEvents() const
 {
@@ -202,7 +274,15 @@ void PrimaryExternalDistribution::Sample(
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
         std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
         siren::dataclasses::PrimaryDistributionRecord & record) const {
-    size_t i = std::min(size_t(rand->Uniform() * input_data.size()), input_data.size() - 1);
+    size_t i;
+    if (!sampling_cdf_.empty()) {
+        double u = rand->Uniform();
+        auto it = std::lower_bound(sampling_cdf_.begin(), sampling_cdf_.end(), u);
+        i = static_cast<size_t>(std::distance(sampling_cdf_.begin(), it));
+        if (i >= input_data.size()) i = input_data.size() - 1;
+    } else {
+        i = std::min(size_t(rand->Uniform() * input_data.size()), input_data.size() - 1);
+    }
     std::array<double, 3> _initial_position;
     std::array<double, 3> _vertex;
     std::array<double, 3> _momentum;
@@ -247,6 +327,10 @@ void PrimaryExternalDistribution::Sample(
         else {
             record.SetInteractionParameter(keys[i_key], value);
         }
+    }
+    if (!sampling_weights_.empty()) {
+        double gen_prob = static_cast<double>(input_data.size()) * sampling_weights_[i] / sampling_weights_sum_;
+        record.SetInteractionParameter("PrimaryExternalDistribution_gen_prob", gen_prob);
     }
     if(mom_set) record.SetThreeMomentum(_momentum);
     if(init_pos_set) {
@@ -302,6 +386,11 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
                                                           std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
                                                           siren::dataclasses::InteractionRecord const & record) const {
     double energy = record.primary_momentum[0];
+    auto gp_it = record.interaction_parameters.find("PrimaryExternalDistribution_gen_prob");
+    if (gp_it != record.interaction_parameters.end()) {
+        if (energy >= emin) return gp_it->second;
+        return 0;
+    }
     if (energy >= emin) return 1;
     if (record.interaction_parameters.find("PrimaryExternalDistribution_weight") != record.interaction_parameters.end()) {
         return record.interaction_parameters.at("PrimaryExternalDistribution_weight");
@@ -319,15 +408,16 @@ bool PrimaryExternalDistribution::equal(WeightableDistribution const & other) co
         return false;
     return emin == x->emin
         && keys == x->keys
-        && input_data == x->input_data;
+        && input_data == x->input_data
+        && sampling_weights_ == x->sampling_weights_;
 }
 
 bool PrimaryExternalDistribution::less(WeightableDistribution const & other) const {
     const PrimaryExternalDistribution* x = dynamic_cast<const PrimaryExternalDistribution*>(&other);
     if(!x)
         return false;
-    return std::tie(emin, keys, input_data)
-        < std::tie(x->emin, x->keys, x->input_data);
+    return std::tie(emin, keys, input_data, sampling_weights_)
+        < std::tie(x->emin, x->keys, x->input_data, x->sampling_weights_);
 }
 
 
