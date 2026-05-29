@@ -479,6 +479,9 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
             SampleMatchingFinalState(record, primary_process->GetInteractions());
         }
     } catch(siren::utilities::InjectionFailure const & e) {
+        failed_events += 1;
+        failure_counts_[-1] += 1;
+        last_failure_reason_ = e.what();
         return siren::dataclasses::InteractionTree();
     }
     siren::dataclasses::InteractionTree tree;
@@ -511,12 +514,22 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                 std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
                 secondaries.erase(secondaries.begin() + i);
 
-                siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
-                add_secondaries(secondary_datum);
+                int current_secondary_pdg = static_cast<int>(secondary_dist->type);
+                try {
+                    siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
+                    std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+                    add_secondaries(secondary_datum);
+                } catch(siren::utilities::InjectionFailure const & e) {
+                    failed_events += 1;
+                    failure_counts_[current_secondary_pdg] += 1;
+                    last_failure_reason_ = e.what();
+                    return siren::dataclasses::InteractionTree();
+                }
             }
         }
     } catch(siren::utilities::InjectionFailure const & e) {
+        failed_events += 1;
+        last_failure_reason_ = e.what();
         return siren::dataclasses::InteractionTree();
     }
     injected_events += 1;
@@ -667,10 +680,25 @@ unsigned int Injector::EventsToInject() const {
     return events_to_inject;
 }
 
+unsigned int Injector::FailedEvents() const {
+    return failed_events;
+}
+
+std::map<int, unsigned int> Injector::GetFailureCounts() const {
+    return failure_counts_;
+}
+
+std::string Injector::GetLastFailureReason() const {
+    return last_failure_reason_;
+}
+
 void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     this->events_to_inject = events_to_inject;
     injected_events = 0;
     injection_attempts = 0;
+    failed_events = 0;
+    failure_counts_.clear();
+    last_failure_reason_.clear();
 }
 
 Injector::operator bool() const {

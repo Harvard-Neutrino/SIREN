@@ -42,17 +42,23 @@ private:
     std::string filename;
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
+    std::vector<double> sampling_weights_;
+    double sampling_weights_sum_ = 0;
+    std::vector<double> sampling_cdf_;
     bool init_pos_set = false;
     bool vertex_set = false;
     bool mom_set = false;
     double emin = 0;
     std::set<DistributionVariable> set_variables_;
     mutable std::array<double, 3> _cached_position = {0.0, 0.0, 0.0};
+    void BuildSamplingCDF();
 public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
     PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data);
     PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, double emin);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, std::vector<double> _sampling_weights);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, std::vector<double> _sampling_weights, double emin);
     PrimaryExternalDistribution(PrimaryExternalDistribution const & other) = default;
     size_t GetPhysicalNumEvents() const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
@@ -74,8 +80,18 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SetVariables", set_variables_));
+        } else if(version == 1) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
+            archive(::cereal::make_nvp("SetVariables", set_variables_));
+            archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 1!");
         }
     }
     template<typename Archive>
@@ -89,8 +105,19 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SetVariables", set_variables_));
+        } else if(version == 1) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
+            archive(::cereal::make_nvp("SetVariables", set_variables_));
+            archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            BuildSamplingCDF();
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 1!");
         }
     }
 private:
@@ -103,7 +130,7 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 0);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 1);
 CEREAL_REGISTER_TYPE(siren::distributions::PrimaryExternalDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PrimaryExternalDistribution);
 

@@ -199,6 +199,7 @@ def build_geometric_targets(detector_model, fiducial):
 
     targets = {
         "fiducial": fiducial,
+        "sphere_2m": Sphere(det_placement, 2.0, 0.0).create(),
         "sphere_5m": Sphere(det_placement, 5.0, 0.0).create(),
         "sphere_10m": Sphere(det_placement, 10.0, 0.0).create(),
         "sphere_20m": Sphere(det_placement, 20.0, 0.0).create(),
@@ -260,6 +261,31 @@ def _build_scatter_3body_channels(targets, xs, sig):
     n = len(channels)
     weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
     return _mc(channels, weights)
+
+
+def build_primary_phase_spaces(targets, pion_decay):
+    """Multi-channel phase space for the primary pion 3-body decay.
+
+    Factorization: pi -> mu+(spectator) + (nu V1)(pair).
+    The V1 is directed toward the target geometries so that
+    downstream secondaries are more likely to reach the detector.
+    """
+    sig = pion_decay.GetPossibleSignatures()[0]
+    geo_list = list(targets.values())
+    channels = [injection.PhysicalDecayChannel(pion_decay, sig)]
+    for target in geo_list:
+        channels.append(
+            injection.DetectorDirected3BodyChannel(
+                target,
+                spectator_index=0,
+                pair_first_index=1,
+                pair_second_index=2,
+                directed_pair_index=2,
+                mass_mode=injection.InvariantMassMode.Uniform,
+                topology=injection.PhaseSpaceTopology.Decay3Body))
+    n = len(channels)
+    weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
+    return {sig: _mc(channels, weights)}
 
 
 def build_onshell_phase_spaces(targets, models):
@@ -477,6 +503,11 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     sv = distributions.SecondaryPhysicalVertexDistribution()
     sec_dists = {pt: [sv] for pt in secondary_interactions}
 
+    # -- Primary phase space biasing --
+    primary_ps = build_primary_phase_spaces(targets, pion_decay)
+    print(f"  Primary phase space: {len(primary_ps)} signature(s), "
+          f"{len(list(primary_ps.values())[0].channels)} channels")
+
     # -- Budget --
     total_budget = n_events
     if optimize:
@@ -495,6 +526,7 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         secondary_interactions=secondary_interactions,
         secondary_injection_distributions=sec_dists,
         secondary_phase_spaces=phase_spaces,
+        primary_phase_spaces=primary_ps,
         stopping_condition=stop_fn,
     )
 

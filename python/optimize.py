@@ -194,14 +194,12 @@ def optimize_chain_weights(
 
     prev_events_to_inject = cpp_inj.EventsToInject()
 
-    # Collect all secondary processes with phase spaces
-    sec_map = cpp_inj.GetSecondaryProcessMap()
-    vertex_info = []
-    for ptype, process in sec_map.items():
+    def _collect_phase_spaces(process, ptype):
+        """Collect multi-channel phase spaces from a process."""
+        results = []
         if not process.HasAnyPhaseSpace():
-            continue
+            return results
         interactions = process.interactions
-        # Get all signatures with phase spaces
         for sig_list_getter in [interactions.GetDecays, interactions.GetCrossSections]:
             try:
                 models = sig_list_getter()
@@ -211,17 +209,37 @@ def optimize_chain_weights(
                 try:
                     sigs = model.GetPossibleSignatures()
                 except Exception:
-                    sigs = model.GetPossibleSignaturesFromParent(ptype)
+                    try:
+                        sigs = model.GetPossibleSignaturesFromParent(ptype)
+                    except Exception:
+                        continue
                 for sig in sigs:
                     if process.HasPhaseSpace(sig):
                         mc = process.GetPhaseSpace(sig)
                         if len(mc.channels) >= 2:
-                            vertex_info.append({
+                            results.append({
                                 'ptype': ptype,
                                 'sig': sig,
                                 'mc': mc,
                                 'n_channels': len(mc.channels),
                             })
+        return results
+
+    vertex_info = []
+
+    # Collect primary process phase spaces
+    primary_proc = cpp_inj.GetPrimaryProcess()
+    primary_ptype = primary_proc.primary_type
+    for vi in _collect_phase_spaces(primary_proc, primary_ptype):
+        vi['label'] = 'primary'
+        vertex_info.append(vi)
+
+    # Collect secondary process phase spaces
+    sec_map = cpp_inj.GetSecondaryProcessMap()
+    for ptype, process in sec_map.items():
+        for vi in _collect_phase_spaces(process, ptype):
+            vi['label'] = 'secondary'
+            vertex_info.append(vi)
 
     if not vertex_info:
         if verbose:
@@ -231,7 +249,8 @@ def optimize_chain_weights(
     if verbose:
         print(f"Found {len(vertex_info)} vertices with multi-channel phase spaces:")
         for vi in vertex_info:
-            print(f"  {int(vi['ptype'])}: {vi['n_channels']} channels, "
+            print(f"  {int(vi['ptype'])} ({vi['label']}): "
+                  f"{vi['n_channels']} channels, "
                   f"weights = {[f'{w:.3f}' for w in vi['mc'].weights]}")
 
     for iteration in range(n_iterations):
@@ -258,7 +277,7 @@ def optimize_chain_weights(
                 print(f"  Iteration {iteration}: no valid events generated")
             continue
 
-        n_nonzero = sum(1 for w in total_weights if w != 0)
+        n_nonzero = np.count_nonzero(total_weights)
         if verbose:
             w_nz = np.array([x for x in total_weights if x != 0])
             if len(w_nz) > 0:
@@ -315,7 +334,7 @@ def optimize_chain_weights(
             ]
 
             if verbose:
-                print(f"    {ptype_int}: "
+                print(f"    {ptype_int} ({vi.get('label', '?')}): "
                       f"{[f'{w:.3f}' for w in old]} -> "
                       f"{[f'{w:.3f}' for w in mc.weights]}")
 
@@ -324,5 +343,5 @@ def optimize_chain_weights(
     if verbose:
         print("\nOptimization complete. Final weights:")
         for vi in vertex_info:
-            print(f"  {int(vi['ptype'])}: "
+            print(f"  {int(vi['ptype'])} ({vi.get('label', '?')}): "
                   f"{[f'{w:.3f}' for w in vi['mc'].weights]}")

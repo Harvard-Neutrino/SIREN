@@ -318,6 +318,10 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<std::string, double>())
     .def(init<std::vector<std::string>, std::vector<std::vector<double>>>())
     .def(init<std::vector<std::string>, std::vector<std::vector<double>>, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>>(),
+         arg("keys"), arg("data"), arg("sampling_weights"))
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>, double>(),
+         arg("keys"), arg("data"), arg("sampling_weights"), arg("emin"))
     .def("Sample",&PrimaryExternalDistribution::Sample)
     .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
     .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
