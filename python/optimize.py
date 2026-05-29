@@ -254,17 +254,21 @@ def optimize_chain_weights(
                   f"weights = {[f'{w:.3f}' for w in vi['mc'].weights]}")
 
     for iteration in range(n_iterations):
-        # Generate full-chain events
+        # Generate full-chain events, collecting both successes and
+        # partial trees from failures
         cpp_inj.ResetInjectedEvents(batch_size)
         events = []
         total_weights = []
+        failed_trees = []
 
         for attempt in range(batch_size):
             event = cpp_inj.GenerateEvent()
             if not event.tree:
+                ft = cpp_inj.GetLastFailedTree()
+                if ft.tree:
+                    failed_trees.append(ft)
                 continue
             w = weighter(event)
-            # Apply metric to transform the weight
             if metric is not None:
                 w = metric(event, w)
             if not math.isfinite(w):
@@ -277,14 +281,16 @@ def optimize_chain_weights(
                 print(f"  Iteration {iteration}: no valid events generated")
             continue
 
+        n_total = len(events) + len(failed_trees)
         n_nonzero = np.count_nonzero(total_weights)
         if verbose:
             w_nz = np.array([x for x in total_weights if x != 0])
             if len(w_nz) > 0:
-                eff = (w_nz.sum()**2) / (len(w_nz) * (w_nz**2).sum()) * 100 * n_nonzero / len(events)
+                eff = (w_nz.sum()**2) / (len(w_nz) * (w_nz**2).sum()) * 100 * n_nonzero / n_total
             else:
                 eff = 0.0
-            print(f"\n  Iteration {iteration}: {len(events)} events "
+            print(f"\n  Iteration {iteration}: {len(events)} events, "
+                  f"{len(failed_trees)} failures "
                   f"({n_nonzero} pass metric), eff = {eff:.1f}%")
 
         # Update weights for each vertex using total event weights
@@ -298,7 +304,6 @@ def optimize_chain_weights(
             n_matched = 0
 
             for event, w_total in zip(events, total_weights):
-                # Find the record at this vertex
                 for datum in event.tree:
                     r = datum.record
                     if (int(r.signature.primary_type) == ptype_int
@@ -315,6 +320,58 @@ def optimize_chain_weights(
 
             if n_matched == 0:
                 continue
+
+            # Estimate per-channel failure rates from partial trees.
+            # For each failed tree, find this vertex's record and
+            # compute the channel selection probability p_i = a_i*g_i/g.
+            # Channels that are more likely to have been selected for
+            # failed events get penalized.
+            fail_select = [0.0] * n_ch
+            succ_select = [0.0] * n_ch
+            n_fail_matched = 0
+            n_succ_matched = 0
+
+            for ft in failed_trees:
+                for datum in ft.tree:
+                    r = datum.record
+                    if (int(r.signature.primary_type) == ptype_int
+                            and _sig_match(r.signature, sig)):
+                        g = mc.Density(None, r)
+                        if g <= 0 or not math.isfinite(g):
+                            break
+                        for i in range(n_ch):
+                            gi = mc.channels[i].Density(None, r)
+                            if gi > 0 and math.isfinite(gi):
+                                fail_select[i] += mc.weights[i] * gi / g
+                        n_fail_matched += 1
+                        break
+
+            for event in events:
+                for datum in event.tree:
+                    r = datum.record
+                    if (int(r.signature.primary_type) == ptype_int
+                            and _sig_match(r.signature, sig)):
+                        g = mc.Density(None, r)
+                        if g <= 0 or not math.isfinite(g):
+                            break
+                        for i in range(n_ch):
+                            gi = mc.channels[i].Density(None, r)
+                            if gi > 0 and math.isfinite(gi):
+                                succ_select[i] += mc.weights[i] * gi / g
+                        n_succ_matched += 1
+                        break
+
+            # Apply failure penalty: inflate variance contribution
+            # for channels with high failure rates.
+            # Effective variance scales as 1/(1-f_i) where f_i is
+            # the channel's failure rate.
+            if n_fail_matched > 0 and n_succ_matched > 0:
+                for i in range(n_ch):
+                    total_i = succ_select[i] + fail_select[i]
+                    if total_i > 0:
+                        f_i = fail_select[i] / total_i
+                        if f_i < 1.0:
+                            var_contrib[i] /= (1.0 - f_i)
 
             new_alpha = [math.sqrt(max(v / n_matched, 0)) for v in var_contrib]
             total = sum(new_alpha)
