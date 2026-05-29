@@ -59,6 +59,7 @@ protected:
     unsigned int failed_events = 0;
     std::map<int, unsigned int> failure_counts_;
     std::string last_failure_reason_;
+    siren::dataclasses::InteractionTree last_failed_tree_;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     // This function returns true if the given secondary index i of the datum should not be simulated
@@ -129,6 +130,7 @@ public:
     unsigned int FailedEvents() const;
     std::map<int, unsigned int> GetFailureCounts() const;
     std::string GetLastFailureReason() const;
+    siren::dataclasses::InteractionTree const & GetLastFailedTree() const;
     void ResetInjectedEvents(unsigned int events_to_inject);
     operator bool() const;
     void SaveInjector(std::string const & filename) const;

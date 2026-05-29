@@ -523,6 +523,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                     failed_events += 1;
                     failure_counts_[current_secondary_pdg] += 1;
                     last_failure_reason_ = e.what();
+                    last_failed_tree_ = std::move(tree);
                     return siren::dataclasses::InteractionTree();
                 }
             }
@@ -692,6 +693,10 @@ std::string Injector::GetLastFailureReason() const {
     return last_failure_reason_;
 }
 
+siren::dataclasses::InteractionTree const & Injector::GetLastFailedTree() const {
+    return last_failed_tree_;
+}
+
 void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     this->events_to_inject = events_to_inject;
     injected_events = 0;
@@ -699,6 +704,7 @@ void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     failed_events = 0;
     failure_counts_.clear();
     last_failure_reason_.clear();
+    last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
 
 Injector::operator bool() const {

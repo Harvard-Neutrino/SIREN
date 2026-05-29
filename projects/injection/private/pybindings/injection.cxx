@@ -186,12 +186,23 @@ PYBIND11_MODULE(injection,m) {
     .value("PowerLaw", DetectorDirected3BodyChannel::InvariantMassMode::PowerLaw);
 
   class_<DetectorDirected3BodyChannel, std::shared_ptr<DetectorDirected3BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected3BodyChannel")
+    // Direct mode: specify which daughter to bias, others inferred.
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int,
+              DetectorDirected3BodyChannel::InvariantMassMode, double, double, double, double,
+              DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology>(),
+         arg("target"), arg("directed_index"),
+         arg("mass_mode") = DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
+         arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
+         arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+         arg("topology") = PhaseSpaceTopology::Decay3Body)
+    // Recursive mode: specify all indices (backward compatible).
     .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, int, int, int,
               DetectorDirected3BodyChannel::InvariantMassMode, double, double, double, double,
               DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology>(),
-         arg("target"), arg("spectator_index") = 0,
-         arg("pair_first_index") = 1, arg("pair_second_index") = 2,
-         arg("directed_pair_index") = 1,
+         arg("target"), arg("spectator_index"),
+         arg("pair_first_index"), arg("pair_second_index"),
+         arg("directed_pair_index"),
          arg("mass_mode") = DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
          arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
          arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
@@ -307,6 +318,7 @@ PYBIND11_MODULE(injection,m) {
     .def("FailedEvents",&Injector::FailedEvents)
     .def("GetFailureCounts",&Injector::GetFailureCounts)
     .def("GetLastFailureReason",&Injector::GetLastFailureReason)
+    .def("GetLastFailedTree",&Injector::GetLastFailedTree, pybind11::return_value_policy::reference_internal)
     .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
     .def("PrimaryInjectionBounds",&Injector::PrimaryInjectionBounds)
     .def("SecondaryInjectionBounds",&Injector::SecondaryInjectionBounds)

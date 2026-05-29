@@ -652,9 +652,9 @@ class TestSecondaryBiasing:
     def test_3body_channel_topology_measure(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
-        ch = siren.injection.DetectorDirected3BodyChannel(fid)
+        ch = siren.injection.DetectorDirected3BodyChannel(fid, directed_index=2)
         assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
-        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body()
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body(0, 1, 2)
 
     def test_detector_directed_scattering_channel_construction(self):
         import siren

@@ -24,7 +24,6 @@ Options:
     --offshell          Use off-shell chi' (single 2->3 scattering vertex)
     --n-events N        Number of production events (default: 100)
     --seed S            Random number seed (default: 42)
-    --sampling-bias     Bias pion selection (energy, angle, position)
     --optimize          Run weight optimization before production
     --opt-iterations N  Optimization iterations (default: 5)
     --opt-batch N       Events per optimization iteration (default: 200)
@@ -90,8 +89,11 @@ def default_pion_bias(E, px, py, pz, vx, vy, vz):
     """Bias toward pions likely to produce observable signal events.
 
     Combines three factors (all in geometry/beam coordinates):
-      - Energy: higher-energy pions produce more energetic V1/chi,
-        increasing the upscattering cross section.
+      - Energy: higher-energy pions produce more collimated V1/chi,
+        increasing both the upscattering cross section and the
+        geometric acceptance for the downstream detector. Uses E^2
+        because the chi opening angle scales as 1/gamma ~ m/E,
+        and acceptance scales with the solid angle ratio.
       - Forward angle: pions decaying forward along the beam axis
         are more likely to send secondaries toward the detector.
       - Transverse position: pions closer to the beam axis have
@@ -100,7 +102,7 @@ def default_pion_bias(E, px, py, pz, vx, vy, vz):
     p = np.sqrt(px**2 + py**2 + pz**2)
     cos_theta = np.where(p > 0, pz / p, 0.0)
     r_trans = np.sqrt(vx**2 + vy**2)
-    return E * np.maximum(cos_theta, 0.01) * np.exp(-r_trans / 200.0)
+    return E**2 * np.maximum(cos_theta, 0.01) * np.exp(-r_trans / 200.0)
 
 
 def load_dk2nu_pions(dk2nu_dir, detector_model, sampling_bias=None):
@@ -266,9 +268,9 @@ def _build_scatter_3body_channels(targets, xs, sig):
 def build_primary_phase_spaces(targets, pion_decay):
     """Multi-channel phase space for the primary pion 3-body decay.
 
-    Factorization: pi -> mu+(spectator) + (nu V1)(pair).
-    The V1 is directed toward the target geometries so that
-    downstream secondaries are more likely to reach the detector.
+    Uses direct lab-frame biasing: V1 (secondary index 2) is
+    directed toward the target geometries using the pion's boost.
+    The complementary system (mu + nu) decays isotropically.
     """
     sig = pion_decay.GetPossibleSignatures()[0]
     geo_list = list(targets.values())
@@ -277,10 +279,7 @@ def build_primary_phase_spaces(targets, pion_decay):
         channels.append(
             injection.DetectorDirected3BodyChannel(
                 target,
-                spectator_index=0,
-                pair_first_index=1,
-                pair_second_index=2,
-                directed_pair_index=2,
+                directed_index=2,
                 mass_mode=injection.InvariantMassMode.Uniform,
                 topology=injection.PhaseSpaceTopology.Decay3Body))
     n = len(channels)
@@ -432,7 +431,7 @@ def make_fiducial_metric(fiducial, signal_pdgids=(5923,)):
 
 def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         opt_iterations=5, opt_batch=200, monoenergetic=False,
-        offshell=False, sampling_bias=False):
+        offshell=False):
 
     # -- Detector --
     print("Loading SBND detector model ...")
@@ -488,9 +487,8 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         primary_mode = injection.VertexWeightingMode.Propagated()
     else:
         print()
-        bias_fn = default_pion_bias if sampling_bias else None
         pion_dist, pot = load_dk2nu_pions(dk2nu_dir, detector_model,
-                                          sampling_bias=bias_fn)
+                                          sampling_bias=default_pion_bias)
         primary_dists = [pion_dist]
         # For Fixed mode (dk2nu), the pion already decayed via SM.
         # The BSM branching ratio must be included explicitly in the
@@ -632,9 +630,6 @@ if __name__ == "__main__":
                         help="Number of production events")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random number seed")
-    parser.add_argument("--sampling-bias", action="store_true",
-                        help="Bias pion selection toward higher-energy, "
-                             "forward, on-axis entries")
     parser.add_argument("--optimize", action="store_true",
                         help="Run iterative weight optimization")
     parser.add_argument("--opt-iterations", type=int, default=5,
@@ -645,4 +640,4 @@ if __name__ == "__main__":
     run(dk2nu_dir=args.dk2nu_dir, n_events=args.n_events, seed=args.seed,
         optimize=args.optimize, opt_iterations=args.opt_iterations,
         opt_batch=args.opt_batch, monoenergetic=args.monoenergetic,
-        offshell=args.offshell, sampling_bias=args.sampling_bias)
+        offshell=args.offshell)
