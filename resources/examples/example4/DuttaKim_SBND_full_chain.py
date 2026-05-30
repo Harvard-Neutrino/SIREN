@@ -271,12 +271,28 @@ def _build_scatter_3body_channels(targets, xs, sig):
     return _mc(channels, weights)
 
 
-def build_primary_phase_spaces(targets, pion_decay):
+def build_primary_phase_spaces(targets, pion_decay,
+                               mass_mode=injection.InvariantMassMode.PowerLaw,
+                               power_law_nu=-8.6, power_law_offset=0.0):
     """Multi-channel phase space for the primary pion 3-body decay.
 
     Uses direct lab-frame biasing: V1 (secondary index 2) is
     directed toward the target geometries using the pion's boost.
-    The complementary system (mu + nu) decays isotropically.
+    The complementary (mu, nu) system supplies the pair invariant mass
+    s_X = M^2(mu, nu), which the directed channel must sample.
+
+    s_X mapping: the Carlson-Rislow matrix element carries a charged-
+    lepton propagator 1/D^2 (D = t - m_mu^2), so the physical marginal
+    dGamma/dE_V1 is not flat -- it rises toward high s_X (low rest-frame
+    E_V1).  Sampling s_X uniformly therefore leaves a residual f/g spread
+    (per-vertex std/mean ~0.73) that, after the upscatter Q^2 fix, is the
+    largest remaining variance source in the chain.  A PowerLaw proposal
+    g(s) ~ (s - m2)^(-nu) with negative nu concentrates samples at high
+    s_X to match.  A 1D fit minimizing int p^2/g over the physical
+    marginal gives nu ~ -8.6 (m2 = 0), cutting that factor's std/mean to
+    ~0.35 and lifting end-to-end effective sampling from ~40% to ~49%
+    (sum of weights invariant to within MC error, i.e. unbiased).  Pass
+    mass_mode=InvariantMassMode.Uniform to recover the old flat proposal.
     """
     sig = pion_decay.GetPossibleSignatures()[0]
     geo_list = list(targets.values())
@@ -286,7 +302,11 @@ def build_primary_phase_spaces(targets, pion_decay):
             injection.DetectorDirected3BodyChannel(
                 target,
                 directed_index=2,
-                mass_mode=injection.InvariantMassMode.Uniform,
+                mass_mode=mass_mode,
+                resonance_mass=0.0,
+                resonance_width=0.0,
+                power_law_nu=power_law_nu,
+                power_law_offset=power_law_offset,
                 topology=injection.PhaseSpaceTopology.Decay3Body))
     n = len(channels)
     weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
