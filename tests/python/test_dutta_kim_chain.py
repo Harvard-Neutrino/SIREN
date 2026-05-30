@@ -343,10 +343,6 @@ class TestVertex2_OffshellScatter:
             ch.Sample(rng, None, r)
             _check_4mom_conservation(r, tol=1e-4)
 
-    @pytest.mark.xfail(reason=(
-        "VectorPortalOffShellXS.FinalStateProbability normalization "
-        "doesn't match the recursive channel density convention. "
-        "Same-measure issue (both R2B(2,0,1)), not a conversion bug."))
     def test_offshell_3body_closure(
             self, offshell_xs, offshell_sig, offshell_record, target, rng):
         _P_STAR = injection.TwoBodyRestMomentum(M_CHI_PRIME, M_CHI, M_V1)
