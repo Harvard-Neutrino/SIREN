@@ -3,7 +3,10 @@
 #define SIREN_InvariantMassMapping_H
 
 #include <cmath>
+#include <cstddef>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace siren {
 namespace injection {
@@ -96,6 +99,107 @@ struct PowerLawMapping {
     double Density(double s) const {
         double ds = s - m2;
         return std::pow(ds, -nu) * one_minus_nu / (a_max - a_min);
+    }
+};
+
+// Maps r in [0,1] to s in [s_min, s_max] by inverting a tabulated CDF.
+//
+// The caller supplies monotone-increasing s_nodes and the corresponding
+// cumulative distribution cdf_nodes (cdf_nodes[0] need not be 0 nor
+// cdf_nodes[back] be 1 -- the table is renormalized internally to the
+// overlap with [s_min, s_max]).  Between nodes the CDF is treated as
+// piecewise-linear, so the density is piecewise-constant per bin.  This
+// is the general, near-exact importance map: build the table once from a
+// model's own differential rate / cross section and the proposal matches
+// the physical marginal for any masses (and is coupling-independent,
+// since the normalization cancels).
+//
+// Forward:  invert the (clipped, renormalized) CDF for s.
+// Density:  per-bin slope d(cdf)/ds, renormalized over [s_min, s_max].
+struct TabulatedMapping {
+    std::vector<double> s;        // node positions (ascending)
+    std::vector<double> cdf;      // cumulative weight at each node (ascending)
+    double s_min;
+    double s_max;
+    double c_lo;                  // interpolated cumulative at s_min
+    double c_hi;                  // interpolated cumulative at s_max
+    double norm;                  // c_hi - c_lo (cumulative mass in range)
+
+    TabulatedMapping(std::vector<double> s_nodes,
+                     std::vector<double> cdf_nodes,
+                     double s_min_, double s_max_)
+        : s(std::move(s_nodes)), cdf(std::move(cdf_nodes)),
+          s_min(s_min_), s_max(s_max_)
+    {
+        if (s.size() < 2 || s.size() != cdf.size()) {
+            throw std::runtime_error(
+                "TabulatedMapping requires matching s/cdf arrays of length >= 2");
+        }
+        c_lo = InterpCdf(s_min);
+        c_hi = InterpCdf(s_max);
+        norm = c_hi - c_lo;
+        if (!(norm > 0.0)) {
+            throw std::runtime_error(
+                "TabulatedMapping has non-positive cumulative mass over [s_min, s_max]");
+        }
+    }
+
+    // Linear-interpolate the stored cumulative at an arbitrary s (clamped).
+    double InterpCdf(double sv) const {
+        if (sv <= s.front()) return cdf.front();
+        if (sv >= s.back()) return cdf.back();
+        std::size_t lo = 0, hi = s.size() - 1;
+        while (hi - lo > 1) {
+            std::size_t mid = (lo + hi) / 2;
+            if (s[mid] <= sv) lo = mid; else hi = mid;
+        }
+        double ds = s[hi] - s[lo];
+        double frac = ds > 0.0 ? (sv - s[lo]) / ds : 0.0;
+        return cdf[lo] + frac * (cdf[hi] - cdf[lo]);
+    }
+
+    // Local density d(cdf)/ds at sv (bin slope), unnormalized.
+    double SlopeAt(double sv) const {
+        if (sv < s.front() || sv > s.back()) return 0.0;
+        std::size_t lo = 0, hi = s.size() - 1;
+        while (hi - lo > 1) {
+            std::size_t mid = (lo + hi) / 2;
+            if (s[mid] <= sv) lo = mid; else hi = mid;
+        }
+        double ds = s[hi] - s[lo];
+        if (ds <= 0.0) return 0.0;
+        return (cdf[hi] - cdf[lo]) / ds;
+    }
+
+    double Forward(double r) const {
+        double target = c_lo + r * norm;             // cumulative we want
+        // Find the bin [s[lo], s[hi]] whose cumulative brackets target.
+        if (target <= cdf.front()) return s_min;
+        if (target >= cdf.back()) return s_max;
+        std::size_t lo = 0, hi = cdf.size() - 1;
+        while (hi - lo > 1) {
+            std::size_t mid = (lo + hi) / 2;
+            if (cdf[mid] <= target) lo = mid; else hi = mid;
+        }
+        double dc = cdf[hi] - cdf[lo];
+        double frac = dc > 0.0 ? (target - cdf[lo]) / dc : 0.0;
+        double sv = s[lo] + frac * (s[hi] - s[lo]);
+        // Guard against rounding outside the channel's allowed range.
+        if (sv < s_min) sv = s_min;
+        if (sv > s_max) sv = s_max;
+        return sv;
+    }
+
+    double Inverse(double sv) const {
+        if (sv <= s_min) return 0.0;
+        if (sv >= s_max) return 1.0;
+        return (InterpCdf(sv) - c_lo) / norm;
+    }
+
+    // Normalized proposal density in s over [s_min, s_max].
+    double Density(double sv) const {
+        if (sv < s_min || sv > s_max) return 0.0;
+        return SlopeAt(sv) / norm;
     }
 };
 

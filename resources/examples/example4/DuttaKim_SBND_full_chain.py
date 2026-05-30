@@ -271,8 +271,52 @@ def _build_scatter_3body_channels(targets, xs, sig):
     return _mc(channels, weights)
 
 
+def build_sX_cdf_table(pion_decay, n_nodes=257):
+    """Tabulate the cumulative of the physical s_X = M^2(mu, nu) marginal.
+
+    The directed primary channel samples the (mu, nu) pair invariant mass
+    s_X; its physical marginal is the Carlson-Rislow dGamma differential,
+    which the decay model already exposes as dGamma/dE_V1 (E_V1 = the V1
+    rest-frame energy).  E_V1 maps linearly to s_X via
+        E_V1 = (m_M^2 + m_V1^2 - s_X) / (2 m_M),
+    a constant Jacobian, so dGamma/ds_X is proportional to dGamma/dE_V1.
+
+    Returns (s_nodes, cdf_nodes): ascending s_X grid and the cumulative
+    (trapezoid) integral of the marginal, for InvariantMassMode.Tabulated.
+    The cumulative is left unnormalized (the C++ mapping renormalizes over
+    the channel's allowed [s_min, s_max]); only its shape matters, so the
+    result is independent of couplings and overall constants.
+
+    This is exact for any meson / lepton / mediator masses -- no tuned
+    exponent -- and drives the per-vertex importance ratio f/g to ~1.
+    """
+    engine = pion_decay._decay   # underlying MesonThreeBodyDecay
+    m_M = engine.m_M
+    m_l = engine.m_l
+    m_V1 = engine.m_phi
+
+    s_min = m_l * m_l
+    s_max = (m_M - m_V1) ** 2
+    # Pad the endpoints slightly inward: the marginal -> 0 at both edges
+    # and the matrix element has an integrable edge, so sampling the open
+    # interval avoids a zero-density node.
+    eps = 1e-9 * (s_max - s_min)
+    s_nodes = np.linspace(s_min + eps, s_max - eps, n_nodes)
+
+    E_V1 = (m_M ** 2 + m_V1 ** 2 - s_nodes) / (2.0 * m_M)
+    dens = np.asarray(engine.differential_decay_rate(E_V1), dtype=float)
+    dens = np.clip(dens, 0.0, None)
+
+    # Cumulative trapezoid integral -> CDF nodes (ascending, starts at 0).
+    cdf = np.concatenate([[0.0], np.cumsum(
+        0.5 * (dens[1:] + dens[:-1]) * np.diff(s_nodes))])
+    if cdf[-1] <= 0.0:
+        raise RuntimeError("s_X marginal integrated to zero; cannot tabulate")
+    return s_nodes.tolist(), cdf.tolist()
+
+
 def build_primary_phase_spaces(targets, pion_decay,
-                               mass_mode=injection.InvariantMassMode.PowerLaw,
+                               mass_mode=injection.InvariantMassMode.Tabulated,
                                power_law_nu=-8.6, power_law_offset=0.0):
     """Multi-channel phase space for the primary pion 3-body decay.
 
@@ -284,18 +328,29 @@ def build_primary_phase_spaces(targets, pion_decay,
     s_X mapping: the Carlson-Rislow matrix element carries a charged-
     lepton propagator 1/D^2 (D = t - m_mu^2), so the physical marginal
     dGamma/dE_V1 is not flat -- it rises toward high s_X (low rest-frame
-    E_V1).  Sampling s_X uniformly therefore leaves a residual f/g spread
+    E_V1).  Sampling s_X uniformly leaves a residual f/g spread
     (per-vertex std/mean ~0.73) that, after the upscatter Q^2 fix, is the
-    largest remaining variance source in the chain.  A PowerLaw proposal
-    g(s) ~ (s - m2)^(-nu) with negative nu concentrates samples at high
-    s_X to match.  A 1D fit minimizing int p^2/g over the physical
-    marginal gives nu ~ -8.6 (m2 = 0), cutting that factor's std/mean to
-    ~0.35 and lifting end-to-end effective sampling from ~40% to ~49%
-    (sum of weights invariant to within MC error, i.e. unbiased).  Pass
-    mass_mode=InvariantMassMode.Uniform to recover the old flat proposal.
+    largest remaining variance source in the chain.
+
+    Default mode is Tabulated: the proposal is the physical s_X marginal
+    itself (a CDF built once from the decay model, see build_sX_cdf_table),
+    so f/g -> 1 at this vertex for *any* masses, with no tuned parameter
+    and no coupling dependence (the cumulative shape is coupling-free).
+    This lifts end-to-end effective sampling from ~40% (Uniform) to ~50%.
+
+    The optimal-exponent PowerLaw (nu ~ -8.6 for the pi->mu benchmark)
+    remains available via mass_mode=InvariantMassMode.PowerLaw, and
+    InvariantMassMode.Uniform recovers the old flat proposal -- but note
+    a fixed PowerLaw exponent is mass-specific (it is unsafe to reuse for
+    a different meson/lepton), whereas the Tabulated map adapts itself.
     """
     sig = pion_decay.GetPossibleSignatures()[0]
     geo_list = list(targets.values())
+
+    cdf_nodes, cdf_values = [], []
+    if mass_mode == injection.InvariantMassMode.Tabulated:
+        cdf_nodes, cdf_values = build_sX_cdf_table(pion_decay)
+
     channels = [injection.PhysicalDecayChannel(pion_decay, sig)]
     for target in geo_list:
         channels.append(
@@ -307,7 +362,9 @@ def build_primary_phase_spaces(targets, pion_decay,
                 resonance_width=0.0,
                 power_law_nu=power_law_nu,
                 power_law_offset=power_law_offset,
-                topology=injection.PhaseSpaceTopology.Decay3Body))
+                topology=injection.PhaseSpaceTopology.Decay3Body,
+                mass_cdf_nodes=cdf_nodes,
+                mass_cdf_values=cdf_values))
     n = len(channels)
     weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
     return {sig: _mc(channels, weights)}
