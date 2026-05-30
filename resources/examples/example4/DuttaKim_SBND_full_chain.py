@@ -294,7 +294,33 @@ def build_primary_phase_spaces(targets, pion_decay):
 
 
 def build_onshell_phase_spaces(targets, models):
-    """Multi-channel phase spaces for on-shell chain."""
+    """Multi-channel phase spaces for on-shell chain.
+
+    Only two vertices are directed toward the detector:
+
+      - V1 -> chi chi: direct the continuing chi (index 0) so it reaches
+        the fiducial volume, where the bounded upscatter vertex confines
+        the chi + Ar -> chi' + Ar interaction.
+      - V1_sig -> e+ e-: a physical/isotropic mix (location is what the
+        metric cares about, and that is fixed upstream).
+
+    The intermediate upscatter (chi + Ar -> chi' + Ar) and the chi' decay
+    (chi' -> chi V1_sig) use the *physical* channel only -- they are NOT
+    directed.  This is the key difference from the naive 5-vertex setup:
+    once the upscatter vertex is confined to the fiducial (see sec_dists
+    in run()), chi' is produced there, decays sub-micron later (lab
+    decay length ~1e-10 m for M_CHI_PRIME=50 MeV, G_D=1), and the
+    resulting V1_sig travels only ~1 cm before its e+ e- decay (measured
+    median 4.5 mm, max 0.43 m).  The signal vertex therefore lands inside
+    the fiducial regardless of the chi' or V1_sig directions, so directing
+    them cannot improve acceptance -- it only injects large importance
+    weights (the directed Q2 scattering channel spans >60 orders of
+    magnitude against the physical 1/(Q2+m_V2^2)^2).  Using the physical
+    channel alone makes each of these vertices contribute a weight ratio
+    of exactly 1.  Empirically this lifts the on-shell effective sample
+    fraction from ~8% to ~40%, with the bulk of the gain coming from the
+    upscatter (the dominant variance source).
+    """
     m = models["models"]
     v1_sig = m["v1_to_chi"].GetPossibleSignatures()[0]
     chi_sig = m["upscatter"].GetPossibleSignatures()[0]
@@ -306,10 +332,12 @@ def build_onshell_phase_spaces(targets, models):
     return {
         V1_PROD: {v1_sig: _build_2body_channels(
             geo_list, 0, m["v1_to_chi"], v1_sig)},
-        CHI: {chi_sig: _build_scatter_channels(
-            geo_list, 0, m["upscatter"], chi_sig)},
-        CHI_PRIME: {chip_sig: _build_2body_channels(
-            geo_list, 1, m["chi_prime_decay"], chip_sig)},
+        CHI: {chi_sig: _mc([
+            injection.PhysicalCrossSectionChannel(m["upscatter"], chi_sig),
+        ], [1.0])},
+        CHI_PRIME: {chip_sig: _mc([
+            injection.PhysicalDecayChannel(m["chi_prime_decay"], chip_sig),
+        ], [1.0])},
         V1_SIGNAL: {vis_sig: _mc([
             injection.PhysicalDecayChannel(m["visible_decay"], vis_sig),
             injection.Isotropic2BodyChannel(0),
@@ -506,9 +534,16 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     # -- Secondary distributions --
     # Most secondaries use physical vertex sampling (decay/scatter
     # anywhere along the path).  For chi, use bounded vertex sampling
-    # to confine the scattering to the fiducial volume — the LAr
+    # to confine the scattering to the fiducial volume -- the LAr
     # cryostat extends well beyond the TPC, and without bounding,
     # ~50% of chi scatters land outside the fiducial.
+    #
+    # Only the chi upscatter vertex is bounded.  For the on-shell chain
+    # the chi' produced there decays essentially in place (lab decay
+    # length ~1e-10 m for M_CHI_PRIME=50 MeV), and the resulting V1_sig
+    # travels only ~1 cm before decaying, so bounding the upscatter is
+    # enough to keep the whole downstream signal inside the fiducial --
+    # CHI_PRIME does not need its own bounded vertex distribution.
     sv = distributions.SecondaryPhysicalVertexDistribution()
     sv_bounded = distributions.SecondaryBoundedVertexDistribution(fiducial)
     sec_dists = {pt: [sv] for pt in secondary_interactions}
