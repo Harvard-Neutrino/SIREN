@@ -429,18 +429,39 @@ class VectorPortalUpscatteringXS(_CrossSection):
     def equal(self, other):
         return self is other
 
+    def _sample_Q2(self, E_chi, random):
+        """Rejection-sample Q2 from dsigma/dQ2.
+
+        dsigma/dQ2 falls monotonically with Q2 (the V2 propagator
+        dominates), so the envelope maximum sits at q2min.  Sampling from
+        this density -- instead of the previous uniform draw -- makes the
+        cross section satisfy Sample == Density: an unbiased single-channel
+        run then yields the correct propagator-peaked Q2 spectrum, and the
+        physical phase-space channel contributes a weight ratio of 1,
+        removing the dominant source of event-weight variance.
+        """
+        q2min = _Q2min(E_chi, self.m_chi_prime, self.m_target)
+        q2max = _Q2max(E_chi, self.m_chi_prime, self.m_target)
+        if q2max <= q2min:
+            return None
+        f_max = self._ups._dsigma_dQ2(E_chi, q2min) * 1.5
+        if f_max <= 0.0:
+            return random.Uniform(q2min, q2max)
+        for _ in range(10000):
+            cand = random.Uniform(q2min, q2max)
+            if random.Uniform(0.0, f_max) <= self._ups._dsigma_dQ2(E_chi, cand):
+                return cand
+        return random.Uniform(q2min, q2max)
+
     def SampleFinalState(self, record, random):
         E_chi = record.primary_momentum[0]
         M = self.m_target
         m_chi = self.m_chi
         m_chi_prime = self.m_chi_prime
 
-        q2min = _Q2min(E_chi, m_chi_prime, M)
-        q2max = _Q2max(E_chi, m_chi_prime, M)
-        if q2max <= q2min:
+        Q2 = self._sample_Q2(E_chi, random)
+        if Q2 is None:
             return
-
-        Q2 = random.Uniform(q2min, q2max)
 
         s = m_chi**2 + M**2 + 2.0 * M * E_chi
         sqrt_s = math.sqrt(s)
