@@ -121,7 +121,9 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     double power_law_nu,
     double power_law_offset,
     DetectorDirected2BodyChannel::Mode mode,
-    PhaseSpaceTopology topology)
+    PhaseSpaceTopology topology,
+    std::vector<double> mass_cdf_nodes,
+    std::vector<double> mass_cdf_values)
     : factorization_(Factorization::Direct)
     , target_(std::move(target))
     , directed_index_(directed_index)
@@ -134,6 +136,8 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     , resonance_width_(resonance_width)
     , power_law_nu_(power_law_nu)
     , power_law_offset_(power_law_offset)
+    , mass_cdf_nodes_(std::move(mass_cdf_nodes))
+    , mass_cdf_values_(std::move(mass_cdf_values))
     , mode_(mode)
     , topology_(topology)
 {
@@ -182,7 +186,9 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     double power_law_nu,
     double power_law_offset,
     DetectorDirected2BodyChannel::Mode mode,
-    PhaseSpaceTopology topology)
+    PhaseSpaceTopology topology,
+    std::vector<double> mass_cdf_nodes,
+    std::vector<double> mass_cdf_values)
     : factorization_(Factorization::Recursive)
     , target_(std::move(target))
     , directed_index_(directed_pair_index)
@@ -197,6 +203,8 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     , resonance_width_(resonance_width)
     , power_law_nu_(power_law_nu)
     , power_law_offset_(power_law_offset)
+    , mass_cdf_nodes_(std::move(mass_cdf_nodes))
+    , mass_cdf_values_(std::move(mass_cdf_values))
     , mode_(mode)
     , topology_(topology)
 {
@@ -241,6 +249,16 @@ double DetectorDirected3BodyChannel::SampleInvariantMassSquared(
         PowerLawMapping map(power_law_nu_, power_law_offset_, s_min, s_max);
         return map.Forward(r);
     }
+    if (mass_mode_ == InvariantMassMode::Tabulated) {
+        if (mass_cdf_nodes_.size() < 2 ||
+            mass_cdf_nodes_.size() != mass_cdf_values_.size()) {
+            throw std::runtime_error(
+                "Tabulated invariant-mass mapping requires matching "
+                "mass_cdf_nodes / mass_cdf_values arrays of length >= 2");
+        }
+        TabulatedMapping map(mass_cdf_nodes_, mass_cdf_values_, s_min, s_max);
+        return map.Forward(r);
+    }
     UniformMapping map(s_min, s_max);
     return map.Forward(r);
 }
@@ -259,6 +277,14 @@ double DetectorDirected3BodyChannel::InvariantMassDensity(
     if (mass_mode_ == InvariantMassMode::PowerLaw) {
         if (s_min <= power_law_offset_) return 0.0;
         PowerLawMapping map(power_law_nu_, power_law_offset_, s_min, s_max);
+        return map.Density(s);
+    }
+    if (mass_mode_ == InvariantMassMode::Tabulated) {
+        if (mass_cdf_nodes_.size() < 2 ||
+            mass_cdf_nodes_.size() != mass_cdf_values_.size()) {
+            return 0.0;
+        }
+        TabulatedMapping map(mass_cdf_nodes_, mass_cdf_values_, s_min, s_max);
         return map.Density(s);
     }
     UniformMapping map(s_min, s_max);

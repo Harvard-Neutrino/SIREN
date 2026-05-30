@@ -183,23 +183,28 @@ PYBIND11_MODULE(injection,m) {
   enum_<DetectorDirected3BodyChannel::InvariantMassMode>(m, "InvariantMassMode")
     .value("Uniform", DetectorDirected3BodyChannel::InvariantMassMode::Uniform)
     .value("BreitWigner", DetectorDirected3BodyChannel::InvariantMassMode::BreitWigner)
-    .value("PowerLaw", DetectorDirected3BodyChannel::InvariantMassMode::PowerLaw);
+    .value("PowerLaw", DetectorDirected3BodyChannel::InvariantMassMode::PowerLaw)
+    .value("Tabulated", DetectorDirected3BodyChannel::InvariantMassMode::Tabulated);
 
   class_<DetectorDirected3BodyChannel, std::shared_ptr<DetectorDirected3BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected3BodyChannel")
     // Direct mode: specify which daughter to bias, others inferred.
     .def(init<std::shared_ptr<siren::geometry::Geometry const>, int,
               DetectorDirected3BodyChannel::InvariantMassMode, double, double, double, double,
-              DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology>(),
+              DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology,
+              std::vector<double>, std::vector<double>>(),
          arg("target"), arg("directed_index"),
          arg("mass_mode") = DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
          arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
          arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
          arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
-         arg("topology") = PhaseSpaceTopology::Decay3Body)
+         arg("topology") = PhaseSpaceTopology::Decay3Body,
+         arg("mass_cdf_nodes") = std::vector<double>{},
+         arg("mass_cdf_values") = std::vector<double>{})
     // Recursive mode: specify all indices (backward compatible).
     .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, int, int, int,
               DetectorDirected3BodyChannel::InvariantMassMode, double, double, double, double,
-              DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology>(),
+              DetectorDirected2BodyChannel::Mode, PhaseSpaceTopology,
+              std::vector<double>, std::vector<double>>(),
          arg("target"), arg("spectator_index"),
          arg("pair_first_index"), arg("pair_second_index"),
          arg("directed_pair_index"),
@@ -207,7 +212,9 @@ PYBIND11_MODULE(injection,m) {
          arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
          arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
          arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
-         arg("topology") = PhaseSpaceTopology::Decay3Body)
+         arg("topology") = PhaseSpaceTopology::Decay3Body,
+         arg("mass_cdf_nodes") = std::vector<double>{},
+         arg("mass_cdf_values") = std::vector<double>{})
     .def("SetVolume", &DetectorDirected3BodyChannel::SetVolume)
     ;
 

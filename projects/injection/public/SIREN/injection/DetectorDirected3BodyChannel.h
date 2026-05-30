@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace siren { namespace geometry { class Geometry; } }
 
@@ -31,7 +32,7 @@ namespace injection {
 //     or when the parent boost is small.
 class DetectorDirected3BodyChannel : public PhaseSpaceChannel {
 public:
-    enum class InvariantMassMode { Uniform, BreitWigner, PowerLaw };
+    enum class InvariantMassMode { Uniform, BreitWigner, PowerLaw, Tabulated };
     enum class Factorization { Direct, Recursive };
 
     // Direct mode constructor: just specify which daughter to bias.
@@ -45,7 +46,9 @@ public:
         double power_law_nu = 0.8,
         double power_law_offset = 0.0,
         DetectorDirected2BodyChannel::Mode mode = DetectorDirected2BodyChannel::Mode::Volume,
-        PhaseSpaceTopology topology = PhaseSpaceTopology::Decay3Body
+        PhaseSpaceTopology topology = PhaseSpaceTopology::Decay3Body,
+        std::vector<double> mass_cdf_nodes = {},
+        std::vector<double> mass_cdf_values = {}
     );
 
     // Recursive mode constructor (backward compatible).
@@ -61,7 +64,9 @@ public:
         double power_law_nu = 0.8,
         double power_law_offset = 0.0,
         DetectorDirected2BodyChannel::Mode mode = DetectorDirected2BodyChannel::Mode::Volume,
-        PhaseSpaceTopology topology = PhaseSpaceTopology::Decay3Body
+        PhaseSpaceTopology topology = PhaseSpaceTopology::Decay3Body,
+        std::vector<double> mass_cdf_nodes = {},
+        std::vector<double> mass_cdf_values = {}
     );
 
     void Sample(
@@ -110,6 +115,8 @@ private:
     double resonance_width_;
     double power_law_nu_;
     double power_law_offset_;
+    std::vector<double> mass_cdf_nodes_;   // s nodes for Tabulated mode
+    std::vector<double> mass_cdf_values_;  // cumulative weights at nodes
     DetectorDirected2BodyChannel::Mode mode_;
     PhaseSpaceTopology topology_;
     double target_volume_;
