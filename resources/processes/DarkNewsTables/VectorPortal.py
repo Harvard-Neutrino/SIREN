@@ -609,11 +609,13 @@ class VectorPortalOffShellXS(_CrossSection):
     def DifferentialCrossSection(self, arg1, target=None, energy=None, Q2=None):
         if isinstance(arg1, dataclasses.InteractionRecord):
             record = arg1
-            m1sq = max(0.0, record.primary_momentum[0]**2 - sum(p**2 for p in record.primary_momentum[1:]))
-            m3sq = max(0.0, record.secondary_momenta[0][0]**2 - sum(p**2 for p in record.secondary_momenta[0][1:]))
-            p1p3 = record.primary_momentum[0] * record.secondary_momenta[0][0] - sum(
-                p1 * p3 for p1, p3 in zip(record.primary_momentum[1:], record.secondary_momenta[0][1:]))
-            Q2 = max(0.0, -(m1sq + m3sq - 2 * p1p3))
+            # The momentum transfer to the nucleus is fixed by the (off-shell)
+            # chi', which is the chi(0) + V1(1) pair -- not the lone chi.
+            p_in = np.array(record.primary_momentum, dtype=float)
+            p_pair = (np.array(record.secondary_momenta[0], dtype=float)
+                      + np.array(record.secondary_momenta[1], dtype=float))
+            q_mu = p_in - p_pair
+            Q2 = max(0.0, -(q_mu[0]**2 - float(np.dot(q_mu[1:], q_mu[1:]))))
             energy = record.primary_momentum[0]
         return float(np.real(self._ups.diff_xsec_Q2(energy, Q2)))
 
@@ -636,15 +638,20 @@ class VectorPortalOffShellXS(_CrossSection):
         return [record.primary_helicity, 0, record.target_helicity]
 
     def FinalStateProbability(self, record):
-        """Physical density in Recursive2Body measure for the 2->3 process.
+        """Physical density in the Recursive2Body measure for the 2->3 process.
 
-        Factorization: chi N -> N(spectator=2) + {chi(0) V1(1)}(pair).
-        Uses the narrow-width approximation: the pair invariant mass is
-        fixed at m_chi_prime, giving a delta function in s_pair.
+        Factorization: chi N -> N(spectator=2) + {chi(0) V1(1)}(pair), where
+        the (chi, V1) pair is the (off-shell) chi'.  In the narrow-width
+        approximation the density factorizes into three normalized pieces:
 
-        The density per ds * dOmega_pair * dOmega_sub is:
-        dσ/dQ2 * |dQ2/dcos_pair| / (sigma_total * 2*pi * 4*pi)
-        times a Breit-Wigner in s_pair.
+            f = BW(s_pair)                                       [ds_pair]
+              * (1/sigma_T) dsigma/dQ2 |dQ2/dcos_pair| / (2 pi)  [dOmega_pair]
+              * 1 / (4 pi)                                       [dOmega_sub]
+
+        The chi' production angle carries the physical dsigma/dQ2 (peaked
+        forward by the V2 propagator); the chi' -> chi V1 decay is isotropic
+        in the chi' rest frame.  SampleFinalState draws from exactly this
+        distribution, so the channel density and its sampler are consistent.
         """
         E_chi = record.primary_momentum[0]
         M = self.m_target
@@ -653,38 +660,40 @@ class VectorPortalOffShellXS(_CrossSection):
         if total_xs <= 0:
             return 0.0
 
+        # Pair = chi(0) + V1(1) = the off-shell chi'; its invariant mass is
+        # the chi' virtuality s_pair.
+        P_pair = (np.array(record.secondary_momenta[0], dtype=float)
+                  + np.array(record.secondary_momenta[1], dtype=float))
+        s_pair = P_pair[0]**2 - float(np.dot(P_pair[1:], P_pair[1:]))
+        if s_pair <= 0.0:
+            return 0.0
+
         diff_xs = self.DifferentialCrossSection(record)
         if diff_xs <= 0:
             return 0.0
 
-        # Scattering kinematics for |dQ2/dcos_pair|
+        # |dQ2/dcos_pair| in the CM frame, using the actual pair mass so the
+        # Jacobian matches the kinematics produced by SampleFinalState.
         s = self.m_chi**2 + M**2 + 2.0 * M * E_chi
-        m_chi_prime = self.m_chi_prime
-
-        E_in_cm = (s + self.m_chi**2 - M**2) / (2.0 * math.sqrt(s))
-        E_out_cm = (s + m_chi_prime**2 - M**2) / (2.0 * math.sqrt(s))
+        sqrt_s = math.sqrt(s)
+        E_in_cm = (s + self.m_chi**2 - M**2) / (2.0 * sqrt_s)
+        E_pair_cm = (s + s_pair - M**2) / (2.0 * sqrt_s)
         p_in_cm = math.sqrt(max(E_in_cm**2 - self.m_chi**2, 0.0))
-        p_out_cm = math.sqrt(max(E_out_cm**2 - m_chi_prime**2, 0.0))
+        p_pair_cm = math.sqrt(max(E_pair_cm**2 - s_pair, 0.0))
 
-        dQ2_dcos = 2.0 * p_in_cm * p_out_cm
+        dQ2_dcos = 2.0 * p_in_cm * p_pair_cm
         if dQ2_dcos <= 0:
             return 0.0
 
-        # Pair invariant mass: Breit-Wigner peaked at m_chi_prime^2.
-        # In the narrow-width limit this is a delta function;
-        # evaluate a normalized BW at the actual s_pair from the record.
-        P_chi_out = np.array(record.secondary_momenta[0])
-        P_V1 = np.array(record.secondary_momenta[1])
-        P_pair = P_chi_out + P_V1
-        s_pair = P_pair[0]**2 - np.dot(P_pair[1:], P_pair[1:])
-
+        # Normalized Breit-Wigner in s_pair, peaked at the chi' mass.
+        m_chi_prime = self.m_chi_prime
         chi_prime_width = self._chi_prime_width()
         bw_norm = chi_prime_width * m_chi_prime / math.pi
         bw = bw_norm / ((s_pair - m_chi_prime**2)**2
                         + m_chi_prime**2 * chi_prime_width**2)
 
-        # density per ds * dOmega_pair * dOmega_sub:
-        # = (dsigma/dQ2 * |dQ2/dcos|) / (sigma_total * 2*pi * 4*pi) * BW(s)
+        # density per ds_pair * dOmega_pair * dOmega_sub:
+        # = (dsigma/dQ2 * |dQ2/dcos|) / (sigma_total * 2*pi * 4*pi) * BW(s_pair)
         return diff_xs * dQ2_dcos * bw / (total_xs * 8.0 * math.pi**2)
 
     def _chi_prime_width(self):
@@ -711,32 +720,69 @@ class VectorPortalOffShellXS(_CrossSection):
     def equal(self, other):
         return self is other
 
+    def _sample_Q2(self, E_chi, random):
+        """Rejection-sample Q2 from dsigma/dQ2.
+
+        dsigma/dQ2 falls monotonically with Q2 (the V2 propagator dominates),
+        so the envelope maximum sits at q2min.
+        """
+        q2min = _Q2min(E_chi, self.m_chi_prime, self.m_target)
+        q2max = _Q2max(E_chi, self.m_chi_prime, self.m_target)
+        if q2max <= q2min:
+            return None
+        f_max = self._ups._dsigma_dQ2(E_chi, q2min) * 1.5
+        if f_max <= 0.0:
+            return random.Uniform(q2min, q2max)
+        for _ in range(10000):
+            cand = random.Uniform(q2min, q2max)
+            if random.Uniform(0.0, f_max) <= self._ups._dsigma_dQ2(E_chi, cand):
+                return cand
+        return random.Uniform(q2min, q2max)
+
+    def _sample_s_pair(self, E_chi, random):
+        """Inverse-CDF sample of s_pair from a Breit-Wigner over the
+        kinematically allowed range (the chi' virtuality)."""
+        m_cp = self.m_chi_prime
+        width = self._chi_prime_width()
+        s_min = (self.m_chi + self.m_V1)**2
+        s = self.m_chi**2 + self.m_target**2 + 2.0 * self.m_target * E_chi
+        s_max = (math.sqrt(s) - self.m_target)**2
+        if s_max <= s_min or width <= 0.0:
+            return m_cp**2
+        lo = math.atan2(s_min - m_cp**2, m_cp * width)
+        hi = math.atan2(s_max - m_cp**2, m_cp * width)
+        ang = lo + random.Uniform(0.0, 1.0) * (hi - lo)
+        s_pair = m_cp**2 + m_cp * width * math.tan(ang)
+        return min(max(s_pair, s_min), s_max)
+
     def SampleFinalState(self, record, random):
-        """Sample chi' on-shell from Q2, then decay chi' -> chi + V1 isotropically."""
+        """Sample the physical narrow-width distribution: chi' production
+        angle from dsigma/dQ2, virtuality s_pair from a Breit-Wigner, and an
+        isotropic chi' -> chi + V1 decay in the chi' rest frame.  This matches
+        the density reported by FinalStateProbability."""
         E_chi = record.primary_momentum[0]
         M = self.m_target
         m_chi = self.m_chi
-        m_chi_prime = self.m_chi_prime
 
-        q2min = _Q2min(E_chi, m_chi_prime, M)
-        q2max = _Q2max(E_chi, m_chi_prime, M)
-        if q2max <= q2min:
+        Q2 = self._sample_Q2(E_chi, random)
+        if Q2 is None:
             return
-
-        Q2 = random.Uniform(q2min, q2max)
+        s_pair = self._sample_s_pair(E_chi, random)
+        m_pair = math.sqrt(s_pair)
 
         s = m_chi**2 + M**2 + 2.0 * M * E_chi
-        E_chi_prime_cm = (s + m_chi_prime**2 - M**2) / (2.0 * math.sqrt(s))
-        E_N_cm = (s - m_chi_prime**2 + M**2) / (2.0 * math.sqrt(s))
-        p_out_cm = math.sqrt(max(E_chi_prime_cm**2 - m_chi_prime**2, 0.0))
+        sqrt_s = math.sqrt(s)
+        E_pair_cm = (s + s_pair - M**2) / (2.0 * sqrt_s)
+        E_N_cm = (s - s_pair + M**2) / (2.0 * sqrt_s)
+        p_out_cm = math.sqrt(max(E_pair_cm**2 - s_pair, 0.0))
 
-        E_in_cm = (s + m_chi**2 - M**2) / (2.0 * math.sqrt(s))
+        E_in_cm = (s + m_chi**2 - M**2) / (2.0 * sqrt_s)
         p_in_cm = math.sqrt(max(E_in_cm**2 - m_chi**2, 0.0))
 
         cos_cm = 1.0 - Q2 / (2.0 * p_in_cm * p_out_cm) if p_in_cm > 0 and p_out_cm > 0 else 0.0
         cos_cm = max(-1.0, min(1.0, cos_cm))
 
-        gamma_cm = (E_chi + M) / math.sqrt(s)
+        gamma_cm = (E_chi + M) / sqrt_s
         beta_cm = math.sqrt(max(E_chi**2 - m_chi**2, 0.0)) / (E_chi + M)
 
         phi_cm = random.Uniform(0.0, 2.0 * math.pi)
@@ -746,12 +792,12 @@ class VectorPortalOffShellXS(_CrossSection):
         py_cp = p_out_cm * sin_cm * math.sin(phi_cm)
         pz_cp = p_out_cm * cos_cm
 
-        E_cp_lab = gamma_cm * (E_chi_prime_cm + beta_cm * pz_cp)
-        pz_cp_lab = gamma_cm * (pz_cp + beta_cm * E_chi_prime_cm)
+        E_cp_lab = gamma_cm * (E_pair_cm + beta_cm * pz_cp)
+        pz_cp_lab = gamma_cm * (pz_cp + beta_cm * E_pair_cm)
 
         P_chi_prime = np.array([E_cp_lab, px_cp, py_cp, pz_cp_lab])
 
-        p_decay = _two_body_p_cm(m_chi_prime, m_chi, self.m_V1)
+        p_decay = _two_body_p_cm(m_pair, m_chi, self.m_V1)
         cos_dec = random.Uniform(-1.0, 1.0)
         phi_dec = random.Uniform(0.0, 2.0 * math.pi)
 
