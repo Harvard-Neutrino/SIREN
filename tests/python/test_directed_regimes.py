@@ -166,3 +166,103 @@ def test_disjoint_unreachable_target_graceful():
     assert m["iso"] < 0.005       # target is kinematically unreachable
     assert m["dir_eff"] < 0.05    # directing cannot reach it either
     assert m["wt_hit"] < 0.01     # unbiased zero
+
+
+# ------------------------------------------------------------------ #
+#  Nestable sub-mixture channel (prototype A)                         #
+# ------------------------------------------------------------------ #
+
+def _separated_AB(D=20.0, deg=30.0):
+    t = math.radians(deg)
+    A = _box_at(D * math.sin(t), 0.0, D * math.cos(t), 2.0)
+    B = _box_at(-D * math.sin(t), 0.0, D * math.cos(t), 2.0)
+    return A, B
+
+
+def test_nested_mixture_channel_closure_and_composition():
+    """A directed sub-mixture wrapped as ONE channel preserves closure, and
+    the outer density composes transparently as a weighted sum."""
+    A, B = _separated_AB()
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    dirA = siren.injection.DetectorDirected2BodyChannel(A, 0)
+    dirB = siren.injection.DetectorDirected2BodyChannel(B, 0)
+    inner = siren.injection.MultiChannelPhaseSpace()
+    inner.channels = [dirA, dirB]
+    inner.weights = [0.5, 0.5]
+    nested = siren.injection.NestedMixtureChannel(inner)
+    outer = siren.injection.MultiChannelPhaseSpace()
+    outer.channels = [iso, nested]
+    outer.weights = [0.5, 0.5]
+
+    # The nested channel presents the inner common topology/measure, so the
+    # outer mixture treats it like any other channel.
+    assert nested.Topology() == iso.Topology()
+    assert nested.Measure() == iso.Measure()
+    assert outer.CommonTopology() == iso.Topology()
+
+    rng = siren.utilities.SIREN_random(3)
+    ws = []
+    for n in range(15000):
+        r = _make_record(0.008, 0.018)  # full kinematic sphere
+        outer.Sample(rng, None, r)
+        f = iso.Density(None, r)
+        g = outer.Density(None, r)
+        if g <= 0 or not math.isfinite(g):
+            continue
+        ws.append(f / g)
+        if n < 500:
+            # all channels share the measure, so the density composes exactly
+            g_nested = nested.Density(None, r)
+            assert g_nested == pytest.approx(
+                0.5 * dirA.Density(None, r) + 0.5 * dirB.Density(None, r),
+                rel=1e-9, abs=1e-30)
+            assert g == pytest.approx(0.5 * f + 0.5 * g_nested, rel=1e-9, abs=1e-30)
+    assert 0.9 <= np.mean(ws) <= 1.1   # closure E_g[f/g] -> 1
+
+
+def test_nested_inner_weights_are_optimized():
+    """optimize_multichannel_weights tunes a nested channel's INNER weights.
+    Starting from an imbalanced inner mixture of two symmetric reachable
+    targets, the optimizer moves them back toward balance (the symmetric
+    optimum) and the integral stays unbiased."""
+    from siren.optimize import optimize_multichannel_weights
+
+    A, B = _separated_AB()
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    inner = siren.injection.MultiChannelPhaseSpace()
+    inner.channels = [siren.injection.DetectorDirected2BodyChannel(A, 0),
+                      siren.injection.DetectorDirected2BodyChannel(B, 0)]
+    inner.weights = [0.9, 0.1]   # deliberately imbalanced
+    nested = siren.injection.NestedMixtureChannel(inner)
+    outer = siren.injection.MultiChannelPhaseSpace()
+    outer.channels = [iso, nested]
+    outer.weights = [0.5, 0.5]
+
+    template = _make_record(0.008, 0.018)
+    before = list(inner.weights)
+    optimize_multichannel_weights(
+        outer, lambda r: iso.Density(None, r),
+        siren.utilities.SIREN_random(13), None, template,
+        n_iterations=6, batch_size=2000, damping=0.5, min_weight=0.01,
+        update_rule="sqrt_W")
+    after = list(inner.weights)
+
+    # The recursion ran and produced valid inner weights.
+    assert abs(sum(after) - 1.0) < 1e-9
+    assert all(math.isfinite(w) and w >= 0.0 for w in after)
+    # Symmetric reachable targets -> balanced optimum: the under-weighted
+    # channel gains, the over-weighted one drops.
+    assert after[1] > before[1] + 0.05
+    assert after[0] < before[0] - 0.05
+
+    # Integral remains unbiased after optimization.
+    rng = siren.utilities.SIREN_random(14)
+    ws = []
+    for _ in range(8000):
+        r = _make_record(0.008, 0.018)
+        outer.Sample(rng, None, r)
+        f = iso.Density(None, r)
+        g = outer.Density(None, r)
+        if g > 0 and math.isfinite(g):
+            ws.append(f / g)
+    assert 0.9 <= np.mean(ws) <= 1.1

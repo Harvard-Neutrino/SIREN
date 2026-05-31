@@ -149,6 +149,42 @@ private:
     void WarnOnIncompatibility() const;
 };
 
+// A PhaseSpaceChannel that wraps a MultiChannelPhaseSpace, so an entire
+// sub-mixture can be used as ONE channel inside an outer mixture.  Sampling
+// and density delegate to the inner mixture; its weights stay reachable (via
+// `mixture`) so an optimizer can tune them as a nested level.  Topology and
+// Measure are the inner mixture's common values, so an outer mixture treats
+// the nested channel exactly like any other channel of that topology/measure.
+//
+// This lets the geometric sub-structure (which target volumes, with what
+// coefficients) be encapsulated and optimized separately from the outer,
+// physics-level blend (physical / isotropic / detector-directed).
+class NestedMixtureChannel : public PhaseSpaceChannel {
+public:
+    std::shared_ptr<MultiChannelPhaseSpace> mixture;
+    std::string label = "NestedMixture";
+
+    NestedMixtureChannel() = default;
+    explicit NestedMixtureChannel(
+        std::shared_ptr<MultiChannelPhaseSpace> mixture_)
+        : mixture(mixture_) {}
+
+    void Sample(
+        std::shared_ptr<siren::utilities::SIREN_random> random,
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord & record
+    ) const override;
+
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record
+    ) const override;
+
+    std::string Name() const override;
+    PhaseSpaceTopology Topology() const override;
+    PhaseSpaceMeasure Measure() const override;
+};
+
 } // namespace injection
 } // namespace siren
 

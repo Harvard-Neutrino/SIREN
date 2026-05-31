@@ -596,5 +596,42 @@ std::vector<std::string> MultiChannelPhaseSpace::ValidateChannelDensities(
     return diagnostics;
 }
 
+// ================================================================ //
+//  NestedMixtureChannel                                              //
+// ================================================================ //
+
+void NestedMixtureChannel::Sample(
+    std::shared_ptr<siren::utilities::SIREN_random> random,
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord & record) const
+{
+    if (!mixture) {
+        throw std::runtime_error("NestedMixtureChannel has no inner mixture");
+    }
+    mixture->Sample(random, detector_model, record);
+}
+
+double NestedMixtureChannel::Density(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    if (!mixture) return 0.0;
+    return mixture->Density(detector_model, record);
+}
+
+std::string NestedMixtureChannel::Name() const {
+    return label;
+}
+
+PhaseSpaceTopology NestedMixtureChannel::Topology() const {
+    if (!mixture) return PhaseSpaceTopology::Unspecified;
+    return mixture->CommonTopology();
+}
+
+PhaseSpaceMeasure NestedMixtureChannel::Measure() const {
+    if (!mixture) return PhaseSpaceMeasure::Unspecified();
+    return mixture->CommonMeasure();
+}
+
 } // namespace injection
 } // namespace siren
