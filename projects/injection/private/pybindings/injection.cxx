@@ -223,13 +223,24 @@ PYBIND11_MODULE(injection,m) {
     .value("BjorkenY", DetectorDirectedScatteringChannel::Variable::BjorkenY)
     .value("RecoilY", DetectorDirectedScatteringChannel::Variable::RecoilY);
 
+  enum_<DetectorDirectedScatteringChannel::Q2Mode>(m, "ScatteringQ2Mode")
+    .value("Geometry", DetectorDirectedScatteringChannel::Q2Mode::Geometry)
+    .value("Propagator", DetectorDirectedScatteringChannel::Q2Mode::Propagator)
+    .value("Tabulated", DetectorDirectedScatteringChannel::Q2Mode::Tabulated);
+
   class_<DetectorDirectedScatteringChannel, std::shared_ptr<DetectorDirectedScatteringChannel>, PhaseSpaceChannel>(m, "DetectorDirectedScatteringChannel")
     .def(init<std::shared_ptr<siren::geometry::Geometry const>, int,
               DetectorDirectedScatteringChannel::Variable,
-              DetectorDirected2BodyChannel::Mode>(),
+              DetectorDirected2BodyChannel::Mode,
+              DetectorDirectedScatteringChannel::Q2Mode, double,
+              std::vector<double>, std::vector<double>>(),
          arg("target"), arg("directed_index") = 0,
          arg("variable") = DetectorDirectedScatteringChannel::Variable::Q2,
-         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+         arg("q2_mode") = DetectorDirectedScatteringChannel::Q2Mode::Geometry,
+         arg("mediator_mass") = 0.0,
+         arg("q2_cdf_nodes") = std::vector<double>{},
+         arg("q2_cdf_values") = std::vector<double>{})
     .def("SetVolume", &DetectorDirectedScatteringChannel::SetVolume)
     ;
 
