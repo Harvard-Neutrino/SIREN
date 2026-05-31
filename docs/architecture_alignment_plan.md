@@ -619,13 +619,27 @@ work.
   Jacobian and the momentum builder/extractor inverse) is exercised by the
   existing per-vertex closure tests; a dedicated round-trip self-check is an
   optional follow-up.
+- **A2 (R2 collapse) -- DONE.** `build_geometric_targets` gains a
+  `fiducial_only` switch (physical + one fiducial-directed channel per biased
+  vertex instead of 1 + 13).  On-shell A/B (monoenergetic 2 GeV pion, ~700
+  events, light optimization): `all_13 sqrt_W` -> 14 primary channels,
+  sum_w=5.54e-19, Var(logW)=0.151, eff 87.7%; `fiducial_only sqrt_W` -> 2
+  channels, sum_w=5.45e-19, Var(logW)=0.144, eff 87.7%.  The rate agrees
+  within ~1.6% (MC error ~1.4% at this N) and Var(log W)/eff are unchanged,
+  so collapsing 13 -> 1 is accuracy-neutral at ~7x fewer primary-vertex
+  density evaluations -- confirming the optimizer cannot distinguish the
+  near-degenerate targets (the Kleiss-Pittau degeneracy premise).  The switch
+  is opt-in (default still all_13); flipping production runs to fiducial_only
+  is a one-line change at the `build_geometric_targets` call site.
+- **A3 real-chain A/B -- DONE.** On the same chain the canonical
+  `alpha_sqrt_W` (Var(logW)=0.159, eff 87.2%) and the memoryless `sqrt_W`
+  (0.144, 87.7%) are equivalent within noise -- expected, since the collapsed
+  mixture's channels are near-degenerate and both rules drive to ~uniform.
+  Default kept as `sqrt_W`; the canonical rule stays available for chains
+  with genuinely distinct, variance-imbalanced channels.
 
-**Remaining (not in the correctness-first scope or deferred):**
-- **A2 (R2 collapse) + the A3 real-chain A/B** -- needs the heavier
-  re-measurement runs (both chains x {all_13, fiducial_only} x {sqrt_W,
-  alpha_sqrt_W}); add the `target_set` switch then record Var(log W),
-  weight/POT, effective sampling, density-eval count.
+**Remaining (deferred follow-ups, Phases D and E):**
 - **Phase D (AdaptiveMapping)** and **Phase E (narrow the conversion
-  surface, pion P6)** -- sequenced follow-ups (the Mapping1D base + its
-  no-op Accumulate/Refine hooks are already in place for D).
+  surface, pion P6)** -- the Mapping1D base + its no-op Accumulate/Refine
+  hooks are already in place for D.
 ```

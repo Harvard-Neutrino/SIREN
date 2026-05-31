@@ -167,7 +167,7 @@ def build_onshell_models():
     }
 
 
-def build_geometric_targets(detector_model, fiducial):
+def build_geometric_targets(detector_model, fiducial, fiducial_only=False):
     """Build a set of biasing target geometries of increasing size.
 
     Returns a dict with named targets:
@@ -178,7 +178,16 @@ def build_geometric_targets(detector_model, fiducial):
         covering four z-ranges in detector coordinates:
           near-target (z=-113 to -63m), mid-range (-63 to -13m),
           near-detector (-23 to +17m), downstream (+17 to +87m)
+
+    If ``fiducial_only`` is True, return just the fiducial target.  The
+    optimizer cannot tell the 13 near-degenerate geometric targets apart --
+    it drives them to near-uniform weights (the Kleiss-Pittau degeneracy
+    signature) -- so one physical + one fiducial-directed channel per biased
+    vertex gives the same accuracy at far fewer density evaluations (gap R2).
     """
+    if fiducial_only:
+        return {"fiducial": fiducial}
+
     from siren.math import Vector3D
     from siren.geometry import Placement, Sphere, Cylinder
 
