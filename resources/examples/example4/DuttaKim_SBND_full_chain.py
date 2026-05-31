@@ -551,7 +551,7 @@ def make_fiducial_metric(fiducial, signal_pdgids=(5923,)):
 
 def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         opt_iterations=5, opt_batch=200, monoenergetic=False,
-        offshell=False):
+        offshell=False, target_set="all_13", tile_n=2):
 
     # -- Detector --
     print("Loading SBND detector model ...")
@@ -563,7 +563,30 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     z_half_width = 5.010
     fiducial = siren.geometry.Box(x_half_width*2, y_half_width*2, z_half_width*2)
     targets = build_geometric_targets(detector_model, fiducial)
-    print(f"  Built {len(targets)} biasing targets: {list(targets.keys())}")
+
+    # Opt-in volume-aware target sets (Option B; defaults unchanged).  Because
+    # the per-vertex mixture is built as "physical + one directed channel per
+    # target", swapping the target set swaps the directed-channel basis:
+    #   all_13        -- the 13 nested/overlapping probes (default; degenerate)
+    #   fiducial_only -- one fiducial-directed channel (gap R2)
+    #   tiled         -- a disjoint grid of the fiducial into tile_n^3 cells
+    #   union         -- a single BooleanGeometry union of the 13 probes
+    # Tiling/union are a non-degenerate basis: the optimizer tunes the cells
+    # cleanly and overlapping probes stop being redundant.  See
+    # docs/volume_aware_directed_channel_plan.md.
+    if target_set == "fiducial_only":
+        targets = {"fiducial": fiducial}
+    elif target_set == "tiled":
+        from siren import directed_tiling as dt
+        cells = dt.grid_cells(fiducial, tile_n)
+        targets = {f"cell_{i}": c for i, c in enumerate(cells)}
+    elif target_set == "union":
+        from siren import directed_tiling as dt
+        targets = {"union": dt.make_union(list(targets.values()))}
+    elif target_set != "all_13":
+        raise ValueError(f"unknown target_set {target_set!r}")
+    print(f"  Built {len(targets)} biasing targets ({target_set}): "
+          f"{list(targets.keys())}")
 
     # -- Chain topology --
     if offshell:
@@ -677,9 +700,11 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         secondary_interactions=secondary_interactions,
     )
 
-    # Build the fiducial volume in detector coordinates for the metric
-    fiducial_geo = list(targets.values())[0]  # the "fiducial" Box
-    fid_metric = make_fiducial_metric(fiducial_geo)
+    # Build the fiducial volume in detector coordinates for the metric.
+    # Use the fiducial box itself (NOT targets[0]): the signal-in-fiducial
+    # metric is independent of the directed-channel target basis, which may be
+    # a tiling/union (Option B) rather than the fiducial.
+    fid_metric = make_fiducial_metric(fiducial)
 
     # -- Optimize --
     if optimize:
@@ -770,8 +795,13 @@ if __name__ == "__main__":
                         help="Optimization iterations")
     parser.add_argument("--opt-batch", type=int, default=200,
                         help="Events per optimization iteration")
+    parser.add_argument("--target-set", type=str, default="all_13",
+                        choices=["all_13", "fiducial_only", "tiled", "union"],
+                        help="Directed-channel target basis (Option B)")
+    parser.add_argument("--tile-n", type=int, default=2,
+                        help="Grid cells per axis for --target-set tiled")
     args = parser.parse_args()
     run(dk2nu_dir=args.dk2nu_dir, n_events=args.n_events, seed=args.seed,
         optimize=args.optimize, opt_iterations=args.opt_iterations,
         opt_batch=args.opt_batch, monoenergetic=args.monoenergetic,
-        offshell=args.offshell)
+        offshell=args.offshell, target_set=args.target_set, tile_n=args.tile_n)

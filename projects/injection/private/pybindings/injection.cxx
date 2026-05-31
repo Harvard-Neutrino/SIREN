@@ -17,6 +17,7 @@
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "../../public/SIREN/injection/DetectorDirectedAngularSectorChannel.h"
 #include "../../public/SIREN/injection/DetectorDirected3BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirectedScatteringChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
@@ -183,10 +184,17 @@ PYBIND11_MODULE(injection,m) {
     .value("Volume", DetectorDirected2BodyChannel::Mode::Volume);
 
   class_<DetectorDirected2BodyChannel, std::shared_ptr<DetectorDirected2BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected2BodyChannel")
-    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, DetectorDirected2BodyChannel::Mode>(),
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, DetectorDirected2BodyChannel::Mode, double>(),
          arg("target"), arg("daughter_index") = 0,
-         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+         arg("volume") = -1.0)
     .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
+    ;
+
+  class_<DetectorDirectedAngularSectorChannel, std::shared_ptr<DetectorDirectedAngularSectorChannel>, PhaseSpaceChannel>(m, "DetectorDirectedAngularSectorChannel")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, double, double, double, double, int>(),
+         arg("target"), arg("u_lo"), arg("u_hi"), arg("phi_lo"), arg("phi_hi"),
+         arg("daughter_index") = 0)
     ;
 
   // 1-D importance maps: one object provides BOTH the draw (Forward) and

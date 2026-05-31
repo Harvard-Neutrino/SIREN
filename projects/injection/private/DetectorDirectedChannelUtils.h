@@ -901,6 +901,267 @@ inline double DensityDirectedStep(
     return g_angular * J_chosen * J_chosen / J_total;
 }
 
+// ================================================================ //
+//  Angular-sector directed 2-body sub-step                          //
+// ================================================================ //
+//
+// Tiles the cone subtended by the target (around the to-center axis)
+// into (u, phi) bins, where u in [0,1] is the fraction of the bounding
+// half-angle (u=0 the axis, u=1 the cone edge) and phi is the azimuth
+// around the axis.  In the active regime (BoundInKin, or Rest with the
+// vertex outside the target) each bin is a uniform-in-solid-angle
+// proposal with lab-angular density 1/Omega_bin; elsewhere
+// (KinInBound / Disjoint / Overlap / Rest-inside) the sector is
+// isotropic, mirroring the volume-directed channel where directing is
+// inert.  Sample and Density share the bin test, Omega_bin, axis, perp
+// frame, and boost Jacobian, so Sample == Density (Contract C1).
+
+struct AngularSectorBin {
+    double u_lo;
+    double u_hi;
+    double phi_lo;
+    double phi_hi;
+};
+
+// Deterministic perpendicular frame for an axis, used identically by the
+// sector Sample and Density so the azimuth reference cannot drift (C1).
+inline void SectorPerpFrame(
+    siren::math::Vector3D const & axis,
+    siren::math::Vector3D & perp1,
+    siren::math::Vector3D & perp2)
+{
+    if (std::abs(axis.GetX()) < 0.9)
+        perp1 = siren::math::Vector3D(1, 0, 0);
+    else
+        perp1 = siren::math::Vector3D(0, 1, 0);
+    perp2 = siren::math::vector_product(axis, perp1);
+    perp2.normalize();
+    perp1 = siren::math::vector_product(perp2, axis);
+    perp1.normalize();
+}
+
+// Regimes where the sector tiling presents a bin proposal (vs isotropic).
+inline bool SectorActive(DirectedRegime regime, bool inside_geometry) {
+    if (regime == DirectedRegime::BoundInKin) return true;
+    if (regime == DirectedRegime::Rest && !inside_geometry) return true;
+    return false;
+}
+
+// Isotropic rest-frame sample with proper boost to lab; rest_density 1/4pi.
+// Shared by the sector's inactive-regime branch and its measure-zero
+// kinematic-boundary fallback.
+inline DirectedStepResult IsotropicBoostStep(
+    double parent_E,
+    double parent_px, double parent_py, double parent_pz,
+    double parent_mass,
+    double daughter_mass,
+    double other_mass,
+    std::shared_ptr<siren::utilities::SIREN_random> random)
+{
+    DirectedStepResult result;
+    double p_rest = TwoBodyRestMomentum(parent_mass, daughter_mass, other_mass);
+    double E_rest = TwoBodyRestEnergy(parent_mass, daughter_mass, other_mass);
+    double p_parent = std::sqrt(parent_px*parent_px + parent_py*parent_py + parent_pz*parent_pz);
+
+    double cos_theta = 2.0 * random->Uniform(0, 1) - 1.0;
+    double phi = kTwoPi * random->Uniform(0, 1);
+    double sin_theta = std::sqrt(std::max(0.0, 1.0 - cos_theta * cos_theta));
+
+    if (p_parent < 1e-15) {
+        result.lab_dir = siren::math::Vector3D(
+            sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta);
+        result.p_lab = p_rest;
+    } else {
+        double beta = p_parent / parent_E;
+        double gamma = parent_E / parent_mass;
+        siren::math::Vector3D parent_dir(parent_px/p_parent, parent_py/p_parent, parent_pz/p_parent);
+        siren::math::Vector3D perp1, perp2;
+        SectorPerpFrame(parent_dir, perp1, perp2);
+        double p_rest_par = p_rest * cos_theta;
+        double p_rest_perp1 = p_rest * sin_theta * std::cos(phi);
+        double p_rest_perp2 = p_rest * sin_theta * std::sin(phi);
+        double p_lab_par = gamma * (p_rest_par + beta * E_rest);
+        siren::math::Vector3D p_lab_vec =
+            parent_dir * p_lab_par + perp1 * p_rest_perp1 + perp2 * p_rest_perp2;
+        result.p_lab = p_lab_vec.magnitude();
+        result.lab_dir = (result.p_lab > 1e-15) ? p_lab_vec / result.p_lab : parent_dir;
+    }
+    result.E_lab = std::sqrt(result.p_lab * result.p_lab + daughter_mass * daughter_mass);
+    result.rest_density = 1.0 / kFourPi;
+    return result;
+}
+
+inline DirectedStepResult SampleAngularSectorStep(
+    double parent_E,
+    double parent_px, double parent_py, double parent_pz,
+    double parent_mass,
+    double daughter_mass,
+    double other_mass,
+    siren::math::Vector3D const & decay_pos,
+    siren::geometry::Geometry const & target,
+    AngularSectorBin const & bin,
+    std::shared_ptr<siren::utilities::SIREN_random> random)
+{
+    double p_rest = TwoBodyRestMomentum(parent_mass, daughter_mass, other_mass);
+    double E_rest = TwoBodyRestEnergy(parent_mass, daughter_mass, other_mass);
+    double p_parent = std::sqrt(parent_px*parent_px + parent_py*parent_py + parent_pz*parent_pz);
+
+    DirectedGeometry geo = ClassifyDirectedRegime(
+        parent_E, parent_px, parent_py, parent_pz,
+        parent_mass, daughter_mass, other_mass, decay_pos, target);
+
+    if (!SectorActive(geo.regime, geo.inside_geometry)) {
+        return IsotropicBoostStep(parent_E, parent_px, parent_py, parent_pz,
+                                  parent_mass, daughter_mass, other_mass, random);
+    }
+
+    // Active: sample within the (u, phi) bin of the bounding cone.
+    siren::math::Vector3D axis = geo.to_center;  // normalized by ClassifyDirectedRegime
+    double cos_bound = std::cos(geo.theta_bound);
+    double c_hi = 1.0 - bin.u_lo * (1.0 - cos_bound);
+    double c_lo = 1.0 - bin.u_hi * (1.0 - cos_bound);
+    double omega_bin = (c_hi - c_lo) * (bin.phi_hi - bin.phi_lo);
+    double g_angular = (omega_bin > 1e-300) ? 1.0 / omega_bin : 1.0 / kFourPi;
+
+    double ct = c_lo + (c_hi - c_lo) * random->Uniform(0, 1);
+    double st = std::sqrt(std::max(0.0, 1.0 - ct * ct));
+    double ph = bin.phi_lo + (bin.phi_hi - bin.phi_lo) * random->Uniform(0, 1);
+    siren::math::Vector3D perp1, perp2;
+    SectorPerpFrame(axis, perp1, perp2);
+    siren::math::Vector3D lab_dir =
+        axis * ct + perp1 * (st * std::cos(ph)) + perp2 * (st * std::sin(ph));
+    lab_dir.normalize();
+
+    DirectedStepResult result;
+    if (geo.regime == DirectedRegime::Rest) {
+        result.lab_dir = lab_dir;
+        result.p_lab = p_rest;
+        result.E_lab = std::sqrt(p_rest * p_rest + daughter_mass * daughter_mass);
+        result.rest_density = g_angular;
+        return result;
+    }
+
+    // BoundInKin: boost to lab along this direction.
+    double beta = p_parent / parent_E;
+    double gamma = parent_E / parent_mass;
+    siren::math::Vector3D parent_dir(parent_px/p_parent, parent_py/p_parent, parent_pz/p_parent);
+    double cos_lab = siren::math::scalar_product(lab_dir, parent_dir);
+    auto solutions = SolveLabAngle(beta, gamma, p_rest, E_rest, daughter_mass, cos_lab);
+    int n_valid = (solutions[0].valid ? 1 : 0) + (solutions[1].valid ? 1 : 0);
+    if (n_valid == 0) {
+        return IsotropicBoostStep(parent_E, parent_px, parent_py, parent_pz,
+                                  parent_mass, daughter_mass, other_mass, random);
+    }
+    int chosen = 0;
+    if (n_valid == 2) {
+        double w0 = solutions[0].jacobian;
+        double w1 = solutions[1].jacobian;
+        chosen = (random->Uniform(0, 1) * (w0 + w1) < w0) ? 0 : 1;
+    } else {
+        chosen = solutions[0].valid ? 0 : 1;
+    }
+    double J_chosen = solutions[chosen].jacobian;
+    double J_total = 0.0;
+    for (auto const & sol : solutions) {
+        if (sol.valid) J_total += sol.jacobian;
+    }
+    result.lab_dir = lab_dir;
+    result.p_lab = solutions[chosen].p_lab;
+    result.E_lab = std::sqrt(result.p_lab * result.p_lab + daughter_mass * daughter_mass);
+    result.rest_density = (J_total > 0.0)
+        ? g_angular * J_chosen * J_chosen / J_total
+        : g_angular;
+    return result;
+}
+
+inline double DensityAngularSectorStep(
+    double parent_E,
+    double parent_px, double parent_py, double parent_pz,
+    double parent_mass,
+    double daughter_mass,
+    double other_mass,
+    double daughter_E,
+    double daughter_px, double daughter_py, double daughter_pz,
+    siren::math::Vector3D const & decay_pos,
+    siren::geometry::Geometry const & target,
+    AngularSectorBin const & bin)
+{
+    double p_rest = TwoBodyRestMomentum(parent_mass, daughter_mass, other_mass);
+    double E_rest = TwoBodyRestEnergy(parent_mass, daughter_mass, other_mass);
+    double p_parent = std::sqrt(parent_px*parent_px + parent_py*parent_py + parent_pz*parent_pz);
+
+    DirectedGeometry geo = ClassifyDirectedRegime(
+        parent_E, parent_px, parent_py, parent_pz,
+        parent_mass, daughter_mass, other_mass, decay_pos, target);
+
+    if (!SectorActive(geo.regime, geo.inside_geometry)) {
+        return 1.0 / kFourPi;
+    }
+
+    double p_A = std::sqrt(daughter_px*daughter_px + daughter_py*daughter_py + daughter_pz*daughter_pz);
+    if (p_A < 1e-15) return 0.0;
+    siren::math::Vector3D lab_dir(daughter_px/p_A, daughter_py/p_A, daughter_pz/p_A);
+
+    siren::math::Vector3D axis = geo.to_center;
+    double cos_to = siren::math::scalar_product(lab_dir, axis);
+    double cos_bound = std::cos(geo.theta_bound);
+    double denom = 1.0 - cos_bound;
+    if (denom < 1e-300) return 0.0;
+    if (cos_to < cos_bound) return 0.0;             // outside the bounding cone
+    double u = (1.0 - cos_to) / denom;
+    if (u < bin.u_lo || u > bin.u_hi) return 0.0;   // outside this polar bin
+
+    siren::math::Vector3D perp1, perp2;
+    SectorPerpFrame(axis, perp1, perp2);
+    siren::math::Vector3D perp = lab_dir - axis * cos_to;
+    double phi = std::atan2(siren::math::scalar_product(perp, perp2),
+                            siren::math::scalar_product(perp, perp1));
+    if (phi < 0.0) phi += kTwoPi;
+    if (phi < bin.phi_lo || phi > bin.phi_hi) return 0.0;  // outside azimuth bin
+
+    double c_hi = 1.0 - bin.u_lo * denom;
+    double c_lo = 1.0 - bin.u_hi * denom;
+    double omega_bin = (c_hi - c_lo) * (bin.phi_hi - bin.phi_lo);
+    double g_angular = (omega_bin > 1e-300) ? 1.0 / omega_bin : 1.0 / kFourPi;
+
+    if (geo.regime == DirectedRegime::Rest) {
+        return g_angular;
+    }
+
+    // BoundInKin: boost Jacobian (mirrors DensityDirectedStep).
+    siren::math::Vector3D parent_dir(parent_px/p_parent, parent_py/p_parent, parent_pz/p_parent);
+    double beta = p_parent / parent_E;
+    double gamma = parent_E / parent_mass;
+    double cos_theta_lab = siren::math::scalar_product(lab_dir, parent_dir);
+    double cos_critical = CriticalCosTheta(beta, gamma, p_rest, E_rest, daughter_mass);
+    if (cos_theta_lab < cos_critical) return 0.0;
+
+    auto solutions = SolveLabAngle(beta, gamma, p_rest, E_rest, daughter_mass, cos_theta_lab);
+    double p_par_lab = p_A * cos_theta_lab;
+    double p_par_rest = gamma * (p_par_lab - beta * daughter_E);
+    double cos_rest_actual = (p_rest > 0.0) ? p_par_rest / p_rest : 0.0;
+
+    double J_total = 0.0;
+    for (auto const & sol : solutions) {
+        if (sol.valid) J_total += sol.jacobian;
+    }
+    if (J_total <= 0.0) return 0.0;
+
+    double J_chosen = 0.0;
+    double best_dist = 1e30;
+    for (auto const & sol : solutions) {
+        if (!sol.valid) continue;
+        double d = std::abs(sol.cos_theta_rest - cos_rest_actual);
+        if (d < best_dist) {
+            best_dist = d;
+            J_chosen = sol.jacobian;
+        }
+    }
+    if (best_dist > 0.1) return 0.0;
+
+    return g_angular * J_chosen * J_chosen / J_total;
+}
+
 } // namespace detail
 } // namespace injection
 } // namespace siren
