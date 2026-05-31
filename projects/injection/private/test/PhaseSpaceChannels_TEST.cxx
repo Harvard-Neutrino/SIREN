@@ -88,6 +88,28 @@ public:
     }
 };
 
+// A channel that reports a caller-chosen topology and measure (constant
+// density), for driving MultiChannelPhaseSpace::Density's measure-conversion
+// path directly.
+class ConfigurableChannel : public siren::injection::PhaseSpaceChannel {
+public:
+    ConfigurableChannel(PhaseSpaceTopology topo, PhaseSpaceMeasure meas)
+        : topo_(topo), meas_(meas) {}
+    void Sample(
+        std::shared_ptr<siren::utilities::SIREN_random>,
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord &) const override {}
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord const &) const override { return 1.0; }
+    std::string Name() const override { return "Configurable"; }
+    PhaseSpaceTopology Topology() const override { return topo_; }
+    PhaseSpaceMeasure Measure() const override { return meas_; }
+private:
+    PhaseSpaceTopology topo_;
+    PhaseSpaceMeasure meas_;
+};
+
 class MixedArityDecay : public siren::interactions::Decay {
 public:
     bool equal(siren::interactions::Decay const &) const override {
@@ -451,6 +473,42 @@ TEST(PhaseSpaceChannels, UnspecifiedTopologyMismatchDetected) {
 
     // Mixing Decay2Body with Unspecified is a topology mismatch
     EXPECT_THROW(mc.CommonTopology(), std::runtime_error);
+}
+
+TEST(ConvertDensity, ThrowsOnUnsupportedMeasurePair) {
+    // Two Decay2Body channels whose measures are not mutually convertible
+    // under that topology (SolidAngleRest <-> MandelstamQ2 is defined only
+    // for Scatter2to2).  Density() must throw rather than silently return an
+    // unconverted density (former gap G6: silent identity fallback).
+    MultiChannelPhaseSpace mc;
+    mc.channels = {
+        std::make_shared<ConfigurableChannel>(
+            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConfigurableChannel>(
+            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2())
+    };
+    mc.weights = {0.5, 0.5};
+
+    InteractionRecord record;
+    EXPECT_THROW(mc.Density(nullptr, record), std::runtime_error);
+}
+
+TEST(ConvertDensity, SameMeasureMixtureDoesNotConvertOrThrow) {
+    // When every channel shares the measure, no conversion is attempted, so
+    // Density() simply sums the weighted channel densities.
+    MultiChannelPhaseSpace mc;
+    mc.channels = {
+        std::make_shared<ConfigurableChannel>(
+            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConfigurableChannel>(
+            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest())
+    };
+    mc.weights = {0.5, 0.5};
+
+    InteractionRecord record;
+    double d = 0.0;
+    EXPECT_NO_THROW(d = mc.Density(nullptr, record));
+    EXPECT_NEAR(d, 1.0, 1e-12);
 }
 
 TEST(PhaseSpaceChannels, PhysicalDecayConventionFromModel) {

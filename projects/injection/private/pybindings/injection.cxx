@@ -21,6 +21,7 @@
 #include "../../public/SIREN/injection/DetectorDirectedScatteringChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
 #include "../../public/SIREN/injection/TwoBodyKinematics.h"
+#include "../../public/SIREN/injection/InvariantMassMapping.h"
 
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
@@ -179,6 +180,38 @@ PYBIND11_MODULE(injection,m) {
          arg("mode") = DetectorDirected2BodyChannel::Mode::Volume)
     .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
     ;
+
+  // 1-D importance maps: one object provides BOTH the draw (Forward) and
+  // its own normalized density (Density), so a model/channel routing both
+  // through a shared instance cannot let sampling and density drift apart
+  // (Contract C1).  Models consume these; they do not subclass in Python,
+  // so no trampoline is needed.
+  class_<Mapping1D, std::shared_ptr<Mapping1D>>(m, "Mapping1D")
+    .def("Forward", &Mapping1D::Forward, arg("r"))
+    .def("Inverse", &Mapping1D::Inverse, arg("x"))
+    .def("Density", &Mapping1D::Density, arg("x"))
+    .def("Accumulate", &Mapping1D::Accumulate, arg("x"), arg("weight"))
+    .def("Refine", &Mapping1D::Refine);
+
+  class_<BreitWignerMapping, std::shared_ptr<BreitWignerMapping>, Mapping1D>(m, "BreitWignerMapping")
+    .def(init<double, double, double, double>(),
+         arg("mass"), arg("width"), arg("s_min"), arg("s_max"));
+
+  class_<PowerLawMapping, std::shared_ptr<PowerLawMapping>, Mapping1D>(m, "PowerLawMapping")
+    .def(init<double, double, double, double>(),
+         arg("nu"), arg("m2"), arg("s_min"), arg("s_max"));
+
+  class_<TabulatedMapping, std::shared_ptr<TabulatedMapping>, Mapping1D>(m, "TabulatedMapping")
+    .def(init<std::vector<double>, std::vector<double>, double, double>(),
+         arg("s_nodes"), arg("cdf_nodes"), arg("s_min"), arg("s_max"));
+
+  class_<PropagatorMapping, std::shared_ptr<PropagatorMapping>, Mapping1D>(m, "PropagatorMapping")
+    .def(init<double, double, double>(),
+         arg("m2"), arg("x_min"), arg("x_max"));
+
+  class_<UniformMapping, std::shared_ptr<UniformMapping>, Mapping1D>(m, "UniformMapping")
+    .def(init<double, double>(),
+         arg("s_min"), arg("s_max"));
 
   enum_<DetectorDirected3BodyChannel::InvariantMassMode>(m, "InvariantMassMode")
     .value("Uniform", DetectorDirected3BodyChannel::InvariantMassMode::Uniform)

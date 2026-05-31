@@ -27,6 +27,7 @@ from siren.dataclasses import Particle
 from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
 from siren.injection import PhaseSpaceTopology as _Topology
 from siren.injection import PhaseSpaceMeasure as _Measure
+from siren.injection import BreitWignerMapping as _BreitWignerMapping
 
 _ALPHA_EM = 1.0 / 137.036
 _GEV2_TO_CM2 = 3.8938e-28
@@ -706,12 +707,19 @@ class VectorPortalOffShellXS(_CrossSection):
         if dQ2_dcos <= 0:
             return 0.0
 
-        # Normalized Breit-Wigner in s_pair, peaked at the chi' mass.
-        m_chi_prime = self.m_chi_prime
-        chi_prime_width = self._chi_prime_width()
-        bw_norm = chi_prime_width * m_chi_prime / math.pi
-        bw = bw_norm / ((s_pair - m_chi_prime**2)**2
-                        + m_chi_prime**2 * chi_prime_width**2)
+        # Breit-Wigner in s_pair, normalized over the kinematically allowed
+        # [s_min, s_max].  SampleFinalState draws from this SAME mapping
+        # object, so the sampled and reported s_pair densities are identical
+        # by construction (Contract C1).  The former code normalized the BW
+        # over the whole real line (a 1/pi factor) while the sampler used the
+        # truncated range (1/(hi-lo)); that made this reported density
+        # integrate to (hi-lo)/pi < 1 instead of 1 -- an energy-dependent
+        # Sample != Density mismatch, masked today only by the physical
+        # channel's small mixture weight.
+        bw_map = self._s_pair_mapping(E_chi)
+        if bw_map is None:
+            return 0.0
+        bw = bw_map.Density(s_pair)
 
         # density per ds_pair * dOmega_pair * dOmega_sub:
         # = (dsigma/dQ2 * |dQ2/dcos|) / (sigma_total * 2*pi * 4*pi) * BW(s_pair)
@@ -760,21 +768,29 @@ class VectorPortalOffShellXS(_CrossSection):
                 return cand
         return random.Uniform(q2min, q2max)
 
-    def _sample_s_pair(self, E_chi, random):
-        """Inverse-CDF sample of s_pair from a Breit-Wigner over the
-        kinematically allowed range (the chi' virtuality)."""
+    def _s_pair_mapping(self, E_chi):
+        """Shared Breit-Wigner map for the chi' virtuality s_pair over the
+        kinematically allowed range [s_min, s_max].  BOTH SampleFinalState
+        (via Forward) and FinalStateProbability (via Density) route through
+        this one object, so the sampled and reported s_pair densities are
+        identical by construction (Contract C1).  Returns None when the
+        allowed range is degenerate.
+        """
         m_cp = self.m_chi_prime
         width = self._chi_prime_width()
         s_min = (self.m_chi + self.m_V1)**2
         s = self.m_chi**2 + self.m_target**2 + 2.0 * self.m_target * E_chi
         s_max = (math.sqrt(s) - self.m_target)**2
         if s_max <= s_min or width <= 0.0:
-            return m_cp**2
-        lo = math.atan2(s_min - m_cp**2, m_cp * width)
-        hi = math.atan2(s_max - m_cp**2, m_cp * width)
-        ang = lo + random.Uniform(0.0, 1.0) * (hi - lo)
-        s_pair = m_cp**2 + m_cp * width * math.tan(ang)
-        return min(max(s_pair, s_min), s_max)
+            return None
+        return _BreitWignerMapping(m_cp, width, s_min, s_max)
+
+    def _sample_s_pair(self, E_chi, random):
+        """Draw s_pair (the chi' virtuality) from the shared Breit-Wigner map."""
+        bw_map = self._s_pair_mapping(E_chi)
+        if bw_map is None:
+            return self.m_chi_prime**2
+        return bw_map.Forward(random.Uniform(0.0, 1.0))
 
     def SampleFinalState(self, record, random):
         """Sample the physical narrow-width distribution: chi' production

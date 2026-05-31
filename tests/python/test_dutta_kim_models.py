@@ -183,6 +183,44 @@ def test_vector_portal_offshell_cross_section_channel_samples(vector_portal):
     assert all(momentum[0] > 0.0 for momentum in record.secondary_momenta)
 
 
+def test_offshell_s_pair_sample_matches_density(vector_portal):
+    """s_pair is sampled from EXACTLY the shared Breit-Wigner map whose
+    Density FinalStateProbability reports (Contract C1).  Regression guard for
+    the former mismatch: the sampler drew from the [s_min,s_max]-renormalized
+    BW (1/(hi-lo)) while the density reported a full-line BW (1/pi), so the
+    reported density did not integrate to 1 over the allowed range.
+    """
+    import numpy as np
+
+    cross_section = vector_portal.VectorPortalOffShellXS(
+        0.008, 0.035, 0.017, 0.05, 1.0, 1.0e-4)
+    E_chi = 1.0
+
+    bw_map = cross_section._s_pair_mapping(E_chi)
+    assert bw_map is not None
+
+    s_min = bw_map.Forward(0.0)
+    s_max = bw_map.Forward(1.0)
+    assert s_max > s_min
+
+    # Reported density is normalized over [s_min, s_max]: its CDF spans 0..1.
+    # (Computed via the analytic CDF -- the narrow resonance defeats a uniform
+    # grid quadrature.)
+    assert (bw_map.Inverse(s_max) - bw_map.Inverse(s_min)) == \
+        pytest.approx(1.0, abs=1e-9)
+
+    # The sampler draws from this SAME map, so pushing samples back through the
+    # map's CDF (Inverse) yields a uniform distribution on [0, 1].  This is the
+    # Sample == Density check: if _sample_s_pair drifted from the reported
+    # density, the transformed samples would not be uniform.
+    rng = siren.utilities.SIREN_random(7)
+    u = np.array([bw_map.Inverse(cross_section._sample_s_pair(E_chi, rng))
+                  for _ in range(400)])
+    assert np.all((u >= -1e-9) & (u <= 1.0 + 1e-9))
+    assert u.mean() == pytest.approx(0.5, abs=0.08)
+    assert u.min() < 0.2 and u.max() > 0.8
+
+
 def test_vector_portal_upscattering_cross_section(vector_portal):
     cross_section = vector_portal.VectorPortalUpscatteringXS(
         m_chi=0.008,

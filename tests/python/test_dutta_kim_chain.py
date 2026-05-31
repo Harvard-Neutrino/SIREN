@@ -452,6 +452,60 @@ def chain_module():
     return mod
 
 
+def _build_onshell_events(chain_module, n_events=12, seed=99):
+    """Build the small single-target on-shell chain; return (events, weighter)."""
+    detector_model = siren.utilities.load_detector("SBN", detector="SBND")
+    fiducial = siren.geometry.Box(4.0, 4.0, 4.0)
+    targets = {"fiducial": fiducial}
+
+    models = chain_module.build_onshell_models()
+    ps = chain_module.build_onshell_phase_spaces(targets, models)
+    primary_ps = chain_module.build_primary_phase_spaces(
+        targets, models["pion_decay"])
+
+    injector = Injector(
+        number_of_events=n_events,
+        detector_model=detector_model,
+        seed=seed,
+        primary_type=PT(211),
+        primary_interactions=[models["pion_decay"]],
+        primary_injection_distributions=[
+            distributions.PrimaryMass(M_PION),
+            distributions.Monoenergetic(2.0),
+            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
+            distributions.PointSourcePositionDistribution([0, 0, 0], 300.0),
+        ],
+        secondary_interactions=models["secondary_interactions"],
+        secondary_injection_distributions={
+            pt: [distributions.SecondaryPhysicalVertexDistribution()]
+            for pt in models["secondary_interactions"]
+        },
+        secondary_phase_spaces=ps,
+        primary_phase_spaces=primary_ps,
+        stopping_condition=chain_module.onshell_stopping_condition,
+    )
+
+    events = []
+    for ev in injector:
+        if ev.tree:
+            events.append(ev)
+        if len(events) >= n_events:
+            break
+
+    weighter = Weighter(
+        injectors=[injector],
+        detector_model=detector_model,
+        primary_type=PT(211),
+        primary_interactions=[models["pion_decay"]],
+        primary_physical_distributions=[
+            distributions.Monoenergetic(2.0),
+            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
+        ],
+        secondary_interactions=models["secondary_interactions"],
+    )
+    return events, weighter
+
+
 class TestOnShellChain:
 
     def test_chain_models_load(self, chain_module):
@@ -535,6 +589,41 @@ class TestOnShellChain:
             w = weighter(ev)
             assert math.isfinite(w), f"Non-finite weight: {w}"
             assert w > 0, f"Non-positive weight: {w}"
+
+    def test_breakdown_sum_invariant(self, chain_module):
+        """Per-vertex breakdown factors reconstruct the total weight.
+
+        Weighter.breakdown() reconstructs each vertex's phys/gen on the Python
+        side (the diagnostic neither MadGraph nor Achilles has); the total
+        weight comes from the C++ EventWeight.  The product of the per-vertex
+        factors equals the total up to ONE global constant -- the 1/N_gen
+        Monte-Carlo normalization that EventWeight applies but per-vertex
+        factors (correctly) do not; empirically the offset is exactly
+        ln(N_gen).  That this offset is identical for every event is precisely
+        what makes the per-vertex variance attribution valid: breakdown()
+        captures every event-varying factor.  This guards that decomposition
+        against future drift.
+        """
+        events, weighter = _build_onshell_events(chain_module, n_events=12, seed=99)
+        assert len(events) > 0, "No events generated"
+
+        offsets = []
+        for ev in events:
+            bd = weighter.breakdown(ev)
+            if not (math.isfinite(bd.weight) and bd.weight > 0):
+                continue
+            if not all(v.is_ok for v in bd.vertices):
+                continue
+            log_prod = sum(math.log(v.vertex_weight) for v in bd.vertices)
+            offsets.append(log_prod - math.log(bd.weight))
+
+        assert len(offsets) >= 2, "Need >= 2 clean events to check constancy"
+        spread = max(offsets) - min(offsets)
+        assert spread < 1e-9, (
+            f"per-vertex/total offset is not constant (spread={spread:.3e}); "
+            "breakdown() is missing an event-varying factor")
+        # The constant is the global 1/N_gen normalization (offset = ln N_gen).
+        assert offsets[0] > 0.0
 
 
 # ------------------------------------------------------------------ #

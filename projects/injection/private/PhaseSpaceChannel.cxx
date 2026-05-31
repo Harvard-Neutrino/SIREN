@@ -56,6 +56,24 @@ int MeasurePriority(PhaseSpaceMeasure const & m) {
     return 8;
 }
 
+// Signal a conversion ConvertDensity cannot perform, instead of silently
+// returning the input density unchanged (former gap G6).  The from==to
+// short-circuit handles "no conversion needed"; this throw covers
+// "conversion not implemented" and "required inputs missing", which a
+// caller forming w = f/g must never silently absorb.
+[[noreturn]] void ThrowUnconvertible(
+    const char * reason,
+    PhaseSpaceMeasure const & from,
+    PhaseSpaceMeasure const & to,
+    PhaseSpaceTopology topology)
+{
+    std::ostringstream oss;
+    oss << "ConvertDensity: " << reason << " (from "
+        << PhaseSpaceMeasureName(from) << " to " << PhaseSpaceMeasureName(to)
+        << " in " << PhaseSpaceTopologyName(topology) << " topology)";
+    throw std::runtime_error(oss.str());
+}
+
 double ConvertDensity(
     double density,
     PhaseSpaceMeasure const & from,
@@ -74,7 +92,10 @@ double ConvertDensity(
          (from.type == MType::SolidAngleLab &&
           to.type == MType::SolidAngleRest)))
     {
-        if (record.secondary_masses.size() < 2) return density;
+        if (record.secondary_masses.size() < 2)
+            ThrowUnconvertible(
+                "Decay2Body rest<->lab requires 2 secondary masses",
+                from, to, topology);
 
         double M = record.primary_mass;
         double m_A = record.secondary_masses[0];
@@ -137,7 +158,10 @@ double ConvertDensity(
             auto it = record.interaction_parameters.find("bjorken_y");
             if (it == record.interaction_parameters.end())
                 it = record.interaction_parameters.find("y");
-            if (it == record.interaction_parameters.end()) return density;
+            if (it == record.interaction_parameters.end())
+                ThrowUnconvertible(
+                    "requires 'bjorken_y' (or 'y') in interaction_parameters",
+                    from, to, topology);
             return J::BjorkenXYDensityToQ2YDensity(
                 density, it->second, record.target_mass,
                 record.primary_momentum[0]);
@@ -146,7 +170,10 @@ double ConvertDensity(
             auto it = record.interaction_parameters.find("bjorken_y");
             if (it == record.interaction_parameters.end())
                 it = record.interaction_parameters.find("y");
-            if (it == record.interaction_parameters.end()) return density;
+            if (it == record.interaction_parameters.end())
+                ThrowUnconvertible(
+                    "requires 'bjorken_y' (or 'y') in interaction_parameters",
+                    from, to, topology);
             return J::Q2YDensityToBjorkenXYDensity(
                 density, it->second, record.target_mass,
                 record.primary_momentum[0]);
@@ -246,7 +273,10 @@ double ConvertDensity(
 
             // Step 1: convert from's Recursive2Body to Dalitz using from's indices
             double s_pair_from = compute_s_pair(from);
-            if (s_pair_from < 0) return density;
+            if (s_pair_from < 0)
+                ThrowUnconvertible(
+                    "invalid 'from' pair invariant mass (bad factorization indices)",
+                    from, to, topology);
             double dalitz_density = J::Recursive2BodyDensityToDalitzDensity(
                 density, parent_mass,
                 record.secondary_masses[from.spectator],
@@ -255,7 +285,10 @@ double ConvertDensity(
 
             // Step 2: convert Dalitz to to's Recursive2Body using to's indices
             double s_pair_to = compute_s_pair(to);
-            if (s_pair_to < 0) return dalitz_density;
+            if (s_pair_to < 0)
+                ThrowUnconvertible(
+                    "invalid 'to' pair invariant mass (bad factorization indices)",
+                    from, to, topology);
             return J::DalitzDensityToRecursive2BodyDensity(
                 dalitz_density, parent_mass,
                 record.secondary_masses[to.spectator],
@@ -272,7 +305,10 @@ double ConvertDensity(
         // Recursive2Body <-> DalitzPair
         if (from.type == MType::Recursive2Body && to.type == MType::DalitzPair) {
             double s_pair = compute_s_pair(from);
-            if (s_pair < 0) return density;
+            if (s_pair < 0)
+                ThrowUnconvertible(
+                    "invalid pair invariant mass (bad factorization indices)",
+                    from, to, topology);
             return J::Recursive2BodyDensityToDalitzDensity(
                 density, parent_mass,
                 record.secondary_masses[from.spectator],
@@ -281,7 +317,10 @@ double ConvertDensity(
         }
         if (from.type == MType::DalitzPair && to.type == MType::Recursive2Body) {
             double s_pair = compute_s_pair(to);
-            if (s_pair < 0) return density;
+            if (s_pair < 0)
+                ThrowUnconvertible(
+                    "invalid pair invariant mass (bad factorization indices)",
+                    from, to, topology);
             return J::DalitzDensityToRecursive2BodyDensity(
                 density, parent_mass,
                 record.secondary_masses[to.spectator],
@@ -302,7 +341,9 @@ double ConvertDensity(
         }
     }
 
-    return density;
+    ThrowUnconvertible(
+        "no conversion implemented for this measure pair and topology",
+        from, to, topology);
 }
 
 } // anonymous namespace

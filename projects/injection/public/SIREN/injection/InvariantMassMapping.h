@@ -11,6 +11,28 @@
 namespace siren {
 namespace injection {
 
+// Abstract 1-D importance map.  A single object BOTH draws a value
+// (Forward) and reports its own normalized density (Density) at an
+// arbitrary value, so the sampler and the reported density cannot drift
+// apart -- the structural form of Contract C1.  The concrete maps below
+// are plain value types; they derive from this base only so that a
+// physics model or channel can hold a shared mapping polymorphically, and
+// so a future adaptive map has a place to hook batch updates.
+class Mapping1D {
+public:
+    virtual ~Mapping1D() = default;
+    // Map a uniform deviate r in [0,1] to the variable.
+    virtual double Forward(double r) const = 0;
+    // Map the variable back to its uniform deviate in [0,1].
+    virtual double Inverse(double x) const = 0;
+    // Normalized proposal density at the variable value x.
+    virtual double Density(double x) const = 0;
+    // Optional adaptive hooks: fixed maps ignore them; an adaptive map
+    // accumulates sampled (x, weight) pairs and rebins on Refine().
+    virtual void Accumulate(double /*x*/, double /*weight*/) {}
+    virtual void Refine() {}
+};
+
 // Maps a uniform random number r in [0,1] to an invariant mass squared
 // value s in [s_min, s_max], concentrating samples near a Breit-Wigner
 // resonance at (M, Gamma).
@@ -22,7 +44,7 @@ namespace injection {
 // Density: g(s) = M*Gamma / ((u2-u1) * [(s-M^2)^2 + M^2*Gamma^2])
 //
 // This is the standard MadGraph Breit-Wigner mapping.
-struct BreitWignerMapping {
+struct BreitWignerMapping : public Mapping1D {
     double M;         // resonance mass
     double Gamma;     // resonance width
     double s_min;     // minimum invariant mass squared
@@ -68,7 +90,7 @@ struct BreitWignerMapping {
 //   s = (s_min - m^2)^(1-r) * (s_max - m^2)^r + m^2
 //
 // m^2 is an offset (typically 0 or a threshold mass squared).
-struct PowerLawMapping {
+struct PowerLawMapping : public Mapping1D {
     double nu;        // power law exponent (typically 0.8)
     double m2;        // mass offset squared
     double s_min;
@@ -116,7 +138,7 @@ struct PowerLawMapping {
 //
 // Forward:  invert the (clipped, renormalized) CDF for s.
 // Density:  per-bin slope d(cdf)/ds, renormalized over [s_min, s_max].
-struct TabulatedMapping {
+struct TabulatedMapping : public Mapping1D {
     std::vector<double> s;        // node positions (ascending)
     std::vector<double> cdf;      // cumulative weight at each node (ascending)
     double s_min;
@@ -224,7 +246,7 @@ struct TabulatedMapping {
 //
 // The closed form requires x + m2 > 0 over [x_min, x_max]; for a
 // physical exchange m2 > 0 and x = Q^2 >= 0, so this always holds.
-struct PropagatorMapping {
+struct PropagatorMapping : public Mapping1D {
     double m2;        // mediator mass squared (propagator offset)
     double x_min;
     double x_max;
@@ -261,7 +283,7 @@ struct PropagatorMapping {
 };
 
 // Uniform mapping: s = s_min + r * (s_max - s_min)
-struct UniformMapping {
+struct UniformMapping : public Mapping1D {
     double s_min;
     double s_max;
     double range;
