@@ -124,3 +124,60 @@ def test_multichannel_estimator_stays_unbiased(rule):
     # Still unbiased after the weights have converged.
     est, _ = _estimate_and_W(a, rng, n=200000)
     assert est == pytest.approx(truth, abs=0.01)
+
+
+# ----------------------------------------------------------------------
+# 3. Turning off a redundant covering channel (directed-channel fallback)
+# ----------------------------------------------------------------------
+#
+# A directed channel in its isotropic fallback samples 1/4pi -- a uniform
+# proposal that covers the support but does NOT match a non-isotropic physical
+# density f.  Analog: f(x) = 3 x^2 on [0,1]; a perfect physical channel
+# (g_phys = f) and a uniform fallback channel (g_fall = 1).  The optimum is
+# alpha = [1, 0] (g = f, zero variance).  The memoryless sqrt_W rule cannot get
+# there -- near g=f every covering channel has W ~ 1, so alpha ~ sqrt(W) parks
+# the fallback at a finite weight; the canonical alpha_sqrt_W rule decays it to
+# the floor.  Regression for the fallback diluting the physical channel.
+
+def _draw_phys_fallback(a, rng, n):
+    pick_fallback = rng.random(n) < a[1]
+    u = rng.random(n)
+    # physical channel samples from f (inverse-CDF u^(1/3)); fallback uniform
+    return np.where(pick_fallback, u, u ** (1.0 / 3.0))
+
+
+def _w_and_W_phys_fallback(a, rng, n):
+    x = _draw_phys_fallback(a, rng, n)
+    f = 3.0 * x * x
+    g_phys = 3.0 * x * x          # the perfect physical channel
+    g_fall = np.ones_like(x)      # the isotropic-fallback analog
+    g = a[0] * g_phys + a[1] * g_fall
+    w = f / g
+    W = [float((w * w * g_phys / g).mean()), float((w * w * g_fall / g).mean())]
+    return w, W
+
+
+def _optimize_phys_fallback(rule, n_iter=60, batch=40000, damping=0.5,
+                            min_w=1e-3, seed=1):
+    rng = np.random.default_rng(seed)
+    a = [0.5, 0.5]   # [physical, fallback]
+    for _ in range(n_iter):
+        _, W = _w_and_W_phys_fallback(a, rng, batch)
+        new = _kp_update(a, W, rule, min_weight=min_w)
+        if new is not None:
+            a = [damping * new[i] + (1.0 - damping) * a[i] for i in range(2)]
+    w, _ = _w_and_W_phys_fallback(a, rng, batch)
+    return a, float(w.std() / w.mean())
+
+
+def test_canonical_rule_turns_off_redundant_fallback():
+    a_mem, cv_mem = _optimize_phys_fallback("sqrt_W")
+    a_can, cv_can = _optimize_phys_fallback("alpha_sqrt_W")
+
+    # memoryless sqrt_W cannot turn the fallback off -- it parks it high
+    assert a_mem[1] > 0.3
+    # canonical alpha_sqrt_W decays the fallback toward the floor
+    assert a_can[1] < 0.05
+    assert a_can[0] > 0.95
+    # ... recovering a much lower weight variance (the fallback was diluting f)
+    assert cv_can < 0.3 * cv_mem

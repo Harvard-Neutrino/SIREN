@@ -720,6 +720,10 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
             metric=fid_metric,
             verbose=True,
             min_weight=1e-4,
+            # Canonical Kleiss-Pittau rule: turns off a directed channel's
+            # isotropic fallback in favor of the physical channel at
+            # non-isotropic vertices (the memoryless sqrt_W cannot).
+            update_rule="alpha_sqrt_W",
         )
 
     # -- Generate production events --

@@ -207,7 +207,7 @@ def optimize_chain_weights(
     batch_size: int = 500,
     damping: float = 0.5,
     min_weight: float = 0.005,
-    update_rule: str = "sqrt_W",
+    update_rule: str = "alpha_sqrt_W",
     metric=None,
     verbose: bool = False,
 ) -> None:
@@ -232,8 +232,15 @@ def optimize_chain_weights(
     min_weight : float
         Minimum per-channel weight.
     update_rule : str
-        Kleiss-Pittau update variant, "sqrt_W" (default) or the canonical
-        "alpha_sqrt_W" (alpha_i * sqrt(W_i)).  See ``_kp_update``.
+        Kleiss-Pittau update variant.  Default is the canonical
+        "alpha_sqrt_W" (alpha_i * sqrt(W_i); fixed point W_i = const, the
+        variance minimum).  The memoryless "sqrt_W" is also available but
+        CANNOT turn off a channel whose density already covers the support
+        (e.g. a directed channel in its isotropic fallback competing with the
+        physical channel): near the optimum W_i ~ 1 for every covering
+        channel, so alpha_i ~ sqrt(W_i) parks the redundant channel at a
+        finite weight and dilutes the physical channel.  The multiplicative
+        canonical rule decays it to ``min_weight`` instead.  See ``_kp_update``.
     metric : callable(event, weight) -> float, optional
         Transforms the event weight before it enters the variance
         computation.  The optimizer minimizes variance of metric(event, w)
