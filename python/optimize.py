@@ -66,6 +66,16 @@ def _kp_update(
     return new_alpha
 
 
+def _submixture(channel):
+    """Return a channel's inner MultiChannelPhaseSpace if it wraps one
+    (e.g. a NestedMixtureChannel), else None.  Used to optimize a nested
+    channel's inner weights as a sub-level."""
+    inner = getattr(channel, "mixture", None)
+    if inner is not None and len(getattr(inner, "channels", [])) >= 2:
+        return inner
+    return None
+
+
 def optimize_multichannel_weights(
     mc: "_injection.MultiChannelPhaseSpace",
     physical_density_fn,
@@ -83,7 +93,9 @@ def optimize_multichannel_weights(
     Uses a Kleiss-Pittau update of the per-channel variance contribution
     W_i = mean(w^2 * g_i / g), where w = f(x) / g(x).  See ``_kp_update``
     for the two rules selected by ``update_rule`` ("sqrt_W" or the
-    canonical "alpha_sqrt_W").
+    canonical "alpha_sqrt_W").  Channels that wrap a sub-mixture (e.g.
+    NestedMixtureChannel) have their inner weights optimized recursively as
+    a nested level, with the same outer denominator g.
 
     Parameters
     ----------
@@ -121,8 +133,18 @@ def optimize_multichannel_weights(
     if n_channels < 2:
         return list(mc.weights)
 
+    # Channels that wrap a sub-mixture: their inner weights are optimized as a
+    # nested level using the SAME outer denominator g.  The inner sub-channel
+    # densities g_j contribute to g weighted by this channel's outer alpha, so
+    # inner channel j's variance contribution is <w^2 g_j / g> -- the same KP
+    # form, just with g_j the inner density and g the full outer density.
+    nested = [(i, sub) for i, sub in
+              ((k, _submixture(ch)) for k, ch in enumerate(mc.channels))
+              if sub is not None]
+
     for iteration in range(n_iterations):
         var_contrib = [0.0] * n_channels
+        inner_contrib = {i: [0.0] * len(sub.channels) for i, sub in nested}
         n_nonzero = 0
 
         for _ in range(batch_size):
@@ -137,8 +159,7 @@ def optimize_multichannel_weights(
             if f <= 0 or not math.isfinite(f):
                 continue
 
-            w = f / g
-            w2 = w * w
+            w2 = (f / g) ** 2
             n_nonzero += 1
 
             for i in range(n_channels):
@@ -146,20 +167,35 @@ def optimize_multichannel_weights(
                 if gi > 0 and math.isfinite(gi):
                     var_contrib[i] += w2 * gi / g
 
+            for i, sub in nested:
+                acc = inner_contrib[i]
+                for j in range(len(sub.channels)):
+                    gj = sub.channels[j].Density(detector_model, record)
+                    if gj > 0 and math.isfinite(gj):
+                        acc[j] += w2 * gj / g
+
         if n_nonzero == 0:
             continue
 
-        W = [v / n_nonzero for v in var_contrib]
         old = list(mc.weights)
-        new_alpha = _kp_update(old, W, update_rule, min_weight)
-        if new_alpha is None:
-            continue
+        new_alpha = _kp_update(
+            old, [v / n_nonzero for v in var_contrib], update_rule, min_weight)
+        if new_alpha is not None:
+            mc.weights = [
+                damping * new_alpha[i] + (1 - damping) * old[i]
+                for i in range(n_channels)
+            ]
 
-        # Damped update
-        mc.weights = [
-            damping * new_alpha[i] + (1 - damping) * old[i]
-            for i in range(n_channels)
-        ]
+        for i, sub in nested:
+            old_in = list(sub.weights)
+            new_in = _kp_update(
+                old_in, [v / n_nonzero for v in inner_contrib[i]],
+                update_rule, min_weight)
+            if new_in is not None:
+                sub.weights = [
+                    damping * new_in[k] + (1 - damping) * old_in[k]
+                    for k in range(len(sub.channels))
+                ]
 
     return list(mc.weights)
 

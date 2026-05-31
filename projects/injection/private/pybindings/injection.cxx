@@ -166,6 +166,14 @@ PYBIND11_MODULE(injection,m) {
          arg("samples_per_channel") = 100)
     ;
 
+  // A sub-mixture wrapped as one channel: encapsulates a set of (e.g.
+  // geometric) channels whose inner weights remain part of the optimization.
+  class_<NestedMixtureChannel, std::shared_ptr<NestedMixtureChannel>, PhaseSpaceChannel>(m, "NestedMixtureChannel")
+    .def(init<std::shared_ptr<MultiChannelPhaseSpace>>(), arg("mixture"))
+    .def_readwrite("mixture", &NestedMixtureChannel::mixture)
+    .def_readwrite("label", &NestedMixtureChannel::label)
+    ;
+
   class_<Isotropic2BodyChannel, std::shared_ptr<Isotropic2BodyChannel>, PhaseSpaceChannel>(m, "Isotropic2BodyChannel")
     .def(init<int>(), arg("daughter_index") = 0)
     ;

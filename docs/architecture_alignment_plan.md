@@ -652,6 +652,19 @@ work.
   graceful isotropic fallback).  In this regime detector-directing is the
   obvious win (~250x efficiency here) -- the inverse of the collimated chain
   vertices where physical/isotropic suffices.
+- **Nestable sub-mixture channel (prototype A) -- DONE.** `NestedMixtureChannel`
+  wraps a `MultiChannelPhaseSpace` as a single `PhaseSpaceChannel`, so a set of
+  (e.g. geometric) channels with their own optimizable coefficients can be
+  encapsulated and mixed into an outer, physics-level blend (physical /
+  isotropic / directed).  `optimize_multichannel_weights` recurses into nested
+  mixtures, tuning the inner weights with the same Kleiss-Pittau form (inner
+  sub-channel density `g_j` over the shared outer denominator `g`).  Tests in
+  `test_directed_regimes.py`: nesting preserves closure and the density
+  composes exactly; the recursion moves an imbalanced inner mixture back toward
+  its optimum while keeping the integral unbiased.  This separates the
+  geometric sub-selection (where the R2 degeneracy lives) from the well-posed
+  outer blend; adding union/tiling intelligence inside the channel -- so
+  overlapping volumes stop being redundant -- is the natural next layer.
 
 **Remaining (deferred follow-ups, Phases D and E):**
 - **Phase D (AdaptiveMapping)** and **Phase E (narrow the conversion
