@@ -41,6 +41,7 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("name",&Geometry::GetName)
         .def_property("placement",&Geometry::GetPlacement, &Geometry::SetPlacement)
         .def("ComputeIntersections",&Geometry::ComputeIntersections)
+        .def("GetWorldBoundingBox",&Geometry::GetWorldBoundingBox)
         .def("create",&Geometry::create);
 
     // data structs in Geometry class

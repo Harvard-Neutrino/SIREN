@@ -43,10 +43,16 @@ class DetectorDirected2BodyChannel : public PhaseSpaceChannel {
 public:
     enum class Mode { Cone, Volume };
 
+    // If `volume > 0`, it is used directly as the target volume for the
+    // Volume-mode chord-depth density, skipping the internal Monte-Carlo
+    // volume estimate and the viability guard.  This lets a caller supply an
+    // accurate volume for a composite/thin tile (e.g. a BooleanGeometry
+    // subtraction shell) whose AABB-rejection fill fraction is small.
     DetectorDirected2BodyChannel(
         std::shared_ptr<siren::geometry::Geometry const> target,
         int daughter_index = 0,
-        Mode mode = Mode::Volume
+        Mode mode = Mode::Volume,
+        double volume = -1.0
     );
 
     void Sample(

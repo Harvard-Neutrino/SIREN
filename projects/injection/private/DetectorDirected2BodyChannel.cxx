@@ -25,7 +25,8 @@ static const double FOUR_PI = 4.0 * M_PI;
 DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
     std::shared_ptr<siren::geometry::Geometry const> target,
     int daughter_index,
-    Mode mode)
+    Mode mode,
+    double volume)
     : target_(std::move(target))
     , daughter_index_(daughter_index)
     , mode_(mode)
@@ -36,6 +37,14 @@ DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
     auto aabb = target_->GetWorldBoundingBox();
     siren::math::Vector3D extent = aabb.max_corner - aabb.min_corner;
     aabb_volume_ = extent.GetX() * extent.GetY() * extent.GetZ();
+
+    if (volume > 0.0) {
+        // Caller-supplied volume: trust it, skip the MC estimate and the
+        // viability guard (the caller asserts the tile is samplable).
+        target_volume_ = volume;
+        return;
+    }
+
     target_volume_ = detail::ComputeGeometryVolume(*target_, aabb_volume_);
 
     if (mode_ == Mode::Volume) {
