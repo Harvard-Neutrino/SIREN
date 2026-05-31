@@ -17,6 +17,55 @@ if TYPE_CHECKING:
     from . import dataclasses as _dataclasses
 
 
+def _kp_update(
+    old_weights: List[float],
+    W: List[float],
+    update_rule: str = "sqrt_W",
+    min_weight: float = 0.0,
+) -> Optional[List[float]]:
+    """One Kleiss-Pittau channel-weight update step.
+
+    Given the current weights ``old_weights`` and the per-channel variance
+    contributions ``W[i] = <(g_i/g) w^2>`` (already averaged over the
+    batch), return the new normalized weights (before any damping blend).
+
+    update_rule:
+      ``"sqrt_W"``        -- new_i ~ sqrt(W_i)             (memoryless;
+                             fixed point alpha_i ~ sqrt(W_i))
+      ``"alpha_sqrt_W"``  -- new_i ~ alpha_i * sqrt(W_i)   (canonical
+                             Kleiss-Pittau; fixed point W_i = const, the
+                             variance minimum -- every channel contributes
+                             equal variance)
+
+    Both rules leave the integral estimate unbiased (Kleiss-Pittau holds
+    for any valid alpha); they differ only in which weight set they
+    converge to.  Returns ``None`` when the update is degenerate (all
+    contributions zero), so the caller can keep the previous weights.
+    """
+    n = len(W)
+    roots = [math.sqrt(v) if v > 0.0 else 0.0 for v in W]
+    if update_rule == "alpha_sqrt_W":
+        new_alpha = [old_weights[i] * roots[i] for i in range(n)]
+    elif update_rule == "sqrt_W":
+        new_alpha = list(roots)
+    else:
+        raise ValueError(
+            f"unknown update_rule {update_rule!r} "
+            "(expected 'sqrt_W' or 'alpha_sqrt_W')")
+
+    total = sum(new_alpha)
+    if total <= 0.0:
+        return None
+    new_alpha = [a / total for a in new_alpha]
+
+    if min_weight > 0.0:
+        new_alpha = [max(a, min_weight) for a in new_alpha]
+        total = sum(new_alpha)
+        new_alpha = [a / total for a in new_alpha]
+
+    return new_alpha
+
+
 def optimize_multichannel_weights(
     mc: "_injection.MultiChannelPhaseSpace",
     physical_density_fn,
@@ -27,11 +76,14 @@ def optimize_multichannel_weights(
     batch_size: int = 1000,
     damping: float = 0.5,
     min_weight: float = 0.005,
+    update_rule: str = "sqrt_W",
 ) -> List[float]:
     """Optimize channel weights to minimize variance of f/g.
 
-    Uses the Kleiss-Pittau update: alpha_i^new proportional to
-    sqrt(mean(w^2 * g_i / g)) where w = f(x) / g(x).
+    Uses a Kleiss-Pittau update of the per-channel variance contribution
+    W_i = mean(w^2 * g_i / g), where w = f(x) / g(x).  See ``_kp_update``
+    for the two rules selected by ``update_rule`` ("sqrt_W" or the
+    canonical "alpha_sqrt_W").
 
     Parameters
     ----------
@@ -97,21 +149,13 @@ def optimize_multichannel_weights(
         if n_nonzero == 0:
             continue
 
-        new_alpha = [math.sqrt(max(v / n_nonzero, 0.0)) for v in var_contrib]
-        total = sum(new_alpha)
-        if total <= 0:
+        W = [v / n_nonzero for v in var_contrib]
+        old = list(mc.weights)
+        new_alpha = _kp_update(old, W, update_rule, min_weight)
+        if new_alpha is None:
             continue
 
-        new_alpha = [a / total for a in new_alpha]
-
-        # Apply minimum weight floor
-        for i in range(n_channels):
-            new_alpha[i] = max(new_alpha[i], min_weight)
-        total = sum(new_alpha)
-        new_alpha = [a / total for a in new_alpha]
-
         # Damped update
-        old = list(mc.weights)
         mc.weights = [
             damping * new_alpha[i] + (1 - damping) * old[i]
             for i in range(n_channels)
@@ -127,6 +171,7 @@ def optimize_chain_weights(
     batch_size: int = 500,
     damping: float = 0.5,
     min_weight: float = 0.005,
+    update_rule: str = "sqrt_W",
     metric=None,
     verbose: bool = False,
 ) -> None:
@@ -150,6 +195,9 @@ def optimize_chain_weights(
         Blending factor for weight updates.
     min_weight : float
         Minimum per-channel weight.
+    update_rule : str
+        Kleiss-Pittau update variant, "sqrt_W" (default) or the canonical
+        "alpha_sqrt_W" (alpha_i * sqrt(W_i)).  See ``_kp_update``.
     metric : callable(event, weight) -> float, optional
         Transforms the event weight before it enters the variance
         computation.  The optimizer minimizes variance of metric(event, w)
@@ -373,18 +421,12 @@ def optimize_chain_weights(
                         if f_i < 1.0:
                             var_contrib[i] /= (1.0 - f_i)
 
-            new_alpha = [math.sqrt(max(v / n_matched, 0)) for v in var_contrib]
-            total = sum(new_alpha)
-            if total <= 0:
-                continue
-            new_alpha = [a / total for a in new_alpha]
-
-            for i in range(n_ch):
-                new_alpha[i] = max(new_alpha[i], min_weight)
-            total = sum(new_alpha)
-            new_alpha = [a / total for a in new_alpha]
-
+            W = [v / n_matched for v in var_contrib]
             old = list(mc.weights)
+            new_alpha = _kp_update(old, W, update_rule, min_weight)
+            if new_alpha is None:
+                continue
+
             mc.weights = [
                 damping * new_alpha[i] + (1 - damping) * old[i]
                 for i in range(n_ch)
