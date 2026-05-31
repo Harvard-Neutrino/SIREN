@@ -637,6 +637,21 @@ work.
   mixture's channels are near-degenerate and both rules drive to ~uniform.
   Default kept as `sqrt_W`; the canonical rule stays available for chains
   with genuinely distinct, variance-imbalanced channels.
+- **R5 (directed-channel regime coverage) -- DONE.** New
+  `tests/python/test_directed_regimes.py` exercises the directed 2-body
+  channel in the *non-collimated* regime the chain never reaches.  Collimation
+  is governed by the parent boost vs the daughter CM speed
+  `beta* = sqrt(1 - 4 m_chi^2/m_V1^2)`: the default near-threshold masses
+  (`beta* = 0.34`) collimate once the V1 is boosted, but a lighter chi or a
+  slow V1 opens the full kinematic sphere.  Verified across all geometries --
+  full-sphere, off-axis-inside-cone, lens partial-overlap, and
+  disjoint/unreachable -- that the directed channel stays consistent (closure
+  `E_g[f/g] -> 1`, weighted hit fraction matches the isotropic baseline, no
+  NaN) and concentrates on exactly the kinematically reachable part of the
+  target (100% inside, ~55% across the cone edge, 0% when unreachable, with a
+  graceful isotropic fallback).  In this regime detector-directing is the
+  obvious win (~250x efficiency here) -- the inverse of the collimated chain
+  vertices where physical/isotropic suffices.
 
 **Remaining (deferred follow-ups, Phases D and E):**
 - **Phase D (AdaptiveMapping)** and **Phase E (narrow the conversion
