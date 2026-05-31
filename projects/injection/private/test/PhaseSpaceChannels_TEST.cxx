@@ -6,6 +6,7 @@
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/injection/DetectorDirected3BodyChannel.h"
 #include "SIREN/injection/DetectorDirectedScatteringChannel.h"
+#include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/Isotropic2BodyChannel.h"
 #include "SIREN/injection/PhaseSpaceJacobian.h"
 #include "SIREN/injection/PhysicalChannelAdapters.h"
@@ -262,6 +263,161 @@ TEST(PhaseSpaceChannels, DetectorDirectedScatteringSamplesConservedPointingEvent
     EXPECT_TRUE(record.interaction_parameters.count("bjorken_y"));
     EXPECT_GT(channel.Density(nullptr, record), 0.0);
     EXPECT_EQ(channel.Convention(), PhaseSpaceConvention::MandelstamST);
+}
+
+// ---- PropagatorMapping (t-channel 1/(Q^2 + m^2)^2 importance map) ----
+
+TEST(InvariantMassMapping, PropagatorRoundTripAndDensity) {
+    using siren::injection::PropagatorMapping;
+    double m2 = 0.2 * 0.2;          // mediator mass squared (m_V2 = 200 MeV)
+    double x_min = 0.0, x_max = 1.0;
+    PropagatorMapping map(m2, x_min, x_max);
+
+    // Forward(0) -> x_min, Forward(1) -> x_max
+    EXPECT_NEAR(map.Forward(0.0), x_min, 1e-9);
+    EXPECT_NEAR(map.Forward(1.0), x_max, 1e-9);
+
+    // Forward and Inverse are mutual inverses across the unit interval.
+    for (double r = 0.05; r < 1.0; r += 0.05) {
+        double x = map.Forward(r);
+        EXPECT_GE(x, x_min - 1e-9);
+        EXPECT_LE(x, x_max + 1e-9);
+        EXPECT_NEAR(map.Inverse(x), r, 1e-9);
+    }
+
+    // Density matches the analytic CDF slope dr/dx = g(x), checked by
+    // finite difference of Inverse (the CDF).
+    for (double x = 0.05; x < 1.0; x += 0.1) {
+        double h = 1e-6;
+        double slope = (map.Inverse(x + h) - map.Inverse(x - h)) / (2.0 * h);
+        EXPECT_NEAR(map.Density(x), slope, 1e-4 * std::max(1.0, map.Density(x)));
+    }
+
+    // Density integrates to 1 over [x_min, x_max] (midpoint rule).
+    int N = 200000;
+    double dx = (x_max - x_min) / N;
+    double integral = 0.0;
+    for (int i = 0; i < N; ++i) {
+        double x = x_min + (i + 0.5) * dx;
+        integral += map.Density(x) * dx;
+    }
+    EXPECT_NEAR(integral, 1.0, 1e-4);
+
+    // The map is forward-peaked: the median Q^2 sits far below the range
+    // midpoint (propagator concentrates weight near x_min).
+    EXPECT_LT(map.Forward(0.5), 0.2 * (x_max - x_min));
+}
+
+// ---- DetectorDirectedScatteringChannel in Propagator Q^2 mode ----
+
+TEST(PhaseSpaceChannels, ScatteringPropagatorModeSampleEqualsDensity) {
+    // chi (m1) + Ar(rest) -> chi'(m3) + Ar(m4), t-channel mediator m_V2.
+    auto target = Sphere(Placement(Vector3D(0, 0, 5.0)), 2.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(2024);
+
+    double m_chi = 0.008, m_chi_prime = 0.050, M_Ar = 37.215, m_V2 = 0.200;
+
+    auto make_record = [&]() {
+        InteractionRecord r;
+        r.signature.primary_type = ParticleType::N4;     // stand-in for chi
+        r.signature.target_type = ParticleType::PPlus;
+        r.signature.secondary_types = {ParticleType::N4, ParticleType::PPlus};
+        r.primary_mass = m_chi;
+        double E = 0.5;
+        double p = std::sqrt(E * E - m_chi * m_chi);
+        r.primary_momentum = {E, 0.0, 0.0, p};
+        r.target_mass = M_Ar;
+        r.interaction_vertex = {0.0, 0.0, 0.0};
+        r.secondary_masses = {m_chi_prime, M_Ar};
+        r.secondary_momenta.resize(2);
+        return r;
+    };
+
+    DetectorDirectedScatteringChannel channel(
+        target, 0,
+        DetectorDirectedScatteringChannel::Variable::Q2,
+        DetectorDirected2BodyChannel::Mode::Volume,
+        DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+        m_V2);
+
+    // Closure: E_g[1] = 1 when sampling from g and weighting by 1/g over
+    // the marginal Q^2 measure.  Equivalently, with a self-consistent
+    // Sample==Density the running mean of (analytic physical density)/g
+    // is stable.  Here we check the simplest invariant: every sampled
+    // event conserves 4-momentum, stays on shell, and has Density>0 at
+    // exactly the sampled point, with Q^2 inside the kinematic range.
+    int n = 4000;
+    int n_ok = 0;
+    double sum_inv_g = 0.0;   // E_g[1/g] should approach the Q^2 range width
+    double q2_lo = 1e30, q2_hi = -1e30;
+    for (int i = 0; i < n; ++i) {
+        InteractionRecord r = make_record();
+        channel.Sample(random, nullptr, r);
+
+        // 4-momentum conservation
+        std::array<double, 4> initial = {
+            r.primary_momentum[0] + r.target_mass,
+            r.primary_momentum[1], r.primary_momentum[2], r.primary_momentum[3]};
+        std::array<double, 4> final = {0, 0, 0, 0};
+        for (auto const & p : r.secondary_momenta)
+            for (int k = 0; k < 4; ++k) final[k] += p[k];
+        for (int k = 0; k < 4; ++k)
+            EXPECT_NEAR(final[k], initial[k], 1e-6);
+
+        // on-shell secondaries
+        EXPECT_NEAR(MassSquared(r.secondary_momenta[0]), m_chi_prime * m_chi_prime, 1e-6);
+        EXPECT_NEAR(MassSquared(r.secondary_momenta[1]), M_Ar * M_Ar, 1e-4);
+
+        double g = channel.Density(nullptr, r);
+        EXPECT_GT(g, 0.0);
+        if (g > 0.0) { sum_inv_g += 1.0 / g; ++n_ok; }
+
+        double Q2 = r.interaction_parameters["Q2"];
+        q2_lo = std::min(q2_lo, Q2);
+        q2_hi = std::max(q2_hi, Q2);
+    }
+    ASSERT_GT(n_ok, n / 2);
+
+    // E_g[1/g] estimates the integral of dQ^2 over the support = (q2max - q2min).
+    // The sampled spread [q2_lo, q2_hi] should bracket a positive width and
+    // E_g[1/g] should be within ~10% of that width (Monte-Carlo tolerance).
+    double mean_inv_g = sum_inv_g / n_ok;
+    double width = q2_hi - q2_lo;
+    EXPECT_GT(width, 0.0);
+    EXPECT_GT(mean_inv_g, 0.0);
+    EXPECT_NEAR(mean_inv_g / width, 1.0, 0.15);
+
+    // Propagator peaking: most samples land in the lowest 20% of the Q^2 span.
+    int n_low = 0;
+    for (int i = 0; i < n; ++i) {
+        InteractionRecord r = make_record();
+        channel.Sample(random, nullptr, r);
+        double Q2 = r.interaction_parameters["Q2"];
+        if (Q2 < q2_lo + 0.2 * width) ++n_low;
+    }
+    EXPECT_GT(n_low, n / 2);
+}
+
+TEST(PhaseSpaceChannels, ScatteringPropagatorModeRejectsBadConfig) {
+    auto target = Sphere(Placement(Vector3D(0, 0, 5.0)), 2.0, 0.0).create();
+    // Propagator mode with non-positive mediator mass must throw.
+    EXPECT_THROW(
+        DetectorDirectedScatteringChannel(
+            target, 0,
+            DetectorDirectedScatteringChannel::Variable::Q2,
+            DetectorDirected2BodyChannel::Mode::Volume,
+            DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+            0.0),
+        std::runtime_error);
+    // Propagator/Tabulated mode requires Variable::Q2.
+    EXPECT_THROW(
+        DetectorDirectedScatteringChannel(
+            target, 0,
+            DetectorDirectedScatteringChannel::Variable::RecoilY,
+            DetectorDirected2BodyChannel::Mode::Volume,
+            DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+            0.2),
+        std::runtime_error);
 }
 
 TEST(PhaseSpaceChannels, TopologyMismatchDetected) {

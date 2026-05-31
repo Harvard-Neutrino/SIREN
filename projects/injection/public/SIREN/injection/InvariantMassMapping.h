@@ -203,6 +203,63 @@ struct TabulatedMapping {
     }
 };
 
+// Maps r in [0,1] to x in [x_min, x_max] following a t-channel
+// (spacelike) propagator density g(x) ~ 1 / (x + m2)^2.
+//
+// This is the natural importance map for the momentum transfer of a
+// t-channel exchange: x = Q^2 and m2 = m_mediator^2.  The dominant
+// shape of dsigma/dQ^2 ~ 1/(Q^2 + m_V^2)^2 (the propagator squared) is
+// captured exactly; the residual matrix-element numerator and nuclear
+// form factor are smooth and slowly varying, so sampling from this map
+// leaves only mild residual weight variance.
+//
+// Density:  g(x) = [1 / (x + m2)^2] / C,
+//   with C = 1/(x_min + m2) - 1/(x_max + m2)   (so g integrates to 1).
+//
+// Forward (inverse CDF):
+//   x = 1 / ( 1/(x_min + m2) - r * C ) - m2
+//
+// Inverse:
+//   r = ( 1/(x_min + m2) - 1/(x + m2) ) / C
+//
+// The closed form requires x + m2 > 0 over [x_min, x_max]; for a
+// physical exchange m2 > 0 and x = Q^2 >= 0, so this always holds.
+struct PropagatorMapping {
+    double m2;        // mediator mass squared (propagator offset)
+    double x_min;
+    double x_max;
+    double inv_lo;    // 1 / (x_min + m2)
+    double inv_hi;    // 1 / (x_max + m2)
+    double C;         // inv_lo - inv_hi (normalization; > 0 for x_max > x_min)
+
+    PropagatorMapping(double m2_, double x_min_, double x_max_)
+        : m2(m2_), x_min(x_min_), x_max(x_max_)
+    {
+        inv_lo = 1.0 / (x_min + m2);
+        inv_hi = 1.0 / (x_max + m2);
+        C = inv_lo - inv_hi;
+    }
+
+    double Forward(double r) const {
+        // Guard the degenerate (zero-width) range.
+        if (!(C > 0.0)) return x_min;
+        double denom = inv_lo - r * C;
+        if (denom <= 0.0) return x_max;
+        return 1.0 / denom - m2;
+    }
+
+    double Inverse(double x) const {
+        if (!(C > 0.0)) return 0.0;
+        return (inv_lo - 1.0 / (x + m2)) / C;
+    }
+
+    double Density(double x) const {
+        if (!(C > 0.0)) return 0.0;
+        double d = x + m2;
+        return 1.0 / (d * d * C);
+    }
+};
+
 // Uniform mapping: s = s_min + r * (s_max - s_min)
 struct UniformMapping {
     double s_min;

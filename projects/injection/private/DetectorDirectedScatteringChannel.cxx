@@ -3,6 +3,7 @@
 #include "DetectorDirectedChannelUtils.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Random.h"
 
@@ -207,17 +208,63 @@ double NumericDerivative(F f, double x) {
     return 0.0;
 }
 
+// Kinematic Q^2 limits for the 2->2 process 1 + 2(rest) -> 3 + 4, from
+// the CM scattering angle endpoints (cos_cm = +1 forward -> Q2min,
+// cos_cm = -1 backward -> Q2max).  Q^2 = -(p1 - p3)^2.
+bool Q2Range(double E1, double m1, double m2, double m3, double m4,
+             double & q2min, double & q2max) {
+    double s = m1 * m1 + m2 * m2 + 2.0 * m2 * E1;
+    if (s <= 0.0) return false;
+    double root_s = std::sqrt(s);
+    if (root_s <= m3 + m4) return false;
+    double E1cm = (s + m1 * m1 - m2 * m2) / (2.0 * root_s);
+    double E3cm = (s + m3 * m3 - m4 * m4) / (2.0 * root_s);
+    double p1cm = MomentumMagnitude(E1cm, m1);
+    double p3cm = MomentumMagnitude(E3cm, m3);
+    if (p1cm <= 0.0 || p3cm <= 0.0) return false;
+    // Q^2 = -(m1^2 + m3^2 - 2 E1cm E3cm + 2 p1cm p3cm cos_cm)
+    double base = m1 * m1 + m3 * m3 - 2.0 * E1cm * E3cm;
+    q2min = -(base + 2.0 * p1cm * p3cm);   // cos_cm = +1
+    q2max = -(base - 2.0 * p1cm * p3cm);   // cos_cm = -1
+    if (q2min < 0.0) q2min = 0.0;
+    return q2max > q2min;
+}
+
+// Construct a unit direction at polar angle theta (cos_theta) from the
+// beam axis, with the given azimuth phi about that axis.
+siren::math::Vector3D DirectionAtPolarAngle(
+    siren::math::Vector3D const & beam, double cos_theta, double phi) {
+    siren::math::Vector3D z = beam.normalized();
+    siren::math::Vector3D ref =
+        std::abs(z.GetZ()) < 0.9 ? siren::math::Vector3D(0, 0, 1)
+                                 : siren::math::Vector3D(1, 0, 0);
+    siren::math::Vector3D x = cross_product(z, ref).normalized();
+    siren::math::Vector3D y = cross_product(z, x);
+    double sin_theta = std::sqrt(std::max(0.0, 1.0 - cos_theta * cos_theta));
+    return (z * cos_theta
+            + x * (sin_theta * std::cos(phi))
+            + y * (sin_theta * std::sin(phi))).normalized();
+}
+
 } // anonymous namespace
 
 DetectorDirectedScatteringChannel::DetectorDirectedScatteringChannel(
     std::shared_ptr<siren::geometry::Geometry const> target,
     int directed_index,
     Variable variable,
-    DetectorDirected2BodyChannel::Mode mode)
+    DetectorDirected2BodyChannel::Mode mode,
+    Q2Mode q2_mode,
+    double mediator_mass,
+    std::vector<double> q2_cdf_nodes,
+    std::vector<double> q2_cdf_values)
     : target_(std::move(target))
     , directed_index_(directed_index)
     , variable_(variable)
     , mode_(mode)
+    , q2_mode_(q2_mode)
+    , mediator_mass_(mediator_mass)
+    , q2_cdf_nodes_(std::move(q2_cdf_nodes))
+    , q2_cdf_values_(std::move(q2_cdf_values))
 {
     if (!target_) {
         throw std::runtime_error("DetectorDirectedScatteringChannel requires a target geometry");
@@ -231,6 +278,25 @@ DetectorDirectedScatteringChannel::DetectorDirectedScatteringChannel(
         }
         if (target_volume_ / aabb_volume < 1e-4) {
             throw std::runtime_error("Target volume is too small relative to its bounding box for sampling to be viable");
+        }
+    }
+
+    if (q2_mode_ != Q2Mode::Geometry) {
+        if (variable_ != Variable::Q2) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: Propagator/Tabulated Q2 mode "
+                "requires Variable::Q2");
+        }
+        if (q2_mode_ == Q2Mode::Propagator && mediator_mass_ <= 0.0) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: Propagator Q2 mode requires "
+                "mediator_mass > 0");
+        }
+        if (q2_mode_ == Q2Mode::Tabulated &&
+            (q2_cdf_nodes_.size() < 2 || q2_cdf_nodes_.size() != q2_cdf_values_.size())) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: Tabulated Q2 mode requires "
+                "matching q2_cdf_nodes / q2_cdf_values arrays of length >= 2");
         }
     }
 }
@@ -258,6 +324,11 @@ void DetectorDirectedScatteringChannel::Sample(
     }
     if (directed_index_ < 0 || directed_index_ > 1) {
         throw std::runtime_error("directed_index must be 0 or 1");
+    }
+
+    if (q2_mode_ != Q2Mode::Geometry) {
+        SampleFromQ2Mapping(random, record);
+        return;
     }
 
     int other_index = 1 - directed_index_;
@@ -302,6 +373,10 @@ double DetectorDirectedScatteringChannel::Density(
         record.secondary_momenta.size() != 2 ||
         directed_index_ < 0 || directed_index_ > 1) {
         return 0.0;
+    }
+
+    if (q2_mode_ != Q2Mode::Geometry) {
+        return DensityFromQ2Mapping(record);
     }
 
     int other_index = 1 - directed_index_;
@@ -356,6 +431,100 @@ double DetectorDirectedScatteringChannel::Density(
     // factor. Multiply by 2*pi so this density is comparable to dP/dQ2
     // or dP/dy rather than dP/(dvar dphi).
     return detail::kTwoPi * g_angular * std::abs(derivative);
+}
+
+void DetectorDirectedScatteringChannel::SampleFromQ2Mapping(
+    std::shared_ptr<siren::utilities::SIREN_random> random,
+    siren::dataclasses::InteractionRecord & record) const
+{
+    int other_index = 1 - directed_index_;
+    FourVector p1 = ReadPrimary(record);
+    double m1 = record.primary_mass;
+    double m2 = record.target_mass;
+    double m3 = record.secondary_masses[directed_index_];
+    double m4 = record.secondary_masses[other_index];
+    double p1_mag = p1.p.magnitude();
+
+    double q2min = 0.0, q2max = 0.0;
+    if (p1_mag <= 0.0 ||
+        !Q2Range(p1.e, m1, m2, m3, m4, q2min, q2max)) {
+        throw std::runtime_error(
+            "DetectorDirectedScatteringChannel: no valid Q2 range for mapping mode");
+    }
+
+    double Q2;
+    if (q2_mode_ == Q2Mode::Propagator) {
+        Q2 = PropagatorMapping(mediator_mass_ * mediator_mass_, q2min, q2max)
+                 .Forward(random->Uniform(0.0, 1.0));
+    } else {
+        Q2 = TabulatedMapping(q2_cdf_nodes_, q2_cdf_values_, q2min, q2max)
+                 .Forward(random->Uniform(0.0, 1.0));
+    }
+
+    double cos_theta = CosThetaFromQ2(Q2, p1.e, p1_mag, m1, m2, m3, m4);
+    if (!std::isfinite(cos_theta)) {
+        // Numerical edge: clamp into the physical range.
+        cos_theta = std::max(-1.0, std::min(1.0, cos_theta));
+    }
+    cos_theta = std::max(-1.0, std::min(1.0, cos_theta));
+
+    double phi = random->Uniform(0.0, detail::kTwoPi);
+    siren::math::Vector3D dir = DirectionAtPolarAngle(p1.p, cos_theta, phi);
+
+    // With the polar angle (hence Q^2) fixed, the outgoing energy follows
+    // from 2->2 kinematics: E3 = E1 + m2 - E4, E4 = (Q2 + m2^2 + m4^2)/(2 m2).
+    double E4 = (Q2 + m2 * m2 + m4 * m4) / (2.0 * m2);
+    double E3 = p1.e + m2 - E4;
+    double p3_mag = MomentumMagnitude(E3, m3);
+    if (p3_mag <= 0.0) {
+        throw std::runtime_error(
+            "DetectorDirectedScatteringChannel: unphysical outgoing momentum in mapping mode");
+    }
+
+    FourVector p3{E3, dir * p3_mag};
+    FourVector p2{m2, siren::math::Vector3D(0, 0, 0)};
+    FourVector p4{p1.e + p2.e - p3.e, p1.p + p2.p - p3.p};
+
+    WriteSecondary(record, directed_index_, p3);
+    WriteSecondary(record, other_index, p4);
+
+    double Q2_actual = ComputeQ2(p1, p3, m1, m3);
+    record.interaction_parameters["energy"] = p1.e;
+    record.interaction_parameters["Q2"] = Q2_actual;
+    record.interaction_parameters["bjorken_y"] = 1.0 - p3.e / p1.e;
+    record.interaction_parameters["recoil_y"] = (p3.e - m3) / p1.e;
+}
+
+double DetectorDirectedScatteringChannel::DensityFromQ2Mapping(
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    int other_index = 1 - directed_index_;
+    FourVector p1 = ReadPrimary(record);
+    FourVector directed = ReadSecondary(record, directed_index_);
+    if (p1.e <= 0.0 || p1.p.magnitude() <= 0.0 || directed.p.magnitude() <= 0.0) {
+        return 0.0;
+    }
+
+    double m1 = record.primary_mass;
+    double m2 = record.target_mass;
+    double m3 = record.secondary_masses[directed_index_];
+    double m4 = record.secondary_masses[other_index];
+
+    double q2min = 0.0, q2max = 0.0;
+    if (!Q2Range(p1.e, m1, m2, m3, m4, q2min, q2max)) return 0.0;
+
+    double Q2 = ComputeQ2(p1, directed, m1, m3);
+    if (Q2 < q2min || Q2 > q2max) return 0.0;
+
+    // The measure is the 1-D Q^2 marginal: the azimuth is uniform and
+    // already integrated out, so the proposal density in Q^2 is exactly
+    // the mapping density -- no Jacobian, no finite-difference noise.
+    if (q2_mode_ == Q2Mode::Propagator) {
+        return PropagatorMapping(mediator_mass_ * mediator_mass_, q2min, q2max)
+                   .Density(Q2);
+    }
+    return TabulatedMapping(q2_cdf_nodes_, q2_cdf_values_, q2min, q2max)
+               .Density(Q2);
 }
 
 } // namespace injection
