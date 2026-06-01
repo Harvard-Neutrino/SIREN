@@ -160,6 +160,16 @@ PYBIND11_MODULE(injection,m) {
     .def("Density", &MultiChannelPhaseSpace::Density)
     .def("DensityBreakdown", &MultiChannelPhaseSpace::DensityBreakdown,
          arg("detector_model"), arg("record"))
+    .def("Accumulate", &MultiChannelPhaseSpace::Accumulate,
+         arg("detector_model"), arg("record"), arg("weight"),
+         arg("discount_fallback") = true, arg("recurse") = true)
+    .def("UpdateWeights", &MultiChannelPhaseSpace::UpdateWeights,
+         arg("update_rule"), arg("damping"), arg("min_weight"),
+         arg("recurse") = true)
+    .def("ResetAccumulators", &MultiChannelPhaseSpace::ResetAccumulators,
+         arg("recurse") = true)
+    .def_readwrite("kp_accumulator", &MultiChannelPhaseSpace::kp_accumulator_)
+    .def_readwrite("kp_count", &MultiChannelPhaseSpace::kp_count_)
     .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)

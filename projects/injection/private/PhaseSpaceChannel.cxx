@@ -5,6 +5,7 @@
 #include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/utilities/Random.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <map>
@@ -422,6 +423,115 @@ std::vector<double> MultiChannelPhaseSpace::DensityBreakdown(
     std::vector<double> weighted;
     ComputeContributions(detector_model, record, &weighted, nullptr);
     return weighted;
+}
+
+void MultiChannelPhaseSpace::Accumulate(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord const & record,
+    double weight, bool discount_fallback, bool recurse)
+{
+    double g = Density(detector_model, record);
+    if (g <= 0.0 || !std::isfinite(g)) return;
+    CreditAgainst(detector_model, record, weight * weight, g,
+                  discount_fallback, recurse);
+}
+
+void MultiChannelPhaseSpace::CreditAgainst(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord const & record,
+    double w2, double g_denom, bool discount_fallback, bool recurse)
+{
+    std::vector<double> bare;
+    ComputeContributions(detector_model, record, nullptr, &bare);
+
+    if (kp_accumulator_.size() != channels.size())
+        kp_accumulator_.assign(channels.size(), 0.0);
+    kp_count_ += 1;
+
+    for (size_t i = 0; i < channels.size(); ++i) {
+        bool credit = !discount_fallback || channels[i]->DirectingActive(record);
+        if (credit && bare[i] > 0.0 && std::isfinite(bare[i])) {
+            kp_accumulator_[i] += w2 * bare[i] / g_denom;
+        }
+        // Recurse into a nested sub-mixture regardless of the outer credit
+        // decision: the inner channels are credited their own bare densities
+        // against this same outer g (matching the Python inner loop).
+        if (recurse) {
+            auto nested = std::dynamic_pointer_cast<NestedMixtureChannel>(channels[i]);
+            if (nested && nested->mixture) {
+                nested->mixture->CreditAgainst(
+                    detector_model, record, w2, g_denom, discount_fallback, recurse);
+            }
+        }
+    }
+}
+
+void MultiChannelPhaseSpace::UpdateWeights(
+    std::string const & update_rule, double damping, double min_weight,
+    bool recurse)
+{
+    if (update_rule != "sqrt_W" && update_rule != "alpha_sqrt_W") {
+        throw std::invalid_argument(
+            "MultiChannelPhaseSpace::UpdateWeights: unknown update_rule '"
+            + update_rule + "' (expected 'sqrt_W' or 'alpha_sqrt_W')");
+    }
+
+    size_t n = channels.size();
+    if (kp_count_ > 0 && n > 0 && weights.size() == n) {
+        // Bare per-channel KP statistic W_i = <w^2 * g_i / g>.
+        std::vector<double> W(n, 0.0);
+        for (size_t i = 0; i < n; ++i) {
+            double acc = (i < kp_accumulator_.size()) ? kp_accumulator_[i] : 0.0;
+            W[i] = acc / static_cast<double>(kp_count_);
+        }
+
+        // Candidate weights: sqrt(W_i) (memoryless) or alpha_i*sqrt(W_i)
+        // (canonical).  Mirrors python _kp_update exactly.
+        std::vector<double> cand(n, 0.0);
+        for (size_t i = 0; i < n; ++i) {
+            double root = (W[i] > 0.0) ? std::sqrt(W[i]) : 0.0;
+            cand[i] = (update_rule == "alpha_sqrt_W") ? weights[i] * root : root;
+        }
+        double total = std::accumulate(cand.begin(), cand.end(), 0.0);
+        if (total > 0.0) {
+            for (size_t i = 0; i < n; ++i) cand[i] /= total;
+            // Floor + renormalize on the PRE-damping candidate (as in _kp_update);
+            // damping is applied after, with no further floor/renormalize.
+            if (min_weight > 0.0) {
+                for (size_t i = 0; i < n; ++i) cand[i] = std::max(cand[i], min_weight);
+                double t2 = std::accumulate(cand.begin(), cand.end(), 0.0);
+                for (size_t i = 0; i < n; ++i) cand[i] /= t2;
+            }
+            for (size_t i = 0; i < n; ++i) {
+                weights[i] = damping * cand[i] + (1.0 - damping) * weights[i];
+            }
+        }
+        // total <= 0: degenerate batch -> keep weights (python returns None).
+    }
+
+    if (recurse) {
+        for (auto const & channel : channels) {
+            auto nested = std::dynamic_pointer_cast<NestedMixtureChannel>(channel);
+            if (nested && nested->mixture) {
+                nested->mixture->UpdateWeights(update_rule, damping, min_weight, recurse);
+            }
+        }
+    }
+    ResetAccumulators(false);
+}
+
+void MultiChannelPhaseSpace::ResetAccumulators(bool recurse)
+{
+    std::fill(kp_accumulator_.begin(), kp_accumulator_.end(), 0.0);
+    kp_count_ = 0;
+    if (recurse) {
+        for (auto const & channel : channels) {
+            auto nested = std::dynamic_pointer_cast<NestedMixtureChannel>(channel);
+            if (nested && nested->mixture) {
+                nested->mixture->ResetAccumulators(recurse);
+            }
+        }
+    }
 }
 
 PhaseSpaceTopology MultiChannelPhaseSpace::CommonTopology() const {
