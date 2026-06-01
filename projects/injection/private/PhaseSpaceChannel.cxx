@@ -378,14 +378,19 @@ int MultiChannelPhaseSpace::Sample(
     return selected;
 }
 
-double MultiChannelPhaseSpace::Density(
+double MultiChannelPhaseSpace::ComputeContributions(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
-    siren::dataclasses::InteractionRecord const & record) const
+    siren::dataclasses::InteractionRecord const & record,
+    std::vector<double> * weighted,
+    std::vector<double> * bare) const
 {
     WarnOnIncompatibility();
 
     PhaseSpaceTopology common_topo = CommonTopology();
     PhaseSpaceMeasure common_meas = CommonMeasure();
+
+    if (weighted) { weighted->clear(); weighted->reserve(channels.size()); }
+    if (bare)     { bare->clear();     bare->reserve(channels.size()); }
 
     double density = 0.0;
     for (size_t i = 0; i < channels.size(); ++i) {
@@ -395,9 +400,28 @@ double MultiChannelPhaseSpace::Density(
             ch_meas.type != MType::Unspecified) {
             d = ConvertDensity(d, ch_meas, common_meas, common_topo, record);
         }
-        density += weights[i] * d;
+        if (bare) bare->push_back(d);
+        double contribution = weights[i] * d;
+        if (weighted) weighted->push_back(contribution);
+        density += contribution;
     }
     return density;
+}
+
+double MultiChannelPhaseSpace::Density(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    return ComputeContributions(detector_model, record, nullptr, nullptr);
+}
+
+std::vector<double> MultiChannelPhaseSpace::DensityBreakdown(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    std::vector<double> weighted;
+    ComputeContributions(detector_model, record, &weighted, nullptr);
+    return weighted;
 }
 
 PhaseSpaceTopology MultiChannelPhaseSpace::CommonTopology() const {

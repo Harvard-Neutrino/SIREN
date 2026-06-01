@@ -127,6 +127,19 @@ struct MultiChannelPhaseSpace {
         siren::dataclasses::InteractionRecord const & record
     ) const;
 
+    // Per-channel breakdown of Density(): element i is channel i's
+    // alpha-weighted contribution in the common measure, i.e.
+    //   weights[i] * ConvertDensity(channels[i]->Density(...), ...).
+    // The elements sum to Density().  Surfacing them lets an optimizer form
+    // the Kleiss-Pittau per-channel statistic without re-evaluating each
+    // channel from Python, and without the measure mismatch that
+    // re-evaluating the unconverted g_i against the common-measure g would
+    // introduce.
+    std::vector<double> DensityBreakdown(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record
+    ) const;
+
     // Return the common topology. Throws if channels disagree.
     PhaseSpaceTopology CommonTopology() const;
 
@@ -158,6 +171,19 @@ struct MultiChannelPhaseSpace {
 
 private:
     void WarnOnIncompatibility() const;
+
+    // Single code path behind Density() and DensityBreakdown(): loops the
+    // channels once, converting each g_i to the common measure.  Returns the
+    // summed density g.  When `weighted` is non-null it is filled with the
+    // alpha-weighted contributions weights[i]*g_i^conv (which sum to g); when
+    // `bare` is non-null it is filled with the un-weighted converted densities
+    // g_i^conv (consumed directly by the KP accumulator, no divide-by-alpha).
+    double ComputeContributions(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        std::vector<double> * weighted,
+        std::vector<double> * bare
+    ) const;
 };
 
 // A PhaseSpaceChannel that wraps a MultiChannelPhaseSpace, so an entire
