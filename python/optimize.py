@@ -76,6 +76,31 @@ def _submixture(channel):
     return None
 
 
+def _credit_directing(channel, record, discount_fallback):
+    """Whether to credit a channel's variance contribution for this record.
+
+    A detector-directed channel exposes ``DirectingActive(record)``, which is
+    False when the channel is in its isotropic 1/4pi fallback (Disjoint /
+    KinInBound / inside).  That fallback density is identical across the directed
+    channels, so crediting it makes their variance contributions degenerate and
+    the optimizer cannot turn a pure-fallback director off in favor of the
+    physical channel (with the memoryless rule it cannot at all).  With
+    ``discount_fallback`` we credit a directed channel only on its
+    directing-active events, so its variance reflects genuine directing and a
+    pure-fallback director (W -> 0) is driven down regardless of the update rule.
+    Channels without ``DirectingActive`` (physical / isotropic) are always
+    credited."""
+    if not discount_fallback:
+        return True
+    fn = getattr(channel, "DirectingActive", None)
+    if fn is None:
+        return True
+    try:
+        return bool(fn(record))
+    except Exception:
+        return True
+
+
 def optimize_multichannel_weights(
     mc: "_injection.MultiChannelPhaseSpace",
     physical_density_fn,
@@ -87,6 +112,7 @@ def optimize_multichannel_weights(
     damping: float = 0.5,
     min_weight: float = 0.005,
     update_rule: str = "sqrt_W",
+    discount_fallback: bool = True,
 ) -> List[float]:
     """Optimize channel weights to minimize variance of f/g.
 
@@ -163,6 +189,8 @@ def optimize_multichannel_weights(
             n_nonzero += 1
 
             for i in range(n_channels):
+                if not _credit_directing(mc.channels[i], record, discount_fallback):
+                    continue
                 gi = mc.channels[i].Density(detector_model, record)
                 if gi > 0 and math.isfinite(gi):
                     var_contrib[i] += w2 * gi / g
@@ -170,6 +198,8 @@ def optimize_multichannel_weights(
             for i, sub in nested:
                 acc = inner_contrib[i]
                 for j in range(len(sub.channels)):
+                    if not _credit_directing(sub.channels[j], record, discount_fallback):
+                        continue
                     gj = sub.channels[j].Density(detector_model, record)
                     if gj > 0 and math.isfinite(gj):
                         acc[j] += w2 * gj / g
@@ -208,6 +238,7 @@ def optimize_chain_weights(
     damping: float = 0.5,
     min_weight: float = 0.005,
     update_rule: str = "alpha_sqrt_W",
+    discount_fallback: bool = True,
     metric=None,
     verbose: bool = False,
 ) -> None:
@@ -404,6 +435,8 @@ def optimize_chain_weights(
                             continue
                         w2 = w_total * w_total
                         for i in range(n_ch):
+                            if not _credit_directing(mc.channels[i], r, discount_fallback):
+                                continue
                             gi = mc.channels[i].Density(None, r)
                             if gi > 0 and math.isfinite(gi):
                                 var_contrib[i] += w2 * gi / g

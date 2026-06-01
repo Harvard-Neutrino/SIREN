@@ -541,6 +541,52 @@ def test_separated_region_tiling_beats_single_and_flat_ess():
     assert e_tiled > 0.98 * e_flat   # tiling at least matches the flat set
 
 
+def test_discount_fallback_turns_off_pure_fallback_director():
+    """discount_fallback (optimizer): a directed channel that is always in its
+    isotropic 1/4pi fallback (collimated regime) contributes only the shared
+    floor.  Crediting its variance only on directing-active events drives it to
+    min_weight in favor of the physical/isotropic channel; without discounting
+    it stays degenerate with the isotropic channel.  Both stay unbiased."""
+    from siren.optimize import optimize_multichannel_weights
+
+    box = _box_at(0.0, 0.0, 20.0, 2.0)
+    # E_V1 = 0.5: highly boosted V1 -> sub-degree chi cone inside the target cone
+    # -> the directed channel is always in its isotropic fallback.
+    assert not siren.injection.DetectorDirected2BodyChannel(box, 0).DirectingActive(
+        _make_record(0.008, 0.5))
+
+    def optimized_directed_weight(discount):
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        d = siren.injection.DetectorDirected2BodyChannel(box, 0)
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, d]
+        mc.weights = [0.5, 0.5]
+        optimize_multichannel_weights(
+            mc, lambda r: iso.Density(None, r),
+            siren.utilities.SIREN_random(7), None, _make_record(0.008, 0.5),
+            n_iterations=6, batch_size=1500, damping=0.6, min_weight=0.01,
+            update_rule="alpha_sqrt_W", discount_fallback=discount)
+        # closure: the integral stays unbiased either way
+        rng = siren.utilities.SIREN_random(8)
+        ws = []
+        for _ in range(4000):
+            r = _make_record(0.008, 0.5)
+            mc.Sample(rng, None, r)
+            f = iso.Density(None, r)
+            g = mc.Density(None, r)
+            if g > 0 and math.isfinite(g):
+                ws.append(f / g)
+        return mc.weights[1], float(np.mean(ws))
+
+    w_on, closure_on = optimized_directed_weight(True)
+    w_off, closure_off = optimized_directed_weight(False)
+
+    assert w_on < 0.1      # discounting drives the pure-fallback director down
+    assert w_off > 0.3     # without it, it stays degenerate with the iso channel
+    assert 0.9 <= closure_on <= 1.1
+    assert 0.9 <= closure_off <= 1.1
+
+
 def test_builder_tiles_optimize_and_stay_unbiased():
     """A builder-produced tiling integrates with the recursive Kleiss-Pittau
     optimizer: an imbalanced inner weight set is retuned and the integral
