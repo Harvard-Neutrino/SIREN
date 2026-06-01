@@ -213,86 +213,29 @@ def optimize_multichannel_weights(
     if n_channels < 2:
         return list(mc.weights)
 
-    # Channels that wrap a sub-mixture: their inner weights are optimized as a
-    # nested level using the SAME outer denominator g.  The inner sub-channel
-    # densities g_j contribute to g weighted by this channel's outer alpha, so
-    # inner channel j's variance contribution is <w^2 g_j / g> -- the same KP
-    # form, just with g_j the inner density and g the full outer density.
-    nested = [(i, sub) for i, sub in
-              ((k, _submixture(ch)) for k, ch in enumerate(mc.channels))
-              if sub is not None]
-
-    for iteration in range(n_iterations):
-        var_contrib = [0.0] * n_channels
-        inner_contrib = {i: [0.0] * len(sub.channels) for i, sub in nested}
-        n_nonzero = 0
+    # The mixture owns its Kleiss-Pittau statistics.  Each warm-up point is fed
+    # to mc.Accumulate (which credits every channel's bare contribution
+    # w^2 * g_i/g, honors discount_fallback, and recurses into nested groups
+    # against the same outer g); mc.UpdateWeights then applies the chosen rule,
+    # damping, the min_weight floor and the degenerate-keep, and resets the
+    # accumulators.  All of this used to be re-derived here in Python.
+    for _ in range(n_iterations):
+        mc.ResetAccumulators()
 
         for _ in range(batch_size):
             record = copy.deepcopy(template_record)
             mc.Sample(random, detector_model, record)
 
             f = physical_density_fn(record)
-            # One C++ call returns every channel's alpha-weighted, common-measure
-            # contribution; their sum is exactly mc.Density(record).  This both
-            # removes the N per-point Python->C++ Density calls and fixes the
-            # unconverted-vs-converted mismatch the old per-channel re-evaluation
-            # had whenever ConvertDensity fires.
-            contribs = mc.DensityBreakdown(detector_model, record)
-            g = sum(contribs)
-
+            g = mc.Density(detector_model, record)
             if g <= 0 or not math.isfinite(g):
                 continue
             if f <= 0 or not math.isfinite(f):
                 continue
 
-            w2 = (f / g) ** 2
-            n_nonzero += 1
+            mc.Accumulate(detector_model, record, f / g, discount_fallback)
 
-            # The KP statistic is the BARE form mean(w^2 * g_i / g); recover the
-            # bare converted g_i from the alpha-weighted contribution.  (weights[i]
-            # is > 0 under the min_weight floor; Phase B computes g_i directly.)
-            weights = mc.weights
-            for i in range(n_channels):
-                if not _credit_directing(mc.channels[i], record, discount_fallback):
-                    continue
-                gi = contribs[i] / weights[i] if weights[i] > 0 else 0.0
-                if gi > 0 and math.isfinite(gi):
-                    var_contrib[i] += w2 * gi / g
-
-            for i, sub in nested:
-                acc = inner_contrib[i]
-                sub_contribs = sub.DensityBreakdown(detector_model, record)
-                sub_weights = sub.weights
-                for j in range(len(sub.channels)):
-                    if not _credit_directing(sub.channels[j], record, discount_fallback):
-                        continue
-                    gj = (sub_contribs[j] / sub_weights[j]
-                          if sub_weights[j] > 0 else 0.0)
-                    if gj > 0 and math.isfinite(gj):
-                        acc[j] += w2 * gj / g
-
-        if n_nonzero == 0:
-            continue
-
-        old = list(mc.weights)
-        new_alpha = _kp_update(
-            old, [v / n_nonzero for v in var_contrib], update_rule, min_weight)
-        if new_alpha is not None:
-            mc.weights = [
-                damping * new_alpha[i] + (1 - damping) * old[i]
-                for i in range(n_channels)
-            ]
-
-        for i, sub in nested:
-            old_in = list(sub.weights)
-            new_in = _kp_update(
-                old_in, [v / n_nonzero for v in inner_contrib[i]],
-                update_rule, min_weight)
-            if new_in is not None:
-                sub.weights = [
-                    damping * new_in[k] + (1 - damping) * old_in[k]
-                    for k in range(len(sub.channels))
-                ]
+        mc.UpdateWeights(update_rule, damping, min_weight)
 
     return list(mc.weights)
 

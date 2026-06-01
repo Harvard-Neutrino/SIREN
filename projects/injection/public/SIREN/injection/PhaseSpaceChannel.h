@@ -112,6 +112,15 @@ struct MultiChannelPhaseSpace {
     std::vector<double> weights;  // alpha_i, must sum to 1
     mutable bool compatibility_warning_emitted = false;
 
+    // Kleiss-Pittau weight-tuning accumulators.  These are transient runtime
+    // state -- the mixture owns its own per-channel variance statistics, fed by
+    // Accumulate() and consumed by UpdateWeights() -- and are intentionally NOT
+    // serialized.  kp_accumulator_[i] is the running sum of the bare per-channel
+    // contribution w^2 * g_i^conv / g; kp_count_ is the number of accumulated
+    // points.
+    std::vector<double> kp_accumulator_;
+    long kp_count_ = 0;
+
     // Sample from the multi-channel mixture.
     // Returns the index of the channel that was used.
     int Sample(
@@ -139,6 +148,39 @@ struct MultiChannelPhaseSpace {
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
         siren::dataclasses::InteractionRecord const & record
     ) const;
+
+    // --- Kleiss-Pittau weight tuning (the mixture owns its statistics) ---
+
+    // Fold one sampled point into the per-channel accumulators.  `weight` is the
+    // importance weight w = f/g (single vertex) or the total event weight
+    // (chain); channel i is credited w^2 * g_i^conv / g, where g is THIS
+    // mixture's density, unless discount_fallback is set and channel i reports
+    // DirectingActive(record) == false (its isotropic fallback), in which case it
+    // is skipped so a pure-fallback director is driven down.  With `recurse`, a
+    // NestedMixtureChannel's inner channels are credited too, against this same
+    // outer g.  Points with g <= 0 or non-finite g are ignored (not counted).
+    void Accumulate(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        double weight,
+        bool discount_fallback = true,
+        bool recurse = true);
+
+    // Apply one Kleiss-Pittau update from the accumulated statistics, then reset
+    // them.  W_i = kp_accumulator_[i] / kp_count_; the candidate is sqrt(W_i)
+    // ("sqrt_W", memoryless) or weights[i]*sqrt(W_i) ("alpha_sqrt_W", canonical),
+    // normalized, floored at min_weight and renormalized, then blended with the
+    // current weights as damping*candidate + (1-damping)*old.  A degenerate batch
+    // (no positive contributions, or no points) leaves the weights unchanged.
+    // With `recurse`, nested mixtures are updated too.
+    void UpdateWeights(
+        std::string const & update_rule,
+        double damping,
+        double min_weight,
+        bool recurse = true);
+
+    // Zero the accumulators (optionally recursing into nested mixtures).
+    void ResetAccumulators(bool recurse = true);
 
     // Return the common topology. Throws if channels disagree.
     PhaseSpaceTopology CommonTopology() const;
@@ -184,6 +226,18 @@ private:
         std::vector<double> * weighted,
         std::vector<double> * bare
     ) const;
+
+    // Recursive primitive behind Accumulate(): credit each channel's bare
+    // converted density against the supplied outer denominator g_denom (so a
+    // nested mixture's inner channels share the outer g), counting the point
+    // once per mixture level.
+    void CreditAgainst(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        double w2,
+        double g_denom,
+        bool discount_fallback,
+        bool recurse);
 };
 
 // A PhaseSpaceChannel that wraps a MultiChannelPhaseSpace, so an entire
