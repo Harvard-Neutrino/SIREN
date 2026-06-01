@@ -537,6 +537,67 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     return tree;
 }
 
+std::shared_ptr<MultiChannelPhaseSpace> Injector::PhaseSpaceForDatum(
+    siren::dataclasses::InteractionTreeDatum const & datum) const {
+    siren::dataclasses::InteractionSignature const & sig = datum.record.signature;
+    if (datum.depth() == 0) {
+        if (primary_process && primary_process->HasPhaseSpace(sig))
+            return primary_process->GetPhaseSpace(sig);
+        return nullptr;
+    }
+    auto it = secondary_process_map.find(sig.primary_type);
+    if (it != secondary_process_map.end() && it->second &&
+        it->second->HasPhaseSpace(sig))
+        return it->second->GetPhaseSpace(sig);
+    return nullptr;
+}
+
+std::vector<std::shared_ptr<MultiChannelPhaseSpace>>
+Injector::GetPhaseSpaces() const {
+    std::vector<std::shared_ptr<MultiChannelPhaseSpace>> out;
+    std::set<MultiChannelPhaseSpace *> seen;
+    auto add = [&](auto const & proc) {
+        if (!proc) return;
+        for (auto const & kv : proc->GetPhaseSpaceMap()) {
+            std::shared_ptr<MultiChannelPhaseSpace> const & mc = kv.second;
+            if (mc && mc->channels.size() >= 2 && seen.insert(mc.get()).second)
+                out.push_back(mc);
+        }
+    };
+    add(primary_process);
+    for (auto const & kv : secondary_process_map) add(kv.second);
+    return out;
+}
+
+void Injector::AccumulateEventToMixtures(
+    siren::dataclasses::InteractionTree const & tree,
+    double weight, bool discount_fallback, bool recurse) const {
+    // Pass a null detector model -- matches the chain optimizer's existing
+    // mc.Density(None, record); these channels' densities are detector-independent.
+    std::shared_ptr<siren::detector::DetectorModel const> no_detector;
+    for (auto const & datum : tree.tree) {
+        if (!datum) continue;
+        std::shared_ptr<MultiChannelPhaseSpace> mc = PhaseSpaceForDatum(*datum);
+        if (mc && mc->channels.size() >= 2)
+            mc->Accumulate(no_detector, datum->record, weight,
+                           discount_fallback, recurse);
+    }
+}
+
+void Injector::AccumulateSelectionToMixtures(
+    siren::dataclasses::InteractionTree const & tree, bool failed) const {
+    std::shared_ptr<siren::detector::DetectorModel const> no_detector;
+    // At most one selection sample per tree per mixture (matches the `break`
+    // in the optimizer's per-tree selection loops).
+    std::set<MultiChannelPhaseSpace *> credited;
+    for (auto const & datum : tree.tree) {
+        if (!datum) continue;
+        std::shared_ptr<MultiChannelPhaseSpace> mc = PhaseSpaceForDatum(*datum);
+        if (mc && mc->channels.size() >= 2 && credited.insert(mc.get()).second)
+            mc->AccumulateSelection(no_detector, datum->record, failed);
+    }
+}
+
 double Injector::SecondaryGenerationProbability(std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const {
     return SecondaryGenerationProbability(datum, secondary_process_map.at(datum->record.signature.primary_type));
 }

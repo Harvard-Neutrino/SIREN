@@ -85,6 +85,13 @@ public:
     bool HasPhaseSpace(siren::dataclasses::InteractionSignature const & sig) const;
     bool HasAnyPhaseSpace() const;
 
+    // Read access to the full signature -> phase-space map, so a caller can
+    // enumerate this process's mixtures (e.g. to feed the weight optimizer's
+    // accumulators) without knowing the signatures in advance.
+    std::map<siren::dataclasses::InteractionSignature,
+             std::shared_ptr<MultiChannelPhaseSpace>> const &
+    GetPhaseSpaceMap() const { return phase_space_map_; }
+
     void SetWeightingMode(siren::dataclasses::VertexWeightingMode mode) { weighting_mode_ = mode; }
     siren::dataclasses::VertexWeightingMode GetWeightingMode() const { return weighting_mode_; }
 

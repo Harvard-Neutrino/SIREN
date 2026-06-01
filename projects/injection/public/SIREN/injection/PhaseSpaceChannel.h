@@ -121,6 +121,13 @@ struct MultiChannelPhaseSpace {
     std::vector<double> kp_accumulator_;
     long kp_count_ = 0;
 
+    // Per-channel selection-probability sums (p_i = alpha_i*g_i/g) over
+    // successful and failed trees, used by the chain optimizer's failure penalty
+    // to inflate W_i for channels that disproportionately feed failed events.
+    // Also transient runtime state, not serialized.
+    std::vector<double> kp_succ_select_;
+    std::vector<double> kp_fail_select_;
+
     // Sample from the multi-channel mixture.
     // Returns the index of the channel that was used.
     int Sample(
@@ -181,6 +188,17 @@ struct MultiChannelPhaseSpace {
 
     // Zero the accumulators (optionally recursing into nested mixtures).
     void ResetAccumulators(bool recurse = true);
+
+    // Fold one tree's per-channel selection probability p_i = alpha_i*g_i/g into
+    // the success (failed == false) or failure (failed == true) accumulator.
+    // The chain optimizer's UpdateWeights then inflates W_i by 1/(1 - f_i), with
+    // f_i the channel's failed-selection fraction, so a channel that mostly feeds
+    // failed events is penalized.  Outer-channel only (the penalty is not applied
+    // to nested groups).
+    void AccumulateSelection(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        bool failed);
 
     // Return the common topology. Throws if channels disagree.
     PhaseSpaceTopology CommonTopology() const;
