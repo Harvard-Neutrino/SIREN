@@ -61,6 +61,24 @@ void DetectorDirected2BodyChannel::SetVolume(double volume) {
     target_volume_ = volume;
 }
 
+bool DetectorDirected2BodyChannel::DirectingActive(
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    if (record.signature.secondary_types.size() != 2) return false;
+    siren::math::Vector3D decay_pos(
+        record.interaction_vertex[0],
+        record.interaction_vertex[1],
+        record.interaction_vertex[2]);
+    auto geo = detail::ClassifyDirectedRegime(
+        record.primary_momentum[0], record.primary_momentum[1],
+        record.primary_momentum[2], record.primary_momentum[3],
+        record.primary_mass,
+        record.secondary_masses[daughter_index_],
+        record.secondary_masses[1 - daughter_index_],
+        decay_pos, *target_);
+    return detail::IsDirectedStepActive(geo.regime, geo.inside_geometry);
+}
+
 // ================================================================ //
 //  Cone mode helpers                                                 //
 // ================================================================ //

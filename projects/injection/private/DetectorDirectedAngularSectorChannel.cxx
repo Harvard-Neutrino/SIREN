@@ -112,5 +112,25 @@ double DetectorDirectedAngularSectorChannel::Density(
         decay_pos, *target_, bin);
 }
 
+bool DetectorDirectedAngularSectorChannel::DirectingActive(
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    if (record.signature.secondary_types.size() != 2) return false;
+    siren::math::Vector3D decay_pos(
+        record.interaction_vertex[0],
+        record.interaction_vertex[1],
+        record.interaction_vertex[2]);
+    detail::DirectedGeometry geo = detail::ClassifyDirectedRegime(
+        record.primary_momentum[0],
+        record.primary_momentum[1],
+        record.primary_momentum[2],
+        record.primary_momentum[3],
+        record.primary_mass,
+        record.secondary_masses[daughter_index_],
+        record.secondary_masses[1 - daughter_index_],
+        decay_pos, *target_);
+    return detail::SectorActive(geo.regime, geo.inside_geometry);
+}
+
 } // namespace injection
 } // namespace siren

@@ -95,6 +95,12 @@ public:
 
     void SetVolume(double volume);
 
+    // True if the directed sub-step actually directs (a non-isotropic proposal)
+    // at the point in `record`, vs the isotropic 1/4pi fallback.  Lets a
+    // diagnostic attribute the channel's variance into directing vs fallback.
+    bool DirectingActive(
+        siren::dataclasses::InteractionRecord const & record) const;
+
 private:
     Factorization factorization_;
     std::shared_ptr<siren::geometry::Geometry const> target_;
