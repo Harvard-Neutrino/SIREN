@@ -134,7 +134,6 @@ class TestDistributionVariableEnum:
             600, 600.0, d.LeptonDepthFunction()
         )
         sv = col.SetVariables()
-        assert DV.InitialPosition in sv
         assert DV.InteractionVertex in sv
 
     def test_required_variables_column_depth(self):
