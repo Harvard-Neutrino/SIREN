@@ -78,6 +78,13 @@ public:
     // If not called, the AABB volume is used as an approximation.
     void SetVolume(double volume);
 
+    // True if this channel actually directs (a non-isotropic proposal) at the
+    // phase-space point in `record`, vs falling back to isotropic 1/4pi
+    // (Disjoint / KinInBound / parent-at-rest-inside).  Lets a diagnostic
+    // attribute the channel's variance into directing vs the shared fallback.
+    bool DirectingActive(
+        siren::dataclasses::InteractionRecord const & record) const;
+
 private:
     std::shared_ptr<siren::geometry::Geometry const> target_;
     int daughter_index_;

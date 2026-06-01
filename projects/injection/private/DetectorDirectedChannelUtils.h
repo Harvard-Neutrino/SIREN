@@ -544,6 +544,16 @@ inline DirectedGeometry ClassifyDirectedRegime(
     return geo;
 }
 
+// Regimes where the directed 2-body step produces a DIRECTIONAL proposal,
+// vs the isotropic 1/4pi fallback (Disjoint / KinInBound / Rest-inside).
+// Used to attribute a directed channel's variance into directing vs fallback.
+inline bool IsDirectedStepActive(DirectedRegime regime, bool inside_geometry) {
+    if (regime == DirectedRegime::BoundInKin) return true;
+    if (regime == DirectedRegime::Overlap) return true;
+    if (regime == DirectedRegime::Rest && !inside_geometry) return true;
+    return false;
+}
+
 // ================================================================ //
 //  Per-step sample and density for directed 2-body sub-problems    //
 // ================================================================ //

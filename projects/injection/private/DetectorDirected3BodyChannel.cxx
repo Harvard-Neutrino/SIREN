@@ -232,6 +232,46 @@ void DetectorDirected3BodyChannel::SetVolume(double volume) {
     target_volume_ = volume;
 }
 
+bool DetectorDirected3BodyChannel::DirectingActive(
+    siren::dataclasses::InteractionRecord const & record) const
+{
+    if (record.secondary_momenta.size() != 3 ||
+        record.secondary_masses.size() != 3) return false;
+
+    InitialState init = GetInitialState(record, topology_);
+    siren::math::Vector3D vertex(
+        record.interaction_vertex[0],
+        record.interaction_vertex[1],
+        record.interaction_vertex[2]);
+
+    if (factorization_ == Factorization::Direct) {
+        // Directed sub-step: P -> directed + X, X = other_a + other_b.
+        FourVector a = ReadSecondary(record, other_a_index_);
+        FourVector b = ReadSecondary(record, other_b_index_);
+        double s_X = MassSquared(Add(a, b));
+        if (s_X <= 0.0) return false;
+        auto geo = detail::ClassifyDirectedRegime(
+            init.E, init.px, init.py, init.pz, init.M,
+            record.secondary_masses[directed_index_], std::sqrt(s_X),
+            vertex, *target_);
+        return detail::IsDirectedStepActive(geo.regime, geo.inside_geometry);
+    }
+
+    // Recursive: directed sub-step on the pair's boost.
+    FourVector first = ReadSecondary(record, pair_first_index_);
+    FourVector second = ReadSecondary(record, pair_second_index_);
+    FourVector pair = Add(first, second);
+    double s_pair = MassSquared(pair);
+    if (s_pair <= 0.0) return false;
+    int other_pair_index = (directed_pair_index_ == pair_first_index_)
+        ? pair_second_index_ : pair_first_index_;
+    auto geo = detail::ClassifyDirectedRegime(
+        pair.e, pair.p.GetX(), pair.p.GetY(), pair.p.GetZ(), std::sqrt(s_pair),
+        record.secondary_masses[directed_pair_index_],
+        record.secondary_masses[other_pair_index], vertex, *target_);
+    return detail::IsDirectedStepActive(geo.regime, geo.inside_geometry);
+}
+
 double DetectorDirected3BodyChannel::SampleInvariantMassSquared(
     std::shared_ptr<siren::utilities::SIREN_random> random,
     double s_min,

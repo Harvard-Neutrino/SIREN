@@ -546,12 +546,140 @@ def make_fiducial_metric(fiducial, signal_pdgids=(5923,)):
 
 
 # ------------------------------------------------------------------ #
+#  Directing-vs-fallback variance attribution                          #
+# ------------------------------------------------------------------ #
+
+def attribute_directing_variance(cpp_inj, weighter, n_events=400, metric=None):
+    """Split each vertex's directed-channel Kleiss-Pittau variance into the
+    part from genuine direction biasing vs the isotropic 1/4pi fallback.
+
+    Each channel's alpha-weighted variance contribution alpha_i w^2 g_i/g
+    (these sum to E[w^2]) is tagged per event: a directed channel that actually
+    directs (DirectingActive) -> W_directing; one in its isotropic fallback ->
+    W_floor (these inert channels share a common density, so W_floor is the
+    shared floor); all other channels -> W_phys.
+    """
+
+    def sig_match(a, b):
+        if int(a.primary_type) != int(b.primary_type):
+            return False
+        if int(a.target_type) != int(b.target_type):
+            return False
+        return ([int(s) for s in a.secondary_types] ==
+                [int(s) for s in b.secondary_types])
+
+    def collect(process, ptype):
+        out = []
+        if not process.HasAnyPhaseSpace():
+            return out
+        inter = process.interactions
+        for getter in (inter.GetDecays, inter.GetCrossSections):
+            try:
+                models = getter()
+            except Exception:
+                continue
+            for model in models:
+                try:
+                    sigs = model.GetPossibleSignatures()
+                except Exception:
+                    try:
+                        sigs = model.GetPossibleSignaturesFromParent(ptype)
+                    except Exception:
+                        continue
+                for sig in sigs:
+                    if process.HasPhaseSpace(sig):
+                        mc = process.GetPhaseSpace(sig)
+                        if len(mc.channels) >= 2:
+                            out.append((ptype, sig, mc))
+        return out
+
+    vinfo = []
+    pp = cpp_inj.GetPrimaryProcess()
+    vinfo += collect(pp, pp.primary_type)
+    for pt, proc in cpp_inj.GetSecondaryProcessMap().items():
+        vinfo += collect(proc, pt)
+
+    # Generate a fresh batch through the C++ injector (its tree records carry
+    # the per-vertex signatures the optimizer matches against).
+    prev = cpp_inj.EventsToInject()
+    cpp_inj.ResetInjectedEvents(n_events)
+    events, total_weights = [], []
+    for _ in range(n_events):
+        ev = cpp_inj.GenerateEvent()
+        if not ev.tree:
+            continue
+        w = weighter(ev)
+        if metric is not None:
+            w = metric(ev, w)
+        if not math.isfinite(w):
+            w = 0.0
+        events.append(ev)
+        total_weights.append(w)
+    cpp_inj.ResetInjectedEvents(prev)
+
+    print(f"\n{'='*78}\nDirecting-vs-fallback variance attribution")
+    print(f"{'vertex':>8} {'#dir':>5} {'W_directing':>12} {'W_floor':>10} "
+          f"{'W_phys':>10} {'floor frac':>11} {'dir/vtx':>8}")
+    print("-" * 78)
+    for ptype, sig, mc in vinfo:
+        n_ch = len(mc.channels)
+        is_dir = [hasattr(ch, "DirectingActive") for ch in mc.channels]
+        if not any(is_dir):
+            continue
+        W_dir = 0.0      # genuine directing (directed channels, active events)
+        W_floor = 0.0    # shared isotropic floor (counted once)
+        W_phys = 0.0     # physical / isotropic channels
+        n = 0
+        for ev, w in zip(events, total_weights):
+            if not (w > 0 and math.isfinite(w)):
+                continue
+            for datum in ev.tree:
+                r = datum.record
+                if (int(r.signature.primary_type) != int(ptype) or
+                        not sig_match(r.signature, sig)):
+                    continue
+                g = mc.Density(None, r)
+                if not (g > 0 and math.isfinite(g)):
+                    continue
+                w2 = w * w
+                for i, ch in enumerate(mc.channels):
+                    gi = ch.Density(None, r)
+                    if not (gi > 0 and math.isfinite(gi)):
+                        continue
+                    # alpha-weighted contribution; sum_i alpha_i w^2 g_i/g = E[w^2]
+                    contrib = mc.weights[i] * w2 * gi / g
+                    if is_dir[i]:
+                        if ch.DirectingActive(r):
+                            W_dir += contrib            # genuine directing
+                        else:
+                            W_floor += contrib          # isotropic fallback
+                    else:
+                        W_phys += contrib               # physical / isotropic
+                n += 1
+        if n == 0:
+            continue
+        W_dir /= n
+        W_floor /= n
+        W_phys /= n
+        directed_var = W_dir + W_floor
+        vertex_var = directed_var + W_phys
+        floor_frac = W_floor / directed_var if directed_var > 0 else float("nan")
+        dir_share = directed_var / vertex_var if vertex_var > 0 else float("nan")
+        print(f"{int(ptype):>8} {sum(is_dir):>5} {W_dir:12.4e} {W_floor:10.4e} "
+              f"{W_phys:10.4e} {floor_frac:11.2f} {dir_share:8.2f}")
+    print(f"floor frac = fraction of the DIRECTED channels' variance that is the "
+          f"shared\n  isotropic fallback; dir/vtx = directed channels' share of "
+          f"the vertex variance.\n{'='*78}")
+
+
+# ------------------------------------------------------------------ #
 #  Main                                                                #
 # ------------------------------------------------------------------ #
 
 def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         opt_iterations=5, opt_batch=200, monoenergetic=False,
-        offshell=False, target_set="all_13", tile_n=2):
+        offshell=False, target_set="all_13", tile_n=2, attribute=False,
+        pion_energy=2.0):
 
     # -- Detector --
     print("Loading SBND detector model ...")
@@ -612,19 +740,22 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     print(f"  BSM branching ratio:  {br_bsm:.4e}")
 
     if monoenergetic:
-        print("\nUsing monoenergetic 2 GeV pion along +z")
+        print(f"\nUsing monoenergetic {pion_energy} GeV pion along +z")
+        # Lower pion energy -> wider V1 opening cone at the primary vertex
+        # (E_pi=2 -> 3.35 deg, inert vs the ~5.5 deg fiducial; E_pi~0.5-1 ->
+        # 6-14 deg, where directing is active).  See --pion-energy.
         # For Propagated mode, the InteractionProbability already
         # accounts for the tiny BSM decay rate (long decay length),
         # so we do NOT add the branching ratio here.
         primary_dists = [
             distributions.PrimaryMass(M_PION),
-            distributions.Monoenergetic(2.0),
+            distributions.Monoenergetic(pion_energy),
             distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
             distributions.PointSourcePositionDistribution(
                 [0.0, 0.0, 0.0], 300.0),
         ]
         physical_dists = [
-            distributions.Monoenergetic(2.0),
+            distributions.Monoenergetic(pion_energy),
             distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
         ]
         primary_mode = injection.VertexWeightingMode.Propagated()
@@ -772,6 +903,11 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         print(f"Eff. sample:   {eff:.1f}%")
         print(f"Total weight:   {valid_weights.sum():.4e} per POT ({valid_weights.sum() * 1e21:.3e} per 1e21 POT)")
 
+    if attribute:
+        attribute_directing_variance(
+            injector._Injector__injector, weighter,
+            n_events=max(n_events, 300), metric=fid_metric)
+
     return events, weights
 
 
@@ -804,8 +940,15 @@ if __name__ == "__main__":
                         help="Directed-channel target basis (Option B)")
     parser.add_argument("--tile-n", type=int, default=2,
                         help="Grid cells per axis for --target-set tiled")
+    parser.add_argument("--attribute", action="store_true",
+                        help="Attribute directed-channel variance into "
+                             "directing vs isotropic fallback per vertex")
+    parser.add_argument("--pion-energy", type=float, default=2.0,
+                        help="Monoenergetic pion energy in GeV (lower -> wider "
+                             "V1 cone -> directing active at the primary vertex)")
     args = parser.parse_args()
     run(dk2nu_dir=args.dk2nu_dir, n_events=args.n_events, seed=args.seed,
         optimize=args.optimize, opt_iterations=args.opt_iterations,
         opt_batch=args.opt_batch, monoenergetic=args.monoenergetic,
-        offshell=args.offshell, target_set=args.target_set, tile_n=args.tile_n)
+        offshell=args.offshell, target_set=args.target_set, tile_n=args.tile_n,
+        attribute=args.attribute, pion_energy=args.pion_energy)

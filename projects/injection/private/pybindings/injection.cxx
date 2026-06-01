@@ -189,12 +189,14 @@ PYBIND11_MODULE(injection,m) {
          arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
          arg("volume") = -1.0)
     .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
+    .def("DirectingActive", &DetectorDirected2BodyChannel::DirectingActive, arg("record"))
     ;
 
   class_<DetectorDirectedAngularSectorChannel, std::shared_ptr<DetectorDirectedAngularSectorChannel>, PhaseSpaceChannel>(m, "DetectorDirectedAngularSectorChannel")
     .def(init<std::shared_ptr<siren::geometry::Geometry const>, double, double, double, double, int>(),
          arg("target"), arg("u_lo"), arg("u_hi"), arg("phi_lo"), arg("phi_hi"),
          arg("daughter_index") = 0)
+    .def("DirectingActive", &DetectorDirectedAngularSectorChannel::DirectingActive, arg("record"))
     ;
 
   // 1-D importance maps: one object provides BOTH the draw (Forward) and
@@ -265,6 +267,7 @@ PYBIND11_MODULE(injection,m) {
          arg("mass_cdf_nodes") = std::vector<double>{},
          arg("mass_cdf_values") = std::vector<double>{})
     .def("SetVolume", &DetectorDirected3BodyChannel::SetVolume)
+    .def("DirectingActive", &DetectorDirected3BodyChannel::DirectingActive, arg("record"))
     ;
 
   enum_<DetectorDirectedScatteringChannel::Variable>(m, "ScatteringVariable")

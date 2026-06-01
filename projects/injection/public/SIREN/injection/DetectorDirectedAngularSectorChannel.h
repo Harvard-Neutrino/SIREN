@@ -63,6 +63,12 @@ public:
         return PhaseSpaceMeasure::SolidAngleRest();
     }
 
+    // True when this sector genuinely directs (the active regime), false when it
+    // falls back to isotropic 1/4pi.  Lets the optimizer separate genuine
+    // directing from the shared fallback.
+    bool DirectingActive(
+        siren::dataclasses::InteractionRecord const & record) const;
+
 private:
     std::shared_ptr<siren::geometry::Geometry const> target_;
     double u_lo_;
