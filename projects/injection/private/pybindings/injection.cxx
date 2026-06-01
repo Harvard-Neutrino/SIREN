@@ -168,8 +168,12 @@ PYBIND11_MODULE(injection,m) {
          arg("recurse") = true)
     .def("ResetAccumulators", &MultiChannelPhaseSpace::ResetAccumulators,
          arg("recurse") = true)
+    .def("AccumulateSelection", &MultiChannelPhaseSpace::AccumulateSelection,
+         arg("detector_model"), arg("record"), arg("failed"))
     .def_readwrite("kp_accumulator", &MultiChannelPhaseSpace::kp_accumulator_)
     .def_readwrite("kp_count", &MultiChannelPhaseSpace::kp_count_)
+    .def_readwrite("kp_succ_select", &MultiChannelPhaseSpace::kp_succ_select_)
+    .def_readwrite("kp_fail_select", &MultiChannelPhaseSpace::kp_fail_select_)
     .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
@@ -403,6 +407,12 @@ PYBIND11_MODULE(injection,m) {
     .def("GetLastFailureReason",&Injector::GetLastFailureReason)
     .def("GetLastFailedTree",&Injector::GetLastFailedTree, pybind11::return_value_policy::reference_internal)
     .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
+    .def("GetPhaseSpaces",&Injector::GetPhaseSpaces)
+    .def("AccumulateEventToMixtures",&Injector::AccumulateEventToMixtures,
+         arg("tree"), arg("weight"), arg("discount_fallback") = true,
+         arg("recurse") = false)
+    .def("AccumulateSelectionToMixtures",&Injector::AccumulateSelectionToMixtures,
+         arg("tree"), arg("failed"))
     .def("PrimaryInjectionBounds",&Injector::PrimaryInjectionBounds)
     .def("SecondaryInjectionBounds",&Injector::SecondaryInjectionBounds)
     .def("SaveInjector",&Injector::SaveInjector)

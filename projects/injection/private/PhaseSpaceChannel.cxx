@@ -485,6 +485,22 @@ void MultiChannelPhaseSpace::UpdateWeights(
             W[i] = acc / static_cast<double>(kp_count_);
         }
 
+        // Chain failure penalty: inflate W_i by 1/(1 - f_i) for channels that
+        // disproportionately feed failed trees, where f_i is the channel's
+        // failed-selection fraction.  Only when failure-selection data is present
+        // (so the single-vertex optimizer, which never records it, is unaffected).
+        if (!kp_fail_select_.empty()) {
+            for (size_t i = 0; i < n; ++i) {
+                double succ = (i < kp_succ_select_.size()) ? kp_succ_select_[i] : 0.0;
+                double fail = (i < kp_fail_select_.size()) ? kp_fail_select_[i] : 0.0;
+                double tot = succ + fail;
+                if (tot > 0.0) {
+                    double f_i = fail / tot;
+                    if (f_i < 1.0) W[i] /= (1.0 - f_i);
+                }
+            }
+        }
+
         // Candidate weights: sqrt(W_i) (memoryless) or alpha_i*sqrt(W_i)
         // (canonical).  Mirrors python _kp_update exactly.
         std::vector<double> cand(n, 0.0);
@@ -524,6 +540,8 @@ void MultiChannelPhaseSpace::ResetAccumulators(bool recurse)
 {
     std::fill(kp_accumulator_.begin(), kp_accumulator_.end(), 0.0);
     kp_count_ = 0;
+    std::fill(kp_succ_select_.begin(), kp_succ_select_.end(), 0.0);
+    std::fill(kp_fail_select_.begin(), kp_fail_select_.end(), 0.0);
     if (recurse) {
         for (auto const & channel : channels) {
             auto nested = std::dynamic_pointer_cast<NestedMixtureChannel>(channel);
@@ -531,6 +549,26 @@ void MultiChannelPhaseSpace::ResetAccumulators(bool recurse)
                 nested->mixture->ResetAccumulators(recurse);
             }
         }
+    }
+}
+
+void MultiChannelPhaseSpace::AccumulateSelection(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    siren::dataclasses::InteractionRecord const & record, bool failed)
+{
+    std::vector<double> weighted;
+    double g = ComputeContributions(detector_model, record, &weighted, nullptr);
+    if (g <= 0.0 || !std::isfinite(g)) return;
+
+    if (kp_succ_select_.size() != channels.size())
+        kp_succ_select_.assign(channels.size(), 0.0);
+    if (kp_fail_select_.size() != channels.size())
+        kp_fail_select_.assign(channels.size(), 0.0);
+
+    std::vector<double> & sel = failed ? kp_fail_select_ : kp_succ_select_;
+    for (size_t i = 0; i < channels.size(); ++i) {
+        double p = weighted[i] / g;  // alpha_i * g_i / g
+        if (weighted[i] > 0.0 && std::isfinite(p)) sel[i] += p;
     }
 }
 

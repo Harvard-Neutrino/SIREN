@@ -66,16 +66,6 @@ def _kp_update(
     return new_alpha
 
 
-def _submixture(channel):
-    """Return a channel's inner MultiChannelPhaseSpace if it wraps one
-    (e.g. a NestedMixtureChannel), else None.  Used to optimize a nested
-    channel's inner weights as a sub-level."""
-    inner = getattr(channel, "mixture", None)
-    if inner is not None and len(getattr(inner, "channels", [])) >= 2:
-        return inner
-    return None
-
-
 def group_directed_channels(mc, label="DirectedGroup"):
     """Wrap a flat mixture's directed channels into one NestedMixtureChannel.
 
@@ -128,31 +118,6 @@ def group_directed_channels(mc, label="DirectedGroup"):
     out.channels = [channels[i] for i in range(len(channels)) if i not in dir_set] + [group]
     out.weights = [weights[i] for i in range(len(channels)) if i not in dir_set] + [dir_weight_total]
     return out
-
-
-def _credit_directing(channel, record, discount_fallback):
-    """Whether to credit a channel's variance contribution for this record.
-
-    A detector-directed channel exposes ``DirectingActive(record)``, which is
-    False when the channel is in its isotropic 1/4pi fallback (Disjoint /
-    KinInBound / inside).  That fallback density is identical across the directed
-    channels, so crediting it makes their variance contributions degenerate and
-    the optimizer cannot turn a pure-fallback director off in favor of the
-    physical channel (with the memoryless rule it cannot at all).  With
-    ``discount_fallback`` we credit a directed channel only on its
-    directing-active events, so its variance reflects genuine directing and a
-    pure-fallback director (W -> 0) is driven down regardless of the update rule.
-    Channels without ``DirectingActive`` (physical / isotropic) are always
-    credited."""
-    if not discount_fallback:
-        return True
-    fn = getattr(channel, "DirectingActive", None)
-    if fn is None:
-        return True
-    try:
-        return bool(fn(record))
-    except Exception:
-        return True
 
 
 def optimize_multichannel_weights(
@@ -298,20 +263,9 @@ def optimize_chain_weights(
     verbose : bool
         Print progress and weight updates.
     """
-    import copy
     import numpy as np
 
-    def _sig_match(a, b):
-        """Compare signatures by fields (workaround for pybind __eq__)."""
-        if int(a.primary_type) != int(b.primary_type):
-            return False
-        if int(a.target_type) != int(b.target_type):
-            return False
-        a_sec = [int(s) for s in a.secondary_types]
-        b_sec = [int(s) for s in b.secondary_types]
-        return a_sec == b_sec
-
-    # Access the C++ injector to get phase space maps
+    # Access the C++ injector (the Python wrapper holds it lazily).
     from .Injector import Injector as _PyInjector
     if isinstance(injector, _PyInjector):
         # Force initialization if needed
@@ -326,207 +280,76 @@ def optimize_chain_weights(
 
     prev_events_to_inject = cpp_inj.EventsToInject()
 
-    def _collect_phase_spaces(process, ptype):
-        """Collect multi-channel phase spaces from a process."""
-        results = []
-        if not process.HasAnyPhaseSpace():
-            return results
-        interactions = process.interactions
-        for sig_list_getter in [interactions.GetDecays, interactions.GetCrossSections]:
-            try:
-                models = sig_list_getter()
-            except Exception:
-                continue
-            for model in models:
-                try:
-                    sigs = model.GetPossibleSignatures()
-                except Exception:
-                    try:
-                        sigs = model.GetPossibleSignaturesFromParent(ptype)
-                    except Exception:
-                        continue
-                for sig in sigs:
-                    if process.HasPhaseSpace(sig):
-                        mc = process.GetPhaseSpace(sig)
-                        if len(mc.channels) >= 2:
-                            results.append({
-                                'ptype': ptype,
-                                'sig': sig,
-                                'mc': mc,
-                                'n_channels': len(mc.channels),
-                            })
-        return results
-
-    vertex_info = []
-
-    # Collect primary process phase spaces
-    primary_proc = cpp_inj.GetPrimaryProcess()
-    primary_ptype = primary_proc.primary_type
-    for vi in _collect_phase_spaces(primary_proc, primary_ptype):
-        vi['label'] = 'primary'
-        vertex_info.append(vi)
-
-    # Collect secondary process phase spaces
-    sec_map = cpp_inj.GetSecondaryProcessMap()
-    for ptype, process in sec_map.items():
-        for vi in _collect_phase_spaces(process, ptype):
-            vi['label'] = 'secondary'
-            vertex_info.append(vi)
-
-    if not vertex_info:
+    # The injector enumerates its own multi-channel mixtures and (in C++, via the
+    # signature map) routes each generated record to the mixture that sampled it.
+    # So the Python side no longer walks the process structure or re-matches
+    # signatures by hand.
+    mixtures = cpp_inj.GetPhaseSpaces()
+    if not mixtures:
         if verbose:
             print("No multi-channel phase spaces found to optimize.")
         return
 
     if verbose:
-        print(f"Found {len(vertex_info)} vertices with multi-channel phase spaces:")
-        for vi in vertex_info:
-            print(f"  {int(vi['ptype'])} ({vi['label']}): "
-                  f"{vi['n_channels']} channels, "
-                  f"weights = {[f'{w:.3f}' for w in vi['mc'].weights]}")
+        print(f"Found {len(mixtures)} multi-channel phase spaces to optimize.")
 
     for iteration in range(n_iterations):
-        # Generate full-chain events, collecting both successes and
-        # partial trees from failures
         cpp_inj.ResetInjectedEvents(batch_size)
-        events = []
-        total_weights = []
-        failed_trees = []
+        for mc in mixtures:
+            mc.ResetAccumulators(False)
 
-        for attempt in range(batch_size):
+        n_events = 0
+        n_failures = 0
+        weights_seen = []
+        for _ in range(batch_size):
             event = cpp_inj.GenerateEvent()
             if not event.tree:
+                # A partial/failed tree: feed its per-vertex selection so the
+                # failure penalty inflates channels that tend to fail.
                 ft = cpp_inj.GetLastFailedTree()
                 if ft.tree:
-                    failed_trees.append(ft)
+                    cpp_inj.AccumulateSelectionToMixtures(ft, True)
+                    n_failures += 1
                 continue
             w = weighter(event)
             if metric is not None:
                 w = metric(event, w)
             if not math.isfinite(w):
                 w = 0.0
-            events.append(event)
-            total_weights.append(w)
-
-        if len(events) == 0:
+            # Feed the TOTAL event weight to every vertex mixture this event
+            # touched (the C++ accumulator credits each channel w^2*g_i/g), plus
+            # the success selection for the failure penalty.  The signature ->
+            # mixture routing happens in C++.
+            cpp_inj.AccumulateEventToMixtures(event, w, discount_fallback)
+            cpp_inj.AccumulateSelectionToMixtures(event, False)
+            n_events += 1
             if verbose:
-                print(f"  Iteration {iteration}: no valid events generated")
-            continue
+                weights_seen.append(w)
 
-        n_total = len(events) + len(failed_trees)
-        n_nonzero = np.count_nonzero(total_weights)
         if verbose:
-            w_nz = np.array([x for x in total_weights if x != 0])
-            if len(w_nz) > 0:
-                eff = (w_nz.sum()**2) / (len(w_nz) * (w_nz**2).sum()) * 100 * n_nonzero / n_total
+            w_nz = np.array([x for x in weights_seen if x != 0.0])
+            n_total = n_events + n_failures
+            if len(w_nz) > 0 and n_total > 0:
+                eff = ((w_nz.sum() ** 2) / (len(w_nz) * (w_nz ** 2).sum())
+                       * 100 * len(w_nz) / n_total)
             else:
                 eff = 0.0
-            print(f"\n  Iteration {iteration}: {len(events)} events, "
-                  f"{len(failed_trees)} failures "
-                  f"({n_nonzero} pass metric), eff = {eff:.1f}%")
+            print(f"\n  Iteration {iteration}: {n_events} events, "
+                  f"{n_failures} failures, eff = {eff:.1f}%")
 
-        # Update weights for each vertex using total event weights
-        for vi in vertex_info:
-            mc = vi['mc']
-            n_ch = vi['n_channels']
-            ptype_int = int(vi['ptype'])
-            sig = vi['sig']
-
-            var_contrib = [0.0] * n_ch
-            n_matched = 0
-
-            for event, w_total in zip(events, total_weights):
-                for datum in event.tree:
-                    r = datum.record
-                    if (int(r.signature.primary_type) == ptype_int
-                            and _sig_match(r.signature, sig)):
-                        g = mc.Density(None, r)
-                        if g <= 0 or not math.isfinite(g):
-                            continue
-                        w2 = w_total * w_total
-                        for i in range(n_ch):
-                            if not _credit_directing(mc.channels[i], r, discount_fallback):
-                                continue
-                            gi = mc.channels[i].Density(None, r)
-                            if gi > 0 and math.isfinite(gi):
-                                var_contrib[i] += w2 * gi / g
-                        n_matched += 1
-
-            if n_matched == 0:
-                continue
-
-            # Estimate per-channel failure rates from partial trees.
-            # For each failed tree, find this vertex's record and
-            # compute the channel selection probability p_i = a_i*g_i/g.
-            # Channels that are more likely to have been selected for
-            # failed events get penalized.
-            fail_select = [0.0] * n_ch
-            succ_select = [0.0] * n_ch
-            n_fail_matched = 0
-            n_succ_matched = 0
-
-            for ft in failed_trees:
-                for datum in ft.tree:
-                    r = datum.record
-                    if (int(r.signature.primary_type) == ptype_int
-                            and _sig_match(r.signature, sig)):
-                        g = mc.Density(None, r)
-                        if g <= 0 or not math.isfinite(g):
-                            break
-                        for i in range(n_ch):
-                            gi = mc.channels[i].Density(None, r)
-                            if gi > 0 and math.isfinite(gi):
-                                fail_select[i] += mc.weights[i] * gi / g
-                        n_fail_matched += 1
-                        break
-
-            for event in events:
-                for datum in event.tree:
-                    r = datum.record
-                    if (int(r.signature.primary_type) == ptype_int
-                            and _sig_match(r.signature, sig)):
-                        g = mc.Density(None, r)
-                        if g <= 0 or not math.isfinite(g):
-                            break
-                        for i in range(n_ch):
-                            gi = mc.channels[i].Density(None, r)
-                            if gi > 0 and math.isfinite(gi):
-                                succ_select[i] += mc.weights[i] * gi / g
-                        n_succ_matched += 1
-                        break
-
-            # Apply failure penalty: inflate variance contribution
-            # for channels with high failure rates.
-            # Effective variance scales as 1/(1-f_i) where f_i is
-            # the channel's failure rate.
-            if n_fail_matched > 0 and n_succ_matched > 0:
-                for i in range(n_ch):
-                    total_i = succ_select[i] + fail_select[i]
-                    if total_i > 0:
-                        f_i = fail_select[i] / total_i
-                        if f_i < 1.0:
-                            var_contrib[i] /= (1.0 - f_i)
-
-            W = [v / n_matched for v in var_contrib]
+        # One Kleiss-Pittau update per vertex mixture from the accumulated
+        # total-weight statistics (the failure penalty is folded in by
+        # UpdateWeights).  recurse=False keeps this to the outer vertex weights.
+        for mc in mixtures:
             old = list(mc.weights)
-            new_alpha = _kp_update(old, W, update_rule, min_weight)
-            if new_alpha is None:
-                continue
-
-            mc.weights = [
-                damping * new_alpha[i] + (1 - damping) * old[i]
-                for i in range(n_ch)
-            ]
-
+            mc.UpdateWeights(update_rule, damping, min_weight, False)
             if verbose:
-                print(f"    {ptype_int} ({vi.get('label', '?')}): "
-                      f"{[f'{w:.3f}' for w in old]} -> "
+                print(f"    {[f'{w:.3f}' for w in old]} -> "
                       f"{[f'{w:.3f}' for w in mc.weights]}")
 
     cpp_inj.ResetInjectedEvents(prev_events_to_inject)
 
     if verbose:
         print("\nOptimization complete. Final weights:")
-        for vi in vertex_info:
-            print(f"  {int(vi['ptype'])} ({vi.get('label', '?')}): "
-                  f"{[f'{w:.3f}' for w in vi['mc'].weights]}")
+        for mc in mixtures:
+            print(f"  {[f'{w:.3f}' for w in mc.weights]}")
