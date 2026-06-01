@@ -633,5 +633,18 @@ PhaseSpaceMeasure NestedMixtureChannel::Measure() const {
     return mixture->CommonMeasure();
 }
 
+bool NestedMixtureChannel::DirectingActive(
+    siren::dataclasses::InteractionRecord const & record) const {
+    // The group genuinely directs iff any member does.  A member with no
+    // fallback notion (physical / isotropic) returns true by default, so a group
+    // containing one is always active; a group of directed channels all in their
+    // isotropic fallback returns false, letting the optimizer discount it as one.
+    if (!mixture) return true;
+    for (auto const & channel : mixture->channels) {
+        if (channel && channel->DirectingActive(record)) return true;
+    }
+    return false;
+}
+
 } // namespace injection
 } // namespace siren

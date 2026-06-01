@@ -67,7 +67,7 @@ public:
     // falls back to isotropic 1/4pi.  Lets the optimizer separate genuine
     // directing from the shared fallback.
     bool DirectingActive(
-        siren::dataclasses::InteractionRecord const & record) const;
+        siren::dataclasses::InteractionRecord const & record) const override;
 
 private:
     std::shared_ptr<siren::geometry::Geometry const> target_;

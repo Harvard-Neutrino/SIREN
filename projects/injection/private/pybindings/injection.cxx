@@ -173,6 +173,7 @@ PYBIND11_MODULE(injection,m) {
     .def(init<std::shared_ptr<MultiChannelPhaseSpace>>(), arg("mixture"))
     .def_readwrite("mixture", &NestedMixtureChannel::mixture)
     .def_readwrite("label", &NestedMixtureChannel::label)
+    .def("DirectingActive", &NestedMixtureChannel::DirectingActive, arg("record"))
     ;
 
   class_<Isotropic2BodyChannel, std::shared_ptr<Isotropic2BodyChannel>, PhaseSpaceChannel>(m, "Isotropic2BodyChannel")

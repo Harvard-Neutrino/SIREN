@@ -679,7 +679,7 @@ def attribute_directing_variance(cpp_inj, weighter, n_events=400, metric=None):
 def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         opt_iterations=5, opt_batch=200, monoenergetic=False,
         offshell=False, target_set="all_13", tile_n=2, attribute=False,
-        pion_energy=2.0):
+        pion_energy=2.0, group_directed=False):
 
     # -- Detector --
     print("Loading SBND detector model ...")
@@ -793,6 +793,25 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
     primary_ps = build_primary_phase_spaces(targets, pion_decay)
     print(f"  Primary phase space: {len(primary_ps)} signature(s), "
           f"{len(list(primary_ps.values())[0].channels)} channels")
+
+    # Optionally group each vertex's directed channels into one
+    # NestedMixtureChannel.  Density is preserved exactly; the optimizer then
+    # sees a single "direct vs physical" weight per vertex (one min_weight
+    # residual instead of N) which converges faster with many targets.
+    if group_directed:
+        from siren.optimize import group_directed_channels
+
+        def _regroup(d):
+            for key, val in list(d.items()):
+                if hasattr(val, "channels"):
+                    d[key] = group_directed_channels(val)
+                elif isinstance(val, dict):
+                    _regroup(val)
+
+        _regroup(primary_ps)
+        _regroup(phase_spaces)
+        print("  Grouped directed channels per vertex "
+              "(one 'direct vs physical' outer weight each)")
 
     # -- Budget --
     total_budget = n_events
@@ -946,9 +965,14 @@ if __name__ == "__main__":
     parser.add_argument("--pion-energy", type=float, default=2.0,
                         help="Monoenergetic pion energy in GeV (lower -> wider "
                              "V1 cone -> directing active at the primary vertex)")
+    parser.add_argument("--group-directed", action="store_true",
+                        help="Group each vertex's directed channels into one "
+                             "NestedMixtureChannel (faster optimizer convergence "
+                             "with many targets; density preserved)")
     args = parser.parse_args()
     run(dk2nu_dir=args.dk2nu_dir, n_events=args.n_events, seed=args.seed,
         optimize=args.optimize, opt_iterations=args.opt_iterations,
         opt_batch=args.opt_batch, monoenergetic=args.monoenergetic,
         offshell=args.offshell, target_set=args.target_set, tile_n=args.tile_n,
-        attribute=args.attribute, pion_energy=args.pion_energy)
+        attribute=args.attribute, pion_energy=args.pion_energy,
+        group_directed=args.group_directed)

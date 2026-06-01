@@ -83,7 +83,7 @@ public:
     // (Disjoint / KinInBound / parent-at-rest-inside).  Lets a diagnostic
     // attribute the channel's variance into directing vs the shared fallback.
     bool DirectingActive(
-        siren::dataclasses::InteractionRecord const & record) const;
+        siren::dataclasses::InteractionRecord const & record) const override;
 
 private:
     std::shared_ptr<siren::geometry::Geometry const> target_;
