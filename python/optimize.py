@@ -216,12 +216,20 @@ def optimize_chain_weights(
     discount_fallback: bool = True,
     metric=None,
     verbose: bool = False,
+    recurse_nested: bool = True,
 ) -> None:
     """Optimize all multi-channel weights across a full injection chain.
 
     Uses conditional optimization: each vertex's weights are updated
     using the total event weight (not just the per-vertex weight).
     This captures cross-vertex correlations.
+
+    With ``recurse_nested`` (default), the optimizer also descends into any
+    grouped directed channels (``NestedMixtureChannel``, e.g. produced by
+    ``group_directed_channels``) and tunes their inner per-target weights with
+    the same total-event-weight statistic -- so the global optimization balances
+    the distribution among targets, not just the outer "direct vs physical"
+    weight.
 
     Parameters
     ----------
@@ -262,6 +270,12 @@ def optimize_chain_weights(
             optimizes for events in a specific detector region.
     verbose : bool
         Print progress and weight updates.
+    recurse_nested : bool
+        If True (default), also tune the inner weights of grouped directed
+        channels (NestedMixtureChannel) -- i.e. the distribution among targets --
+        using the total event weight.  Set False to tune only the outer vertex
+        weights (the pre-existing behavior), leaving each group's internal
+        target split at its initial value.
     """
     import numpy as np
 
@@ -296,7 +310,7 @@ def optimize_chain_weights(
     for iteration in range(n_iterations):
         cpp_inj.ResetInjectedEvents(batch_size)
         for mc in mixtures:
-            mc.ResetAccumulators(False)
+            mc.ResetAccumulators(recurse_nested)
 
         n_events = 0
         n_failures = 0
@@ -319,8 +333,10 @@ def optimize_chain_weights(
             # Feed the TOTAL event weight to every vertex mixture this event
             # touched (the C++ accumulator credits each channel w^2*g_i/g), plus
             # the success selection for the failure penalty.  The signature ->
-            # mixture routing happens in C++.
-            cpp_inj.AccumulateEventToMixtures(event, w, discount_fallback)
+            # mixture routing happens in C++.  With recurse_nested, the inner
+            # per-target channels of grouped directed channels are credited too,
+            # against the same outer vertex g.
+            cpp_inj.AccumulateEventToMixtures(event, w, discount_fallback, recurse_nested)
             cpp_inj.AccumulateSelectionToMixtures(event, False)
             n_events += 1
             if verbose:
@@ -339,10 +355,12 @@ def optimize_chain_weights(
 
         # One Kleiss-Pittau update per vertex mixture from the accumulated
         # total-weight statistics (the failure penalty is folded in by
-        # UpdateWeights).  recurse=False keeps this to the outer vertex weights.
+        # UpdateWeights).  With recurse_nested, the inner per-target weights of
+        # grouped directed channels are updated too (the failure penalty stays
+        # outer-only; inner groups have no selection data).
         for mc in mixtures:
             old = list(mc.weights)
-            mc.UpdateWeights(update_rule, damping, min_weight, False)
+            mc.UpdateWeights(update_rule, damping, min_weight, recurse_nested)
             if verbose:
                 print(f"    {[f'{w:.3f}' for w in old]} -> "
                       f"{[f'{w:.3f}' for w in mc.weights]}")

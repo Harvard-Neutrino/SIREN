@@ -189,3 +189,55 @@ def test_injector_routing_event_credits_all_datums_selection_once():
     assert list(mc.kp_succ_select) == pytest.approx(
         [c[i] / g for i in range(2)], abs=1e-12)
     assert all(v == 0.0 for v in mc.kp_fail_select)
+
+
+def test_injector_routing_recurses_into_nested_group():
+    """recurse=True makes AccumulateEventToMixtures descend into a
+    NestedMixtureChannel, so the chain optimizer can tune the inner per-target
+    weights; recurse=False leaves the group's inner accumulators untouched."""
+    dm = siren.detector.DetectorModel()
+    proc = siren.injection.PrimaryInjectionProcess()
+    proc.primary_type = PT.N4
+    proc.distributions = [siren.distributions.PrimaryPhysicalVertexDistribution()]
+
+    sig = siren.dataclasses.InteractionSignature()
+    sig.primary_type = PT.N4
+    sig.target_type = PT.Decay
+    sig.secondary_types = [PT.NuLight, PT.Gamma]
+
+    box_a = siren.geometry.Box(
+        siren.geometry.Placement(siren.math.Vector3D(0.0, 0.0, 2.0)), 1.0, 1.0, 1.0)
+    box_b = siren.geometry.Box(
+        siren.geometry.Placement(siren.math.Vector3D(0.0, 0.0, -2.0)), 1.0, 1.0, 1.0)
+    inner = siren.injection.MultiChannelPhaseSpace()
+    inner.channels = [siren.injection.DetectorDirected2BodyChannel(box_a, 0),
+                      siren.injection.DetectorDirected2BodyChannel(box_b, 0)]
+    inner.weights = [0.5, 0.5]
+    group = siren.injection.NestedMixtureChannel(inner)
+
+    outer = siren.injection.MultiChannelPhaseSpace()
+    outer.channels = [siren.injection.Isotropic2BodyChannel(0), group]
+    outer.weights = [0.5, 0.5]
+    proc.SetPhaseSpace(sig, outer)
+
+    rng = siren.utilities.SIREN_random(2)
+    inj = siren.injection._Injector(10, dm, proc, rng)
+
+    r = _make_record()
+    outer.channels[0].Sample(rng, None, r)
+    tree = siren.dataclasses.InteractionTree()
+    tree.add_entry(r, None)
+
+    # recurse=True credits the outer mixture AND the nested inner group (in
+    # lockstep), so the inner per-target weights can be tuned.
+    outer.ResetAccumulators(True)
+    inj.AccumulateEventToMixtures(tree, 1.5, discount_fallback=False, recurse=True)
+    assert outer.kp_count == 1
+    assert inner.kp_count == 1
+    assert any(v != 0.0 for v in inner.kp_accumulator)
+
+    # recurse=False leaves the nested group untouched (pre-existing behavior).
+    outer.ResetAccumulators(True)
+    inj.AccumulateEventToMixtures(tree, 1.5, discount_fallback=False, recurse=False)
+    assert outer.kp_count == 1
+    assert inner.kp_count == 0
