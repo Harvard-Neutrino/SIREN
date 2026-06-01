@@ -99,7 +99,7 @@ public:
     // at the point in `record`, vs the isotropic 1/4pi fallback.  Lets a
     // diagnostic attribute the channel's variance into directing vs fallback.
     bool DirectingActive(
-        siren::dataclasses::InteractionRecord const & record) const;
+        siren::dataclasses::InteractionRecord const & record) const override;
 
 private:
     Factorization factorization_;

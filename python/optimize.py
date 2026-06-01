@@ -76,6 +76,60 @@ def _submixture(channel):
     return None
 
 
+def group_directed_channels(mc, label="DirectedGroup"):
+    """Wrap a flat mixture's directed channels into one NestedMixtureChannel.
+
+    A detector-directed channel exposes ``DirectingActive``; an
+    already-nested group exposes ``mixture``.  This collects the (non-nested)
+    directed channels of ``mc`` into a single ``NestedMixtureChannel`` and
+    returns a new ``MultiChannelPhaseSpace`` of ``[non-directed channels...,
+    group]``, leaving the overall density g(x) EXACTLY unchanged (the group's
+    outer weight is the sum of the directed weights and its inner weights are
+    those weights renormalized).
+
+    Why: the directed channels share an isotropic 1/4pi fallback, so when they
+    are inert their variance contributions are degenerate.  As N separate
+    channels the optimizer drives each to ``min_weight`` independently, leaving
+    ``N * min_weight`` of wasted fallback admixture; as one group it sees a
+    single "direct vs not" weight that floors at one ``min_weight`` (N times
+    smaller) and converges faster, while the inner "which target" weights are
+    tuned recursively only on directing-active events.  The group reports
+    ``DirectingActive`` = "any member directs", so ``discount_fallback`` drives
+    the whole group down when every member is in fallback.
+
+    Returns ``mc`` unchanged if it has fewer than two groupable directed
+    channels.
+    """
+    from . import injection as inj
+
+    channels = list(mc.channels)
+    weights = list(mc.weights)
+
+    def groupable(ch):
+        return hasattr(ch, "DirectingActive") and not hasattr(ch, "mixture")
+
+    dir_idx = [i for i, ch in enumerate(channels) if groupable(channels[i])]
+    if len(dir_idx) < 2:
+        return mc
+
+    dir_set = set(dir_idx)
+    dir_weight_total = sum(weights[i] for i in dir_idx)
+
+    inner = inj.MultiChannelPhaseSpace()
+    inner.channels = [channels[i] for i in dir_idx]
+    if dir_weight_total > 0:
+        inner.weights = [weights[i] / dir_weight_total for i in dir_idx]
+    else:
+        inner.weights = [1.0 / len(dir_idx)] * len(dir_idx)
+    group = inj.NestedMixtureChannel(inner)
+    group.label = label
+
+    out = inj.MultiChannelPhaseSpace()
+    out.channels = [channels[i] for i in range(len(channels)) if i not in dir_set] + [group]
+    out.weights = [weights[i] for i in range(len(channels)) if i not in dir_set] + [dir_weight_total]
+    return out
+
+
 def _credit_directing(channel, record, discount_fallback):
     """Whether to credit a channel's variance contribution for this record.
 

@@ -82,6 +82,17 @@ public:
 
     // Legacy interface. Default implementation derives from Topology+Measure.
     virtual PhaseSpaceConvention Convention() const;
+
+    // True if this channel contributes a genuine (non-fallback) proposal at the
+    // phase-space point in `record`.  A detector-directed channel overrides this
+    // to return false when it falls back to its shared isotropic 1/4pi
+    // distribution (directing impossible/unnecessary); channels with no fallback
+    // notion (physical, isotropic) are always "active".  Lets the optimizer
+    // discount a channel's variance on its fallback events and, via
+    // NestedMixtureChannel, drive a whole group of fallback directors down with
+    // a single outer weight.
+    virtual bool DirectingActive(
+        siren::dataclasses::InteractionRecord const &) const { return true; }
 };
 
 // A set of PhaseSpaceChannels combined with weights for
@@ -183,6 +194,12 @@ public:
     std::string Name() const override;
     PhaseSpaceTopology Topology() const override;
     PhaseSpaceMeasure Measure() const override;
+
+    // The group genuinely directs if ANY member does, so a group of directed
+    // channels that are all in their isotropic fallback reports inactive and the
+    // optimizer can drive the whole group down with one weight.
+    bool DirectingActive(
+        siren::dataclasses::InteractionRecord const & record) const override;
 };
 
 } // namespace injection

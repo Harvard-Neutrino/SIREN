@@ -541,6 +541,68 @@ def test_separated_region_tiling_beats_single_and_flat_ess():
     assert e_tiled > 0.98 * e_flat   # tiling at least matches the flat set
 
 
+def test_group_directed_channels_preserves_density():
+    """group_directed_channels wraps the directed channels into one
+    NestedMixtureChannel WITHOUT changing the mixture density g(x) (the group's
+    outer weight is the sum of the directed weights, inner weights renormalized)."""
+    from siren.optimize import group_directed_channels
+
+    box = _box_at(0.0, 0.0, 20.0, 2.0)
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    flat = siren.injection.MultiChannelPhaseSpace()
+    flat.channels = [iso] + [siren.injection.DetectorDirected2BodyChannel(box, 0)
+                             for _ in range(4)]
+    flat.weights = [0.2, 0.2, 0.2, 0.2, 0.2]
+
+    grouped = group_directed_channels(flat)
+    assert len(grouped.channels) == 2                       # physical + one group
+    assert grouped.weights[1] == pytest.approx(0.8)         # sum of directed weights
+
+    rng = siren.utilities.SIREN_random(2)
+    for _ in range(500):
+        r = _make_record(0.008, 0.018)
+        flat.Sample(rng, None, r)
+        gf = flat.Density(None, r)
+        if gf > 0 and math.isfinite(gf):
+            assert grouped.Density(None, r) == pytest.approx(gf, rel=1e-9, abs=1e-30)
+
+
+def test_grouping_drives_fallback_down_further_than_flat():
+    """With N pure-fallback directed channels, grouping floors the directed
+    weight at one min_weight instead of N*min_weight, driving the redundant
+    fallback substantially closer to zero (the many-channels convergence fix)."""
+    from siren.optimize import (optimize_multichannel_weights,
+                                group_directed_channels)
+
+    box = _box_at(0.0, 0.0, 20.0, 2.0)
+    N, mw, E_V1 = 8, 0.01, 0.5      # collimated -> all N directed are pure fallback
+
+    def build_flat():
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso] + [siren.injection.DetectorDirected2BodyChannel(box, 0)
+                               for _ in range(N)]
+        mc.weights = [1.0 / (N + 1)] * (N + 1)
+        return mc, iso
+
+    flat, iso_f = build_flat()
+    grouped = group_directed_channels(build_flat()[0])
+    iso_g = grouped.channels[0]
+
+    for mc, isoc in ((flat, iso_f), (grouped, iso_g)):
+        optimize_multichannel_weights(
+            mc, lambda r, c=isoc: c.Density(None, r),
+            siren.utilities.SIREN_random(1), None, _make_record(0.008, E_V1),
+            n_iterations=8, batch_size=1500, damping=0.6, min_weight=mw,
+            update_rule="alpha_sqrt_W", discount_fallback=True)
+
+    flat_directed = sum(flat.weights[1:])     # N independent directed channels
+    grouped_directed = grouped.weights[1]     # the single group
+    assert grouped_directed < flat_directed   # grouping drives it lower
+    assert grouped_directed < 3 * mw          # group lands near one min_weight
+    assert flat_directed > 3 * mw             # flat stuck near N*min_weight
+
+
 def test_discount_fallback_turns_off_pure_fallback_director():
     """discount_fallback (optimizer): a directed channel that is always in its
     isotropic 1/4pi fallback (collimated regime) contributes only the shared
