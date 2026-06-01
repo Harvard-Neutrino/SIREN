@@ -232,7 +232,13 @@ def optimize_multichannel_weights(
             mc.Sample(random, detector_model, record)
 
             f = physical_density_fn(record)
-            g = mc.Density(detector_model, record)
+            # One C++ call returns every channel's alpha-weighted, common-measure
+            # contribution; their sum is exactly mc.Density(record).  This both
+            # removes the N per-point Python->C++ Density calls and fixes the
+            # unconverted-vs-converted mismatch the old per-channel re-evaluation
+            # had whenever ConvertDensity fires.
+            contribs = mc.DensityBreakdown(detector_model, record)
+            g = sum(contribs)
 
             if g <= 0 or not math.isfinite(g):
                 continue
@@ -242,19 +248,26 @@ def optimize_multichannel_weights(
             w2 = (f / g) ** 2
             n_nonzero += 1
 
+            # The KP statistic is the BARE form mean(w^2 * g_i / g); recover the
+            # bare converted g_i from the alpha-weighted contribution.  (weights[i]
+            # is > 0 under the min_weight floor; Phase B computes g_i directly.)
+            weights = mc.weights
             for i in range(n_channels):
                 if not _credit_directing(mc.channels[i], record, discount_fallback):
                     continue
-                gi = mc.channels[i].Density(detector_model, record)
+                gi = contribs[i] / weights[i] if weights[i] > 0 else 0.0
                 if gi > 0 and math.isfinite(gi):
                     var_contrib[i] += w2 * gi / g
 
             for i, sub in nested:
                 acc = inner_contrib[i]
+                sub_contribs = sub.DensityBreakdown(detector_model, record)
+                sub_weights = sub.weights
                 for j in range(len(sub.channels)):
                     if not _credit_directing(sub.channels[j], record, discount_fallback):
                         continue
-                    gj = sub.channels[j].Density(detector_model, record)
+                    gj = (sub_contribs[j] / sub_weights[j]
+                          if sub_weights[j] > 0 else 0.0)
                     if gj > 0 and math.isfinite(gj):
                         acc[j] += w2 * gj / g
 

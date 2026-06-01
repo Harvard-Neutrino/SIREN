@@ -158,6 +158,8 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("weights", &MultiChannelPhaseSpace::weights)
     .def("Sample", &MultiChannelPhaseSpace::Sample)
     .def("Density", &MultiChannelPhaseSpace::Density)
+    .def("DensityBreakdown", &MultiChannelPhaseSpace::DensityBreakdown,
+         arg("detector_model"), arg("record"))
     .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
