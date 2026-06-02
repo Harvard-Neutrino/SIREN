@@ -217,6 +217,7 @@ def optimize_chain_weights(
     metric=None,
     verbose: bool = False,
     recurse_nested: bool = True,
+    failure_mode: str = "throughput",
 ) -> None:
     """Optimize all multi-channel weights across a full injection chain.
 
@@ -276,6 +277,20 @@ def optimize_chain_weights(
         using the total event weight.  Set False to tune only the outer vertex
         weights (the pre-existing behavior), leaving each group's internal
         target split at its initial value.
+    failure_mode : str
+        How injection failures feed back into the per-channel weight (acts on the
+        outer per-vertex channels, where failed/successful selection is recorded):
+          - "throughput" (default): W_i *= (1 - f_i) -- down-weight channels that
+            disproportionately feed failed trees, so the sampling tracks the
+            successful contribution to the integral.  Converges to the variance
+            optimum fastest and is insensitive to the warm-up batch size.
+          - "ignore": no failure adjustment (the success-weighted statistic
+            already discounts failures implicitly); reaches the same fixed point
+            as "throughput" but more slowly, and a bit faster with fewer samples.
+          - "coverage": W_i /= (1 - f_i) -- up-weight lossy channels to keep their
+            region sampled (the original behavior; tends to retain lossy channels
+            and gives the worst ESS where directing is lossy).
+        where f_i is channel i's fraction of selection mass on failed trees.
     """
     import numpy as np
 
@@ -360,7 +375,8 @@ def optimize_chain_weights(
         # outer-only; inner groups have no selection data).
         for mc in mixtures:
             old = list(mc.weights)
-            mc.UpdateWeights(update_rule, damping, min_weight, recurse_nested)
+            mc.UpdateWeights(update_rule, damping, min_weight, recurse_nested,
+                             failure_mode)
             if verbose:
                 print(f"    {[f'{w:.3f}' for w in old]} -> "
                       f"{[f'{w:.3f}' for w in mc.weights]}")

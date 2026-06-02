@@ -58,7 +58,9 @@ def test_updateweights_failure_penalty_inflates_W():
     mc.kp_count = count
     mc.kp_succ_select = succ
     mc.kp_fail_select = fail
-    mc.UpdateWeights("alpha_sqrt_W", 1.0, 0.0)  # damping=1 -> result == _kp_update
+    # explicit "coverage": this test pins the coverage inflation (no longer the
+    # default, which is now "throughput")
+    mc.UpdateWeights("alpha_sqrt_W", 1.0, 0.0, True, "coverage")
 
     W_inflated = []
     for i in range(2):
@@ -84,6 +86,45 @@ def test_updateweights_no_penalty_without_failure_data():
     mc.UpdateWeights("alpha_sqrt_W", 1.0, 0.0)
     expected = _kp_update(list(weights), W, "alpha_sqrt_W", 0.0)
     assert mc.weights == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize("mode,factor", [
+    ("ignore", lambda f: 1.0),
+    ("coverage", lambda f: 1.0 / (1.0 - f)),
+    ("throughput", lambda f: 1.0 - f),
+])
+def test_updateweights_failure_modes(mode, factor):
+    """The three failure modes adjust W_i by the expected factor of f_i before
+    the KP step: ignore (1), coverage (1/(1-f)), throughput (1-f)."""
+    weights = [0.5, 0.5]
+    W_bare = [1.0, 1.0]
+    count = 100
+    succ = [0.8, 0.2]
+    fail = [0.2, 0.8]
+    mc = _iso_mixture(weights)
+    mc.kp_accumulator = [W_bare[i] * count for i in range(2)]
+    mc.kp_count = count
+    mc.kp_succ_select = succ
+    mc.kp_fail_select = fail
+    mc.UpdateWeights("alpha_sqrt_W", 1.0, 0.0, True, mode)
+
+    W_adj = [W_bare[i] * factor(fail[i] / (succ[i] + fail[i])) for i in range(2)]
+    expected = _kp_update(list(weights), W_adj, "alpha_sqrt_W", 0.0)
+    assert mc.weights == pytest.approx(expected, abs=1e-12)
+    if mode == "coverage":      # lossy channel up-weighted
+        assert mc.weights[1] > mc.weights[0]
+    elif mode == "throughput":  # lossy channel down-weighted
+        assert mc.weights[1] < mc.weights[0]
+    else:                        # ignore: symmetric inputs -> equal weights
+        assert mc.weights[1] == pytest.approx(mc.weights[0], abs=1e-12)
+
+
+def test_updateweights_unknown_failure_mode_raises():
+    mc = _iso_mixture([0.5, 0.5])
+    mc.kp_accumulator = [1.0, 1.0]
+    mc.kp_count = 10
+    with pytest.raises(ValueError):
+        mc.UpdateWeights("alpha_sqrt_W", 1.0, 0.0, True, "not_a_mode")
 
 
 def test_accumulate_selection_sums_selection_probability():

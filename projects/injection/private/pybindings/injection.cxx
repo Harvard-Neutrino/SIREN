@@ -165,7 +165,7 @@ PYBIND11_MODULE(injection,m) {
          arg("discount_fallback") = true, arg("recurse") = true)
     .def("UpdateWeights", &MultiChannelPhaseSpace::UpdateWeights,
          arg("update_rule"), arg("damping"), arg("min_weight"),
-         arg("recurse") = true)
+         arg("recurse") = true, arg("failure_mode") = "throughput")
     .def("ResetAccumulators", &MultiChannelPhaseSpace::ResetAccumulators,
          arg("recurse") = true)
     .def("AccumulateSelection", &MultiChannelPhaseSpace::AccumulateSelection,
