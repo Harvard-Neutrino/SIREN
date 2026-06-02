@@ -672,6 +672,60 @@ def attribute_directing_variance(cpp_inj, weighter, n_events=400, metric=None):
           f"the vertex variance.\n{'='*78}")
 
 
+def print_converged_weights(cpp_inj):
+    """Print each multi-channel vertex's converged OUTER weights (labeled by
+    ptype and channel kind), and for a grouped directed channel the spread of
+    its inner per-target weights."""
+    def collect(process, ptype):
+        out = []
+        if not process.HasAnyPhaseSpace():
+            return out
+        inter = process.interactions
+        for getter in (inter.GetDecays, inter.GetCrossSections):
+            try:
+                models = getter()
+            except Exception:
+                continue
+            for model in models:
+                try:
+                    sigs = model.GetPossibleSignatures()
+                except Exception:
+                    try:
+                        sigs = model.GetPossibleSignaturesFromParent(ptype)
+                    except Exception:
+                        continue
+                for sig in sigs:
+                    if process.HasPhaseSpace(sig) and \
+                            len(process.GetPhaseSpace(sig).channels) >= 2:
+                        out.append((ptype, process.GetPhaseSpace(sig)))
+        return out
+
+    vinfo = []
+    pp = cpp_inj.GetPrimaryProcess()
+    vinfo += collect(pp, pp.primary_type)
+    for pt, proc in cpp_inj.GetSecondaryProcessMap().items():
+        vinfo += collect(proc, pt)
+
+    print(f"\n{'='*60}\nConverged outer weights per vertex")
+    for ptype, mc in vinfo:
+        parts, inner_note = [], ""
+        for ch, w in zip(mc.channels, mc.weights):
+            if hasattr(ch, "mixture"):
+                parts.append(f"dirGroup={w:.3f}")
+                if ch.mixture is not None:
+                    iw = list(ch.mixture.weights)
+                    if iw:
+                        spread = (max(iw) / min(iw)) if min(iw) > 0 else float("inf")
+                        inner_note = (f"  [group: {len(iw)} targets, "
+                                      f"max/min={spread:.1f}]")
+            elif hasattr(ch, "DirectingActive"):
+                parts.append(f"directed={w:.3f}")
+            else:
+                parts.append(f"phys={w:.3f}")
+        print(f"  vtx {int(ptype):>5}: " + ", ".join(parts) + inner_note)
+    print("=" * 60)
+
+
 # ------------------------------------------------------------------ #
 #  Main                                                                #
 # ------------------------------------------------------------------ #
@@ -679,7 +733,7 @@ def attribute_directing_variance(cpp_inj, weighter, n_events=400, metric=None):
 def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
         opt_iterations=5, opt_batch=200, monoenergetic=False,
         offshell=False, target_set="all_13", tile_n=2, attribute=False,
-        pion_energy=2.0, group_directed=False):
+        pion_energy=2.0, group_directed=False, failure_mode="throughput"):
 
     # -- Detector --
     print("Loading SBND detector model ...")
@@ -874,7 +928,9 @@ def run(dk2nu_dir, n_events=100, seed=42, optimize=False,
             # isotropic fallback in favor of the physical channel at
             # non-isotropic vertices (the memoryless sqrt_W cannot).
             update_rule="alpha_sqrt_W",
+            failure_mode=failure_mode,
         )
+        print_converged_weights(injector._Injector__injector)
 
     # -- Generate production events --
     print(f"\nGenerating {n_events} production events ...")
@@ -969,10 +1025,16 @@ if __name__ == "__main__":
                         help="Group each vertex's directed channels into one "
                              "NestedMixtureChannel (faster optimizer convergence "
                              "with many targets; density preserved)")
+    parser.add_argument("--failure-mode", type=str, default="throughput",
+                        choices=["coverage", "throughput", "ignore"],
+                        help="How injection failures feed the optimizer: "
+                             "throughput (default; down-weight lossy channels), "
+                             "ignore (no penalty), coverage (up-weight lossy "
+                             "channels, the original behavior)")
     args = parser.parse_args()
     run(dk2nu_dir=args.dk2nu_dir, n_events=args.n_events, seed=args.seed,
         optimize=args.optimize, opt_iterations=args.opt_iterations,
         opt_batch=args.opt_batch, monoenergetic=args.monoenergetic,
         offshell=args.offshell, target_set=args.target_set, tile_n=args.tile_n,
         attribute=args.attribute, pion_energy=args.pion_energy,
-        group_directed=args.group_directed)
+        group_directed=args.group_directed, failure_mode=args.failure_mode)
