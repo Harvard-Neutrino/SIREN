@@ -180,11 +180,18 @@ struct MultiChannelPhaseSpace {
     // current weights as damping*candidate + (1-damping)*old.  A degenerate batch
     // (no positive contributions, or no points) leaves the weights unchanged.
     // With `recurse`, nested mixtures are updated too.
+    // failure_mode controls the chain failure handling (only active when
+    // AccumulateSelection data is present): "throughput" (default) down-weights
+    // lossy channels (W_i *= 1-f_i; tracks the successful contribution, converges
+    // fastest, batch-insensitive), "ignore" leaves W untouched (same fixed point,
+    // slower), "coverage" up-weights lossy channels (W_i /= 1-f_i, the original
+    // behavior; tends to retain them).
     void UpdateWeights(
         std::string const & update_rule,
         double damping,
         double min_weight,
-        bool recurse = true);
+        bool recurse = true,
+        std::string const & failure_mode = "throughput");
 
     // Zero the accumulators (optionally recursing into nested mixtures).
     void ResetAccumulators(bool recurse = true);

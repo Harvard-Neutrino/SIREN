@@ -468,12 +468,18 @@ void MultiChannelPhaseSpace::CreditAgainst(
 
 void MultiChannelPhaseSpace::UpdateWeights(
     std::string const & update_rule, double damping, double min_weight,
-    bool recurse)
+    bool recurse, std::string const & failure_mode)
 {
     if (update_rule != "sqrt_W" && update_rule != "alpha_sqrt_W") {
         throw std::invalid_argument(
             "MultiChannelPhaseSpace::UpdateWeights: unknown update_rule '"
             + update_rule + "' (expected 'sqrt_W' or 'alpha_sqrt_W')");
+    }
+    if (failure_mode != "ignore" && failure_mode != "coverage" &&
+        failure_mode != "throughput") {
+        throw std::invalid_argument(
+            "MultiChannelPhaseSpace::UpdateWeights: unknown failure_mode '"
+            + failure_mode + "' (expected 'ignore', 'coverage' or 'throughput')");
     }
 
     size_t n = channels.size();
@@ -485,18 +491,27 @@ void MultiChannelPhaseSpace::UpdateWeights(
             W[i] = acc / static_cast<double>(kp_count_);
         }
 
-        // Chain failure penalty: inflate W_i by 1/(1 - f_i) for channels that
-        // disproportionately feed failed trees, where f_i is the channel's
-        // failed-selection fraction.  Only when failure-selection data is present
-        // (so the single-vertex optimizer, which never records it, is unaffected).
-        if (!kp_fail_select_.empty()) {
+        // Chain failure handling: adjust W_i by the channel's failed-selection
+        // fraction f_i = fail/(succ+fail), only when failure-selection data is
+        // present (so the single-vertex optimizer is unaffected):
+        //   coverage   -- W_i /= (1 - f_i): up-weight lossy channels to keep
+        //                 their region sampled (the original behavior).
+        //   throughput -- W_i *= (1 - f_i): down-weight lossy channels so the
+        //                 sampling tracks the successful contribution.
+        //   ignore     -- no adjustment (the success-weighted statistic already
+        //                 discounts failures implicitly).
+        if (failure_mode != "ignore" && !kp_fail_select_.empty()) {
             for (size_t i = 0; i < n; ++i) {
                 double succ = (i < kp_succ_select_.size()) ? kp_succ_select_[i] : 0.0;
                 double fail = (i < kp_fail_select_.size()) ? kp_fail_select_[i] : 0.0;
                 double tot = succ + fail;
                 if (tot > 0.0) {
                     double f_i = fail / tot;
-                    if (f_i < 1.0) W[i] /= (1.0 - f_i);
+                    if (failure_mode == "coverage") {
+                        if (f_i < 1.0) W[i] /= (1.0 - f_i);
+                    } else {  // throughput
+                        W[i] *= (1.0 - f_i);
+                    }
                 }
             }
         }
@@ -529,7 +544,7 @@ void MultiChannelPhaseSpace::UpdateWeights(
         for (auto const & channel : channels) {
             auto nested = std::dynamic_pointer_cast<NestedMixtureChannel>(channel);
             if (nested && nested->mixture) {
-                nested->mixture->UpdateWeights(update_rule, damping, min_weight, recurse);
+                nested->mixture->UpdateWeights(update_rule, damping, min_weight, recurse, failure_mode);
             }
         }
     }
