@@ -121,3 +121,38 @@ Branch `interface-redesign`. The multichannel Kleiss-Pittau weight optimizer was
 - A clean non-collimated full-chain tiled-vs-single ESS A/B is still only partial (target differentiation shown via `recurse_nested` inner spread ~3000, not a clean ESS A/B).
 - Phase D (AdaptiveMapping) and Phase E (narrow the conversion surface) from `architecture_alignment_plan.md` remain; Phase D is the natural next layer (intra-channel shapes self-tune, same "sampler owns its accumulation + refinement" pattern as the now-C++ weight optimizer; the `Mapping1D` Accumulate/Refine hooks are already in place).
 - Verification: Python suite 519 passed; C++ at baseline (the documented pre-existing data-file failures + flaky direction histogram, none touched).
+
+## 2026-06-02: MiniBooNE detector + BNB beamline wired into the SBN loader
+
+Branch `interface-redesign`. MiniBooNE became a first-class SBN-loader detector: `load_detector("SBN", detector="MiniBooNE")` now returns the BNB beamline (`BooNE_50m.gdml`) + Fermilab site geology + a full MiniBooNE detector/vault enclosure, composited in BNB-frame coordinates -- the same machinery ICARUS/SBND use. Closes the "G4BNB stops at the 50 m absorber; nothing models the detector at 541 m" gap. Enclosure dimensions verified against the primary MiniBooNE papers via a deep-research pass.
+
+### Completed
+
+- **Surveyed position pinned.** Tank center at BNB `(0, 1.89614, 541.34) m`, sourced to G4BNB `bsim::Location(0., 189.614, 54134.0, "MiniBooNE")` in `g4bnb .../NuBeamOutput.cc:136` ("PRD says 541 m.. refined by Zarko"): on-axis in x, +1.896 m vertical (decay-pipe axis ~1.9 m above the tank), 541.34 m downstream. Matches the value already in `sbn_geometry.py` (which had lacked the source comment).
+
+- **SBN loader extended** (`resources/detectors/SBN/SBN-v1/`): `sbn_geometry.py` gains a `MiniBooNE_local` frame + translation edge to BNB (cited to NuBeamOutput.cc:136), and `DETECTORS["MiniBooNE"]` now mirrors the LArSoft detectors (native frame, origin at tank center). `detector.py` gains a `MiniBooNE` spec (`unwrap=False`, locally generated, no remote URL). `sbn_loader.py` gains `ensure_miniboone_gdml()` + `_build_miniboone_gdml()` which emit the enclosure GDML.
+
+- **Standalone model removed + consumers ported.** Deleted top-level `resources/detectors/MiniBooNE/` (the idealized oil-sphere `densities.dat`/`materials.dat`). example2/example4 switch to `load_detector("SBN", detector="MiniBooNE")` and build the 5 m fiducial inline (`Sphere(5.0, 0.0)`). Legacy example2 ported via a new `SIREN_Controller(detector_model=...)` constructor arg (lets the deprecated controller accept a pre-built GDML composite; `GetFiducialVolume` guarded for the no-`densities.dat` case).
+
+- **Detector spec from the primary papers** (deep-research, adversarially verified): tank inner radius 6.096 m (40 ft); opaque optical barrier at 574.6 cm splitting inner-signal / 35 cm veto oil; Marcol 7 oil rho 0.845 g/cm3, n_D 1.4684, CH2 (H:C ~2); 1280 inner + 240 veto 8-inch PMTs (not modelled geometrically); 13.7 m (45 ft) cylindrical vault; >= 3 m dirt overburden; 541 m baseline / 1.9 m offset. Sources: NIM A 599 (2009) 28 = arXiv:0806.4201 (detector); PRD 79 (2009) 072002 = arXiv:0806.1449 (flux).
+
+- **Cylindrical vault enclosure GDML.** Radial onion: inner oil (r<5.746) -> veto oil (5.746-6.096) -> ~1 cm carbon-steel shell (6.096-6.106) -> air vault cavity (to 6.858) -> 0.47 m concrete wall -> dirt. Vertical stack (sphere on supports, ~1.0 m floor clearance): lower slab / vault air / upper slab / oil chimney / electronics room (air + walls + roof slab) / 3 m dirt berm, carved into a dirt world block. Cylinders are GDML `<tube>`s rotated 90 deg about x to stand vertical; placed flat with the detector oil/steel/cap emitted last so they win their overlaps with the vault air.
+
+### Key design decisions
+
+- **Paper > diagram.** Where the papers give a number it wins: vault inner diameter = 13.716 m (45 ft) and overburden = 3 m (>= 3 m), both NIM A 599 Sec. 1.4, replacing larger enclosure-diagram estimates (~15.26 m, ~2.5 m). Un-published dimensions (heights, wall/slab thicknesses, tank clearance, room, cap) are scaled off the enclosure cross-section (anchor: 40 ft sphere = 913 px) and labelled ESTIMATES in-code.
+- Steel-shell thickness ~1 cm is back-computed from the ~37 t shell mass over a 12.2 m sphere (no published thickness). Concrete rho 2.30, dirt rho 1.90 assumed.
+- Enclosure placed `unwrap=False` (the dirt world block is a real sector; the surrounding SBN till/atmosphere takes over outside it). Local grade lands at BNB y +8.38 m vs the SBN site grade +7.62 m -- the enclosure overrides the site geology locally.
+- The detector frame stays axis-aligned with BNB (identity rotation) so example beam directions (`FixedDirection([0,0,1])`) are unchanged; verticality is handled by per-`<tube>` rotation inside the sub-GDML.
+
+### Verification
+
+- `load_detector("SBN", detector="MiniBooNE")` -> `DetectorOrigin (0, 1.89614, 541.34) m`, identity rotation. Density probes confirm every radial layer (oil 0.845 / steel 7.86 / air / concrete 2.30 / dirt 1.90) and the full vertical stack (floor clearance, slabs, oil chimney, room air, roof, 3.000 m berm). SBND/ICARUS unaffected.
+- Tests: `test_sbn_geometry.py` (+`test_miniboone_position`), `test_sbn_loader_offline.py`, `test_controller.py` (+`test_prebuilt_detector_model_is_used`) -- 104 pass.
+
+### Open work / followups
+
+- Detector support legs (6 columns) and the side overflow tank omitted (negligible mass). Berm modelled as a dirt block, not the sloped 31.69 deg frustum.
+- Grade reconciliation: diagram-derived local grade (+8.38 m BNB) vs SBN site grade (+7.62 m) differ by ~0.8 m; the enclosure overrides locally, the SBN site model is unchanged.
+- The full beamline->detector composite is large (~1000+ sectors); not yet profiled for injection throughput.
+- Deep-research report (cited evidence per quantity) saved to the workflow output; not committed.
