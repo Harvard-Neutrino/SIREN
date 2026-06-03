@@ -19,11 +19,17 @@ model_kwargs = {
 # Number of events to inject
 events_to_inject = 100000
 
-# Expeirment to run
+# Experiment to run
 experiment = "MiniBooNE"
 
+# Load the MiniBooNE detector as part of the BNB beamline composite
+# (load_detector("SBN", detector="MiniBooNE")) and hand the pre-built
+# DetectorModel to the controller. The standalone MiniBooNE density model
+# has been retired in favour of this beamline-aware composite.
+detector_model = siren.load_detector("SBN", detector=experiment)
+
 # Define the controller
-controller = SIREN_Controller(events_to_inject, experiment)
+controller = SIREN_Controller(events_to_inject, detector_model=detector_model)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu

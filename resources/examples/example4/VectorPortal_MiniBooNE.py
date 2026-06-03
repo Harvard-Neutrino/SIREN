@@ -56,7 +56,7 @@ experiment = "MiniBooNE"
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
-detector_model = utilities.load_detector(experiment)
+detector_model = utilities.load_detector("SBN", detector=experiment)
 chi_type       = siren.dataclasses.Particle.ParticleType(PDGID_CHI)
 chi_prime_type = siren.dataclasses.Particle.ParticleType(PDGID_CHI_PRIME)
 v1_type        = siren.dataclasses.Particle.ParticleType(PDGID_V1)
@@ -86,7 +86,10 @@ print(f"Secondary decays: chi' ({len(secondary_processes.get(chi_prime_type, [])
 # ---------------------------------------------------------------------------
 # Injection distributions
 # ---------------------------------------------------------------------------
-fiducial_volume = utilities.get_fiducial_volume(experiment)
+# MiniBooNE fiducial volume: 5.0 m sphere about the tank center
+# (detector-local origin). The SBN composite has no densities.dat, so
+# the fiducial is built inline (cf. the SBND example).
+fiducial_volume = siren.geometry.Sphere(5.0, 0.0)
 
 primary_injection_distributions = [chi_flux]
 primary_physical_distributions  = [chi_flux]

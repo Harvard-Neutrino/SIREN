@@ -13,7 +13,7 @@ model_kwargs = {
     "HNLtype": "dirac",
 }
 
-detector_model = siren.load_detector("MiniBooNE")
+detector_model = siren.load_detector("SBN", detector="MiniBooNE")
 
 dn_version = siren.utilities.darknews_version()
 table_name = f"DarkNewsTables-v{dn_version}/"
@@ -53,7 +53,10 @@ sim = siren.Simulation(
     ),
     secondary_interactions=bundle.secondary,
     secondary_position=siren.dist.BoundedVertex(
-        siren.get_fiducial_volume("MiniBooNE"), 25
+        # MiniBooNE fiducial volume: 5.0 m sphere about the tank center
+        # (detector-local origin). The SBN composite has no densities.dat,
+        # so the fiducial is built inline (cf. the SBND example).
+        siren.geometry.Sphere(5.0, 0.0), 25
     ),
     stopping_condition=lambda datum, i: (
         datum.record.signature.secondary_types[i] != siren.particles.N4
