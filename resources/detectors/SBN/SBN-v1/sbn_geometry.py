@@ -179,6 +179,11 @@ def _build_graph() -> FrameGraph:
         "MicroBooNE LArSoft World origin",
         "horizontal west", "up", "along BNB beam axis"))
 
+    g.add_frame(Frame("MiniBooNE_local",
+        "MiniBooNE detector local frame (axes = BNB axes; origin at tank center).",
+        "MiniBooNE spherical-tank center",
+        "horizontal west", "up", "along BNB beam axis"))
+
     # ICARUS LArSoft -> NuMI (from icaruscode GNuMIFlux.xml, confirmed by DocDB 22998)
     g.add_transform(Transform(
         "ICARUS_LArSoft", "NuMI", R_ICARUS_TO_NUMI, T_ICARUS_IN_NUMI_M,
@@ -199,6 +204,16 @@ def _build_graph() -> FrameGraph:
     g.add_transform(Transform.translation(
         "MicroBooNE_LArSoft", "BNB", [0.0, 0.0, 470.0],
         "G4BNB MicroBooNE Location (0, 0, 47000) cm"))
+
+    # MiniBooNE tank center -> BNB (G4BNB bsim::Location, refined survey).
+    # From G4BNB NuBeamOutput.cc:136:
+    #   bsim::Location(0., 189.614, 54134.0, "MiniBooNE")  [cm]
+    # i.e. on-axis (x = 0), +1.89614 m vertical, 541.34 m downstream.
+    # PRD 79 (2009) 072002 quotes the nominal 541 m baseline; this tuple
+    # is the beam-group's refined value (Z. Pavlovic).
+    g.add_transform(Transform.translation(
+        "MiniBooNE_local", "BNB", [0.0, 1.89614, 541.34],
+        "G4BNB MiniBooNE bsim::Location (0, 189.614, 54134) cm; NuBeamOutput.cc:136"))
 
     return g
 
@@ -272,11 +287,18 @@ def _build_detectors() -> dict[str, Detector]:
         np.array([-1.281750, -1.165, -5.184]),
         np.array([+1.281750, +1.165, +5.184]))
 
+    # MiniBooNE: spherical mineral-oil tank, inner radius 6.1 m. The native
+    # frame is MiniBooNE_local (origin at the tank center); the tank position
+    # in the BNB frame is carried by the MiniBooNE_local -> BNB edge above, so
+    # center_native is the origin and the active volume is the tank bounding
+    # box. This matches how the LArSoft detectors are handled (GDML in the
+    # native frame, placed via the frame transform).
+    _mb_tank_r = 6.1
     detectors["MiniBooNE"] = Detector(
-        "MiniBooNE", "BNB",
-        np.array([0.0, 1.89614, 541.34]),
-        np.array([0.0, 1.89614, 541.34]) - 6.1,
-        np.array([0.0, 1.89614, 541.34]) + 6.1)
+        "MiniBooNE", "MiniBooNE_local",
+        np.array([0.0, 0.0, 0.0]),
+        np.array([-_mb_tank_r, -_mb_tank_r, -_mb_tank_r]),
+        np.array([+_mb_tank_r, +_mb_tank_r, +_mb_tank_r]))
 
     return detectors
 

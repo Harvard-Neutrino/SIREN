@@ -94,11 +94,26 @@ _DETECTOR_SPECS = {
         "url": f"{_DATA_BASE}/SBND/sbnd_v02_06.gdml",
         "sha256": "224a0efa55e66b1fb3b527937e4a899854c2bbab367db3659e55466c4e7f013a",
     },
+    # MiniBooNE: spherical mineral-oil tank (inner oil + veto shell + steel
+    # shell, in an air vault), generated locally by
+    # sbn_loader.ensure_miniboone_gdml (no remote URL). Placed at the G4BNB
+    # bsim::Location (0, 1.896, 541.34) m via the MiniBooNE_local frame.
+    # unwrap=False so the air-vault world volume is emitted as a real sector.
+    "MiniBooNE": {
+        "file": "gdml/miniboone_tank.gdml",
+        "prefix": "miniboone",
+        "unwrap": False,
+        "url": None,
+        "sha256": "",
+    },
 }
 
 
 def fetch_data():
     """Download GDML files for all detectors (called by siren-download --fetch)."""
+    # MiniBooNE's tank GDML has no remote URL; generate it locally first so
+    # _ensure_gdml_files finds it present rather than failing to download.
+    sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
     all_sources = list(_beamline_sources())
     for spec in _DETECTOR_SPECS.values():
         if spec.get("file"):
@@ -141,6 +156,10 @@ def load_detector(detector=None, earth_model=False):
             f'Choose from: {", ".join(_DETECTOR_SPECS.keys())}')
 
     spec = _DETECTOR_SPECS[detector]
+
+    # MiniBooNE's placeholder tank GDML is generated locally (no download).
+    if detector == "MiniBooNE":
+        sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
 
     from siren.detector import DetectorModel, GeometryPosition
     from siren.math import Vector3D, Quaternion, Matrix3D

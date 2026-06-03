@@ -52,6 +52,7 @@ def test_sbn_resource_loader_imports_from_source_tree(monkeypatch):
         assert callable(loader)
         assert "ICARUS" in loader._DETECTOR_SPECS
         assert "SBND" in loader._DETECTOR_SPECS
+        assert "MiniBooNE" in loader._DETECTOR_SPECS
     finally:
         for name in module_names:
             sys.modules.pop(name, None)
@@ -298,6 +299,16 @@ class TestFrameGraph:
     def test_sbnd_position(self, geo):
         T = geo.transform("SBND_LArSoft", "BNB")
         np.testing.assert_allclose(T.t, [0.7378, 0.0, 110.0], atol=1e-10)
+
+    def test_miniboone_position(self, geo):
+        """MiniBooNE tank center in BNB frame: G4BNB bsim::Location
+        (0, 189.614, 54134) cm -> (0, 1.89614, 541.34) m, pure translation
+        (NuBeamOutput.cc:136)."""
+        T = geo.transform("MiniBooNE_local", "BNB")
+        np.testing.assert_allclose(T.t, [0.0, 1.89614, 541.34], atol=1e-10)
+        np.testing.assert_allclose(T.R, np.eye(3), atol=1e-15)
+        c = geo.detector_center("MiniBooNE", "BNB")
+        np.testing.assert_allclose(c, [0.0, 1.89614, 541.34], atol=1e-10)
 
     def test_convert_origin(self, geo):
         origin_bnb = geo.convert([0, 0, 0], "ICARUS_LArSoft", "BNB")

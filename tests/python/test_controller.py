@@ -101,6 +101,19 @@ class TestControllerConstructor:
         c2 = SIREN_Controller(1, experiment="CCM", seed=42)
         assert c1.random.Uniform(0, 1) == c2.random.Uniform(0, 1)
 
+    def test_prebuilt_detector_model_is_used(self):
+        """A pre-built DetectorModel (e.g. a GDML composite) can be passed
+        directly, bypassing experiment/file loading."""
+        from siren.SIREN_Controller import SIREN_Controller
+        model = siren.load_detector("CCM")
+        c = SIREN_Controller(7, detector_model=model)
+        assert c.detector_model is model
+        assert c.detector_model_file is None
+        assert c.materials_model_file is None
+        assert c.events_to_inject == 7
+        # No densities.dat to parse a fiducial line from -> graceful None.
+        assert c.GetFiducialVolume() is None
+
 
 # ---------------------------------------------------------------------------
 # Detector model queries
