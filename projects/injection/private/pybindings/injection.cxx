@@ -248,6 +248,25 @@ PYBIND11_MODULE(injection,m) {
     .def(init<double, double>(),
          arg("s_min"), arg("s_max"));
 
+  class_<LogMapping, std::shared_ptr<LogMapping>, Mapping1D>(m, "LogMapping")
+    .def(init<double, double>(),
+         arg("x_min"), arg("x_max"));
+
+  class_<ExponentialMapping, std::shared_ptr<ExponentialMapping>, Mapping1D>(m, "ExponentialMapping")
+    .def(init<double, double, double>(),
+         arg("tau"), arg("x_min"), arg("x_max"));
+
+  class_<GaussianMapping, std::shared_ptr<GaussianMapping>, Mapping1D>(m, "GaussianMapping")
+    .def(init<double, double, double, double>(),
+         arg("mu"), arg("sigma"), arg("x_min"), arg("x_max"));
+
+  class_<AdaptiveMapping, std::shared_ptr<AdaptiveMapping>, Mapping1D>(m, "AdaptiveMapping")
+    .def(init<double, double, int, double, double>(),
+         arg("x_min"), arg("x_max"), arg("n_bins") = 32,
+         arg("damping") = 0.5, arg("floor_frac") = 1e-3)
+    .def_readonly("p", &AdaptiveMapping::p)
+    .def_readonly("n_bins", &AdaptiveMapping::n_bins);
+
   enum_<DetectorDirected3BodyChannel::InvariantMassMode>(m, "InvariantMassMode")
     .value("Uniform", DetectorDirected3BodyChannel::InvariantMassMode::Uniform)
     .value("BreitWigner", DetectorDirected3BodyChannel::InvariantMassMode::BreitWigner)

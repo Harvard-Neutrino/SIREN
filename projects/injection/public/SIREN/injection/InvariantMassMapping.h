@@ -2,8 +2,10 @@
 #ifndef SIREN_InvariantMassMapping_H
 #define SIREN_InvariantMassMapping_H
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -294,6 +296,280 @@ struct UniformMapping : public Mapping1D {
     double Forward(double r) const { return s_min + r * range; }
     double Inverse(double s) const { return (s - s_min) / range; }
     double Density(double) const { return 1.0 / range; }
+};
+
+// Log (scale-free) mapping: g(x) ~ 1/x on [x_min, x_max], x_min > 0.
+// This is the nu -> 1 limit of PowerLawMapping, which is singular there
+// (its 1/(1-nu) normalization diverges), so it needs its own closed form.
+// It is the natural map for a massless/scale-free propagator (pure 1/Q^2)
+// or any variable swept over decades.
+//   CDF:     F(x) = ln(x/x_min) / L,   L = ln(x_max/x_min)
+//   Forward: x = x_min * exp(r * L)
+//   Density: g(x) = 1 / (x * L)
+struct LogMapping : public Mapping1D {
+    double x_min;
+    double x_max;
+    double L;          // ln(x_max / x_min)
+
+    LogMapping(double x_min_, double x_max_)
+        : x_min(x_min_), x_max(x_max_)
+    {
+        if (!(x_min > 0.0) || !(x_max > x_min)) {
+            throw std::runtime_error("LogMapping requires 0 < x_min < x_max");
+        }
+        L = std::log(x_max / x_min);
+    }
+
+    double Forward(double r) const { return x_min * std::exp(r * L); }
+    double Inverse(double x) const { return std::log(x / x_min) / L; }
+    double Density(double x) const { return 1.0 / (x * L); }
+};
+
+// Exponential mapping: g(x) ~ exp(-x/tau) on [x_min, x_max], tau != 0.
+// The natural importance map for a decay length / proper time (the
+// exponential decay law) and for any falling (tau > 0) or rising (tau < 0)
+// exponential variable.
+//   a = exp(-x_min/tau), b = exp(-x_max/tau), norm = tau*(a-b) (> 0 either sign)
+//   Forward: x = -tau * ln(a - r*(a-b))
+//   Density: g(x) = exp(-x/tau) / norm
+struct ExponentialMapping : public Mapping1D {
+    double tau;
+    double x_min;
+    double x_max;
+    double a;          // exp(-x_min/tau)
+    double b;          // exp(-x_max/tau)
+    double norm;       // tau*(a-b) = integral of exp(-x/tau) over the range
+
+    ExponentialMapping(double tau_, double x_min_, double x_max_)
+        : tau(tau_), x_min(x_min_), x_max(x_max_)
+    {
+        if (tau == 0.0 || !(x_max > x_min)) {
+            throw std::runtime_error(
+                "ExponentialMapping requires tau != 0 and x_max > x_min");
+        }
+        a = std::exp(-x_min / tau);
+        b = std::exp(-x_max / tau);
+        norm = tau * (a - b);
+        if (!(norm > 0.0)) {
+            throw std::runtime_error("ExponentialMapping has degenerate range");
+        }
+    }
+
+    double Forward(double r) const { return -tau * std::log(a - r * (a - b)); }
+    double Inverse(double x) const { return (a - std::exp(-x / tau)) / (a - b); }
+    double Density(double x) const { return std::exp(-x / tau) / norm; }
+};
+
+namespace detail {
+
+// Standard normal CDF, Phi(z) = 0.5*erfc(-z/sqrt(2)).
+inline double NormalCdf(double z) {
+    return 0.5 * std::erfc(-z * 0.70710678118654752440);  // 1/sqrt(2)
+}
+
+// Inverse standard normal CDF (probit).  Acklam's rational approximation,
+// refined with one Halley step using erfc, reaches ~machine precision -- so a
+// Gaussian map's Forward exactly inverts the CDF its Density reports (C1).
+inline double NormalQuantile(double p) {
+    if (p <= 0.0) return -std::numeric_limits<double>::infinity();
+    if (p >= 1.0) return std::numeric_limits<double>::infinity();
+    static const double a[6] = {
+        -3.969683028665376e+01,  2.209460984245205e+02, -2.759285104469687e+02,
+         1.383577518672690e+02, -3.066479806614716e+01,  2.506628277459239e+00};
+    static const double b[5] = {
+        -5.447609879822406e+01,  1.615858368580409e+02, -1.556989798598866e+02,
+         6.680131188771972e+01, -1.328068155288572e+01};
+    static const double c[6] = {
+        -7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+        -2.549732539343734e+00,  4.374664141464968e+00,  2.938163982698783e+00};
+    static const double d[4] = {
+         7.784695709041462e-03,  3.224671290700398e-01,  2.445134137142996e+00,
+         3.754408661907416e+00};
+    const double p_low = 0.02425, p_high = 1.0 - p_low;
+    double x;
+    if (p < p_low) {
+        double q = std::sqrt(-2.0 * std::log(p));
+        x = (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+            ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1.0);
+    } else if (p <= p_high) {
+        double q = p - 0.5, r = q * q;
+        x = (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5]) * q /
+            (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1.0);
+    } else {
+        double q = std::sqrt(-2.0 * std::log(1.0 - p));
+        x = -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+             ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1.0);
+    }
+    // One Halley refinement: drives the error to ~machine precision.
+    double e = NormalCdf(x) - p;
+    double u = e * 2.50662827463100050242 * std::exp(0.5 * x * x);  // sqrt(2*pi)
+    x -= u / (1.0 + 0.5 * x * u);
+    return x;
+}
+
+} // namespace detail
+
+// Gaussian mapping: g(x) ~ exp(-(x-mu)^2/(2 sigma^2)) truncated to
+// [x_min, x_max] (sigma > 0).  Useful for a smooth peaked variable (beam
+// energy spread, resolution smearing).  Density is the exact truncated-normal
+// pdf; Forward uses the probit refined to ~machine precision, so it inverts
+// exactly the CDF Density reports (C1).
+struct GaussianMapping : public Mapping1D {
+    double mu;
+    double sigma;
+    double x_min;
+    double x_max;
+    double p_lo;       // Phi((x_min - mu)/sigma)
+    double p_hi;       // Phi((x_max - mu)/sigma)
+    double norm;       // p_hi - p_lo
+
+    GaussianMapping(double mu_, double sigma_, double x_min_, double x_max_)
+        : mu(mu_), sigma(sigma_), x_min(x_min_), x_max(x_max_)
+    {
+        if (!(sigma > 0.0) || !(x_max > x_min)) {
+            throw std::runtime_error(
+                "GaussianMapping requires sigma > 0 and x_max > x_min");
+        }
+        p_lo = detail::NormalCdf((x_min - mu) / sigma);
+        p_hi = detail::NormalCdf((x_max - mu) / sigma);
+        norm = p_hi - p_lo;
+        if (!(norm > 0.0)) {
+            throw std::runtime_error(
+                "GaussianMapping has zero probability mass over [x_min, x_max]");
+        }
+    }
+
+    double Forward(double r) const {
+        double x = mu + sigma * detail::NormalQuantile(p_lo + r * norm);
+        if (x < x_min) x = x_min;
+        if (x > x_max) x = x_max;
+        return x;
+    }
+
+    double Inverse(double x) const {
+        return (detail::NormalCdf((x - mu) / sigma) - p_lo) / norm;
+    }
+
+    double Density(double x) const {
+        double z = (x - mu) / sigma;
+        // 1/sqrt(2*pi) = 0.39894228040143267794
+        return (0.39894228040143267794 / sigma) * std::exp(-0.5 * z * z) / norm;
+    }
+};
+
+// Adaptive (VEGAS-style) mapping: a piecewise-constant proposal on a fixed
+// grid of n_bins equal-width bins over [x_min, x_max], whose per-bin
+// probabilities self-tune from sampled weights via the Accumulate/Refine
+// hooks.  It starts uniform (so it is a no-op until refined) and converges
+// toward any 1-D shape with no hand-tuned parameters -- the foundation for
+// adaptive intra-channel sampling.
+//
+// Contract: feed Accumulate(x, w) with the importance weight w = f(x)/g(x)
+// for points x drawn from THIS map; then sum over a batch of bin i estimates
+// the bin integral of f (the g-sampling cancels), so Refine sets the new
+// per-bin probability proportional to that, damping-blended with the current
+// one and floored so no bin dies.  The result drives the proposal toward f.
+struct AdaptiveMapping : public Mapping1D {
+    double x_min;
+    double x_max;
+    int n_bins;
+    double damping;            // blend new/old per-bin probability in [0,1]
+    double floor_frac;         // min bin probability = floor_frac / n_bins
+    double width;              // (x_max - x_min) / n_bins
+    std::vector<double> p;     // per-bin probability (sums to 1)
+    std::vector<double> cum;   // cumulative probability at bin edges (n_bins+1)
+    std::vector<double> acc;   // accumulated weight per bin (reset on Refine)
+    std::vector<long> cnt;     // sample count per bin (reset on Refine)
+
+    AdaptiveMapping(double x_min_, double x_max_, int n_bins_ = 32,
+                    double damping_ = 0.5, double floor_frac_ = 1e-3)
+        : x_min(x_min_), x_max(x_max_), n_bins(n_bins_),
+          damping(damping_), floor_frac(floor_frac_)
+    {
+        if (n_bins < 1 || !(x_max > x_min)) {
+            throw std::runtime_error(
+                "AdaptiveMapping requires n_bins >= 1 and x_max > x_min");
+        }
+        width = (x_max - x_min) / n_bins;
+        p.assign(n_bins, 1.0 / n_bins);
+        acc.assign(n_bins, 0.0);
+        cnt.assign(n_bins, 0);
+        cum.assign(n_bins + 1, 0.0);
+        RebuildCum();
+    }
+
+    void RebuildCum() {
+        cum[0] = 0.0;
+        for (int i = 0; i < n_bins; ++i) cum[i + 1] = cum[i] + p[i];
+        double tot = cum[n_bins];
+        if (tot > 0.0) for (double & c : cum) c /= tot;
+    }
+
+    int BinOf(double x) const {
+        if (x <= x_min) return 0;
+        if (x >= x_max) return n_bins - 1;
+        int i = static_cast<int>((x - x_min) / width);
+        if (i < 0) i = 0;
+        if (i >= n_bins) i = n_bins - 1;
+        return i;
+    }
+
+    double Forward(double r) const {
+        if (r <= 0.0) return x_min;
+        if (r >= 1.0) return x_max;
+        int lo = 0, hi = n_bins;  // search the n_bins+1 edge cumulatives
+        while (hi - lo > 1) {
+            int mid = (lo + hi) / 2;
+            if (cum[mid] <= r) lo = mid; else hi = mid;
+        }
+        double pi = cum[lo + 1] - cum[lo];
+        double frac = pi > 0.0 ? (r - cum[lo]) / pi : 0.0;
+        return x_min + (lo + frac) * width;
+    }
+
+    double Inverse(double x) const {
+        if (x <= x_min) return 0.0;
+        if (x >= x_max) return 1.0;
+        int i = BinOf(x);
+        double frac = (x - (x_min + i * width)) / width;
+        return cum[i] + frac * (cum[i + 1] - cum[i]);
+    }
+
+    double Density(double x) const {
+        if (x < x_min || x > x_max) return 0.0;
+        return p[BinOf(x)] / width;
+    }
+
+    void Accumulate(double x, double weight) override {
+        if (x < x_min || x > x_max || !std::isfinite(weight)) return;
+        int i = BinOf(x);
+        acc[i] += weight;
+        cnt[i] += 1;
+    }
+
+    void Refine() override {
+        double tot = 0.0;
+        for (double v : acc) tot += v;
+        if (tot > 0.0) {
+            std::vector<double> np(n_bins);
+            double min_p = floor_frac / n_bins;
+            double s = 0.0;
+            for (int i = 0; i < n_bins; ++i) {
+                np[i] = std::max(acc[i] / tot, min_p);
+                s += np[i];
+            }
+            for (int i = 0; i < n_bins; ++i) np[i] /= s;
+            double ps = 0.0;
+            for (int i = 0; i < n_bins; ++i) {
+                p[i] = damping * np[i] + (1.0 - damping) * p[i];
+                ps += p[i];
+            }
+            for (double & v : p) v /= ps;
+            RebuildCum();
+        }
+        std::fill(acc.begin(), acc.end(), 0.0);
+        std::fill(cnt.begin(), cnt.end(), 0);
+    }
 };
 
 } // namespace injection
