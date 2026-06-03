@@ -28,6 +28,16 @@ MAPS = [
      lambda: injection.PropagatorMapping(0.01, 0.0, 10.0), 0.0, 10.0),
     ("Uniform",
      lambda: injection.UniformMapping(1.0, 10.0), 1.0, 10.0),
+    ("Log",
+     lambda: injection.LogMapping(0.1, 100.0), 0.1, 100.0),
+    ("Exponential",
+     lambda: injection.ExponentialMapping(2.0, 0.0, 10.0), 0.0, 10.0),
+    ("Gaussian",
+     lambda: injection.GaussianMapping(5.0, 2.0, 0.0, 10.0), 0.0, 10.0),
+    # Adaptive starts uniform (a no-op until refined), so it satisfies the
+    # generic round-trip / normalization checks in this fresh state.
+    ("Adaptive",
+     lambda: injection.AdaptiveMapping(0.0, 1.0, 32), 0.0, 1.0),
 ]
 _IDS = [m[0] for m in MAPS]
 
@@ -75,3 +85,45 @@ def test_fixed_map_adaptive_hooks_are_noops():
     m.Accumulate(0.5, 1.0)
     m.Refine()
     assert m.Density(0.5) == d_before
+
+
+def test_log_mapping_matches_powerlaw_limit():
+    """LogMapping is the nu->1 case PowerLaw cannot represent (1/(1-nu) blows
+    up); check it reproduces a near-1 PowerLaw within the shared range."""
+    lo, hi = 0.5, 50.0
+    log_map = injection.LogMapping(lo, hi)
+    pl = injection.PowerLawMapping(0.999, 0.0, lo, hi)  # nu just below 1
+    for r in np.linspace(0.05, 0.95, 19):
+        assert log_map.Forward(r) == pytest.approx(pl.Forward(r), rel=2e-2)
+
+
+def test_adaptive_mapping_converges_to_target():
+    """The adaptive map drives its proposal toward a target density via the
+    Accumulate/Refine hooks: the importance-weight variance collapses and the
+    learned density tracks the (rising) target shape."""
+    rng = np.random.default_rng(7)
+
+    def f(x):  # target on [0,1]: integral 1, strongly peaked at x=1
+        return 3.0 * x * x
+
+    m = injection.AdaptiveMapping(0.0, 1.0, 24, 0.6, 1e-3)
+
+    def coeff_of_variation(mapping, n=20000):
+        x = np.array([mapping.Forward(r) for r in rng.random(n)])
+        g = np.array([mapping.Density(xi) for xi in x])
+        w = f(x) / g
+        return float(w.std() / w.mean())
+
+    cv_start = coeff_of_variation(m)          # uniform proposal
+    for _ in range(8):
+        for r in rng.random(4000):            # accumulate a batch ...
+            x = m.Forward(r)
+            g = m.Density(x)
+            if g > 0:
+                m.Accumulate(x, f(x) / g)
+        m.Refine()                            # ... then refine once
+    cv_end = coeff_of_variation(m)
+
+    assert cv_end < 0.3 * cv_start, f"CV {cv_start:.3f} -> {cv_end:.3f}"
+    # learned the increasing shape: density much higher near the peak than the tail
+    assert m.Density(0.9) > 10.0 * m.Density(0.1)
