@@ -67,16 +67,16 @@ add_custom_command(
     VERBATIM
 )
 
-# Copy python files into the staging area
+# Copy python files into the staging area. Depend on every file under
+# python/ (globbed) so that editing any module -- not just a hard-coded few
+# -- re-triggers the copy. (Adding a brand-new file still needs a reconfigure
+# to re-evaluate the glob, as with the resources glob below.)
+file(GLOB_RECURSE PYTHON_FILES ${CMAKE_SOURCE_DIR}/python/*)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
     DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-        ${CMAKE_SOURCE_DIR}/python/Injector.py
-        ${CMAKE_SOURCE_DIR}/python/Weighter.py
-        ${CMAKE_SOURCE_DIR}/python/__init__.py
-        ${CMAKE_SOURCE_DIR}/python/_util.py
-        ${CMAKE_SOURCE_DIR}/python/resources.py
+        ${PYTHON_FILES}
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/python
         ${PACKAGE_STAGING_DIR}/${PROJECT_NAME}

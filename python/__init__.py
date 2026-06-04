@@ -11,6 +11,7 @@ from . import optimize
 
 from . import _util
 from . import resources
+from . import visualization
 
 # Intropspect package version
 import sys
