@@ -46,24 +46,24 @@ TEST(GDMLParser, AllSolidTypes) {
     }
 
     double tol = 1e-6;
-    // GDML box x/y/z are half-widths: 100mm half-width = 0.1m
+    // GDML box x/y/z are full-widths: 100mm full-width -> 0.05m half-extent
     auto bb_b1 = data.solids["b1"]->GetBoundingBox();
-    EXPECT_NEAR(bb_b1.max_corner.GetX(), 0.1, tol);
-    EXPECT_NEAR(bb_b1.max_corner.GetZ(), 0.1, tol);
+    EXPECT_NEAR(bb_b1.max_corner.GetX(), 0.05, tol);
+    EXPECT_NEAR(bb_b1.max_corner.GetZ(), 0.05, tol);
 
     // sphere: rmax=50mm = 0.05m
     auto bb_s1 = data.solids["s1"]->GetBoundingBox();
     EXPECT_NEAR(bb_s1.max_corner.GetX(), 0.05, tol);
 
-    // tube: rmax=50mm=0.05m, GDML z=100mm is half-length=0.1m
+    // tube: rmax=50mm=0.05m, GDML z=100mm full-height -> 0.05m half-extent
     auto bb_t1 = data.solids["t1"]->GetBoundingBox();
     EXPECT_NEAR(bb_t1.max_corner.GetX(), 0.05, tol);
-    EXPECT_NEAR(bb_t1.max_corner.GetZ(), 0.1, tol);
+    EXPECT_NEAR(bb_t1.max_corner.GetZ(), 0.05, tol);
 
-    // trd: GDML half-widths: max(x1=60,x2=40)=60mm=0.06m, z=100mm half-height=0.1m
+    // trd: GDML full-widths halved -> max(x1=60,x2=40)/2=30mm=0.03m, z=100mm/2=0.05m
     auto bb_trd = data.solids["trd1"]->GetBoundingBox();
-    EXPECT_NEAR(bb_trd.max_corner.GetX(), 0.06, tol);
-    EXPECT_NEAR(bb_trd.max_corner.GetZ(), 0.1, tol);
+    EXPECT_NEAR(bb_trd.max_corner.GetX(), 0.03, tol);
+    EXPECT_NEAR(bb_trd.max_corner.GetZ(), 0.05, tol);
 
     // elliptical tube: dx=30mm=0.03m, dy=20mm=0.02m, dz=50mm half-z=0.05m
     auto bb_et = data.solids["et1"]->GetBoundingBox();
@@ -204,8 +204,9 @@ TEST(GDMLParser, CutTubeIntegration) {
     auto geo = RequireSolid(data, "ct");
     auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
-    // rmax=50mm=0.05m, z=100mm half=50mm=0.05m (flat cuts)
+    // rmax=50mm=0.05m; GDML z=100mm is full-height -> dz=0.05m half (flat cuts)
     EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.05, tol);
 }
 
 
@@ -219,10 +220,10 @@ TEST(GDMLParser, TrapIntegration) {
     auto geo = RequireSolid(data, "t");
     auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
-    // z=100mm = 0.1m (GDML trap z is half-height, passed directly as dz)
-    EXPECT_NEAR(bb.max_corner.GetZ(), 0.1, tol);
-    // max x = max(dx1,dx2,dx3,dx4) = 40mm = 0.04m
-    EXPECT_NEAR(bb.max_corner.GetX(), 0.04, tol);
+    // GDML trap z=100mm is a full-length -> dz=0.05m half-height
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.05, tol);
+    // max x = max(dx1..dx4) = 40mm full / 2 = 0.02m
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.02, tol);
 }
 
 
@@ -247,10 +248,11 @@ TEST(GDMLParser, ParaIntegration) {
     auto geo = RequireSolid(data, "p");
     auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
-    // With alpha=theta=phi=0, para = box: x=40mm=0.04m half, etc.
-    EXPECT_NEAR(bb.max_corner.GetX(), 0.04, tol);
-    EXPECT_NEAR(bb.max_corner.GetY(), 0.03, tol);
-    EXPECT_NEAR(bb.max_corner.GetZ(), 0.05, tol);
+    // With alpha=theta=phi=0, para = box. GDML x,y,z are full-lengths:
+    // x=40mm->0.02m, y=30mm->0.015m, z=50mm->0.025m half-extents.
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.02, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 0.015, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.025, tol);
 }
 
 
@@ -706,16 +708,16 @@ TEST(GDMLParser, GenericPolyconePhiCut) {
 
 
 TEST(GDMLParser, BoxContainmentThroughParser) {
-    // box x,y,z are GDML half-widths: 50mm, 30mm, 20mm
-    // Half-extents in meters: 0.05, 0.03, 0.02
+    // box x,y,z are GDML full-widths: 50mm, 30mm, 20mm
+    // Half-extents in meters: 0.025, 0.015, 0.01
     TestContainment(
         R"(<box name="b" x="50" y="30" z="20" lunit="mm"/>)",
         "b", {
-            {0, 0, 0, true},            // Interior: center
-            {0.049, 0.029, 0.019, true}, // Interior: just inside corners
-            {0.051, 0, 0, false},       // Exterior: just past x half-width
-            {0, 0.031, 0, false},       // Exterior: just past y half-width
-            {0, 0, 0.021, false},       // Exterior: just past z half-width
+            {0, 0, 0, true},             // Interior: center
+            {0.024, 0.014, 0.009, true}, // Interior: just inside corners
+            {0.026, 0, 0, false},        // Exterior: just past x half-width
+            {0, 0.016, 0, false},        // Exterior: just past y half-width
+            {0, 0, 0.011, false},        // Exterior: just past z half-width
         });
 }
 
@@ -736,31 +738,29 @@ TEST(GDMLParser, SphereContainmentThroughParser) {
 
 TEST(GDMLParser, TubeContainmentThroughParser) {
     // Hollow tube: rmin=10mm=0.01m, rmax=50mm=0.05m
-    // z=100mm is GDML half-height; half=0.1m
+    // GDML z=100mm is full-height -> half-height=0.05m
     TestContainment(
         R"(<tube name="t" rmin="10" rmax="50" z="100" deltaphi="360" aunit="deg" lunit="mm"/>)",
         "t", {
             {0.03, 0, 0, true},         // Interior: in shell, at center height
-            {0, 0.03, 0.09, true},      // Interior: in shell, near top
+            {0, 0.03, 0.04, true},      // Interior: in shell, near top (|z|<0.05)
             {0.005, 0, 0, false},       // Exterior: inside hollow (r<rmin)
             {0.051, 0, 0, false},       // Exterior: past outer radius
-            {0.03, 0, 0.101, false},    // Exterior: past z half-height
+            {0.03, 0, 0.051, false},    // Exterior: past z half-height
         });
 }
 
 
 TEST(GDMLParser, ConeContainmentThroughParser) {
     // Solid cone: rmax1=50mm at bottom, rmax2=20mm at top
-    // z=100mm is GDML half-height, spanning z=-0.1 to z=0.1
-    // At z=0: rmax~35mm=0.035m
-    // At z=-0.09: rmax~48.5mm=0.0485m
-    // At z=+0.09: rmax~21.5mm=0.0215m
+    // GDML z=100mm is full-height -> spans z=-0.05 to z=0.05
+    // rmax(z) = 0.035 - 0.3*z. At z=0: 0.035m; z=-0.04: 0.047m; z=+0.04: 0.023m
     TestContainment(
         R"(<cone name="c" rmin1="0" rmax1="50" rmin2="0" rmax2="20" z="100" deltaphi="360" aunit="deg" lunit="mm"/>)",
         "c", {
             {0, 0, 0, true},            // Interior: center
-            {0.04, 0, -0.09, true},     // Interior: near bottom (r<rmax~0.0485)
-            {0.04, 0, 0.09, false},     // Exterior: near top (r>rmax~0.0215)
+            {0.04, 0, -0.04, true},     // Interior: near bottom (r=0.04<rmax~0.047)
+            {0.04, 0, 0.04, false},     // Exterior: near top (r=0.04>rmax~0.023)
             {0.02, 0.02, 0, true},      // Off-axis interior: r=0.0283 < 0.035
             {0.03, 0.03, 0, false},     // Off-axis exterior: r=0.0424 > 0.035
         });
@@ -768,15 +768,16 @@ TEST(GDMLParser, ConeContainmentThroughParser) {
 
 
 TEST(GDMLParser, TrdContainmentThroughParser) {
-    // Trd: x1=60, x2=30, y1=40, y2=20, z=50 (all GDML half-widths/half-height, mm)
-    // At z=0 (center): x half-width=0.045m, y half-width=0.03m
+    // Trd: GDML full-widths x1=60,x2=30,y1=40,y2=20,z=50 mm -> half-lengths
+    // dx1=0.03,dx2=0.015,dy1=0.02,dy2=0.01,dz=0.025 (spans z=-0.025..0.025)
+    // At z=0 (center): x half-width=0.0225m, y half-width=0.015m
     TestContainment(
         R"(<trd name="tr" x1="60" x2="30" y1="40" y2="20" z="50" lunit="mm"/>)",
         "tr", {
-            {0.04, 0.025, 0, true},     // Interior: center region
-            {0.046, 0, 0, false},       // Exterior: x>interpolated half-width at z=0
-            {0.055, 0, -0.045, true},   // Interior: near bottom, x<~0.057m
-            {0.055, 0, 0.045, false},   // Exterior: near top, x>~0.033m
+            {0.02, 0.012, 0, true},     // Interior: center region
+            {0.025, 0, 0, false},       // Exterior: x>interpolated half-width at z=0
+            {0.025, 0, -0.02, true},    // Interior: near bottom, x<~0.0285m
+            {0.025, 0, 0.02, false},    // Exterior: near top, x>~0.0165m
         });
 }
 
@@ -810,17 +811,17 @@ TEST(GDMLParser, TorusContainmentThroughParser) {
 
 
 TEST(GDMLParser, TrapContainmentThroughParser) {
-    // Trap: z=50mm dz=0.05m. theta=phi=0.
-    // At z=-dz: dy1=0.03m, dx1=dx2=0.02m
-    // At z=+dz: dy2=0.015m, dx3=dx4=0.01m
+    // Trap: GDML full-lengths z=50,y1=30,x1=x2=20,y2=15,x3=x4=10 mm -> half-lengths
+    // dz=0.025m, theta=phi=0. At z=-dz: dy1=0.015m, dx1=dx2=0.01m
+    // At z=+dz: dy2=0.0075m, dx3=dx4=0.005m
     TestContainment(
         R"(<trap name="trp" z="50" theta="0" phi="0" y1="30" x1="20" x2="20" alpha1="0" y2="15" x3="10" x4="10" alpha2="0" aunit="rad" lunit="mm"/>)",
         "trp", {
             {0, 0, 0, true},            // Interior: center
-            // Interior: near bottom face (z=-0.04), dx~0.019, dy~0.0285
-            {0.015, 0.02, -0.04, true},
-            // Exterior: near top face (z=+0.04), dx~0.011, x=0.015>0.011
-            {0.015, 0, 0.04, false},
+            // Interior: near bottom face (z=-0.02), x_half~0.0095, y_half~0.0143
+            {0.008, 0.012, -0.02, true},
+            // Exterior: near top face (z=+0.02), x_half~0.0055, x=0.008>0.0055
+            {0.008, 0, 0.02, false},
         });
 }
 
@@ -909,16 +910,16 @@ TEST(GDMLParser, TrapShearedContainment) {
     auto geo = RequireSolid(data, "sheared_trap");
     ASSERT_NE(geo, nullptr);
 
+    // GDML full-lengths -> dz=0.05m, dx=0.01m, dy=0.015m half-lengths.
     // Center of the solid: should be inside regardless of theta
     EXPECT_TRUE(IsInside(geo, 0, 0, 0));
 
-    // Near top face (z close to +dz=0.05m): point shifted in +x direction
-    // should be inside, while unshifted point may be outside
-    // At z=+0.049m (near top), face center ~ x=+0.0178m
-    EXPECT_TRUE(IsInside(geo, 0.03, 0, 0.049));
-    // Same x at bottom face (z=-0.049m): face center ~ x=-0.0178m
-    // x=0.03 is far from [-0.0378, 0.0022] range, so outside
-    EXPECT_FALSE(IsInside(geo, 0.03, 0, -0.049));
+    // Near top face (z close to +dz=0.05m): theta=20deg shifts the face
+    // center to x ~ +0.0178m, x half-width 0.01m -> x range [0.0078, 0.0278]
+    EXPECT_TRUE(IsInside(geo, 0.018, 0, 0.049));
+    // Same x at bottom face (z=-0.049m): face center ~ x=-0.0178m,
+    // range [-0.0278, -0.0078], so x=0.018 is outside
+    EXPECT_FALSE(IsInside(geo, 0.018, 0, -0.049));
 }
 
 
@@ -936,4 +937,93 @@ TEST(GDMLParser, PartialPolyhedraContainment) {
             {0, -0.03, 0, false},       // Exterior: negative-y half (phi~270, outside [0,180])
             {0, 0.06, 0, false},        // Exterior: beyond the solid radius
         });
+}
+
+
+TEST(GDMLParser, SolidHalfLengthConventions) {
+    // Regression guard for the GDML->SIREN dimension conventions (Geant4 ground
+    // truth). GDML box/tube/cone/para/trd/trap/cutTube linear attributes are
+    // FULL lengths, so each SIREN bounding-box half-extent must equal half the
+    // GDML value. eltube/ellipsoid attributes are semi-axes (no halving).
+    // Polyhedra rmin/rmax are apothem (tangent) distances, converted to the
+    // circumscribed radius SIREN uses. All dimensions in meters for legibility.
+    GDMLData data = ParseGDMLWithSolids(R"(
+    <box name="cv_box" x="2" y="4" z="6" lunit="m"/>
+    <tube name="cv_tube" rmin="0" rmax="1" z="4" deltaphi="360" aunit="deg" lunit="m"/>
+    <cone name="cv_cone" rmin1="0" rmax1="1" rmin2="0" rmax2="1" z="4" deltaphi="360" aunit="deg" lunit="m"/>
+    <para name="cv_para" x="2" y="2" z="2" alpha="0" theta="0" phi="0" aunit="rad" lunit="m"/>
+    <trd name="cv_trd" x1="2" x2="2" y1="2" y2="2" z="2" lunit="m"/>
+    <trap name="cv_trap" z="2" theta="0" phi="0" y1="2" x1="2" x2="2" alpha1="0" y2="2" x3="2" x4="2" alpha2="0" aunit="rad" lunit="m"/>
+    <cutTube name="cv_cuttube" rmin="0" rmax="1" z="4" startphi="0" deltaphi="360" lowX="0" lowY="0" lowZ="-1" highX="0" highY="0" highZ="1" aunit="deg" lunit="m"/>
+    <eltube name="cv_eltube" dx="1" dy="2" dz="3" lunit="m"/>
+    <ellipsoid name="cv_ellipsoid" ax="1" by="2" cz="3" lunit="m"/>
+    <polyhedra name="cv_polyhedra" numsides="4" startphi="45" deltaphi="360" aunit="deg" lunit="m">
+      <zplane rmin="0" rmax="1" z="-1"/>
+      <zplane rmin="0" rmax="1" z="1"/>
+    </polyhedra>
+)", "cv_box");
+
+    double tol = 1e-6;
+
+    // box: GDML full-widths 2,4,6 m -> half-extents 1,2,3 m
+    auto bb = data.solids["cv_box"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 2.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 3.0, tol);
+
+    // tube: GDML z=4 m full-height -> half-height 2 m; rmax=1 m actual radius
+    bb = data.solids["cv_tube"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 2.0, tol);
+
+    // cone: GDML z=4 m full-height -> half-height 2 m; rmax=1 m actual radius
+    bb = data.solids["cv_cone"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 2.0, tol);
+
+    // para: GDML full-lengths 2,2,2 m (axis-aligned) -> half-extents 1,1,1 m
+    bb = data.solids["cv_para"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 1.0, tol);
+
+    // trd: GDML full-widths 2,2,2,2,2 m -> half-extents 1,1,1 m
+    bb = data.solids["cv_trd"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 1.0, tol);
+
+    // trap: GDML full-lengths (orthogonal) -> half-extents 1,1,1 m
+    bb = data.solids["cv_trap"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 1.0, tol);
+
+    // cutTube: GDML z=4 m full-height -> half-height 2 m (flat cuts); rmax=1 m
+    bb = data.solids["cv_cuttube"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 2.0, tol);
+
+    // eltube: GDML dx,dy,dz are semi-axes (half) -> bbox 1,2,3 m (no halving)
+    bb = data.solids["cv_eltube"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 2.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 3.0, tol);
+
+    // ellipsoid: GDML ax,by,cz are semi-axes (half) -> bbox 1,2,3 m (no halving)
+    bb = data.solids["cv_ellipsoid"]->GetBoundingBox();
+    EXPECT_NEAR(bb.max_corner.GetX(), 1.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 2.0, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 3.0, tol);
+
+    // polyhedra: 4-sided, startphi=45deg so the flat faces are axis-aligned at
+    // x,y = +/- the apothem. GDML rmax=1 m is the apothem (tangent distance to
+    // the flat face) and SIREN's Polyhedra uses the same apothem convention, so
+    // the right face sits at x=1 m: a point at x=0.9 is inside, x=1.1 is outside.
+    // This pins the rmin/rmax pass-through (no spurious apothem<->corner
+    // rescaling). Containment is checked rather than the bounding box, which is
+    // a conservative circumscribed-square bound.
+    auto poly = data.solids["cv_polyhedra"];
+    EXPECT_TRUE(IsInside(poly, 0.9, 0, 0));
+    EXPECT_FALSE(IsInside(poly, 1.1, 0, 0));
 }

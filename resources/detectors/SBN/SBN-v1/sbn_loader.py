@@ -182,7 +182,7 @@ _MB_Y_LSLAB_CENTER = 0.5 * (_MB_Y_LSLAB_TOP + _MB_Y_LSLAB_BOT)
 _MB_Y_CAV_BOT = _MB_Y_LSLAB_TOP
 _MB_Y_CAV_TOP = _MB_Y_LSLAB_TOP + _MB_VAULT_AIR_H
 _MB_Y_CAV_CENTER = 0.5 * (_MB_Y_LSLAB_TOP + _MB_Y_CAV_TOP)
-assert(_MB_Y_CAV_TOP > _MB_STEEL_OUTER_R)  # vault air cavity clears the tank
+assert(_MB_Y_CAV_TOP > _MB_STEEL_OUTER_R, f"Vault air cavity must clear the tank: {_MB_Y_CAV_TOP:.4f} m <= {_MB_STEEL_OUTER_R:.4f} m")
 
 _MB_Y_VAULT_WALL_CENTER = _MB_Y_CAV_CENTER
 
@@ -210,11 +210,11 @@ _MB_Y_BERM_TOP = _MB_Y_ROOF_TOP + _MB_BERM_H
 _MB_Y_BERM_BOT = _MB_Y_LSLAB_BOT + _MB_BERM_H
 _MB_Y_BERM_CENTER = 0.5 * (_MB_Y_BERM_TOP + _MB_Y_BERM_BOT)
 
-_MB_BERM_HALF_H = 0.5 * (_MB_Y_BERM_TOP - _MB_Y_BERM_BOT)
-_MB_BERM_HALF_W = (_MB_Y_BERM_TOP - _MB_Y_ROOM_BOT) / np.tan(_MB_BERM_ANGLE * np.pi / 180.0) + _MB_ROOM_AIR_R +_MB_ROOM_WALL_T
+_MB_BERM_FULL_H = (_MB_Y_BERM_TOP - _MB_Y_BERM_BOT)
+_MB_BERM_FULL_W = (_MB_Y_BERM_TOP - _MB_Y_ROOM_BOT) / np.tan(_MB_BERM_ANGLE * np.pi / 180.0) + _MB_ROOM_AIR_R +_MB_ROOM_WALL_T
 
-_MB_WORLD_HALF = _MB_BERM_HALF_W + 10.0  # world half-width (x/z) with margin
-_MB_WORLD_HALF_Y = max(abs(_MB_Y_BERM_TOP), abs(_MB_Y_BERM_BOT)) + 10.0     # world half-height (y) with margin
+_MB_WORLD_FULL = _MB_BERM_FULL_W + 20.0  # world half-width (x/z) with margin
+_MB_WORLD_FULL_Y = max(abs(_MB_Y_BERM_TOP), abs(_MB_Y_BERM_BOT)) * 2.0 + 20.0     # world half-height (y) with margin
 
 def _build_miniboone_gdml():
     """Assemble the MiniBooNE enclosure GDML from the scaled dimensions.
@@ -226,7 +226,7 @@ def _build_miniboone_gdml():
     """
     def tube(name, rmin, rmax, h):
         return (f'    <tube name="{name}" lunit="m" aunit="deg" rmin="{rmin:.4f}" '
-                f'rmax="{rmax:.4f}" z="{h / 2.0:.4f}" startphi="0" deltaphi="360"/>')
+                f'rmax="{rmax:.4f}" z="{h:.4f}" startphi="0" deltaphi="360"/>')
 
     def vpv(pv, vol, yc):
         return (f'      <physvol name="{pv}">\n'
@@ -239,8 +239,8 @@ def _build_miniboone_gdml():
         return f'      <physvol name="{pv}"><volumeref ref="{vol}"/></physvol>'
 
     solids = "\n".join([
-        f'    <box name="mb_world" lunit="m" x="{_MB_WORLD_HALF}" y="{_MB_WORLD_HALF:.4f}" z="{_MB_WORLD_HALF_Y}"/>',
-        f'    <box name="mb_berm" lunit="m" x="{_MB_BERM_HALF_W:.4f}" y="{_MB_BERM_HALF_H:.4f}" z="{_MB_BERM_HALF_W:.4f}"/>',
+        f'    <box name="mb_world" lunit="m" x="{_MB_WORLD_FULL}" y="{_MB_WORLD_FULL:.4f}" z="{_MB_WORLD_FULL_Y}"/>',
+        f'    <box name="mb_berm" lunit="m" x="{_MB_BERM_FULL_W:.4f}" y="{_MB_BERM_FULL_H:.4f}" z="{_MB_BERM_FULL_W:.4f}"/>',
         f'    <orb name="mb_inner_oil" lunit="m" r="{_MB_BARRIER_R}"/>',
         f'    <sphere name="mb_veto_oil" lunit="m" aunit="deg" rmin="{_MB_BARRIER_R}" rmax="{_MB_TANK_INNER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         f'    <sphere name="mb_steel" lunit="m" aunit="deg" rmin="{_MB_TANK_INNER_R}" rmax="{_MB_STEEL_OUTER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',

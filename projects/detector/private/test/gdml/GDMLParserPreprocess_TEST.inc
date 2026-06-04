@@ -22,7 +22,8 @@ TEST(GDMLParser, FlexibleRootTag) {
     GDMLData data = ParseGDMLString(gdml);
     ASSERT_TRUE(data.solids.count("test_box") > 0);
     double tol = 1e-9;
-    EXPECT_NEAR(data.solids["test_box"]->GetBoundingBox().max_corner.GetX(), 0.1, tol);
+    // box x=100mm is a GDML full-width -> 0.05m half-extent
+    EXPECT_NEAR(data.solids["test_box"]->GetBoundingBox().max_corner.GetX(), 0.05, tol);
     ASSERT_GE(data.warnings.size(), 1u);
     bool found_root_warning = false;
     for(auto const & w : data.warnings) {

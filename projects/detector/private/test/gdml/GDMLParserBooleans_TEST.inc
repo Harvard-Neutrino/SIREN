@@ -143,11 +143,11 @@ TEST(GDMLParser, DuplicateSolidInstances) {
     double tol = 1e-9;
     // Both instances get __N suffixes; first is mybox__1, second is mybox__2
     auto geo1 = RequireSolid(data, "mybox__1");
-    EXPECT_NEAR(geo1->GetBoundingBox().max_corner.GetX(), 0.1, tol)
-        << "First instance is mybox__1 (100mm half-width = 0.1m)";
+    EXPECT_NEAR(geo1->GetBoundingBox().max_corner.GetX(), 0.05, tol)
+        << "First instance is mybox__1 (100mm full-width = 0.05m half-extent)";
     auto geo2 = RequireSolid(data, "mybox__2");
-    EXPECT_NEAR(geo2->GetBoundingBox().max_corner.GetX(), 0.2, tol)
-        << "Second instance is mybox__2 (200mm half-width = 0.2m)";
+    EXPECT_NEAR(geo2->GetBoundingBox().max_corner.GetX(), 0.1, tol)
+        << "Second instance is mybox__2 (200mm full-width = 0.1m half-extent)";
     // Instance count should be 2
     ASSERT_TRUE(data.solid_instance_counts.count("mybox") > 0);
     EXPECT_EQ(data.solid_instance_counts["mybox"], 2);
@@ -197,8 +197,8 @@ TEST(GDMLParser, BooleanInstanceResolution) {
     // second "base" (500mm). It should use the first definition.
     auto bb = geo->GetBoundingBox();
     double tol = 1e-6;
-    // The subtraction bounding box should be close to the first base box (100mm=0.1m half)
-    EXPECT_NEAR(bb.max_corner.GetX(), 0.1, tol)
+    // The subtraction bounding box should be close to the first base box (100mm full = 0.05m half)
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol)
         << "Boolean should use first instance of 'base' (100mm), not second (500mm)";
 }
 
@@ -364,17 +364,18 @@ TEST(GDMLParser, BooleanSubtractionHollow) {
     auto geo = RequireSolid(data, "hollow_box");
     ASSERT_NE(geo, nullptr);
 
+    // outer 100mm -> 0.05m half; inner 60mm -> 0.03m half (wall in 0.03..0.05)
     // Center is inside both boxes, so subtraction should exclude it
     EXPECT_FALSE(IsInside(geo, 0, 0, 0));
-    // In the wall: x=0.08m is outside inner (half-width 0.06m) but inside outer (0.1m)
-    EXPECT_TRUE(IsInside(geo, 0.08, 0, 0));
+    // In the wall: x=0.04m is outside inner (half-width 0.03m) but inside outer (0.05m)
+    EXPECT_TRUE(IsInside(geo, 0.04, 0, 0));
     // In the wall off-axis
-    EXPECT_TRUE(IsInside(geo, 0, 0.08, 0));
-    EXPECT_TRUE(IsInside(geo, 0, 0, 0.08));
-    // Outside the outer box entirely (half-width 0.1m)
-    EXPECT_FALSE(IsInside(geo, 0.12, 0, 0));
+    EXPECT_TRUE(IsInside(geo, 0, 0.04, 0));
+    EXPECT_TRUE(IsInside(geo, 0, 0, 0.04));
+    // Outside the outer box entirely (half-width 0.05m)
+    EXPECT_FALSE(IsInside(geo, 0.06, 0, 0));
     // Inside the inner box: subtracted away
-    EXPECT_FALSE(IsInside(geo, 0.03, 0.03, 0.03));
+    EXPECT_FALSE(IsInside(geo, 0.02, 0.02, 0.02));
 }
 
 
