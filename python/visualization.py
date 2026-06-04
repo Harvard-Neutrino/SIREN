@@ -177,7 +177,7 @@ def _solid_xml(geo, name):
     cls = type(geo).__name__
     if cls == "Box":
         return ('<box name="%s" lunit="m" x="%s" y="%s" z="%s"/>'
-                % (name, _fmt(geo.X / 2), _fmt(geo.Y / 2), _fmt(geo.Z / 2)))
+                % (name, _fmt(geo.X), _fmt(geo.Y), _fmt(geo.Z)))
     if cls == "Sphere":
         return ('<sphere name="%s" lunit="m" aunit="rad" rmin="%s" rmax="%s" '
                 'startphi="%s" deltaphi="%s" starttheta="%s" deltatheta="%s"/>'
