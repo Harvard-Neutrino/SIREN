@@ -143,6 +143,7 @@ T_ICARUS_IN_NUMI_M = np.array([4.503730, 80.153901, 795.112945])
 # NOT target-relative.
 SAND_CENTER_Z_BNB_M = 0.0
 
+T_MiniBooNE_local = np.array([0.0, 1.89614, 541.34])
 
 # ======================================================================
 # Build the frame graph
@@ -212,7 +213,7 @@ def _build_graph() -> FrameGraph:
     # PRD 79 (2009) 072002 quotes the nominal 541 m baseline; this tuple
     # is the beam-group's refined value (Z. Pavlovic).
     g.add_transform(Transform.translation(
-        "MiniBooNE_local", "BNB", [0.0, 1.89614, 541.34],
+        "MiniBooNE_local", "BNB", T_MiniBooNE_local,
         "G4BNB MiniBooNE bsim::Location (0, 189.614, 54134) cm; NuBeamOutput.cc:136"))
 
     return g
