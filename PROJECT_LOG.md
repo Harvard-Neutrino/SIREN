@@ -156,3 +156,34 @@ Branch `interface-redesign`. MiniBooNE became a first-class SBN-loader detector:
 - Grade reconciliation: diagram-derived local grade (+8.38 m BNB) vs SBN site grade (+7.62 m) differ by ~0.8 m; the enclosure overrides locally, the SBN site model is unchanged.
 - The full beamline->detector composite is large (~1000+ sectors); not yet profiled for injection throughput.
 - Deep-research report (cited evidence per quantity) saved to the workflow output; not committed.
+
+## 2026-06-04: Interactive geometry-viewer controls + SIREN-backed picker
+
+Branch `interface-redesign`, `python/visualization.py` (uncommitted module). Added interactive controls to `siren.visualization.view()` and replaced pyg4ometry's crash-prone right-click picker with a SIREN geometry query.
+
+### Completed
+
+- **Robust picker (the headline fix).** pyg4ometry's `MouseInteractorNamePhysicalVolume.rightButtonPressEvent` segfaults on the ~1000 m site-geology blocks / world: it loops `vtkImplicitPolyDataDistance` over every appended mesh, none matches on large/degenerate meshes, so `di` stays -1 and `appPolyData.GetInput(-1)` reads out of bounds (C-level crash). Neither `buildPipelinesAppend` (segfault) nor `buildPipelinesSeparate` (AttributeError) gives a working picker -- not patchable from SIREN. Replaced the whole interactor with a custom `vtkInteractorStyleTrackballCamera` subclass whose right-click does `vtkCellPicker.Pick -> GetPickPosition` then queries SIREN (`GeoPositionToDetPosition(GeometryPosition(...)) -> GetContainingSector / GetMassDensity`), exactly like `at()`. Result shown in a `vtkTextActor` and printed. `SetInteractorStyle` fully unseats the buggy style, so it can never fire.
+- **Keyboard controls** (one `KeyPressEvent` observer on the same style): `h` help overlay, `b` world bbox, `l` material legend, `c` x/y/z section outlines, `g` gas/low-density visibility, `n`/`m` global opacity, `v` restore all, `o` orientation cube, `k` clip widget; shift+right-click hides the clicked material. Built-in `w`/`s`/`r`/`e`/`q` left to VTK (handled via the separate CharEvent, so our KeyPress observer does not clobber them).
+- **In-window overlays:** material colour legend (`vtkLegendBoxActor`, densest-first), auto-scaled axis triad (was a fixed 20 mm = invisible at this mm-scale scene), world bbox outline, pick/help/hint text.
+- **New `view()` kwargs:** `legend`, `bounding_box`, `picker`. **New `to_web(model, path)`** wrapping pyg4ometry `exportGLTFScene` (.gltf/.glb) / `exportThreeJSScene` (.html); raises a clear "pip install pygltflib [jinja2]" error if deps are missing.
+- Refactored shared export+load into `_load_registry` / `_build_viewer`; the SIREN query is isolated in `_world_to_sector` (unit-testable).
+- **Surface boundary fix (from live testing), direction-aware.** A cell-picker hit lands exactly *on* a sector boundary, where the point-only `GetContainingSector` (BVH + `IsInside`) is ambiguous -- so a right-click sometimes named the volume *outside* the clicked surface. The clean SIREN-native fix (no geometric nudge): pass the view ray (camera->point) and use the direction-aware overload `GetContainingSector(GetIntersections(p0, dir), p0)`, which `SectorLoop`s the ray's segments and selects the sector being *entered* (`start_point == 0`, `DetectorModel.cxx:1372`) -- the front (clicked) volume. Public pybind overloads used: `GetIntersections(DetPos, DetDir)`, `GetContainingSector(IntersectionList, DetPos)`, `GeoDirectionToDetDirection`. The geometry-frame view ray is rotated into the detector frame first (identity for MiniBooNE, general otherwise). `_world_to_sector` falls back to the point-only query when no direction is given (so `at()` is unchanged).
+- **Density must come from the entered sector, not `GetMassDensity(intersections, p0)`.** That overload (`DetectorModel.cxx:845`) tie-breaks the *same* boundary the opposite way from `GetContainingSector` (`<=0 and >=0` matches the segment whose `end_point==0`, i.e. the sector the ray is *exiting* at p0 -- often the outer vacuum/air), so paired with the entered-sector name it gave the wrong density (e.g. veto-oil volume but steel 7.86, or vault-air volume but steel; "often vacuum" when the exit side is world vacuum). Fix: read `sector.density.Evaluate(Vector3D(geo_xyz))` straight off the sector `GetContainingSector` returned (the non-template `GetMassDensity(inter,p0)` is itself just `sector.density->Evaluate(p0)`), guaranteeing volume/density agree. Verified across every MiniBooNE shell: inward/outward rays now give the entered volume AND its material density (oil 0.845 / steel 7.86 / vault air 0.001225 / wall 2.30); interior points still match `at()`.
+
+### Key design decisions
+
+- **Units: VTK/pyg4ometry are in mm, SIREN geometry in m.** The exported GDML carries `lunit="m"`, which the reader scales x1000 when meshing (confirmed: an 800 m box -> +/-400000 mm bounds). So the picker divides `GetPickPosition()` by `_GDML_MM_PER_M = 1000.0` before querying SIREN. There is no rotation between the GDML/VTK frame and SIREN geometry coords (`to_gdml` writes geo positions directly).
+- Always install the custom style (even when `picker=False` or a bare GDML path is passed) so pyg4ometry's broken picker is unconditionally replaced; with no model, right-click just reports the 3-D point.
+- Per-material actor map keys off `str(VisualisationOptions)` (the exact key `buildPipelinesAppend` uses for its merged body actors); gas cut reuses `_material_vis_options`'s rho<=0.05 threshold.
+
+### Verification
+
+- Headless (no GL): `_world_to_sector` matches `at()` exactly on tank center / origin / a geology block / a far universe point (no crash); full `view()` build sequence (load -> colour map -> addLogicalVolume -> addClipper -> buildPipelinesAppend -> scene bounds -> scaled axes -> clipper widget -> `_install_controls`) runs clean; control state correct (18-entry legend, 29 body / 9 gas actors, our style installed); `coloured=False`, picker-disabled, and `to_web` dep-error paths all behave. Existing viz functions + 546-test pytest collection unaffected.
+- **NOT yet run live:** the interactive `v.view()` window needs a display and cannot be exercised headless (segfaults / no GL context) -- run on the desktop: `m = siren.load_detector("SBN", detector="MiniBooNE"); siren.visualization.view(m)`, then right-click an outer block to confirm no segfault.
+
+### Open work / followups
+
+- Live desktop test of the window + right-click picker on the large outer volumes (the specific case that segfaulted before).
+- `pip install pygltflib` (+ jinja2) needed before `to_web` works; the glTF path uses random PBR colours (pyg4ometry limitation) -- a coloured export would need the display-bound `exportVtkGLTFScene`.
+- pyg4ometry's clipper pipeline prints harmless `vtkContourLoopExtraction: Input contains no points` for non-intersecting meshes (only with `clipper=True`); not ours, not suppressed.
