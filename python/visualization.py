@@ -339,8 +339,11 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None):
 
     if hi[0] < lo[0]:
         lo, hi = [-1, -1, -1], [1, 1, 1]
-    # World box is centred at the origin; size it to contain every sector.
-    wh = [max(abs(lo[k]), abs(hi[k])) + world_margin for k in range(3)]
+    # World box is centred at the origin, so its half-extent on each axis must
+    # reach the farthest sector (plus a margin). GDML <box> x/y/z are FULL
+    # lengths, so double it -- else the world is half the size it needs to be and
+    # the outer sectors poke out of it.
+    wh = [2.0 * (max(abs(lo[k]), abs(hi[k])) + world_margin) for k in range(3)]
 
     mat_defs.insert(0, '    <material name="WORLD_VAC" Z="1"><D value="1e-25" '
                        'unit="g/cm3"/><atom value="1.008"/></material>')
