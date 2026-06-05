@@ -102,7 +102,7 @@ _DETECTOR_SPECS = {
     "MiniBooNE": {
         "file": "gdml/miniboone_tank.gdml",
         "prefix": "miniboone",
-        "unwrap": False,
+        "unwrap": True,
         "url": None,
         "sha256": "",
     },
@@ -206,7 +206,7 @@ def load_detector(detector=None, earth_model=False):
 
     if earth_model:
         earth = _load_sibling("earth_model", "earth_model.py")
-        earth.add_earth_model(model)
+        earth.add_earth_model(model, sbn_loader._FNAL_SITE_GRADE_Y)
 
     # DetectorOrigin is the point in BNB (geometry) coordinates that
     # corresponds to (0,0,0) in DetectorCoordinates. We place it at
