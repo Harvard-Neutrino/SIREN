@@ -10,7 +10,11 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
   named after its sector and every material carries its name + density, so a
   picking-capable viewer shows what you click on.
 * :func:`view` -- interactive 3-D (or off-screen PNG) render via pyg4ometry,
-  coloured by material.
+  coloured by material, with a SIREN-backed right-click picker (robust where
+  pyg4ometry's own picker segfaults) and keyboard controls for the legend,
+  bounding box, section outlines, per-material visibility, and opacity.
+* :func:`to_web` -- export the geometry to glTF / a three.js HTML page for the
+  browser (needs ``pip install pygltflib``); headless-friendly.
 * :func:`describe` -- print a material summary (name, density, sector count) for
   headless inspection.
 
@@ -21,7 +25,8 @@ SIREN's own hand-written sub-GDMLs, whose parser treats ``<tube>`` z as a half.
 """
 import math
 
-__all__ = ["plot_cross_sections", "to_gdml", "view", "describe"]
+__all__ = ["plot_cross_sections", "to_gdml", "view", "to_web", "describe", "at",
+           "list_volumes"]
 
 _PLANES = {
     #  name : (horizontal axis, vertical axis, fixed axis)
@@ -228,7 +233,7 @@ def _placement(geo):
     return pos, (rx, ry, rz)
 
 
-def to_gdml(model, path, world_margin=2.0):
+def to_gdml(model, path, world_margin=2.0, region=None, region_center=None):
     """Export *model*'s sectors to a self-contained standard GDML file.
 
     Each sector becomes a ``<volume>`` named after the sector, referencing a
@@ -240,16 +245,33 @@ def to_gdml(model, path, world_margin=2.0):
     solid is approximated by its bounding box; unbounded sectors (the infinite
     universe-boundary sphere) are skipped.
 
+    :param region: if given, a half-size (m) of a cube about *region_center* --
+        only sectors whose centre is inside are exported. Use this to drop the
+        huge site-geology blocks / far beamline and keep just the detector
+        region (much smaller, faster, and avoids a pyg4ometry picker crash on
+        very large volumes).
+    :param region_center: (x, y, z) in geometry coords for the crop centre;
+        defaults to the model's ``DetectorOrigin``.
     :returns: dict with ``n_sectors``, ``n_exact``, ``n_bbox``, ``n_skipped``,
-        ``n_solids`` (distinct), ``n_materials``, ``path``.
+        ``n_cropped``, ``n_solids`` (distinct), ``n_materials``, ``path``.
     """
     import re
     sectors = _sectors(model)
+    crop = None
+    if region is not None:
+        if region_center is None:
+            try:
+                o = model.DetectorOrigin.get()
+                region_center = (o.GetX(), o.GetY(), o.GetZ())
+            except Exception:
+                region_center = (0.0, 0.0, 0.0)
+        crop = (region_center, float(region))
     solid_cache, solid_defs = {}, []       # signature -> name ; emitted <solid>s
     mat_cache, mat_defs, used = {}, [], set()
     structs, physvols = [], []
     lo, hi = [1e30] * 3, [-1e30] * 3
-    stats = dict(n_sectors=len(sectors), n_exact=0, n_bbox=0, n_skipped=0)
+    stats = dict(n_sectors=len(sectors), n_exact=0, n_bbox=0, n_skipped=0,
+                 n_cropped=0)
 
     def share_solid(xml_tmp):
         sig = re.sub(r'\sname="[^"]*"', "", xml_tmp, count=1)
@@ -267,6 +289,12 @@ def to_gdml(model, path, world_margin=2.0):
         if bb is None or not all(math.isfinite(c) for c in (bb[0] + bb[1])):
             stats["n_skipped"] += 1
             continue
+        if crop is not None:
+            (cx, cy, cz), _ = bb
+            (rx, ry, rz), rh = crop
+            if abs(cx - rx) > rh or abs(cy - ry) > rh or abs(cz - rz) > rh:
+                stats["n_cropped"] += 1
+                continue
         # material: dedup by id, named after the SIREN material + its density
         mid = int(s.material_id)
         if mid not in mat_cache:
@@ -359,6 +387,64 @@ def describe(model, printout=True):
     return table
 
 
+def at(model, x, y, z, printout=True):
+    """Identify the volume at the geometry-frame point (*x*, *y*, *z*) [m].
+
+    Queries SIREN's own geometry (``GetContainingSector`` / ``GetMassDensity``),
+    so it is exact and robust for *every* volume -- including the large outer
+    ones the VTK picker crashes on. :returns: (name, material, density).
+    """
+    from siren.detector import GeometryPosition
+    from siren.math import Vector3D
+    dp = model.GeoPositionToDetPosition(
+        GeometryPosition(Vector3D(float(x), float(y), float(z))))
+    sec = model.GetContainingSector(dp)
+    nm, mat, d = sec.name, _material_name(model, sec.material_id), model.GetMassDensity(dp)
+    if printout:
+        print("(%g, %g, %g) m  ->  %s   material=%s   rho=%.5g g/cm^3"
+              % (x, y, z, nm, mat, d))
+    return nm, mat, d
+
+
+def list_volumes(model, sort="size", n=40, printout=True):
+    """List the model's sectors: name, material, density, centre, size (m).
+
+    Sorted by *sort* -- ``"size"`` (largest first, the default) is handy for
+    verifying the big outer volumes (site geology, beamline enclosures) by their
+    numbers instead of the crash-prone 3-D picker; ``"name"`` sorts
+    alphabetically. Positions/sizes are in geometry-frame metres.
+    :returns: list of dicts (name, material, density, center, size, maxdim).
+    """
+    rows = []
+    for s in _sectors(model):
+        bb = _bbox(s.geo)
+        if bb is None:
+            continue
+        (cx, cy, cz), (hx, hy, hz) = bb
+        if not all(math.isfinite(v) for v in (cx, cy, cz, hx, hy, hz)):
+            continue
+        rows.append(dict(name=s.name, material=_material_name(model, s.material_id),
+                         density=_sector_density(s), center=(cx, cy, cz),
+                         size=(2 * hx, 2 * hy, 2 * hz), maxdim=2 * max(hx, hy, hz)))
+    if sort == "size":
+        rows.sort(key=lambda r: -r["maxdim"])
+    elif sort == "name":
+        rows.sort(key=lambda r: r["name"])
+    shown = rows if n is None else rows[:n]
+    if printout:
+        print("%-26s %-16s %9s  %-26s %-24s" %
+              ("volume", "material", "rho", "centre (m)", "size  L x W x H (m)"))
+        print("-" * 108)
+        for r in shown:
+            c, sz = r["center"], r["size"]
+            print("%-26.26s %-16.16s %9.4g  (%8.1f %8.1f %8.1f)  (%7.2f %7.2f %7.2f)"
+                  % (r["name"], r["material"], r["density"],
+                     c[0], c[1], c[2], sz[0], sz[1], sz[2]))
+        if n is not None and len(rows) > n:
+            print("... %d more (pass n=None for all)" % (len(rows) - n))
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # 4. pyg4ometry 3-D view
 # ---------------------------------------------------------------------------
@@ -387,30 +473,38 @@ def _material_vis_options(registry, VisOpt):
     return out
 
 
-def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
-         cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
-         clip_normal=(1.0, 0.0, 0.0), interactive=True):
-    """Render *model* in 3-D with pyg4ometry, coloured by material.
+# pyg4ometry/VTK work in millimetres; SIREN geometry is in metres. The exported
+# GDML carries lunit="m", which the reader scales by this factor when meshing, so
+# a VTK world coordinate divided by this is a SIREN geometry-frame metre.
+_GDML_MM_PER_M = 1000.0
+# Materials at or below this density (g/cm^3) are treated as gases/vacuum: drawn
+# semi-transparent and toggled together by the 'g' key (matches the air cut in
+# _material_vis_options so you can see through air to the volumes inside).
+_LOW_DENSITY = 0.05
 
-    Uses the fuller ``VtkViewerColouredMaterialNew`` pipeline (interactive
-    section/clip widgets, three.js/GLTF export). Exports to a temporary (or
-    *gdml_path*) standard GDML, loads it, and opens an interactive window.
+_HELP_TEXT = (
+    "Controls\n"
+    "  right-click       identify volume (name / material / density)\n"
+    "  shift+right-click hide the clicked material\n"
+    "  v                 restore all materials and opacity\n"
+    "  g                 toggle gas / low-density volumes\n"
+    "  n / m             less / more opacity (see inside)\n"
+    "  c                 toggle x/y/z section outlines\n"
+    "  b                 toggle world bounding box\n"
+    "  l                 toggle material legend\n"
+    "  o                 toggle orientation cube\n"
+    "  k                 toggle clip-plane widget\n"
+    "  w / s             wireframe / surface\n"
+    "  r                 reset camera\n"
+    "  e / q             quit\n"
+    "  h                 toggle this help")
 
-    :param model: a ``DetectorModel`` (or a str path to an existing GDML).
-    :param coloured: colour by material; else a plain single-colour viewer.
-    :param axes: add an orientation axis triad.
-    :param cutter: add an interactive cutting-plane (section) widget.
-    :param clipper: add an interactive clipping-plane widget to slice the scene
-        open; plane given by *clip_origin* / *clip_normal*.
-    :param screenshot: write an off-screen PNG instead of opening a window
-        (uses the legacy coloured viewer, which supports ``exportScreenShot``;
-        needs a display-capable VTK). On a headless box prefer
-        :func:`plot_cross_sections` or :func:`to_gdml` + an external viewer.
-    """
+
+def _load_registry(model, gdml_path):
+    """(vis module, registry, world LV, gdml path) for *model* (or a GDML str)."""
     import pyg4ometry
     import tempfile
     vis = pyg4ometry.visualisation
-
     if isinstance(model, str):
         path = model
     else:
@@ -418,8 +512,359 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
             suffix=".gdml", delete=False).name
         to_gdml(model, path)
     reg = pyg4ometry.gdml.Reader(path).getRegistry()
-    world = reg.getWorldVolume()
+    return vis, reg, reg.getWorldVolume(), path
+
+
+def _build_viewer(model, gdml_path=None, coloured=True):
+    """Export+load *model* and return (vis, viewer, registry, path, mvo) with the
+    world logical volume added. The append pipeline is *not* built yet."""
+    vis, reg, world, path = _load_registry(model, gdml_path)
     mvo = _material_vis_options(reg, vis.VisualisationOptions) if coloured else None
+    if coloured:
+        v = vis.VtkViewerColouredNew(materialVisOptions=mvo,
+                                     defaultColour=[0.6, 0.6, 0.6])
+    else:
+        v = vis.VtkViewerNew()
+    v.addLogicalVolume(world)
+    return vis, v, reg, path, mvo
+
+
+def _scene_bounds(viewer):
+    """Aggregate (xmin,xmax,ymin,ymax,zmin,zmax) over the geometry actors, or None.
+
+    Call before any 2-D overlay actors are added -- those are attached to the
+    renderer, not ``viewer.actors``, so they never enter this aggregate anyway.
+    """
+    lo, hi = [1e30] * 3, [-1e30] * 3
+    for a in viewer.actors.values():
+        try:
+            b = a.GetBounds()
+        except Exception:
+            continue
+        if b is None:
+            continue
+        for i in range(3):
+            if b[2 * i] <= b[2 * i + 1] and math.isfinite(b[2 * i]) and math.isfinite(b[2 * i + 1]):
+                lo[i] = min(lo[i], b[2 * i])
+                hi[i] = max(hi[i], b[2 * i + 1])
+    if hi[0] < lo[0]:
+        return None
+    return (lo[0], hi[0], lo[1], hi[1], lo[2], hi[2])
+
+
+def _text_actor(vtk, text, nx, ny, size=14, color=(0.0, 0.0, 0.0), anchor="bl"):
+    """A monospaced 2-D overlay ``vtkTextActor`` anchored to a window corner.
+
+    *nx*/*ny* are normalized-viewport coordinates; *anchor* picks the corner the
+    text grows from ("tl"/"tr"/"bl"/"br") so it stays put on window resize.
+    """
+    a = vtk.vtkTextActor()
+    a.SetInput(text)
+    tp = a.GetTextProperty()
+    tp.SetFontFamilyToCourier()
+    tp.SetFontSize(size)
+    tp.SetColor(*color)
+    tp.SetVerticalJustificationToTop() if "t" in anchor else tp.SetVerticalJustificationToBottom()
+    tp.SetJustificationToRight() if "r" in anchor else tp.SetJustificationToLeft()
+    pc = a.GetPositionCoordinate()
+    pc.SetCoordinateSystemToNormalizedViewport()
+    pc.SetValue(nx, ny)
+    return a
+
+
+def _legend_actor(vtk, reg, mvo, max_entries=18):
+    """A ``vtkLegendBoxActor`` of material -> colour swatch, densest first, or None."""
+    items = []
+    for name, vo in mvo.items():
+        if name == "WORLD_VAC":
+            continue
+        try:
+            d = float(reg.materialDict[name].density)
+        except Exception:
+            d = 0.0
+        items.append((name, d, list(vo.getColour())))
+    items.sort(key=lambda t: -t[1])
+    items = items[:max_entries]
+    if not items:
+        return None
+    cube = vtk.vtkCubeSource()
+    cube.Update()
+    sym = cube.GetOutput()
+    leg = vtk.vtkLegendBoxActor()
+    leg.SetNumberOfEntries(len(items))
+    for i, (name, d, col) in enumerate(items):
+        leg.SetEntry(i, sym, "%-.20s %.3g" % (name, d), col)
+    leg.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
+    leg.GetPositionCoordinate().SetValue(0.8, 0.05)
+    leg.GetPosition2Coordinate().SetCoordinateSystemToNormalizedViewport()
+    leg.GetPosition2Coordinate().SetValue(0.2, 0.92)
+    leg.UseBackgroundOn()
+    leg.SetBackgroundColor(0.12, 0.12, 0.12)
+    leg.SetBackgroundOpacity(0.6)
+    leg.BorderOn()
+    return leg
+
+
+def _bbox_actor(vtk, bounds, color=(0.0, 0.0, 0.0)):
+    """A wireframe ``vtkOutlineSource`` actor for the scene AABB *bounds*."""
+    src = vtk.vtkOutlineSource()
+    src.SetBounds(*bounds)
+    m = vtk.vtkPolyDataMapper()
+    m.SetInputConnection(src.GetOutputPort())
+    a = vtk.vtkActor()
+    a.SetMapper(m)
+    a.GetProperty().SetColor(*color)
+    a.GetProperty().SetLineWidth(1.0)
+    a.PickableOff()
+    return a
+
+
+def _world_to_sector(model, wx_mm, wy_mm, wz_mm, inward=None):
+    """Map a VTK world point (mm) to SIREN's (xyz [m], name, material, density).
+
+    Converts mm->m and queries SIREN's own geometry -- robust for *every* volume,
+    including the huge outer site-geology blocks the pyg4ometry VTK picker
+    segfaults on.
+
+    A cell-picker hit lands exactly *on* a surface. The point-only
+    ``GetContainingSector`` (BVH + ``IsInside``) is ambiguous there -- it can
+    return the clicked volume or the one just outside it. When *inward* (a
+    geometry-frame direction pointing into the clicked volume, i.e. camera->point)
+    is given we instead build the ray's intersection list and let SIREN's
+    direction-aware ``GetContainingSector(intersections, p0)`` select the sector
+    the ray is *entering* -- the front (clicked) volume, unambiguously and with no
+    geometric fudge. Density is read straight off that sector
+    (``sector.density.Evaluate`` at the point), NOT via
+    ``GetMassDensity(intersections, p0)``: that overload tie-breaks the boundary
+    the other way (it picks the sector the ray is *exiting* at p0, often the outer
+    vacuum/air -- DetectorModel.cxx:845 vs :1372), so it would report a density
+    inconsistent with the volume above. Without *inward* it falls back to the
+    point-only query (as :func:`at` does).
+    """
+    from siren.detector import GeometryPosition, GeometryDirection
+    from siren.math import Vector3D
+    g = (wx_mm / _GDML_MM_PER_M, wy_mm / _GDML_MM_PER_M, wz_mm / _GDML_MM_PER_M)
+    dp = model.GeoPositionToDetPosition(GeometryPosition(Vector3D(*g)))
+    if inward is not None:
+        n = (inward[0] ** 2 + inward[1] ** 2 + inward[2] ** 2) ** 0.5
+        if n > 0:
+            u = (inward[0] / n, inward[1] / n, inward[2] / n)
+            ddir = model.GeoDirectionToDetDirection(GeometryDirection(Vector3D(*u)))
+            inter = model.GetIntersections(dp, ddir)
+            sec = model.GetContainingSector(inter, dp)
+            try:
+                density = sec.density.Evaluate(Vector3D(*g))
+            except Exception:
+                density = model.GetMassDensity(dp)
+            return g, sec.name, _material_name(model, sec.material_id), density
+    sec = model.GetContainingSector(dp)
+    return g, sec.name, _material_name(model, sec.material_id), model.GetMassDensity(dp)
+
+
+def _install_controls(vtk, viewer, reg, mvo, model, bounds,
+                      legend=True, bounding_box=False, clipper_widget=None):
+    """Attach overlays + a robust interactor style to an already-built *viewer*.
+
+    Installs a custom ``vtkInteractorStyleTrackballCamera`` that (a) replaces
+    pyg4ometry's segfault-prone right-click picker with a SIREN geometry query
+    (see :func:`_world_to_sector`) and (b) adds keyboard toggles (see
+    ``_HELP_TEXT``). *model* is the ``DetectorModel`` captured for the picker, or
+    None to disable identification (right-click then just reports the 3-D point).
+    Returns the state dict (mostly for testing).
+    """
+    ren, iren = viewer.ren, viewer.iren
+
+    # ---- overlay actors -------------------------------------------------
+    pick_txt = _text_actor(vtk, "right-click a volume to identify it",
+                           0.01, 0.01, size=15, anchor="bl")
+    help_txt = _text_actor(vtk, _HELP_TEXT, 0.01, 0.99, size=14, anchor="tl")
+    help_txt.SetVisibility(False)
+    hint_txt = _text_actor(vtk, "h: help   right-click: identify",
+                           0.99, 0.99, size=13, color=(0.3, 0.3, 0.3), anchor="tr")
+    for a in (pick_txt, help_txt, hint_txt):
+        ren.AddViewProp(a)
+
+    # ---- material -> body-actor map (coloured viewer only) --------------
+    # buildPipelinesAppend keys each merged body actor by str(visOptions); since
+    # we built mvo, mvo[name] is that exact options object, so str() matches.
+    mat_actors, body_actors, gas_actors, orig_opacity = {}, [], [], {}
+    if mvo is not None:
+        seen = set()
+        for name, vo in mvo.items():
+            if name == "WORLD_VAC":
+                continue
+            act = viewer.actors.get(str(vo))
+            if act is None:
+                continue
+            mat_actors[name] = act
+            if id(act) not in seen:
+                seen.add(id(act))
+                body_actors.append(act)
+                orig_opacity[act] = act.GetProperty().GetOpacity()
+                try:
+                    if float(reg.materialDict[name].density) <= _LOW_DENSITY:
+                        gas_actors.append(act)
+                except Exception:
+                    pass
+
+    # x/y/z section outlines pyg4ometry draws by default (keys end in _yz/_xz/_xy)
+    cutter_actors = [a for k, a in viewer.actors.items()
+                     if k.endswith(("_yz", "_xz", "_xy"))]
+
+    legend_actor = None
+    if legend and mvo is not None:
+        legend_actor = _legend_actor(vtk, reg, mvo)
+        if legend_actor is not None:
+            ren.AddViewProp(legend_actor)
+
+    bbox_actor = None
+    if bounds is not None:
+        bbox_actor = _bbox_actor(vtk, bounds)
+        bbox_actor.SetVisibility(bool(bounding_box))
+        ren.AddViewProp(bbox_actor)
+
+    picker = vtk.vtkCellPicker()
+    picker.SetTolerance(0.0005)
+
+    state = dict(pick=pick_txt, help=help_txt, hint=hint_txt, legend=legend_actor,
+                 bbox=bbox_actor, cutters=cutter_actors, mat_actors=mat_actors,
+                 body_actors=body_actors, gas_actors=gas_actors,
+                 orig_opacity=orig_opacity, hidden=set(), opacity=1.0,
+                 gas_visible=True, cutters_visible=True, picker=picker,
+                 clipper_widget=clipper_widget)
+
+    def render():
+        ren.GetRenderWindow().Render()
+
+    def on_right(obj, event):
+        x, y = iren.GetEventPosition()
+        if not state["picker"].Pick(x, y, 0, ren) or state["picker"].GetActor() is None:
+            pick_txt.SetInput("(nothing under cursor)")
+            render()
+            return
+        wx, wy, wz = state["picker"].GetPickPosition()
+        if model is None:
+            pick_txt.SetInput("point  (%.2f, %.2f, %.2f) m\n(no model: identify unavailable)"
+                              % (wx / _GDML_MM_PER_M, wy / _GDML_MM_PER_M, wz / _GDML_MM_PER_M))
+            render()
+            return
+        # The pick lands exactly on a surface (a sector boundary). Pass the view
+        # ray (camera->point, which continues into the front-most volume) so the
+        # direction-aware GetContainingSector returns the clicked volume, not the
+        # one just outside that surface.
+        cam = ren.GetActiveCamera()
+        cpx, cpy, cpz = cam.GetPosition()
+        inward = (wx - cpx, wy - cpy, wz - cpz)
+        try:
+            (gx, gy, gz), name, material, density = _world_to_sector(
+                model, wx, wy, wz, inward=inward)
+        except Exception as e:
+            pick_txt.SetInput("query failed: %s" % e)
+            render()
+            return
+        print("[siren.view] (%.2f, %.2f, %.2f) m -> %s  [%s, rho=%.4g g/cm^3]"
+              % (gx, gy, gz, name, material, density))
+        pick_txt.SetInput("picked  (%.2f, %.2f, %.2f) m\nvolume    %s\nmaterial  %s\n"
+                          "density   %.4g g/cm^3" % (gx, gy, gz, name, material, density))
+        if iren.GetShiftKey() and material in mat_actors:
+            mat_actors[material].SetVisibility(False)
+            state["hidden"].add(material)
+        render()
+
+    def on_key(obj, event):
+        key = (iren.GetKeySym() or "").lower()
+        changed = True
+        if key == "h":
+            help_txt.SetVisibility(not help_txt.GetVisibility())
+        elif key == "b" and bbox_actor is not None:
+            bbox_actor.SetVisibility(not bbox_actor.GetVisibility())
+        elif key == "l" and legend_actor is not None:
+            legend_actor.SetVisibility(not legend_actor.GetVisibility())
+        elif key == "c" and cutter_actors:
+            state["cutters_visible"] = not state["cutters_visible"]
+            for a in cutter_actors:
+                a.SetVisibility(state["cutters_visible"])
+        elif key == "g":
+            state["gas_visible"] = not state["gas_visible"]
+            for a in gas_actors:
+                a.SetVisibility(state["gas_visible"])
+        elif key in ("n", "m"):
+            state["opacity"] = min(1.0, max(0.05, state["opacity"] + (0.15 if key == "m" else -0.15)))
+            for a in body_actors:
+                a.GetProperty().SetOpacity(state["opacity"])
+        elif key == "v":
+            for a in body_actors:
+                a.SetVisibility(True)
+                a.GetProperty().SetOpacity(orig_opacity.get(a, 1.0))
+            state.update(opacity=1.0, gas_visible=True)
+            state["hidden"].clear()
+        elif key == "o":
+            w = getattr(viewer, "axesWidget", None)
+            if w is not None:
+                w.EnabledOff() if w.GetEnabled() else w.EnabledOn()
+        elif key == "k" and clipper_widget is not None:
+            try:
+                clipper_widget.Off() if clipper_widget.GetEnabled() else clipper_widget.On()
+            except Exception:
+                pass
+        else:
+            changed = False
+        if changed:
+            render()
+
+    class _SirenInteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
+        # Observing RightButtonPressEvent (instead of pyg4ometry's broken
+        # MouseInteractorNamePhysicalVolume) both fixes the picker and frees us
+        # from its vtkImplicitPolyDataDistance loop; left-drag still orbits.
+        def __init__(self):
+            self.AddObserver("RightButtonPressEvent", on_right)
+            self.AddObserver("KeyPressEvent", on_key)
+
+    style = _SirenInteractorStyle()
+    style.SetDefaultRenderer(ren)
+    iren.SetInteractorStyle(style)
+    viewer.interactorStyle = style  # keep a reference so VTK does not GC it
+    state["style"] = style
+    return state
+
+
+def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
+         cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
+         clip_normal=(1.0, 0.0, 0.0), legend=True, bounding_box=False,
+         picker=True, interactive=True):
+    """Render *model* in 3-D with pyg4ometry, coloured by material.
+
+    Exports to a temporary (or *gdml_path*) standard GDML, loads it, builds the
+    append pipeline, and opens an interactive window with a SIREN-backed picker
+    and keyboard controls (see :func:`_install_controls` / ``_HELP_TEXT``).
+
+    Right-click identifies the volume under the cursor by querying SIREN's own
+    geometry (segfault-free for every volume, unlike pyg4ometry's built-in
+    picker); shift+right-click hides the clicked material. Keys toggle the
+    legend, bounding box, section outlines, gas visibility, opacity, etc.
+
+    :param model: a ``DetectorModel`` (or a str path to an existing GDML).
+    :param coloured: colour by material; else a plain single-colour viewer.
+    :param axes: add an orientation axis triad (auto-scaled to the scene).
+    :param cutter: add an interactive cutting-plane (section) widget.
+    :param clipper: add an interactive clipping-plane widget to slice the scene
+        open; plane given by *clip_origin* / *clip_normal*. Toggle with 'k'.
+    :param legend: show an in-window material colour legend (toggle with 'l').
+    :param bounding_box: start with the world bounding box shown (toggle 'b').
+    :param picker: enable the right-click SIREN identification (needs a model,
+        not a bare GDML path); the custom interactor -- which also replaces
+        pyg4ometry's crash-prone built-in picker -- is installed regardless. The
+        clicked surface is disambiguated by the view direction (the front volume
+        is reported, not the one just outside it).
+    :param screenshot: write an off-screen PNG instead of opening a window
+        (uses the legacy coloured viewer, which supports ``exportScreenShot``;
+        needs a display-capable VTK). On a headless box prefer
+        :func:`plot_cross_sections` or :func:`to_gdml` + an external viewer.
+    """
+    import vtk
+    vis, reg, world, path = _load_registry(model, gdml_path)
+    mvo = _material_vis_options(reg, vis.VisualisationOptions) if coloured else None
+    model_obj = None if isinstance(model, str) else model
 
     # Off-screen PNG: the "New" pipeline has no exportScreenShot, so use the
     # legacy coloured viewer (which also honours our material->colour map).
@@ -442,20 +887,27 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     else:
         v = vis.VtkViewerNew()
     v.addLogicalVolume(world)
-    # Use the APPEND pipeline: the right-click "name physical volume" picker
-    # walks a vtkAppendPolyData. buildPipelinesSeparate's deeper pipeline makes
-    # that picker over-traverse and raise AttributeError on right-click.
     if clipper:
         v.addClipper(list(clip_origin), list(clip_normal), True)  # before build
     v.buildPipelinesAppend()
+
+    bounds = _scene_bounds(v)
+    clipper_widget = None
     if clipper:
         try:
             v.addClipperWidget()
+            clipper_widget = v.clipperPlaneWidget
         except Exception:
             pass
     if axes:
         try:
-            v.addAxes(length=20.0)
+            if bounds is not None:
+                span = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
+                origin = ((bounds[0] + bounds[1]) / 2, (bounds[2] + bounds[3]) / 2,
+                          (bounds[4] + bounds[5]) / 2)
+                v.addAxes(length=0.12 * span, origin=origin)
+            else:
+                v.addAxes(length=20.0)
         except Exception:
             pass
     if cutter:
@@ -463,5 +915,44 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
             v.addCutterWidget()
         except Exception:
             pass
+
+    _install_controls(vtk, v, reg, mvo, model_obj if picker else None, bounds,
+                       legend=legend, bounding_box=bounding_box,
+                       clipper_widget=clipper_widget)
     v.view(interactive=interactive)
+    return path
+
+
+def to_web(model, path, gdml_path=None, single_instance=False):
+    """Export *model* for the browser via pyg4ometry's own exporters.
+
+    The *path* extension selects the format:
+
+    * ``.gltf`` / ``.glb`` -- a glTF scene (``exportGLTFScene``). Geometry and
+      structure are exact; note pyg4ometry assigns *random* PBR colours here.
+    * ``.html`` -- a self-contained three.js page (``exportThreeJSScene``,
+      which also emits the ``.gltf`` and ``.css`` beside it).
+
+    Both paths need ``pip install pygltflib`` (the HTML path also needs jinja2);
+    a clear error is raised if a dependency is missing. Unlike the interactive
+    :func:`view`, this needs no display, so it works headless.
+    :returns: *path*.
+    """
+    vis, v, reg, gpath, mvo = _build_viewer(model, gdml_path, coloured=True)
+    low = str(path).lower()
+    if low.endswith((".gltf", ".glb")):
+        try:
+            import pygltflib  # noqa: F401
+        except Exception:
+            raise RuntimeError("glTF export needs: pip install pygltflib")
+        v.exportGLTFScene(path, singleInstance=single_instance)
+    elif low.endswith((".html", ".htm")):
+        try:
+            import pygltflib  # noqa: F401
+            import jinja2  # noqa: F401
+        except Exception:
+            raise RuntimeError("HTML export needs: pip install pygltflib jinja2")
+        v.exportThreeJSScene(str(path).rsplit(".", 1)[0])
+    else:
+        raise ValueError("unknown web-export extension (use .gltf/.glb/.html): %r" % path)
     return path
