@@ -90,7 +90,7 @@ def _build_materials_xml() -> str:
 
 # Ground-level elevation in BNB coordinates (meters above the BNB target).
 # Fermilab grade is approximately 7.62 m above the BNB beam axis.
-_GRADE_Y_BNB = 7.62
+_BNB_BERM_Y = 7.62
 
 # Glacial till thickness below grade (meters). The Quaternary glacial
 # deposits at Fermilab are 18-30 m thick; we use 20 m as a representative
@@ -207,14 +207,27 @@ _MB_Y_ROOF_CENTER = 0.5 * (_MB_Y_ROOF_BOT + _MB_Y_ROOF_TOP)
 _MB_Y_GRADE = _MB_Y_ROOM_BOT
 
 _MB_Y_BERM_TOP = _MB_Y_ROOF_TOP + _MB_BERM_H
-_MB_Y_BERM_BOT = _MB_Y_LSLAB_BOT + _MB_BERM_H
-_MB_Y_BERM_CENTER = 0.5 * (_MB_Y_BERM_TOP + _MB_Y_BERM_BOT)
 
-_MB_BERM_FULL_H = (_MB_Y_BERM_TOP - _MB_Y_BERM_BOT)
-_MB_BERM_FULL_W = (_MB_Y_BERM_TOP - _MB_Y_ROOM_BOT) / np.tan(_MB_BERM_ANGLE * np.pi / 180.0) + _MB_ROOM_AIR_R +_MB_ROOM_WALL_T
+_MB_BERM_CAP_WIDTH = _MB_ROOF_R * 2.0
+_MB_BERM_FULL_W = (_MB_Y_BERM_TOP - _MB_Y_ROOM_BOT) / np.tan(_MB_BERM_ANGLE * np.pi / 180.0) * 2.0 + _MB_BERM_CAP_WIDTH
+
+_h = _MB_BERM_H
+_c1 = _MB_BERM_CAP_WIDTH
+_c2 = _MB_BERM_FULL_W
+_a2 = (_c2**2 - _c1**2) / (8 * _h) - _h / 2.0
+_a1 = _a2 + _h
+_r = np.sqrt(_a2**2 + ( _c2 / 2.0)**2)
+
+_MB_BERM_SPHERE_R = _r
+_MB_Y_BERM_SPHERE_CENTER = _MB_Y_BERM_TOP - _a1
+_MB_Y_BERM_SPHERE_TOP = _MB_Y_BERM_SPHERE_CENTER + _MB_BERM_SPHERE_R
+_MB_Y_BERM_SPHERE_BOT = _MB_Y_BERM_SPHERE_CENTER - _MB_BERM_SPHERE_R
 
 _MB_WORLD_FULL = _MB_BERM_FULL_W + 20.0  # world half-width (x/z) with margin
-_MB_WORLD_FULL_Y = max(abs(_MB_Y_BERM_TOP), abs(_MB_Y_BERM_BOT)) * 2.0 + 20.0     # world half-height (y) with margin
+_MB_WORLD_FULL_Y = max(abs(_MB_Y_BERM_SPHERE_TOP), abs(_MB_Y_BERM_SPHERE_BOT)) * 2.0 + 20.0     # world half-height (y) with margin
+
+# Use the MiniBooNE grade as the lowest common grade level for all SBN detectors; most detectors have additional berm height above this
+_FNAL_SITE_GRADE_Y = _MB_Y_GRADE
 
 def _build_miniboone_gdml():
     """Assemble the MiniBooNE enclosure GDML from the scaled dimensions.
@@ -240,8 +253,8 @@ def _build_miniboone_gdml():
 
     solids = "\n".join([
         f'    <box name="mb_world" lunit="m" x="{_MB_WORLD_FULL}" y="{_MB_WORLD_FULL:.4f}" z="{_MB_WORLD_FULL_Y}"/>',
-        f'    <box name="mb_berm" lunit="m" x="{_MB_BERM_FULL_W:.4f}" y="{_MB_BERM_FULL_H:.4f}" z="{_MB_BERM_FULL_W:.4f}"/>',
-        f'    <orb name="mb_inner_oil" lunit="m" r="{_MB_BARRIER_R}"/>',
+        f'    <sphere name="mb_berm_sphere" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BERM_SPHERE_R:.4f}" startphi="0" deltaphi="360" starttheta="0" deltatheta="30"/>',
+        f'    <sphere name="mb_inner_oil" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BARRIER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         f'    <sphere name="mb_veto_oil" lunit="m" aunit="deg" rmin="{_MB_BARRIER_R}" rmax="{_MB_TANK_INNER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         f'    <sphere name="mb_steel" lunit="m" aunit="deg" rmin="{_MB_TANK_INNER_R}" rmax="{_MB_STEEL_OUTER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         tube("mb_cap", 0.0, _MB_CAP_R, _MB_CAP_H),
@@ -256,7 +269,7 @@ def _build_miniboone_gdml():
     ])
 
     vols = "\n".join([
-        '    <volume name="vol_mb_berm"><materialref ref="MB_DIRT"/><solidref ref="mb_berm"/></volume>',
+        '    <volume name="vol_mb_berm_sphere"><materialref ref="MB_DIRT"/><solidref ref="mb_berm_sphere"/></volume>',
         '    <volume name="vol_mb_inner_oil"><materialref ref="MINERAL_OIL"/><solidref ref="mb_inner_oil"/></volume>',
         '    <volume name="vol_mb_veto_oil"><materialref ref="MINERAL_OIL"/><solidref ref="mb_veto_oil"/></volume>',
         '    <volume name="vol_mb_steel"><materialref ref="MB_CARBON_STEEL"/><solidref ref="mb_steel"/></volume>',
@@ -273,18 +286,18 @@ def _build_miniboone_gdml():
 
     # Order matters: structural concrete/air first, detector oil/steel last.
     pvs = "\n".join([
-        vpv("pv_mb_berm", "vol_mb_berm", _MB_Y_BERM_CENTER),
+        vpv("pv_mb_berm_sphere", "vol_mb_berm_sphere", _MB_Y_BERM_SPHERE_CENTER),
         vpv("pv_mb_lslab", "vol_mb_lslab", _MB_Y_LSLAB_CENTER),
         vpv("pv_mb_uslab", "vol_mb_uslab", _MB_Y_USLAB_CENTER),
         vpv("pv_mb_vwall", "vol_mb_vwall", _MB_Y_VAULT_WALL_CENTER),
         vpv("pv_mb_vair", "vol_mb_vair", _MB_Y_CAV_CENTER),
-        vpv("pv_mb_rair", "vol_mb_rair", _MB_Y_ROOM_CENTER),
         vpv("pv_mb_rwall", "vol_mb_rwall", _MB_Y_ROOM_WALL_CENTER),
+        vpv("pv_mb_rair", "vol_mb_rair", _MB_Y_ROOM_CENTER),
         vpv("pv_mb_roof", "vol_mb_roof", _MB_Y_ROOF_CENTER),
-        opv("pv_mb_inner_oil", "vol_mb_inner_oil"),
-        opv("pv_mb_veto_oil", "vol_mb_veto_oil"),
         opv("pv_mb_steel", "vol_mb_steel"),
         vpv("pv_mb_cap", "vol_mb_cap", _MB_Y_CAP_CENTER),
+        opv("pv_mb_veto_oil", "vol_mb_veto_oil"),
+        opv("pv_mb_inner_oil", "vol_mb_inner_oil"),
         vpv("pv_mb_cap_oil", "vol_mb_cap_oil", _MB_Y_CAP_CENTER - _MB_STEEL_THICKNESS_R),
     ])
 
@@ -426,23 +439,27 @@ def build_composite(
 
     # GDML <box> x/y/z are half-widths
     # So this gives a full 1600 m x 400 m x 1800 m box
-    box_half_x = 800.0
-    box_half_y = 200.0
-    box_half_z = 900.0
-    margin = 10.0
+    box_x = 1800.0
+    box_y = 400.0
+    box_z = 2600.0
 
-    bedrock_y = _GRADE_Y_BNB - _TILL_THICKNESS
+    atmo_height = box_y
+    # atmo_center_y = 0
 
-    atmo_height = box_half_y - _GRADE_Y_BNB
-    atmo_center_y = _GRADE_Y_BNB + atmo_height / 2.0
-    atmo_half_height = atmo_height / 2.0
+    till_top_y = _FNAL_SITE_GRADE_Y
+    till_bottom_y = till_top_y - _TILL_THICKNESS
+    till_height = till_top_y - till_bottom_y
+    till_center_y = 0.5 * (till_top_y + till_bottom_y)
 
-    bedrock_height = box_half_y + bedrock_y
-    bedrock_center_y = bedrock_y - bedrock_height / 2.0
-    bedrock_half_height = bedrock_height / 2.0
+    bedrock_top_y = till_bottom_y
+    bedrock_bottom_y = -box_y / 2.0
+    bedrock_height = bedrock_top_y - bedrock_bottom_y
+    bedrock_center_y = 0.5 * (bedrock_top_y + bedrock_bottom_y)
 
-    child_half_x = box_half_x - margin
-    child_half_z = box_half_z - margin
+    bnb_berm_length = 110.9408
+    bnb_berm_width = 16.0
+    bnb_berm_height = _BNB_BERM_Y * 2.0
+    bnb_berm_center_y = 0
 
     materials_xml = _build_materials_xml()
 
@@ -454,35 +471,44 @@ def build_composite(
 {materials_xml}
   </materials>
   <solids>
-    <box name="sol_site_volume" lunit="m" x="{box_half_x}" y="{box_half_y}" z="{box_half_z}"/>
-    <box name="sol_atmosphere" lunit="m" x="{child_half_x}" y="{atmo_half_height}" z="{child_half_z}"/>
-    <box name="sol_dolomite_bedrock" lunit="m" x="{child_half_x}" y="{bedrock_half_height}" z="{child_half_z}"/>
+    <box name="sol_atmosphere" lunit="m" x="{box_x}" y="{atmo_height}" z="{box_z}"/>
+    <box name="sol_glacial_till" lunit="m" x="{box_x}" y="{till_height}" z="{box_z}"/>
+    <box name="sol_dolomite_bedrock" lunit="m" x="{box_x}" y="{bedrock_height}" z="{box_z}"/>
+    <box name="sol_bnb_berm" lunit="m" x="{bnb_berm_width}" y="{bnb_berm_height}" z="{bnb_berm_length}"/>
   </solids>
   <structure>
-    <volume name="vol_atmosphere">
-      <materialref ref="env_Air"/>
-      <solidref ref="sol_atmosphere"/>
+    <volume name="vol_glacial_till">
+      <materialref ref="env_GlacialTill"/>
+      <solidref ref="sol_glacial_till"/>
     </volume>
     <volume name="vol_dolomite_bedrock">
       <materialref ref="env_Dolomite"/>
       <solidref ref="sol_dolomite_bedrock"/>
     </volume>
-    <volume name="vol_site_geology">
-      <materialref ref="env_GlacialTill"/>
-      <solidref ref="sol_site_volume"/>
-      <physvol name="pv_atmosphere">
-        <volumeref ref="vol_atmosphere"/>
-        <position unit="m" x="0" y="{atmo_center_y:.4f}" z="0"/>
+    <volume name="vol_bnb_berm">
+        <materialref ref="env_GlacialTill"/>
+        <solidref ref="sol_bnb_berm"/>
+    </volume>
+    <volume name="vol_atmosphere">
+      <materialref ref="env_Air"/>
+      <solidref ref="sol_atmosphere"/>
+      <physvol name="pv_glacial_till">
+        <volumeref ref="vol_glacial_till"/>
+        <position unit="m" x="0" y="{till_center_y:.4f}" z="0"/>
       </physvol>
       <physvol name="pv_dolomite_bedrock">
         <volumeref ref="vol_dolomite_bedrock"/>
         <position unit="m" x="0" y="{bedrock_center_y:.4f}" z="0"/>
       </physvol>
+      <physvol name="pv_bnb_berm">
+          <volumeref ref="vol_bnb_berm"/>
+          <position unit="m" x="0" y="{bnb_berm_center_y:.4f}" z="0"/>
+      </physvol>
 {source_physvols}
     </volume>
   </structure>
   <setup name="Default" version="1.0">
-    <world ref="vol_site_geology"/>
+    <world ref="vol_atmosphere"/>
   </setup>
 </gdml>
 """
