@@ -21,12 +21,6 @@ Fermilab-to-Sanford-Lab baseline (1285 km) with margin.
 The atmosphere approximates the US Standard Atmosphere 1976 as 6
 constant-density spherical shells.
 
-Earth center in BNB coordinates:
-  The BNB frame has y = up, origin at the BNB target. Fermilab grade
-  is _GRADE_Y_BNB = 7.62 m above the target. We equate grade with
-  the PREM surface radius (6371 km), so the Earth center sits at
-  (0, -(R_PREM - _GRADE_Y_BNB), 0) in BNB coordinates.
-
 References:
   PREM: Dziewonski & Anderson, PEPI 25 (1981) 297
   Atmosphere: US Standard Atmosphere 1976
@@ -41,7 +35,6 @@ import math
 from typing import Any
 
 R_PREM = 6371000.0
-_GRADE_Y_BNB = 7.62
 _PREM_MOHO_DEPTH = 24400.0
 _LOCAL_MOHO_DEPTH = 45000.0
 
@@ -116,7 +109,7 @@ def _all_layers():
     return list(_PREM_LAYERS) + list(_ATMO_LAYERS)
 
 
-def add_earth_model(model: Any) -> None:
+def add_earth_model(model: Any, ground_level: float) -> None:
     """Add PREM + atmosphere sectors to a DetectorModel loaded from GDML.
 
     Must be called after model.LoadGDML() so that the GDML volumes already
@@ -144,7 +137,7 @@ def add_earth_model(model: Any) -> None:
     # through the GDML MergeFrom pipeline and get proper collision
     # handling.  No separate LoadMaterialModel call is needed.
 
-    earth_center = Vector3D(0.0, -(R_PREM - _GRADE_Y_BNB), 0.0)
+    earth_center = Vector3D(0.0, -(R_PREM - ground_level), 0.0)
     placement = Placement(earth_center)
     radial_axis = RadialAxis1D(earth_center)
 
