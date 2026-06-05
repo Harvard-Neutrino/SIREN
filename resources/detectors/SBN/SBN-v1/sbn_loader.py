@@ -216,7 +216,7 @@ _c1 = _MB_BERM_CAP_WIDTH
 _c2 = _MB_BERM_FULL_W
 _a2 = (_c2**2 - _c1**2) / (8 * _h) - _h / 2.0
 _a1 = _a2 + _h
-_r = np.sqrt(_a2**2 + ( _c2 / 2.0)**2)
+_r = np.sqrt(_a2**2 + (_c2 / 2.0)**2)
 
 _MB_BERM_SPHERE_R = _r
 _MB_Y_BERM_SPHERE_CENTER = _MB_Y_BERM_TOP - _a1
@@ -228,6 +228,7 @@ _MB_WORLD_FULL_Y = max(abs(_MB_Y_BERM_SPHERE_TOP), abs(_MB_Y_BERM_SPHERE_BOT)) *
 
 # Use the MiniBooNE grade as the lowest common grade level for all SBN detectors; most detectors have additional berm height above this
 _FNAL_SITE_GRADE_Y = _MB_Y_GRADE
+_MB_Y_BNB = 1.89614
 
 def _build_miniboone_gdml():
     """Assemble the MiniBooNE enclosure GDML from the scaled dimensions.
@@ -253,7 +254,7 @@ def _build_miniboone_gdml():
 
     solids = "\n".join([
         f'    <box name="mb_world" lunit="m" x="{_MB_WORLD_FULL}" y="{_MB_WORLD_FULL:.4f}" z="{_MB_WORLD_FULL_Y}"/>',
-        f'    <sphere name="mb_berm_sphere" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BERM_SPHERE_R:.4f}" startphi="0" deltaphi="360" starttheta="0" deltatheta="30"/>',
+        f'    <sphere name="mb_berm_sphere" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BERM_SPHERE_R:.4f}" startphi="0" deltaphi="360" starttheta="0" deltatheta="45"/>',
         f'    <sphere name="mb_inner_oil" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BARRIER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         f'    <sphere name="mb_veto_oil" lunit="m" aunit="deg" rmin="{_MB_BARRIER_R}" rmax="{_MB_TANK_INNER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         f'    <sphere name="mb_steel" lunit="m" aunit="deg" rmin="{_MB_TANK_INNER_R}" rmax="{_MB_STEEL_OUTER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
@@ -494,15 +495,15 @@ def build_composite(
       <solidref ref="sol_atmosphere"/>
       <physvol name="pv_glacial_till">
         <volumeref ref="vol_glacial_till"/>
-        <position unit="m" x="0" y="{till_center_y:.4f}" z="0"/>
+        <position unit="m" x="0" y="{till_center_y + _MB_Y_BNB:.4f}" z="0"/>
       </physvol>
       <physvol name="pv_dolomite_bedrock">
         <volumeref ref="vol_dolomite_bedrock"/>
-        <position unit="m" x="0" y="{bedrock_center_y:.4f}" z="0"/>
+        <position unit="m" x="0" y="{bedrock_center_y + _MB_Y_BNB:.4f}" z="0"/>
       </physvol>
       <physvol name="pv_bnb_berm">
           <volumeref ref="vol_bnb_berm"/>
-          <position unit="m" x="0" y="{bnb_berm_center_y:.4f}" z="0"/>
+          <position unit="m" x="0" y="{bnb_berm_center_y + _MB_Y_BNB:.4f}" z="0"/>
       </physvol>
 {source_physvols}
     </volume>
