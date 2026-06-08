@@ -114,9 +114,10 @@ _TILL_THICKNESS = 20.0
 #   - Marcol 7 oil, rho = 0.845 g/cm3 (CH2, H:C ~2), n_D = 1.4684:
 #     NIM A 599, Sec. 3 / Table 1.
 #   - 1280 inner + 240 veto 8-inch PMTs (optical detail, not modelled).
-#   - 541 m baseline / 1.9 m beam offset: flux PRD 79 (2009) 072002
-#     [arXiv:0806.1449]; refined to (0, 1.896, 541.34) m by the G4BNB
-#     survey (bsim::Location, NuBeamOutput.cc:136).
+#   - 541 m baseline / 1.9 m beam offset: BOTH published in flux PRD 79
+#     (2009) 072002 [arXiv:0806.1449], Sec. II. The survey-precision form
+#     (0, 1.89614, 541.34) m is from the MiniBooNE/G4BNB beam MC
+#     (bsim::Location, NuBeamOutput.cc:136, refined by Z. Pavlovic).
 #
 # The vault inner diameter is the PUBLISHED 45 ft / 13.716 m and the dirt
 # overburden is the PUBLISHED >= 3 m (NIM A 599 Sec. 1.4), both trusted
