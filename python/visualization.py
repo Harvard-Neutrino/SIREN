@@ -11,8 +11,9 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
   picking-capable viewer shows what you click on.
 * :func:`view` -- interactive 3-D (or off-screen PNG) render via pyg4ometry,
   coloured by material, with a SIREN-backed right-click picker (robust where
-  pyg4ometry's own picker segfaults) and keyboard controls for the legend,
-  bounding box, section outlines, per-material visibility, and opacity.
+  pyg4ometry's own picker segfaults) and keyboard controls for fly/pan
+  navigation, the legend, bounding box, section outlines, per-material
+  visibility, and opacity.
 * :func:`to_web` -- export the geometry to glTF / a three.js HTML page for the
   browser (needs ``pip install pygltflib``); headless-friendly.
 * :func:`describe` -- print a material summary (name, density, sector count) for
@@ -316,9 +317,13 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None):
             pos, rot = _placement(geo)
             stats["n_exact"] += 1
         else:
+            # _bbox returns HALF-extents; GDML <box> x/y/z are FULL lengths, so
+            # double them -- else bbox-approximated solids (booleans, etc.) render
+            # at half size, shrunk toward their centre and visibly misaligned with
+            # the full-size exact solids around them.
             (cx, cy, cz), (hx, hy, hz) = bb
             xml = '<box name="TMP" lunit="m" x="%s" y="%s" z="%s"/>' % (
-                _fmt(hx), _fmt(hy), _fmt(hz))
+                _fmt(2 * hx), _fmt(2 * hy), _fmt(2 * hz))
             pos, rot = (cx, cy, cz), None
             stats["n_bbox"] += 1
         sname = share_solid(xml)
@@ -484,9 +489,29 @@ _GDML_MM_PER_M = 1000.0
 # semi-transparent and toggled together by the 'g' key (matches the air cut in
 # _material_vis_options so you can see through air to the volumes inside).
 _LOW_DENSITY = 0.05
+# pyg4ometry meshes curved solids (Sphere/Orb/Tubs/Cons) with this many angular
+# slices/stacks. The library default for a <sphere> is only 10x10, which makes
+# the MiniBooNE oil shells visibly faceted and their intersections hard to read;
+# raise it so spheres/pipes render smoothly. Higher = smoother but more polygons.
+_MESH_SLICES = 48
+# Near/far clipping is driven by the camera's distance to its focal point
+# (cam.GetDistance()), NOT by the scene's total extent. VTK's default ties the
+# near plane to the far plane (near ~ tol x far); with an Earth-sized model far
+# is thousands of km, so even a tiny tolerance leaves the near plane kilometres
+# out and you cannot zoom into metre- (let alone mm-) scale features. We instead
+# put the near plane at this fraction of the view distance, so zooming in (which
+# shrinks that distance) shrinks the near plane in lockstep. Depth resolution at
+# the focal point stays ~ view_distance / (frac * 2^depthbits) -- a fixed
+# fraction of whatever you are looking at, hence crisp at every scale.
+_NEAR_DIST_FRAC = 1e-3
+# Absolute near-plane floor (mm) so it never reaches zero when zoomed to microns.
+_NEAR_FLOOR_MM = 1e-3
 
 _HELP_TEXT = (
     "Controls\n"
+    "  left-drag         orbit;  scroll = zoom\n"
+    "  arrow keys        pan L/R; fly in/out (up/down)\n"
+    "  shift+up/down     pan up / down\n"
     "  right-click       identify volume (name / material / density)\n"
     "  shift+right-click hide the clicked material\n"
     "  v                 restore all materials and opacity\n"
@@ -665,7 +690,8 @@ def _world_to_sector(model, wx_mm, wy_mm, wz_mm, inward=None):
 
 
 def _install_controls(vtk, viewer, reg, mvo, model, bounds,
-                      legend=True, bounding_box=False, clipper_widget=None):
+                      legend=True, bounding_box=False, clipper_widget=None,
+                      near_frac=_NEAR_DIST_FRAC):
     """Attach overlays + a robust interactor style to an already-built *viewer*.
 
     Installs a custom ``vtkInteractorStyleTrackballCamera`` that (a) replaces
@@ -676,6 +702,36 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     Returns the state dict (mostly for testing).
     """
     ren, iren = viewer.ren, viewer.iren
+
+    # ---- distance-based near/far clipping -------------------------------
+    # Drive the clip planes off the camera's distance to its focal point (see
+    # _NEAR_DIST_FRAC) so small features stay visible as you zoom in, even inside
+    # an Earth-sized model where the scene-extent-based default would clip
+    # everything near the camera. Re-applied on every camera move by a
+    # ModifiedEvent observer (added with the style below); the style's
+    # AutoAdjustCameraClippingRange is turned off so it cannot fight this.
+    _span = (max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
+             if bounds is not None else 1000.0)
+    _scene_R = 0.5 * _span
+    _clip_busy = [False]
+
+    def _update_clip(obj=None, event=None):
+        if _clip_busy[0] or not near_frac or near_frac <= 0:
+            return
+        cam = ren.GetActiveCamera()
+        d = cam.GetDistance()
+        if not math.isfinite(d) or d <= 0:
+            d = max(_scene_R, 1.0)
+        near = max(d * near_frac, _NEAR_FLOOR_MM)
+        far = d + 2.0 * _scene_R + near    # always reaches the far side of the scene
+        cur = cam.GetClippingRange()
+        if abs(cur[0] - near) <= 1e-6 * near and abs(cur[1] - far) <= 1e-6 * far:
+            return                          # unchanged -> skip (avoids set storms)
+        _clip_busy[0] = True                # guard: SetClippingRange re-fires ModifiedEvent
+        try:
+            cam.SetClippingRange(near, far)
+        finally:
+            _clip_busy[0] = False
 
     # ---- overlay actors -------------------------------------------------
     pick_txt = _text_actor(vtk, "right-click a volume to identify it",
@@ -738,6 +794,46 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
 
     def render():
         ren.GetRenderWindow().Render()
+
+    # ---- fly / pan keyboard navigation ----------------------------------
+    # (_span / _scene_R are computed above for the clipping helper.)
+    def _norm(v):
+        n = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) ** 0.5
+        return (v[0] / n, v[1] / n, v[2] / n) if n > 1e-12 else (0.0, 0.0, 0.0)
+
+    def _cross(a, b):
+        return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0])
+
+    def navigate(key, shift):
+        """Translate the camera: arrows pan left/right and fly forward/back
+        (up/down); shift+up/down pans vertically. The step scales with the view
+        distance so it feels the same zoomed in or out. Both the camera and its
+        focal point move together (true fly/pan, not a dolly toward the centre),
+        so orientation is preserved. Returns True if the camera moved."""
+        cam = ren.GetActiveCamera()
+        pos, fp = cam.GetPosition(), cam.GetFocalPoint()
+        fwd = _norm(cam.GetDirectionOfProjection())   # camera -> focal point
+        right = _norm(_cross(fwd, cam.GetViewUp()))
+        vup = _norm(_cross(right, fwd))
+        dist = cam.GetDistance()
+        if not math.isfinite(dist) or dist <= 0:
+            dist = 0.5 * _span
+        step = 0.12 * dist
+        if key == "up":
+            d = vup if shift else fwd
+        elif key == "down":
+            d = tuple(-c for c in (vup if shift else fwd))
+        elif key == "left":
+            d = tuple(-c for c in right)
+        elif key == "right":
+            d = right
+        else:
+            return False
+        cam.SetPosition(*(pos[i] + d[i] * step for i in range(3)))
+        cam.SetFocalPoint(*(fp[i] + d[i] * step for i in range(3)))
+        _update_clip()
+        return True
 
     def on_right(obj, event):
         x, y = iren.GetEventPosition()
@@ -810,6 +906,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                 clipper_widget.Off() if clipper_widget.GetEnabled() else clipper_widget.On()
             except Exception:
                 pass
+        elif key in ("up", "down", "left", "right"):
+            changed = navigate(key, bool(iren.GetShiftKey()))
         else:
             changed = False
         if changed:
@@ -827,6 +925,13 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     style.SetDefaultRenderer(ren)
     iren.SetInteractorStyle(style)
     viewer.interactorStyle = style  # keep a reference so VTK does not GC it
+    # Manage clipping ourselves: stop the style's scene-extent reset from
+    # overriding the distance-based range, then re-apply it on every camera
+    # change (orbit, zoom, fly/pan, reset) and once now for the initial view.
+    if near_frac and near_frac > 0:
+        style.AutoAdjustCameraClippingRangeOff()
+        ren.GetActiveCamera().AddObserver("ModifiedEvent", _update_clip)
+        _update_clip()
     state["style"] = style
     return state
 
@@ -834,7 +939,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
 def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
          cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
          clip_normal=(1.0, 0.0, 0.0), legend=True, bounding_box=False,
-         picker=True, interactive=True):
+         picker=True, interactive=True, mesh_slices=_MESH_SLICES,
+         near_frac=_NEAR_DIST_FRAC):
     """Render *model* in 3-D with pyg4ometry, coloured by material.
 
     Exports to a temporary (or *gdml_path*) standard GDML, loads it, builds the
@@ -844,7 +950,8 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     Right-click identifies the volume under the cursor by querying SIREN's own
     geometry (segfault-free for every volume, unlike pyg4ometry's built-in
     picker); shift+right-click hides the clicked material. Keys toggle the
-    legend, bounding box, section outlines, gas visibility, opacity, etc.
+    legend, bounding box, section outlines, gas visibility, and opacity; the
+    arrow keys pan and fly through the scene (press 'h' for the full list).
 
     :param model: a ``DetectorModel`` (or a str path to an existing GDML).
     :param coloured: colour by material; else a plain single-colour viewer.
@@ -859,12 +966,32 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
         pyg4ometry's crash-prone built-in picker -- is installed regardless. The
         clicked surface is disambiguated by the view direction (the front volume
         is reported, not the one just outside it).
+    :param mesh_slices: angular slices/stacks for curved solids (spheres, tubes).
+        pyg4ometry's default for a sphere is only 10, which looks faceted; higher
+        is smoother but adds polygons. 0/None keeps the library default.
+    :param near_frac: near clip plane as a fraction of the camera's distance to
+        its focal point (default 1e-3), set dynamically on every camera move.
+        Decoupled from the scene's total size, so you can zoom into metre- and
+        mm-scale features even in an Earth-sized model (where VTK's scene-extent
+        default leaves the near plane kilometres out). Smaller lets the camera
+        approach closer before clipping; larger gives more depth precision. Set
+        0/None to keep VTK's default scene-extent clipping.
     :param screenshot: write an off-screen PNG instead of opening a window
         (uses the legacy coloured viewer, which supports ``exportScreenShot``;
         needs a display-capable VTK). On a headless box prefer
         :func:`plot_cross_sections` or :func:`to_gdml` + an external viewer.
     """
     import vtk
+    import pyg4ometry
+    # Smooth the curved solids before anything is meshed: pyg4ometry meshes a
+    # <sphere> with only 10x10 slices/stacks by default, so the MiniBooNE oil
+    # shells look faceted and their intersections are hard to read. Must precede
+    # buildPipelinesAppend (meshing reads the global config).
+    if mesh_slices:
+        try:
+            pyg4ometry.config.setGlobalMeshSliceAndStack(int(mesh_slices))
+        except Exception:
+            pass
     vis, reg, world, path = _load_registry(model, gdml_path)
     mvo = _material_vis_options(reg, vis.VisualisationOptions) if coloured else None
     model_obj = None if isinstance(model, str) else model
@@ -921,7 +1048,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
 
     _install_controls(vtk, v, reg, mvo, model_obj if picker else None, bounds,
                        legend=legend, bounding_box=bounding_box,
-                       clipper_widget=clipper_widget)
+                       clipper_widget=clipper_widget, near_frac=near_frac)
     v.view(interactive=interactive)
     return path
 
