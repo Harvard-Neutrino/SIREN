@@ -19,8 +19,18 @@ References:
   Confirmed by SBN DocDB 22998-v2 (A. Aduszkiewicz, 2022-10-26; restricted).
 
   Detector positions in BNB frame from G4BNB bsim::Location tuples (public):
-    https://github.com/SBNSoftware/G4BNB
-  Confirmed by SBN DocDB 22998-v2 for ICARUS z = 600 m.
+    https://github.com/SBNSoftware/G4BNB/blob/HEAD/src/NuBeamOutput.cc
+  The ICARUS z = 600 m on-axis baseline is published (peer-reviewed): ICARUS
+  Collaboration, Eur. Phys. J. C 83 (2023) 467 [arXiv:2301.08634] ("exposed
+  at a 600 m baseline distance to the ... BNB"), and the SBN Proposal
+  [arXiv:1503.01520] Sec. I.2 + Table 1 ("600 m from the BNB target"; all
+  three detectors "on-axis in the BNB"). Also confirmed by SBN DocDB
+  22998-v2 (restricted). 600 m is a round as-designed value: G4BNB encodes
+  exactly 60000 cm with no survey-refinement comment (contrast MiniBooNE's
+  54134 cm "refined by Zarko"); a finer surveyed value, if one exists, is in
+  the Fermilab Nov-2024 BNB site survey (noted in arXiv:2501.06323), not public.
+  SBND x = +73.78 cm off-axis offset confirmed by SBN DocDB 20891 (flux
+  config H); see the SBND_LArSoft -> BNB edge below for the full provenance.
 """
 
 from __future__ import annotations
@@ -187,31 +197,88 @@ def _build_graph() -> FrameGraph:
         "ICARUS_LArSoft", "NuMI", R_ICARUS_TO_NUMI, T_ICARUS_IN_NUMI_M,
         "icaruscode GNuMIFlux.xml beamdir/beampos; confirmed by SBN DocDB 22998-v2"))
 
-    # ICARUS LArSoft -> BNB: pure translation (0, 0, 600) m
-    # G4BNB bsim::Location for ICARUS; confirmed by DocDB 22998.
+    # ICARUS LArSoft -> BNB: pure translation (0, 0, 600) m.
+    # From G4BNB NuBeamOutput.cc:143:
+    #   bsim::Location(0., 0., 60000., "T600")  [cm]
+    # i.e. on-axis (x = 0, y = 0), 600 m downstream. This is the round
+    # as-designed baseline, NOT a survey: the T600 tuple carries no
+    # refinement comment, unlike MiniBooNE's 54134 cm ("refined by Zarko")
+    # on NuBeamOutput.cc:136. The 600 m on-axis placement is published
+    # (peer-reviewed): ICARUS Collaboration, Eur. Phys. J. C 83 (2023) 467
+    # [arXiv:2301.08634] ("exposed at a 600 m baseline distance to the BNB"),
+    # and the SBN Proposal [arXiv:1503.01520] Sec. I.2 + Table 1 ("600 m from
+    # the BNB target"; all three SBN detectors "on-axis in the BNB"); the SBN
+    # program overview [arXiv:2203.05814] repeats "Icarus at 600 m".
+    # The (0, 0, 600) places the ICARUS LArSoft origin (TPC-system center) on
+    # the beam axis; the active-LAr center offset is carried separately in
+    # DETECTORS["ICARUS"] (_ic_y = -0.202 m; cryostats at x = +/-2.1 m).
     g.add_transform(Transform.translation(
         "ICARUS_LArSoft", "BNB", [0.0, 0.0, 600.0],
-        "G4BNB ICARUS Location (0, 0, 60000) cm; confirmed by SBN DocDB 22998-v2"))
+        "G4BNB T600 Location (0, 0, 60000) cm [NuBeamOutput.cc:143]; round "
+        "as-designed 600 m on-axis baseline published in ICARUS Coll. EPJC 83 "
+        "(2023) 467 [arXiv:2301.08634] and SBN Proposal [arXiv:1503.01520] "
+        "Sec. I.2; confirmed by SBN DocDB 22998-v2"))
 
-    # SBND LArSoft -> BNB (G4BNB bsim::Location)
+    # SBND LArSoft -> BNB (G4BNB bsim::Location).
+    # From G4BNB NuBeamOutput.cc:145:
+    #   bsim::Location(73.78, 0., 11000., "SBND")  [cm]
+    # i.e. off-axis (x = +0.7378 m), on-axis vertically (y = 0), 110 m
+    # downstream. This is the SBND coordinate origin expressed in the BNB
+    # beam frame; we store it with that sign (detector-in-beam-frame), which
+    # matches G4BNB and sbncode bnb_kaon_sbnd.fcl ("... in detector in beam
+    # frame" = [73.78, 0, 11000]). The SBND-side view of the same offset is
+    # the beam x-center at -73.78 cm in detector coordinates (sbncode
+    # run_fluxreader_sbnd.fcl XShift = -73.78; SBND flux-files wiki) -- the
+    # inverse of this edge, not a discrepancy.
+    #
+    # Provenance: the 73.78 cm horizontal offset is the as-designed SBND
+    # position; the authoritative reference is SBN-DocDB 20891. It superseded
+    # two earlier wrong values -- a uBooNE-frame ~1.3 m, then 45.7 cm in flux
+    # configs F/G. The corrected -73.78 cm landed in flux config H (produced
+    # by Z. Pavlovic, sbndcode PR #95, ~2021); see the SBND flux-files wiki
+    # and Release Notes 09.21.00. G4BNB's OWN default stayed on-axis
+    # (0, 0, 11000) until NuBeamOutput.cc:145 was fixed in 2025 (G4BNB commit
+    # bdd5f29e). The 11000 cm = 110 m target-to-TPC baseline is current (an
+    # early flux config A used 100 m).
+    # Caveats: the offset is to the SBND LArSoft origin (cathode plane), not
+    # the active-LAr center (carried separately in DETECTORS["SBND"]); and
+    # 73.78 cm is a design value (DocDB 20891), not a published survey like
+    # MiniBooNE's 1.9 m.
     g.add_transform(Transform.translation(
         "SBND_LArSoft", "BNB", [0.7378, 0.0, 110.0],
-        "G4BNB SBND Location (73.78, 0, 11000) cm"))
+        "G4BNB SBND Location (73.78, 0, 11000) cm [NuBeamOutput.cc:145]; "
+        "as-designed off-axis offset per SBN-DocDB 20891 (corrected from "
+        "45.7 cm to -73.78 cm in flux config H, Z. Pavlovic, sbndcode PR #95)"))
 
     # MicroBooNE LArSoft -> BNB (G4BNB bsim::Location)
     g.add_transform(Transform.translation(
         "MicroBooNE_LArSoft", "BNB", [0.0, 0.0, 470.0],
         "G4BNB MicroBooNE Location (0, 0, 47000) cm"))
 
-    # MiniBooNE tank center -> BNB (G4BNB bsim::Location, refined survey).
+    # MiniBooNE tank center -> BNB (G4BNB bsim::Location).
     # From G4BNB NuBeamOutput.cc:136:
     #   bsim::Location(0., 189.614, 54134.0, "MiniBooNE")  [cm]
-    # i.e. on-axis (x = 0), +1.89614 m vertical, 541.34 m downstream.
-    # PRD 79 (2009) 072002 quotes the nominal 541 m baseline; this tuple
-    # is the beam-group's refined value (Z. Pavlovic).
+    # i.e. on-axis (x = 0), 1.89614 m vertical, 541.34 m downstream.
+    #
+    # Source: both the vertical offset and the baseline are PUBLISHED in the
+    # MiniBooNE flux paper, PRD 79 (2009) 072002 [arXiv:0806.1449], Sec. II:
+    # "The axis of the beam, defined by the center of the decay pipe, is
+    # displaced vertically from the center of the MiniBooNE detector by 1.9
+    # meters" (plus the 541 m target-to-detector-center baseline). The exact
+    # 189.614 / 54134 cm digits are the survey-precision form of that published
+    # 1.9 m / 541 m -- no finer value is in print. They were carried from the
+    # MiniBooNE beam MC (NuBeamOutput.cc:136 note "Refined by Zarko" =
+    # Z. Pavlovic, MiniBooNE flux physicist). The underlying positions come
+    # from the Fermilab Alignment & Metrology survey (methodology in Oshinowo,
+    # FERMILAB-CONF-02-425); detailed BNB geometry is in the 8 GeV Beam TDR
+    # (the PRD's ref [6]).
+    # Sign: stored as +y (BNB +y = up, per the BNB frame above); the PRD gives
+    # only the magnitude, so the up/down sense is not independently pinned here.
     g.add_transform(Transform.translation(
         "MiniBooNE_local", "BNB", T_MiniBooNE_local,
-        "G4BNB MiniBooNE bsim::Location (0, 189.614, 54134) cm; NuBeamOutput.cc:136"))
+        "1.9 m vertical offset + 541 m baseline published in PRD 79 (2009) "
+        "072002 Sec. II [arXiv:0806.1449]; 189.614/54134 cm is the survey-"
+        "precision form from G4BNB NuBeamOutput.cc:136 (refined by Z. Pavlovic)"))
 
     return g
 
