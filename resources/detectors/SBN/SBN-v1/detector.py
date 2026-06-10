@@ -54,14 +54,17 @@ _DATA_BASE = (
 )
 
 
-def _beamline_sources():
+def _beamline_sources(lbnf=False):
+    """Beamline GDML sources placed in the BNB world.
+
+    Always includes the BNB and NuMI beamlines. The DUNE LBNF beam (g4lbnf)
+    is appended only when ``lbnf=True`` -- it is the DUNE beamline (~700 KB /
+    911 volumes), off by default so SBN-only loads stay lean.
+    """
     T_numi = geo.transform("NuMI", "BNB")
     numi_origin_bnb = T_numi.apply([0.0, 0.0, 0.0])
     numi_rx, numi_ry, numi_rz = geo.gdml_rotation_angles(T_numi.R.T)
-    T_lbnf = geo.transform("LBNF", "BNB")
-    lbnf_origin_bnb = T_lbnf.apply([0.0, 0.0, 0.0])
-    lbnf_rx, lbnf_ry, lbnf_rz = geo.gdml_rotation_angles(T_lbnf.R.T)
-    return [
+    sources = [
         {
             "file": "gdml/BooNE_50m.gdml",
             "prefix": "bnb",
@@ -80,23 +83,26 @@ def _beamline_sources():
             "url": f"{_DATA_BASE}/NuMI/numi_g4export_2026-05-19.gdml",
             "sha256": "39670d52a6181352a8ae7c798387a9c58de950462c634e57da7d39fb23abe30a",
         },
-        {
-            # DUNE LBNF beamline (g4lbnf export, OptEngDesignJul2020). Placed via
-            # the LBNF->BNB edge in sbn_geometry (MI-10/MI-60 FSCS survey bridged
-            # through NuMI; horizontal ~10-15 m, vertical y_up=8.369 m -- LBNF
-            # MCZero at site grade = MiniBooNE room floor). Staged in gdml/ --
-            # no remote
-            # URL yet. NOTE: this is the DUNE beam, included in every SBN load;
-            # gate it behind a flag if SBN-only loads should stay lean.
+    ]
+    if lbnf:
+        # DUNE LBNF beamline (g4lbnf export, OptEngDesignJul2020). Placed via
+        # the LBNF->BNB edge in sbn_geometry (MI-10/MI-60 FSCS survey bridged
+        # through NuMI; horizontal ~10-15 m; vertical y_up=8.369 m, MCZero at
+        # site grade = MiniBooNE room floor). Provenance: the LBNF/ README in
+        # SIREN-data.
+        T_lbnf = geo.transform("LBNF", "BNB")
+        lbnf_origin_bnb = T_lbnf.apply([0.0, 0.0, 0.0])
+        lbnf_rx, lbnf_ry, lbnf_rz = geo.gdml_rotation_angles(T_lbnf.R.T)
+        sources.append({
             "file": "gdml/g4lbnf.gdml",
             "prefix": "lbnf",
             "position": tuple(lbnf_origin_bnb),
             "rotation": (lbnf_rx, lbnf_ry, lbnf_rz),
             "unwrap": False,
-            "url": None,
-            "sha256": "",
-        },
-    ]
+            "url": f"{_DATA_BASE}/LBNF/g4lbnf.gdml",
+            "sha256": "f0e0f32cc3cf45fb1a783d84d470a5d2caa06b7ba667648482f8e4137d507cdc",
+        })
+    return sources
 
 _DETECTOR_SPECS = {
     "ICARUS": {
@@ -135,14 +141,14 @@ def fetch_data():
     # MiniBooNE's tank GDML has no remote URL; generate it locally first so
     # _ensure_gdml_files finds it present rather than failing to download.
     sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
-    all_sources = list(_beamline_sources())
+    all_sources = list(_beamline_sources(lbnf=True))
     for spec in _DETECTOR_SPECS.values():
         if spec.get("file"):
             all_sources.append(spec)
     sbn_loader._ensure_gdml_files(_ABS_DIR, all_sources)
 
 
-def load_detector(detector=None, earth_model=False):
+def load_detector(detector=None, earth_model=False, lbnf=False):
     """Load an SBN detector model.
 
     Parameters
@@ -160,6 +166,11 @@ def load_detector(detector=None, earth_model=False):
         correction for the Midwest crust.  Use this for atmospheric
         neutrino studies or BSM searches where interactions can occur
         far from the detector.
+    lbnf : bool, optional
+        If *True*, also place the DUNE LBNF beamline (g4lbnf) in the
+        BNB world via the LBNF->BNB transform (MCZero at site grade,
+        ~263 m west of the BNB target).  Off by default: it is the DUNE
+        beam (~700 KB / 911 volumes), not part of an SBN-only model.
 
     Returns
     -------
@@ -207,7 +218,7 @@ def load_detector(detector=None, earth_model=False):
         rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R.T)
         det_rotation = (rx, ry, rz)
 
-    sources = list(_beamline_sources())
+    sources = list(_beamline_sources(lbnf=lbnf))
     if spec["file"] is not None:
         sources.append({
             "file": spec["file"],
