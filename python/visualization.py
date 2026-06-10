@@ -234,7 +234,8 @@ def _placement(geo):
     return pos, (rx, ry, rz)
 
 
-def to_gdml(model, path, world_margin=2.0, region=None, region_center=None):
+def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
+            skip_geo_types=()):
     """Export *model*'s sectors to a self-contained standard GDML file.
 
     Each sector becomes a ``<volume>`` named after the sector, referencing a
@@ -272,7 +273,7 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None):
     structs, physvols = [], []
     lo, hi = [1e30] * 3, [-1e30] * 3
     stats = dict(n_sectors=len(sectors), n_exact=0, n_bbox=0, n_skipped=0,
-                 n_cropped=0)
+                 n_cropped=0, n_mesh=0)
 
     def share_solid(xml_tmp):
         sig = re.sub(r'\sname="[^"]*"', "", xml_tmp, count=1)
@@ -286,6 +287,12 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None):
 
     for i, s in enumerate(sectors):
         geo = s.geo
+        # Meshes are skipped here when requested: pyg4ometry would CSG them
+        # (slow) or, lacking a <tessellated> emitter, fall back to a bounding box.
+        # The viewer renders them straight to VTK instead (see _add_mesh_actors).
+        if type(geo).__name__ in skip_geo_types:
+            stats["n_mesh"] += 1
+            continue
         bb = _bbox(geo)
         if bb is None or not all(math.isfinite(c) for c in (bb[0] + bb[1])):
             stats["n_skipped"] += 1
@@ -528,8 +535,13 @@ _HELP_TEXT = (
     "  h                 toggle this help")
 
 
-def _load_registry(model, gdml_path):
-    """(vis module, registry, world LV, gdml path) for *model* (or a GDML str)."""
+def _load_registry(model, gdml_path, skip_geo_types=("TriangularMesh",)):
+    """(vis module, registry, world LV, gdml path) for *model* (or a GDML str).
+
+    *skip_geo_types* names geometry classes left out of the GDML (default the
+    TriangularMesh, which the viewer renders directly in VTK via _add_mesh_actors
+    rather than through pyg4ometry's CSG).
+    """
     import pyg4ometry
     import tempfile
     vis = pyg4ometry.visualisation
@@ -538,7 +550,7 @@ def _load_registry(model, gdml_path):
     else:
         path = gdml_path or tempfile.NamedTemporaryFile(
             suffix=".gdml", delete=False).name
-        to_gdml(model, path)
+        to_gdml(model, path, skip_geo_types=skip_geo_types)
     reg = pyg4ometry.gdml.Reader(path).getRegistry()
     return vis, reg, reg.getWorldVolume(), path
 
@@ -555,6 +567,68 @@ def _build_viewer(model, gdml_path=None, coloured=True):
         v = vis.VtkViewerNew()
     v.addLogicalVolume(world)
     return vis, v, reg, path, mvo
+
+
+def _mesh_sector_polydata(model, top_only=False):
+    """Yield (sector, material_name, pyvista.PolyData) for each TriangularMesh sector."""
+    import numpy as np
+    import pyvista as pv
+    for s in _sectors(model):
+        if type(s.geo).__name__ != "TriangularMesh":
+            continue
+        tris = np.asarray(s.geo.GetTriangles(), dtype=float)        # (N, 3, 3)
+        if tris.size == 0:
+            continue
+        if top_only:                                                # drop skirt/base
+            tris = tris[(tris[:, :, 2] > -500.0).all(axis=1)]
+        n = len(tris)
+        faces = np.empty((n, 4), dtype=np.int64)
+        faces[:, 0] = 3
+        faces[:, 1:] = np.arange(3 * n).reshape(n, 3)
+        pd = pv.PolyData(tris.reshape(-1, 3), faces.ravel())
+        yield s, _material_name(model, int(s.material_id)), pd
+
+
+def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
+    """Render TriangularMesh sectors straight to *renderer*, bypassing pyg4ometry.
+
+    Mesh sectors are skipped in the GDML (see _load_registry); here their triangles
+    (TriangularMesh.GetTriangles(), via pyvista PolyData) become VTK actors coloured
+    on the same log-density scale as _material_vis_options.
+    """
+    import colorsys
+    items = list(_mesh_sector_polydata(model))
+    if not items:
+        return 0
+    dens = []
+    for mt in reg.materialDict.values():
+        try:
+            dens.append(max(float(mt.density), 1e-30))
+        except Exception:
+            pass
+    dens += [max(_sector_density(s), 1e-30) for s, _, _ in items]
+    hi = math.log(max(dens)) if dens else 0.0
+    lo = math.log(1e-4)
+
+    def colour_for(name, d):
+        if mvo is not None and name in mvo:
+            try:
+                return tuple(mvo[name].getColour())
+            except Exception:
+                pass
+        t = 0.5 if hi <= lo else min(max((math.log(d) - lo) / (hi - lo), 0.0), 1.0)
+        return colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
+
+    for s, mat, pd in items:
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(pd)
+        mapper.ScalarVisibilityOff()
+        a = vtk.vtkActor()
+        a.SetMapper(mapper)
+        a.GetProperty().SetColor(*colour_for(mat, max(_sector_density(s), 1e-30)))
+        renderer.AddActor(a)
+        actors["mesh__%s" % _sanitize(s.name)] = a
+    return len(items)
 
 
 def _scene_bounds(viewer):
@@ -940,7 +1014,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
          cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
          clip_normal=(1.0, 0.0, 0.0), legend=True, bounding_box=False,
          picker=True, interactive=True, mesh_slices=_MESH_SLICES,
-         near_frac=_NEAR_DIST_FRAC):
+         near_frac=_NEAR_DIST_FRAC, backend="pyg4ometry"):
     """Render *model* in 3-D with pyg4ometry, coloured by material.
 
     Exports to a temporary (or *gdml_path*) standard GDML, loads it, builds the
@@ -981,6 +1055,9 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
         needs a display-capable VTK). On a headless box prefer
         :func:`plot_cross_sections` or :func:`to_gdml` + an external viewer.
     """
+    if backend == "pyvista":                         # pure-pyvista path (no pyg4ometry)
+        return view_pv(model, screenshot=screenshot, axes=axes, legend=legend,
+                       picker=picker)
     import vtk
     import pyg4ometry
     # Smooth the curved solids before anything is meshed: pyg4ometry meshes a
@@ -1001,6 +1078,11 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     if screenshot:
         lv = vis.VtkViewerColoured(materialVisOptions=mvo) if coloured else vis.VtkViewer()
         lv.addLogicalVolume(world)
+        if model_obj is not None:
+            try:
+                _add_mesh_actors(vtk, lv.ren, getattr(lv, "actors", {}), model_obj, mvo, reg)
+            except Exception:
+                pass
         if axes:
             try:
                 lv.addAxes(20.0)
@@ -1020,6 +1102,12 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     if clipper:
         v.addClipper(list(clip_origin), list(clip_normal), True)  # before build
     v.buildPipelinesAppend()
+
+    if model_obj is not None:                        # mesh sectors -> direct VTK
+        try:
+            _add_mesh_actors(vtk, v.ren, v.actors, model_obj, mvo, reg)
+        except Exception:
+            pass
 
     bounds = _scene_bounds(v)
     clipper_widget = None
@@ -1051,6 +1139,187 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
                        clipper_widget=clipper_widget, near_frac=near_frac)
     v.view(interactive=interactive)
     return path
+
+
+# ---------------------------------------------------------------------------
+# Pure-pyvista renderer (no pyg4ometry). Every sector is tessellated: the common
+# solids parametrically (crisp/fast), everything else -- booleans, Para/Trd,
+# partial spheres, Polyhedra, ... -- by marching cubes on SIREN's own IsInside,
+# so it works for ANY geometry (including the booleans pyg4ometry chokes on).
+# ---------------------------------------------------------------------------
+def _euler_transform(euler, pos):
+    """4x4 active transform: rotate by XYZ *euler* (rad), then translate to *pos*."""
+    import numpy as np
+    rx, ry, rz = euler
+    cx, sx = math.cos(rx), math.sin(rx)
+    cy, sy = math.cos(ry), math.sin(ry)
+    cz, sz = math.cos(rz), math.sin(rz)
+    R = (np.array([[cz, -sz, 0.], [sz, cz, 0.], [0., 0., 1.]])
+         @ np.array([[cy, 0., sy], [0., 1., 0.], [-sy, 0., cy]])
+         @ np.array([[1., 0., 0.], [0., cx, -sx], [0., sx, cx]]))
+    T = np.eye(4); T[:3, :3] = R; T[:3, 3] = pos
+    return T
+
+
+def _pv_parametric(geo):
+    """Crisp parametric pyvista mesh for common solids, or None (fall back to MC)."""
+    import numpy as np, pyvista as pv
+    cls = type(geo).__name__
+    if cls == "TriangularMesh":
+        tris = np.asarray(geo.GetTriangles(), float)
+        if tris.size == 0:
+            return None
+        n = len(tris)
+        f = np.empty((n, 4), np.int64); f[:, 0] = 3; f[:, 1:] = np.arange(3 * n).reshape(n, 3)
+        return pv.PolyData(tris.reshape(-1, 3), f.ravel())          # already world-frame
+    if cls == "Box":
+        m = pv.Cube(center=(0, 0, 0), x_length=geo.X, y_length=geo.Y, z_length=geo.Z)
+    elif cls == "Sphere":
+        if (geo.InnerRadius > 1e-9 or abs(geo.DeltaPhi - 2 * math.pi) > 1e-3
+                or abs(geo.DeltaTheta - math.pi) > 1e-3):
+            return None                                             # shell/wedge -> MC
+        m = pv.Sphere(radius=geo.Radius, theta_resolution=48, phi_resolution=48)
+    elif cls == "Cylinder":
+        if geo.InnerRadius > 1e-9:
+            return None
+        m = pv.Cylinder(center=(0, 0, 0), direction=(0, 0, 1),
+                        radius=geo.Radius, height=geo.Z, resolution=48)
+    else:
+        return None
+    pl = geo.placement; p = pl.Position
+    T = _euler_transform(pl.Quaternion.GetEulerAnglesXYZs(),
+                         (p.GetX(), p.GetY(), p.GetZ()))
+    return m.transform(T, inplace=False)
+
+
+def _pv_marching(geo, res=48, pad=0.04):
+    """Surface of ANY geometry by marching cubes on IsInside over its world AABB."""
+    import numpy as np, pyvista as pv
+    from siren.math import Vector3D
+    bb = _bbox(geo)
+    if bb is None:
+        return None
+    (cx, cy, cz), (hx, hy, hz) = bb
+    hx, hy, hz = hx * (1 + pad) + 1.0, hy * (1 + pad) + 1.0, hz * (1 + pad) + 1.0
+    xs = np.linspace(cx - hx, cx + hx, res)
+    ys = np.linspace(cy - hy, cy + hy, res)
+    zs = np.linspace(cz - hz, cz + hz, res)
+    inside = geo.IsInside
+    vol = np.empty((res, res, res), np.float32)
+    for k, z in enumerate(zs):
+        for j, y in enumerate(ys):
+            for i, x in enumerate(xs):
+                vol[i, j, k] = inside(Vector3D(float(x), float(y), float(z)))
+    if vol.max() < 0.5:
+        return None
+    grid = pv.ImageData(dimensions=(res, res, res),
+                        spacing=(xs[1] - xs[0], ys[1] - ys[0], zs[1] - zs[0]),
+                        origin=(xs[0], ys[0], zs[0]))
+    grid["v"] = vol.ravel(order="F")
+    return grid.contour([0.5], scalars="v")
+
+
+def _pv_sector_mesh(geo, mc_res=48):
+    m = _pv_parametric(geo)
+    return m if m is not None else _pv_marching(geo, mc_res)
+
+
+def _pv_material_colours(model):
+    """material name -> (rgb, alpha) on the same log-density scale as the legend."""
+    import colorsys
+    dens = {}
+    for s in _sectors(model):
+        nm = _material_name(model, int(s.material_id))
+        dens[nm] = max(dens.get(nm, 0.0), max(_sector_density(s), 1e-30))
+    if not dens:
+        return {}
+    hi, lo = math.log(max(dens.values())), math.log(1e-4)
+    out = {}
+    for nm, d in dens.items():
+        t = 0.5 if hi <= lo else min(max((math.log(d) - lo) / (hi - lo), 0.0), 1.0)
+        out[nm] = (colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95),
+                   0.15 if d < _LOW_DENSITY else 0.92)
+    return out
+
+
+def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=None,
+            axes=True, legend=True, picker=True, mc_res=48, z_exag=1.0, dark=True,
+            window_size=(1500, 950)):
+    """Render *model* entirely in pyvista -- no pyg4ometry.
+
+    Box/Sphere/Cylinder/TriangularMesh are meshed parametrically; everything else
+    (booleans, Para/Trd, partial spheres, ...) by marching cubes on SIREN's
+    IsInside (*mc_res* grid -- raise for sharper exotic solids, lower for speed).
+    Coloured by material (log-density); gases semi-transparent. Right-click (press
+    'p' over a surface) identifies the volume via SIREN. *region*/*region_center*
+    (half-width, centre) or *max_extent* drop huge background volumes (PREM shells,
+    world boxes). *z_exag* applies a vertical exaggeration (terrain).
+    """
+    import pyvista as pv
+    from siren.math import Vector3D
+    from siren.detector import DetectorPosition
+    cols = _pv_material_colours(model)
+    crop = None
+    if region is not None:
+        if region_center is None:
+            try:
+                o = model.DetectorOrigin.get(); region_center = (o.GetX(), o.GetY(), o.GetZ())
+            except Exception:
+                region_center = (0.0, 0.0, 0.0)
+        crop = (region_center, float(region))
+    pl = pv.Plotter(off_screen=bool(screenshot), window_size=window_size)
+    pl.set_background("#1a1d24" if dark else "white")
+    drawn = 0
+    for s in _sectors(model):
+        bb = _bbox(s.geo)
+        if bb is None:
+            continue
+        (cx, cy, cz), (hx, hy, hz) = bb
+        if max_extent is not None and max(hx, hy, hz) > max_extent:
+            continue
+        if crop is not None:
+            (rx, ry, rz), rh = crop
+            if abs(cx - rx) > rh or abs(cy - ry) > rh or abs(cz - rz) > rh:
+                continue
+        try:
+            mesh = _pv_sector_mesh(s.geo, mc_res)
+        except Exception:
+            mesh = None
+        if mesh is None or mesh.n_cells == 0:
+            continue
+        nm = _material_name(model, int(s.material_id))
+        rgb, alpha = cols.get(nm, ((0.6, 0.6, 0.6), 0.9))
+        pl.add_mesh(mesh, color=rgb, opacity=alpha, smooth_shading=True)
+        drawn += 1
+    if z_exag != 1.0:
+        pl.set_scale(zscale=z_exag)
+    if axes:
+        pl.add_axes()
+    if legend and cols:
+        pl.add_legend([[nm, c[0]] for nm, c in sorted(cols.items())],
+                      bcolor="k" if dark else "w", size=(0.20, 0.28))
+    if picker and not isinstance(model, str):
+        fg = "w" if dark else "k"
+        pl.add_text("", position="upper_left", font_size=10, color=fg, name="pick")
+        def _cb(pt):
+            try:
+                sec = model.GetContainingSector(DetectorPosition(
+                    Vector3D(float(pt[0]), float(pt[1]), float(pt[2]))))
+                pl.add_text("%s [%s]  rho=%.3g g/cc" % (
+                    sec.name, _material_name(model, int(sec.material_id)),
+                    _sector_density(sec)), position="upper_left",
+                    font_size=10, color=fg, name="pick")
+            except Exception:
+                pass
+        try:
+            pl.enable_point_picking(callback=_cb, show_point=True, use_picker=True)
+        except Exception:
+            pass
+    if screenshot:
+        pl.show(screenshot=screenshot)
+        return screenshot
+    pl.show()
+    return drawn
 
 
 def to_web(model, path, gdml_path=None, single_instance=False):
