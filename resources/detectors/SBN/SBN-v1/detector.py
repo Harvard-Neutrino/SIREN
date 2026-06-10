@@ -58,6 +58,9 @@ def _beamline_sources():
     T_numi = geo.transform("NuMI", "BNB")
     numi_origin_bnb = T_numi.apply([0.0, 0.0, 0.0])
     numi_rx, numi_ry, numi_rz = geo.gdml_rotation_angles(T_numi.R.T)
+    T_lbnf = geo.transform("LBNF", "BNB")
+    lbnf_origin_bnb = T_lbnf.apply([0.0, 0.0, 0.0])
+    lbnf_rx, lbnf_ry, lbnf_rz = geo.gdml_rotation_angles(T_lbnf.R.T)
     return [
         {
             "file": "gdml/BooNE_50m.gdml",
@@ -76,6 +79,22 @@ def _beamline_sources():
             "unwrap": False,
             "url": f"{_DATA_BASE}/NuMI/numi_g4export_2026-05-19.gdml",
             "sha256": "39670d52a6181352a8ae7c798387a9c58de950462c634e57da7d39fb23abe30a",
+        },
+        {
+            # DUNE LBNF beamline (g4lbnf export, OptEngDesignJul2020). Placed via
+            # the LBNF->BNB edge in sbn_geometry (MI-10/MI-60 FSCS survey bridged
+            # through NuMI; horizontal ~10-15 m, vertical y_up=8.369 m -- LBNF
+            # MCZero at site grade = MiniBooNE room floor). Staged in gdml/ --
+            # no remote
+            # URL yet. NOTE: this is the DUNE beam, included in every SBN load;
+            # gate it behind a flag if SBN-only loads should stay lean.
+            "file": "gdml/g4lbnf.gdml",
+            "prefix": "lbnf",
+            "position": tuple(lbnf_origin_bnb),
+            "rotation": (lbnf_rx, lbnf_ry, lbnf_rz),
+            "unwrap": False,
+            "url": None,
+            "sha256": "",
         },
     ]
 
