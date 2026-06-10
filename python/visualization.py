@@ -14,6 +14,10 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
   pyg4ometry's own picker segfaults) and keyboard controls for fly/pan
   navigation, the legend, bounding box, section outlines, per-material
   visibility, and opacity.
+* :func:`view_pv` (or ``view(backend="pyvista")``) -- pure-pyvista render with
+  no pyg4ometry dependency. Every SIREN solid type -- including hollow/phi-cut
+  solids and (nested) BooleanGeometry -- is tessellated parametrically; see
+  the builder section around :func:`_pv_parametric`.
 * :func:`to_web` -- export the geometry to glTF / a three.js HTML page for the
   browser (needs ``pip install pygltflib``); headless-friendly.
 * :func:`describe` -- print a material summary (name, density, sector count) for
@@ -26,8 +30,8 @@ SIREN's own hand-written sub-GDMLs, whose parser treats ``<tube>`` z as a half.
 """
 import math
 
-__all__ = ["plot_cross_sections", "to_gdml", "view", "to_web", "describe", "at",
-           "list_volumes"]
+__all__ = ["plot_cross_sections", "to_gdml", "view", "view_pv", "to_web",
+           "describe", "at", "list_volumes"]
 
 _PLANES = {
     #  name : (horizontal axis, vertical axis, fixed axis)
@@ -569,6 +573,25 @@ def _build_viewer(model, gdml_path=None, coloured=True):
     return vis, v, reg, path, mvo
 
 
+def _apply_placement(tris, geo):
+    """Transform LOCAL-frame triangle vertices to WORLD frame via the geo's placement."""
+    import numpy as np
+    pl = geo.placement
+    pos = pl.Position
+    t = np.array([pos.GetX(), pos.GetY(), pos.GetZ()])
+    q = pl.Quaternion
+    rx, ry, rz = q.GetEulerAnglesXYZs()
+    cx, sx = np.cos(rx), np.sin(rx)
+    cy, sy = np.cos(ry), np.sin(ry)
+    cz, sz = np.cos(rz), np.sin(rz)
+    R = (np.array([[cz, -sz, 0.], [sz, cz, 0.], [0., 0., 1.]])
+         @ np.array([[cy, 0., sy], [0., 1., 0.], [-sy, 0., cy]])
+         @ np.array([[1., 0., 0.], [0., cx, -sx], [0., sx, cx]]))
+    pts = tris.reshape(-1, 3)
+    pts = (R @ pts.T).T + t
+    return pts.reshape(tris.shape)
+
+
 def _mesh_sector_polydata(model, top_only=False):
     """Yield (sector, material_name, pyvista.PolyData) for each TriangularMesh sector."""
     import numpy as np
@@ -579,8 +602,12 @@ def _mesh_sector_polydata(model, top_only=False):
         tris = np.asarray(s.geo.GetTriangles(), dtype=float)        # (N, 3, 3)
         if tris.size == 0:
             continue
-        if top_only:                                                # drop skirt/base
-            tris = tris[(tris[:, :, 2] > -500.0).all(axis=1)]
+        tris = _apply_placement(tris, s.geo)                        # local -> world frame
+        if top_only:                                                # drop skirt+base (frame-agnostic)
+            bb = s.geo.GetWorldBoundingBox()
+            lo = min(bb.min_corner.GetX(), bb.min_corner.GetY(), bb.min_corner.GetZ())
+            mask = tris.min(axis=(1, 2)) > lo + 500
+            tris = tris[mask]
         n = len(tris)
         faces = np.empty((n, 4), dtype=np.int64)
         faces[:, 0] = 3
@@ -620,6 +647,9 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
         return colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
 
     for s, mat, pd in items:
+        # pyg4ometry's VTK scene is in mm; our mesh polydata is in m.
+        pd = pd.copy()
+        pd.points = pd.points * _GDML_MM_PER_M
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(pd)
         mapper.ScalarVisibilityOff()
@@ -1142,11 +1172,17 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
 
 
 # ---------------------------------------------------------------------------
-# Pure-pyvista renderer (no pyg4ometry). Every sector is tessellated: the common
-# solids parametrically (crisp/fast), everything else -- booleans, Para/Trd,
-# partial spheres, Polyhedra, ... -- by marching cubes on SIREN's own IsInside,
-# so it works for ANY geometry (including the booleans pyg4ometry chokes on).
+# Pure-pyvista renderer (no pyg4ometry). Every SIREN solid type has a crisp
+# parametric tessellation (see _PV_BUILDERS), including hollow/phi-cut solids
+# and BooleanGeometry (operands are meshed recursively and combined by surface
+# CSG). Marching cubes on SIREN's own IsInside remains only as a last-resort
+# fallback for unknown types or failed builds; every fallback is counted in
+# _MC_FALLBACKS and reported by view_pv, so regressions are visible.
 # ---------------------------------------------------------------------------
+# Angular segments per full circle for curved parametric solids (revolutions,
+# tubes, spheres); partial arcs get a proportional share. Polyhedra ignore this
+# (their side count is exact).
+_PV_REV_RES = 48
 def _euler_transform(euler, pos):
     """4x4 active transform: rotate by XYZ *euler* (rad), then translate to *pos*."""
     import numpy as np
@@ -1161,30 +1197,741 @@ def _euler_transform(euler, pos):
     return T
 
 
+def _pv_assemble(pts, faces):
+    """PolyData from a vertex list + per-face index lists, triangulated.
+
+    Faces may be polygons of any length >= 3 (vtkTriangleFilter handles
+    non-convex polygons, e.g. the phi cap of a hollow polycone). Bit-identical
+    duplicate points (revolution seams, cap rims) are merged so the result is
+    a closed manifold wherever the construction provides one.
+    """
+    import numpy as np, pyvista as pv
+    flat = []
+    for f in faces:
+        flat.append(len(f))
+        flat.extend(f)
+    pd = pv.PolyData(np.asarray(pts, float), faces=np.asarray(flat, np.int64))
+    pd = pd.triangulate().clean()
+    if pd.n_lines or pd.n_verts:        # degenerate cells demoted by clean()
+        pd = pv.PolyData(pd.points, faces=pd.faces)
+    return pd
+
+
+def _dedup_face(f):
+    """Drop consecutive repeated indices (collapsed quad corners on the axis)."""
+    g = [f[0]]
+    for v in f[1:]:
+        if v != g[-1]:
+            g.append(v)
+    if len(g) > 1 and g[-1] == g[0]:
+        g.pop()
+    return g
+
+
+def _rz_area(rz):
+    """Twice the signed (shoelace) area of a closed (r, z) polygon."""
+    a = 0.0
+    for i in range(len(rz)):
+        r0, z0 = rz[i]
+        r1, z1 = rz[(i + 1) % len(rz)]
+        a += r0 * z1 - r1 * z0
+    return a
+
+
+def _pv_revolve_rz(rz, start_phi=0.0, delta_phi=None, n=None, caps=True,
+                   orient=True):
+    """Solid of revolution of a closed polygon in the (r, z) half-plane.
+
+    The contour (last vertex implicitly connects to the first; r >= 0) is
+    normalised to counter-clockwise so every swept quad gets an outward
+    normal -- the signed-distance CSG in :func:`_pv_csg` relies on that.
+    Segments lying on the axis sweep to nothing and are skipped; on-axis
+    vertices collapse to a single point so cones/poles stay watertight.
+    *delta_phi* = None (or ~2*pi) revolves fully, wrapping indices at the seam
+    (exact closure, no reliance on float coincidence); otherwise the two flat
+    phi faces are added as polygon caps (*caps*) -- valid whenever the contour
+    is a simple polygon. *n* = angular segments (default scales with the arc;
+    pass the side count for prisms/polyhedra).
+    """
+    import numpy as np
+    full = delta_phi is None or abs(delta_phi - 2.0 * math.pi) < 1e-9
+    dphi = 2.0 * math.pi if full else float(delta_phi)
+    if n is None:
+        n = max(8, int(round(_PV_REV_RES * dphi / (2.0 * math.pi))))
+    clean = []
+    for r, z in rz:
+        if not clean or abs(r - clean[-1][0]) > 1e-12 or abs(z - clean[-1][1]) > 1e-12:
+            clean.append((float(r), float(z)))
+    while len(clean) > 1 and abs(clean[0][0] - clean[-1][0]) < 1e-12 \
+            and abs(clean[0][1] - clean[-1][1]) < 1e-12:
+        clean.pop()
+    rz = clean
+    if len(rz) < 3:
+        return None
+    if orient and _rz_area(rz) < 0:
+        rz.reverse()
+    m = len(rz)
+    ang = np.linspace(start_phi, start_phi + dphi, n + 1)
+    ca, sa = np.cos(ang), np.sin(ang)
+    pts, faces, index = [], [], {}
+
+    def P(i, j):
+        r, z = rz[i]
+        if r < 1e-12:
+            key = (-1, i)                       # on-axis: one vertex per entry
+        else:
+            if full and j == n:
+                j = 0                           # wrap the seam exactly
+            key = (i, j)
+        k = index.get(key)
+        if k is None:
+            k = len(pts)
+            pts.append((0.0, 0.0, z) if r < 1e-12 else (r * ca[j], r * sa[j], z))
+            index[key] = k
+        return k
+
+    for i in range(m):
+        i2 = (i + 1) % m
+        if rz[i][0] < 1e-12 and rz[i2][0] < 1e-12:
+            continue                            # axis segment sweeps to nothing
+        for j in range(n):
+            f = _dedup_face([P(i, j), P(i, j + 1), P(i2, j + 1), P(i2, j)])
+            if len(f) >= 3:
+                faces.append(f)
+    if caps and not full:
+        # CCW contour mapped into the (r_hat, z) plane has normal r_hat x z_hat
+        # = -phi_hat: outward at the start face as-is, reversed at the far face.
+        cap0 = _dedup_face([P(i, 0) for i in range(m)])
+        cap1 = _dedup_face([P(i, n) for i in range(m)])
+        if len(cap0) >= 3:
+            faces.append(cap0)
+        if len(cap1) >= 3:
+            faces.append(cap1[::-1])
+    return _pv_assemble(pts, faces)
+
+
+def _pv_hexa(v):
+    """Closed hexahedron from 8 corners ordered (-z: --, +-, ++, -+; then +z)."""
+    return _pv_assemble(v, [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4),
+                            (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)])
+
+
+def _phi_arg(geo):
+    """(start_phi, delta_phi-or-None) of a solid; None means a full circle."""
+    dphi = geo.DeltaPhi
+    return geo.StartPhi, (dphi if dphi < 2.0 * math.pi - 1e-9 else None)
+
+
+def _pv_box(geo):
+    import pyvista as pv
+    return pv.Cube(center=(0, 0, 0), x_length=geo.X, y_length=geo.Y,
+                   z_length=geo.Z)
+
+
+def _pv_cylinder(geo):
+    h = 0.5 * geo.Z                 # SIREN Cylinder stores the FULL z extent
+    phi0, dphi = _phi_arg(geo)
+    rz = [(geo.Radius, -h), (geo.Radius, h), (geo.InnerRadius, h),
+          (geo.InnerRadius, -h)]
+    return _pv_revolve_rz(rz, phi0, dphi)
+
+
+def _pv_cone(geo):
+    h = 0.5 * geo.Z                 # full z extent; Rm*1 at -h, Rm*2 at +h
+    phi0, dphi = _phi_arg(geo)
+    rz = [(geo.Rmax1, -h), (geo.Rmax2, h), (geo.Rmin2, h), (geo.Rmin1, -h)]
+    return _pv_revolve_rz(rz, phi0, dphi)
+
+
+def _pv_polycone(geo):
+    zs, rmin, rmax = list(geo.ZPlanes), list(geo.Rmin), list(geo.Rmax)
+    phi0, dphi = _phi_arg(geo)
+    rz = [(rmax[i], zs[i]) for i in range(len(zs))]
+    rz += [(rmin[i], zs[i]) for i in reversed(range(len(zs)))]
+    return _pv_revolve_rz(rz, phi0, dphi)
+
+
+def _pv_generic_polycone(geo):
+    phi0, dphi = _phi_arg(geo)
+    return _pv_revolve_rz(list(zip(geo.R, geo.Z)), phi0, dphi)
+
+
+def _pv_polyhedra(geo):
+    ns = int(geo.NumSides)
+    if ns < 3:
+        return None
+    phi0, dphi = _phi_arg(geo)
+    # rmin/rmax are APOTHEMS (distance to the flat side); the cross-section
+    # vertices sit at the circumradius, at angles start_phi + k*face_dphi
+    # (matching Polyhedra::precompute_trig).
+    face_dphi = (dphi if dphi is not None else 2.0 * math.pi) / ns
+    scale = 1.0 / math.cos(0.5 * face_dphi)
+    zs, rmin, rmax = list(geo.ZPlanes), list(geo.Rmin), list(geo.Rmax)
+    rz = [(rmax[i] * scale, zs[i]) for i in range(len(zs))]
+    rz += [(rmin[i] * scale, zs[i]) for i in reversed(range(len(zs)))]
+    return _pv_revolve_rz(rz, phi0, dphi, n=ns)
+
+
+def _pv_sphere(geo):
+    import numpy as np, pyvista as pv
+    rin, rout = geo.InnerRadius, geo.Radius
+    phi0, dphi = _phi_arg(geo)
+    th0 = min(max(geo.StartTheta, 0.0), math.pi)
+    th1 = min(max(th0 + geo.DeltaTheta, 0.0), math.pi)
+    theta_cut = th0 > 1e-9 or th1 < math.pi - 1e-9
+    if rin <= 1e-12 and dphi is None and not theta_cut:
+        return pv.Sphere(radius=rout, theta_resolution=_PV_REV_RES,
+                         phi_resolution=_PV_REV_RES)
+    nt = max(8, int(round(_PV_REV_RES * (th1 - th0) / math.pi)))
+    thetas = np.linspace(th0, th1, nt + 1)
+
+    def arc(rad, t):                # snap sin(pi) ~ 1e-16 to a true pole point
+        s = math.sin(t)
+        return (0.0 if abs(s) < 1e-12 else rad * s, rad * math.cos(t))
+
+    rz = [arc(rout, t) for t in thetas]
+    if rin > 1e-12:
+        rz += [arc(rin, t) for t in reversed(thetas)]
+    elif theta_cut:
+        rz.append((0.0, 0.0))       # close the sector through the apex
+    return _pv_revolve_rz(rz, phi0, dphi)
+
+
+def _pv_torus(geo):
+    import numpy as np, pyvista as pv
+    R, rout, rin = geo.MajorRadius, geo.MinorRadius, geo.InnerRadius
+    phi0, dphi = _phi_arg(geo)
+    ts = np.linspace(0.0, 2.0 * math.pi, _PV_REV_RES + 1)[:-1]
+    outer = [(R + rout * math.cos(t), rout * math.sin(t)) for t in ts]
+    if rin <= 1e-12:
+        return _pv_revolve_rz(outer, phi0, dphi)
+    # Hollow tube: the cross-section is an annulus that does not touch the
+    # axis, so it cannot be a single simple contour. Revolve the two circles
+    # separately (inner pre-reversed so its normals face the tube axis) and,
+    # for a partial torus, close the ends with quad strips pairing the rings.
+    inner = [(R + rin * math.cos(t), rin * math.sin(t)) for t in ts]
+    parts = [_pv_revolve_rz(outer, phi0, dphi, caps=False),
+             _pv_revolve_rz(inner[::-1], phi0, dphi, caps=False, orient=False)]
+    if dphi is not None:
+        for phi, flip in ((phi0, False), (phi0 + dphi, True)):
+            c, s = math.cos(phi), math.sin(phi)
+            pts, faces = [], []
+            for r, z in outer + inner:
+                pts.append((r * c, r * s, z))
+            m = len(outer)
+            for k in range(m):
+                k1 = (k + 1) % m
+                q = [k, k1, m + k1, m + k]      # outward -phi_hat at start
+                faces.append(q[::-1] if flip else q)
+            parts.append(_pv_assemble(pts, faces))
+    parts = [p for p in parts if p is not None]
+    if not parts:
+        return None
+    return pv.merge(parts).clean()
+
+
+def _pv_cut_tube(geo):
+    import numpy as np
+    rmin, rmax, dz = geo.Rmin, geo.Rmax, geo.Dz     # dz is the HALF height
+    ln, hn = geo.LowNorm, geo.HighNorm
+    lnx, lny, lnz = ln.GetX(), ln.GetY(), ln.GetZ()
+    hnx, hny, hnz = hn.GetX(), hn.GetY(), hn.GetZ()
+    if abs(lnz) < 1e-12 or abs(hnz) < 1e-12:
+        return None
+    phi0, dphi = _phi_arg(geo)
+    full = dphi is None
+    span = 2.0 * math.pi if full else dphi
+    n = max(8, int(round(_PV_REV_RES * span / (2.0 * math.pi))))
+    ang = np.linspace(phi0, phi0 + span, n + 1)
+
+    def zlo(r, a):                  # cut plane through (0,0,-dz), normal LowNorm
+        return -dz - r * (lnx * math.cos(a) + lny * math.sin(a)) / lnz
+
+    def zhi(r, a):                  # cut plane through (0,0,+dz), normal HighNorm
+        return dz - r * (hnx * math.cos(a) + hny * math.sin(a)) / hnz
+
+    pts, faces, index = [], [], {}
+
+    def P(r, j, low):
+        if r < 1e-12:
+            key = ("axis", low)
+        else:
+            jj = 0 if (full and j == n) else j
+            key = (r, jj, low)
+        k = index.get(key)
+        if k is None:
+            a = ang[0 if (full and j == n) else j]
+            z = zlo(r, a) if low else zhi(r, a)
+            k = len(pts)
+            pts.append((r * math.cos(a), r * math.sin(a), z))
+            index[key] = k
+        return k
+
+    for j in range(n):
+        ob0, ob1 = P(rmax, j, True), P(rmax, j + 1, True)
+        ot0, ot1 = P(rmax, j, False), P(rmax, j + 1, False)
+        ib0, ib1 = P(rmin, j, True), P(rmin, j + 1, True)
+        it0, it1 = P(rmin, j, False), P(rmin, j + 1, False)
+        faces.append([ob0, ob1, ot1, ot0])              # outer barrel, outward
+        if rmin > 1e-12:
+            faces.append([it0, it1, ib1, ib0])          # inner barrel, inward
+        for f in ([ob0, ib0, ib1, ob1], [ot0, ot1, it1, it0]):  # low/high caps
+            f = _dedup_face(f)
+            if len(f) >= 3:
+                faces.append(f)
+    if not full:
+        for j, flip in ((0, False), (n, True)):
+            f = [P(rmax, j, True), P(rmax, j, False), P(rmin, j, False),
+                 P(rmin, j, True)]                      # CCW in (r_hat, z)
+            f = _dedup_face(f[::-1] if flip else f)
+            if len(f) >= 3:
+                faces.append(f)
+    return _pv_assemble(pts, faces)
+
+
+def _pv_ellipsoid(geo):
+    import numpy as np
+    ax, by, cz = geo.Ax, geo.By, geo.Cz
+    z1, z2 = geo.Zcut1, geo.Zcut2
+    th_lo = math.acos(min(max(z2 / cz, -1.0), 1.0))     # top cut -> small theta
+    th_hi = math.acos(min(max(z1 / cz, -1.0), 1.0))
+    if th_hi - th_lo < 1e-12:
+        return None
+    nt = max(8, int(round(_PV_REV_RES * (th_hi - th_lo) / math.pi)))
+    n = _PV_REV_RES
+    thetas = np.linspace(th_lo, th_hi, nt + 1)
+    ang = np.linspace(0.0, 2.0 * math.pi, n + 1)
+    pts, faces, index = [], [], {}
+
+    def P(i, j):
+        j = j % n
+        key = (i, j)
+        k = index.get(key)
+        if k is None:
+            st, ct = math.sin(thetas[i]), math.cos(thetas[i])
+            k = len(pts)
+            pts.append((ax * st * math.cos(ang[j]), by * st * math.sin(ang[j]),
+                        cz * ct))
+            index[key] = k
+        return k
+
+    for i in range(nt):
+        for j in range(n):
+            f = _dedup_face([P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)])
+            if len(f) >= 3:
+                faces.append(f)
+    if z2 < cz - 1e-12:                                 # flat top cap at z2
+        c = len(pts)
+        pts.append((0.0, 0.0, cz * math.cos(th_lo)))
+        for j in range(n):
+            faces.append([c, P(0, j), P(0, j + 1)])
+    if z1 > -cz + 1e-12:                                # flat bottom cap at z1
+        c = len(pts)
+        pts.append((0.0, 0.0, cz * math.cos(th_hi)))
+        for j in range(n):
+            faces.append([c, P(nt, j + 1), P(nt, j)])
+    return _pv_assemble(pts, faces)
+
+
+def _pv_elliptical_tube(geo):
+    import numpy as np
+    dx, dy, dz = geo.Dx, geo.Dy, geo.Dz                 # semi-axes + HALF height
+    n = _PV_REV_RES
+    ang = np.linspace(0.0, 2.0 * math.pi, n + 1)
+    pts = []
+    for z in (-dz, dz):
+        for j in range(n):
+            pts.append((dx * math.cos(ang[j]), dy * math.sin(ang[j]), z))
+    lo, hi = 0, n
+    faces = []
+    for j in range(n):
+        j1 = (j + 1) % n
+        faces.append([lo + j, lo + j1, hi + j1, hi + j])
+    cb, ct = len(pts), len(pts) + 1
+    pts += [(0.0, 0.0, -dz), (0.0, 0.0, dz)]
+    for j in range(n):
+        j1 = (j + 1) % n
+        faces.append([cb, lo + j1, lo + j])
+        faces.append([ct, hi + j, hi + j1])
+    return _pv_assemble(pts, faces)
+
+
+def _pv_extrpoly(geo):
+    poly = [(float(p[0]), float(p[1])) for p in geo.polygon]
+    zsec = [(float(s.zpos), float(s.scale), (float(s.offset[0]), float(s.offset[1])))
+            for s in geo.zsections]
+    if len(poly) < 3 or len(zsec) < 2:
+        return None
+    area = 0.0
+    for i in range(len(poly)):
+        x0, y0 = poly[i]
+        x1, y1 = poly[(i + 1) % len(poly)]
+        area += x0 * y1 - x1 * y0
+    if area < 0:
+        poly.reverse()                                  # normalise to CCW
+    m = len(poly)
+    pts, faces = [], []
+    for z, s, (ox, oy) in zsec:
+        for x, y in poly:
+            pts.append((x * s + ox, y * s + oy, z))
+    for k in range(len(zsec) - 1):
+        a, b = k * m, (k + 1) * m
+        for i in range(m):
+            i1 = (i + 1) % m
+            faces.append([a + i, a + i1, b + i1, b + i])
+    bottom = list(range(m))
+    top = list(range((len(zsec) - 1) * m, len(zsec) * m))
+    faces.append(bottom[::-1])                          # outward -z
+    faces.append(top)                                   # outward +z
+    return _pv_assemble(pts, faces)
+
+
+def _pv_para(geo):
+    dx, dy, dz = geo.Dx, geo.Dy, geo.Dz                 # HALF lengths
+    ta, tt = math.tan(geo.Alpha), math.tan(geo.Theta)
+    cp, sp = math.cos(geo.Phi), math.sin(geo.Phi)
+    e1 = (dx, 0.0, 0.0)
+    e2 = (dy * ta, dy, 0.0)
+    e3 = (dz * tt * cp, dz * tt * sp, dz)               # matches Para::ComputeFaceData
+    v = []
+    for s3 in (-1, 1):
+        for s1, s2 in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            v.append(tuple(s1 * e1[c] + s2 * e2[c] + s3 * e3[c] for c in range(3)))
+    return _pv_hexa(v)
+
+
+def _pv_trd(geo):
+    x1, x2, y1, y2, dz = geo.Dx1, geo.Dx2, geo.Dy1, geo.Dy2, geo.Dz  # HALF lengths
+    v = [(-x1, -y1, -dz), (x1, -y1, -dz), (x1, y1, -dz), (-x1, y1, -dz),
+         (-x2, -y2, dz), (x2, -y2, dz), (x2, y2, dz), (-x2, y2, dz)]
+    return _pv_hexa(v)
+
+
+def _pv_trap(geo):
+    import numpy as np
+    dz, dy1, dy2 = geo.Dz, geo.Dy1, geo.Dy2             # HALF lengths
+    x1, x2, x3, x4 = geo.Dx1, geo.Dx2, geo.Dx3, geo.Dx4
+    tt = math.tan(geo.Theta)
+    cp, sp = math.cos(geo.Phi), math.sin(geo.Phi)
+    ta1, ta2 = math.tan(geo.Alpha1), math.tan(geo.Alpha2)
+    v = []
+    for s3, dy, xa, xb, ta in ((-1, dy1, x1, x2, ta1), (1, dy2, x3, x4, ta2)):
+        xc, yc = s3 * dz * tt * cp, s3 * dz * tt * sp   # matches Trap::ComputeVertices
+        v += [(xc - dy * ta - xa, yc - dy, s3 * dz),
+              (xc - dy * ta + xa, yc - dy, s3 * dz),
+              (xc + dy * ta + xb, yc + dy, s3 * dz),
+              (xc + dy * ta - xb, yc + dy, s3 * dz)]
+    v = np.asarray(v, float)
+    # With alpha1 != alpha2 (or mismatched dx ratios) the side quads through
+    # these corners are NOT planar; SIREN's solid is the intersection of six
+    # half-spaces, each through the same 3-vertex triple Trap::ComputePlane
+    # uses. Rebuild the corners as the triple intersections of those planes
+    # (z-face, y-face, x-face) -- exact for the planar case too.
+    triples = [(0, 1, 2), (7, 6, 5), (0, 1, 5), (3, 2, 6), (0, 3, 7), (1, 2, 6)]
+    centroid = v.mean(axis=0)
+    planes = []
+    for i, j, k in triples:
+        nrm = np.cross(v[j] - v[i], v[k] - v[i])
+        nrm /= np.linalg.norm(nrm)
+        d = -nrm.dot(v[i])
+        if nrm.dot(centroid) + d > 0:                   # outward (centroid inside)
+            nrm, d = -nrm, -d
+        planes.append((nrm, d))
+    corners = []
+    for iz, iy, ix in ((0, 2, 4), (0, 2, 5), (0, 3, 5), (0, 3, 4),
+                       (1, 2, 4), (1, 2, 5), (1, 3, 5), (1, 3, 4)):
+        A = np.array([planes[iz][0], planes[iy][0], planes[ix][0]])
+        rhs = -np.array([planes[iz][1], planes[iy][1], planes[ix][1]])
+        corners.append(np.linalg.solve(A, rhs))
+    return _pv_hexa(corners)
+
+
+def _pv_distance_fn(surface):
+    """Batched signed-distance callable to a closed surface (< 0 inside).
+
+    vtkImplicitPolyDataDistance signs by the angle-weighted pseudonormal of
+    the nearest cell, so the surface winding must be outward -- which every
+    builder here guarantees. The locator is built once and reused, and the
+    whole batch is evaluated in C++ (FunctionValue) -- a python-level
+    EvaluateFunction loop is 10-50x slower and dominates big booleans.
+    """
+    import numpy as np, vtk
+    from pyvista.core.utilities.arrays import convert_array
+    f = vtk.vtkImplicitPolyDataDistance()
+    f.SetInput(surface)
+
+    def dist(pts):
+        pts = np.ascontiguousarray(pts, float)
+        if not len(pts):
+            return np.empty(0)
+        out = vtk.vtkDoubleArray()
+        f.FunctionValue(convert_array(pts), out)
+        return convert_array(out)
+    return dist
+
+
+def _pv_intersection_curve(a, b, step):
+    """(N, 3) points densely sampling the a/b surface intersection curve.
+
+    Uses vtkIntersectionPolyDataFilter for the curve ONLY -- its triangle-
+    triangle intersection tests are solid, while its mesh-splitting outputs
+    can be corrupt (duplicated/unsplit faces), so those are never used.
+    Polyline segments are resampled to ~*step* spacing so a point-to-curve
+    distance is a faithful curve distance. Returns None when there is no
+    transversal intersection (disjoint, contained, or only coincident faces).
+    """
+    import numpy as np, pyvista as pv, vtk
+    warn = vtk.vtkObject.GetGlobalWarningDisplay()
+    vtk.vtkObject.GlobalWarningDisplayOff()
+    try:
+        f = vtk.vtkIntersectionPolyDataFilter()
+        f.SetInputData(0, a)
+        f.SetInputData(1, b)
+        f.SplitFirstOutputOff()
+        f.SplitSecondOutputOff()
+        f.Update()
+        curve = pv.wrap(f.GetOutput(0))
+    except Exception:
+        return None
+    finally:
+        vtk.vtkObject.SetGlobalWarningDisplay(warn)
+    pts = np.asarray(curve.points, float)
+    if not len(pts):
+        return None
+    out = [pts]
+    lines = np.asarray(curve.lines)
+    i = 0
+    while i < len(lines):                       # walk [n, i0, ..., in-1] cells
+        n = lines[i]
+        seg = pts[lines[i + 1:i + 1 + n]]
+        i += n + 1
+        for p0, p1 in zip(seg[:-1], seg[1:]):
+            length = np.linalg.norm(p1 - p0)
+            k = int(length / step)
+            if k:
+                t = np.linspace(0.0, 1.0, k + 2)[1:-1, None]
+                out.append(p0 + t * (p1 - p0))
+    pts = np.concatenate(out, axis=0)
+    return pts[:200000]                          # hard cap, plenty for refinement
+
+
+def _tri_subdivide(T):
+    """Midpoint 4-split of an (n, 3, 3) triangle array (winding preserved)."""
+    import numpy as np
+    m01 = 0.5 * (T[:, 0] + T[:, 1])
+    m12 = 0.5 * (T[:, 1] + T[:, 2])
+    m20 = 0.5 * (T[:, 2] + T[:, 0])
+    return np.concatenate([np.stack([T[:, 0], m01, m20], 1),
+                           np.stack([m01, T[:, 1], m12], 1),
+                           np.stack([m20, m12, T[:, 2]], 1),
+                           np.stack([m01, m12, m20], 1)], axis=0)
+
+
+def _tri_cut(t, d):
+    """Cut one triangle along the linearly interpolated zero of vertex values
+    *d* (mixed signs). Returns 3 sub-triangles with the original winding;
+    zero-valued vertices yield degenerate slivers that are filtered later."""
+    import numpy as np
+    pos = d > 0
+    i = int(np.flatnonzero(pos)[0]) if pos.sum() == 1 else int(np.flatnonzero(~pos)[0])
+    j, k = (i + 1) % 3, (i + 2) % 3
+    pij = t[i] + (d[i] / (d[i] - d[j])) * (t[j] - t[i])
+    pik = t[i] + (d[i] / (d[i] - d[k])) * (t[k] - t[i])
+    return [np.stack([t[i], pij, pik]), np.stack([pij, t[j], t[k]]),
+            np.stack([pij, t[k], pik])]
+
+
+def _pv_csg_split(mesh, dist, curve, eps_len, max_depth=6):
+    """Triangle soup of *mesh*, refined and cut so every output triangle lies
+    on a single side of the surface behind *dist* (within ~*eps_len*).
+
+    Triangles near the intersection *curve* (or whose vertex distances change
+    sign -- the curve can pierce a big face without crossing its edges, so the
+    sign test alone is insufficient, and vice versa) are midpoint-subdivided
+    until smaller than *eps_len*; remaining sign-straddlers are cut along the
+    interpolated zero of *dist*. The midpoint splits leave zero-width
+    T-junctions against unrefined neighbours -- invisible and harmless for
+    rendering, picking, and reuse as a nested CSG operand. Returns (n, 3, 3).
+    """
+    import numpy as np
+    T = mesh.points[mesh.faces.reshape(-1, 4)[:, 1:]]
+    done = []
+    for depth in range(max_depth + 1):
+        if not len(T):
+            break
+        d = dist(T.reshape(-1, 3)).reshape(-1, 3)
+        mixed = (d.max(axis=1) > 0) & (d.min(axis=1) < 0)
+        diam = np.linalg.norm(T - np.roll(T, 1, axis=1), axis=2).max(axis=1)
+        near = mixed
+        if curve is not None:
+            cen = T.mean(axis=1)
+            dc = np.empty(len(cen))
+            for i in range(0, len(cen), 256):   # blockwise point-to-curve dist
+                blk = cen[i:i + 256]
+                dc[i:i + 256] = np.sqrt(
+                    ((blk[:, None, :] - curve[None]) ** 2).sum(2)).min(1)
+            near = near | (dc < diam)
+        refine = near & (diam > eps_len) & (depth < max_depth)
+        final = ~refine
+        done.append(T[final & ~mixed])
+        for t, dv in zip(T[final & mixed], d[final & mixed]):
+            done.extend(_tri_cut(t, dv))
+        if not refine.any():
+            break
+        T = _tri_subdivide(T[refine])
+    done = [np.asarray(x, float).reshape(-1, 3, 3) for x in done if len(x)]
+    if not done:
+        return np.empty((0, 3, 3))
+    return np.concatenate(done, axis=0)
+
+
+def _pv_csg(op, a, b):
+    """Combine two closed operand meshes under a BooleanOperation.
+
+    Deliberately does NOT use VTK's exact mesh booleans:
+    vtkBooleanOperationPolyDataFilter dies with a native bus error on some
+    SBND building booleans (a signal -- uncatchable from python), takes
+    minutes on others, and rarely produces a watertight result around the
+    coincident faces ubiquitous in GDML (flush cut-outs, touching union
+    halves); vtkLoopBooleanPolyDataFilter is no better. Instead the surfaces
+    are trimmed: each operand is refined and cut along the other's surface
+    (:func:`_pv_csg_split`), and whole cells are then kept or dropped by
+    probing the other operand a small step along the cell's own outward
+    normal:
+
+      union:        keep iff just-outside stays vacuum  (outside the other)
+      intersection: keep iff just-inside gains material (inside the other)
+      difference:   keep A-cells iff just-inside keeps material (outside B);
+                    keep B-cells iff just-outside-B is carved out of A.
+
+    The probe direction makes coincident faces exact (no hidden internal
+    walls, no cracks): the material configuration across the cell decides,
+    not the sign of a ~0 centroid distance. Same-orientation coincident pairs
+    would survive twice, so B-cells sitting ON dA are dropped for the
+    symmetric ops; for a difference such cells are exactly the flipped notch
+    boundary and must stay. The B piece of a difference is flipped so normals
+    stay outward -- nested booleans reuse the result as an operand, where
+    orientation matters.
+    """
+    import numpy as np, pyvista as pv
+    name = str(op)
+    kind = ("union" if "UNION" in name else
+            "difference" if "SUBTRACTION" in name else "intersection")
+    a = a.triangulate()
+    b = b.triangulate()
+    # Replicated placements (the 48 BNB target fins, repeated building
+    # modules) re-pose the SAME boolean: operand placements are internal, the
+    # differing placement is the boolean's own and is applied AFTER this call,
+    # so the operand meshes are bit-identical -- memoise on their content.
+    key = (kind, a.n_points, b.n_points,
+           hash(a.points.tobytes()), hash(b.points.tobytes()))
+    if key in _PV_CSG_CACHE:
+        hit = _PV_CSG_CACHE[key]
+        return hit.copy() if hit is not None else None
+    diag = max(np.linalg.norm(np.asarray(a.bounds[1::2]) - np.asarray(a.bounds[::2])),
+               np.linalg.norm(np.asarray(b.bounds[1::2]) - np.asarray(b.bounds[::2])))
+    diag = max(diag, 1e-6)
+    delta = 1e-6 * diag
+    eps_len = 4e-3 * diag
+    dist_a = _pv_distance_fn(a)
+    dist_b = _pv_distance_fn(b)
+    curve = _pv_intersection_curve(a, b, eps_len)
+    TA = _pv_csg_split(a, dist_b, curve, eps_len)
+    TB = _pv_csg_split(b, dist_a, curve, eps_len)
+
+    def classify(T, dist_other, inward, want_inside):
+        if not len(T):
+            return T, np.zeros(0, bool)
+        nrm = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0])
+        area2 = np.linalg.norm(nrm, axis=1)
+        ok = area2 > (1e-9 * diag) ** 2
+        nrm[~ok] = 0.0
+        nrm[ok] /= area2[ok, None]
+        probe = T.mean(axis=1) + (-delta if inward else delta) * nrm
+        dp = dist_other(probe)
+        return T, ok & ((dp < 0) if want_inside else (dp > 0))
+
+    if kind == "union":
+        TA, ka = classify(TA, dist_b, inward=False, want_inside=False)
+        TB, kb = classify(TB, dist_a, inward=False, want_inside=False)
+        kb &= np.abs(dist_a(TB.mean(axis=1))) > delta if len(TB) else kb
+    elif kind == "intersection":
+        TA, ka = classify(TA, dist_b, inward=True, want_inside=True)
+        TB, kb = classify(TB, dist_a, inward=True, want_inside=True)
+        kb &= np.abs(dist_a(TB.mean(axis=1))) > delta if len(TB) else kb
+    else:                                               # difference: A - B
+        TA, ka = classify(TA, dist_b, inward=True, want_inside=False)
+        TB, kb = classify(TB, dist_a, inward=False, want_inside=True)
+        TB = TB[:, ::-1, :]                             # flip kept B outward
+
+    def soup(T):
+        n = len(T)
+        fc = np.empty((n, 4), np.int64)
+        fc[:, 0] = 3
+        fc[:, 1:] = np.arange(3 * n).reshape(n, 3)
+        return pv.PolyData(T.reshape(-1, 3), fc.ravel())
+
+    kept = np.concatenate([TA[ka], TB[kb]], axis=0)
+    out = soup(kept).clean() if len(kept) else None
+    if out is not None and out.n_cells == 0:
+        out = None
+    _PV_CSG_CACHE[key] = out.copy() if out is not None else None
+    return out
+
+
+def _pv_boolean(geo):
+    # Children's placements live in the boolean's local frame (the recursive
+    # _pv_parametric applies them), so combine first, then place the result.
+    a = _pv_parametric(geo.Left)
+    b = _pv_parametric(geo.Right)
+    if a is None or b is None:
+        return None
+    return _pv_csg(geo.Operation, a, b)
+
+
+_PV_BUILDERS = {
+    "Box": _pv_box,
+    "Sphere": _pv_sphere,
+    "Cylinder": _pv_cylinder,
+    "Cone": _pv_cone,
+    "Polycone": _pv_polycone,
+    "GenericPolycone": _pv_generic_polycone,
+    "Polyhedra": _pv_polyhedra,
+    "ExtrPoly": _pv_extrpoly,
+    "Para": _pv_para,
+    "Trd": _pv_trd,
+    "Trap": _pv_trap,
+    "Ellipsoid": _pv_ellipsoid,
+    "EllipticalTube": _pv_elliptical_tube,
+    "CutTube": _pv_cut_tube,
+    "Torus": _pv_torus,
+    "BooleanGeometry": _pv_boolean,
+}
+
+
 def _pv_parametric(geo):
-    """Crisp parametric pyvista mesh for common solids, or None (fall back to MC)."""
+    """Crisp parametric pyvista mesh for any SIREN solid, or None (-> MC).
+
+    Every solid is built at the origin in its local frame and then moved by
+    its placement; a BooleanGeometry recurses into its operands (whose
+    placements live in the boolean's local frame) and combines the surfaces.
+    TriangularMesh triangles are already in the enclosing frame.
+    """
     import numpy as np, pyvista as pv
     cls = type(geo).__name__
     if cls == "TriangularMesh":
         tris = np.asarray(geo.GetTriangles(), float)
         if tris.size == 0:
             return None
+        tris = _apply_placement(tris, geo)                          # local -> world frame
         n = len(tris)
         f = np.empty((n, 4), np.int64); f[:, 0] = 3; f[:, 1:] = np.arange(3 * n).reshape(n, 3)
-        return pv.PolyData(tris.reshape(-1, 3), f.ravel())          # already world-frame
-    if cls == "Box":
-        m = pv.Cube(center=(0, 0, 0), x_length=geo.X, y_length=geo.Y, z_length=geo.Z)
-    elif cls == "Sphere":
-        if (geo.InnerRadius > 1e-9 or abs(geo.DeltaPhi - 2 * math.pi) > 1e-3
-                or abs(geo.DeltaTheta - math.pi) > 1e-3):
-            return None                                             # shell/wedge -> MC
-        m = pv.Sphere(radius=geo.Radius, theta_resolution=48, phi_resolution=48)
-    elif cls == "Cylinder":
-        if geo.InnerRadius > 1e-9:
-            return None
-        m = pv.Cylinder(center=(0, 0, 0), direction=(0, 0, 1),
-                        radius=geo.Radius, height=geo.Z, resolution=48)
-    else:
+        return pv.PolyData(tris.reshape(-1, 3), f.ravel())
+    builder = _PV_BUILDERS.get(cls)
+    if builder is None:
+        return None
+    m = builder(geo)
+    if m is None or m.n_cells == 0:
         return None
     pl = geo.placement; p = pl.Position
     T = _euler_transform(pl.Quaternion.GetEulerAnglesXYZs(),
@@ -1192,10 +1939,27 @@ def _pv_parametric(geo):
     return m.transform(T, inplace=False)
 
 
+# geometry class name -> number of marching-cubes fallbacks (diagnostic; the
+# goal is for every solid to mesh parametrically -- view_pv reports the diff).
+_MC_FALLBACKS = {}
+# (kind, operand content hash) -> CSG result mesh (or None). Replicated
+# placements of the same boolean (target fins, repeated building modules) are
+# bit-identical at this level, so this collapses them to one computation.
+_PV_CSG_CACHE = {}
+
+
 def _pv_marching(geo, res=48, pad=0.04):
-    """Surface of ANY geometry by marching cubes on IsInside over its world AABB."""
+    """Surface of ANY geometry by marching cubes on IsInside over its world AABB.
+
+    Last-resort fallback (blocky and slow); every call is counted in
+    _MC_FALLBACKS so :func:`view_pv` can report which solids lack a
+    parametric mesh.
+    """
     import numpy as np, pyvista as pv
     from siren.math import Vector3D
+    cls = type(geo).__name__
+    _MC_FALLBACKS[cls] = _MC_FALLBACKS.get(cls, 0) + 1
+    print("[siren.view_pv] marching-cubes fallback for %s" % cls)
     bb = _bbox(geo)
     if bb is None:
         return None
@@ -1220,7 +1984,12 @@ def _pv_marching(geo, res=48, pad=0.04):
 
 
 def _pv_sector_mesh(geo, mc_res=48):
-    m = _pv_parametric(geo)
+    try:
+        m = _pv_parametric(geo)
+    except Exception as e:                  # never let a bad build drop a sector
+        print("[siren.view_pv] parametric build failed for %s (%s)"
+              % (type(geo).__name__, e))
+        m = None
     return m if m is not None else _pv_marching(geo, mc_res)
 
 
@@ -1247,17 +2016,20 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
             window_size=(1500, 950)):
     """Render *model* entirely in pyvista -- no pyg4ometry.
 
-    Box/Sphere/Cylinder/TriangularMesh are meshed parametrically; everything else
-    (booleans, Para/Trd, partial spheres, ...) by marching cubes on SIREN's
-    IsInside (*mc_res* grid -- raise for sharper exotic solids, lower for speed).
-    Coloured by material (log-density); gases semi-transparent. Right-click (press
-    'p' over a surface) identifies the volume via SIREN. *region*/*region_center*
-    (half-width, centre) or *max_extent* drop huge background volumes (PREM shells,
-    world boxes). *z_exag* applies a vertical exaggeration (terrain).
+    Every solid type is meshed parametrically (crisp and fast), including
+    hollow/phi-cut solids and booleans (operand surfaces combined by CSG);
+    marching cubes on SIREN's IsInside (*mc_res* grid) remains only as a
+    fallback for unknown types or failed builds, and a summary line reports
+    how many sectors needed it. Coloured by material (log-density); gases
+    semi-transparent. Right-click (press 'p' over a surface) identifies the
+    volume via SIREN. *region*/*region_center* (half-width, centre) or
+    *max_extent* drop huge background volumes (PREM shells, world boxes).
+    *z_exag* applies a vertical exaggeration (terrain).
     """
     import pyvista as pv
     from siren.math import Vector3D
     from siren.detector import DetectorPosition
+    mc0 = dict(_MC_FALLBACKS)
     cols = _pv_material_colours(model)
     crop = None
     if region is not None:
@@ -1291,6 +2063,11 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
         rgb, alpha = cols.get(nm, ((0.6, 0.6, 0.6), 0.9))
         pl.add_mesh(mesh, color=rgb, opacity=alpha, smooth_shading=True)
         drawn += 1
+    mc = {k: v - mc0.get(k, 0) for k, v in _MC_FALLBACKS.items() if v - mc0.get(k, 0)}
+    n_mc = sum(mc.values())
+    print("[siren.view_pv] %d sectors drawn: %d parametric, %d marching-cubes%s"
+          % (drawn, drawn - n_mc, n_mc,
+             " (%s)" % ", ".join("%s:%d" % kv for kv in sorted(mc.items())) if mc else ""))
     if z_exag != 1.0:
         pl.set_scale(zscale=z_exag)
     if axes:
