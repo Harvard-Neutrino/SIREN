@@ -131,6 +131,20 @@ _DETECTOR_SPECS = {
         "url": None,
         "sha256": "",
     },
+    # DUNE near-detector hall (ND-LAr + TMS + SAND), material-aggregated from
+    # dunendggd @ TDR_Production_geometry_v_1.2.0 with DUNENDGGD_AGGREGATE=1
+    # (fine readout/straws/slabs collapsed to homogenized blocks; active LAr
+    # volTPCActive preserved). Placed via the DUNE_ND -> LBNF -> BNB edges in
+    # sbn_geometry (~555 m downstream of the LBNF target, on the beam axis).
+    # unwrap=True: place the hall+rock contents, not the dunendggd world box.
+    # Provenance: the DUNE_ND/ README in SIREN-data.
+    "DUNE_ND": {
+        "file": "gdml/nd_hall_with_lar_tms_sand.gdml",
+        "prefix": "dune_nd",
+        "unwrap": True,
+        "url": f"{_DATA_BASE}/DUNE_ND/nd_hall_with_lar_tms_sand.gdml",
+        "sha256": "b277cb887dba1dae1a3d6358eccdd7338e4e07c51b022b519eb70491d36ba243",
+    },
 }
 
 
@@ -152,7 +166,10 @@ def load_detector(detector=None, earth_model=False, lbnf=False):
     Parameters
     ----------
     detector : str
-        Which detector to load ("ICARUS" or "SBND").
+        Which detector to load: "ICARUS", "SBND", "MiniBooNE", or "DUNE_ND"
+        (the aggregated DUNE near-detector hall, placed on the LBNF beam axis
+        ~555 m downstream of the LBNF target; pair with lbnf=True to also place
+        the LBNF beamline).
     earth_model : bool, optional
         If *False* (default), only load the GDML site-geology volume
         (beamlines, detector, local stratigraphy within ~500 m).

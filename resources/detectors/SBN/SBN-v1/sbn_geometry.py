@@ -463,6 +463,18 @@ def _build_detectors() -> dict[str, Detector]:
         np.array([-_mb_tank_r, -_mb_tank_r, -_mb_tank_r]),
         np.array([+_mb_tank_r, +_mb_tank_r, +_mb_tank_r]))
 
+    # DUNE near-detector hall. Native frame == the dunendggd/edep-sim hall
+    # "world" frame, which is exactly the DUNE_ND frame already in the graph, so
+    # placement in BNB (DUNE_ND -> LBNF -> BNB) is exact. STAGE-1 PLACEHOLDER:
+    # center_native is the hall-world origin and the active box is a nominal
+    # ND-LAr extent; the precise active-LAr center/extent will be set once the
+    # per-detector composition (Stage 2) provides exact in-hall positions.
+    detectors["DUNE_ND"] = Detector(
+        "DUNE_ND", "DUNE_ND",
+        np.array([0.0, 0.0, 0.0]),
+        np.array([-3.5, -1.7, -2.5]),
+        np.array([+3.5, +1.7, +2.5]))
+
     return detectors
 
 
