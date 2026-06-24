@@ -211,6 +211,67 @@ Branch `interface-redesign`. Deep-research pass to find a primary reference for 
 
 - **Sign unresolved.** Stored as +y (BNB +y = up per the BNB frame), which places the tank center 1.9 m *above* the beam axis; the PRD gives only the magnitude. Confirm the up/down sense against the dk2nu/`bsim` +y convention if it matters physically. The coordinate is a faithful copy of the authoritative G4BNB value, so the placement matches G4BNB regardless of how the prose reads.
 
+## 2026-06-09: DUNE FD detector + overburden model (DUNEFD-v2)
+
+Branch `interface-redesign`. Built a 3D density + isotopic-composition model of the SURF/Homestake overburden for the DUNE far detector. Added `TriangularMesh` + `GetTriangles()` Python bindings. Integrated the official dunecore GDML (VD v7 / HD v6 nowires) as a first-class SIREN detector. Added a pure-pyvista visualization backend (`view_pv`). All uncommitted on `interface-redesign`.
+
+### Completed
+
+- **TriangularMesh pybind11 binding** (`projects/geometry/private/pybindings/geometry.cxx`, `projects/geometry/public/SIREN/geometry/GeometryMesh.h`). Exposed `TriangularMesh` (constructors from `vector<array<Vector3D,3>>`, `GetTriangles()`, `ValidateClosed()`, `TriangleCount()`) to Python, mirroring the ExtrPoly/Box pattern. `GetTriangles()` returns LOCAL-frame vertices (the placement transform is not applied); callers must apply the placement to get world-frame positions. Fixed a stale numpy `core`->`_core` CMake cache issue (`cmake -U NUMPY_INCLUDE_DIR`) that was breaking `pyphotospline`.
+
+- **Directional slant-depth map** (`Testing/overburden/`). Ray-cast from 4850L through Copernicus GLO-30 DEM with DUSEL_Rock 2.82 g/cc. Validated: vertical 4168 m.w.e. (=2.82*1478), azimuthal spread ~540 m.w.e. at 20 deg (matches literature). Provides `overburden.Overburden().column_density(zenith, azimuth) -> g/cm^2`.
+
+- **3D isotopic-composition model** (`Testing/overburden/model3d/`). Graded anti-aliased watertight terrain mesh (DEM top + skirt + spherical-cap base, ~49k triangles, 80 m core -> 1280 m edge via 2:1-balanced quadtree, SAT block-averaged DEM). Homestake geology: Poorman phyllite (2.80 g/cc), Yates amphibolite (2.95), rhyolite dikes (2.62), each with natural-isotope composition + measured U/Th/K. Formations clipped below-ground via `BooleanGeometry(INTERSECTION, mesh, slab)`. Embedded in PREM Earth (concentric shells + atmosphere). Mesh rim tapers onto PREM surface sphere. Cross-validated vs independent DEM ray-cast to ~0.5% at all zenith.
+
+- **DUNEFD-v2 detector loader** (`resources/detectors/DUNEFD/DUNEFD-v2/`). `load_detector("DUNEFD", detector="VD", earth_model=True)` downloads the dunecore VD v7 nowires GDML, loads it, adds Homestake materials + overburden + PREM sectors. Level management: PREM at negative levels, overburden between GDML volWorld and volDetEnclosure, detector internals highest. DetectorOrigin set to active LAr center. HD v6 also downloadable.
+
+- **Pure-pyvista visualization** (`python/visualization.py`). `view_pv(model)` / `view(model, backend="pyvista")`: tessellates every sector in pyvista (Box/Sphere/Cylinder/TriangularMesh parametric; booleans/exotic solids by marching cubes on `IsInside`). Material colors + legend, axes, right-click SIREN picker. Mesh sectors bypassed in the GDML export (`skip_geo_types`) and rendered directly via `_add_mesh_actors` (mm-scaled for the pyg4ometry scene) or `_mesh_sector_polydata` (meters for pure-pyvista). `_apply_placement` transforms LOCAL-frame `GetTriangles()` to world frame.
+
+### Key design decisions
+
+- `TriangularMesh.GetTriangles()` returns LOCAL-frame vertices; the visualizer applies `_apply_placement()` to get world-frame coords. This is a hard API fact, not a choice.
+- GDML parser converts cm -> m (divides by 100). pyg4ometry scene is in mm (x1000). The `_add_mesh_actors` path multiplies mesh vertices by `_GDML_MM_PER_M = 1000.0`; the pure-pyvista path is all meters.
+- VD GDML has x = up; HD has y = up. The planned common convention (approved but not yet implemented) is y = up, z = beam (LBNF azimuth ~288 deg from N, ~5.8 deg below horizontal, 1285 km baseline from FNAL).
+- SIREN `DetectorSector.level` must be UNIQUE (strict hierarchy). The overburden slots between `volWorld` and `volDetEnclosure` by shifting GDML levels up.
+- Box(Placement(center), dx, dy, dz) uses FULL side lengths, centered at the placement. Sector lookup is BVH-accelerated (~10^4 sectors cheap).
+
+### Open work
+
+- **Spherical mesh rewrite** -- still open, see the 2026-06-24 entry.
+- **Composite HD+VD** -- DONE 2026-06-24. **Placement rotation to site frame** -- DONE 2026-06-24.
+- All C++ binding changes, python/visualization.py changes, and the overburden model are uncommitted.
+
+## 2026-06-24: DUNE FD HD+VD composite + site-frame (y=up, z=beam) re-frame
+
+Branch `interface-redesign`, all in `resources/detectors/DUNEFD/DUNEFD-v2/`. Closed the two 2026-06-09 placement open items: both FD modules now load into one geometry in a verified beam-aligned frame, and the overburden is rotated to match. Frame correctness verified by an adversarial research workflow + direct GDML probing.
+
+### Completed
+
+- **HD/VD GDML frames verified** (workflow vs verbatim LArSoft "z=neutrino-travel, y=up, x=RH"; confirmed by probing where the gaseous argon floats). HD (dune10kt_v6) is already y=up / z=beam(long) / x=drift. VD (dunevd v7) is x=up(vertical drift) / y=width / z=beam(long) -- rotated 90 deg about z vs HD.
+- **Exact beam direction at the FD** (straight-line chord FNAL(41.8403,-88.2729) -> SURF(44.352,-103.751,-1478m)): azimuth 277.15 deg downstream (from N toward E), dip +5.71 deg UPWARD (~99.7 mrad). Method validated -- reproduces the FNAL-end az 287.79 deg / 101 mrad already in `sbn_geometry.py` to 0.03 deg.
+- **`load_detector("DUNEFD", detector="HD"|"VD"|"both", earth_model=)`**. Composite stub GDML places HD at identity, VD rotated GDML `z=-90` (x->y), and for "both" offsets them +/- CAVERN_SPACING_M/2 along +x (transverse, N-S). Site frame = HD GDML frame: +y up, +z beam-downstream (azimuth 277.15 deg), +x right-handed.
+- **Overburden re-framed to the site frame.** `add_earth_model(model)` (det_x arg removed) builds the mesh/formations/boxes in ENU then rotates ENU->site via `Quaternion.SetMatrix(Matrix3D(-cos az, sin az, 0,  0,0,1,  sin az, cos az, 0))` (maps ENU-up->+y, ENU-horizontal so +z = beam azimuth). Earth center at `(0, -(R_PREM-DEPTH), 0)`; local_crust/local_air boxes vertical along +y. This fixes the real bug that the terrain was oriented perpendicular to the beam.
+- **Validated:** "both"+earth_model = 2196 sectors, ~1.3 s; both cryostats read LAr; vertical overburden 4078 m.w.e.; full descent rock -> Yates -> local_crust -> PREM crust -> mantle -> core.
+
+### Key design decisions / findings
+
+- **Composite `<file>` refs REQUIRE `as_assembly="true"`.** Without it, a `<position>`/`<rotation>` on a `<file>` moves the sub-geometry's bounding box but NOT its `IsInside`/containment (queries return the un-offset position). `as_assembly` also unwraps each sub-GDML's `volWorld` DUSEL_Rock box -- so the composite has **0 DUSEL_Rock sectors** and the cryostats sit directly in the composite WorldVacuum (level 0). The old "find volWorld and slot the overburden above it" level logic no longer applies; the new logic shifts all detector sectors up by 100000 and puts overburden at levels 1-6 above WorldVacuum, PREM negative.
+- **`GetMassDensity` takes DETECTOR-LOCAL `DetectorPosition`** (= world/geometry coords minus `model.DetectorOrigin`). It does NOT accept `GeometryPosition`. For "both", DetectorOrigin = HD cryostat center, so `DetectorPosition(0,0,0)` is the HD cryostat and VD is at local ~(75,-0.2,4.8). Probing in world coords after setting a nonzero DetectorOrigin looks like a containment bug but is just the frame offset.
+- Cryostat long axis (the 62 m z) = the beam direction; no documented misalignment angle (treat as 0 in the horizontal plane). N-S cavern center-to-center spacing is NOT published (~75 m from cavern widths 19.8 + CUC 19.3 + pillars; `CAVERN_SPACING_M`). TDR Vol III: HD=east of North cavern, VD=east of South cavern, co-oriented.
+
+### Dead ends / traps
+
+- Composite without `as_assembly` "works" (loads, AABBs are right) but every containment/density query is wrong -- silent. Always set `as_assembly="true"`.
+- `_base_z` tapered the mesh base UP to the surface sphere, and the base fan uses only rim vertices, so the mesh was a thin lens (z in [736,1963], no fill to -3000) and the overburden column read AIR not rock. Fixed to flat `BASE_Z=-3000` (filled volume); the graded spherical-cap base is part of the spherical rewrite.
+- The DUNEFD-v2 python files were edited and `cp`'d straight into the installed `site-packages/siren/...` (the python wheel does NOT live-link source; a normal `cmake --install` re-wheels). A clean `cmake --build --target python_package && cmake --install .` is needed to make the installed package match source.
+
+### Open work
+
+- **Spherical mesh rewrite still pending** (`.claude/plans/adaptive-jumping-peacock.md`, R_DOUBLE=5 km confirmed to match the old bands): the mesh is still flat-Earth +/-20 km (2 DEM tiles) with the `d^2/(2R)` curvature correction in `_elev` and a flat base. The plan replaces these with geodetic ECEF->local vertices, a 300 km / ~63-tile domain (LRU cache), continuous `H_MIN*2^(r/R_DOUBLE)` grading, a cosine edge taper to the mean rim elevation, and a spherical-cap base. The site-frame placement just built is compatible with it (the mesh is still constructed in ENU).
+- Workspace (partial 1x2x6 HD, 1x8x14 VD) GDMLs are used, not the full 10 kt modules.
+- DetectorOrigin for "both" is the HD cryostat (FD1); a complex-center choice is also defensible.
+- Everything uncommitted.
+
 ## 2026-06-05: Sourced the SBND BNB horizontal offset (73.78 cm)
 
 Branch `interface-redesign`. Companion to the MiniBooNE pass above: deep-research pass to pin a well-documented provenance for the SBND position hardcoded as `[0.7378, 0.0, 110.0]` m in the `SBND_LArSoft -> BNB` transform. The in-code comment said only "G4BNB SBND Location (73.78, 0, 11000) cm" with no source for the off-axis x = 73.78 cm. Conclusion: the value is correct and current, and traces to an internal design document with a clear correction history.
