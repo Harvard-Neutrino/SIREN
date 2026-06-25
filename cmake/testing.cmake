@@ -16,7 +16,11 @@ if(${CIBUILDWHEEL})
 else()
     macro(package_add_test TESTNAME)
         add_executable(${TESTNAME} ${ARGN})
-        target_link_libraries(${TESTNAME} gtest gmock gtest_main SIREN)
+        # GCC < 9 keeps std::filesystem in a separate library (libstdc++fs)
+        # that must be linked explicitly; some tests (e.g. GDMLParser) use it
+        # directly. Newer GCC and Clang fold it into the standard library.
+        target_link_libraries(${TESTNAME} gtest gmock gtest_main SIREN
+            $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:stdc++fs>)
         add_dependencies(${TESTNAME} rk_static)
         add_test(NAME ${TESTNAME} COMMAND ${TESTNAME} WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
         set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
