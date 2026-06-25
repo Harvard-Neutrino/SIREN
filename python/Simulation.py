@@ -185,6 +185,13 @@ class Simulation:
         self._secondary_injection_distributions = {}
         if secondary_position is not None:
             self._resolve_secondary_position(secondary_position)
+        elif self._secondary_processes:
+            raise ValueError(
+                "Secondary interaction processes were configured "
+                f"(for {list(self._secondary_processes.keys())}), but no "
+                "'secondary_position' distribution was provided. Each secondary "
+                "process needs a secondary vertex distribution; pass "
+                "secondary_position= to Simulation().")
 
         # ---- Store remaining config ----
         self._n_events = n_events
