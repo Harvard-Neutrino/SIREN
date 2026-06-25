@@ -9,13 +9,21 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 _ZENODO_RECORD = "20129082"
 _ZENODO_FILE = "processes.zip"
 _ZENODO_PREFIX = "processes/DipoleHNLDISSplines/DipoleHNLDISSplines-v2.0"
-_RESOURCES_ROOT = writable_data_dir(os.path.normpath(os.path.join(base_path, "..", "..", "..")))
-_DOWNLOAD_DIR = os.path.join(_RESOURCES_ROOT, _ZENODO_PREFIX)
+_RESOURCES_ROOT = None
+_DOWNLOAD_DIR = None
+
+def _get_dirs():
+    global _RESOURCES_ROOT, _DOWNLOAD_DIR
+    if _RESOURCES_ROOT is None:
+        _RESOURCES_ROOT = writable_data_dir(os.path.normpath(os.path.join(base_path, "..", "..", "..")))
+        _DOWNLOAD_DIR = os.path.join(_RESOURCES_ROOT, _ZENODO_PREFIX)
+    return _RESOURCES_ROOT, _DOWNLOAD_DIR
 
 
 def fetch_data():
     """Download data files from Zenodo (called by siren-download --fetch)."""
-    ensure_zenodo_archive(_ZENODO_RECORD, _ZENODO_FILE, _RESOURCES_ROOT,
+    resources_root, _ = _get_dirs()
+    ensure_zenodo_archive(_ZENODO_RECORD, _ZENODO_FILE, resources_root,
                           prefix=_ZENODO_PREFIX)
 
 neutrinos = [
@@ -78,6 +86,8 @@ def load_processes(
 
     fetch_data()
 
+    _, download_dir = _get_dirs()
+
     primary_types = _get_primary_types(primary_types)
     isoscalar = _get_isoscalar(isoscalar)
     target_types = _get_target_types(isoscalar, target_types)
@@ -95,8 +105,8 @@ def load_processes(
         elif primary in antineutrinos: nunubar = "nubar"
         else: raise ValueError(f"primary \"{primary}\" not supported")
         if isoscalar:
-            dxs_file = resolve_data_path(base_path, _DOWNLOAD_DIR, f"M_0000000MeV/dsdxdy-{nunubar}-N-nc-GRV98lo_patched_central.fits")
-            xs_file = resolve_data_path(base_path, _DOWNLOAD_DIR, f"M_{m4_str}MeV/sigma-{nunubar}-N-nc-GRV98lo_patched_central.fits")
+            dxs_file = resolve_data_path(base_path, download_dir, f"M_0000000MeV/dsdxdy-{nunubar}-N-nc-GRV98lo_patched_central.fits")
+            xs_file = resolve_data_path(base_path, download_dir, f"M_{m4_str}MeV/sigma-{nunubar}-N-nc-GRV98lo_patched_central.fits")
             xs = siren.interactions.HNLDipoleDISFromSpline(dxs_file, xs_file,
                                                            m4_GeV, dipole_couplings,
                                                            [primary],

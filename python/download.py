@@ -341,9 +341,10 @@ def _safe_extract(zf: zipfile.ZipFile, dest_dir: str,
                   members: list[str] | None = None) -> None:
     """Extract zip members, rejecting paths that escape dest_dir (Zip Slip).
 
-    Extracts one member at a time and re-validates the resolved path
-    after each extraction so that symlink entries created by earlier
-    members cannot redirect later entries outside dest_dir.
+    Extracts one member at a time, re-validating each member's resolved
+    path before extracting it (realpath reflects symlinks created by
+    earlier members) so that earlier entries cannot redirect later ones
+    outside dest_dir.
     """
     abs_dest = os.path.realpath(dest_dir)
     names = members if members is not None else zf.namelist()
