@@ -820,12 +820,29 @@ class ProcessBundle:
 def load_processes(model_name, *args, **kwargs):
     result = load_resource("processes", model_name, *args, **kwargs)
     if result is None:
-        return None
+        raise ValueError(
+            f"No process loader found for model '{model_name}'. "
+            "Check the model name and that its resource directory is installed.")
     if isinstance(result, tuple):
         if len(result) >= 2:
             return ProcessBundle(result[0], result[1], *result[2:])
         return ProcessBundle(result[0], {})
     return ProcessBundle(result, {})
+
+
+def get_detector_model_targets(detector_model):
+    """Return the set of target ParticleTypes (nuclei) present in *detector_model*.
+
+    These are the material targets used by depth/range-based vertex
+    distributions (e.g. RangePositionDistribution), not the primary
+    projectile types.
+    """
+    targets = set()
+    count = 0
+    while detector_model.Materials.HasMaterial(count):
+        targets.update(detector_model.Materials.GetMaterialTargets(count))
+        count += 1
+    return targets
 
 def get_fiducial_volume(experiment):
     """

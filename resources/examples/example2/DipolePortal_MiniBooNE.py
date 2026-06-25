@@ -49,7 +49,7 @@ sim = siren.Simulation(
                 for d in bundle.secondary[siren.particles.N4]),
             3, 541,
         ),
-        set(bundle.primary.keys()),
+        siren.get_detector_model_targets(detector_model),
     ),
     secondary_interactions=bundle.secondary,
     secondary_position=siren.dist.BoundedVertex(

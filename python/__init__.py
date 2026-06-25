@@ -33,6 +33,7 @@ utilities.load_flux = _util.load_flux
 utilities.load_detector = _util.load_detector
 utilities.load_processes = _util.load_processes
 utilities.get_fiducial_volume = _util.get_fiducial_volume
+utilities.get_detector_model_targets = _util.get_detector_model_targets
 
 # Override the Injector with the python wrapper
 injection._Injector = injection.Injector
@@ -83,6 +84,7 @@ load_detector = utilities.load_detector
 load_flux = utilities.load_flux
 load_processes = utilities.load_processes
 get_fiducial_volume = utilities.get_fiducial_volume
+get_detector_model_targets = utilities.get_detector_model_targets
 
 ProcessBundle = _util.ProcessBundle
 GenerateEvents = _util.GenerateEvents
