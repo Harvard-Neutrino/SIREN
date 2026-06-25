@@ -82,7 +82,7 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
     std::vector<siren::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(record.record);
+    double total_decay_length = interactions->TotalDecayLengthAllFinalStates(record.record);
     siren::dataclasses::InteractionRecord fake_record = record.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         siren::dataclasses::ParticleType const & target = targets[i];
@@ -150,7 +150,7 @@ double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr
 
     std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(record);
+    double total_decay_length = interactions->TotalDecayLengthAllFinalStates(record);
     siren::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         siren::dataclasses::ParticleType const & target = targets[i];
@@ -232,17 +232,25 @@ bool SecondaryBoundedVertexDistribution::equal(WeightableDistribution const & ot
 
     if(!x)
         return false;
-    else
-        return (max_length == x->max_length);
+    bool same_fid = (!fiducial_volume && !x->fiducial_volume)
+        || (fiducial_volume && x->fiducial_volume && *fiducial_volume == *(x->fiducial_volume));
+    return max_length == x->max_length && same_fid;
 }
 
 bool SecondaryBoundedVertexDistribution::less(WeightableDistribution const & other) const {
     const SecondaryBoundedVertexDistribution* x = dynamic_cast<const SecondaryBoundedVertexDistribution*>(&other);
-    return
-        std::tie(max_length)
-        <
-        std::tie(x->max_length);
+    if(!x)
+        return false;
+    if(max_length != x->max_length)
+        return max_length < x->max_length;
+    bool has_fid = (fiducial_volume != nullptr);
+    bool other_has_fid = (x->fiducial_volume != nullptr);
+    if(has_fid != other_has_fid)
+        return has_fid < other_has_fid;
+    if(has_fid && other_has_fid)
+        return *fiducial_volume < *(x->fiducial_volume);
+    return false;
 }
 
 } // namespace distributions
-} // namespace sirenREN
+} // namespace siren

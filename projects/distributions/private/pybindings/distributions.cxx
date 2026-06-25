@@ -1,4 +1,5 @@
 
+#include <set>
 #include <vector>
 #include <string>
 
@@ -51,6 +52,16 @@ using namespace pybind11;
 PYBIND11_MODULE(distributions,m) {
   using namespace siren::distributions;
 
+  enum_<DistributionVariable>(m, "DistributionVariable")
+    .value("PrimaryMass", DistributionVariable::PrimaryMass)
+    .value("PrimaryEnergy", DistributionVariable::PrimaryEnergy)
+    .value("PrimaryDirection", DistributionVariable::PrimaryDirection)
+    .value("PrimaryHelicity", DistributionVariable::PrimaryHelicity)
+    .value("PrimaryArea", DistributionVariable::PrimaryArea)
+    .value("InitialPosition", DistributionVariable::InitialPosition)
+    .value("InteractionVertex", DistributionVariable::InteractionVertex)
+    .value("InteractionParameters", DistributionVariable::InteractionParameters);
+
   class_<PhysicallyNormalizedDistribution, std::shared_ptr<PhysicallyNormalizedDistribution>>(m, "PhysicallyNormalizedDistribution")
     .def(init<>())
     .def(init<double>())
@@ -68,19 +79,14 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<PrimaryInjectionDistribution, std::shared_ptr<PrimaryInjectionDistribution>, WeightableDistribution>(m, "PrimaryInjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
+    .def("SetVariables",&PrimaryInjectionDistribution::SetVariables)
+    .def("RequiredVariables",&PrimaryInjectionDistribution::RequiredVariables)
     ;
 
-  // External distribution
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution")
-    .def(init<std::string>())
-    .def(init<std::string, double>())
-    .def("Sample",&PrimaryExternalDistribution::Sample)
-    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
-    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
-    .def("Name",&PrimaryExternalDistribution::Name);
+  // NOTE: PrimaryExternalDistribution is defined after VertexPositionDistribution
+  // because it now inherits from VertexPositionDistribution.
 
-  // Direciton distributions
+  // Direction distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
@@ -88,16 +94,19 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability);
 
   class_<Cone, std::shared_ptr<Cone>, PrimaryDirectionDistribution>(m, "Cone")
-    .def(init<siren::math::Vector3D, double>());
-    //.def("GenerationProbability",&Cone::GenerationProbability);
+    .def(init<siren::math::Vector3D, double>())
+    .def(init([](std::array<double, 3> const & dir, double opening_angle) {
+        return Cone(siren::math::Vector3D(dir), opening_angle);
+    }), arg("direction"), arg("opening_angle"));
 
   class_<IsotropicDirection, std::shared_ptr<IsotropicDirection>, PrimaryDirectionDistribution>(m, "IsotropicDirection")
     .def(init<>());
-    //.def("GenerationProbability",&IsotropicDirection::GenerationProbability);
 
   class_<FixedDirection, std::shared_ptr<FixedDirection>, PrimaryDirectionDistribution>(m, "FixedDirection")
-    .def(init<siren::math::Vector3D>());
-    //.def("GenerationProbability",&FixedDirection::GenerationProbability);
+    .def(init<siren::math::Vector3D>())
+    .def(init([](std::array<double, 3> const & dir) {
+        return FixedDirection(siren::math::Vector3D(dir));
+    }), arg("direction"));
 
   // Energy distributions
 
@@ -263,6 +272,9 @@ PYBIND11_MODULE(distributions,m) {
   class_<PointSourcePositionDistribution, std::shared_ptr<PointSourcePositionDistribution>, VertexPositionDistribution>(m, "PointSourcePositionDistribution")
     .def(init<>())
     .def(init<siren::math::Vector3D, double>())
+    .def(init([](std::array<double, 3> const & origin, double max_dist) {
+        return PointSourcePositionDistribution(siren::math::Vector3D(origin), max_dist);
+    }), arg("origin"), arg("max_distance"))
     .def("GenerationProbability",&PointSourcePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&PointSourcePositionDistribution::InjectionBounds)
     .def("Name",&PointSourcePositionDistribution::Name);
@@ -299,6 +311,22 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&FixedTargetPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
     .def("Name",&FixedTargetPositionDistribution::Name);
+
+  // External distribution (inherits VertexPositionDistribution, must come after it)
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution>(m,"PrimaryExternalDistribution")
+    .def(init<std::string>())
+    .def(init<std::string, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>>(),
+         arg("keys"), arg("data"), arg("sampling_weights"))
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>, double>(),
+         arg("keys"), arg("data"), arg("sampling_weights"), arg("emin"))
+    .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
+    .def("Name",&PrimaryExternalDistribution::Name);
 
   class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution")
     .def("DensityVariables",&PrimaryAreaDistribution::DensityVariables)

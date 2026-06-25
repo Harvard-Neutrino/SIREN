@@ -119,8 +119,8 @@ private:
     double delta_phi_;         //!< azimuthal extent (radians, default 2*pi)
     bool has_phi_cut_;         //!< true if delta_phi < 2*pi
     std::vector<double> z_planes_; //!< z-positions of each plane (ascending)
-    std::vector<double> rmin_;     //!< inner radius at each z-plane (to edge center)
-    std::vector<double> rmax_;     //!< outer radius at each z-plane (to edge center)
+    std::vector<double> rmin_;     //!< inner radius at each z-plane (apothem: perpendicular distance to edge center)
+    std::vector<double> rmax_;     //!< outer radius at each z-plane (apothem: perpendicular distance to edge center)
 
     // Precomputed cos/sin for polygon vertex angles.
     // cos_phi_[k] = cos(start_phi_ + k * dphi), k = 0..num_sides_

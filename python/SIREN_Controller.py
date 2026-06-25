@@ -40,15 +40,29 @@ def MergeInteractionCollections(primary_type,int_col_list):
 # Parent python class for handling event generation and weighting
 class SIREN_Controller:
 
-    def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0):
+    def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0, detector_model=None):
         """
         SIREN controller class constructor.
+
+        .. deprecated::
+            Use :class:`siren.Simulation` instead. ``SIREN_Controller`` will be
+            removed in a future release.
+
         :param int event_to_inject: number of events to generate
         :param str experiment: experiment name in string (default None)
         :param str detector_model_file: path to the detector model file (default None)
         :param str materials_model_file: path to the materials model file (default None)
         :param int seed: Optional random number generator seed (default 0)
+        :param detector_model: a pre-built ``DetectorModel`` to use directly (e.g.
+            a GDML composite from ``load_detector("SBN", detector=...)``); when
+            provided it overrides the experiment/file loading (default None)
         """
+        import warnings
+        warnings.warn(
+            "SIREN_Controller is deprecated. Use siren.Simulation instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         self.global_start = time.time()
 
@@ -67,17 +81,23 @@ class SIREN_Controller:
 
         self.detector_model_file = detector_model_file
         self.materials_model_file = materials_model_file
-        if experiment is not None:
-            # Find the density and materials files
-            detector_dir = _util.get_detector_model_path(experiment)
-            self.materials_model_file = os.path.join(detector_dir, "materials.dat")
-            self.detector_model_file = os.path.join(detector_dir, "densities.dat")
-        elif (self.detector_model_file is None or self.materials_model_file is None):
-            raise ValueError("Must provide either an experiment name or both a detector model file and materials model file")
+        if detector_model is not None:
+            # Use a pre-built DetectorModel directly (e.g. a GDML composite from
+            # load_detector("SBN", detector=...)). There are no separate
+            # densities/materials files in that case.
+            self.detector_model = detector_model
+        else:
+            if experiment is not None:
+                # Find the density and materials files
+                detector_dir = _util.get_detector_model_path(experiment)
+                self.materials_model_file = os.path.join(detector_dir, "materials.dat")
+                self.detector_model_file = os.path.join(detector_dir, "densities.dat")
+            elif (self.detector_model_file is None or self.materials_model_file is None):
+                raise ValueError("Must provide either an experiment name, both a detector model file and materials model file, or a pre-built detector_model")
 
-        self.detector_model = _detector.DetectorModel()
-        self.detector_model.LoadMaterialModel(self.materials_model_file)
-        self.detector_model.LoadDetectorModel(self.detector_model_file)
+            self.detector_model = _detector.DetectorModel()
+            self.detector_model.LoadMaterialModel(self.materials_model_file)
+            self.detector_model.LoadDetectorModel(self.detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
@@ -365,6 +385,10 @@ class SIREN_Controller:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
+        # A pre-built detector model (e.g. a GDML composite) has no
+        # densities.dat to parse a fiducial line from.
+        if self.detector_model_file is None:
+            return None
         with open(self.detector_model_file) as file:
             fiducial_line = None
             detector_line = None

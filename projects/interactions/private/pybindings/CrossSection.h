@@ -29,6 +29,8 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("DifferentialCrossSection", &CrossSection::DifferentialCrossSection)
         .def("InteractionThreshold", &CrossSection::InteractionThreshold)
         .def("SampleFinalState", (void (CrossSection::*)(siren::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const)(&CrossSection::SampleFinalState))
+        .def("SecondaryMasses", &CrossSection::SecondaryMasses)
+        .def("SecondaryHelicities", &CrossSection::SecondaryHelicities)
         .def("GetPossibleTargets", &CrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary", &CrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries", &CrossSection::GetPossiblePrimaries)
@@ -36,6 +38,8 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents", &CrossSection::GetPossibleSignaturesFromParents)
         .def("FinalStateProbability", &CrossSection::FinalStateProbability)
         .def("DensityVariables", &CrossSection::DensityVariables)
+        .def("Topology", &CrossSection::Topology)
+        .def("Measure", &CrossSection::Measure)
+        .def("Convention", &CrossSection::Convention)
         ;
 }
-

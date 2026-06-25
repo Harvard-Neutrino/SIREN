@@ -39,7 +39,7 @@ bool HNLDipoleDecay::equal(Decay const & other) const {
                     x->dipole_coupling);
 }
 
-double HNLDipoleDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double HNLDipoleDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
     return TotalDecayWidth(record.signature.primary_type);
 }
 
@@ -49,7 +49,7 @@ double HNLDipoleDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary)
     return total_coupling_sq * std::pow(hnl_mass,3) / (4*siren::utilities::Constants::pi) * siren::utilities::Constants::GeV;
 }
 
-double HNLDipoleDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double HNLDipoleDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
     siren::dataclasses::InteractionSignature const & signature = record.signature;
     unsigned int gamma_index = (signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
@@ -103,7 +103,7 @@ std::vector<dataclasses::InteractionSignature> HNLDipoleDecay::GetPossibleSignat
 }
 
 double HNLDipoleDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
-    double DecayWidth = TotalDecayWidthForFinalState(record);
+    double DecayWidth = TotalDecayWidth(record);
     if(nature==ChiralNature::Majorana) {
       //TODO: make sure factor of 2 is correct here
       return DecayWidth/2.;
@@ -193,7 +193,7 @@ void HNLDipoleDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecor
 
 double HNLDipoleDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   double dd = DifferentialDecayWidth(record);
-  double td = TotalDecayWidthForFinalState(record);
+  double td = TotalDecayWidth(record);
   if (dd == 0) return 0.;
   else if (td == 0) return 0.;
   else return dd/td;

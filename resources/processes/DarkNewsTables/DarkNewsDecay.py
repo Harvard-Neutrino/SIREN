@@ -297,13 +297,13 @@ class PyDarkNewsDecay(DarkNewsDecay):
             exit(0)
         return self.dec_case.differential_width(momenta)
 
-    def TotalDecayWidth(self, arg1):
+    def TotalDecayWidthAllFinalStates(self, arg1):
         if isinstance(arg1, dataclasses.InteractionRecord):
             primary = arg1.signature.primary_type
         elif isinstance(arg1, dataclasses.Particle.ParticleType):
             primary = arg1
         else:
-            print("Incorrect function call to TotalDecayWidth!")
+            print("Incorrect function call to TotalDecayWidthAllFinalStates!")
             exit(0)
         if int(primary) != self.dec_case.nu_parent:
             return 0
@@ -328,7 +328,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 self.total_width = self.dec_case.total_width()
         return self.total_width
 
-    def TotalDecayWidthForFinalState(self, record):
+    def TotalDecayWidth(self, record):
         sig = self.GetPossibleSignatures()[0]
         if (
             (record.signature.primary_type != sig.primary_type)
