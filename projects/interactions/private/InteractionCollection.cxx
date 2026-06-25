@@ -109,6 +109,7 @@ double InteractionCollection::TotalDecayLengthAllFinalStates(dataclasses::Intera
   for(auto dec : decays) {
     inv_length += 1./dec->TotalDecayLengthAllFinalStates(record);
   }
+  if(inv_length == 0) return std::numeric_limits<double>::infinity();
   return 1./inv_length;
 }
 
