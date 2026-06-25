@@ -36,13 +36,17 @@ os.makedirs(table_dir,exist_ok=True)
 
 
 # Load DarkNews processes
-primary_processes, secondary_processes, primary_ups_keys, secondary_dec_keys = utilities.load_processes(
+_bundle = utilities.load_processes(
     "DarkNewsTables",
     primary_type=primary_type,
     detector_model = detector_model,
     table_name = table_name,
     **model_kwargs,
 )
+# load_processes now returns a ProcessBundle; the extra DarkNews return values
+# (upscattering/decay keys) are carried in its metadata.
+primary_processes, secondary_processes = _bundle.primary, _bundle.secondary
+primary_ups_keys, secondary_dec_keys = _bundle.metadata
 
 print(primary_processes)
 
