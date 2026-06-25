@@ -294,3 +294,26 @@ Branch `interface-redesign`. Companion to the MiniBooNE pass above: deep-researc
 - **Design value, not a published survey.** Unlike MiniBooNE's 1.9 m (published in PRD 79 (2009) 072002), 73.78 cm has no peer-reviewed citation; its root is the internal SBN-DocDB 20891. The as-built survey behind the design is not public.
 - **Offset is to the SBND coordinate origin** (LArSoft world origin = cathode plane), not the active-LAr center -- the latter is carried separately in `DETECTORS["SBND"].center_native = [0, -0.59, 2.92]`. Off-axis-ness of the active volume combines both.
 - **Cardinal-direction label unverified.** SIREN annotates BNB +x as "horizontal west"; the numeric tuple is faithful to G4BNB by construction, but whether "west" is the correct physical sense of G4BNB +x was not independently pinned (same class of caveat as MiniBooNE's +y up/down).
+
+## 2026-06-24: DUNE FD GDMLs into SIREN-data + loader rewiring; VD-drift verification
+
+Branch `interface-redesign` (SIREN), plus a commit to the separate `SIREN-data` repo. Moved the two DUNE FD module GDMLs from a load-time direct download off `DUNE/dunecore@develop` to the versioned, sha256-verified SIREN-data mirror (the same pattern ICARUS/SBND/DUNE_ND use), with provenance READMEs. Also independently re-verified the VD vertical-drift orientation (a user report that it drifted along +x did not reproduce).
+
+### Completed
+
+- **VD drift orientation confirmed CORRECT (+y).** A report that VD drifts along global +x (horizontal) did not reproduce on current code: by containment (`GetContainingSector`/`GetMassDensity` gas pocket at +y), sector world AABB (`volCryostat` short axis = y, 8.5 m), placement quaternion (euler [0,0,90]), `to_gdml` export (physvol `<rotation z=-90>`), the `view_pv` mesh path, and pyg4ometry's own tree -- all agree VD's vertical drift is along +y. The `rotation_deg=(0,0,-90)` in detector.py is applied and propagates through `as_assembly` to containment (a pure z-rotation cannot leave a vector on x, the tell that "still x" was a stale/pre-rotation observation). No code change.
+
+- **DUNE FD GDMLs added to SIREN-data** (`detectors/DUNEFD/v2/{HD,VD}/`, commit `4880d76` pushed to `main`). HD = `dune10kt_v6_refactored_1x2x6_nowires.gdml` (dunecore last-mod commit `b8fb0006`, 2024-03-11); VD = `dunevd10kt_3view_30deg_v7_refactored_1x8x14_nowires.gdml` (`697040d7`, 2025-02-04). Both retrieved from dunecore `develop` 2026-06-24, Apache-2.0, **verified byte-identical to the upstream blob at the cited commit** (provenance workflow + adversarial verify). Per-module READMEs (path, commit, retrieval date, every filename-token meaning, license, sha256) + a model-level README (site frame, module table). sha256: HD `b801f3eb...`, VD `24fffafe...`.
+
+- **Loader rewired to fetch from SIREN-data** (`resources/detectors/DUNEFD/DUNEFD-v2/detector.py`). `_DATA_BASE` -> SIREN-data `detectors/DUNEFD/v2`; each `_MODULES` spec carries the SIREN-data `url` + `sha256`; `_ensure_gdml` uses `siren.download` (`writable_data_dir`/`resolve_data_path`/`ensure_files`) -- shipped/cached copy preferred, else sha256-verified fetch. Added `fetch_data()` (`siren-download --fetch DUNEFD`) and a `.gitignore` (cached gdml/, composite, dem/, materials, pycache) matching the SBN loader. Composite now references modules by ABSOLUTE path (so a module resolved from the install dir and one from the writable mirror can coexist; verified the SIREN GDML parser accepts absolute `<file name>`).
+
+- **Verified end-to-end:** spec hashes == SIREN-data files; `ensure_files` download+verify works via `file://` AND rejects a wrong hash; `siren-download --list/--fetch DUNEFD` discovers + runs; HD/VD/both load; clean-cache load fetches VD from the LIVE remote, verifies, and builds a correct model (1285 sectors, drift +y); VD+earth_model unaffected.
+
+### Found (pre-existing; user chose to LEAVE AS-IS)
+
+- **`detector="both"` HD/VD volume-name collision.** HD and VD GDMLs share some volume/solid names (`GaseousArgon`, `SteelShell`, `FoamPadding`, `DetEnclosure`), so the merged composite keeps HD's solid for the colliding ones: in "both", VD's `volGaseousArgon_2` = `[0.5,7.57,17.44]` and `volSteelShell_2` = `[13.58,7.6,17.46]` are HD-sized (rotated), vs the correct VD `[15.14,1.0,23.15]`/`[15.14,8.5,23.15]`. `volCryostat_2` is correct (distinct solid name). VD-only and HD-only are exact; only "both" is affected. Not from this change (file bytes identical). Fix path = SBN-style per-module `prefix` namespacing in the composite; deferred by user decision.
+
+### Open / followups
+
+- SIREN-repo side (detector.py rewiring, READMEs gitignore, all DUNEFD-v2 work) remains uncommitted on `interface-redesign`; only the SIREN-data repo was committed+pushed.
+- The "both" namespace collision is a known limitation (see above), not yet fixed.
