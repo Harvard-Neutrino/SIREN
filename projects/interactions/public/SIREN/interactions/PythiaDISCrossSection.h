@@ -123,7 +123,6 @@ public:
     // Cross section from splines
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy) const;
-    double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;

@@ -307,9 +307,6 @@ double PythiaDISCrossSection::TotalCrossSection(siren::dataclasses::ParticleType
     return unit * std::pow(10.0, log_xs);
 }
 
-double PythiaDISCrossSection::TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const & record) const {
-    return TotalCrossSection(record);
-}
 
 double PythiaDISCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
