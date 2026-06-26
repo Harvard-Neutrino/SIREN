@@ -443,9 +443,10 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
     // The pdf_set_ is e.g. "LHAPDF6:HERAPDF20_NLO_EIG", and LHAPDF needs LHAPDF_DATA_PATH set
     const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
     if (!lhapdf_path) {
-        // Try a reasonable default based on common install layouts
-        std::string default_path = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pzhelnin/LHAPDF/new_install/share/LHAPDF";
-        setenv("LHAPDF_DATA_PATH", default_path.c_str(), 0);
+        throw std::runtime_error("LHAPDF_DATA_PATH is not set");
+        // Commented code below sets a default path on the Harvard FASRC cluster
+        // std::string default_path = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pzhelnin/LHAPDF/new_install/share/LHAPDF";
+        // setenv("LHAPDF_DATA_PATH", default_path.c_str(), 0);
     }
 
     pythia_ = std::make_unique<Pythia8::Pythia>(pythia_data_path_, false);
