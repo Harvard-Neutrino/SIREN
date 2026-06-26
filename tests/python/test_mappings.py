@@ -11,6 +11,12 @@ round-trip, and that the density is positive and normalized to 1.
 import numpy as np
 import pytest
 
+# numpy.trapz was renamed to numpy.trapezoid in NumPy 2.0 and removed.
+try:
+    from numpy import trapezoid as _trapz   # NumPy >= 2.0
+except ImportError:                          # NumPy < 2.0
+    from numpy import trapz as _trapz
+
 from siren import injection
 
 
@@ -73,7 +79,7 @@ def test_mapping_density_positive_and_normalized(name, factory, lo, hi):
     assert np.all(dens > 0.0), f"{name}: non-positive density encountered"
 
     grid = np.linspace(lo, hi, 40001)
-    integral = np.trapz([m.Density(x) for x in grid], grid)
+    integral = _trapz([m.Density(x) for x in grid], grid)
     assert integral == pytest.approx(1.0, abs=2e-2), \
         f"{name}: density integral = {integral}, expected 1"
 
