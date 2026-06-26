@@ -289,7 +289,20 @@ double PythiaDISCrossSection::TotalCrossSection(dataclasses::InteractionRecord c
     siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     double primary_energy = interaction.primary_momentum[0];
     if(primary_energy < InteractionThreshold(interaction)) return 0;
-    return TotalCrossSection(primary_type, primary_energy);
+    double total_xs = TotalCrossSection(primary_type, primary_energy);
+    // Partition the inclusive charm cross section across D species by fragmentation
+    // fraction for the specific D meson in this signature. The total spline holds the
+    // single inclusive charm cross section, so without this each of the registered
+    // D-type signatures (D0 + D+ + Ds) would return the full value and summing over
+    // them -- as the base-class TotalCrossSectionAllFinalStates and the Weighter do --
+    // would triple-count charm production. Mirrors QuarkDISFromSpline::TotalCrossSection.
+    for(auto const & sec_type : interaction.signature.secondary_types) {
+        if(siren::dataclasses::isD(sec_type)) {
+            total_xs *= FragmentationFraction(sec_type);
+            break;
+        }
+    }
+    return total_xs;
 }
 
 double PythiaDISCrossSection::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy) const {
@@ -377,11 +390,12 @@ double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle
 }
 
 double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
-    // Trust Pythia: SampleFinalState accepts whatever charm meson Pythia
-    // produces and overwrites the signature's meson_type to match. The natural
-    // Lund-string fragmentation distribution IS the physical fragfrac, so we
-    // don't multiply by a PDG-average fragfrac table here — that would double-
-    // count. Return dσ/σ only (matches DISFromSpline).
+    // Return dsigma/sigma. The fragmentation fraction is now applied inside
+    // TotalCrossSection (per signature), so txs below already carries it; it
+    // cancels against the per-signature TotalCrossSection weight in
+    // CrossSectionProbability, leaving the correct kinematic density. We do NOT
+    // multiply by a fragfrac table here -- SampleFinalState trusts Pythia's
+    // natural Lund-string fragmentation for the actual D-type distribution.
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if (!std::isfinite(dxs) || !std::isfinite(txs) || dxs <= 0 || txs <= 0) return 0.0;

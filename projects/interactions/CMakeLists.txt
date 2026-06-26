@@ -98,3 +98,16 @@ set_target_properties(interactions PROPERTIES
         LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
 endif()
 package_add_test(UnitTest_CharmMesonDecay ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmMesonDecay_TEST.cxx)
+
+# Charm-DIS interaction-depth closure invariant (no Pythia8 needed: uses a mock
+# that exercises the real base-class CrossSection::TotalCrossSectionAllFinalStates).
+package_add_test(UnitTest_CharmDISClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmDISClosure_TEST.cxx)
+
+# Real PythiaDISCrossSection charm-DIS closure/normalization regression test.
+# Only built with Pythia8 support; needs charm-DIS spline files via env vars
+# (SIREN_PYTHIA_TEST_DSDXDY, SIREN_PYTHIA_TEST_SIGMA), otherwise it SKIPs.
+if(TARGET PYTHIA8)
+    package_add_test(UnitTest_PythiaDISCharmClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/PythiaDISCharmClosure_TEST.cxx)
+    target_compile_definitions(UnitTest_PythiaDISCharmClosure PRIVATE SIREN_HAS_PYTHIA8)
+    target_link_libraries(UnitTest_PythiaDISCharmClosure PYTHIA8)
+endif()
