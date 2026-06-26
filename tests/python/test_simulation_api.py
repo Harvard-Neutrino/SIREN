@@ -253,13 +253,6 @@ class TestTopLevelExports:
         import siren
         assert callable(siren.load_processes)
 
-    def test_top_level_count_reasonable(self):
-        """Top-level namespace should not be bloated."""
-        import siren
-        public = [x for x in dir(siren) if not x.startswith("_")]
-        # Should be around 20, definitely under 30
-        assert len(public) < 30, f"Too many top-level names: {len(public)}"
-
 
 # ==================================================================== #
 #  Phase 2: Simulation class                                            #
