@@ -923,7 +923,7 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
     Vector3D direction = p0 - intersections.position;
-    if(direction.magnitude() == 0 || direction.magnitude() <= distance_threshold) {
+    if(direction.magnitude() <= distance_threshold) {
         direction = intersections.direction;
     } else {
         direction.normalize();
@@ -1233,8 +1233,8 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
     if(targets.empty()) {
       return distance / total_decay_length; // m / m --> dimensionless
     }
-    if(direction.magnitude() <= distance_threshold) {
-        return 0.0;
+    if(distance <= distance_threshold) {
+        return distance / total_decay_length;
     }
     direction.normalize();
 
