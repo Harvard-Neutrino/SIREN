@@ -1,6 +1,7 @@
 #include "SIREN/interactions/CharmMesonDecay3Body.h"
 
 #include <cmath>
+#include <stdexcept>
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -133,8 +134,10 @@ double CharmMesonDecay3Body::TotalDecayWidth(siren::dataclasses::Particle::Parti
 
 // current problem: in implementation we see kaons and pions both as hadrons, but they should have different branching ratios and form factors
 double CharmMesonDecay3Body::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
-    double branching_ratio;
-    double tau; // total lifetime for all visible and invisible modes
+    // Sentinel-init: all valid branching ratios and lifetimes are strictly
+    // positive, so a negative value unambiguously flags an unmatched mode.
+    double branching_ratio = -1.0;
+    double tau = -1.0; // total lifetime for all visible and invisible modes
     // read in the signature and types
     siren::dataclasses::Particle::ParticleType primary = record.signature.primary_type;
     std::vector<siren::dataclasses::Particle::ParticleType> secondaries_vector = record.signature.secondary_types;
@@ -156,17 +159,29 @@ double CharmMesonDecay3Body::TotalDecayWidthForFinalState(dataclasses::Interacti
     std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};
     if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
       tau = 1040 * (1e-15);
-      if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
-      else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg
-      else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);} // everything else
+      // Exclusive K + K* semileptonic BR (PDG): K0bar l nu = 8.74%,
+      // K*0bar l nu = 5.33%, summed to 14.07% (kinematic K/K* mixing, see fracK).
+      // e and mu modes share the same value (lepton-mass effects sub-percent).
+      if (secondaries == k0_eplus_nue) {branching_ratio = .1407;}
+      else if (secondaries == k0_muplus_numu) {branching_ratio = .1407;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - 2 * .1407);} // everything else
     } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
       tau = 410.1 * (1e-15);
-      if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;} // e+ semileptonic mode according to pdg
-      else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;} // mu+ anything according to pdg
-      else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);} // everything else
+      // Exclusive K + K* semileptonic BR (PDG): K- l nu = 3.41%,
+      // K*- l nu = 2.17%, summed to 5.58% (kinematic K/K* mixing, see fracK).
+      if (secondaries == kminus_eplus_nue) {branching_ratio = .0558;}
+      else if (secondaries == kminus_muplus_numu) {branching_ratio = .0558;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - 2 * .0558);} // everything else
     }
     else {
-        std::cout << "this decay mode is not yet implemented!" << std::endl;
+        // Signatures come from GetPossibleSignaturesFromParent, so an unsupported
+        // primary means the lists are out of sync. Fail loudly rather than
+        // return an indeterminate width.
+        throw std::runtime_error("CharmMesonDecay3Body::TotalDecayWidthForFinalState: unsupported primary particle type");
+    }
+    // Guard the matched-primary / unmatched-secondaries case (sentinel still set).
+    if (tau <= 0.0 || branching_ratio < 0.0) {
+        throw std::runtime_error("CharmMesonDecay3Body::TotalDecayWidthForFinalState: no implemented decay mode matches this signature");
     }
     return branching_ratio * siren::utilities::Constants::hbar / tau * siren::utilities::Constants::GeV;
 }
@@ -353,7 +368,7 @@ void CharmMesonDecay3Body::SampleFinalStateHadronic(dataclasses::CrossSectionDis
 }
 
 void CharmMesonDecay3Body::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    // Hadronic decay branch — identical to the 2-body class.
+    // Hadronic decay branch -- identical to the 2-body class.
     dataclasses::InteractionSignature signature = record.signature;
     if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
       SampleFinalStateHadronic(record, random);
@@ -378,7 +393,7 @@ void CharmMesonDecay3Body::SampleFinalState(dataclasses::CrossSectionDistributio
     // secondary particle's ParticleType is always left at the K species from
     // the signature (K0bar / K-), even when the K* mass was drawn. We do not
     // advertise separate K* signatures in GetPossibleSignaturesFromParent()
-    // and we do not re-type the secondary. This is intentional — for our use
+    // and we do not re-type the secondary. This is intentional -- for our use
     // case (weighting lepton/neutrino kinematics correctly in the presence of
     // the resonant K* contribution) the mass treatment is what matters, and
     // downstream propagation treats the secondary as a pseudoscalar K.
@@ -390,7 +405,10 @@ void CharmMesonDecay3Body::SampleFinalState(dataclasses::CrossSectionDistributio
     double mnu     = 0.0;                                               // (massless) neutrino
 
     // K/K* mixing fractions from PDG semileptonic branching ratios
-    double mKstar = 0.89166;  // K*(892) mass [GeV]
+    // K*(892) mass read from Constants so the sampler and the
+    // FinalStateProbability normalizer (KStarMass()) use the identical value
+    // (required for weighting closure).
+    double mKstar = KStarMass();
     double fracK;
     if (record.signature.primary_type == siren::dataclasses::Particle::ParticleType::DPlus) {
         // D+ -> Kbar0 l nu:  BR_K = 8.74%, BR_K*bar = 5.33%
@@ -496,12 +514,155 @@ void CharmMesonDecay3Body::SampleFinalState(dataclasses::CrossSectionDistributio
     neutrino.SetHelicity(record.primary_helicity);
 }
 
+// ---------------------------------------------------------------------------
+// Closure-correct FinalStateProbability machinery (see CharmMesonDecay.cxx for
+// the full derivation). FinalStateProbability MUST be the normalized q^2
+// density that SampleFinalState produces: the sampler draws m23 = sqrt(q^2)
+// flat with accept-reject on p1Abs*p23Abs, then accept-rejects on the V-A
+// weight wtME = mD*E_l*(p_nu . p_K). The accepted m23 density is therefore
+// proportional to p1Abs*p23Abs*<max(0,wtME)>_angle, and the q^2 density carries
+// the Jacobian 1/(2 m23). Both the numerator and the per-component normalizer
+// use the same SampledQ2Density, so Sample == Density by construction. The
+// form-factor DifferentialDecayWidth is a separate quantity the sampler never
+// used and is NOT the closure density.
+// ---------------------------------------------------------------------------
+
+double CharmMesonDecay3Body::KStarMass() {
+  // Single source of truth for the K*(892) mass shared by the sampler and the
+  // FinalStateProbability normalizer.
+  return siren::utilities::Constants::KPrimePlusMass;
+}
+
+double CharmMesonDecay3Body::VAWeightAngleAverage(double mD, double mK, double ml, double m23) const {
+  // Numerically exact angle-average of the sampler's ACCEPTED V-A weight,
+  // max(0, min(wtME, wtMEmax)), over the lepton polar angle cosTheta in [-1,1].
+  // wtME = mD * E_l * (p_nu . p_K) in the D rest frame, evaluated with the SAME
+  // rk::P4 boost operations SampleFinalState uses (kaon along +z, m23 system
+  // recoiling along -z), so the reproduced density matches the sampler exactly
+  // (closure). wtMEmax mirrors the sampler's rejection ceiling. A deterministic
+  // Simpson rule replaces the previous closed form, which had a sign-region
+  // error in its quadratic-root branch.
+  double mnu = 0.0;
+  double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
+                               * (mD + mK - m23) * (mD - mK + m23)) / mD;
+  double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
+                                * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+  if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
+  // Same matrix-element ceiling as SampleFinalState (meMode == 22).
+  double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
+                            mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
+  // m23 system recoils along -z in the D rest frame; kaon sits along +z.
+  rk::P4 p4m23_Drest(geom3::Vector3(0.0, 0.0, -p1Abs), m23);
+  rk::Boost boost_m23_to_Drest = p4m23_Drest.labBoost();
+  rk::P4 p4K_Drest(geom3::Vector3(0.0, 0.0, p1Abs), mK);
+  const int N = 400;            // even -> composite Simpson
+  double h = 2.0 / N;
+  double sum = 0.0;
+  for (int i = 0; i <= N; ++i) {
+    double c = -1.0 + i * h;
+    double s = std::sqrt(std::max(0.0, 1.0 - c * c));
+    geom3::Vector3 dir(s, 0.0, c);
+    rk::P4 p4l_m23rest(p23Abs * dir, ml);
+    rk::P4 p4nu_m23rest(-p23Abs * dir, mnu);
+    rk::P4 p4l_Drest = p4l_m23rest.boost(boost_m23_to_Drest);
+    rk::P4 p4nu_Drest = p4nu_m23rest.boost(boost_m23_to_Drest);
+    double w = mD * p4l_Drest.e() * p4nu_Drest.dot(p4K_Drest);
+    if (w < 0.0) w = 0.0;
+    if (w > wtMEmax) w = wtMEmax;
+    double wgt = (i == 0 || i == N) ? 1.0 : ((i % 2) ? 4.0 : 2.0);
+    sum += wgt * w;
+  }
+  double integral = sum * h / 3.0;   // integral over c in [-1,1]
+  return 0.5 * integral;             // average (c-measure has width 2)
+}
+
+double CharmMesonDecay3Body::SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const {
+  double m23 = std::sqrt(q2);
+  double m23Max = mD - mK;
+  if (m23 <= ml || m23 >= m23Max) return 0.0;
+  double mnu = 0.0;
+  double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
+                               * (mD + mK - m23) * (mD - mK + m23)) / mD;
+  double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
+                                * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+  if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
+  // Phase-space weight WITH the sampler's rejection ceiling. SampleFinalState
+  // accept-rejects m23 against wtPSmax = 0.5*p1Max*p23Max, which p1Abs*p23Abs can
+  // exceed; there the sampler saturates (always accepts), so the accepted
+  // density is flat at wtPSmax. Reproduce the clip for exact closure.
+  double m23Min = ml + mnu;
+  double p1Max = 0.5 * std::sqrt((mD - mK - m23Min) * (mD + mK + m23Min)
+                               * (mD + mK - m23Min) * (mD - mK + m23Min)) / mD;
+  double p23Max = 0.5 * std::sqrt((m23Max - ml - mnu) * (m23Max + ml + mnu)
+                                * (m23Max + ml - mnu) * (m23Max - ml + mnu)) / m23Max;
+  double wtPSmax = 0.5 * p1Max * p23Max;
+  double wtPS = p1Abs * p23Abs;
+  if (wtPS > wtPSmax) wtPS = wtPSmax;
+  double me = apply_va ? VAWeightAngleAverage(mD, mK, ml, m23) : 1.0;
+  return wtPS * me / (2.0 * m23);
+}
+
+double CharmMesonDecay3Body::SampledQ2Normalization(double mD, double mK, double ml, bool apply_va) const {
+  // Cached per (mD, mK, ml, apply_va) so per-event FinalStateProbability does
+  // not re-integrate the fixed-kinematics normalizer.
+  double key = ((mD * 1e3 + mK) * 1e3 + ml) * 2.0 + (apply_va ? 1.0 : 0.0);
+  long ikey = (long)std::llround(key * 1e3);
+  auto it = norm_cache.find(ikey);
+  if (it != norm_cache.end()) return it->second;
+  double q2min = ml * ml;
+  double q2max = (mD - mK) * (mD - mK);
+  std::function<double(double)> integrand = [&](double q2) -> double {
+    return SampledQ2Density(mD, mK, ml, q2, apply_va);
+  };
+  double n = siren::utilities::rombergIntegrate(integrand, q2min, q2max);
+  norm_cache[ikey] = n;
+  return n;
+}
+
 double CharmMesonDecay3Body::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
-  double dd = DifferentialDecayWidth(record);
-  double td = TotalDecayWidthForFinalState(record);
-  if (dd == 0) return 0.;
-  else if (td == 0) return 0.;
-  else return dd/td;
+  dataclasses::InteractionSignature signature = record.signature;
+  // Fully hadronic catch-all: deterministic final state, density 1.
+  if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
+    return 1.0;
+  }
+
+  siren::dataclasses::Particle::ParticleType primary = signature.primary_type;
+  bool apply_va = true;   // 3-body class always applies the V-A matrix element
+
+  double mD = record.primary_mass;
+  double ml = record.secondary_masses[1];
+  double mK = record.secondary_masses[0];   // hadron mass actually sampled
+  rk::P4 pD(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), mD);
+  rk::P4 pK(geom3::Vector3(record.secondary_momenta[0][1], record.secondary_momenta[0][2], record.secondary_momenta[0][3]), mK);
+  double q2 = (pD - pK).dot(pD - pK);
+
+  // K/K*(892) kinematic mixture matching SampleFinalState's fracK.
+  double mK_base = particleMass(signature.secondary_types[0]);
+  double mKstar = KStarMass();
+  double fracK;
+  if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
+    fracK = 8.74 / (8.74 + 5.33);
+  } else {
+    fracK = 3.41 / (3.41 + 2.17);
+  }
+  std::vector<double> masses    = {mK_base, mKstar};
+  std::vector<double> fractions = {fracK, 1.0 - fracK};
+
+  int comp = -1;
+  double best = 1e30;
+  for (size_t i = 0; i < masses.size(); ++i) {
+    double d = std::abs(mK - masses[i]);
+    if (d < best) { best = d; comp = (int)i; }
+  }
+  if (comp < 0) return 0.0;
+
+  double g = SampledQ2Density(mD, masses[comp], ml, q2, apply_va);
+  if (g <= 0.0) return 0.0;
+  double norm = SampledQ2Normalization(mD, masses[comp], ml, apply_va);
+  if (norm <= 0.0) return 0.0;
+
+  // Normalized q^2 pdf summing over the K/K* mixture.
+  return fractions[comp] * g / norm;
 }
 
 std::vector<std::string> CharmMesonDecay3Body::DensityVariables() const {

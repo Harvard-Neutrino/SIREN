@@ -35,7 +35,15 @@ class CharmMesonDecay : public Decay {
 friend cereal::access;
 private:
     const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus, siren::dataclasses::Particle::ParticleType::DsPlus, siren::dataclasses::Particle::ParticleType::D0Bar, siren::dataclasses::Particle::ParticleType::DMinus, siren::dataclasses::Particle::ParticleType::DsMinus};
-    siren::utilities::Interpolator1D<double> inverseCdf; // for dGamma
+    siren::utilities::Interpolator1D<double> inverseCdf; // for dGamma (form-factor model; not used by FinalStateProbability)
+    // Shared closure helpers: SampleFinalState's density and FinalStateProbability
+    // both build on these, so Sample == Density by construction.
+    static double KStarMass();
+    double VAWeightAngleAverage(double mD, double mK, double ml, double m23) const;
+    double SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const;
+    double SampledQ2Normalization(double mD, double mK, double ml, bool apply_va) const;
+    // Per-component normalization cache (not serialized; keyed by mass set).
+    mutable std::map<long, double> norm_cache;
 public:
     CharmMesonDecay();
     CharmMesonDecay(siren::dataclasses::Particle::ParticleType primary); 

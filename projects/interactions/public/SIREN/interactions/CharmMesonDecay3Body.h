@@ -2,7 +2,7 @@
 #ifndef SIREN_CharmMesonDecay3Body_H
 #define SIREN_CharmMesonDecay3Body_H
 
-// CharmMesonDecay3Body — Pythia-style 3-body phase-space decay for D mesons
+// CharmMesonDecay3Body -- Pythia-style 3-body phase-space decay for D mesons
 //
 // Sister class to CharmMesonDecay (the legacy 2-body-cascade implementation).
 // Both inherit from Decay and share the same decay-width machinery
@@ -46,7 +46,15 @@ class CharmMesonDecay3Body : public Decay {
 friend cereal::access;
 private:
     const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus};
-    siren::utilities::Interpolator1D<double> inverseCdf; // for dGamma (used in FinalStateProbability)
+    siren::utilities::Interpolator1D<double> inverseCdf; // for dGamma (form-factor model; not used by FinalStateProbability)
+    // Shared closure helpers: SampleFinalState's density and FinalStateProbability
+    // both build on these, so Sample == Density by construction.
+    static double KStarMass();
+    double VAWeightAngleAverage(double mD, double mK, double ml, double m23) const;
+    double SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const;
+    double SampledQ2Normalization(double mD, double mK, double ml, bool apply_va) const;
+    // Per-component normalization cache (not serialized; keyed by mass set).
+    mutable std::map<long, double> norm_cache;
 public:
     CharmMesonDecay3Body();
     CharmMesonDecay3Body(siren::dataclasses::Particle::ParticleType primary);
