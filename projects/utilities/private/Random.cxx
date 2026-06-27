@@ -3,7 +3,7 @@
 #include <mutex>
 #include <atomic>
 #include <random>
-#include <cstdint>                                      // for uint32_t
+#include <cstdint>                                      // for uint64_t
 #include <utility>
 #include <unistd.h>
 

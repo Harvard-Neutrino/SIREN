@@ -20,8 +20,6 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/photospline/CMakeLists.txt")
 endif()
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline EXCLUDE_FROM_ALL)
-
-
 # Override CMAKE_POLICY_VERSION_MINIMUM before adding subdirectory
 set(TEMP_CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_POLICY_VERSION_MINIMUM})
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)

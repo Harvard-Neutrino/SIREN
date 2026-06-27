@@ -690,9 +690,9 @@ class SIREN_Controller:
             datasets["num_interactions"].append(id+1)
 
         # save injector and weighter
-        self.injector.SaveInjector(filename)
+        # self.injector.SaveInjector(filename)
         # weighter saving not yet supported
-        self.weighter.SaveWeighter(filename)
+        #self.weighter.SaveWeighter(filename)
 
         # save events
         ak_array = ak.Array(datasets)
