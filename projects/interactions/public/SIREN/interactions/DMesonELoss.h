@@ -40,6 +40,13 @@ private:
     std::set<siren::dataclasses::Particle::ParticleType> primary_types_ = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus, siren::dataclasses::Particle::ParticleType::DsPlus, siren::dataclasses::Particle::ParticleType::D0Bar, siren::dataclasses::Particle::ParticleType::DMinus, siren::dataclasses::Particle::ParticleType::DsMinus};
     std::set<siren::dataclasses::Particle::ParticleType> target_types_ = {siren::dataclasses::Particle::ParticleType::PPlus};
 
+    // Truncation bounds for the inelasticity z. Single source of truth shared by
+    // SampleFinalState (rejection) and DifferentialCrossSection/FinalStateProbability
+    // (normalization), so the sampler support and the density support match exactly
+    // (closure). The Gaussian in z is normalized over [z_min_, z_max_].
+    static constexpr double z_min_ = 0.001;
+    static constexpr double z_max_ = 0.999;
+
 public:
     DMesonELoss();
 

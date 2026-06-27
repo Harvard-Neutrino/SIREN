@@ -20,6 +20,7 @@
 #include "SIREN/utilities/Random.h"               // for SIREN_random
 #include "SIREN/utilities/Constants.h"            // for electronMass
 #include "SIREN/utilities/Integration.h"          // for rombergInt...
+#include "SIREN/utilities/Errors.h"               // for InjectionFailure
 
 
 namespace siren {
@@ -119,6 +120,14 @@ double DMesonELoss::DifferentialCrossSection(dataclasses::InteractionRecord cons
     double final_energy = interaction.secondary_momenta[0][0];
     double z = 1 - final_energy / primary_energy;
 
+    // The density is the truncated Gaussian in z normalized over [z_min_, z_max_].
+    // Zero out-of-support records so the density support matches the sampler support
+    // (the sampler rejects z outside [z_min_, z_max_] as well). This keeps closure
+    // even for externally-constructed records with z < 0 (D meson gaining energy).
+    if(z < z_min_ || z > z_max_) {
+        return 0.0;
+    }
+
     // now normalize the gaussian
     double total_xsec = TotalCrossSection(interaction.signature.primary_type, primary_energy);
     double z0 = 0.56;
@@ -126,7 +135,7 @@ double DMesonELoss::DifferentialCrossSection(dataclasses::InteractionRecord cons
     std::function<double(double)> integrand = [&] (double z) -> double {
             return exp(-(pow(z - z0, 2))/(2 * pow(sigma, 2)));
         };
-    double unnormalized = siren::utilities::rombergIntegrate(integrand, 0.001, 0.999);
+    double unnormalized = siren::utilities::rombergIntegrate(integrand, z_min_, z_max_);
     double normalization = total_xsec / unnormalized;
 
     double diff_xsec = normalization * exp(-(pow(z - z0, 2))/(2 * pow(sigma, 2)));
@@ -148,6 +157,16 @@ void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& 
     rk::P4 p1_lab;
     p1_lab = p1;
     primary_energy = p1_lab.e();
+
+    // Below the D meson mass there is no kinematically valid final state (the
+    // D meson would need energy >= Dmass), and the reject loop would spin for an
+    // astronomically large number of trials. Short-circuit with a recoverable
+    // InjectionFailure so the Injector can retry the attempt instead of hanging.
+    if (primary_energy <= Dmass) {
+        throw siren::utilities::InjectionFailure(
+            "DMesonELoss::SampleFinalState: primary energy below D meson mass; no valid final state");
+    }
+
     // sample an inelasticity from gaussian using Box-Muller Transform
     double sigma = 0.2;
     double z0 = 0.56; // for mesons only, for baryons it's 0.59, but not implemented yet
@@ -155,8 +174,17 @@ void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& 
     double final_energy;
     bool accept;
 
+    // Cap the rejection loop so a degenerate acceptance rate (primary energy just
+    // above Dmass) terminates deterministically instead of hanging. Mirrors the
+    // QuarkDISFromSpline reject-loop trial cap.
+    const int max_trials = 1000;
+    int trials = 0;
 
     do {
+        if (++trials > max_trials) {
+            throw siren::utilities::InjectionFailure(
+                "DMesonELoss::SampleFinalState: failed to sample inelasticity within trial cap");
+        }
         do
         {
             u1 = random->Uniform(0, 1);
@@ -166,12 +194,16 @@ void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& 
         double z = sigma * sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2) + z0;
         // now modify the energy of the charm hadron and the corresponding momentum
         final_energy = primary_energy * (1-z);
-        if (pow(final_energy, 2) - pow(Dmass, 2) >= 0) {
-            accept = true;
-        } else {
-            accept = false;
-        }
+        // Reject z outside [z_min_, z_max_] so the realized sampling density is the
+        // truncated Gaussian that DifferentialCrossSection/FinalStateProbability
+        // normalize over the same interval (closure). z < z_min_ would otherwise let
+        // the D meson GAIN energy (final_energy > primary_energy). The kinematic cut
+        // final_energy^2 >= Dmass^2 is kept as a defensive guard.
+        accept = (z >= z_min_) && (z <= z_max_) &&
+                 (pow(final_energy, 2) - pow(Dmass, 2) >= 0);
     } while (!accept);
+    // Guaranteed by z >= z_min_ > 0: the D meson loses energy.
+    assert(final_energy <= primary_energy);
     double p3f = sqrt(pow(final_energy, 2) - pow(Dmass, 2));
     double p3i = std::sqrt(std::pow(p1.px(), 2) + std::pow(p1.py(), 2) + std::pow(p1.pz(), 2));
     double p_ratio = p3f / p3i;
@@ -204,6 +236,15 @@ double DMesonELoss::FinalStateProbability(dataclasses::InteractionRecord const &
     }
 }
 
+// NOTE: SampleFinalState samples a single inelasticity DOF z (the D meson is set
+// collinear with the parent, so there is no independent azimuth). That same z is
+// fully captured by the density: DifferentialCrossSection reconstructs
+// z = 1 - final_energy/primary_energy and FinalStateProbability returns the
+// (truncated, normalized) Gaussian in z. Sampled DOF == density DOF, so this class
+// is closure-safe in the standard unbiased configuration (the same cross-section
+// object supplies both the injection and physical densities). Like the other charm
+// cross sections here, BIASING the D kinematics with a separate phase-space channel
+// is NOT supported and would produce incorrect weights.
 std::vector<std::string> DMesonELoss::DensityVariables() const {
     return std::vector<std::string>{"Bjorken y"};
 }
