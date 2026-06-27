@@ -69,6 +69,25 @@ bool kinematicallyAllowed(double xi, double y, double E, double M, double m_lep)
     const double W2 = slowRescalingW2(xi, y, E, M, mc);
     if (W2 <= (M + Mch) * (M + Mch))        return false;
 
+    // Transverse-momentum balance: the exchanged q must have a real transverse
+    // component pqy in the lab frame. This is the SAME q-decomposition the sampler
+    // uses (SampleFinalState), so adding it here makes kinematicallyAllowed the
+    // single predicate shared by the sampler proposal loops and by
+    // DifferentialCrossSection/FinalStateProbability. Without it the density
+    // (dxs/txs) is nonzero on points the sampler must reject (pqy^2 < 0),
+    // breaking Sample==Density closure and silently biasing low-Bjorken-x events.
+    //
+    // Primary is a neutrino here (InitializeSignatures enforces isNeutrino), so
+    // m1 = 0 and |p1| = E. Using P1 = E (massless primary) to match the sampler.
+    // pqy^2 = momq^2 - pqx^2 with:
+    //   pqx  = (m_lep^2 + 2 P1^2 + Q2 + 2 E^2 (y-1)) / (2 P1)
+    //   momq^2 = P1^2 + Q2 + E^2 (y^2 - 1)
+    const double P1 = E;
+    const double pqx = (m_lep * m_lep + 2.0 * P1 * P1 + Q2 + 2.0 * E * E * (y - 1.0)) / (2.0 * P1);
+    const double momq2 = P1 * P1 + Q2 + E * E * (y * y - 1.0);
+    const double pqy2 = momq2 - pqx * pqx;
+    if (pqy2 < 0.0)                          return false;
+
     return true;
 }
 }
@@ -236,9 +255,9 @@ double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron
 			case siren::dataclasses::ParticleType::DMinus:
 				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::DsPlus:
-				return 1.96834; // GeV (PDG 2022); no Constants::DsMass yet
+				return( siren::utilities::Constants::DsPlusMass);
 			case siren::dataclasses::ParticleType::DsMinus:
-				return 1.96834;
+				return( siren::utilities::Constants::DsMinusMass);
             default:
                 return(0.0);
         }
@@ -246,7 +265,9 @@ double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron
 
 
 std::map<std::string, int> QuarkDISFromSpline::getIndices(siren::dataclasses::InteractionSignature signature) {
-    int lepton_id, hadron_id, meson_id;
+    // Initialize to -1 so an unmatched slot is detectable instead of being read
+    // back as an uninitialized index into the secondary arrays (UB / OOB).
+    int lepton_id = -1, hadron_id = -1, meson_id = -1;
     for (size_t i = 0; i < signature.secondary_types.size(); i++){
         if (isLepton(signature.secondary_types[i])) {
             lepton_id = i;
@@ -258,6 +279,12 @@ std::map<std::string, int> QuarkDISFromSpline::getIndices(siren::dataclasses::In
             hadron_id = i;
             continue;
         }
+    }
+    // A valid charm-DIS signature is (lepton, hadron, D-meson); a missing slot
+    // (e.g. the malformed {Hadrons,Hadrons,D} signature with no lepton) would
+    // otherwise leave an index at -1 and corrupt downstream array access.
+    if (lepton_id < 0 || hadron_id < 0 || meson_id < 0) {
+        throw std::runtime_error("QuarkDISFromSpline::getIndices: signature does not contain the expected (lepton, hadron, D-meson) triplet");
     }
     return {{"lepton", lepton_id}, {"hadron", hadron_id}, {"meson", meson_id}};
 }
@@ -353,7 +380,12 @@ void QuarkDISFromSpline::InitializeSignatures() {
         } else if(interaction_type_ == 2) {
             signature.secondary_types.push_back(neutral_lepton_product);
         } else if(interaction_type_ == 3) {
-            signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
+            // interaction_type 3 (electron / e-target) has no outgoing lepton in
+            // this charm convention and would emit a malformed {Hadrons,Hadrons,D}
+            // signature with no lepton index. The differential cross section and
+            // sampler both require a lepton to form q = p1 - p3, so reject it at
+            // construction rather than create an unusable signature.
+            throw std::runtime_error("QuarkDISFromSpline: interaction_type 3 (e-target) not supported for charm D-meson production; use 1 (CC) or 2 (NC)");
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
         }
@@ -672,7 +704,9 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         double trials = 0;
         double xi_trial = 0.0, y_trial = 0.0;
         do {
-            if (trials >= 100) throw std::runtime_error("too much trials");
+            // Per-event recoverable failure: drop this event (InjectionFailure is
+            // caught by the Injector) rather than aborting the whole run.
+            if (trials >= 100) throw siren::utilities::InjectionFailure("QuarkDISFromSpline: initial rejection sampling failed to find a kinematically allowed point in 100 trials");
             trials += 1;
             kin_vars[1] = random->Uniform(logXiMin, 0.0);
             kin_vars[2] = random->Uniform(logYMin, logYMax);
@@ -717,8 +751,10 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         double xi_trial = 0.0, y_trial = 0.0;
         int burnin_trials = 0;
         do {
+            // Per-event recoverable failure: drop this event (InjectionFailure is
+            // caught by the Injector) rather than aborting the whole run.
             if (++burnin_trials >= 100)
-                throw std::runtime_error("QuarkDISFromSpline: burn-in proposal failed to find allowed point in 100 trials");
+                throw siren::utilities::InjectionFailure("QuarkDISFromSpline: burn-in proposal failed to find allowed point in 100 trials");
             test_kin_vars[1] = random->Uniform(logXiMin, 0.0);
             test_kin_vars[2] = random->Uniform(logYMin, logYMax);
             xi_trial = std::pow(10., test_kin_vars[1]);
@@ -769,56 +805,39 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     double Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
                                 siren::utilities::Constants::charmMass);
+    // Scale-free closed form for the exchanged q decomposition (replaces the old
+    // /10 precision-rescaling loop, which was unsound: slowRescalingQ2 holds the
+    // target/charm masses fixed, so Q2 is NOT homogeneous of degree 2 under the
+    // scaling and the loop never produced a valid Q2).
+    //
+    // p1x_lab is the 3-momentum MAGNITUDE P1 = |p1_lab| (not an x-component).
+    // The naive expressions
+    //   pqx  = (m1^2 + m3^2 + 2 P1^2 + Q2 + 2 E1^2 (y-1)) / (2 P1)
+    //   momq^2 = m1^2 + P1^2 + Q2 + E1^2 (y^2 - 1)
+    // lose precision because both carry dominant ~E1^2 terms that nearly cancel
+    // in pqy^2 = momq^2 - pqx^2. Substituting P1^2 = E1^2 - m1^2 cancels those
+    // terms analytically before the numeric evaluation:
+    //   pqx    = (m3^2 - m1^2 + Q2 + 2 E1^2 y) / (2 P1)
+    //   momq^2 = Q2 + E1^2 y^2
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
-    double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
-    double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    double pqy_lab = std::numeric_limits<double>::quiet_NaN();
-    double Eq_lab;
-
-    if (pqx_lab>momq_lab){
-        // if current setting does not work, start looping through scalings
-        int maxIterations = 15;
-        int iteration = 0;
-        double p1_lab_x = p1_lab.px();
-        double p1_lab_y = p1_lab.py();
-        double p1_lab_z = p1_lab.pz();
-        // loop to resolve precision issue
-        while (iteration <= maxIterations) {
-            Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
-                                 siren::utilities::Constants::charmMass);
-            p1x_lab = std::sqrt(p1_lab_x * p1_lab_x + p1_lab_y * p1_lab_y + p1_lab_z * p1_lab_z);
-            pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
-            momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-            if (pqx_lab>momq_lab){
-                //scale down
-                E1_lab /= 10;
-                p1_lab_x /= 10;
-                p1_lab_y /= 10;
-                p1_lab_z /= 10;
-                m1 /= 10;
-                m3 /= 10;
-                //iteration += 1 to scale back
-                iteration += 1;
-                continue;
-            }
-            pqy_lab = std::sqrt((momq_lab + pqx_lab) * (momq_lab - pqx_lab));
-            break;
+    double pqx_lab = (m3 * m3 - m1 * m1 + Q2 + 2.0 * E1_lab * E1_lab * final_y) / (2.0 * p1x_lab);
+    double momq2_lab = Q2 + E1_lab * E1_lab * final_y * final_y;
+    double pqy2_lab = momq2_lab - pqx_lab * pqx_lab;
+    // Clamp tiny-negative pqy^2 from edge roundoff to 0; genuinely-forbidden
+    // points (pqy^2 < 0 in exact arithmetic) are already excluded upstream by
+    // kinematicallyAllowed, so a large-magnitude negative here signals a
+    // sampler/predicate inconsistency and is a hard error.
+    if (pqy2_lab < 0.0) {
+        if (pqy2_lab > -1e-9 * std::max(momq2_lab, 1.0)) {
+            pqy2_lab = 0.0;
+        } else {
+            throw(siren::utilities::InjectionFailure(
+                "QuarkDISFromSpline::SampleFinalState: pqy^2 < 0 for a "
+                "kinematicallyAllowed point (sampler/predicate inconsistency)"));
         }
-            // //scale back
-        if (iteration > 0) {
-            E1_lab *= pow(10.0, iteration);
-            p1_lab_x *= pow(10.0, iteration);
-            p1_lab_y *= pow(10.0, iteration);
-            p1_lab_z *= pow(10.0, iteration);
-            m1 *= pow(10.0, iteration);
-            m3 *= pow(10.0, iteration);
-        }
-    } else {pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);}
-    if (std::isnan(pqy_lab)) {
-        throw(siren::utilities::InjectionFailure(
-            "QuarkDISFromSpline::SampleFinalState: precision loop failed to converge; pqy_lab is NaN"));
     }
-    Eq_lab = E1_lab * final_y;
+    double pqy_lab = std::sqrt(pqy2_lab);
+    double Eq_lab = E1_lab * final_y;
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
@@ -844,9 +863,9 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     if (xi >= 1.0) {
         throw(siren::utilities::InjectionFailure("xi >= 1.0; sampled slow-rescaling xi past unity"));
     }
-    rk::P4 p_parton(geom3::Vector3(0, 0, 0), xi * target_mass_);  // parton at rest: (ξM, 0, 0, 0)
-    rk::P4 p4_lab = p_parton + pq_lab;                              // struck charm = ξ*p2 + q
-    rk::P4 p_spectator((1.0 - xi) * target_mass_, geom3::Vector3(0, 0, 0));  // spectator: ((1-ξ)M, 0,0, 0)
+    rk::P4 p_parton(geom3::Vector3(0, 0, 0), xi * target_mass_);  // parton at rest: (xi*M, 0, 0, 0)
+    rk::P4 p4_lab = p_parton + pq_lab;                              // struck charm = xi*p2 + q
+    rk::P4 p_spectator((1.0 - xi) * target_mass_, geom3::Vector3(0, 0, 0));  // spectator: ((1-xi)*M, 0,0, 0)
 
     rk::P4 p3;
     rk::P4 p4;
@@ -873,7 +892,18 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         p4X = p_spectator + p4_lab - p4CH;
     } while (p4X.dot(p4X) < 0);
 
-    // Save final state kinematics
+    // Save final state kinematics.
+    //
+    // NOTE (T3): the sampled momenta are written into the record's
+    // SecondaryParticleRecord vector (record.GetSecondaryParticleRecords()), NOT
+    // directly into an InteractionRecord's secondary_momenta. To obtain a finalized
+    // InteractionRecord with populated secondary_momenta, the caller must run
+    // CrossSectionDistributionRecord::Finalize (pybind: cdr.finalize(ir)) into an
+    // output record whose signature is set. Building an InteractionRecord by hand
+    // with empty/zero secondary_momenta and feeding it back to
+    // DifferentialCrossSection makes the primary-momentum Q2 path compute Q2 <= 0,
+    // forcing the stored-(xi,y) fallback branch; that is a caller mistake, not a
+    // limitation of SampleFinalState, which populates the state correctly here.
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
     siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[hadron_index];
@@ -993,16 +1023,38 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 }
 
 double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {
+    // D0:D+/-:Ds = 0.60:0.23:0.15, renormalized to sum to 1.0. The Lambda_c
+    // channel (~0.02) is not modeled, so its fraction is redistributed into the
+    // implemented D species; otherwise summing TotalCrossSection over the three
+    // registered D signatures would recover only 0.98 * sigma_inclusive and
+    // under-count the charm rate by ~2%.
     if (secondary == siren::dataclasses::Particle::ParticleType::D0 || secondary == siren::dataclasses::Particle::ParticleType::D0Bar) {
-        return 0.6;
+        return 0.6 / 0.98;
     } else if (secondary == siren::dataclasses::Particle::ParticleType::DPlus || secondary == siren::dataclasses::Particle::ParticleType::DMinus) {
-        return 0.23;
+        return 0.23 / 0.98;
     } else if (secondary == siren::dataclasses::Particle::ParticleType::DsPlus || secondary == siren::dataclasses::Particle::ParticleType::DsMinus) {
-        return 0.15;
-    } // Lambda_c not yet implemented
+        return 0.15 / 0.98;
+    }
     return 0;
 }
 
+// UNBIASED-ONLY CONTRACT: SampleFinalState samples (xi,y) AND an independent
+// fragmentation z (the inverse-CDF draw) and uniform azimuth phi that set the
+// D-meson momentum. FinalStateProbability / DifferentialCrossSection account for
+// (xi,y) only; the z and phi factors are NOT included here. They cancel exactly
+// in the weight ratio ONLY when the same cross-section object provides both the
+// injection and physical densities and no biased phase-space channel is installed
+// on the D kinematics. Biasing the D kinematics is NOT supported and would produce
+// incorrect weights.
+//
+// NORMALIZATION CONTRACT (P8): FinalStateProbability = dxs/txs is a normalized
+// kinematic density ONLY if the external 1-D total-xs spline (txs) equals the
+// integral of the differential spline (dxs) over the SAME truncated slow-rescaling
+// domain: xi in [xiMin(E),1], y in [yMin(E),yMax(E)] with identical charm-threshold
+// (Q2 = 2 M E xi y - m_c^2 > 0), W2 > (M + M_D0)^2, Q2 >= minimum_Q2_ cuts and the
+// same TARGETMASS. If the upstream total spline integrates a different domain the
+// density is mis-normalized. The fragmentation fraction is applied inside
+// TotalCrossSection(record) so per-species txs carries the D-species branching.
 double QuarkDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     // first compute the differential and total cross section
     double dxs = DifferentialCrossSection(interaction);
@@ -1040,6 +1092,10 @@ std::vector<dataclasses::InteractionSignature> QuarkDISFromSpline::GetPossibleSi
     }
 }
 
+// UNBIASED-ONLY CONTRACT: the density covers only (xi,y); the independently-sampled
+// fragmentation z and azimuth phi (set in SampleFinalState) are omitted. They cancel
+// in the weight ratio only in the unbiased configuration (same cross-section object on
+// both sides, no biased D-kinematics channel). Biasing D kinematics is NOT supported.
 std::vector<std::string> QuarkDISFromSpline::DensityVariables() const {
     return std::vector<std::string>{"Bjorken xi", "Bjorken y"};
 }

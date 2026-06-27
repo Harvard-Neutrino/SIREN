@@ -50,10 +50,13 @@ public:
     bool override_afs;
     MockCharmXS(bool ff, bool ovr) : apply_ff(ff), override_afs(ovr) {}
 
+    // D0:D+/-:Ds = 0.60:0.23:0.15 renormalized to sum to 1.0 (Lambda_c not
+    // modeled, its fraction redistributed). Mirrors
+    // QuarkDISFromSpline::FragmentationFraction.
     static double FragmentationFraction(ParticleType d) {
-        if(d==ParticleType::D0 || d==ParticleType::D0Bar) return 0.6;
-        if(d==ParticleType::DPlus || d==ParticleType::DMinus) return 0.23;
-        if(d==ParticleType::DsPlus || d==ParticleType::DsMinus) return 0.15;
+        if(d==ParticleType::D0 || d==ParticleType::D0Bar) return 0.6 / 0.98;
+        if(d==ParticleType::DPlus || d==ParticleType::DMinus) return 0.23 / 0.98;
+        if(d==ParticleType::DsPlus || d==ParticleType::DsMinus) return 0.15 / 0.98;
         return 0.0;
     }
     // Stand-in for the 1-D inclusive charm total spline (independent of meson type).
@@ -161,19 +164,30 @@ TEST(CharmDISClosure, OverrideRemovedClosesButOvercountsThreeX) {
     }
 }
 
-// The proposed fix (override removed + fragmentation fraction in TotalCrossSection):
-// the two sides agree AND both equal sigma*(0.6+0.23+0.15) = 0.98*sigma -- the
-// inclusive charm cross section, partitioned not triple-counted.
+// The fix (override removed + fragmentation fraction in TotalCrossSection, with
+// the FFs renormalized to sum to 1.0): the two sides agree AND both equal the
+// full inclusive charm cross section sigma -- partitioned across the three D
+// species, not triple-counted and not the 2%-deficient 0.98*sigma.
 TEST(CharmDISClosure, FragmentationFractionRestoresPhysicalNormalization) {
     MockCharmXS xs(/*ff=*/true, /*override=*/false);
-    const double ff_sum = 0.6 + 0.23 + 0.15;
+    // FF sum = (0.6 + 0.23 + 0.15) / 0.98 == 1.0 (renormalized), so the
+    // partitioned total recovers the full inclusive sigma exactly.
     for(double E : {10.0, 100.0, 1000.0}) {
         double gen = gen_path(xs, ParticleType::NuMu, ParticleType::PPlus, E);
         double phys = phys_path(xs, ParticleType::NuMu, ParticleType::PPlus, E);
         double s = MockCharmXS::sigma_inclusive(E);
         EXPECT_NEAR(gen, phys, 1e-50);                 // closure ok
-        EXPECT_NEAR(gen, ff_sum * s, 1e-48);           // and physically normalized (~sigma)
+        EXPECT_NEAR(gen, s, 1e-48);                    // and physically normalized (== inclusive sigma)
     }
+}
+
+// The three implemented fragmentation fractions must partition the inclusive
+// charm cross section exactly: they sum to 1.0 (Lambda_c fraction redistributed).
+TEST(CharmDISClosure, FragmentationFractionsSumToOne) {
+    double sum = MockCharmXS::FragmentationFraction(ParticleType::D0)
+               + MockCharmXS::FragmentationFraction(ParticleType::DPlus)
+               + MockCharmXS::FragmentationFraction(ParticleType::DsPlus);
+    EXPECT_NEAR(sum, 1.0, 1e-12);
 }
 
 int main(int argc, char** argv) {

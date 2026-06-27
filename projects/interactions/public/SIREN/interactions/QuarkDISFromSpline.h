@@ -41,6 +41,19 @@ namespace interactions {
 /// Charm-quark mass m_c=1.280 GeV (Constants::charmMass) and lightest charm
 /// hadron M_D0=1.86484 GeV (Constants::D0Mass) are taken from
 /// siren::utilities::Constants and are not configurable per-instance.
+///
+/// UNBIASED-ONLY CONTRACT: SampleFinalState samples (xi,y) plus an independent
+/// fragmentation z and uniform azimuth phi that set the D-meson momentum, but
+/// DensityVariables/FinalStateProbability/DifferentialCrossSection account for
+/// (xi,y) only. The omitted z/phi factors cancel in the weight ratio ONLY when
+/// the same cross-section object supplies both the injection and physical
+/// densities and no biased phase-space channel is installed on the D kinematics.
+/// Biasing the D kinematics is NOT supported and will produce incorrect weights.
+///
+/// NORMALIZATION CONTRACT: FinalStateProbability = dxs/txs is a normalized
+/// kinematic density only if the external 1-D total-xs spline integrates the
+/// SAME truncated slow-rescaling (xi,y) domain (and the same charm-threshold,
+/// W2, Q2>=minimum_Q2_ cuts and TARGETMASS) as the differential spline.
 class QuarkDISFromSpline : public CrossSection {
 friend cereal::access;
 private:
