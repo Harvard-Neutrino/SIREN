@@ -308,3 +308,25 @@ class Weighter:
             float: The calculated event weight.
         """
         return self(interaction_tree)
+
+    def save(self, filename: str):
+        """
+        Serialize the weighter to ``<filename>.siren_weighter``.
+
+        Args:
+            filename: Base path; the ".siren_weighter" suffix is added.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        self.__weighter.SaveWeighter(filename)
+
+    def load(self, filename: str):
+        """
+        Restore the weighter state from ``<filename>.siren_weighter``.
+
+        Args:
+            filename: Base path; the ".siren_weighter" suffix is added.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        self.__weighter.LoadWeighter(filename)

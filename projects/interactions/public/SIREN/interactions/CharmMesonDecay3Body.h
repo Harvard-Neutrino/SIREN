@@ -88,13 +88,16 @@ public:
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<CharmMesonDecay3Body> & construct, std::uint32_t version) {
+    void load(Archive & archive, std::uint32_t version) {
         if(version == 0) {
+            // Default-constructible with a fixed const primary_types, so cereal
+            // default-constructs then calls this load(). Read PrimaryTypes into a
+            // temporary to consume the stream symmetrically with save(); a
+            // load_and_construct would be bypassed for a default-constructible
+            // type, leaving the body unread and corrupting following archive data.
             std::set<siren::dataclasses::Particle::ParticleType> _primary_types;
-
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
-            construct(_primary_types);
-            archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
+            archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(this)));
         } else {
             throw std::runtime_error("CharmMesonDecay3Body only supports version <= 0!");
         }

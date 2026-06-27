@@ -45,7 +45,7 @@ private:
     mutable std::map<long, double> norm_cache;
 public:
     CharmMesonDecay();
-    CharmMesonDecay(siren::dataclasses::Particle::ParticleType primary); 
+    CharmMesonDecay(siren::dataclasses::Particle::ParticleType primary);
     virtual bool equal(Decay const & other) const override;
     static double particleMass(siren::dataclasses::ParticleType particle);
     // Analytic angle-average of the accepted V-A weight (q^2 density factor).
@@ -77,13 +77,18 @@ public:
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<CharmMesonDecay> & construct, std::uint32_t version) {
+    void load(Archive & archive, std::uint32_t version) {
         if(version == 0) {
+            // CharmMesonDecay is default-constructible and primary_types is a
+            // fixed const member, so cereal default-constructs then calls this
+            // load(). The archived PrimaryTypes is read into a temporary to
+            // consume the stream symmetrically with save() (its value is
+            // invariant across instances). A load_and_construct here would be
+            // bypassed for a default-constructible type, leaving the body
+            // unread and corrupting any following data in the archive.
             std::set<siren::dataclasses::Particle::ParticleType> _primary_types;
-
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
-            construct(_primary_types);
-            archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
+            archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(this)));
         } else {
             throw std::runtime_error("CharmMesonDecay only supports version <= 0!");
         }
