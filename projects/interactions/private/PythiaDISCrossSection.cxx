@@ -43,7 +43,7 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
 }
 } // anonymous namespace
 
-// ── SIRENRndm: bridges SIREN RNG into Pythia ──
+// --- SIRENRndm: bridges SIREN RNG into Pythia ---
 
 class SIRENRndm : public Pythia8::RndmEngine {
 public:
@@ -51,7 +51,7 @@ public:
     double flat() override { return rng_->Uniform(0.0, 1.0); }
 };
 
-// ── Constructors ──
+// --- Constructors ---
 
 PythiaDISCrossSection::PythiaDISCrossSection() {}
 
@@ -105,7 +105,7 @@ PythiaDISCrossSection::PythiaDISCrossSection(
     SetUnits(units);
 }
 
-// ── File I/O ──
+// --- File I/O ---
 
 void PythiaDISCrossSection::SetUnits(std::string units) {
     std::transform(units.begin(), units.end(), units.begin(),
@@ -144,7 +144,7 @@ void PythiaDISCrossSection::ReadParamsFromSplineTable() {
     if(!mass_good) target_mass_ = siren::utilities::Constants::isoscalarMass;
 }
 
-// ── Equality ──
+// --- Equality ---
 
 bool PythiaDISCrossSection::equal(CrossSection const & other) const {
     const PythiaDISCrossSection* x = dynamic_cast<const PythiaDISCrossSection*>(&other);
@@ -153,7 +153,7 @@ bool PythiaDISCrossSection::equal(CrossSection const & other) const {
         == std::tie(x->interaction_type_, x->target_mass_, x->minimum_Q2_, x->signatures_, x->primary_types_, x->target_types_);
 }
 
-// ── Particle ID helpers ──
+// --- Particle ID helpers ---
 
 bool PythiaDISCrossSection::IsCharmedHadron(int pdgId) {
     int abs_id = std::abs(pdgId);
@@ -162,7 +162,7 @@ bool PythiaDISCrossSection::IsCharmedHadron(int pdgId) {
 }
 
 siren::dataclasses::ParticleType PythiaDISCrossSection::PdgToParticleType(int pdgId) {
-    // Direct cast — SIREN ParticleType enum values match PDG codes
+    // Direct cast -- SIREN ParticleType enum values match PDG codes
     return static_cast<siren::dataclasses::ParticleType>(pdgId);
 }
 
@@ -191,7 +191,7 @@ double PythiaDISCrossSection::GetHadronMass(siren::dataclasses::ParticleType had
 }
 
 std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses::InteractionSignature signature) {
-    // Identify meson by elimination (not via isD(), which only covers D0/D±).
+    // Identify meson by elimination (not via isD(), which only covers D0/D+/-).
     // First pass: claim lepton and Hadrons. Second pass: whatever remains is the meson.
     int lepton_id = -1, hadron_id = -1, meson_id = -1;
     for (size_t i = 0; i < signature.secondary_types.size(); i++) {
@@ -209,7 +209,7 @@ std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses:
     return {{"lepton", lepton_id}, {"hadron", hadron_id}, {"meson", meson_id}};
 }
 
-// ── Signatures ──
+// --- Signatures ---
 
 void PythiaDISCrossSection::InitializeSignatures() {
     signatures_.clear();
@@ -250,11 +250,11 @@ void PythiaDISCrossSection::InitializeSignatures() {
         // Hadron remnant
         signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
 
-        // Charmed meson types. For ν the c quark fragments to D0/D+/Ds+; for ν̄ the
-        // c̄ quark fragments to D̄0/D-/Ds-. SampleFinalState writes Pythia's actual
-        // produced PID into the signature's meson slot, so the registered set must
-        // include the correct charge to keep weighter signature lookups in range
-        // (otherwise event_weight comes out NaN — see fix in this commit).
+        // Charmed meson types. For nu the c quark fragments to D0/D+/Ds+; for nubar
+        // the cbar quark fragments to Dbar0/D-/Ds-. SampleFinalState writes Pythia's
+        // actual produced PID into the signature's meson slot, so the registered set
+        // must include the correct charge to keep weighter signature lookups in range
+        // (otherwise event_weight comes out NaN -- see fix in this commit).
         // TODO: Add Lambda_c (4122) support.
         bool is_antineutrino =
             (primary_type == siren::dataclasses::ParticleType::NuEBar ||
@@ -283,7 +283,7 @@ void PythiaDISCrossSection::InitializeSignatures() {
     }
 }
 
-// ── Cross sections (from splines, same as QuarkDISFromSpline) ──
+// --- Cross sections (from splines, same as QuarkDISFromSpline) ---
 
 double PythiaDISCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
@@ -374,18 +374,23 @@ double PythiaDISCrossSection::InteractionThreshold(dataclasses::InteractionRecor
     return 0;
 }
 
-// ── Fragmentation fractions ──
+// --- Fragmentation fractions ---
 
 double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {
-    // Approximate fractions from Pythia (charm hadronization)
+    // Approximate fractions from Pythia (charm hadronization), renormalized to
+    // sum to 1.0 over the implemented D species. Raw fractions D0:D+/-:Ds =
+    // 0.60:0.23:0.15 sum to 0.98 because the Lambda_c channel is not modeled; the
+    // unmodeled Lambda_c fraction is redistributed by dividing each by 0.98 so the
+    // partitioned signatures exactly recover the inclusive charm cross section.
+    // Values kept in lockstep with QuarkDISFromSpline::FragmentationFraction.
     if (secondary == siren::dataclasses::ParticleType::D0 || secondary == siren::dataclasses::ParticleType::D0Bar) {
-        return 0.6;
+        return 0.6 / 0.98;
     } else if (secondary == siren::dataclasses::ParticleType::DPlus || secondary == siren::dataclasses::ParticleType::DMinus) {
-        return 0.23;
+        return 0.23 / 0.98;
     } else if (secondary == siren::dataclasses::ParticleType::DsPlus || secondary == siren::dataclasses::ParticleType::DsMinus) {
-        return 0.15;
+        return 0.15 / 0.98;
     }
-    // TODO: Add Lambda_c (~0.09) when signatures include them
+    // Lambda_c (~0.09) not yet implemented; its fraction is folded into the above.
     return 0;
 }
 
@@ -404,7 +409,7 @@ double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionReco
     return result;
 }
 
-// ── Signature accessors ──
+// --- Signature accessors ---
 
 std::vector<siren::dataclasses::ParticleType> PythiaDISCrossSection::GetPossiblePrimaries() const {
     return std::vector<siren::dataclasses::ParticleType>(primary_types_.begin(), primary_types_.end());
@@ -434,19 +439,16 @@ std::vector<std::string> PythiaDISCrossSection::DensityVariables() const {
     return std::vector<std::string>{"Bjorken x", "Bjorken y"};
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// Pythia initialization and SampleFinalState — the core new logic
-// ══════════════════════════════════════════════════════════════════════
+// ======================================================================
+// Pythia initialization and SampleFinalState -- the core new logic
+// ======================================================================
 
 void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const {
-    // Ensure LHAPDF can find PDF sets — derive data path from the LHAPDF library location
+    // Ensure LHAPDF can find PDF sets -- derive data path from the LHAPDF library location
     // The pdf_set_ is e.g. "LHAPDF6:HERAPDF20_NLO_EIG", and LHAPDF needs LHAPDF_DATA_PATH set
     const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
     if (!lhapdf_path) {
-        throw std::runtime_error("LHAPDF_DATA_PATH is not set");
-        // Commented code below sets a default path on the Harvard FASRC cluster
-        // std::string default_path = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/pzhelnin/LHAPDF/new_install/share/LHAPDF";
-        // setenv("LHAPDF_DATA_PATH", default_path.c_str(), 0);
+        throw std::runtime_error("LHAPDF_DATA_PATH is not set; set it to your LHAPDF data directory");
     }
 
     pythia_ = std::make_unique<Pythia8::Pythia>(pythia_data_path_, false);
@@ -479,7 +481,7 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
         pythia_->settings.forceParm("StandardModel:Vus", 0.0);
         pythia_->settings.forceParm("StandardModel:Vub", 0.0);
         pythia_->settings.forceParm("StandardModel:Vcb", 0.0);
-        // Keeps Vcd ~ 0.225 and Vcs ~ 0.973 → every CC event produces charm
+        // Keeps Vcd ~ 0.225 and Vcs ~ 0.973 -> every CC event produces charm
     }
 
     // PDF
@@ -506,7 +508,7 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
     }
 
     // Bridge SIREN RNG into Pythia for reproducibility.
-    // Must be done after init() — init uses Pythia's internal RNG for setup.
+    // Must be done after init() -- init uses Pythia's internal RNG for setup.
     // The SIREN RNG is connected here and updated per-event in SampleFinalState.
     siren_rndm_ = std::make_shared<SIRENRndm>();
     pythia_->rndm.rndmEnginePtr(siren_rndm_);
@@ -603,7 +605,7 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             geom3::UnitVector3 z_dir = geom3::UnitVector3::zAxis();
             geom3::Rotation3 rot = geom3::rotationBetween(z_dir, nu_dir);
 
-            // Helper lambda to convert Pythia Vec4 → rotated rk::P4
+            // Helper lambda to convert Pythia Vec4 -> rotated rk::P4
             auto pythia_to_siren = [&](const Pythia8::Vec4 & pv, double mass) -> rk::P4 {
                 geom3::Vector3 mom(pv.px(), pv.py(), pv.pz());
                 mom = rot * mom;
