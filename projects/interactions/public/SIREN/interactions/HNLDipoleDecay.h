@@ -75,7 +75,7 @@ public:
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<HNLDipoleDecay> & construct, std::uint32_t version) {
+    static void load_and_construct(Archive & archive, cereal::construct<HNLDipoleDecay> & construct, std::uint32_t version) {
         if(version == 0) {
             std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
