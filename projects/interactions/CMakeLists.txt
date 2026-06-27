@@ -103,6 +103,16 @@ package_add_test(UnitTest_CharmMesonDecay ${PROJECT_SOURCE_DIR}/projects/interac
 # that exercises the real base-class CrossSection::TotalCrossSectionAllFinalStates).
 package_add_test(UnitTest_CharmDISClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmDISClosure_TEST.cxx)
 
+# Charm-meson energy-loss and 3-body charm-meson decay (no Pythia8/spline needed;
+# both classes link only against SIREN core).
+package_add_test(UnitTest_DMesonELoss ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/DMesonELoss_TEST.cxx)
+package_add_test(UnitTest_CharmMesonDecay3Body ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmMesonDecay3Body_TEST.cxx)
+
+# QuarkDISFromSpline density-variable contract tripwire + fragmentation pdf
+# normalization (no spline file needed: the no-arg ctor builds only the
+# fragmentation pdf/cdf).
+package_add_test(UnitTest_QuarkDISDensityContract ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/QuarkDISDensityContract_TEST.cxx)
+
 # Real PythiaDISCrossSection charm-DIS closure/normalization regression test.
 # Only built with Pythia8 support; needs charm-DIS spline files via env vars
 # (SIREN_PYTHIA_TEST_DSDXDY, SIREN_PYTHIA_TEST_SIGMA), otherwise it SKIPs.

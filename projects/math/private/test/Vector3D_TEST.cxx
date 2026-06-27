@@ -218,6 +218,65 @@ TEST(Normalize, Operator)
     EXPECT_TRUE(B != C);
 }
 
+// Regression test for the degenerate trajectory-direction fix (commit 29e189f6).
+// Before the fix, Vector3D::normalize() divided every component by a zero length
+// for a zero vector, producing NaN. This is the root cause that propagated up
+// into DetectorModel where a degenerate (p1 - p0) direction was normalized and
+// then asserted to be unit length. The guard now leaves a zero vector unchanged.
+TEST(Normalize, ZeroVectorDoesNotProduceNaN)
+{
+    Vector3D Z;
+    Z.SetCartesianCoordinates(0.0, 0.0, 0.0);
+    // Must not abort and must not produce NaN/Inf.
+    EXPECT_NO_THROW(Z.normalize());
+    std::array<double, 3> z = Z;
+    EXPECT_FALSE(std::isnan(z[0]));
+    EXPECT_FALSE(std::isnan(z[1]));
+    EXPECT_FALSE(std::isnan(z[2]));
+    EXPECT_TRUE(std::isfinite(z[0]));
+    EXPECT_TRUE(std::isfinite(z[1]));
+    EXPECT_TRUE(std::isfinite(z[2]));
+    // The zero vector is left unchanged (magnitude stays exactly 0).
+    EXPECT_DOUBLE_EQ(0.0, z[0]);
+    EXPECT_DOUBLE_EQ(0.0, z[1]);
+    EXPECT_DOUBLE_EQ(0.0, z[2]);
+    EXPECT_DOUBLE_EQ(0.0, Z.magnitude());
+}
+
+// normalized() is the const sibling and must also be NaN-safe on a zero vector.
+TEST(Normalize, ZeroVectorNormalizedIsFinite)
+{
+    Vector3D Z;
+    Z.SetCartesianCoordinates(0.0, 0.0, 0.0);
+    Vector3D N = Z.normalized();
+    std::array<double, 3> n = N;
+    EXPECT_FALSE(std::isnan(n[0]) || std::isnan(n[1]) || std::isnan(n[2]));
+    EXPECT_DOUBLE_EQ(0.0, N.magnitude());
+}
+
+// A near-zero but genuinely tiny difference of two Earth-scale coordinates (the
+// pattern that arises from p1 - p0 with catastrophic cancellation) must still
+// normalize to a finite, unit-length vector when the difference is nonzero.
+TEST(Normalize, TinyEarthScaleDifferenceIsFiniteUnit)
+{
+    // Two points separated by 1e-7 m built at Earth-scale x ~ 6.371e6 m.
+    // The subtraction is exact here (1e-7 is representable relative to 6.371e6),
+    // so the magnitude is nonzero and normalize() must yield a unit vector.
+    Vector3D p0;
+    p0.SetCartesianCoordinates(6.371e6, 0.0, 0.0);
+    Vector3D p1;
+    p1.SetCartesianCoordinates(6.371e6 + 1e-7, 0.0, 0.0);
+    Vector3D direction = p1 - p0;
+    double mag = direction.magnitude();
+    ASSERT_GT(mag, 0.0);
+    direction.normalize();
+    std::array<double, 3> d = direction;
+    EXPECT_FALSE(std::isnan(d[0]) || std::isnan(d[1]) || std::isnan(d[2]));
+    // Resulting vector is unit length.
+    EXPECT_NEAR(1.0, direction.magnitude(), 1e-12);
+    EXPECT_NEAR(1.0, d[0], 1e-12);
+}
+
 TEST(CalculateSphericalCoordinates, Conversion)
 {
     Vector3D A;
