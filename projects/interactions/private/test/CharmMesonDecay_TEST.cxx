@@ -28,6 +28,9 @@
 
 #include <gtest/gtest.h>
 
+#include <rk/rk.hh>
+#include <rk/geom3.hh>
+
 #include "SIREN/utilities/Interpolator.h"
 #include "SIREN/utilities/Integration.h"
 #include "SIREN/utilities/Constants.h"
@@ -431,4 +434,71 @@ TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
     bad_secondaries.signature.target_type = ParticleType::Decay;
     bad_secondaries.signature.secondary_types = {ParticleType::PiPlus, ParticleType::PiMinus};
     EXPECT_THROW(decay.TotalDecayWidthForFinalState(bad_secondaries), std::runtime_error);
+}
+
+// --- Test 5: analytic angle-average matches a numeric quadrature oracle -----
+//
+// The weighting code (FinalStateProbability via SampledQ2Density) uses the
+// CLOSED-FORM CharmMesonDecay::VAWeightAngleAverage. This test is the "shunted
+// integral": a high-resolution numeric quadrature of the identical clamped V-A
+// weight, evaluated with the SAME rk::P4 boosts SampleFinalState uses, that the
+// analytic form must reproduce. It guards against any future algebra error in
+// the closed form (the kind that produced the original closure break).
+namespace {
+double numericVAWeightAngleAverage(double mD, double mK, double ml, double m23) {
+    double mnu = 0.0;
+    double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
+                                 * (mD + mK - m23) * (mD - mK + m23)) / mD;
+    double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
+                                  * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+    if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
+    double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
+                              mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
+    rk::P4 p4m23(geom3::Vector3(0.0, 0.0, -p1Abs), m23);
+    rk::Boost boost = p4m23.labBoost();
+    rk::P4 p4K(geom3::Vector3(0.0, 0.0, p1Abs), mK);
+    const int N = 20000;            // even -> composite Simpson
+    double h = 2.0 / N, sum = 0.0;
+    for (int i = 0; i <= N; ++i) {
+        double c = -1.0 + i * h;
+        double s = std::sqrt(std::max(0.0, 1.0 - c * c));
+        geom3::Vector3 dir(s, 0.0, c);
+        rk::P4 p4l = rk::P4(p23Abs * dir, ml).boost(boost);
+        rk::P4 p4nu = rk::P4(-p23Abs * dir, mnu).boost(boost);
+        double w = mD * p4l.e() * p4nu.dot(p4K);
+        if (w < 0.0) w = 0.0;
+        if (w > wtMEmax) w = wtMEmax;
+        double wgt = (i == 0 || i == N) ? 1.0 : ((i % 2) ? 4.0 : 2.0);
+        sum += wgt * w;
+    }
+    return 0.5 * (sum * h / 3.0);
+}
+} // namespace
+
+TEST(CharmMesonDecay, VAWeightAngleAverageMatchesNumericReference) {
+    CharmMesonDecay d0(ParticleType::D0), dp(ParticleType::DPlus);
+    struct Case { CharmMesonDecay* dec; double mD; double mK; double ml; };
+    std::vector<Case> cases = {
+        {&d0, Constants::D0Mass,    Constants::KMinusMass,    Constants::electronMass},
+        {&d0, Constants::D0Mass,    Constants::KMinusMass,    Constants::muonMass},
+        {&d0, Constants::D0Mass,    Constants::KPrimePlusMass, Constants::electronMass},
+        {&dp, Constants::DPlusMass, Constants::K0Mass,        Constants::electronMass},
+        {&dp, Constants::DPlusMass, Constants::K0Mass,        Constants::muonMass},
+        {&dp, Constants::DPlusMass, Constants::KPrimePlusMass, Constants::muonMass},
+    };
+    for (auto & cs : cases) {
+        double m23Min = cs.ml;
+        double m23Max = cs.mD - cs.mK;
+        const int NG = 40;
+        for (int g = 1; g < NG; ++g) {
+            double m23 = m23Min + (m23Max - m23Min) * (double)g / NG;
+            double ana = cs.dec->VAWeightAngleAverage(cs.mD, cs.mK, cs.ml, m23);
+            double num = numericVAWeightAngleAverage(cs.mD, cs.mK, cs.ml, m23);
+            // Tolerance is quadrature-limited (Simpson degrades to O(h^2) at the
+            // clamp kinks); 1e-4 relative is far tighter than any real algebra bug.
+            double tol = 1e-4 * std::abs(num) + 1e-12;
+            EXPECT_NEAR(ana, num, tol)
+                << "mD=" << cs.mD << " mK=" << cs.mK << " ml=" << cs.ml << " m23=" << m23;
+        }
+    }
 }

@@ -533,47 +533,75 @@ double CharmMesonDecay3Body::KStarMass() {
   return siren::utilities::Constants::KPrimePlusMass;
 }
 
+namespace {
+// Integral over [lo, hi] of max(0, a2*c^2 + a1*c + a0). Closed form with a
+// linear/constant fallback for a2 ~ 0 and numerically stable quadratic roots.
+double integratePositivePartQuadratic(double a2, double a1, double a0,
+                                      double lo, double hi) {
+    if (hi <= lo) return 0.0;
+    auto F = [&](double c) { return a2 * c * c * c / 3.0 + a1 * c * c / 2.0 + a0 * c; };
+    auto seg = [&](double x0, double x1) -> double {
+        if (x1 <= x0) return 0.0;
+        return F(x1) - F(x0);
+    };
+    double scale = std::abs(a1) + std::abs(a0) + 1.0;
+    if (std::abs(a2) < 1e-12 * scale) {
+        if (std::abs(a1) < 1e-300) return (a0 > 0.0) ? seg(lo, hi) : 0.0;
+        double root = -a0 / a1;
+        if (a1 > 0.0) return seg(std::max(lo, root), hi);
+        return seg(lo, std::min(hi, root));
+    }
+    double disc = a1 * a1 - 4.0 * a2 * a0;
+    if (disc <= 0.0) {
+        return (a2 > 0.0) ? seg(lo, hi) : 0.0;
+    }
+    double sq = std::sqrt(disc);
+    double qq = -0.5 * (a1 + ((a1 >= 0.0) ? sq : -sq));
+    double r1 = qq / a2;
+    double r2 = a0 / qq;
+    double rlo = std::min(r1, r2), rhi = std::max(r1, r2);
+    if (a2 > 0.0) {
+        return seg(lo, std::min(hi, rlo)) + seg(std::max(lo, rhi), hi);
+    }
+    return seg(std::max(lo, rlo), std::min(hi, rhi));
+}
+} // namespace
+
 double CharmMesonDecay3Body::VAWeightAngleAverage(double mD, double mK, double ml, double m23) const {
-  // Numerically exact angle-average of the sampler's ACCEPTED V-A weight,
-  // max(0, min(wtME, wtMEmax)), over the lepton polar angle cosTheta in [-1,1].
-  // wtME = mD * E_l * (p_nu . p_K) in the D rest frame, evaluated with the SAME
-  // rk::P4 boost operations SampleFinalState uses (kaon along +z, m23 system
-  // recoiling along -z), so the reproduced density matches the sampler exactly
-  // (closure). wtMEmax mirrors the sampler's rejection ceiling. A deterministic
-  // Simpson rule replaces the previous closed form, which had a sign-region
-  // error in its quadratic-root branch.
-  double mnu = 0.0;
-  double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
-                               * (mD + mK - m23) * (mD - mK + m23)) / mD;
-  double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
-                                * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
-  if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
-  // Same matrix-element ceiling as SampleFinalState (meMode == 22).
-  double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
-                            mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
-  // m23 system recoils along -z in the D rest frame; kaon sits along +z.
-  rk::P4 p4m23_Drest(geom3::Vector3(0.0, 0.0, -p1Abs), m23);
-  rk::Boost boost_m23_to_Drest = p4m23_Drest.labBoost();
-  rk::P4 p4K_Drest(geom3::Vector3(0.0, 0.0, p1Abs), mK);
-  const int N = 400;            // even -> composite Simpson
-  double h = 2.0 / N;
-  double sum = 0.0;
-  for (int i = 0; i <= N; ++i) {
-    double c = -1.0 + i * h;
-    double s = std::sqrt(std::max(0.0, 1.0 - c * c));
-    geom3::Vector3 dir(s, 0.0, c);
-    rk::P4 p4l_m23rest(p23Abs * dir, ml);
-    rk::P4 p4nu_m23rest(-p23Abs * dir, mnu);
-    rk::P4 p4l_Drest = p4l_m23rest.boost(boost_m23_to_Drest);
-    rk::P4 p4nu_Drest = p4nu_m23rest.boost(boost_m23_to_Drest);
-    double w = mD * p4l_Drest.e() * p4nu_Drest.dot(p4K_Drest);
-    if (w < 0.0) w = 0.0;
-    if (w > wtMEmax) w = wtMEmax;
-    double wgt = (i == 0 || i == N) ? 1.0 : ((i % 2) ? 4.0 : 2.0);
-    sum += wgt * w;
-  }
-  double integral = sum * h / 3.0;   // integral over c in [-1,1]
-  return 0.5 * integral;             // average (c-measure has width 2)
+    // Analytic angle-average of the sampler's ACCEPTED V-A weight,
+    //   (1/2) * integral_{-1}^{1} clamp(wtME(c), 0, wtMEmax) dc.
+    // wtME(c) = mD * E_l(c) * (p_nu(c) . p_K) is an exact quadratic in
+    // c = cos(theta_lepton) after the boost to the D rest frame, so the positive
+    // and clipped parts integrate in closed form via
+    // clamp(q, 0, M) = max(0, q) - max(0, q - M). Matches SampleFinalState's
+    // accepted density exactly (closure) with no quadrature error; the numeric
+    // quadrature lives in VAWeightAngleAverageMatchesNumericReference.
+    double mnu = 0.0;
+    double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
+                                 * (mD + mK - m23) * (mD - mK + m23)) / mD;
+    double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
+                                  * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+    if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
+    double E23 = std::sqrt(p1Abs * p1Abs + m23 * m23);
+    double bz = -p1Abs / E23;
+    double gamma = E23 / m23;
+    double Elrest = std::sqrt(p23Abs * p23Abs + ml * ml);
+    double EK = std::sqrt(p1Abs * p1Abs + mK * mK);
+    double C = Elrest;
+    double D = bz * p23Abs;
+    double A = EK - p1Abs * bz;
+    double B = p1Abs - EK * bz;
+    double pref = mD * gamma * gamma * p23Abs;
+    if (pref <= 0.0) return 0.0;
+    double a0 = C * A;
+    double a1 = C * B + D * A;
+    double a2 = D * B;
+    double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
+                              mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
+    double qmax = wtMEmax / pref;
+    double integral = integratePositivePartQuadratic(a2, a1, a0, -1.0, 1.0)
+                    - integratePositivePartQuadratic(a2, a1, a0 - qmax, -1.0, 1.0);
+    return 0.5 * pref * integral;
 }
 
 double CharmMesonDecay3Body::SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const {
