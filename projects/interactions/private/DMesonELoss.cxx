@@ -110,32 +110,33 @@ double DMesonELoss::TotalCrossSection(siren::dataclasses::Particle::ParticleType
 }
 
 double DMesonELoss::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    double primary_energy;
-    rk::P4 p1_lab;
-    primary_energy = interaction.primary_momentum[0];
-    p1_lab = p1;
-
+    double primary_energy = interaction.primary_momentum[0];
+    double Dmass = interaction.primary_mass;
 
     double final_energy = interaction.secondary_momenta[0][0];
     double z = 1 - final_energy / primary_energy;
 
-    // The density is the truncated Gaussian in z normalized over [z_min_, z_max_].
-    // Zero out-of-support records so the density support matches the sampler support
-    // (the sampler rejects z outside [z_min_, z_max_] as well). This keeps closure
-    // even for externally-constructed records with z < 0 (D meson gaining energy).
-    if(z < z_min_ || z > z_max_) {
+    // The density support MUST match the sampler's realized support, or
+    // FinalStateProbability is mis-normalized (closure break, worst at low primary
+    // energy). SampleFinalState accepts z in [z_min_, z_max_] AND enforces the
+    // energy-dependent kinematic cut final_energy >= Dmass, i.e. z <= 1 - Dmass/E.
+    // Apply the same cut here and normalize the Gaussian over the identical
+    // [z_min_, z_hi] interval. z_hi collapses below z_min_ for sub-threshold
+    // primaries (E <= Dmass), where there is no valid final state.
+    double z_kin = 1.0 - Dmass / primary_energy;          // kinematic upper limit
+    double z_hi = (z_max_ < z_kin) ? z_max_ : z_kin;
+    if(z_hi <= z_min_ || z < z_min_ || z > z_hi) {
         return 0.0;
     }
 
-    // now normalize the gaussian
+    // normalize the gaussian over the realized support [z_min_, z_hi]
     double total_xsec = TotalCrossSection(interaction.signature.primary_type, primary_energy);
     double z0 = 0.56;
     double sigma = 0.2;
-    std::function<double(double)> integrand = [&] (double z) -> double {
-            return exp(-(pow(z - z0, 2))/(2 * pow(sigma, 2)));
+    std::function<double(double)> integrand = [&] (double zz) -> double {
+            return exp(-(pow(zz - z0, 2))/(2 * pow(sigma, 2)));
         };
-    double unnormalized = siren::utilities::rombergIntegrate(integrand, z_min_, z_max_);
+    double unnormalized = siren::utilities::rombergIntegrate(integrand, z_min_, z_hi);
     double normalization = total_xsec / unnormalized;
 
     double diff_xsec = normalization * exp(-(pow(z - z0, 2))/(2 * pow(sigma, 2)));

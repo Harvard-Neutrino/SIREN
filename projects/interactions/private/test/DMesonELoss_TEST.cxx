@@ -26,6 +26,7 @@
  *     the advertised density).
  */
 #include <cmath>
+#include <algorithm>
 #include <vector>
 #include <memory>
 #include <stdexcept>
@@ -192,77 +193,84 @@ TEST(DMesonELoss, SubThresholdThrows) {
 
 // --- Test 5: sampled-z density matches FinalStateProbability ----------------
 
-TEST(DMesonELoss, ZDensityClosure) {
+TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
     DMesonELoss xs;
     auto sig = xs.GetPossibleSignaturesFromParents(ParticleType::D0, ParticleType::PPlus)[0];
-    double E_D = 1000.0;   // well above threshold, so the truncation is the only cut
     auto rng = std::make_shared<SIREN_random>();
+    const double mD = Constants::D0Mass;
+    const double zlo = 0.001;     // == z_min_
 
-    // FinalStateProbability returns dxs/txs == normalized truncated Gaussian in
-    // z over [z_min_, z_max_]. Histogram z = 1 - E_out/E_D and compare the
-    // empirical pdf to FinalStateProbability evaluated at each bin center.
-    const double zlo = 0.001, zhi = 0.999;
-    const int NB = 20;
-    const double bw = (zhi - zlo) / NB;
-    std::vector<long> counts(NB, 0);
-    const int N = 200000;
+    // Span low to high primary energy. At low E the kinematic cut z <= 1 - mD/E
+    // truncates the Gaussian well below its mean (z0 = 0.56) -- exactly where a
+    // fixed-interval density (normalizing over [z_min_, z_max_] regardless of E)
+    // mis-normalizes and breaks closure. The density now applies the same
+    // energy-dependent cut, so Sample == Density at every energy.
+    for (double E_D : {5.0, 10.0, 50.0, 200.0, 1000.0, 3000.0}) {
+        const double z_kin = 1.0 - mD / E_D;          // kinematic upper limit
+        const double zhi = std::min(1.0, z_kin);      // == min(z_max_, z_kin)
+        ASSERT_GT(zhi, zlo) << "E_D=" << E_D;
+        const double p_D = std::sqrt(E_D * E_D - mD * mD);
 
-    for (int i = 0; i < N; ++i) {
-        InteractionRecord rec = make_d0_record(sig, E_D);
-        CrossSectionDistributionRecord cdr(rec);
-        xs.SampleFinalState(cdr, rng);
-        cdr.Finalize(rec);
-        double E_out = rec.secondary_momenta[0][0];
-        double z = 1.0 - E_out / E_D;
-        // All accepted samples lie in [z_min_, z_max_].
-        EXPECT_GE(z, zlo - 1e-9);
-        EXPECT_LE(z, zhi + 1e-9);
-        int b = (int)((z - zlo) / bw);
-        if (b < 0) b = 0;
-        if (b >= NB) b = NB - 1;
-        counts[b]++;
+        const int NB = 20;
+        const double bw = (zhi - zlo) / NB;
+        std::vector<long> counts(NB, 0);
+        const int N = 200000;
+        for (int i = 0; i < N; ++i) {
+            InteractionRecord rec = make_d0_record(sig, E_D);
+            CrossSectionDistributionRecord cdr(rec);
+            xs.SampleFinalState(cdr, rng);
+            cdr.Finalize(rec);
+            double z = 1.0 - rec.secondary_momenta[0][0] / E_D;
+            // The sampler must respect the same support the density advertises.
+            EXPECT_GE(z, zlo - 1e-9) << "E_D=" << E_D;
+            EXPECT_LE(z, zhi + 1e-9) << "E_D=" << E_D;
+            int b = (int)((z - zlo) / bw);
+            if (b < 0) b = 0;
+            if (b >= NB) b = NB - 1;
+            counts[b]++;
+        }
+
+        auto fsp_at_z = [&](double z) -> double {
+            double E_out = E_D * (1.0 - z);
+            double p_out = std::sqrt(std::max(0.0, E_out * E_out - mD * mD));
+            InteractionRecord r;
+            r.signature = sig;
+            r.primary_mass = mD;
+            r.primary_momentum = {E_D, 0, 0, p_D};
+            r.target_mass = Constants::protonMass;
+            r.secondary_momenta = {{E_out, 0, 0, p_out}, {E_D - E_out, 0, 0, E_D - E_out}};
+            r.secondary_masses = {mD, 0.0};
+            return xs.FinalStateProbability(r);
+        };
+
+        // (a) bin-by-bin closure within ~4 Poisson sigma.
+        for (int b = 0; b < NB; ++b) {
+            double zc = zlo + (b + 0.5) * bw;
+            double pred = fsp_at_z(zc);
+            EXPECT_GE(pred, 0.0);
+            if (counts[b] < 50) continue;
+            double emp = (double)counts[b] / (N * bw);
+            double sg = std::sqrt((double)counts[b]) / (N * bw);
+            EXPECT_NEAR(emp, pred, 4.0 * sg + 0.02 * pred) << "E_D=" << E_D << " z=" << zc;
+        }
+
+        // (b) the density integrates to 1 over the realized support [zlo, zhi].
+        int M = 4000;
+        double integral = 0.0, dz = (zhi - zlo) / M;
+        for (int i = 0; i <= M; ++i) {
+            double z = zlo + i * dz;
+            double w = (i == 0 || i == M) ? 0.5 : 1.0;
+            integral += w * fsp_at_z(z) * dz;
+        }
+        EXPECT_NEAR(integral, 1.0, 2e-2) << "E_D=" << E_D;
+
+        // (c) the density vanishes ABOVE the kinematic cut -- the fixed-interval
+        //     bug was nonzero density where the sampler produces nothing.
+        double z_above = zhi + 0.4 * (1.0 - zhi);
+        if (z_above < 1.0 - 1e-9) {
+            EXPECT_EQ(fsp_at_z(z_above), 0.0) << "E_D=" << E_D << " z_above=" << z_above;
+        }
     }
-
-    // Build a record at a chosen z and read back the normalized z-density.
-    auto fsp_at_z = [&](double z) -> double {
-        double E_out = E_D * (1.0 - z);
-        double mD = Constants::D0Mass;
-        double p_out = std::sqrt(std::max(0.0, E_out * E_out - mD * mD));
-        InteractionRecord r;
-        r.signature = sig;
-        r.primary_mass = mD;
-        r.primary_momentum = {E_D, 0, 0, std::sqrt(E_D * E_D - mD * mD)};
-        r.target_mass = Constants::protonMass;
-        r.secondary_momenta = {{E_out, 0, 0, p_out}, {E_D - E_out, 0, 0, E_D - E_out}};
-        r.secondary_masses = {mD, 0.0};
-        // FinalStateProbability = DifferentialCrossSection / TotalCrossSection,
-        // i.e. the normalized truncated Gaussian density in z.
-        return xs.FinalStateProbability(r);
-    };
-
-    // (a) The density is non-negative everywhere and the empirical pdf closes
-    //     bin-by-bin within ~4 Poisson sigma.
-    for (int b = 0; b < NB; ++b) {
-        double zc = zlo + (b + 0.5) * bw;
-        double pred = fsp_at_z(zc);
-        EXPECT_GE(pred, 0.0);
-        if (counts[b] < 50) continue;
-        double emp = (double)counts[b] / (N * bw);
-        double sigma = std::sqrt((double)counts[b]) / (N * bw);
-        EXPECT_NEAR(emp, pred, 4.0 * sigma + 0.02 * pred);
-    }
-
-    // (b) The density integrates to 1 over [z_min_, z_max_] (trapezoid on a
-    //     fine grid) -- it is a properly normalized pdf in z.
-    int M = 2000;
-    double integral = 0.0;
-    double dz = (zhi - zlo) / M;
-    for (int i = 0; i <= M; ++i) {
-        double z = zlo + i * dz;
-        double w = (i == 0 || i == M) ? 0.5 : 1.0;
-        integral += w * fsp_at_z(z) * dz;
-    }
-    EXPECT_NEAR(integral, 1.0, 2e-2);
 }
 
 int main(int argc, char** argv) {
