@@ -49,8 +49,8 @@ public:
     virtual bool equal(Decay const & other) const override;
     static double particleMass(siren::dataclasses::ParticleType particle);
     // Analytic angle-average of the accepted V-A weight (q^2 density factor).
-    // Public so the closure/regression test can check it against a numeric
-    // quadrature oracle; it is a pure function of the decay masses and m23.
+    // Public so the unit tests can cross-check it against a numeric quadrature;
+    // it is a pure function of the decay masses and m23.
     double VAWeightAngleAverage(double mD, double mK, double ml, double m23) const;
     double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     double TotalDecayWidth(siren::dataclasses::Particle::ParticleType primary) const override;

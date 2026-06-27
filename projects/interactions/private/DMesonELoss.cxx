@@ -198,7 +198,7 @@ void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& 
         // truncated Gaussian that DifferentialCrossSection/FinalStateProbability
         // normalize over the same interval (closure). z < z_min_ would otherwise let
         // the D meson GAIN energy (final_energy > primary_energy). The kinematic cut
-        // final_energy^2 >= Dmass^2 is kept as a defensive guard.
+        // final_energy^2 >= Dmass^2 is a defensive guard.
         accept = (z >= z_min_) && (z <= z_max_) &&
                  (pow(final_energy, 2) - pow(Dmass, 2) >= 0);
     } while (!accept);

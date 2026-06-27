@@ -1,13 +1,11 @@
-// Serialization round-trip tests for the interaction classes whose
-// load_and_construct was a NON-STATIC member. cereal only recognizes a STATIC
+// Serialization round-trip tests for non-default-constructible interaction
+// classes that rely on load_and_construct. cereal only recognizes a STATIC
 // load_and_construct (or a non-member specialization); a non-static one is
-// silently ignored, so cereal default-constructed the object and never read the
-// serialized body -- corrupting everything that followed it in the archive.
-// These classes were changed to `static void load_and_construct`; the trailing
-// sentinel below reads back correctly only if the body is fully consumed, so it
-// directly guards against a regression to a body-skipping load. (DarkNewsDecay
-// is intentionally excluded: it is abstract / python-backed and cannot be
-// constructed by cereal here.)
+// silently ignored, leaving the serialized body unread and corrupting whatever
+// follows it in the archive. The trailing sentinel after each object reads back
+// correctly only if the body is fully consumed, so it directly detects a load
+// that skips the body. (DarkNewsDecay is intentionally excluded: it is abstract
+// / python-backed and cannot be constructed by cereal here.)
 
 #include <string>
 #include <vector>

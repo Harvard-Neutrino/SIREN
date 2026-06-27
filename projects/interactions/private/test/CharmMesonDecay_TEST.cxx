@@ -239,7 +239,7 @@ TEST(CharmMesonDecay, DiffDecayWidthComparison) {
     }
 
     // Pin the per-meson pole parameter alpha used by FormFactorFromRecord:
-    // 0.50 for D0, 0.44 for D+ (both intentional; not a bug to "correct").
+    // 0.50 for D0, 0.44 for D+.
     InteractionRecord d0rec;
     d0rec.signature = sig;
     d0rec.primary_mass = mD;
@@ -439,11 +439,9 @@ TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
 // --- Test 5: analytic angle-average matches a numeric quadrature oracle -----
 //
 // The weighting code (FinalStateProbability via SampledQ2Density) uses the
-// CLOSED-FORM CharmMesonDecay::VAWeightAngleAverage. This test is the "shunted
-// integral": a high-resolution numeric quadrature of the identical clamped V-A
-// weight, evaluated with the SAME rk::P4 boosts SampleFinalState uses, that the
-// analytic form must reproduce. It guards against any future algebra error in
-// the closed form (the kind that produced the original closure break).
+// closed-form CharmMesonDecay::VAWeightAngleAverage. The closed form must
+// reproduce a high-resolution numeric quadrature of the identical clamped V-A
+// weight, evaluated with the same rk::P4 boosts SampleFinalState uses.
 namespace {
 double numericVAWeightAngleAverage(double mD, double mK, double ml, double m23) {
     double mnu = 0.0;

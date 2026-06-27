@@ -218,11 +218,11 @@ TEST(Normalize, Operator)
     EXPECT_TRUE(B != C);
 }
 
-// Regression test for the degenerate trajectory-direction fix (commit 29e189f6).
-// Before the fix, Vector3D::normalize() divided every component by a zero length
-// for a zero vector, producing NaN. This is the root cause that propagated up
-// into DetectorModel where a degenerate (p1 - p0) direction was normalized and
-// then asserted to be unit length. The guard now leaves a zero vector unchanged.
+// Normalizing the zero vector must not divide by zero: the result must stay
+// finite (no NaN/Inf) and the vector is left unchanged at magnitude 0. A unit
+// direction cannot be defined for a zero-length vector, so leaving it as-is is
+// the well-defined contract callers (e.g. a degenerate p1 - p0 direction in
+// DetectorModel) rely on.
 TEST(Normalize, ZeroVectorDoesNotProduceNaN)
 {
     Vector3D Z;
@@ -254,9 +254,10 @@ TEST(Normalize, ZeroVectorNormalizedIsFinite)
     EXPECT_DOUBLE_EQ(0.0, N.magnitude());
 }
 
-// A near-zero but genuinely tiny difference of two Earth-scale coordinates (the
-// pattern that arises from p1 - p0 with catastrophic cancellation) must still
-// normalize to a finite, unit-length vector when the difference is nonzero.
+// A genuinely tiny but nonzero difference of two Earth-scale coordinates must
+// still normalize to a finite, unit-length vector. This is the boundary case
+// just above the zero-length guard: the result must be a true unit vector, not
+// left unchanged.
 TEST(Normalize, TinyEarthScaleDifferenceIsFiniteUnit)
 {
     // Two points separated by 1e-7 m built at Earth-scale x ~ 6.371e6 m.

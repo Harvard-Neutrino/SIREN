@@ -41,9 +41,9 @@ using namespace siren::dataclasses;
 namespace {
 
 // Mock reproducing PythiaDISCrossSection's relevant semantics.
-//   apply_ff     : multiply by FragmentationFraction per signature (the fix / QuarkDIS)
+//   apply_ff     : multiply by FragmentationFraction per signature (as in QuarkDISFromSpline)
 //   override_afs : short-circuit TotalCrossSectionAllFinalStates to TotalCrossSection
-//                  (the spurious f1751c6b override)
+//                  instead of the base per-signature sum
 class MockCharmXS : public CrossSection {
 public:
     bool apply_ff;
@@ -164,10 +164,10 @@ TEST(CharmDISClosure, OverrideRemovedClosesButOvercountsThreeX) {
     }
 }
 
-// The fix (override removed + fragmentation fraction in TotalCrossSection, with
-// the FFs renormalized to sum to 1.0): the two sides agree AND both equal the
-// full inclusive charm cross section sigma -- partitioned across the three D
-// species, not triple-counted and not the 2%-deficient 0.98*sigma.
+// With the fragmentation fraction applied per signature in TotalCrossSection
+// (and the FFs renormalized to sum to 1.0), the generation-side and physical-
+// side inclusive charm cross sections must agree AND both equal the full
+// inclusive sigma -- partitioned across the three D species, not triple-counted.
 TEST(CharmDISClosure, FragmentationFractionRestoresPhysicalNormalization) {
     MockCharmXS xs(/*ff=*/true, /*override=*/false);
     // FF sum = (0.6 + 0.23 + 0.15) / 0.98 == 1.0 (renormalized), so the

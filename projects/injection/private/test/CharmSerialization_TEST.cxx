@@ -1,17 +1,15 @@
 // Serialization round-trip tests for the charm-DIS decay classes and the Weighter.
 //
-// These guard two previously-broken behaviors:
-//   1. CharmMesonDecay / CharmMesonDecay3Body are default-constructible but used
-//      cereal save() + load_and_construct(). cereal does not invoke
-//      load_and_construct for a default-constructible type, so the serialized
-//      body was never read on load -- the object survived only because its
-//      primary_types set is a fixed const member, while every byte of the body
-//      was left in the stream, corrupting whatever followed. They now use a
-//      member load(); the trailing-sentinel assertions below catch any
-//      regression to a body-skipping load.
-//   2. Weighter::LoadWeighter was a stub that printed "not yet supported" and
-//      called exit(0). It now deserializes the weighter; the round-trip reaches
-//      its assertions (it would have killed the test process before).
+// Two invariants are enforced:
+//   1. CharmMesonDecay / CharmMesonDecay3Body must consume their entire
+//      serialized body on load. Because both are default-constructible, cereal
+//      uses a member load() rather than load_and_construct (it does not invoke
+//      load_and_construct for a default-constructible type). The trailing
+//      sentinel after each decay reads back correctly only if the body is fully
+//      consumed, so it directly detects a load that skips the body.
+//   2. A Weighter holding a charm decay process must survive SaveWeighter
+//      followed by reconstruction through the filename constructor (LoadWeighter)
+//      and re-serialize byte-identically.
 
 #include <string>
 #include <vector>
@@ -45,7 +43,7 @@ using siren::detector::DetectorModel;
 namespace {
 // Round-trip a polymorphic Decay through a binary archive followed by a sentinel
 // int. The sentinel reads back correctly only if the decay body was fully
-// consumed on load -- i.e. it directly detects the body-skip serialization bug.
+// consumed on load -- i.e. it detects a load that leaves bytes in the stream.
 std::shared_ptr<Decay> roundtrip_decay_with_sentinel(std::shared_ptr<Decay> orig,
                                                      bool & sentinel_ok) {
     const int kSentinel = 0x5A5A5A;
@@ -126,8 +124,8 @@ TEST(CharmSerialization, WeighterWithCharmDecaySaveLoad) {
 
     ASSERT_NO_THROW(w.SaveWeighter(base));   // writes <base>.siren_weighter
 
-    // The filename constructor calls LoadWeighter (previously a stub that
-    // exit(0)'d). Reaching the next statement at all proves loading is enabled.
+    // The filename constructor calls LoadWeighter to reconstruct the weighter
+    // from the serialized file.
     std::unique_ptr<Weighter> w2;
     ASSERT_NO_THROW(w2.reset(new Weighter(no_injectors, base)));
     ASSERT_NE(w2, nullptr);

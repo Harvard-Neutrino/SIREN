@@ -113,9 +113,9 @@ package_add_test(UnitTest_CharmMesonDecay3Body ${PROJECT_SOURCE_DIR}/projects/in
 # fragmentation pdf/cdf).
 package_add_test(UnitTest_QuarkDISDensityContract ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/QuarkDISDensityContract_TEST.cxx)
 
-# Serialization round-trips for the interaction classes whose load_and_construct
-# was made static (HNLDecay, ElectroweakDecay, HNLDipoleDecay, ElasticScattering,
-# HNLDipoleFromTable).
+# Serialization round-trips for the interaction classes that use a static
+# load_and_construct (HNLDecay, ElectroweakDecay, HNLDipoleDecay,
+# ElasticScattering, HNLDipoleFromTable).
 package_add_test(UnitTest_InteractionSerialization ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/InteractionSerialization_TEST.cxx)
 
 # Real PythiaDISCrossSection charm-DIS closure/normalization regression test.

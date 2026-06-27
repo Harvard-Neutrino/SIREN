@@ -1,9 +1,9 @@
 /**
  * Contract test for QuarkDISFromSpline (slow-rescaling charm DIS sampler).
  *
- * P6 finding: SampleFinalState samples (xi, y) AND an independently-sampled
- * fragmentation z and a uniform azimuth phi that set the D-meson momentum, but
- * the advertised density (DensityVariables / FinalStateProbability /
+ * Invariant under test: SampleFinalState samples (xi, y) AND an independently-
+ * sampled fragmentation z and a uniform azimuth phi that set the D-meson
+ * momentum, but the advertised density (DensityVariables / FinalStateProbability /
  * DifferentialCrossSection) accounts for (xi, y) only. The omitted z/phi factors
  * cancel in the weight ratio ONLY in the standard unbiased configuration (the
  * same cross-section object supplies both the injection and physical densities

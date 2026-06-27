@@ -7,8 +7,8 @@
 #include <pybind11/stl.h>
 
 #include "../../public/SIREN/interactions/CrossSection.h"
-// Self-include the public class header so this TU does not rely on
-// interactions.cxx pulling DMesonELoss.h in before this pybinding header.
+// Include the public class header directly so this pybinding header is
+// self-contained regardless of include order in its includer.
 #include "../../public/SIREN/interactions/DMesonELoss.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"

@@ -760,8 +760,8 @@ double CharmMesonDecay::VAWeightAngleAverage(double mD, double mK, double ml, do
     // exact quadratic. clamp(q, 0, M) = max(0, q) - max(0, q - M) turns the
     // accept-reject ceiling into two positive-part integrals, each closed form.
     // This reproduces SampleFinalState's accepted density exactly (weighting
-    // closure) with no quadrature error; the equivalent numeric quadrature is
-    // kept as the regression oracle VAWeightAngleAverageMatchesNumericReference.
+    // closure) with no quadrature error; the same integral is also evaluated
+    // numerically in the unit tests as a cross-check.
     double mnu = 0.0;
     double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
                                  * (mD + mK - m23) * (mD - mK + m23)) / mD;

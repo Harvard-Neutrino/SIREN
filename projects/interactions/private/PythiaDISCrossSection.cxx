@@ -254,7 +254,7 @@ void PythiaDISCrossSection::InitializeSignatures() {
         // the cbar quark fragments to Dbar0/D-/Ds-. SampleFinalState writes Pythia's
         // actual produced PID into the signature's meson slot, so the registered set
         // must include the correct charge to keep weighter signature lookups in range
-        // (otherwise event_weight comes out NaN -- see fix in this commit).
+        // (otherwise event_weight would be NaN).
         // TODO: Add Lambda_c (4122) support.
         bool is_antineutrino =
             (primary_type == siren::dataclasses::ParticleType::NuEBar ||
@@ -440,7 +440,7 @@ std::vector<std::string> PythiaDISCrossSection::DensityVariables() const {
 }
 
 // ======================================================================
-// Pythia initialization and SampleFinalState -- the core new logic
+// Pythia initialization and SampleFinalState
 // ======================================================================
 
 void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const {

@@ -51,7 +51,7 @@ inline double slowRescalingW2(double xi, double y, double E, double M, double mc
 
 ///\brief Slow-rescaling kinematic check.
 ///
-/// Replaces the old (x_BJ, y) check. Cuts:
+/// Acceptance cuts:
 ///   xi in [1e-9, 1], y in [1e-9, 1 - m_lep/E],
 ///   Q^2 = 2 M E y xi - m_c^2 > 0  (charm threshold),
 ///   W^2 = M^2 + 2 M E y (1-xi) + m_c^2 > (M + M_D0)^2.
@@ -70,11 +70,11 @@ bool kinematicallyAllowed(double xi, double y, double E, double M, double m_lep)
     if (W2 <= (M + Mch) * (M + Mch))        return false;
 
     // Transverse-momentum balance: the exchanged q must have a real transverse
-    // component pqy in the lab frame. This is the SAME q-decomposition the sampler
-    // uses (SampleFinalState), so adding it here makes kinematicallyAllowed the
-    // single predicate shared by the sampler proposal loops and by
-    // DifferentialCrossSection/FinalStateProbability. Without it the density
-    // (dxs/txs) is nonzero on points the sampler must reject (pqy^2 < 0),
+    // component pqy in the lab frame. This is the same q-decomposition the sampler
+    // uses (SampleFinalState), so kinematicallyAllowed is the single predicate
+    // shared by the sampler proposal loops and by
+    // DifferentialCrossSection/FinalStateProbability. Without this check the
+    // density (dxs/txs) would be nonzero on points the sampler rejects (pqy^2 < 0),
     // breaking Sample==Density closure and silently biasing low-Bjorken-x events.
     //
     // Primary is a neutrino here (InitializeSignatures enforces isNeutrino), so
@@ -805,10 +805,9 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     double Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
                                 siren::utilities::Constants::charmMass);
-    // Scale-free closed form for the exchanged q decomposition (replaces the old
-    // /10 precision-rescaling loop, which was unsound: slowRescalingQ2 holds the
-    // target/charm masses fixed, so Q2 is NOT homogeneous of degree 2 under the
-    // scaling and the loop never produced a valid Q2).
+    // Closed form for the exchanged q decomposition. A uniform momentum rescaling
+    // cannot be used to recompute Q2 here: slowRescalingQ2 holds the target/charm
+    // masses fixed, so Q2 is not homogeneous of degree 2 under the scaling.
     //
     // p1x_lab is the 3-momentum MAGNITUDE P1 = |p1_lab| (not an x-component).
     // The naive expressions
@@ -894,7 +893,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     // Save final state kinematics.
     //
-    // NOTE (T3): the sampled momenta are written into the record's
+    // NOTE: the sampled momenta are written into the record's
     // SecondaryParticleRecord vector (record.GetSecondaryParticleRecords()), NOT
     // directly into an InteractionRecord's secondary_momenta. To obtain a finalized
     // InteractionRecord with populated secondary_momenta, the caller must run
@@ -902,8 +901,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     // output record whose signature is set. Building an InteractionRecord by hand
     // with empty/zero secondary_momenta and feeding it back to
     // DifferentialCrossSection makes the primary-momentum Q2 path compute Q2 <= 0,
-    // forcing the stored-(xi,y) fallback branch; that is a caller mistake, not a
-    // limitation of SampleFinalState, which populates the state correctly here.
+    // forcing the stored-(xi,y) fallback branch.
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
     siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[hadron_index];
@@ -1047,7 +1045,7 @@ double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::P
 // on the D kinematics. Biasing the D kinematics is NOT supported and would produce
 // incorrect weights.
 //
-// NORMALIZATION CONTRACT (P8): FinalStateProbability = dxs/txs is a normalized
+// NORMALIZATION CONTRACT: FinalStateProbability = dxs/txs is a normalized
 // kinematic density ONLY if the external 1-D total-xs spline (txs) equals the
 // integral of the differential spline (dxs) over the SAME truncated slow-rescaling
 // domain: xi in [xiMin(E),1], y in [yMin(E),yMax(E)] with identical charm-threshold

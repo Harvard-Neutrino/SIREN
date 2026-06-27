@@ -246,7 +246,7 @@ TEST(CharmMesonDecay3Body, TotalDecayWidthAndBranchingSums) {
     bad_primary.signature.secondary_types = {ParticleType::Hadrons};
     EXPECT_THROW(decay.TotalDecayWidthForFinalState(bad_primary), std::runtime_error);
 
-    // Matched primary (D0) but an unimplemented set of secondaries throws (R4).
+    // Matched primary (D0) but an unimplemented set of secondaries throws.
     InteractionRecord bad_secondaries;
     bad_secondaries.signature.primary_type = ParticleType::D0;
     bad_secondaries.signature.target_type = ParticleType::Decay;
@@ -345,11 +345,10 @@ TEST(CharmMesonDecay3Body, FinalStateProbabilityClosure) {
 
 // --- Analytic angle-average matches a numeric quadrature oracle ------------
 //
-// The weighting code uses the CLOSED-FORM CharmMesonDecay3Body::
-// VAWeightAngleAverage. This is the "shunted integral": a high-resolution
-// numeric quadrature of the identical clamped V-A weight (same rk::P4 boosts as
-// SampleFinalState) that the analytic form must reproduce, guarding against any
-// algebra error in the closed form.
+// The weighting code uses the closed-form CharmMesonDecay3Body::
+// VAWeightAngleAverage. The closed form must reproduce a high-resolution numeric
+// quadrature of the identical clamped V-A weight, evaluated with the same rk::P4
+// boosts SampleFinalState uses.
 namespace {
 double numericVAWeightAngleAverage3B(double mD, double mK, double ml, double m23) {
     double mnu = 0.0;

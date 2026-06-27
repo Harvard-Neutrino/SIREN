@@ -574,8 +574,8 @@ double CharmMesonDecay3Body::VAWeightAngleAverage(double mD, double mK, double m
     // c = cos(theta_lepton) after the boost to the D rest frame, so the positive
     // and clipped parts integrate in closed form via
     // clamp(q, 0, M) = max(0, q) - max(0, q - M). Matches SampleFinalState's
-    // accepted density exactly (closure) with no quadrature error; the numeric
-    // quadrature lives in VAWeightAngleAverageMatchesNumericReference.
+    // accepted density exactly (closure) with no quadrature error; the same
+    // integral is also evaluated numerically in the unit tests as a cross-check.
     double mnu = 0.0;
     double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
                                  * (mD + mK - m23) * (mD - mK + m23)) / mD;

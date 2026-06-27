@@ -1,10 +1,5 @@
 """Slow-rescaling (xi, y) sampling tests for QuarkDISFromSpline.
 
-These were previously two orphan smoke scripts under tests/slow_rescaling/
-(smoke_quarkdis_100.py, smoke_quarkdis_10k.py) that were never collected by
-pytest (testpaths = tests/python) and aborted the session with module-level
-sys.exit() calls. They are now real, collectable pytest tests.
-
 The charm slow-rescaling FITS splines are LHAPDF-derived and not committed to
 the repository, so every spline-dependent test is gated behind the
 SIREN_CHARM_SPLINE_DIR environment variable. Point it at a directory containing
@@ -17,7 +12,7 @@ variable is unset, or the FITS files are absent, the whole module skips cleanly.
 
 Number of events for the differential-positivity test is configurable via
 SIREN_CHARM_NEVENTS (default 2000, kept modest so the suite stays fast; set it
-to 10000 to reproduce the original 10k smoke run).
+to 10000 for a heavier run).
 """
 import math
 import os
@@ -47,7 +42,7 @@ N_DIFF = int(os.environ.get("SIREN_CHARM_NEVENTS", "2000"))
 MAX_RETRIES = 100
 
 # ---------------------------------------------------------------------------
-# Spline-file gating (resolves the old hardcoded /n/holylfs05 cluster path)
+# Spline-file gating: resolve spline paths from SIREN_CHARM_SPLINE_DIR.
 # ---------------------------------------------------------------------------
 _SPLINE_DIR = os.environ.get("SIREN_CHARM_SPLINE_DIR")
 _DIFF_FILE = (
@@ -226,13 +221,12 @@ def test_quarkdis_kinematic_bounds(charm_xs, signature, rng):
 def test_quarkdis_differential_positive(charm_xs, signature, rng):
     """Re-evaluate the spline on finalized records via the production path.
 
-    This drives the REAL weighting density: SampleFinalState populates the
-    CrossSectionDistributionRecord, cdr.finalize(ir_out) materializes the
-    secondary momenta, and DifferentialCrossSection(ir_out) is evaluated on the
-    finalized record. That exercises the primary-momentum Q2 branch of
-    DifferentialCrossSection -- exactly the path the Weighter runs -- instead
-    of the deliberately-broken zero-momenta fallback used by the old smoke
-    script. We assert a high finite-positive fraction.
+    This drives the weighting density exactly as the Weighter does:
+    SampleFinalState populates the CrossSectionDistributionRecord,
+    cdr.finalize(ir_out) materializes the secondary momenta, and
+    DifferentialCrossSection(ir_out) is evaluated on the finalized record,
+    which takes the primary-momentum Q2 branch. We assert a high
+    finite-positive fraction.
     """
     import siren.dataclasses
 
