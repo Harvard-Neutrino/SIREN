@@ -138,6 +138,18 @@ public:
     // Final state sampling via Pythia
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
 
+    // Generate raw Pythia charm-DIS samples for building total/differential
+    // splines (init once per energy, using the same Pythia config as
+    // SampleFinalState). out_sigma_mb is per energy (Pythia's generated cross
+    // section, mb); out_E/out_x/out_y are flat per-event muon-reconstructed
+    // (E, Bjorken x, y). Consumed by the python generate_*_spline helpers.
+    static void GeneratePythiaCharmSamples(
+        int interaction_type, int primary_pdg, int target_pdg, double target_mass,
+        std::string pdf_set, std::string pythia_data_path, double minimum_Q2,
+        std::vector<double> const & energies, int n_events,
+        std::vector<double> & out_sigma_mb,
+        std::vector<double> & out_E, std::vector<double> & out_x, std::vector<double> & out_y);
+
     // Signature methods
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;

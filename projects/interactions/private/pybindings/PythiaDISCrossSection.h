@@ -68,7 +68,23 @@ void register_PythiaDISCrossSection(pybind11::module_ & m) {
         .def("FinalStateProbability",&PythiaDISCrossSection::FinalStateProbability)
         .def("GetMinimumQ2",&PythiaDISCrossSection::GetMinimumQ2)
         .def("GetTargetMass",&PythiaDISCrossSection::GetTargetMass)
-        .def("GetInteractionType",&PythiaDISCrossSection::GetInteractionType);
+        .def("GetInteractionType",&PythiaDISCrossSection::GetInteractionType)
+        .def_static("GeneratePythiaCharmSamples",
+            [](int interaction_type, int primary_pdg, int target_pdg, double target_mass,
+               std::string pdf_set, std::string pythia_data_path, double minimum_Q2,
+               std::vector<double> energies, int n_events) {
+                std::vector<double> sigma_mb, E, x, y;
+                PythiaDISCrossSection::GeneratePythiaCharmSamples(
+                    interaction_type, primary_pdg, target_pdg, target_mass,
+                    pdf_set, pythia_data_path, minimum_Q2, energies, n_events,
+                    sigma_mb, E, x, y);
+                return pybind11::make_tuple(sigma_mb, E, x, y);
+            },
+            arg("interaction_type"), arg("primary_pdg"), arg("target_pdg"), arg("target_mass"),
+            arg("pdf_set"), arg("pythia_data_path"), arg("minimum_Q2"),
+            arg("energies"), arg("n_events"),
+            "Run Pythia (init once per energy) and return (sigma_mb_per_E, E, x, y) raw samples "
+            "for building charm-DIS splines. See siren.interactions.pythia_charm_splines.");
 }
 
 #else

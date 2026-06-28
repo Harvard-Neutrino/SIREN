@@ -40,6 +40,40 @@ public:
     double flat() override { return rng_->Uniform(0.0, 1.0); }
 };
 
+namespace {
+// Charm-DIS Pythia configuration shared by SampleFinalState (InitializePythia)
+// and the spline generator, so generated total/differential splines correspond
+// to exactly the events SampleFinalState produces. Route both through here to
+// keep them in lockstep.
+void ApplyPythiaCharmConfig(Pythia8::Pythia & pythia, int interaction_type,
+                            int beam_id, int target_pdg, double E_nu,
+                            std::string const & pdf_set, double minimum_Q2) {
+    if (interaction_type == 1)      pythia.readString("WeakBosonExchange:ff2ff(t:W) = on");
+    else if (interaction_type == 2) pythia.readString("WeakBosonExchange:ff2ff(t:gmZ) = on");
+    pythia.readString("Beams:frameType = 2");
+    pythia.readString("Beams:idA = " + std::to_string(beam_id));
+    pythia.readString("Beams:idB = " + std::to_string(target_pdg));
+    pythia.readString("Beams:eA = " + std::to_string(E_nu));
+    pythia.readString("Beams:eB = 0.");
+    if (interaction_type == 1) {
+        // Charm-only CC: zero non-charm CKM so every event produces charm.
+        pythia.settings.forceParm("StandardModel:Vud", 0.0);
+        pythia.settings.forceParm("StandardModel:Vus", 0.0);
+        pythia.settings.forceParm("StandardModel:Vub", 0.0);
+        pythia.settings.forceParm("StandardModel:Vcb", 0.0);
+    }
+    pythia.readString("PDF:pSet = " + pdf_set);
+    pythia.readString("PDF:useHard = on");
+    pythia.readString("PDF:pHardSet = " + pdf_set);
+    pythia.readString("HadronLevel:Hadronize = on");
+    pythia.readString("HadronLevel:Decay = off");
+    pythia.readString("PartonLevel:MPI = off");
+    pythia.readString("PhaseSpace:mHatMin = 0.0");
+    pythia.readString("PhaseSpace:Q2Min = " + std::to_string(minimum_Q2));
+    pythia.readString("Print:quiet = on");
+}
+} // anonymous namespace
+
 // --- Constructors ---
 
 PythiaDISCrossSection::PythiaDISCrossSection() {}
@@ -486,48 +520,7 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
         break; // use the first primary type
     }
 
-    // Process selection
-    if (interaction_type_ == 1) {
-        pythia_->readString("WeakBosonExchange:ff2ff(t:W) = on");
-    } else if (interaction_type_ == 2) {
-        pythia_->readString("WeakBosonExchange:ff2ff(t:gmZ) = on");
-    }
-
-    // Beam setup: fixed target
-    pythia_->readString("Beams:frameType = 2");
-    pythia_->readString("Beams:idA = " + std::to_string(beam_id));
-    pythia_->readString("Beams:idB = " + std::to_string(target_pdg));
-    pythia_->readString("Beams:eA = " + std::to_string(E_nu));
-    pythia_->readString("Beams:eB = 0.");
-
-    // Force charm-only for CC: zero out non-charm CKM elements
-    // Must use forceParm to bypass Pythia's range checks
-    if (interaction_type_ == 1) {
-        pythia_->settings.forceParm("StandardModel:Vud", 0.0);
-        pythia_->settings.forceParm("StandardModel:Vus", 0.0);
-        pythia_->settings.forceParm("StandardModel:Vub", 0.0);
-        pythia_->settings.forceParm("StandardModel:Vcb", 0.0);
-        // Keeps Vcd ~ 0.225 and Vcs ~ 0.973 -> every CC event produces charm
-    }
-
-    // PDF
-    pythia_->readString("PDF:pSet = " + pdf_set_);
-    pythia_->readString("PDF:useHard = on");
-    pythia_->readString("PDF:pHardSet = " + pdf_set_);
-
-    // Hadronization: string fragmentation ON, D decays OFF
-    pythia_->readString("HadronLevel:Hadronize = on");
-    pythia_->readString("HadronLevel:Decay = off");
-
-    // Disable MPI
-    pythia_->readString("PartonLevel:MPI = off");
-
-    // Phase space: remove mHatMin (default 4 GeV) to allow full kinematic range.
-    // Keep pTHatMinDiverge at default (1 GeV), giving effective Q2 > 1 GeV^2.
-    pythia_->readString("PhaseSpace:mHatMin = 0.0");
-    pythia_->readString("PhaseSpace:Q2Min = " + std::to_string(minimum_Q2_));
-
-    pythia_->readString("Print:quiet = on");
+    ApplyPythiaCharmConfig(*pythia_, interaction_type_, beam_id, target_pdg, E_nu, pdf_set_, minimum_Q2_);
 
     if (!pythia_->init()) {
         throw std::runtime_error("PythiaDISCrossSection: Pythia initialization failed");
@@ -540,6 +533,52 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
     pythia_->rndm.rndmEnginePtr(siren_rndm_);
 
     pythia_initialized_ = true;
+}
+
+void PythiaDISCrossSection::GeneratePythiaCharmSamples(
+    int interaction_type, int primary_pdg, int target_pdg, double target_mass,
+    std::string pdf_set, std::string pythia_data_path, double minimum_Q2,
+    std::vector<double> const & energies, int n_events,
+    std::vector<double> & out_sigma_mb,
+    std::vector<double> & out_E, std::vector<double> & out_x, std::vector<double> & out_y)
+{
+    // Run Pythia once per energy (fast: ~ms/event after init) using the SAME
+    // configuration SampleFinalState uses, recording the muon-reconstructed
+    // Bjorken (x, y) per charm event and Pythia's generated cross section per
+    // energy. The python generate_*_spline helpers fit these into FITS splines.
+    out_sigma_mb.clear(); out_E.clear(); out_x.clear(); out_y.clear();
+    if (!std::getenv("LHAPDF_DATA_PATH"))
+        throw std::runtime_error("GeneratePythiaCharmSamples: LHAPDF_DATA_PATH is not set");
+    bool is_cc = (interaction_type == 1);
+    for (double E : energies) {
+        Pythia8::Pythia pythia(pythia_data_path, false);
+        ApplyPythiaCharmConfig(pythia, interaction_type, primary_pdg, target_pdg, E, pdf_set, minimum_Q2);
+        if (!pythia.init())
+            throw std::runtime_error("GeneratePythiaCharmSamples: Pythia init failed");
+        for (int i = 0; i < n_events; ++i) {
+            if (!pythia.next()) continue;
+            int i_lep = -1;
+            for (int j = 0; j < pythia.event.size(); ++j) {
+                if (!pythia.event[j].isFinal()) continue;
+                int ap = std::abs(pythia.event[j].id());
+                bool is_lep = is_cc ? (ap == 11 || ap == 13 || ap == 15)
+                                    : (ap == 12 || ap == 14 || ap == 16);
+                if (is_lep) { i_lep = j; break; }
+            }
+            if (i_lep < 0) continue;
+            Pythia8::Vec4 pl = pythia.event[i_lep].p();
+            double y = 1.0 - pl.e() / E;
+            if (y <= 0.0 || y >= 1.0) continue;
+            Pythia8::Vec4 pnu(0.0, 0.0, E, E);   // (px,py,pz,e), nu along +z
+            Pythia8::Vec4 q4 = pnu - pl;
+            double Q2 = -q4.m2Calc();
+            if (Q2 <= 0.0) continue;
+            double x = Q2 / (2.0 * target_mass * E * y);
+            if (x <= 0.0 || x >= 1.0) continue;
+            out_E.push_back(E); out_x.push_back(x); out_y.push_back(y);
+        }
+        out_sigma_mb.push_back(pythia.info.sigmaGen());
+    }
 }
 
 void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
