@@ -113,6 +113,38 @@ TEST(PythiaDISCharmClosure, FragmentationPartitionAndClosure) {
         EXPECT_NEAR(gen, sum, sigma_incl * 1e-9) << "generation/physical interaction depth mismatch";
     }
 }
+
+// The differential spline is optional. With only a total spline (empty
+// differential filename), FinalStateProbability must return a constant 1.0 --
+// the Pythia final-state density is intractable but cancels in the unbiased
+// weight, so only the total cross section matters. Needs only the total spline.
+TEST(PythiaDISCharmClosure, ConstantFinalStateProbabilityWithoutDifferential) {
+    const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
+    if(!tt) {
+        GTEST_SKIP() << "Set SIREN_PYTHIA_TEST_SIGMA to run.";
+    }
+    std::vector<ParticleType> primaries = { ParticleType::NuMu };
+    std::vector<ParticleType> targets   = { ParticleType::PPlus };
+    PythiaDISCrossSection xs(
+        /*differential=*/std::string(""), std::string(tt),
+        /*interaction_type=*/1, /*target_mass=*/0.9382720813,
+        /*minimum_Q2=*/1.0, primaries, targets,
+        /*pythia_data_path=*/"", /*pdf_set=*/"LHAPDF6:CT18NLO", /*units=*/"cm");
+
+    // Total still works.
+    EXPECT_GT(xs.TotalCrossSection(ParticleType::NuMu, 100.0), 0.0);
+
+    // FinalStateProbability is exactly 1.0 for any well-formed record, since the
+    // no-differential branch returns before touching kinematics.
+    auto sig = xs.GetPossibleSignaturesFromParents(ParticleType::NuMu, ParticleType::PPlus)[0];
+    InteractionRecord rec;
+    rec.signature = sig;
+    rec.primary_momentum = {100.0, 0.0, 0.0, 100.0};
+    rec.target_mass = 0.9382720813;
+    rec.secondary_momenta = {{40.0, 1.0, 0.0, 39.0}, {0.0, 0.0, 0.0, 0.0}, {1.86, 0.0, 0.0, 1.0}};
+    rec.secondary_masses = {0.105, 0.0, 1.86};
+    EXPECT_EQ(xs.FinalStateProbability(rec), 1.0);
+}
 #endif // SIREN_HAS_PYTHIA8
 
 int main(int argc, char** argv) {
