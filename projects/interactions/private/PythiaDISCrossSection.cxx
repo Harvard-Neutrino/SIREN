@@ -10,6 +10,10 @@
 #include <limits>
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
+#include <tuple>
+#include <cstdlib>
+#include <cctype>
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -23,6 +27,7 @@
 #include "SIREN/dataclasses/Particle.h"
 #include "SIREN/utilities/Random.h"
 #include "SIREN/utilities/Constants.h"
+#include "SIREN/utilities/Errors.h"
 
 namespace siren {
 namespace interactions {
@@ -327,7 +332,13 @@ double PythiaDISCrossSection::DifferentialCrossSection(dataclasses::InteractionR
     double primary_energy = interaction.primary_momentum[0];
 
     std::map<std::string, int> secondaries = getIndices(interaction.signature);
-    unsigned int lepton_index = secondaries["lepton"];
+    int lepton_index_i = secondaries["lepton"];
+    // Guard against a malformed/empty signature: getIndices returns -1 when no
+    // lepton is found, and using that as an unsigned index reads out of bounds.
+    if(lepton_index_i < 0 || static_cast<size_t>(lepton_index_i) >= interaction.secondary_momenta.size()) {
+        return 0.0;
+    }
+    unsigned int lepton_index = static_cast<unsigned int>(lepton_index_i);
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
     rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
@@ -544,6 +555,12 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
     // Bridge the SIREN RNG for this event
     siren_rndm_->rng_ = random;
 
+    // The outgoing primary lepton is fixed by the signature: the charged lepton
+    // for CC (e/mu/tau, signed), or the same-flavor neutrino for NC. Match Pythia's
+    // final state against that exact PDG instead of hardcoding the muon, so NC and
+    // nu_e / nu_tau work, not only nu_mu CC.
+    int expected_lepton_pdg = static_cast<int>(record.signature.secondary_types[lepton_index]);
+
     // Generate a Pythia event
     int max_attempts = 100;
     bool found_charm = false;
@@ -552,8 +569,8 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             continue;
         }
 
-        // Find the muon and charmed hadron in the final state
-        int i_muon = -1;
+        // Find the outgoing lepton and charmed hadron in the final state
+        int i_lep = -1;
         int i_charm = -1;
         Pythia8::Vec4 p_remnant(0., 0., 0., 0.);
 
@@ -561,11 +578,11 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             if (!pythia_->event[i].isFinal()) continue;
 
             int pid = pythia_->event[i].id();
-            int abs_pid = std::abs(pid);
 
-            if (abs_pid == 13 && i_muon < 0) {
-                // Primary muon (first one found)
-                i_muon = i;
+            if (pid == expected_lepton_pdg && i_lep < 0) {
+                // Primary outgoing lepton matching the signature (CC charged
+                // lepton or NC neutrino, with the correct charge).
+                i_lep = i;
             } else if (IsCharmedHadron(pid) && i_charm < 0) {
                 // First charmed hadron
                 i_charm = i;
@@ -575,7 +592,7 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             }
         }
 
-        if (i_muon >= 0 && i_charm >= 0) {
+        if (i_lep >= 0 && i_charm >= 0) {
             // Trust Pythia: accept whatever charm meson it produced and
             // overwrite the signature's pre-chosen (uniform) meson slot with
             // Pythia's actual PID. Natural Lund-string fragmentation then
@@ -587,12 +604,12 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             found_charm = true;
 
             // Extract 4-momenta from Pythia (in Pythia's frame: nu along +z)
-            Pythia8::Vec4 p_mu_pythia = pythia_->event[i_muon].p();
+            Pythia8::Vec4 p_lep_pythia = pythia_->event[i_lep].p();
             Pythia8::Vec4 p_D_pythia = pythia_->event[i_charm].p();
 
             // Get Pythia's DIS kinematics for weighting
             double pythia_x = pythia_->info.x2();  // proton PDF x (beam B)
-            double pythia_y = 1.0 - p_mu_pythia.e() / E_nu;
+            double pythia_y = 1.0 - p_lep_pythia.e() / E_nu;
 
             // Store in interaction parameters for weighting
             record.interaction_parameters.clear();
@@ -612,7 +629,7 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
                 return rk::P4(mom, mass);
             };
 
-            double muon_mass = pythia_->event[i_muon].m();
+            double lepton_mass = pythia_->event[i_lep].m();
             double D_mass = pythia_->event[i_charm].m();
             double remnant_mass = std::sqrt(std::max(0.0,
                 p_remnant.e() * p_remnant.e() -
@@ -620,7 +637,7 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
                 p_remnant.py() * p_remnant.py() -
                 p_remnant.pz() * p_remnant.pz()));
 
-            rk::P4 p3 = pythia_to_siren(p_mu_pythia, muon_mass);
+            rk::P4 p3 = pythia_to_siren(p_lep_pythia, lepton_mass);
             rk::P4 p_D = pythia_to_siren(p_D_pythia, D_mass);
 
             // Remnant
@@ -635,7 +652,7 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             siren::dataclasses::SecondaryParticleRecord & meson = secondaries[meson_index];
 
             lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
-            lepton.SetMass(muon_mass);
+            lepton.SetMass(lepton_mass);
             lepton.SetHelicity(record.primary_helicity);
 
             hadron.SetFourMomentum({p_rem.e(), p_rem.px(), p_rem.py(), p_rem.pz()});
@@ -651,7 +668,10 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
     }
 
     if (!found_charm) {
-        throw std::runtime_error("PythiaDISCrossSection::SampleFinalState: Failed to generate charm event after " + std::to_string(max_attempts) + " attempts");
+        // Recoverable per-event failure: throw InjectionFailure so Injector::
+        // GenerateEvent catches it and drops/retries the event instead of a plain
+        // std::runtime_error, which would abort the entire generation run.
+        throw siren::utilities::InjectionFailure("PythiaDISCrossSection::SampleFinalState: Failed to generate charm event after " + std::to_string(max_attempts) + " attempts");
     }
 }
 

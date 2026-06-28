@@ -43,9 +43,12 @@ using namespace siren::dataclasses;
 
 namespace {
 double expected_ff(ParticleType d) {
-    if(d==ParticleType::D0 || d==ParticleType::D0Bar) return 0.6;
-    if(d==ParticleType::DPlus || d==ParticleType::DMinus) return 0.23;
-    if(d==ParticleType::DsPlus || d==ParticleType::DsMinus) return 0.15;
+    // Renormalized to sum to 1.0 over the implemented D species (the unmodeled
+    // Lambda_c fraction is folded in by dividing each raw value by 0.98). Mirrors
+    // PythiaDISCrossSection::FragmentationFraction.
+    if(d==ParticleType::D0 || d==ParticleType::D0Bar) return 0.6 / 0.98;
+    if(d==ParticleType::DPlus || d==ParticleType::DMinus) return 0.23 / 0.98;
+    if(d==ParticleType::DsPlus || d==ParticleType::DsMinus) return 0.15 / 0.98;
     return 0.0;
 }
 } // namespace
@@ -66,7 +69,7 @@ TEST(PythiaDISCharmClosure, FragmentationPartitionAndClosure) {
         /*minimum_Q2=*/1.0, primaries, targets,
         /*pythia_data_path=*/"", /*pdf_set=*/"LHAPDF6:CT18NLO", /*units=*/"cm");
 
-    const double ff_sum = 0.6 + 0.23 + 0.15;
+    const double ff_sum = (0.6 + 0.23 + 0.15) / 0.98;   // renormalized -> 1.0
 
     for(double E : {30.0, 100.0, 300.0}) {
         double sigma_incl = xs.TotalCrossSection(ParticleType::NuMu, E);
