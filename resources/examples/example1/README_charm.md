@@ -54,9 +54,29 @@ This writes `pythia_charm_sigma.fits` (always) and `pythia_charm_dsdxdy.fits`
 diffuse analysis band. See `siren.pythia_charm_splines` for the library API.
 
 The slow-rescaling `QuarkDISFromSpline` `dsdxidy_/sigma_nu-N-{cc,nc}-charm-*.fits`
-splines are external analysis inputs (LHAPDF-derived, not produced by SIREN);
-point `SIREN_CHARM_SPLINE_DIR` at them to run `DIS_IceCube_charm.py` and the
-`test_quarkdis_slow_rescaling.py` tests.
+splines are the analysis's external inputs (Dutta-Kim CT14 tooling). For a
+physically-validated *reference* set from any installed LHAPDF set, build and run
+`generate_charm_slowrescaling_splines.cpp` (LO slow rescaling: PDFs at the parton
+fraction xi, `Q^2 = 2 M E y xi - m_c^2`) then `fit_charm_slowrescaling_splines.py`.
+The integrated charm fraction is ~4% at 100 GeV rising to ~6% at 10 TeV -- the
+literature band, cross-checking the Pythia charm fraction ~6.5%. Point
+`SIREN_CHARM_SPLINE_DIR` at either set to run `DIS_IceCube_charm.py` and
+`test_quarkdis_slow_rescaling.py` (kinematic bounds, sample==density closure, and
+the charm-fraction normalization).
+
+Out-of-range events raise: if a sampled event falls outside the differential
+spline's `(E, x/xi, y)` support, `DifferentialCrossSection` raises (it never
+silently returns 0, which would bias that event's weight). Regenerate the spline
+wider, or check why the event is out of range.
+
+## Validating against the Pythia-vs-pythiaSIREN slides
+
+`reproduce_dimuon_kinematics.py` runs the full chain (PythiaDIS DIS -> D ->
+`CharmMesonDecay` muon channel) at E_nu = 100 GeV and saves the five slide
+observables (mu-pair opening angle, semileptonic E_mu/E_D, Bjorken-y, D/mu opening
+angle, Q^2). They reproduce the slide histogram shapes; the committed regression
+`tests/python/test_pythia_charm_validation.py` checks SampleFinalState against bare
+Pythia quantitatively.
 
 ## Charmed-hadron decay
 
