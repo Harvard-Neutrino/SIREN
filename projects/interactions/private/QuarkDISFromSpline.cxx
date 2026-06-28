@@ -14,6 +14,7 @@
 #include <limits>
 #include <cmath>
 #include <string>
+#include <stdexcept>
 #include <iostream>
 
 #include <rk/rk.hh>                                        // for P4, Boost
@@ -573,16 +574,20 @@ double QuarkDISFromSpline::DifferentialCrossSection(dataclasses::InteractionReco
 
 double QuarkDISFromSpline::DifferentialCrossSection(double energy, double xi, double y, double secondary_lepton_mass, double Q2) const {
     double log_energy = log10(energy);
-    // check preconditions
+    // Out of spline SUPPORT -> raise, never silently return 0: a silent zero on a
+    // genuinely sampled event would bias that event's physical density (and hence
+    // its weight) to zero.
     if (log_energy < differential_cross_section_.lower_extent(0)
             || log_energy > differential_cross_section_.upper_extent(0)) {
-        return 0.0;
+        throw std::runtime_error("QuarkDISFromSpline: energy " + std::to_string(energy)
+            + " GeV is outside the differential spline energy range ["
+            + std::to_string(std::pow(10.0, differential_cross_section_.lower_extent(0))) + ", "
+            + std::to_string(std::pow(10.0, differential_cross_section_.upper_extent(0)))
+            + "] GeV.");
     }
-    if (xi <= 0 || xi >= 1) {
-        return 0.0;
-    }
-    if (y <= 0 || y >= 1) {
-        return 0.0;
+    if (xi <= 0 || xi >= 1 || y <= 0 || y >= 1) {
+        throw std::runtime_error("QuarkDISFromSpline: unphysical (xi="
+            + std::to_string(xi) + ", y=" + std::to_string(y) + ") outside (0, 1).");
     }
 
     if (std::isnan(Q2)) {
@@ -598,7 +603,9 @@ double QuarkDISFromSpline::DifferentialCrossSection(double energy, double xi, do
     std::array<double,3> coordinates{{log_energy, log10(xi), log10(y)}};
     std::array<int,3> centers;
     if (!differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
-        return 0;
+        throw std::runtime_error("QuarkDISFromSpline: (xi=" + std::to_string(xi)
+            + ", y=" + std::to_string(y) + ") at E=" + std::to_string(energy)
+            + " GeV is outside the differential spline (xi, y) grid.");
     }
     double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
     assert(result >= 0);

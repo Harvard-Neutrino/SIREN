@@ -237,6 +237,25 @@ TEST(PythiaDISCharmClosure, FragmentationClosureAtAnalysisEnergies) {
         EXPECT_NEAR(gen, sum, sigma_incl * 1e-9) << "generation/physical mismatch at E=" << E;
     }
 }
+
+// Out-of-range differential evaluation must RAISE, not silently return 0 (a
+// silent zero on a sampled event biases its weight). Needs a differential spline.
+TEST(PythiaDISCharmClosure, DifferentialOutOfRangeRaises) {
+    const char* dd = std::getenv("SIREN_PYTHIA_TEST_DSDXDY");
+    const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
+    if(!dd || !tt) GTEST_SKIP() << "Set SIREN_PYTHIA_TEST_DSDXDY and SIREN_PYTHIA_TEST_SIGMA to run.";
+    std::vector<ParticleType> primaries = { ParticleType::NuMu };
+    std::vector<ParticleType> targets   = { ParticleType::PPlus };
+    PythiaDISCrossSection xs(std::string(dd), std::string(tt),
+        1, 0.9382720813, 1.0, primaries, targets, "", "LHAPDF6:CT18NLO", "cm");
+
+    // In range -> finite positive density (Q2 computed from x,y).
+    EXPECT_GT(xs.DifferentialCrossSection(100.0, 0.1, 0.5, 0.105), 0.0);
+    // Energy outside the spline extent must raise.
+    EXPECT_THROW(xs.DifferentialCrossSection(1.0e12, 0.1, 0.5, 0.105), std::runtime_error);
+    // (x, y) outside the spline grid must raise (explicit Q2 bypasses the Q2 cut).
+    EXPECT_THROW(xs.DifferentialCrossSection(100.0, 1.0e-8, 0.5, 0.105, 5.0), std::runtime_error);
+}
 #endif // SIREN_HAS_PYTHIA8
 
 int main(int argc, char** argv) {

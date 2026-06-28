@@ -373,6 +373,8 @@ double PythiaDISCrossSection::TotalCrossSection(siren::dataclasses::ParticleType
 
 
 double PythiaDISCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
+    if(!has_differential_)
+        throw std::runtime_error("PythiaDISCrossSection::DifferentialCrossSection called but no differential spline was loaded (the unbiased default uses a constant FinalStateProbability).");
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
     double primary_energy = interaction.primary_momentum[0];
@@ -422,19 +424,32 @@ double PythiaDISCrossSection::DifferentialCrossSection(dataclasses::InteractionR
 }
 
 double PythiaDISCrossSection::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
+    if(!has_differential_)
+        throw std::runtime_error("PythiaDISCrossSection::DifferentialCrossSection called but no differential spline was loaded (the unbiased default uses a constant FinalStateProbability).");
     double log_energy = log10(energy);
+    // Out of spline SUPPORT -> raise, never silently return 0: a silent zero on a
+    // genuinely sampled event would bias that event's physical density (and hence
+    // its weight) to zero. The energy extent and the (x, y) grid define validity.
     if(log_energy < differential_cross_section_.lower_extent(0)
             || log_energy > differential_cross_section_.upper_extent(0))
-        return 0.0;
-    if(x <= 0 || x >= 1) return 0.0;
-    if(y <= 0 || y >= 1) return 0.0;
+        throw std::runtime_error("PythiaDISCrossSection: energy " + std::to_string(energy)
+            + " GeV is outside the differential spline energy range ["
+            + std::to_string(std::pow(10.0, differential_cross_section_.lower_extent(0))) + ", "
+            + std::to_string(std::pow(10.0, differential_cross_section_.upper_extent(0)))
+            + "] GeV; regenerate the differential spline to cover this energy.");
+    if(x <= 0 || x >= 1 || y <= 0 || y >= 1)
+        throw std::runtime_error("PythiaDISCrossSection: unphysical Bjorken (x="
+            + std::to_string(x) + ", y=" + std::to_string(y) + ") outside (0, 1).");
     if(std::isnan(Q2)) Q2 = 2.0 * energy * target_mass_ * x * y;
-    if(Q2 < minimum_Q2_) return 0;
-    (void)secondary_lepton_mass;   // analytic charm-DIS gate removed (see above)
+    if(Q2 < minimum_Q2_) return 0;   // below the configured Q^2 cut: a modeling threshold, not a spline-range miss
+    (void)secondary_lepton_mass;     // analytic charm-DIS gate removed (see above)
 
     std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
     std::array<int,3> centers;
-    if(!differential_cross_section_.searchcenters(coordinates.data(), centers.data())) return 0;
+    if(!differential_cross_section_.searchcenters(coordinates.data(), centers.data()))
+        throw std::runtime_error("PythiaDISCrossSection: Bjorken (x=" + std::to_string(x)
+            + ", y=" + std::to_string(y) + ") at E=" + std::to_string(energy)
+            + " GeV is outside the differential spline (x, y) grid; widen the spline's logx/logy range.");
     double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
     return unit * result;
 }
