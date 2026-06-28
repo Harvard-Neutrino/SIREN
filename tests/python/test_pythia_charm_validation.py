@@ -254,28 +254,48 @@ def test_differential_spline_covers_sampling_support():
     for E in (1.0e3, 1.0e4):   # 1 TeV, 10 TeV (within the wide spline x-range)
         ev = _sample_siren(xs, E, n=60)
         assert len(ev) >= 30, f"too few events at E={E:.0e}"
-        vals = [xs.DifferentialCrossSection(e["ir_out"]) for e in ev]
-        good = [v for v in vals if math.isfinite(v) and v > 0.0]
-        frac = len(good) / len(vals)
+        in_range = 0
+        out_of_range = 0
+        silent_zero = 0
+        for e in ev:
+            try:
+                v = xs.DifferentialCrossSection(e["ir_out"])
+            except RuntimeError:
+                out_of_range += 1   # out-of-spline-support correctly RAISES
+                continue
+            if math.isfinite(v) and v > 0.0:
+                in_range += 1
+            else:
+                silent_zero += 1
+        # The new contract: out-of-range raises; nothing returns a silent zero.
+        assert silent_zero == 0, (
+            f"{silent_zero} sampled events at E={E:.0e} GeV returned a silent-zero "
+            "differential density instead of raising")
+        frac = in_range / len(ev)
         assert frac > 0.95, (
-            f"only {frac:.3f} of sampled events at E={E:.0e} GeV had a "
-            "finite-positive differential density -- the differential spline "
-            "(E, x, y) support does not cover the sampling support (silent-zero "
-            "weight bias). Widen the spline's logx range.")
+            f"only {frac:.3f} of sampled events at E={E:.0e} GeV fell inside the "
+            "differential spline (E, x, y) support; widen the spline's logx/logy range.")
 
 
 # ---------------------------------------------------------------------------
 # Test 5: end-to-end inject -> weight through the real Injector / Weighter
 # ---------------------------------------------------------------------------
 @pytest.mark.skipif(not PYTHIA_DATA, reason="set PYTHIA8DATA to run the Pythia-sampling tests")
-def test_end_to_end_inject_and_weight():
-    """Drive PythiaDISCrossSection as the primary charm-DIS generator through the
-    real _Injector / _Weighter on the CCM detector. Every generated event must
-    receive a finite, positive weight, and the weights must vary (genuine
-    per-event sampling). This exercises the full production-side weight
-    accumulation (TotalCrossSection interaction depth / position / survival times
-    the cancelling constant FinalStateProbability) end to end -- the cross-section
-    closure tests prove the per-vertex factors; this proves they integrate.
+def test_end_to_end_rate_closure():
+    """Quantitative inject->weight rate closure for charm DIS through the real
+    _Injector / _Weighter on the CCM detector.
+
+    SIREN folds 1/N into EventWeight and (with injection==physical so the shared
+    distributions and the cross-section probability cancel, and the injection-side
+    PointSource position propagator cancels the physical position propagator)
+    leaves EventWeight_i = InteractionProbability_i / N. Therefore:
+      - per event, EventWeight must equal GetInteractionProbabilities/N (machine
+        precision; EventWeight and GetInteractionProbabilities are independent code
+        paths, so their agreement IS the unbiasedness proof -- a charm
+        SampleFinalState/FinalStateProbability/TotalCrossSection inconsistency, the
+        PR#74 closure-break class, would break it), and
+      - sum(EventWeight) is the unbiased physical-rate estimator == mean(P_int),
+        which a thin-target estimate sigma * n_Ar * L_eff bounds from above/below.
     """
     import numpy as np
     from siren import (dataclasses as dc, injection, interactions, distributions,
@@ -307,19 +327,47 @@ def test_end_to_end_inject_and_weight():
     pphys.distributions = [distributions.PrimaryMass(0), distributions.IsotropicDirection()]
 
     rand = utilities.SIREN_random(7)
-    N = 4
+    E0 = 1000.0   # 1 TeV monoenergetic
+    pinj.distributions = [
+        distributions.PrimaryMass(0),
+        distributions.Monoenergetic(E0),
+        distributions.IsotropicDirection(),
+        distributions.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 5.0),
+    ]
+    N = 10
     inj = injection._Injector(N, dm, pinj, rand)
     weighter = injection._Weighter([inj], dm, pphys)
 
-    weights = []
+    weights, int_probs = [], []
     for _ in range(N):
         ev = inj.GenerateEvent()
         w = weighter.EventWeight(ev)
+        ip = weighter.GetInteractionProbabilities(ev, 0)[0]
         assert np.isfinite(w) and w > 0.0, f"non-finite/non-positive event weight {w}"
         weights.append(w)
+        int_probs.append(ip)
 
-    assert len(weights) == N
+    # (1) Per-event unbiasedness: EventWeight == single-event interaction probability / N.
+    for w, ip in zip(weights, int_probs):
+        assert abs(w - ip / N) <= 1e-9 * (ip / N), f"EventWeight {w} != P_int/N {ip / N}"
+
+    # (2) Sum of weights is the unbiased physical-rate estimator == mean(P_int).
+    sum_w = sum(weights)
+    mean_ip = sum(int_probs) / N
+    assert abs(sum_w - mean_ip) <= 1e-9 * mean_ip
+
+    # (3) finite, positive, genuinely varying.
     assert len(set(weights)) > 1, "all event weights identical -- sampling did not vary"
+
+    # (4) Analytic thin-target anchor: sum_w ~ sigma_charm * n_Ar * L_eff, with the
+    # effective LAr path L_eff between ~0 and the 5 m injection cap (isotropic rays
+    # exit the volume). sigma is the per-nucleon charm spline value at E0.
+    sigma_cm2 = xs.TotalCrossSection(NuMu, E0)
+    n_Ar = 1.396 * 6.022e23 / 40.0          # CCM liquid-argon number density [cm^-3]
+    L_max_cm = 500.0
+    upper = sigma_cm2 * n_Ar * L_max_cm
+    assert 0.0 < sum_w < upper, f"sum_w {sum_w:.3e} not in (0, sigma*n*L_max={upper:.3e})"
+    assert sum_w > 0.02 * upper, f"sum_w {sum_w:.3e} implausibly small vs thin-target {upper:.3e}"
 
 
 # ---------------------------------------------------------------------------

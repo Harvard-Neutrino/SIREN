@@ -356,3 +356,41 @@ def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
         checked += 1
 
     assert checked > 0, "no positive-dxs events were available for closure check"
+
+
+# ---------------------------------------------------------------------------
+# Test 4: absolute charm-DIS normalization (charm fraction vs literature/Pythia)
+# ---------------------------------------------------------------------------
+def test_quarkdis_charm_fraction_normalization():
+    """The inclusive slow-rescaling charm-CC cross section must have the right
+    absolute magnitude: the charm fraction sigma_charm / sigma_CC must land in the
+    literature band (~4-7% over 100 GeV - 1 TeV), cross-validating the independent
+    PythiaDISCrossSection charm fraction (~6.5% at 100 GeV). The spline is read in
+    cm so TotalCrossSection returns cm^2 (the per-nucleon reference below is cm^2).
+    """
+    import siren.interactions
+    import siren.dataclasses
+
+    PT = siren.dataclasses.Particle.ParticleType
+    xs = siren.interactions.QuarkDISFromSpline(
+        _DIFF_FILE, _TOTAL_FILE, int(1), M_N, int(1),
+        [PT.NuMu], [PT.O16Nucleus], "cm")
+
+    sigma_cc_per_gev = 0.677e-38       # textbook nu-N CC sigma/E [cm^2/GeV]
+    prev = None
+    n_checked = 0
+    for E in (100.0, 200.0, 300.0):
+        try:
+            s = xs.TotalCrossSection(PT.NuMu, E)
+        except RuntimeError:
+            continue                   # energy outside the provided spline range
+        assert s > 0.0
+        frac = s / (sigma_cc_per_gev * E)
+        assert 0.02 < frac < 0.10, (
+            f"charm fraction {frac:.3f} at {E:.0f} GeV outside the literature band "
+            "[0.02, 0.10]")
+        if prev is not None:
+            assert s > prev, "charm cross section must increase with energy"
+        prev = s
+        n_checked += 1
+    assert n_checked >= 1, "no in-range energy point was available to normalize"
