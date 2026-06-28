@@ -14,6 +14,7 @@
 #include <tuple>
 #include <cstdlib>
 #include <cctype>
+#include <sys/stat.h>
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -248,6 +249,16 @@ std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses:
 // --- Signatures ---
 
 void PythiaDISCrossSection::InitializeSignatures() {
+    // PythiaDISCrossSection forces charm only in charged-current (the non-charm
+    // CKM elements are zeroed in ApplyPythiaCharmConfig). Z exchange has no such
+    // handle, so NC charm cannot be forced and SampleFinalState would exhaust its
+    // attempt budget and throw. Reject NC at construction with an actionable
+    // pointer to the tool that does support NC charm (QuarkDISFromSpline).
+    if(interaction_type_ != 1) {
+        if(interaction_type_ == 2)
+            throw std::runtime_error("PythiaDISCrossSection supports only charged-current charm production (interaction_type=1). Neutral-current charm is not forced by Z exchange in Pythia, so per-event sampling would fail; use QuarkDISFromSpline for NC charm.");
+        throw std::runtime_error("PythiaDISCrossSection: unsupported interaction_type=" + std::to_string(interaction_type_) + " (expected 1 for charged current).");
+    }
     signatures_.clear();
     for(auto primary_type : primary_types_) {
         dataclasses::InteractionSignature signature;
@@ -348,7 +359,11 @@ double PythiaDISCrossSection::TotalCrossSection(siren::dataclasses::ParticleType
     double log_energy = log10(primary_energy);
     if(log_energy < total_cross_section_.lower_extent(0)
             or log_energy > total_cross_section_.upper_extent(0)) {
-        throw std::runtime_error("Interaction energy out of cross section table range");
+        throw std::runtime_error("PythiaDISCrossSection: primary energy "
+            + std::to_string(primary_energy) + " GeV is outside the total cross-section spline range ["
+            + std::to_string(std::pow(10.0, total_cross_section_.lower_extent(0))) + ", "
+            + std::to_string(std::pow(10.0, total_cross_section_.upper_extent(0)))
+            + "] GeV; regenerate the total spline (siren.pythia_charm_splines.generate_total_spline) to cover this energy.");
     }
     int center;
     total_cross_section_.searchcenters(&log_energy, &center);
@@ -508,7 +523,24 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
     // The pdf_set_ is e.g. "LHAPDF6:HERAPDF20_NLO_EIG", and LHAPDF needs LHAPDF_DATA_PATH set
     const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
     if (!lhapdf_path) {
-        throw std::runtime_error("LHAPDF_DATA_PATH is not set; set it to your LHAPDF data directory");
+        throw std::runtime_error("LHAPDF_DATA_PATH is not set; set it to your LHAPDF data directory (the parent of the PDF set folders).");
+    }
+
+    // Pre-flight: verify the requested PDF set is actually installed under
+    // LHAPDF_DATA_PATH. A missing set otherwise surfaces only as Pythia's opaque
+    // "initialization failed" much later; name the set and where we looked.
+    {
+        std::string set_name = pdf_set_;
+        auto colon = set_name.find(':');                 // strip an "LHAPDF6:" prefix
+        if (colon != std::string::npos) set_name = set_name.substr(colon + 1);
+        std::string set_dir = std::string(lhapdf_path) + "/" + set_name;
+        struct stat st;
+        if (stat(set_dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+            throw std::runtime_error("PythiaDISCrossSection: LHAPDF PDF set '" + set_name
+                + "' not found under LHAPDF_DATA_PATH=" + std::string(lhapdf_path)
+                + " (looked for " + set_dir + "). Install it (e.g. 'lhapdf install " + set_name
+                + "') or construct with a pdf_set that is installed.");
+        }
     }
 
     pythia_ = std::make_unique<Pythia8::Pythia>(pythia_data_path_, false);

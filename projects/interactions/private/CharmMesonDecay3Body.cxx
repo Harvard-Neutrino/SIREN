@@ -63,6 +63,8 @@ CharmMesonDecay3Body::CharmMesonDecay3Body(siren::dataclasses::Particle::Particl
 
     mD = particleMass(siren::dataclasses::Particle::ParticleType::D0);
     mK = particleMass(siren::dataclasses::Particle::ParticleType::KMinus);
+  } else {
+    throw std::runtime_error("CharmMesonDecay3Body: only D0 and D+ are implemented. Use CharmMesonDecay, which covers D0/D+/Ds and their anti-flavors.");
   }
 
   computeDiffGammaCDF(constants, mD, mK);
@@ -235,7 +237,7 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay3Body::GetPossible
       signatures.push_back(hadron_signature);
     }
     else {
-      std::cout << "this D meson decay has not been implemented yet" << std::endl;
+      throw std::runtime_error("CharmMesonDecay3Body::GetPossibleSignaturesFromParent: only D0 and D+ are implemented. Use CharmMesonDecay for D0/D+/Ds and anti-flavors.");
     }
     return signatures;
 }
@@ -649,6 +651,11 @@ double CharmMesonDecay3Body::SampledQ2Normalization(double mD, double mK, double
 
 double CharmMesonDecay3Body::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   dataclasses::InteractionSignature signature = record.signature;
+  // Guard: finalize() does not copy the signature, so a finalized record can
+  // arrive with an empty signature/secondaries -> indexing below would be UB.
+  if (signature.secondary_types.empty()) {
+    throw std::runtime_error("CharmMesonDecay3Body::FinalStateProbability: record has an empty signature. Set record.signature (and secondary masses/momenta) before calling; finalize() does not copy the signature.");
+  }
   // Fully hadronic catch-all: deterministic final state, density 1.
   if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
     return 1.0;
@@ -657,6 +664,9 @@ double CharmMesonDecay3Body::FinalStateProbability(dataclasses::InteractionRecor
   siren::dataclasses::Particle::ParticleType primary = signature.primary_type;
   bool apply_va = true;   // 3-body class always applies the V-A matrix element
 
+  if (record.secondary_masses.size() < 2 || record.secondary_momenta.empty()) {
+    throw std::runtime_error("CharmMesonDecay3Body::FinalStateProbability: record secondaries are not populated (need >=2 masses and >=1 momentum).");
+  }
   double mD = record.primary_mass;
   double ml = record.secondary_masses[1];
   double mK = record.secondary_masses[0];   // hadron mass actually sampled

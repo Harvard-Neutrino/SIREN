@@ -843,6 +843,11 @@ double CharmMesonDecay::SampledQ2Normalization(double mD, double mK, double ml, 
 
 double CharmMesonDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   dataclasses::InteractionSignature signature = record.signature;
+  // Guard: finalize() does not copy the signature, so a finalized record can
+  // arrive with an empty signature/secondaries -> indexing below would be UB.
+  if (signature.secondary_types.empty()) {
+    throw std::runtime_error("CharmMesonDecay::FinalStateProbability: record has an empty signature. Set record.signature (and secondary masses/momenta) before calling; finalize() does not copy the signature.");
+  }
   // Fully hadronic catch-all: a single Hadrons daughter carries the full
   // primary 4-momentum, so the final state is deterministic and its density is 1.
   if (signature.secondary_types.size() == 1 &&
@@ -855,6 +860,9 @@ double CharmMesonDecay::FinalStateProbability(dataclasses::InteractionRecord con
                 primary == siren::dataclasses::Particle::ParticleType::DsMinus);
   bool apply_va = !is_Ds;   // Ds is pure phase space (no V-A matrix element)
 
+  if (record.secondary_masses.size() < 2 || record.secondary_momenta.empty()) {
+    throw std::runtime_error("CharmMesonDecay::FinalStateProbability: record secondaries are not populated (need >=2 masses and >=1 momentum).");
+  }
   // Reconstruct q^2 = (p_D - p_hadron)^2 exactly as SampleFinalState defines it.
   double mD = record.primary_mass;
   double ml = record.secondary_masses[1];
