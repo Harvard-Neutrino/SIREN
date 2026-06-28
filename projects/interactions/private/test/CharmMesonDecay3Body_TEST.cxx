@@ -405,6 +405,18 @@ TEST(CharmMesonDecay3Body, VAWeightAngleAverageMatchesNumericReference) {
     }
 }
 
+// CharmMesonDecay3Body implements only D0 and D+. Unsupported species (e.g. Ds)
+// and empty-signature records must fail loudly rather than silently mis-decay or
+// index out of bounds. (CharmMesonDecay covers D0/D+/Ds and anti-flavors.)
+TEST(CharmMesonDecay3Body, UnsupportedSpeciesAndEmptySignatureThrow) {
+    EXPECT_THROW({ CharmMesonDecay3Body d(ParticleType::DsPlus); }, std::runtime_error);
+    CharmMesonDecay3Body dp(ParticleType::DPlus);
+    EXPECT_THROW(dp.GetPossibleSignaturesFromParent(ParticleType::DsPlus), std::runtime_error);
+    CharmMesonDecay3Body d0(ParticleType::D0);
+    InteractionRecord rec;   // default: empty signature
+    EXPECT_THROW(d0.FinalStateProbability(rec), std::runtime_error);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -145,6 +145,98 @@ TEST(PythiaDISCharmClosure, ConstantFinalStateProbabilityWithoutDifferential) {
     rec.secondary_masses = {0.105, 0.0, 1.86};
     EXPECT_EQ(xs.FinalStateProbability(rec), 1.0);
 }
+
+// PythiaDISCrossSection forces charm only in charged current. NC charm is not
+// forced by Z exchange, so it must be rejected at construction with an
+// actionable error rather than failing later inside SampleFinalState.
+TEST(PythiaDISCharmClosure, NeutralCurrentRejectedAtConstruction) {
+    const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
+    if(!tt) GTEST_SKIP() << "Set SIREN_PYTHIA_TEST_SIGMA to run.";
+    std::vector<ParticleType> primaries = { ParticleType::NuMu };
+    std::vector<ParticleType> targets   = { ParticleType::PPlus };
+    EXPECT_THROW({
+        PythiaDISCrossSection xs(std::string(""), std::string(tt),
+            /*interaction_type=*/2, 0.9382720813, 1.0, primaries, targets,
+            "", "LHAPDF6:CT18NLO", "cm");
+    }, std::runtime_error);
+    // Positive control: CC still constructs cleanly.
+    EXPECT_NO_THROW({
+        PythiaDISCrossSection xs(std::string(""), std::string(tt),
+            /*interaction_type=*/1, 0.9382720813, 1.0, primaries, targets,
+            "", "LHAPDF6:CT18NLO", "cm");
+    });
+}
+
+// Species/fragmentation tripwire. The three modeled D fractions are renormalized
+// (each /0.98) so the partitioned signatures recover the inclusive charm cross
+// section; the unmodeled Lambda_c (~0.02 of the D0/D+/Ds total) is folded in.
+// Pin the raw sum (0.98) and Lambda_c -> 0 so adding Lambda_c forces a test
+// update rather than silently shifting the species mix.
+TEST(PythiaDISCharmClosure, FragmentationFractionSpeciesTripwire) {
+    const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
+    if(!tt) GTEST_SKIP() << "Set SIREN_PYTHIA_TEST_SIGMA to run.";
+    std::vector<ParticleType> primaries = { ParticleType::NuMu };
+    std::vector<ParticleType> targets   = { ParticleType::PPlus };
+    PythiaDISCrossSection xs(std::string(""), std::string(tt),
+        1, 0.9382720813, 1.0, primaries, targets, "", "LHAPDF6:CT18NLO", "cm");
+
+    EXPECT_NEAR(xs.FragmentationFraction(ParticleType::D0),     0.6 / 0.98, 1e-12);
+    EXPECT_NEAR(xs.FragmentationFraction(ParticleType::DPlus),  0.23 / 0.98, 1e-12);
+    EXPECT_NEAR(xs.FragmentationFraction(ParticleType::DsPlus), 0.15 / 0.98, 1e-12);
+    // Renormalized fractions over the modeled species recover the full inclusive sigma.
+    double sum = xs.FragmentationFraction(ParticleType::D0)
+               + xs.FragmentationFraction(ParticleType::DPlus)
+               + xs.FragmentationFraction(ParticleType::DsPlus);
+    EXPECT_NEAR(sum, 1.0, 1e-12);
+    // Raw fractions sum to 0.98; the 0.02 gap is the folded unmodeled-baryon fraction.
+    EXPECT_NEAR(0.6 + 0.23 + 0.15, 0.98, 1e-12);
+    // Lambda_c (PDG 4122) is intentionally unmodeled -> FF 0. Modeling it must update this.
+    EXPECT_EQ(xs.FragmentationFraction(static_cast<ParticleType>(4122)), 0.0);
+}
+
+// Closure + fragmentation partition must hold across the ANALYSIS energy band
+// (TeV-PeV), not only <=300 GeV. Uses a wide total spline (100 GeV - 1 PeV); a
+// spline that silently threw or mis-partitioned at PeV would crash or bias the
+// production run at exactly the analysis energies.
+TEST(PythiaDISCharmClosure, FragmentationClosureAtAnalysisEnergies) {
+    const char* tt = std::getenv("SIREN_PYTHIA_WIDE_SIGMA");
+    if(!tt) GTEST_SKIP() << "Set SIREN_PYTHIA_WIDE_SIGMA (wide total spline, 100 GeV-1 PeV) to run.";
+    std::vector<ParticleType> primaries = { ParticleType::NuMu };
+    std::vector<ParticleType> targets   = { ParticleType::PPlus };
+    PythiaDISCrossSection xs(std::string(""), std::string(tt),
+        1, 0.9382720813, 1.0, primaries, targets, "", "LHAPDF6:CT18NLO", "cm");
+    const double ff_sum = (0.6 + 0.23 + 0.15) / 0.98;
+
+    for(double E : {1.0e4, 1.0e5, 1.0e6}) {   // 10 TeV, 100 TeV, 1 PeV
+        double sigma_incl = 0.0;
+        ASSERT_NO_THROW(sigma_incl = xs.TotalCrossSection(ParticleType::NuMu, E))
+            << "total spline does not cover E=" << E << " GeV";
+        ASSERT_GT(sigma_incl, 0.0);
+
+        auto sigs = xs.GetPossibleSignaturesFromParents(ParticleType::NuMu, ParticleType::PPlus);
+        ASSERT_EQ(sigs.size(), 3u);
+        double sum = 0.0;
+        for(auto const & sig : sigs) {
+            InteractionRecord rec;
+            rec.signature = sig;
+            rec.primary_momentum[0] = E;
+            double v = xs.TotalCrossSection(rec);
+            sum += v;
+            ParticleType d = ParticleType::unknown;
+            for(auto t : sig.secondary_types) if(isD(t)) { d = t; break; }
+            ASSERT_NE(d, ParticleType::unknown);
+            EXPECT_NEAR(v, sigma_incl * expected_ff(d), sigma_incl * 1e-9) << "E=" << E;
+        }
+        EXPECT_NEAR(sum, sigma_incl * ff_sum, sigma_incl * 1e-9) << "E=" << E;
+
+        InteractionRecord rec;
+        rec.signature.primary_type = ParticleType::NuMu;
+        rec.signature.target_type = ParticleType::PPlus;
+        rec.primary_momentum[0] = E;
+        double gen = xs.TotalCrossSectionAllFinalStates(rec);
+        EXPECT_NEAR(gen, sum, sigma_incl * 1e-9) << "generation/physical mismatch at E=" << E;
+    }
+}
 #endif // SIREN_HAS_PYTHIA8
 
 int main(int argc, char** argv) {

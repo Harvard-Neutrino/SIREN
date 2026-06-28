@@ -500,3 +500,79 @@ TEST(CharmMesonDecay, VAWeightAngleAverageMatchesNumericReference) {
         }
     }
 }
+
+// --- Test 6: lab decay length L = beta*gamma*c*tau (cascade separation) ------
+//
+// The multi-cascade search reconstructs the separation L between the production
+// cascade and the charm-decay cascade; the hard regime is below ~10 m. L is set
+// by the D species proper lifetime and the lab boost, so it must be physically
+// correct across the analysis energy band (TeV-PeV). Decay::TotalDecayLength
+// returns beta*gamma*(1/Gamma)*hbarc, and because the modeled branching ratios
+// sum to 1 the width recovers the PDG lifetime exactly.
+namespace {
+constexpr double tau_D0_s = 410.1e-15;   // proper lifetimes hardcoded in
+constexpr double tau_Dp_s = 1040.0e-15;  // CharmMesonDecay (seconds).
+constexpr double tau_Ds_s = 504.0e-15;
+constexpr double c_m_per_s  = 2.99792458e8;    // speed of light [m/s]
+// Note: Decay::TotalDecayLength returns METERS (SIREN base length unit; hbarc
+// carries the cm->m conversion), consistent with the Taupede reco frame.
+
+InteractionRecord make_boosted_D(ParticleType d, double mD, double E_D) {
+    double p = std::sqrt(E_D * E_D - mD * mD);
+    InteractionRecord rec;
+    rec.signature.primary_type = d;
+    rec.signature.target_type = ParticleType::Decay;
+    rec.primary_mass = mD;
+    rec.primary_momentum = {E_D, 0.0, 0.0, p};   // boosted along +z
+    return rec;
+}
+} // namespace
+
+TEST(CharmMesonDecay, LabDecayLengthIsBetaGammaCTau) {
+    struct Case { ParticleType d; double mD; double tau; };
+    std::vector<Case> cases = {
+        {ParticleType::D0,     Constants::D0Mass,     tau_D0_s},
+        {ParticleType::DPlus,  Constants::DPlusMass,  tau_Dp_s},
+        {ParticleType::DsPlus, Constants::DsPlusMass, tau_Ds_s},
+    };
+    for (auto const & cs : cases) {
+        CharmMesonDecay decay(cs.d);
+        double prev_L = -1.0, prev_E = -1.0;
+        for (double E_D : {1.0e4, 1.0e5, 1.0e6}) {   // 10 TeV, 100 TeV, 1 PeV
+            InteractionRecord rec = make_boosted_D(cs.d, cs.mD, E_D);
+            double L_m = decay.TotalDecayLength(rec);                  // SIREN [m]
+            double p = std::sqrt(E_D * E_D - cs.mD * cs.mD);
+            double betagamma = p / cs.mD;
+            double expected_m = betagamma * c_m_per_s * cs.tau;        // physics truth [m]
+            // 0.5% absorbs the ~0.01% rounding of SIREN's hbar/hbarc constants.
+            EXPECT_NEAR(L_m, expected_m, 5e-3 * expected_m)
+                << "species=" << static_cast<int>(cs.d) << " E_D=" << E_D;
+            // beta*gamma is linear in E for E >> m: L(10x E) ~ 10x L.
+            if (prev_L > 0.0)
+                EXPECT_NEAR(L_m / prev_L, E_D / prev_E, 1e-3 * (E_D / prev_E));
+            prev_L = L_m; prev_E = E_D;
+        }
+    }
+}
+
+TEST(CharmMesonDecay, LabDecayLengthSpeciesOrdering) {
+    // At fixed boost energy the L ordering follows the lifetimes: D+ > Ds > D0.
+    double E_D = 1.0e5;   // 100 TeV
+    CharmMesonDecay d0(ParticleType::D0), dp(ParticleType::DPlus), ds(ParticleType::DsPlus);
+    double L_D0 = d0.TotalDecayLength(make_boosted_D(ParticleType::D0,     Constants::D0Mass,     E_D));
+    double L_Dp = dp.TotalDecayLength(make_boosted_D(ParticleType::DPlus,  Constants::DPlusMass,  E_D));
+    double L_Ds = ds.TotalDecayLength(make_boosted_D(ParticleType::DsPlus, Constants::DsPlusMass, E_D));
+    EXPECT_GT(L_Dp, L_Ds);
+    EXPECT_GT(L_Ds, L_D0);
+    // At 100 TeV a D0 travels a few meters -- squarely in the Taupede regime.
+    EXPECT_GT(L_D0, 1.0);      // > 1 m
+    EXPECT_LT(L_D0, 50.0);     // < 50 m
+}
+
+TEST(CharmMesonDecay, FinalStateProbabilityThrowsOnEmptySignature) {
+    // finalize() does not copy the signature; FinalStateProbability must reject
+    // an empty-signature record loudly instead of indexing out of bounds (UB).
+    CharmMesonDecay decay(ParticleType::D0);
+    InteractionRecord rec;   // default: empty signature, no secondaries
+    EXPECT_THROW(decay.FinalStateProbability(rec), std::runtime_error);
+}
