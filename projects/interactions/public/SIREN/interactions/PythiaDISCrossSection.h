@@ -44,9 +44,14 @@ class SIRENRndm;
 class PythiaDISCrossSection : public CrossSection {
 friend cereal::access;
 private:
-    // Splines for total/differential cross section (SIREN weighting)
+    // Splines for total/differential cross section (SIREN weighting).
+    // The total spline is always required (drives interaction depth / position /
+    // survival). The differential spline is OPTIONAL: when absent,
+    // FinalStateProbability returns a constant that cancels in the unbiased
+    // weight (final state comes from Pythia, injection == physical).
     photospline::splinetable<> differential_cross_section_;
     photospline::splinetable<> total_cross_section_;
+    bool has_differential_ = false;
 
     // Pythia instance (mutable because SampleFinalState is const)
     mutable std::unique_ptr<Pythia8::Pythia> pythia_;
@@ -152,19 +157,22 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             splinetable_buffer buf;
+            archive(::cereal::make_nvp("HasDifferential", has_differential_));
+
+            // The differential spline is optional; only serialize it when present.
+            if(has_differential_) {
+                buf.size = 0;
+                auto diff_obj = differential_cross_section_.write_fits_mem();
+                buf.data = diff_obj.first;
+                buf.size = diff_obj.second;
+                std::vector<char> diff_blob;
+                diff_blob.resize(buf.size);
+                std::copy((char*)buf.data, (char*)buf.data + buf.size, &diff_blob[0]);
+                archive(::cereal::make_nvp("DifferentialCrossSectionSpline", diff_blob));
+            }
+
             buf.size = 0;
-            auto result_obj = differential_cross_section_.write_fits_mem();
-            buf.data = result_obj.first;
-            buf.size = result_obj.second;
-
-            std::vector<char> diff_blob;
-            diff_blob.resize(buf.size);
-            std::copy((char*)buf.data, (char*)buf.data + buf.size, &diff_blob[0]);
-
-            archive(::cereal::make_nvp("DifferentialCrossSectionSpline", diff_blob));
-
-            buf.size = 0;
-            result_obj = total_cross_section_.write_fits_mem();
+            auto result_obj = total_cross_section_.write_fits_mem();
             buf.data = result_obj.first;
             buf.size = result_obj.second;
 
@@ -191,7 +199,10 @@ public:
         if(version == 0) {
             std::vector<char> differential_data;
             std::vector<char> total_data;
-            archive(::cereal::make_nvp("DifferentialCrossSectionSpline", differential_data));
+            archive(::cereal::make_nvp("HasDifferential", has_differential_));
+            if(has_differential_) {
+                archive(::cereal::make_nvp("DifferentialCrossSectionSpline", differential_data));
+            }
             archive(::cereal::make_nvp("TotalCrossSectionSpline", total_data));
             archive(::cereal::make_nvp("PrimaryTypes", primary_types_));
             archive(::cereal::make_nvp("TargetTypes", target_types_));

@@ -32,22 +32,6 @@
 namespace siren {
 namespace interactions {
 
-namespace {
-bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
-    if(x > 1) return false;
-    if(x < ((m * m) / (2 * M * (E - m)))) return false;
-    if (x < 1e-6 || y < 1e-6) return false;
-    double d = 2 * (1 + (M * x) / (2 * E));
-    double ad = 1 - m * m * ((1 / (2 * M * E * x)) + (1 / (2 * E * E)));
-    double term = 1 - ((m * m) / (2 * M * E * x));
-    double bd = sqrt(term * term - ((m * m) / (E * E)));
-    double s = 2 * M * E;
-    double Q2 = s * x * y;
-    double Mc = siren::utilities::Constants::D0Mass;
-    return ((ad - bd) <= d * y and d * y <= (ad + bd)) && (Q2 * (1 - x) / x + pow(M, 2) >= pow(M + Mc, 2));
-}
-} // anonymous namespace
-
 // --- SIRENRndm: bridges SIREN RNG into Pythia ---
 
 class SIRENRndm : public Pythia8::RndmEngine {
@@ -125,19 +109,32 @@ void PythiaDISCrossSection::SetUnits(std::string units) {
 }
 
 void PythiaDISCrossSection::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
-    differential_cross_section_ = photospline::splinetable<>(dd_crossSectionFile.c_str());
-    if(differential_cross_section_.get_ndim() != 3 && differential_cross_section_.get_ndim() != 2)
-        throw std::runtime_error("cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
-                + " dimensions, should have either 3 or 2");
+    // Total spline is mandatory (drives interaction depth / position / survival).
     total_cross_section_ = photospline::splinetable<>(total_crossSectionFile.c_str());
     if(total_cross_section_.get_ndim() != 1)
         throw std::runtime_error("Total cross section spline has " + std::to_string(total_cross_section_.get_ndim())
                 + " dimensions, should have 1");
+    // Differential spline is OPTIONAL: an empty filename means "no differential",
+    // in which case FinalStateProbability returns a constant (unbiased-only).
+    if(dd_crossSectionFile.empty()) {
+        has_differential_ = false;
+    } else {
+        differential_cross_section_ = photospline::splinetable<>(dd_crossSectionFile.c_str());
+        if(differential_cross_section_.get_ndim() != 3 && differential_cross_section_.get_ndim() != 2)
+            throw std::runtime_error("cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
+                    + " dimensions, should have either 3 or 2");
+        has_differential_ = true;
+    }
 }
 
 void PythiaDISCrossSection::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
-    differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
+    if(!differential_data.empty()) {
+        differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
+        has_differential_ = true;
+    } else {
+        has_differential_ = false;
+    }
 }
 
 void PythiaDISCrossSection::ReadParamsFromSplineTable() {
@@ -347,18 +344,30 @@ double PythiaDISCrossSection::DifferentialCrossSection(dataclasses::InteractionR
     double Q2 = -q.dot(q);
     double lepton_mass = GetLeptonMass(interaction.signature.secondary_types[lepton_index]);
     double y = 1.0 - p2.dot(p3) / p2.dot(p1);
-    double x = Q2 / (2.0 * p2.dot(q));
+    double p2q = p2.dot(q);
+    double x = (p2q != 0.0) ? Q2 / (2.0 * p2q) : -1.0;   // muon-reconstructed Bjorken x
 
+    // Use the reconstructed (x,y) when they fall inside the spline domain; the
+    // spline's support is the validity region (no separate analytic charm-DIS
+    // kinematic gate, which assumes a model the Pythia-derived spline does not).
     double log_energy = log10(primary_energy);
-    std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
     std::array<int,3> centers;
-
-    if (Q2 < minimum_Q2_ || !kinematicallyAllowed(x, y, primary_energy, target_mass_, lepton_mass)
-        || !differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
-        // Fall back to saved parameters
-        x = interaction.interaction_parameters.at("bjorken_x");
-        y = interaction.interaction_parameters.at("bjorken_y");
-        Q2 = 2. * primary_energy * p2.e() * x * y;
+    bool ok = (x > 0.0 && x < 1.0 && y > 0.0 && y < 1.0 && Q2 >= minimum_Q2_);
+    if(ok) {
+        std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
+        ok = differential_cross_section_.searchcenters(coordinates.data(), centers.data());
+    }
+    if(!ok) {
+        // Fall back to the stored (x,y) -- the SAME muon-reconstructed Bjorken
+        // variables SampleFinalState records. Non-throwing: if absent (e.g. a
+        // fake record built for a rate query), the differential is undefined -> 0.
+        auto itx = interaction.interaction_parameters.find("bjorken_x");
+        auto ity = interaction.interaction_parameters.find("bjorken_y");
+        if(itx == interaction.interaction_parameters.end() || ity == interaction.interaction_parameters.end())
+            return 0.0;
+        x = itx->second;
+        y = ity->second;
+        Q2 = 2.0 * primary_energy * p2.e() * x * y;
     }
     return DifferentialCrossSection(primary_energy, x, y, lepton_mass, Q2);
 }
@@ -372,7 +381,7 @@ double PythiaDISCrossSection::DifferentialCrossSection(double energy, double x, 
     if(y <= 0 || y >= 1) return 0.0;
     if(std::isnan(Q2)) Q2 = 2.0 * energy * target_mass_ * x * y;
     if(Q2 < minimum_Q2_) return 0;
-    if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass)) return 0;
+    (void)secondary_lepton_mass;   // analytic charm-DIS gate removed (see above)
 
     std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
     std::array<int,3> centers;
@@ -406,12 +415,18 @@ double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle
 }
 
 double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
-    // Return dsigma/sigma. The fragmentation fraction is now applied inside
-    // TotalCrossSection (per signature), so txs below already carries it; it
-    // cancels against the per-signature TotalCrossSection weight in
-    // CrossSectionProbability, leaving the correct kinematic density. We do NOT
-    // multiply by a fragfrac table here -- SampleFinalState trusts Pythia's
-    // natural Lund-string fragmentation for the actual D-type distribution.
+    // The final state is sampled by Pythia, whose per-event density is not
+    // analytically available. With NO differential spline we return a constant:
+    // in the standard unbiased configuration the same cross-section object
+    // supplies both the injection and physical densities, so this factor cancels
+    // in the weight ratio and only TotalCrossSection (interaction depth /
+    // position / survival) matters. Biasing the final-state kinematics is not
+    // supported in this mode.
+    if(!has_differential_) return 1.0;
+
+    // A Pythia-derived differential spline was supplied: report the true density
+    // dsigma/sigma so weights remain correct under reweighting. The fragmentation
+    // fraction in TotalCrossSection cancels per-signature in CrossSectionProbability.
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if (!std::isfinite(dxs) || !std::isfinite(txs) || dxs <= 0 || txs <= 0) return 0.0;
@@ -607,9 +622,19 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             Pythia8::Vec4 p_lep_pythia = pythia_->event[i_lep].p();
             Pythia8::Vec4 p_D_pythia = pythia_->event[i_charm].p();
 
-            // Get Pythia's DIS kinematics for weighting
-            double pythia_x = pythia_->info.x2();  // proton PDF x (beam B)
-            double pythia_y = 1.0 - p_lep_pythia.e() / E_nu;
+            // DIS kinematics for weighting, reconstructed from the outgoing lepton
+            // exactly as DifferentialCrossSection does (muon-reconstructed Bjorken
+            // x = Q2/(2 M E y)), so an optional differential spline fit in this
+            // convention closes against the sampler. NOT info.x2() (the parton
+            // momentum fraction), which is a different variable.
+            double E_lep = p_lep_pythia.e();
+            double pythia_y = 1.0 - E_lep / E_nu;
+            Pythia8::Vec4 p_nu_pythia(0.0, 0.0, E_nu, E_nu);   // (px,py,pz,e), nu along +z
+            Pythia8::Vec4 q4 = p_nu_pythia - p_lep_pythia;
+            double Q2_lep = -q4.m2Calc();
+            double pythia_x = (pythia_y > 0.0)
+                ? Q2_lep / (2.0 * target_mass_ * E_nu * pythia_y)
+                : 0.0;
 
             // Store in interaction parameters for weighting
             record.interaction_parameters.clear();
