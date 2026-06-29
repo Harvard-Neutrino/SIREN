@@ -2,9 +2,8 @@
 #ifndef SIREN_CharmDecayTestHelpers_H
 #define SIREN_CharmDecayTestHelpers_H
 
-// Shared numeric oracle + record helpers for the CharmMesonDecay closure tests.
-// Both decay test files include this so the V-A angle-average cross-check and
-// the q^2 reconstruction stay in one place.
+// Shared q^2 reconstruction + V-A angle-average numeric oracle for the
+// CharmMesonDecay closure tests (included by both decay test files).
 
 #include <cmath>
 

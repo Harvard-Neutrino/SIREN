@@ -1,20 +1,7 @@
 /**
- * Unit test for CharmMesonDecay CDF / Interpolator1D behavior and the
- * SampleFinalState <-> FinalStateProbability closure invariant.
- *
- * Tests:
- * 1. Interpolator1D with a known linear inverse CDF (sanity check)
- * 2. Interpolator1D with the actual D meson decay CDF table
- * 3. SampleFinalState q^2 distribution closes with FinalStateProbability
- * 4. TotalDecayWidthForFinalState throws on unsupported signatures
- *
- * Build (from SIREN/build):
- *   make -j4   (if registered in CMakeLists.txt)
- * Or standalone:
- *   g++ -std=c++17 -I../projects/utilities/public -I../projects/interactions/public \
- *       -I../projects/dataclasses/public -I../vendor/cereal/include \
- *       -I../vendor/rk/include -I../vendor/photospline/include \
- *       -L. -lSIREN -o CharmMesonDecay_TEST CharmMesonDecay_TEST.cxx -lgtest -lgtest_main
+ * Unit tests for CharmMesonDecay: Interpolator1D inverse-CDF behavior, the
+ * SampleFinalState <-> FinalStateProbability q^2 closure, decay-length physics,
+ * and loud failure on unsupported signatures.
  */
 #include <cmath>
 #include <iostream>
@@ -48,11 +35,9 @@ using namespace siren::dataclasses;
 using siren::interactions::charm_decay_test::reconstruct_q2;
 using siren::interactions::charm_decay_test::numericVAWeightAngleAverage;
 
-// --- Test 1: Interpolator1D with known linear CDF ------------------------
+// --- Test 1: Interpolator1D with known linear inverse CDF F(x)=x/1.4 ------
 
 TEST(Interpolator1D, LinearInverseCDF) {
-    // CDF: F(x) = x / 1.4, so inverse: x = 1.4 * u
-    // Table: x = CDF values, f = Q2 values
     TableData1D<double> table;
     int N = 102;
     for (int i = 0; i < N; ++i) {
@@ -64,7 +49,6 @@ TEST(Interpolator1D, LinearInverseCDF) {
 
     Interpolator1D<double> interp(table);
 
-    // Check known values
     double tol = 0.01;
     EXPECT_NEAR(interp(0.0), 0.0, tol);
     EXPECT_NEAR(interp(0.25), 0.35, tol);
@@ -72,7 +56,7 @@ TEST(Interpolator1D, LinearInverseCDF) {
     EXPECT_NEAR(interp(0.75), 1.05, tol);
     EXPECT_NEAR(interp(1.0), 1.4, tol);
 
-    // Sample mean should be 0.7
+    // Sample mean must be 0.7 (uniform on [0,1.4]).
     double sum = 0;
     int Nsamp = 10000;
     SIREN_random rng;
@@ -96,7 +80,6 @@ TEST(Interpolator1D, DMesonDecayCDF) {
     double ms = 2.00697;
     double GF = Constants::FermiConstant;
 
-    // DifferentialDecayWidth (fixed version)
     auto dGamma = [&](double Q2) -> double {
         double Q2tilde = Q2 / (ms * ms);
         double ff2 = std::pow(F0CKM / ((1 - Q2tilde) * (1 - alpha * Q2tilde)), 2);
@@ -107,7 +90,8 @@ TEST(Interpolator1D, DMesonDecayCDF) {
         return std::pow(GF, 2) / (24 * std::pow(M_PI, 3)) * ff2 * std::pow(PK, 3);
     };
 
-    // Normalize (same as SIREN: Romberg integration over [0, 1.4])
+    // Normalization and CDF-table construction mirror SIREN exactly: Romberg
+    // over [0, 1.4], then 100 trapezoid nodes from 0.01 to ~1.39.
     std::function<double(double)> pdf_func = dGamma;
     double norm = rombergIntegrate(pdf_func, 0.0, 1.4);
 
@@ -115,7 +99,6 @@ TEST(Interpolator1D, DMesonDecayCDF) {
         return dGamma(Q2) / norm;
     };
 
-    // Build CDF table (same as SIREN: 100 nodes from 0.01 to ~1.39)
     double Q2_min = 0.0;
     double Q2_max = 1.4;
     std::vector<double> Q2spline;
@@ -149,7 +132,7 @@ TEST(Interpolator1D, DMesonDecayCDF) {
     cdf_vector.push_back(1.0);
     pdf_vector.push_back(0);
 
-    // Build Interpolator1D (inverse CDF: x=CDF, f=Q2)
+    // Inverse CDF: x=CDF, f=Q2.
     TableData1D<double> inverse_cdf_data;
     inverse_cdf_data.x = cdf_vector;
     inverse_cdf_data.f = cdf_Q2_nodes;
@@ -165,7 +148,6 @@ TEST(Interpolator1D, DMesonDecayCDF) {
     for (int i = 0; i < Nsamp; ++i) {
         double u = rng.Uniform(0, 1);
         sum_q2 += inverse_cdf(u);
-        // Linear interpolation for comparison
         double q2_lin = 0;
         for (size_t j = 0; j < cdf_vector.size() - 1; ++j) {
             if (cdf_vector[j] <= u && u <= cdf_vector[j + 1]) {
@@ -186,8 +168,8 @@ TEST(Interpolator1D, DMesonDecayCDF) {
 // --- Test 3: SampleFinalState q^2 closes with FinalStateProbability -------
 
 namespace {
-// Build a record at a given q^2 in the D rest frame with hadron mass mK so that
-// FinalStateProbability can be evaluated on a single mixture component.
+// Record at a given q^2 in the D rest frame with hadron mass mK (one mixture
+// component), for evaluating FinalStateProbability.
 InteractionRecord make_record_at_q2(const InteractionSignature & sig,
                                     double mD, double mK, double ml, double q2) {
     double EK = (mD * mD + mK * mK - q2) / (2 * mD);
@@ -204,7 +186,8 @@ InteractionRecord make_record_at_q2(const InteractionSignature & sig,
 } // namespace
 
 TEST(CharmMesonDecay, SampledQ2Distribution) {
-    // D0 -> K- e+ nu_e with kinematic K/K*(892) mixing.
+    // D0 -> K- e+ nu_e with kinematic K/K*(892) mixing; guards SampleFinalState
+    // against FinalStateProbability via normalization, mean, and bin-by-bin q^2.
     CharmMesonDecay decay(ParticleType::D0);
     auto sigs = decay.GetPossibleSignaturesFromParent(ParticleType::D0);
     auto sig = sigs[0];
@@ -261,8 +244,8 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
     double var_sampled = sum_q2_sq / Nsamp - mean_sampled * mean_sampled;
     double stderr_mean = std::sqrt(var_sampled / Nsamp);
 
-    // --- (1) Normalization: integral of FinalStateProbability over q^2,
-    //         summed over the K and K* mixture, must equal 1. ---
+    // (1) FinalStateProbability integrated over q^2, summed over the K/K*
+    //     mixture, must normalize to 1.
     auto fsp_integral = [&](double comp_mK) -> double {
         std::function<double(double)> integrand = [&](double q2) -> double {
             InteractionRecord r = make_record_at_q2(sig, mD, comp_mK, ml, q2);
@@ -277,8 +260,8 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
     double total_norm = normK + normKstar;
     EXPECT_NEAR(total_norm, 1.0, 1e-2);
 
-    // --- (2) Closure of the mean: mean_density (in-test quadrature of
-    //         FinalStateProbability) must match mean_sampled within MC error. ---
+    // (2) Mean closure: quadrature of q^2 * FinalStateProbability matches the
+    //     sampled mean within MC error.
     auto fsp_q2_integral = [&](double comp_mK) -> double {
         std::function<double(double)> integrand = [&](double q2) -> double {
             InteractionRecord r = make_record_at_q2(sig, mD, comp_mK, ml, q2);
@@ -291,13 +274,11 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
     double mean_density = (fsp_q2_integral(mK) + fsp_q2_integral(mKstar)) / total_norm;
     EXPECT_NEAR(mean_sampled, mean_density, 4.0 * stderr_mean);
 
-    // --- (3) Bin-by-bin closure per sub-population. For each filled bin the
-    //         empirical density (count/(N*bw), with the sub-population folded
-    //         in via N = total) must match FinalStateProbability at the bin
-    //         center within ~3 sigma Poisson error. ---
+    // (3) Bin-by-bin closure per sub-population: empirical density count/(N*bw)
+    //     (N = total, folding in the sub-population fraction) matches
+    //     FinalStateProbability at the bin center within Poisson error.
     for (int b = 0; b < NB; ++b) {
         double q2c = q2lo + (b + 0.5) * bw;
-        // K sub-population
         if (countK[b] > 30 && q2c < (mD - mK) * (mD - mK)) {
             double emp = (double)countK[b] / (Nsamp * bw);
             double sigma = std::sqrt((double)countK[b]) / (Nsamp * bw);
@@ -305,7 +286,6 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
             double pred = decay.FinalStateProbability(r);
             EXPECT_NEAR(emp, pred, 4.0 * sigma + 0.02 * pred);
         }
-        // K* sub-population
         if (countKstar[b] > 30 && q2c < (mD - mKstar) * (mD - mKstar)) {
             double emp = (double)countKstar[b] / (Nsamp * bw);
             double sigma = std::sqrt((double)countKstar[b]) / (Nsamp * bw);
@@ -321,7 +301,7 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
 TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
     CharmMesonDecay decay(ParticleType::D0);
 
-    // Positive control: a valid D0 signature has positive width.
+    // Positive control.
     auto sigs = decay.GetPossibleSignaturesFromParent(ParticleType::D0);
     InteractionRecord good;
     good.signature = sigs[0];
@@ -345,11 +325,8 @@ TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
 }
 
 // --- Test 5: analytic angle-average matches a numeric quadrature oracle -----
-//
-// The weighting code (FinalStateProbability via SampledQ2Density) uses the
-// closed-form charm_decay::VAWeightAngleAverage. It must reproduce a numeric
-// quadrature of the identical clamped V-A weight (numericVAWeightAngleAverage,
-// in CharmDecayTestHelpers.h), evaluated with the same rk::P4 boosts.
+// charm_decay::VAWeightAngleAverage (used by the weighting code) must match the
+// numeric quadrature numericVAWeightAngleAverage (CharmDecayTestHelpers.h).
 TEST(CharmMesonDecay, VAWeightAngleAverageMatchesNumericReference) {
     struct Case { double mD; double mK; double ml; };
     std::vector<Case> cases = {
@@ -378,20 +355,14 @@ TEST(CharmMesonDecay, VAWeightAngleAverageMatchesNumericReference) {
 }
 
 // --- Test 6: lab decay length L = beta*gamma*c*tau (cascade separation) ------
-//
-// The multi-cascade search reconstructs the separation L between the production
-// cascade and the charm-decay cascade; the hard regime is below ~10 m. L is set
-// by the D species proper lifetime and the lab boost, so it must be physically
-// correct across the analysis energy band (TeV-PeV). Decay::TotalDecayLength
-// returns beta*gamma*(1/Gamma)*hbarc, and because the modeled branching ratios
+// Decay::TotalDecayLength = beta*gamma*(1/Gamma)*hbarc; since the modeled BRs
 // sum to 1 the width recovers the PDG lifetime exactly.
 namespace {
 constexpr double tau_D0_s = 410.1e-15;   // proper lifetimes hardcoded in
 constexpr double tau_Dp_s = 1040.0e-15;  // CharmMesonDecay (seconds).
 constexpr double tau_Ds_s = 504.0e-15;
 constexpr double c_m_per_s  = 2.99792458e8;    // speed of light [m/s]
-// Note: Decay::TotalDecayLength returns METERS (SIREN base length unit; hbarc
-// carries the cm->m conversion), consistent with the Taupede reco frame.
+// TotalDecayLength returns METERS (hbarc carries the cm->m conversion).
 
 InteractionRecord make_boosted_D(ParticleType d, double mD, double E_D) {
     double p = std::sqrt(E_D * E_D - mD * mD);
@@ -399,7 +370,7 @@ InteractionRecord make_boosted_D(ParticleType d, double mD, double E_D) {
     rec.signature.primary_type = d;
     rec.signature.target_type = ParticleType::Decay;
     rec.primary_mass = mD;
-    rec.primary_momentum = {E_D, 0.0, 0.0, p};   // boosted along +z
+    rec.primary_momentum = {E_D, 0.0, 0.0, p};
     return rec;
 }
 } // namespace
@@ -416,14 +387,14 @@ TEST(CharmMesonDecay, LabDecayLengthIsBetaGammaCTau) {
         double prev_L = -1.0, prev_E = -1.0;
         for (double E_D : {1.0e4, 1.0e5, 1.0e6}) {   // 10 TeV, 100 TeV, 1 PeV
             InteractionRecord rec = make_boosted_D(cs.d, cs.mD, E_D);
-            double L_m = decay.TotalDecayLength(rec);                  // SIREN [m]
+            double L_m = decay.TotalDecayLength(rec);
             double p = std::sqrt(E_D * E_D - cs.mD * cs.mD);
             double betagamma = p / cs.mD;
-            double expected_m = betagamma * c_m_per_s * cs.tau;        // physics truth [m]
+            double expected_m = betagamma * c_m_per_s * cs.tau;
             // 0.5% absorbs the ~0.01% rounding of SIREN's hbar/hbarc constants.
             EXPECT_NEAR(L_m, expected_m, 5e-3 * expected_m)
                 << "species=" << static_cast<int>(cs.d) << " E_D=" << E_D;
-            // beta*gamma is linear in E for E >> m: L(10x E) ~ 10x L.
+            // beta*gamma linear in E for E >> m: L(10x E) ~ 10x L.
             if (prev_L > 0.0)
                 EXPECT_NEAR(L_m / prev_L, E_D / prev_E, 1e-3 * (E_D / prev_E));
             prev_L = L_m; prev_E = E_D;
@@ -446,8 +417,7 @@ TEST(CharmMesonDecay, LabDecayLengthSpeciesOrdering) {
 }
 
 TEST(CharmMesonDecay, FinalStateProbabilityThrowsOnEmptySignature) {
-    // finalize() does not copy the signature; FinalStateProbability must reject
-    // an empty-signature record loudly instead of indexing out of bounds (UB).
+    // Empty signature must throw, not index out of bounds (finalize() drops it).
     CharmMesonDecay decay(ParticleType::D0);
     InteractionRecord rec;   // default: empty signature, no secondaries
     EXPECT_THROW(decay.FinalStateProbability(rec), std::runtime_error);

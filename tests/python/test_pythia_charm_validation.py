@@ -1,27 +1,17 @@
 """Physics validation for the PythiaDISCrossSection charm-DIS generator.
 
-This is the SIREN-side counterpart of the Pythia-vs-SIREN comparison shown in
-the IceCube multi-cascade tau/charm update (Diffuse WG): it guards the absolute
-charm-production rate, confirms that SampleFinalState reproduces bare Pythia's
-DIS kinematics (Bjorken x/y, Q^2), and that an optional differential spline
-covers the realized sampling support (no silent-zero weight bias), across the
-analysis energy band (TeV-PeV).
-
-Everything here needs Pythia8/LHAPDF at runtime and a wide-range total (and,
-for the coverage test, differential) charm spline. It is therefore gated behind
-environment variables and skips cleanly when they are unset:
+Guards the absolute charm-production rate, that SampleFinalState reproduces bare
+Pythia's DIS kinematics (Bjorken x/y, Q^2), and that an optional differential
+spline covers the realized sampling support (no silent-zero weight bias) across
+the TeV-PeV band. Needs Pythia8/LHAPDF at runtime plus charm splines; gated behind
+env vars, skips cleanly when unset:
 
     SIREN_PYTHIA_WIDE_SIGMA    -> total sigma(E) FITS spline, 100 GeV - 1 PeV
     SIREN_PYTHIA_WIDE_DSDXDY   -> differential d2sigma/dx dy FITS spline (optional)
     LHAPDF_DATA_PATH           -> LHAPDF data dir containing the PDF set below
 
-Generate the splines with siren.pythia_charm_splines (see scratch gen script):
-
-    python gen_wide_splines.py <out_dir>
-
-The SampleFinalState path re-initializes Pythia per event (~1 s/event), so the
-SIREN-sampled statistics are deliberately modest; the bare-Pythia reference
-(GeneratePythiaCharmSamples, ~ms/event) uses high statistics.
+SampleFinalState re-inits Pythia per event (~1 s/event) so SIREN statistics are
+modest; the bare-Pythia reference (GeneratePythiaCharmSamples, ~ms/event) is high-stat.
 """
 import math
 import os
@@ -55,9 +45,6 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 def _make_xs(with_differential):
     import siren.interactions
     import siren.dataclasses
@@ -101,7 +88,7 @@ def _sample_siren(xs, E, n):
         ir_out.primary_mass = 0.0
         cdr.finalize(ir_out)
         secs = list(ir_out.secondary_momenta)
-        # secondary order is [charged lepton, Hadrons, D meson]
+        # secondary order: [charged lepton, Hadrons, D meson]
         p_lep, p_D = secs[0], secs[2]
         out.append(dict(x=params["bjorken_x"], y=params["bjorken_y"],
                         E=E, p_lep=p_lep, p_D=p_D,
@@ -128,17 +115,13 @@ def _mean(v):
     return sum(v) / len(v)
 
 
-# ---------------------------------------------------------------------------
-# Test 1: absolute charm-production rate / charm fraction (normalization)
-# ---------------------------------------------------------------------------
+# Test 1: absolute charm-production rate / charm fraction (normalization).
 def test_charm_total_cross_section_normalization():
     """The inclusive charm-DIS sigma must have the right absolute magnitude.
 
-    Pins (a) the charm fraction sigma_charm/sigma_CC at 100 GeV against the
-    textbook nu-N CC cross section, and (b) sigma_charm/E to the right order of
-    magnitude across 100 GeV - 1 PeV, with monotonic growth. Guards the rate
-    that sets S:B and the astro-flux normalization fit -- previously unguarded
-    (only mocks / relative partitioning existed).
+    Pins (a) charm fraction sigma_charm/sigma_CC at 100 GeV vs the textbook nu-N CC
+    cross section, and (b) sigma_charm/E to the right order of magnitude across
+    100 GeV - 1 PeV with monotonic growth.
     """
     import siren.dataclasses
     PT = siren.dataclasses.Particle.ParticleType
@@ -165,18 +148,14 @@ def test_charm_total_cross_section_normalization():
         assert b > a, "charm cross section must increase with energy"
 
 
-# ---------------------------------------------------------------------------
-# Test 2: SampleFinalState reproduces bare-Pythia DIS kinematics (the slides)
-# ---------------------------------------------------------------------------
+# Test 2: SampleFinalState reproduces bare-Pythia DIS kinematics.
 @pytest.mark.skipif(not PYTHIA_DATA, reason="set PYTHIA8DATA to run the Pythia-sampling tests")
 def test_sampling_matches_bare_pythia_at_100gev():
-    """SIREN SampleFinalState must reproduce bare Pythia's Bjorken x/y and Q^2.
+    """SIREN SampleFinalState must reproduce bare Pythia's Bjorken x/y at 100 GeV.
 
-    Reproduces the production-side panels of the Pythia-vs-pythiaSIREN slide at
-    E_nu = 100 GeV: SampleFinalState extracts/rotates the Pythia final state and
-    reconstructs (x, y); GeneratePythiaCharmSamples is the same Pythia config
-    inline. Their distributions must agree -- a frame/extraction bug would show
-    here as a mismatch.
+    SampleFinalState extracts/rotates the Pythia final state and reconstructs
+    (x, y); GeneratePythiaCharmSamples is the same Pythia config inline. A
+    frame/extraction bug would show here as a distribution mismatch.
     """
     E = 100.0
     xs = _make_xs(with_differential=False)
@@ -201,30 +180,27 @@ def test_sampling_matches_bare_pythia_at_100gev():
             f"mean Bjorken-{name}: SIREN={m_si:.4f} vs bare-Pythia={m_py:.4f} "
             f"(tol {tol:.4f}) -- SampleFinalState does not reproduce Pythia")
 
-    # Sampled kinematics must be physical.
+    # Physical kinematics.
     assert all(0.0 < e["x"] < 1.0 for e in siren_ev)
     assert all(0.0 < e["y"] < 1.0 for e in siren_ev)
 
 
-# ---------------------------------------------------------------------------
-# Test 3: D-meson energy fraction + production collimation (morphology)
-# ---------------------------------------------------------------------------
+# Test 3: D-meson energy fraction + production collimation (morphology).
 @pytest.mark.skipif(not PYTHIA_DATA, reason="set PYTHIA8DATA to run the Pythia-sampling tests")
 def test_d_meson_energy_fraction_and_collimation():
-    """The D meson carries a sizeable, physical fraction of the event energy and
-    is produced nearly collinear with the primary lepton at high energy -- the
-    morphology that sets the two-cascade energy split and separation direction.
+    """The D meson carries a sizeable, physical energy fraction and is nearly
+    collinear with the primary lepton at high energy -- the morphology setting the
+    two-cascade energy split and separation direction.
     """
     E = 1.0e4   # 10 TeV
     xs = _make_xs(with_differential=False)
     ev = _sample_siren(xs, E, n=60)
     assert len(ev) >= 30
     zD = [e["zD"] for e in ev]
-    # Every D carries a physical (0, 1) fraction of the neutrino energy.
+    # Every D carries a physical (0, 1) energy fraction, mean in a sane range.
     assert all(0.0 < z < 1.0 for z in zD)
-    # Mean D energy fraction in a sane charm-DIS range (not ~0, not ~1).
     assert 0.05 < _mean(zD) < 0.95
-    # Opening angle between D and primary lepton is small at 10 TeV (collimated).
+    # D/lepton opening angle is small at 10 TeV (collimated).
     def _angle(a, b):
         import math
         na = math.sqrt(sum(a[i] ** 2 for i in (1, 2, 3)))
@@ -233,22 +209,19 @@ def test_d_meson_energy_fraction_and_collimation():
         c = max(-1.0, min(1.0, dot / (na * nb)))
         return math.degrees(math.acos(c))
     angles = [_angle(e["p_D"], e["p_lep"]) for e in ev]
-    # Median opening angle should be modest (DIS at 10 TeV is forward).
+    # Modest median (DIS at 10 TeV is forward).
     angles.sort()
     median = angles[len(angles) // 2]
     assert median < 30.0, f"median D/lepton opening angle {median:.1f} deg too large"
 
 
-# ---------------------------------------------------------------------------
-# Test 4: optional differential spline covers the sampled support (no silent 0)
-# ---------------------------------------------------------------------------
+# Test 4: optional differential spline covers the sampled support (no silent 0).
 @pytest.mark.skipif(not (_have_diff and PYTHIA_DATA),
                     reason="set SIREN_PYTHIA_WIDE_DSDXDY + PYTHIA8DATA to run the coverage test")
 def test_differential_spline_covers_sampling_support():
-    """With a differential spline supplied, DifferentialCrossSection must be
-    finite-positive on essentially every sampled event, else those events get a
-    silently-zero physical density and a biased weight. Guards spline (E, x, y)
-    support vs the realized sampling support at analysis energies.
+    """With a differential spline, DifferentialCrossSection must be finite-positive
+    on essentially every sampled event, else those events get a silently-zero
+    density and a biased weight. Guards spline (E, x, y) support vs realized support.
     """
     xs = _make_xs(with_differential=True)
     for E in (1.0e3, 1.0e4):   # 1 TeV, 10 TeV (within the wide spline x-range)
@@ -261,13 +234,13 @@ def test_differential_spline_covers_sampling_support():
             try:
                 v = xs.DifferentialCrossSection(e["ir_out"])
             except RuntimeError:
-                out_of_range += 1   # out-of-spline-support correctly RAISES
+                out_of_range += 1   # out-of-support correctly RAISES
                 continue
             if math.isfinite(v) and v > 0.0:
                 in_range += 1
             else:
                 silent_zero += 1
-        # The new contract: out-of-range raises; nothing returns a silent zero.
+        # Contract: out-of-range raises; nothing returns a silent zero.
         assert silent_zero == 0, (
             f"{silent_zero} sampled events at E={E:.0e} GeV returned a silent-zero "
             "differential density instead of raising")
@@ -277,25 +250,20 @@ def test_differential_spline_covers_sampling_support():
             "differential spline (E, x, y) support; widen the spline's logx/logy range.")
 
 
-# ---------------------------------------------------------------------------
-# Test 5: end-to-end inject -> weight through the real Injector / Weighter
-# ---------------------------------------------------------------------------
+# Test 5: end-to-end inject -> weight through the real Injector / Weighter.
 @pytest.mark.skipif(not PYTHIA_DATA, reason="set PYTHIA8DATA to run the Pythia-sampling tests")
 def test_end_to_end_rate_closure():
     """Quantitative inject->weight rate closure for charm DIS through the real
-    _Injector / _Weighter on the CCM detector.
+    _Injector / _Weighter on CCM.
 
-    SIREN folds 1/N into EventWeight and (with injection==physical so the shared
-    distributions and the cross-section probability cancel, and the injection-side
-    PointSource position propagator cancels the physical position propagator)
-    leaves EventWeight_i = InteractionProbability_i / N. Therefore:
-      - per event, EventWeight must equal GetInteractionProbabilities/N (machine
-        precision; EventWeight and GetInteractionProbabilities are independent code
-        paths, so their agreement IS the unbiasedness proof -- a charm
-        SampleFinalState/FinalStateProbability/TotalCrossSection inconsistency, the
-        PR#74 closure-break class, would break it), and
-      - sum(EventWeight) is the unbiased physical-rate estimator == mean(P_int),
-        which a thin-target estimate sigma * n_Ar * L_eff bounds from above/below.
+    With injection==physical the shared distributions, cross-section probability,
+    and PointSource position propagator all cancel, leaving EventWeight_i =
+    InteractionProbability_i / N. Therefore:
+      - per event, EventWeight == GetInteractionProbabilities/N to machine
+        precision; they are independent code paths, so agreement IS the
+        unbiasedness proof -- the PR#74 SampleFinalState/FinalStateProbability/
+        TotalCrossSection closure-break class would break it, and
+      - sum(EventWeight) == mean(P_int), bounded by a thin-target sigma*n_Ar*L_eff.
     """
     import numpy as np
     from siren import (dataclasses as dc, injection, interactions, distributions,

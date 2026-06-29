@@ -1,29 +1,9 @@
 /**
- * Unit test for CharmMesonDecay3Body -- Pythia-style 3-body phase-space decay
- * of charm mesons with V-A matrix-element reweighting and K / K*(892) kinematic
- * mixing.
- *
- *   D (m0) -> K (m1) + lepton (m2) + neutrino (m3)
- *
- * All three daughters are constructed in the D rest frame and boosted to the
- * lab with the SAME boost, so 4-momentum is conserved exactly (up to float).
- * A per-event coin flip draws the hadron mass as either the pseudoscalar K mass
- * or the K*(892) mass (= Constants::KPrimePlusMass via KStarMass()).
- *
- * Tests:
- *  1. ThreeBodyEnergyMomentumConservation -- sum of the three secondary
- *     4-momenta equals the primary 4-momentum component-wise.
- *  2. DaughterMassShells -- lepton/neutrino on shell, hadron mass equals either
- *     the pseudoscalar K or the K*(892) mass, and m23 = sqrt((p_l+p_nu)^2) lies
- *     in the allowed window [ml, mD - mK].
- *  3. KStarMixingFraction -- the empirical K vs K* split matches the PDG-derived
- *     fracK within a few binomial sigma (D0 and D+).
- *  4. TotalDecayWidthAndBranchingSums -- per-signature widths are positive, the
- *     three branching ratios partition unity, TotalDecayWidth equals the sum
- *     over signatures, and bad signatures throw.
- *  5. FinalStateProbabilityClosure -- FinalStateProbability is non-negative,
- *     equals 1 for the fully hadronic mode, and the sampled q^2 distribution
- *     closes against FinalStateProbability bin-by-bin within MC error.
+ * Unit tests for CharmMesonDecay3Body -- Pythia-style 3-body phase-space decay
+ * D -> K + lepton + neutrino with V-A reweighting and K/K*(892) mass mixing.
+ * Covers 4-momentum conservation, daughter mass shells / m23 window, the K vs
+ * K* mixing fraction, decay-width & branching bookkeeping, and the
+ * SampleFinalState <-> FinalStateProbability q^2 closure.
  */
 #include <cmath>
 #include <array>
@@ -85,8 +65,7 @@ TEST(CharmMesonDecay3Body, ThreeBodyEnergyMomentumConservation) {
     double E_D = 100.0;
     auto rng = std::make_shared<SIREN_random>();
 
-    // both semileptonic modes (e and mu)
-    std::vector<std::pair<InteractionSignature, double>> cases = {
+    std::vector<std::pair<InteractionSignature, double>> cases = {  // e and mu modes
         {sigs[0], Constants::electronMass},
         {sigs[1], Constants::muonMass},
     };
@@ -137,9 +116,8 @@ TEST(CharmMesonDecay3Body, DaughterMassShells) {
             return std::sqrt(std::max(0.0, m2));
         };
 
-        // lepton on shell, neutrino massless.
-        EXPECT_NEAR(mass(pl), ml, 1e-5);
-        EXPECT_NEAR(mass(pnu), 0.0, 1e-5);
+        EXPECT_NEAR(mass(pl), ml, 1e-5);    // lepton on shell
+        EXPECT_NEAR(mass(pnu), 0.0, 1e-5);  // neutrino massless
 
         // hadron mass is one of the two mixture components.
         double mK = mass(pK);
@@ -276,10 +254,9 @@ TEST(CharmMesonDecay3Body, FinalStateProbabilityClosure) {
         EXPECT_NEAR(decay.FinalStateProbability(rec), 1.0, 1e-12);
     }
 
-    // (b) Sample many semileptonic events, histogram q^2 separately for the K
-    //     and K* sub-populations, and compare the empirical density per bin to
-    //     fractions[comp] * FinalStateProbability evaluated at a record built at
-    //     that q^2 with the matching hadron mass.
+    // (b) Histogram sampled q^2 per K/K* sub-population and compare each bin's
+    //     empirical density to FinalStateProbability (which folds in the mixture
+    //     weight) at a record rebuilt at that q^2 with the matching hadron mass.
     const int NB = 16;
     double q2lo = 0.0;
     double q2hi = (mD - mK) * (mD - mK);  // widest support (K mass)
@@ -305,9 +282,7 @@ TEST(CharmMesonDecay3Body, FinalStateProbabilityClosure) {
         else countKstar[b]++;
     }
 
-    // Build a record at a target q^2 in the D rest frame with hadron mass comp_mK
-    // and evaluate FinalStateProbability there (it already includes the K/K*
-    // mixture weight fractions[comp]).
+    // FinalStateProbability at a target q^2 in the D rest frame, hadron mass comp_mK.
     auto fsp_at_q2 = [&](double comp_mK, double q2) -> double {
         double EK = (mD * mD + comp_mK * comp_mK - q2) / (2 * mD);
         double pk_sq = EK * EK - comp_mK * comp_mK;
@@ -316,7 +291,7 @@ TEST(CharmMesonDecay3Body, FinalStateProbabilityClosure) {
         InteractionRecord r;
         r.signature = sig;
         r.primary_mass = mD;
-        r.primary_momentum = {mD, 0, 0, 0};   // D at rest (q^2 frame-independent)
+        r.primary_momentum = {mD, 0, 0, 0};   // D at rest; q^2 frame-independent
         r.secondary_momenta = {{EK, PK, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
         r.secondary_masses = {comp_mK, ml, 0.0};
         return decay.FinalStateProbability(r);
@@ -340,10 +315,8 @@ TEST(CharmMesonDecay3Body, FinalStateProbabilityClosure) {
 }
 
 // --- Analytic angle-average matches a numeric quadrature oracle ------------
-//
-// charm_decay::VAWeightAngleAverage (used by the weighting code) must reproduce
-// a numeric quadrature of the identical clamped V-A weight
-// (numericVAWeightAngleAverage, in CharmDecayTestHelpers.h).
+// charm_decay::VAWeightAngleAverage (used by the weighting code) must match the
+// numeric quadrature numericVAWeightAngleAverage (CharmDecayTestHelpers.h).
 TEST(CharmMesonDecay3Body, VAWeightAngleAverageMatchesNumericReference) {
     struct Case { double mD; double mK; double ml; };
     std::vector<Case> cases = {
@@ -368,9 +341,8 @@ TEST(CharmMesonDecay3Body, VAWeightAngleAverageMatchesNumericReference) {
     }
 }
 
-// CharmMesonDecay3Body implements only D0 and D+. Unsupported species (e.g. Ds)
-// and empty-signature records must fail loudly rather than silently mis-decay or
-// index out of bounds. (CharmMesonDecay covers D0/D+/Ds and anti-flavors.)
+// Only D0 and D+ are implemented here; unsupported species (e.g. Ds) and
+// empty-signature records must throw rather than mis-decay or index out of bounds.
 TEST(CharmMesonDecay3Body, UnsupportedSpeciesAndEmptySignatureThrow) {
     EXPECT_THROW({ CharmMesonDecay3Body d(ParticleType::DsPlus); }, std::runtime_error);
     CharmMesonDecay3Body dp(ParticleType::DPlus);

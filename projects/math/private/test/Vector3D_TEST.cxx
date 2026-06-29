@@ -218,11 +218,9 @@ TEST(Normalize, Operator)
     EXPECT_TRUE(B != C);
 }
 
-// Normalizing the zero vector must not divide by zero: the result must stay
-// finite (no NaN/Inf) and the vector is left unchanged at magnitude 0. A unit
-// direction cannot be defined for a zero-length vector, so leaving it as-is is
-// the well-defined contract callers (e.g. a degenerate p1 - p0 direction in
-// DetectorModel) rely on.
+// Normalizing the zero vector must not divide by zero: stay finite and leave the
+// vector unchanged at magnitude 0 (the contract degenerate DetectorModel p1 - p0
+// directions rely on).
 TEST(Normalize, ZeroVectorDoesNotProduceNaN)
 {
     Vector3D Z;
@@ -254,15 +252,12 @@ TEST(Normalize, ZeroVectorNormalizedIsFinite)
     EXPECT_DOUBLE_EQ(0.0, N.magnitude());
 }
 
-// A genuinely tiny but nonzero difference of two Earth-scale coordinates must
-// still normalize to a finite, unit-length vector. This is the boundary case
-// just above the zero-length guard: the result must be a true unit vector, not
-// left unchanged.
+// Boundary just above the zero-length guard: a tiny but nonzero difference of two
+// Earth-scale coordinates must normalize to a true unit vector, not be left as-is.
 TEST(Normalize, TinyEarthScaleDifferenceIsFiniteUnit)
 {
-    // Two points separated by 1e-7 m built at Earth-scale x ~ 6.371e6 m.
-    // The subtraction is exact here (1e-7 is representable relative to 6.371e6),
-    // so the magnitude is nonzero and normalize() must yield a unit vector.
+    // 1e-7 m is exactly representable relative to 6.371e6 m, so the subtraction is
+    // exact, the magnitude nonzero, and normalize() must yield a unit vector.
     Vector3D p0;
     p0.SetCartesianCoordinates(6.371e6, 0.0, 0.0);
     Vector3D p1;

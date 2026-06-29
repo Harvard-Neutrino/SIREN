@@ -1,11 +1,9 @@
 // Serialization round-trip tests for non-default-constructible interaction
-// classes that rely on load_and_construct. cereal only recognizes a STATIC
-// load_and_construct (or a non-member specialization); a non-static one is
-// silently ignored, leaving the serialized body unread and corrupting whatever
-// follows it in the archive. The trailing sentinel after each object reads back
-// correctly only if the body is fully consumed, so it directly detects a load
-// that skips the body. (DarkNewsDecay is intentionally excluded: it is abstract
-// / python-backed and cannot be constructed by cereal here.)
+// classes relying on load_and_construct. cereal only recognizes a STATIC
+// load_and_construct; a non-static one is silently ignored, leaving the body
+// unread and corrupting the rest of the archive. A trailing sentinel after each
+// object reads back correctly only if the body was fully consumed, so it detects
+// a load that skips the body. (DarkNewsDecay excluded: abstract/python-backed.)
 
 #include <string>
 #include <vector>
@@ -32,9 +30,8 @@ using namespace siren::interactions;
 using siren::dataclasses::ParticleType;
 
 namespace {
-// Round-trip a polymorphic base pointer through a binary archive, followed by a
-// sentinel int. The sentinel reads back correctly only if the object's body was
-// fully consumed on load.
+// Round-trip a polymorphic base pointer through a binary archive followed by a
+// sentinel int (which reads back correctly only if the body was fully consumed).
 template <typename Base>
 std::shared_ptr<Base> roundtrip_with_sentinel(std::shared_ptr<Base> orig, bool & sentinel_ok) {
     const int kSentinel = 0x5A5A5A;

@@ -1,25 +1,9 @@
-// Regression test for the PythiaDISCrossSection charm-DIS interaction-depth
-// closure / normalization bug.
-//
-// Requires a Pythia8-enabled build (SIREN_WITH_PYTHIA8=ON) AND total/differential
-// charm-DIS spline files supplied via environment variables:
-//
-//   SIREN_PYTHIA_TEST_DSDXDY  -> differential (dsdxdy) FITS spline
-//   SIREN_PYTHIA_TEST_SIGMA   -> total (sigma) FITS spline
-//
-// If the variables are unset the test SKIPs (it only needs the spline tables,
-// not LHAPDF/Pythia at runtime: the total-cross-section path never calls Pythia).
-//
-// What it guards:
-//   * Per-signature TotalCrossSection must be PARTITIONED by fragmentation
-//     fraction (D0:0.6, D+:0.23, Ds:0.15), not equal to the full inclusive sigma.
-//   * sum over signatures of TotalCrossSection == sigma_inclusive * 0.98 (NOT 3x).
-//   * TotalCrossSectionAllFinalStates (generation side) == that sum (physical
-//     side) -> closure holds.
-//
-// Before the fix (no fragmentation fraction in TotalCrossSection) every signature
-// returns the full inclusive sigma, the sum is 3x too large, and the partition
-// assertions FAIL. After the fix they PASS.
+// Regression tests for the PythiaDISCrossSection charm-DIS interaction-depth
+// closure bug. Guards that per-signature TotalCrossSection is partitioned by
+// fragmentation fraction (sum == inclusive sigma, not 3x) and that the
+// generation side (TotalCrossSectionAllFinalStates) equals the physical sum.
+// See PythiaDISCrossSection.h. Requires SIREN_WITH_PYTHIA8 plus spline files in
+// env vars SIREN_PYTHIA_TEST_DSDXDY / SIREN_PYTHIA_TEST_SIGMA; SKIPs if unset.
 
 #include <cmath>
 #include <cstdlib>
@@ -43,9 +27,8 @@ using namespace siren::dataclasses;
 
 namespace {
 double expected_ff(ParticleType d) {
-    // Renormalized to sum to 1.0 over the implemented D species (the unmodeled
-    // Lambda_c fraction is folded in by dividing each raw value by 0.98). Mirrors
-    // PythiaDISCrossSection::FragmentationFraction.
+    // Raw fractions / 0.98 to fold in the unmodeled Lambda_c and renormalize to
+    // sum to 1.0. Mirrors PythiaDISCrossSection::FragmentationFraction.
     if(d==ParticleType::D0 || d==ParticleType::D0Bar) return 0.6 / 0.98;
     if(d==ParticleType::DPlus || d==ParticleType::DMinus) return 0.23 / 0.98;
     if(d==ParticleType::DsPlus || d==ParticleType::DsMinus) return 0.15 / 0.98;
@@ -89,7 +72,6 @@ TEST(PythiaDISCharmClosure, FragmentationPartitionAndClosure) {
             sum += v;
             per_sig.push_back(v);
 
-            // identify the D meson in this signature and check FF partition
             ParticleType d = ParticleType::unknown;
             for(auto t : sig.secondary_types) if(isD(t)) { d = t; break; }
             ASSERT_NE(d, ParticleType::unknown);
@@ -97,14 +79,14 @@ TEST(PythiaDISCharmClosure, FragmentationPartitionAndClosure) {
                 << "signature D-type cross section is not fragmentation-partitioned at E=" << E;
         }
 
-        // The three values must differ (0.6 vs 0.23 vs 0.15), i.e. NOT all == sigma_incl.
+        // The three values must differ (0.6 vs 0.23 vs 0.15), not all == sigma_incl.
         EXPECT_GT(std::abs(per_sig[0] - per_sig[1]), sigma_incl * 1e-6);
 
-        // Sum is the inclusive sigma (partitioned), not 3x.
+        // Sum is the partitioned inclusive sigma, not 3x.
         EXPECT_NEAR(sum, sigma_incl * ff_sum, sigma_incl * 1e-9);
         EXPECT_LT(sum, sigma_incl * 1.5); // would be 3x without the fix
 
-        // Generation side (TotalCrossSectionAllFinalStates) == physical side (sum).
+        // Generation side == physical side (sum).
         InteractionRecord rec;
         rec.signature.primary_type = ParticleType::NuMu;
         rec.signature.target_type = ParticleType::PPlus;
@@ -114,10 +96,9 @@ TEST(PythiaDISCharmClosure, FragmentationPartitionAndClosure) {
     }
 }
 
-// The differential spline is optional. With only a total spline (empty
-// differential filename), FinalStateProbability must return a constant 1.0 --
-// the Pythia final-state density is intractable but cancels in the unbiased
-// weight, so only the total cross section matters. Needs only the total spline.
+// With only a total spline (empty differential filename), FinalStateProbability
+// returns a constant 1.0: the intractable Pythia final-state density cancels in
+// the unbiased weight, so only the total cross section matters.
 TEST(PythiaDISCharmClosure, ConstantFinalStateProbabilityWithoutDifferential) {
     const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
     if(!tt) {
@@ -131,11 +112,9 @@ TEST(PythiaDISCharmClosure, ConstantFinalStateProbabilityWithoutDifferential) {
         /*minimum_Q2=*/1.0, primaries, targets,
         /*pythia_data_path=*/"", /*pdf_set=*/"LHAPDF6:CT18NLO", /*units=*/"cm");
 
-    // Total still works.
     EXPECT_GT(xs.TotalCrossSection(ParticleType::NuMu, 100.0), 0.0);
 
-    // FinalStateProbability is exactly 1.0 for any well-formed record, since the
-    // no-differential branch returns before touching kinematics.
+    // FSP is exactly 1.0: the no-differential branch returns before kinematics.
     auto sig = xs.GetPossibleSignaturesFromParents(ParticleType::NuMu, ParticleType::PPlus)[0];
     InteractionRecord rec;
     rec.signature = sig;
@@ -146,9 +125,8 @@ TEST(PythiaDISCharmClosure, ConstantFinalStateProbabilityWithoutDifferential) {
     EXPECT_EQ(xs.FinalStateProbability(rec), 1.0);
 }
 
-// PythiaDISCrossSection forces charm only in charged current. NC charm is not
-// forced by Z exchange, so it must be rejected at construction with an
-// actionable error rather than failing later inside SampleFinalState.
+// Charm is forced only in CC; NC charm must be rejected at construction (not
+// later inside SampleFinalState) with an actionable error.
 TEST(PythiaDISCharmClosure, NeutralCurrentRejectedAtConstruction) {
     const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
     if(!tt) GTEST_SKIP() << "Set SIREN_PYTHIA_TEST_SIGMA to run.";
@@ -167,11 +145,9 @@ TEST(PythiaDISCharmClosure, NeutralCurrentRejectedAtConstruction) {
     });
 }
 
-// Species/fragmentation tripwire. The three modeled D fractions are renormalized
-// (each /0.98) so the partitioned signatures recover the inclusive charm cross
-// section; the unmodeled Lambda_c (~0.02 of the D0/D+/Ds total) is folded in.
-// Pin the raw sum (0.98) and Lambda_c -> 0 so adding Lambda_c forces a test
-// update rather than silently shifting the species mix.
+// Species tripwire: pin the renormalized fractions, the raw sum (0.98), and
+// Lambda_c -> 0 so modeling Lambda_c forces a test update rather than silently
+// shifting the species mix.
 TEST(PythiaDISCharmClosure, FragmentationFractionSpeciesTripwire) {
     const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
     if(!tt) GTEST_SKIP() << "Set SIREN_PYTHIA_TEST_SIGMA to run.";
@@ -183,21 +159,19 @@ TEST(PythiaDISCharmClosure, FragmentationFractionSpeciesTripwire) {
     EXPECT_NEAR(xs.FragmentationFraction(ParticleType::D0),     0.6 / 0.98, 1e-12);
     EXPECT_NEAR(xs.FragmentationFraction(ParticleType::DPlus),  0.23 / 0.98, 1e-12);
     EXPECT_NEAR(xs.FragmentationFraction(ParticleType::DsPlus), 0.15 / 0.98, 1e-12);
-    // Renormalized fractions over the modeled species recover the full inclusive sigma.
+    // Renormalized fractions recover the full inclusive sigma.
     double sum = xs.FragmentationFraction(ParticleType::D0)
                + xs.FragmentationFraction(ParticleType::DPlus)
                + xs.FragmentationFraction(ParticleType::DsPlus);
     EXPECT_NEAR(sum, 1.0, 1e-12);
-    // Raw fractions sum to 0.98; the 0.02 gap is the folded unmodeled-baryon fraction.
+    // Raw fractions sum to 0.98; the 0.02 gap is the folded unmodeled baryon.
     EXPECT_NEAR(0.6 + 0.23 + 0.15, 0.98, 1e-12);
-    // Lambda_c (PDG 4122) is intentionally unmodeled -> FF 0. Modeling it must update this.
+    // Lambda_c (PDG 4122) intentionally unmodeled -> FF 0. Modeling it must update this.
     EXPECT_EQ(xs.FragmentationFraction(static_cast<ParticleType>(4122)), 0.0);
 }
 
-// Closure + fragmentation partition must hold across the ANALYSIS energy band
-// (TeV-PeV), not only <=300 GeV. Uses a wide total spline (100 GeV - 1 PeV); a
-// spline that silently threw or mis-partitioned at PeV would crash or bias the
-// production run at exactly the analysis energies.
+// Closure + partition must hold across the analysis band (TeV-PeV), not only
+// <=300 GeV. Uses a wide total spline (100 GeV - 1 PeV) via SIREN_PYTHIA_WIDE_SIGMA.
 TEST(PythiaDISCharmClosure, FragmentationClosureAtAnalysisEnergies) {
     const char* tt = std::getenv("SIREN_PYTHIA_WIDE_SIGMA");
     if(!tt) GTEST_SKIP() << "Set SIREN_PYTHIA_WIDE_SIGMA (wide total spline, 100 GeV-1 PeV) to run.";
@@ -238,8 +212,8 @@ TEST(PythiaDISCharmClosure, FragmentationClosureAtAnalysisEnergies) {
     }
 }
 
-// Out-of-range differential evaluation must RAISE, not silently return 0 (a
-// silent zero on a sampled event biases its weight). Needs a differential spline.
+// Out-of-range differential evaluation must RAISE, not return 0 (a silent zero
+// on a sampled event biases its weight).
 TEST(PythiaDISCharmClosure, DifferentialOutOfRangeRaises) {
     const char* dd = std::getenv("SIREN_PYTHIA_TEST_DSDXDY");
     const char* tt = std::getenv("SIREN_PYTHIA_TEST_SIGMA");
@@ -251,9 +225,9 @@ TEST(PythiaDISCharmClosure, DifferentialOutOfRangeRaises) {
 
     // In range -> finite positive density (Q2 computed from x,y).
     EXPECT_GT(xs.DifferentialCrossSection(100.0, 0.1, 0.5, 0.105), 0.0);
-    // Energy outside the spline extent must raise.
+    // Energy outside the spline extent raises.
     EXPECT_THROW(xs.DifferentialCrossSection(1.0e12, 0.1, 0.5, 0.105), std::runtime_error);
-    // (x, y) outside the spline grid must raise (explicit Q2 bypasses the Q2 cut).
+    // (x, y) outside the spline grid raises (explicit Q2 bypasses the Q2 cut).
     EXPECT_THROW(xs.DifferentialCrossSection(100.0, 1.0e-8, 0.5, 0.105, 5.0), std::runtime_error);
 }
 #endif // SIREN_HAS_PYTHIA8

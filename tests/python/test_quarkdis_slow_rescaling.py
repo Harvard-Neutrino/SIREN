@@ -1,18 +1,10 @@
 """Slow-rescaling (xi, y) sampling tests for QuarkDISFromSpline.
 
-The charm slow-rescaling FITS splines are LHAPDF-derived and not committed to
-the repository, so every spline-dependent test is gated behind the
-SIREN_CHARM_SPLINE_DIR environment variable. Point it at a directory containing
-
-    dsdxidy_nu-N-cc-charm-CT14nlo_central.fits
-    sigma_nu-N-cc-charm-CT14nlo_central.fits
-
-(e.g. the FASRC Maboi_M_Muon_SR spline set) to run the physics asserts. When the
-variable is unset, or the FITS files are absent, the whole module skips cleanly.
-
-Number of events for the differential-positivity test is configurable via
-SIREN_CHARM_NEVENTS (default 2000, kept modest so the suite stays fast; set it
-to 10000 for a heavier run).
+The charm FITS splines are LHAPDF-derived and not committed, so the whole module
+is gated behind SIREN_CHARM_SPLINE_DIR (a directory containing
+dsdxidy_nu-N-cc-charm-CT14nlo_central.fits and sigma_nu-N-cc-charm-CT14nlo_central.fits);
+it skips cleanly when unset or the files are absent. SIREN_CHARM_NEVENTS (default
+2000) sizes the differential-positivity test.
 """
 import math
 import os
@@ -21,9 +13,7 @@ import pytest
 
 siren = pytest.importorskip("siren")
 
-# ---------------------------------------------------------------------------
-# Constants (mirror C++ siren::utilities::Constants values exactly)
-# ---------------------------------------------------------------------------
+# Constants (mirror C++ siren::utilities::Constants values exactly).
 M_C = 1.27                          # Constants::charmMass
 M_D0 = 1.86484                      # Constants::D0Mass
 M_N = (0.938272 + 0.939565) / 2     # isoscalar nucleon mass
@@ -31,19 +21,14 @@ M_MU = 0.105658                     # muon mass
 Q2MIN = 1.0                         # GeV^2
 E_NU = 100.0                        # neutrino energy in GeV
 
-# Number of kinematic-bound events (the cheap test) and re-evaluation events
-# (the heavier differential-positivity test).
-N_BOUNDS = 100
-N_DIFF = int(os.environ.get("SIREN_CHARM_NEVENTS", "2000"))
+N_BOUNDS = 100   # cheap kinematic-bounds test
+N_DIFF = int(os.environ.get("SIREN_CHARM_NEVENTS", "2000"))   # differential test
 
-# Per-event resample budget when the sampler raises a recoverable
-# InjectionFailure (surfaces in Python as RuntimeError). The production injector
-# framework retries automatically; a direct SampleFinalState caller must do so.
+# Per-event resample budget on recoverable InjectionFailure (RuntimeError in
+# Python); a direct SampleFinalState caller must retry as the injector does.
 MAX_RETRIES = 100
 
-# ---------------------------------------------------------------------------
 # Spline-file gating: resolve spline paths from SIREN_CHARM_SPLINE_DIR.
-# ---------------------------------------------------------------------------
 _SPLINE_DIR = os.environ.get("SIREN_CHARM_SPLINE_DIR")
 _DIFF_FILE = (
     os.path.join(_SPLINE_DIR, "dsdxidy_nu-N-cc-charm-CT14nlo_central.fits")
@@ -73,18 +58,13 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-# ---------------------------------------------------------------------------
-# Expected kinematic bounds (mirror C++ SampleFinalState sampling bounds)
-# ---------------------------------------------------------------------------
+# Expected kinematic bounds (mirror C++ SampleFinalState sampling bounds).
 Y_MAX = 1.0 - M_MU / E_NU
 W2_THR = (M_N + M_D0) ** 2
 Y_MIN = (W2_THR - M_N ** 2 + Q2MIN) / (2.0 * M_N * E_NU)
 XI_MIN = (M_C ** 2 + Q2MIN) / (2.0 * M_N * E_NU * Y_MAX)
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def charm_xs():
     """Build the QuarkDISFromSpline cross section once for the module."""
@@ -130,12 +110,10 @@ def _make_neutrino_record(sig):
 
 
 def _sample_with_retries(charm_xs, sig, rng):
-    """Sample one event, retrying on recoverable InjectionFailure.
+    """Sample one event, retrying on recoverable InjectionFailure (RuntimeError).
 
-    Returns the populated CrossSectionDistributionRecord, or None if the
-    per-event resample budget was exhausted (an expected, rare NaN-guard
-    rejection, not a test failure). InjectionFailure derives from
-    std::runtime_error, so it surfaces in Python as RuntimeError.
+    Returns the populated record, or None if the resample budget was exhausted
+    (a rare, expected NaN-guard rejection, not a test failure).
     """
     import siren.dataclasses
     ir = _make_neutrino_record(sig)
@@ -145,18 +123,14 @@ def _sample_with_retries(charm_xs, sig, rng):
             charm_xs.SampleFinalState(cdr, rng)
             return cdr
         except RuntimeError:
-            # Recoverable per-event sampling failure; resample with fresh
-            # RNG draws. Hard configuration errors (bad signature, units, or
-            # spline) would already have fired in the fixtures, not here.
+            # Recoverable per-event failure; resample. Config errors fire in fixtures.
             if retry < MAX_RETRIES:
                 continue
             return None
     return None
 
 
-# ---------------------------------------------------------------------------
-# Test 1: kinematic bounds on the sampled (xi, y) over 100 events
-# ---------------------------------------------------------------------------
+# Test 1: kinematic bounds on the sampled (xi, y) over 100 events.
 def test_quarkdis_kinematic_bounds(charm_xs, signature, rng):
     """Every sampled event must satisfy the slow-rescaling kinematic bounds."""
     assert XI_MIN < 1.0, "degenerate bounds: xi_min >= 1"
@@ -178,7 +152,7 @@ def test_quarkdis_kinematic_bounds(charm_xs, signature, rng):
         y = params["bjorken_y"]
         x = params["bjorken_x"]
 
-        # Derived quantities (mirror C++ slow-rescaling relations).
+        # Mirror C++ slow-rescaling relations.
         Q2 = 2.0 * M_N * E_NU * y * xi - M_C ** 2
         W2 = M_N ** 2 + 2.0 * M_N * E_NU * y * (1.0 - xi) + M_C ** 2
 
@@ -202,8 +176,7 @@ def test_quarkdis_kinematic_bounds(charm_xs, signature, rng):
                 f"Q2={Q2:.6g} W2={W2:.6g} | " + "; ".join(event_failures)
             )
 
-    # The vast majority of slots must produce a sample; a few NaN-guard
-    # rejections are tolerated but a wholesale failure indicates a real bug.
+    # Most slots must sample; a few NaN-guard rejections are tolerated.
     assert sampled > 0, "no events were sampled at all"
     assert rejected <= N_BOUNDS // 10, (
         f"{rejected}/{N_BOUNDS} events were unrecoverable "
@@ -215,18 +188,13 @@ def test_quarkdis_kinematic_bounds(charm_xs, signature, rng):
     )
 
 
-# ---------------------------------------------------------------------------
-# Test 2: differential cross section is finite-positive on the production path
-# ---------------------------------------------------------------------------
+# Test 2: differential cross section is finite-positive on the production path.
 def test_quarkdis_differential_positive(charm_xs, signature, rng):
     """Re-evaluate the spline on finalized records via the production path.
 
-    This drives the weighting density exactly as the Weighter does:
-    SampleFinalState populates the CrossSectionDistributionRecord,
-    cdr.finalize(ir_out) materializes the secondary momenta, and
-    DifferentialCrossSection(ir_out) is evaluated on the finalized record,
-    which takes the primary-momentum Q2 branch. We assert a high
-    finite-positive fraction.
+    Drives the weighting density exactly as the Weighter does: SampleFinalState
+    -> cdr.finalize(ir_out) -> DifferentialCrossSection on the finalized record
+    (primary-momentum Q2 branch). Asserts a high finite-positive fraction.
     """
     import siren.dataclasses
 
@@ -252,7 +220,6 @@ def test_quarkdis_differential_positive(charm_xs, signature, rng):
         ir_out.primary_mass = 0.0
         cdr.finalize(ir_out)
 
-        # finalize must populate the secondary momenta from the sampled state.
         assert len(ir_out.secondary_momenta) == n_secondaries, (
             f"event {event_idx}: finalize wrote "
             f"{len(ir_out.secondary_momenta)} secondary momenta, "
@@ -288,18 +255,13 @@ def test_quarkdis_differential_positive(charm_xs, signature, rng):
     )
 
 
-# ---------------------------------------------------------------------------
-# Test 3: Sample == Density closure on the finalized record
-# ---------------------------------------------------------------------------
+# Test 3: Sample == Density closure on the finalized record.
 def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
     """The two Q2 derivations in DifferentialCrossSection must agree.
 
-    DifferentialCrossSection(InteractionRecord) takes the primary-momentum Q2
-    branch when the finalized record carries real secondary momenta, and the
-    stored-(xi, y) fallback branch when momenta are absent. Both must yield the
-    same differential value for a self-consistently sampled event; FinalState-
-    Probability (= dxs/txs, the physical density the Weighter uses) must be
-    finite and non-negative.
+    Primary-momentum branch (real secondary momenta) vs stored-(xi, y) fallback
+    branch (momenta absent) must yield the same value for a self-consistent event;
+    FinalStateProbability (= dxs/txs, the Weighter's density) must be finite >= 0.
     """
     import siren.dataclasses
 
@@ -311,7 +273,7 @@ def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
 
         params = dict(cdr.interaction_parameters)
 
-        # Finalized record -> primary-momentum Q2 branch.
+        # Finalized record: primary-momentum Q2 branch.
         ir_out = siren.dataclasses.InteractionRecord()
         ir_out.signature = signature
         ir_out.primary_momentum = [E_NU, 0.0, 0.0, E_NU]
@@ -320,11 +282,10 @@ def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
         dxs_primary = charm_xs.DifferentialCrossSection(ir_out)
 
         if not (math.isfinite(dxs_primary) and dxs_primary > 0.0):
-            # Skip rare edge points where the spline returns 0; closure is only
-            # meaningful where the differential value is positive on both paths.
+            # Closure is only meaningful where dxs is positive on both paths.
             continue
 
-        # Same record stripped of secondary momenta -> stored-(xi, y) fallback.
+        # Same record without secondary momenta: stored-(xi, y) fallback branch.
         ir_fb = siren.dataclasses.InteractionRecord()
         ir_fb.signature = signature
         ir_fb.primary_momentum = [E_NU, 0.0, 0.0, E_NU]
@@ -339,8 +300,7 @@ def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
         }
         dxs_fallback = charm_xs.DifferentialCrossSection(ir_fb)
 
-        # Both branches read the same spline at the same (E, xi, y); they should
-        # agree to within float roundoff in the Q2 derivation.
+        # Same spline at the same (E, xi, y): agree to within Q2-derivation roundoff.
         rel = abs(dxs_primary - dxs_fallback) / max(dxs_primary, dxs_fallback)
         assert rel < 1e-3, (
             f"event {event_idx}: primary-path dxs={dxs_primary:.6g} disagrees "
@@ -348,7 +308,7 @@ def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
             "derivations in DifferentialCrossSection are inconsistent"
         )
 
-        # Physical density used by the Weighter.
+        # Weighter's physical density.
         fsp = charm_xs.FinalStateProbability(ir_out)
         assert math.isfinite(fsp), f"event {event_idx}: FinalStateProbability not finite: {fsp}"
         assert fsp >= 0.0, f"event {event_idx}: FinalStateProbability negative: {fsp}"
@@ -358,9 +318,7 @@ def test_quarkdis_sample_density_closure(charm_xs, signature, rng):
     assert checked > 0, "no positive-dxs events were available for closure check"
 
 
-# ---------------------------------------------------------------------------
-# Test 4: absolute charm-DIS normalization (charm fraction vs literature/Pythia)
-# ---------------------------------------------------------------------------
+# Test 4: absolute charm-DIS normalization (charm fraction vs literature/Pythia).
 def test_quarkdis_charm_fraction_normalization():
     """The inclusive slow-rescaling charm-CC cross section must have the right
     absolute magnitude: the charm fraction sigma_charm / sigma_CC must land in the

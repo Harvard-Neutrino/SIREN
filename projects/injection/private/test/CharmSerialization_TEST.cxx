@@ -1,15 +1,9 @@
 // Serialization round-trip tests for the charm-DIS decay classes and the Weighter.
-//
-// Two invariants are enforced:
-//   1. CharmMesonDecay / CharmMesonDecay3Body must consume their entire
-//      serialized body on load. Because both are default-constructible, cereal
-//      uses a member load() rather than load_and_construct (it does not invoke
-//      load_and_construct for a default-constructible type). The trailing
-//      sentinel after each decay reads back correctly only if the body is fully
-//      consumed, so it directly detects a load that skips the body.
-//   2. A Weighter holding a charm decay process must survive SaveWeighter
-//      followed by reconstruction through the filename constructor (LoadWeighter)
-//      and re-serialize byte-identically.
+//   1. CharmMesonDecay / CharmMesonDecay3Body must fully consume their body on
+//      load (both default-constructible, so cereal uses member load(), not
+//      load_and_construct). A trailing sentinel detects a load that skips the body.
+//   2. A Weighter holding a charm decay process must survive SaveWeighter +
+//      filename-ctor reconstruction (LoadWeighter) and re-serialize byte-identically.
 
 #include <string>
 #include <vector>
@@ -42,8 +36,7 @@ using siren::detector::DetectorModel;
 
 namespace {
 // Round-trip a polymorphic Decay through a binary archive followed by a sentinel
-// int. The sentinel reads back correctly only if the decay body was fully
-// consumed on load -- i.e. it detects a load that leaves bytes in the stream.
+// int (which reads back correctly only if the body was fully consumed on load).
 std::shared_ptr<Decay> roundtrip_decay_with_sentinel(std::shared_ptr<Decay> orig,
                                                      bool & sentinel_ok) {
     const int kSentinel = 0x5A5A5A;
@@ -73,8 +66,6 @@ std::string read_file(std::string const & path) {
 }
 } // namespace
 
-// --- Polymorphic Decay round-trips (load path consumes the full body) --------
-
 TEST(CharmSerialization, CharmMesonDecayPolymorphicRoundTrip) {
     std::shared_ptr<Decay> orig = std::make_shared<CharmMesonDecay>(ParticleType::D0);
     bool sentinel_ok = false;
@@ -101,8 +92,7 @@ TEST(CharmSerialization, CharmMesonDecay3BodyPolymorphicRoundTrip) {
     EXPECT_TRUE(sentinel_ok) << "decay body was not fully consumed on load";
 }
 
-// --- Weighter SaveWeighter/LoadWeighter with a charm decay process -----------
-
+// Weighter SaveWeighter/LoadWeighter with a charm decay process.
 TEST(CharmSerialization, WeighterWithCharmDecaySaveLoad) {
     auto detector_model = std::make_shared<DetectorModel>();
     std::shared_ptr<Decay> decay = std::make_shared<CharmMesonDecay>(ParticleType::D0);
@@ -124,8 +114,7 @@ TEST(CharmSerialization, WeighterWithCharmDecaySaveLoad) {
 
     ASSERT_NO_THROW(w.SaveWeighter(base));   // writes <base>.siren_weighter
 
-    // The filename constructor calls LoadWeighter to reconstruct the weighter
-    // from the serialized file.
+    // Filename ctor calls LoadWeighter to reconstruct from the file.
     std::unique_ptr<Weighter> w2;
     ASSERT_NO_THROW(w2.reset(new Weighter(no_injectors, base)));
     ASSERT_NE(w2, nullptr);

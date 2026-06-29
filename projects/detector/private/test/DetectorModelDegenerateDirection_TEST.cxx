@@ -1,27 +1,12 @@
 
 // Degenerate trajectory-direction behavior for DetectorModel depth queries.
-//
-// DetectorModel computes a trajectory direction as (p1 - p0) in cartesian
-// coordinates. When p0 and p1 are at Earth-scale coordinates and only
-// micrometers apart, the subtraction suffers catastrophic cancellation, so the
-// resulting direction is unreliable; for coincident points it is the zero
-// vector. The required behavior in these cases:
-//   - Vector3D::normalize() must not divide by zero (no NaN/Inf).
-//   - The interaction-depth sub-threshold path returns the well-defined decay
-//     term (distance / total_decay_length) rather than normalizing an
-//     unreliable direction and tripping the unit-direction assert.
-//   - All depth queries must return finite, non-negative values and must not
-//     abort.
-//
-// These tests construct the degenerate cases directly. They use a default
-// (infinite-vacuum) DetectorModel, so they are fully self-contained and require
-// no external data files.
+// DetectorModel computes direction as (p1 - p0); at Earth-scale coordinates a
+// sub-micrometer separation cancels catastrophically (coincident points give the
+// zero vector). All depth queries must stay finite, non-negative, and not abort.
 //
 // NOTE: the unit-direction assert (std::abs(1.0 - std::abs(dot)) < 1e-6) only
-// fires in an assertions-enabled build (Debug / RelWithDebInfo); in a fully
-// optimized NDEBUG build it is compiled out. The finite/non-NaN return-value
-// assertions below exercise and lock in the required numeric behavior in either
-// build.
+// fires in an assertions-enabled build (Debug / RelWithDebInfo), not under NDEBUG;
+// the finite/non-NaN return-value asserts below lock in behavior in either build.
 
 #include <cmath>
 #include <limits>
@@ -53,10 +38,8 @@ bool IsFinite(double x) {
 
 } // namespace
 
-// p0 and p1 are distinct (so the p0 == p1 early-return does NOT fire) but their
-// separation is below distance_threshold. GetInteractionDepthInCGS with non-empty
-// targets must short-circuit to distance/total_decay_length rather than
-// normalizing the cancellation-corrupted direction and tripping the unit assert.
+// Distinct but sub-threshold points with non-empty targets: must short-circuit
+// to distance/total_decay_length instead of normalizing the corrupted direction.
 TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdWithTargets)
 {
     DetectorModel A; // infinite vacuum sphere, no files
@@ -66,8 +49,7 @@ TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdWithTargets)
     Vector3D p1;
     p1.SetCartesianCoordinates(kEarthScaleX + kSubThresholdOffset, 0.0, 0.0);
 
-    // Sanity: the early p0 == p1 guard must NOT catch this (points differ),
-    // and the separation is genuinely below threshold.
+    // p0 != p1 (early guard must not fire), yet separation is below threshold.
     ASSERT_TRUE(p0 != p1);
     double distance = (p1 - p0).magnitude();
     ASSERT_GT(distance, 0.0);
@@ -85,8 +67,7 @@ TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdWithTargets)
 
     EXPECT_TRUE(IsFinite(depth)) << "InteractionDepth must be finite, got " << depth;
 
-    // At sub-threshold distance the result is the decay-only limit, matching
-    // the targets.empty() branch (continuity across the threshold).
+    // Sub-threshold result is the decay-only limit (continuous with targets.empty()).
     double expected = distance / total_decay_length;
     EXPECT_NEAR(expected, depth, std::abs(expected) * 1e-9 + 1e-30);
     EXPECT_GE(depth, 0.0);
@@ -104,7 +85,7 @@ TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdDecayOnly)
     p1.SetCartesianCoordinates(kEarthScaleX + kSubThresholdOffset, 0.0, 0.0);
 
     double distance = (p1 - p0).magnitude();
-    std::vector<ParticleType> targets; // empty -> decay only
+    std::vector<ParticleType> targets; // empty: decay-only branch
     std::vector<double> total_cross_sections;
     double total_decay_length = 2.5e2;
 
@@ -118,9 +99,8 @@ TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdDecayOnly)
                 std::abs(distance / total_decay_length) * 1e-9 + 1e-30);
 }
 
-// GetColumnDepthInCGS on a sub-threshold but distinct segment normalizes a tiny
-// (magnitude ~1e-7) direction. The difference is small-but-nonzero, so the call
-// must complete without aborting and return a finite, non-negative value.
+// Column depth on a sub-threshold but distinct segment normalizes a tiny (~1e-7)
+// direction; must complete without aborting and return finite, non-negative.
 TEST(DetectorModelDegenerateDirection, ColumnDepthSubThresholdIsFinite)
 {
     DetectorModel A;
@@ -162,10 +142,9 @@ TEST(DetectorModelDegenerateDirection, ParticleColumnDepthSubThresholdIsFinite)
     }
 }
 
-// Exact-coincidence case (p0 == p1) at Earth-scale coordinates. Here (p1 - p0)
-// is the zero vector. The early p0 == p1 guard returns the degenerate limit, and
-// the Vector3D::normalize() zero-length guard protects any path that still
-// normalizes it. All depth queries must return 0, finite, and not produce NaN.
+// Exact coincidence (p0 == p1) at Earth-scale: (p1 - p0) is the zero vector. The
+// early guard plus Vector3D::normalize()'s zero-length guard must keep every depth
+// query at 0, finite, no NaN.
 TEST(DetectorModelDegenerateDirection, CoincidentPointsReturnZeroFinite)
 {
     DetectorModel A;

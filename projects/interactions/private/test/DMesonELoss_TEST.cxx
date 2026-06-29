@@ -1,30 +1,6 @@
-/**
- * Unit test for DMesonELoss (charm-meson energy-loss "cross section").
- *
- * DMesonELoss models a D meson losing a fraction z of its energy to a hadronic
- * vertex. The signature is  D -> {same D, Hadrons}  on a PPlus target. The
- * inelasticity z is drawn from a Gaussian (z0=0.56, sigma=0.2) truncated to
- * [z_min_, z_max_] = [0.001, 0.999] via rejection; the same truncated Gaussian
- * is the density returned by DifferentialCrossSection / FinalStateProbability,
- * so Sample == Density (closure).
- *
- * Tests:
- *  1. EnergyMonotonicallyDecreases -- outgoing D energy is always in
- *     (D mass, primary energy); the D never gains energy.
- *  2. FourMomentumAndMassInvariants -- outgoing D is on its mass shell,
- *     energy is conserved (E0 == E_D + E_H), and the two outgoing 3-momenta
- *     are collinear with the incoming direction (momentum is NOT conserved by
- *     design -- the hadron is massless and collinear).
- *  3. TotalCrossSectionPositiveAndThrows -- TotalCrossSection is positive and
- *     increasing in E over the validity range, and throws on an unsupported
- *     primary.
- *  4. SubThresholdThrows -- SampleFinalState throws siren::utilities::
- *     InjectionFailure when the primary energy is at or below the D mass.
- *  5. ZDensityClosure -- the empirical sampled-z distribution matches
- *     FinalStateProbability/DifferentialCrossSection (the truncated Gaussian)
- *     bin-by-bin within Poisson error (closure of the realized sampler against
- *     the advertised density).
- */
+// Unit tests for DMesonELoss: D -> {same D, Hadrons} energy-loss model. The
+// inelasticity z is a truncated Gaussian that is also the advertised density,
+// so Sample == Density (closure). See DMesonELoss.h for the physics.
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -66,8 +42,7 @@ InteractionRecord make_d0_record(const InteractionSignature & sig, double E_D) {
 
 } // namespace
 
-// --- Test 1: the D meson always loses energy --------------------------------
-
+// The D meson always loses energy: E_out in (mD, E_D).
 TEST(DMesonELoss, EnergyMonotonicallyDecreases) {
     DMesonELoss xs;
     auto sigs = xs.GetPossibleSignaturesFromParents(ParticleType::D0, ParticleType::PPlus);
@@ -87,17 +62,14 @@ TEST(DMesonELoss, EnergyMonotonicallyDecreases) {
             cdr.Finalize(rec);
 
             double E_out = rec.secondary_momenta[0][0];
-            // The D meson never gains energy (z >= z_min_ > 0).
-            EXPECT_LT(E_out, E_D);
-            // It stays on (or above) its mass shell -- no z>z_max_ leakage.
-            EXPECT_GE(E_out, mD);
+            EXPECT_LT(E_out, E_D);   // never gains energy (z >= z_min_ > 0)
+            EXPECT_GE(E_out, mD);    // stays on/above mass shell (no z>z_max_ leakage)
             EXPECT_GT(E_out, 0.0);
         }
     }
 }
 
-// --- Test 2: on-shell, energy conservation, collinearity --------------------
-
+// Outgoing D on-shell, energy conserved, both products collinear with +z.
 TEST(DMesonELoss, FourMomentumAndMassInvariants) {
     DMesonELoss xs;
     auto sig = xs.GetPossibleSignaturesFromParents(ParticleType::D0, ParticleType::PPlus)[0];
@@ -115,36 +87,32 @@ TEST(DMesonELoss, FourMomentumAndMassInvariants) {
         const auto & pdm = rec.secondary_momenta[0];   // outgoing D
         const auto & ph  = rec.secondary_momenta[1];   // hadron
 
-        // (a) outgoing D is on its mass shell.
+        // outgoing D on its mass shell.
         double m2 = pdm[0]*pdm[0] - pdm[1]*pdm[1] - pdm[2]*pdm[2] - pdm[3]*pdm[3];
         EXPECT_NEAR(std::sqrt(std::max(0.0, m2)), mD, 1e-6);
 
-        // (b) energy is conserved: E0 == E_D_out + E_H.
+        // energy conserved; hadron carries the loss and is ~massless.
         EXPECT_NEAR(pdm[0] + ph[0], E_D, 1e-6);
-        // hadron carries the lost energy and is (nearly) massless.
         EXPECT_GT(ph[0], 0.0);
         double mh2 = ph[0]*ph[0] - ph[1]*ph[1] - ph[2]*ph[2] - ph[3]*ph[3];
         EXPECT_NEAR(mh2, 0.0, 1e-6);
 
-        // (c) collinearity: both outgoing 3-momenta lie along +z (the incoming
-        //     direction). Momentum is NOT conserved by design (massless hadron),
-        //     so we assert direction, not p-balance.
+        // Both products collinear with +z. Momentum is NOT conserved by design
+        // (massless hadron), so assert direction, not p-balance.
         EXPECT_NEAR(pdm[1], 0.0, 1e-9);
         EXPECT_NEAR(pdm[2], 0.0, 1e-9);
         EXPECT_GT(pdm[3], 0.0);
         EXPECT_NEAR(ph[1], 0.0, 1e-9);
         EXPECT_NEAR(ph[2], 0.0, 1e-9);
         EXPECT_GT(ph[3], 0.0);
-        // direction of p_D matches the incoming +z direction.
-        EXPECT_GT(p_D, 0.0);
+        EXPECT_GT(p_D, 0.0);   // incoming +z direction
     }
 }
 
-// --- Test 3: total cross section positivity / monotonicity / throws ---------
-
+// TotalCrossSection positive, increasing in E, and throws on bad primary.
 TEST(DMesonELoss, TotalCrossSectionPositiveAndThrows) {
     DMesonELoss xs;
-    // Positive and increasing with energy over the (>1 PeV) validity range.
+    // Positive and increasing over the (>1 PeV) validity range.
     double last = -1.0;
     for (double E : {1e6, 1e7, 1e8, 1e9}) {
         double s = xs.TotalCrossSection(ParticleType::D0, E);
@@ -152,19 +120,17 @@ TEST(DMesonELoss, TotalCrossSectionPositiveAndThrows) {
         if (last >= 0.0) EXPECT_GT(s, last);
         last = s;
     }
-    // Unsupported primary throws.
     EXPECT_THROW(xs.TotalCrossSection(ParticleType::PiPlus, 1e7), std::runtime_error);
 }
 
-// --- Test 4: sub-threshold primary fails recoverably ------------------------
-
+// Sub-threshold primary fails recoverably with InjectionFailure.
 TEST(DMesonELoss, SubThresholdThrows) {
     DMesonELoss xs;
     auto sig = xs.GetPossibleSignaturesFromParents(ParticleType::D0, ParticleType::PPlus)[0];
     auto rng = std::make_shared<SIREN_random>();
     double mD = Constants::D0Mass;
 
-    // Primary energy exactly at the D mass (D at rest): no valid final state.
+    // Energy exactly at the D mass (D at rest): no valid final state.
     {
         InteractionRecord rec;
         rec.signature = sig;
@@ -176,7 +142,7 @@ TEST(DMesonELoss, SubThresholdThrows) {
         CrossSectionDistributionRecord cdr(rec);
         EXPECT_THROW(xs.SampleFinalState(cdr, rng), siren::utilities::InjectionFailure);
     }
-    // Primary energy below the D mass.
+    // Energy below the D mass.
     {
         double E_D = 0.5 * mD;
         InteractionRecord rec;
@@ -191,8 +157,7 @@ TEST(DMesonELoss, SubThresholdThrows) {
     }
 }
 
-// --- Test 5: sampled-z density matches FinalStateProbability ----------------
-
+// Empirical sampled-z distribution matches FinalStateProbability bin-by-bin.
 TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
     DMesonELoss xs;
     auto sig = xs.GetPossibleSignaturesFromParents(ParticleType::D0, ParticleType::PPlus)[0];
@@ -200,11 +165,10 @@ TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
     const double mD = Constants::D0Mass;
     const double zlo = 0.001;     // == z_min_
 
-    // Span low to high primary energy. At low E the kinematic cut z <= 1 - mD/E
-    // truncates the Gaussian well below its mean (z0 = 0.56) -- exactly where a
-    // fixed-interval density (normalizing over [z_min_, z_max_] regardless of E)
-    // mis-normalizes and breaks closure. The density now applies the same
-    // energy-dependent cut, so Sample == Density at every energy.
+    // At low E the kinematic cut z <= 1 - mD/E truncates the Gaussian below its
+    // mean (z0=0.56) -- where a fixed-interval density would mis-normalize and
+    // break closure. The density applies the same E-dependent cut, so Sample ==
+    // Density at every energy. Span low to high E to exercise that.
     for (double E_D : {5.0, 10.0, 50.0, 200.0, 1000.0, 3000.0}) {
         const double z_kin = 1.0 - mD / E_D;          // kinematic upper limit
         const double zhi = std::min(1.0, z_kin);      // == min(z_max_, z_kin)
@@ -221,7 +185,7 @@ TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
             xs.SampleFinalState(cdr, rng);
             cdr.Finalize(rec);
             double z = 1.0 - rec.secondary_momenta[0][0] / E_D;
-            // The sampler must respect the same support the density advertises.
+            // sampler must respect the support the density advertises.
             EXPECT_GE(z, zlo - 1e-9) << "E_D=" << E_D;
             EXPECT_LE(z, zhi + 1e-9) << "E_D=" << E_D;
             int b = (int)((z - zlo) / bw);
@@ -243,7 +207,7 @@ TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
             return xs.FinalStateProbability(r);
         };
 
-        // (a) bin-by-bin closure within ~4 Poisson sigma.
+        // bin-by-bin closure within ~4 Poisson sigma.
         for (int b = 0; b < NB; ++b) {
             double zc = zlo + (b + 0.5) * bw;
             double pred = fsp_at_z(zc);
@@ -254,7 +218,7 @@ TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
             EXPECT_NEAR(emp, pred, 4.0 * sg + 0.02 * pred) << "E_D=" << E_D << " z=" << zc;
         }
 
-        // (b) the density integrates to 1 over the realized support [zlo, zhi].
+        // density integrates to 1 over the realized support [zlo, zhi].
         int M = 4000;
         double integral = 0.0, dz = (zhi - zlo) / M;
         for (int i = 0; i <= M; ++i) {
@@ -264,8 +228,8 @@ TEST(DMesonELoss, ZDensityClosureAcrossEnergies) {
         }
         EXPECT_NEAR(integral, 1.0, 2e-2) << "E_D=" << E_D;
 
-        // (c) the density vanishes ABOVE the kinematic cut -- the fixed-interval
-        //     bug was nonzero density where the sampler produces nothing.
+        // density vanishes ABOVE the kinematic cut (the fixed-interval bug left
+        // nonzero density where the sampler produces nothing).
         double z_above = zhi + 0.4 * (1.0 - zhi);
         if (z_above < 1.0 - 1e-9) {
             EXPECT_EQ(fsp_at_z(z_above), 0.0) << "E_D=" << E_D << " z_above=" << z_above;

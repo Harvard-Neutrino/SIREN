@@ -1,27 +1,10 @@
-// Regression test for the charm-DIS interaction-depth closure invariant.
-//
-// Background: a charm-DIS cross section registers three D-type final-state
-// signatures (D0, D+, Ds) that share a single inclusive charm total cross
-// section sigma(E). The interaction depth that sets the vertex distribution is
-// computed two ways that MUST agree:
-//
-//   generation side : CrossSection::TotalCrossSectionAllFinalStates(record)
-//                     (called by the ~10 vertex/position distributions)
-//   physical side   : sum over GetPossibleSignaturesFromParents of
-//                     TotalCrossSection(signature)            (Weighter.tcc)
-//
-// The base-class default TotalCrossSectionAllFinalStates SUMS TotalCrossSection
-// over the signatures, so the two sides agree only if no subclass overrides
-// TotalCrossSectionAllFinalStates to short-circuit the sum. Additionally, the
-// inclusive sigma must be PARTITIONED across the D species by fragmentation
-// fraction, otherwise the sum triple-counts charm production.
-//
-// This test does not need Pythia8: it uses a mock that reproduces the two
-// behaviors of PythiaDISCrossSection (TotalCrossSection independent of meson
-// type; three registered D-type signatures) and exercises the real base-class
-// CrossSection::TotalCrossSectionAllFinalStates. It guards the invariant the
-// PythiaDISCrossSection fix relies on. The companion gtest
-// PythiaDISCharmClosure_TEST exercises the real class on a Pythia-enabled build.
+// Regression test for the charm-DIS interaction-depth closure invariant: the
+// generation side (TotalCrossSectionAllFinalStates) and physical side (sum of
+// per-signature TotalCrossSection, Weighter.tcc) must agree, and the inclusive
+// sigma must be partitioned across the three D species by fragmentation fraction
+// (else the sum triple-counts). Pythia-free: a mock reproduces PythiaDIS's two
+// relevant behaviors and exercises the real base-class TotalCrossSectionAllFinalStates.
+// Companion PythiaDISCharmClosure_TEST exercises the real class.
 
 #include <cmath>
 #include <vector>
@@ -50,9 +33,8 @@ public:
     bool override_afs;
     MockCharmXS(bool ff, bool ovr) : apply_ff(ff), override_afs(ovr) {}
 
-    // D0:D+/-:Ds = 0.60:0.23:0.15 renormalized to sum to 1.0 (Lambda_c not
-    // modeled, its fraction redistributed). Mirrors
-    // QuarkDISFromSpline::FragmentationFraction.
+    // D0:D+/-:Ds = 0.60:0.23:0.15 each /0.98 to sum to 1.0 (unmodeled Lambda_c
+    // redistributed). Mirrors QuarkDISFromSpline::FragmentationFraction.
     static double FragmentationFraction(ParticleType d) {
         if(d==ParticleType::D0 || d==ParticleType::D0Bar) return 0.6 / 0.98;
         if(d==ParticleType::DPlus || d==ParticleType::DMinus) return 0.23 / 0.98;
@@ -130,8 +112,8 @@ double gen_path(MockCharmXS const & xs, ParticleType primary, ParticleType targe
 
 } // namespace
 
-// Reproduces the f1751c6b bug: the override makes the generation side report 1x
-// while the physical side reports 3x -> closure broken by a factor of 3.
+// f1751c6b bug: override makes the generation side report 1x while the physical
+// side reports 3x -> closure broken by a factor of 3.
 TEST(CharmDISClosure, OverrideBreaksClosureByFactorThree) {
     MockCharmXS xs(/*ff=*/false, /*override=*/true);
     for(double E : {10.0, 100.0, 1000.0}) {
@@ -143,8 +125,8 @@ TEST(CharmDISClosure, OverrideBreaksClosureByFactorThree) {
     }
 }
 
-// Reproduces 4b7baf4a (override removed, no FF): the two sides agree (closure
-// restored) but both equal 3x the inclusive sigma -> charm production overcounted.
+// 4b7baf4a (override removed, no FF): sides agree (closure restored) but both
+// equal 3x the inclusive sigma -> charm production overcounted.
 TEST(CharmDISClosure, OverrideRemovedClosesButOvercountsThreeX) {
     MockCharmXS xs(/*ff=*/false, /*override=*/false);
     for(double E : {10.0, 100.0, 1000.0}) {
@@ -155,14 +137,10 @@ TEST(CharmDISClosure, OverrideRemovedClosesButOvercountsThreeX) {
     }
 }
 
-// With the fragmentation fraction applied per signature in TotalCrossSection
-// (and the FFs renormalized to sum to 1.0), the generation-side and physical-
-// side inclusive charm cross sections must agree AND both equal the full
-// inclusive sigma -- partitioned across the three D species, not triple-counted.
+// With FF applied per signature (FFs renormalized to sum to 1.0), both sides
+// agree AND equal the full inclusive sigma -- partitioned, not triple-counted.
 TEST(CharmDISClosure, FragmentationFractionRestoresPhysicalNormalization) {
     MockCharmXS xs(/*ff=*/true, /*override=*/false);
-    // FF sum = (0.6 + 0.23 + 0.15) / 0.98 == 1.0 (renormalized), so the
-    // partitioned total recovers the full inclusive sigma exactly.
     for(double E : {10.0, 100.0, 1000.0}) {
         double gen = gen_path(xs, ParticleType::NuMu, ParticleType::PPlus, E);
         double phys = phys_path(xs, ParticleType::NuMu, ParticleType::PPlus, E);
@@ -172,8 +150,7 @@ TEST(CharmDISClosure, FragmentationFractionRestoresPhysicalNormalization) {
     }
 }
 
-// The three implemented fragmentation fractions must partition the inclusive
-// charm cross section exactly: they sum to 1.0 (Lambda_c fraction redistributed).
+// The three implemented fragmentation fractions sum to 1.0.
 TEST(CharmDISClosure, FragmentationFractionsSumToOne) {
     double sum = MockCharmXS::FragmentationFraction(ParticleType::D0)
                + MockCharmXS::FragmentationFraction(ParticleType::DPlus)
