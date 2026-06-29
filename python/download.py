@@ -81,6 +81,25 @@ def writable_data_dir(module_dir: str) -> str:
     return fallback
 
 
+def resolve_data_path(install_dir: str, download_dir: str,
+                      filename: str) -> str:
+    """Resolve a data file path, preferring *install_dir* when the file
+    already exists there.
+
+    Resource loaders download files into *download_dir* (the writable
+    location returned by :func:`writable_data_dir`).  When the package
+    is installed into a read-only tree the writable directory differs
+    from the original install directory.  If the file was shipped with
+    the package (or cached from a previous writable install), it may
+    still be present at *install_dir* -- use it directly and avoid a
+    redundant download.
+    """
+    local = os.path.join(install_dir, filename)
+    if os.path.isfile(local):
+        return local
+    return os.path.join(download_dir, filename)
+
+
 # ======================================================================
 # Core download primitives
 # ======================================================================
@@ -291,14 +310,18 @@ def _cached_zip(dest_dir: str, record_id: str, filename: str,
 
     # Check for an existing cached file for this record/filename
     tag = f"{record_id}_{filename}"
-    existing = [f for f in os.listdir(cache_dir)
-                if f.startswith(tag + ".") and f.endswith(".zip")]
+    existing = sorted(
+        (f for f in os.listdir(cache_dir)
+         if f.startswith(tag + ".") and f.endswith(".zip")),
+        key=lambda f: os.path.getmtime(os.path.join(cache_dir, f)),
+        reverse=True,
+    )
     if existing:
         return os.path.join(cache_dir, existing[0])
 
     # Download, hash, rename into cache
     url = zenodo_file_url(record_id, filename, token)
-    tmp_path = os.path.join(cache_dir, f"{tag}.tmp")
+    tmp_path = os.path.join(cache_dir, f"{tag}.{os.getpid()}.tmp")
     try:
         download_file(url, tmp_path, label=filename)
         sha = _sha256_file(tmp_path)
@@ -316,14 +339,21 @@ _EXTRACTED_SENTINEL = ".zenodo_extracted"
 
 def _safe_extract(zf: zipfile.ZipFile, dest_dir: str,
                   members: list[str] | None = None) -> None:
-    """Extract zip members, rejecting paths that escape dest_dir (Zip Slip)."""
+    """Extract zip members, rejecting paths that escape dest_dir (Zip Slip).
+
+    Extracts one member at a time, re-validating each member's resolved
+    path before extracting it (realpath reflects symlinks created by
+    earlier members) so that earlier entries cannot redirect later ones
+    outside dest_dir.
+    """
     abs_dest = os.path.realpath(dest_dir)
-    for name in (members if members is not None else zf.namelist()):
+    names = members if members is not None else zf.namelist()
+    for name in names:
         target = os.path.realpath(os.path.join(dest_dir, name))
         if not target.startswith(abs_dest + os.sep) and target != abs_dest:
             raise ValueError(
                 f"Zip entry '{name}' would extract outside {dest_dir}")
-    zf.extractall(dest_dir, members)
+        zf.extract(name, dest_dir)
 
 
 def ensure_zenodo_archive(record_id: str, filename: str, dest_dir: str,
@@ -416,13 +446,14 @@ def _cmd_fetch(names: list[str]) -> int:
               file=sys.stderr)
         return 1
 
-    # Build a map of name -> resource_type for all installed resources
-    resource_map: dict[str, str] = {}
+    # Build a map of name -> resource_type for all installed resources.
+    # A name may appear in multiple categories; store all of them.
+    resource_map: dict[str, list[str]] = {}
     for resource_type, lister in [("detector", _util.list_detectors),
                                   ("flux", _util.list_fluxes),
                                   ("processes", _util.list_processes)]:
         for n in lister():
-            resource_map[n] = resource_type
+            resource_map.setdefault(n, []).append(resource_type)
 
     if not names:
         names = list(resource_map.keys())
@@ -430,24 +461,25 @@ def _cmd_fetch(names: list[str]) -> int:
     ret = 0
     for name in names:
         print(f"--- {name} ---")
-        resource_type = resource_map.get(name)
-        if resource_type is None:
+        resource_types = resource_map.get(name)
+        if resource_types is None:
             print(f"  (unknown resource '{name}')")
             ret = 1
             continue
-        try:
-            mod = _util.import_resource(resource_type, name)
-            if mod is None:
-                print("  (no loader script)")
-                continue
-            if hasattr(mod, "fetch_data"):
-                mod.fetch_data()
-                print("  OK")
-            else:
-                print("  (no fetch_data function, skipping)")
-        except Exception as e:
-            print(f"  Error: {e}", file=sys.stderr)
-            ret = 1
+        for resource_type in resource_types:
+            try:
+                mod = _util.import_resource(resource_type, name)
+                if mod is None:
+                    print(f"  (no {resource_type} loader script)")
+                    continue
+                if hasattr(mod, "fetch_data"):
+                    mod.fetch_data()
+                    print(f"  OK ({resource_type})")
+                else:
+                    print(f"  (no fetch_data function for {resource_type}, skipping)")
+            except Exception as e:
+                print(f"  Error ({resource_type}): {e}", file=sys.stderr)
+                ret = 1
     return ret
 
 
@@ -477,13 +509,17 @@ Examples:
         parser.print_help()
         return 0
 
-    if args.list:
-        return _cmd_list()
+    try:
+        if args.list:
+            return _cmd_list()
 
-    names = args.fetch or []
-    if args.fetch_all:
-        names = []  # empty = all
-    return _cmd_fetch(names)
+        names = args.fetch or []
+        if args.fetch_all:
+            names = []  # empty = all
+        return _cmd_fetch(names)
+    except (OSError, ConnectionError, urllib.error.URLError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

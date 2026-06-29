@@ -339,3 +339,24 @@ class TestSha256File:
             hashlib.sha256(b"").digest()
         ).rstrip(b"=").decode("ascii")
         assert dl._sha256_file(str(path)) == expected
+
+
+class TestResolveDataPath:
+    """resolve_data_path prefers an existing install-dir copy, else the download dir."""
+
+    def test_prefers_install_dir_when_present(self, tmp):
+        install = tmp / "install"
+        download = tmp / "download"
+        install.mkdir()
+        download.mkdir()
+        (install / "f.dat").write_bytes(b"x")
+        # Present in install_dir -> returned directly (no redundant download)
+        assert dl.resolve_data_path(str(install), str(download), "f.dat") == str(install / "f.dat")
+
+    def test_falls_back_to_download_dir_when_missing(self, tmp):
+        install = tmp / "install"
+        download = tmp / "download"
+        install.mkdir()
+        download.mkdir()
+        # Absent from install_dir -> returns the download_dir path (regardless of existence there)
+        assert dl.resolve_data_path(str(install), str(download), "missing.dat") == str(download / "missing.dat")
