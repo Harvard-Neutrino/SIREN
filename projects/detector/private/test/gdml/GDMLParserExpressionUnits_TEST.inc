@@ -76,14 +76,15 @@ TEST(GDMLParser, ExpressionInSolidDimensions) {
     // The box should exist as a solid
     ASSERT_TRUE(data.solids.count("test_box") > 0);
     // Verify dimensions via bounding box (in meters, since lunit=mm -> *0.001)
-    // x = 50*2 = 100mm = 0.1m (full width = 0.2m since GDML x is half-width)
-    // y = 50mm = 0.05m (full width = 0.1m)
-    // z = 50/2 = 25mm = 0.025m (full width = 0.05m)
+    // GDML box x,y,z are FULL widths -> half-extent = value/2.
+    // x = 50*2 = 100mm full -> 0.05m half
+    // y = 50mm full -> 0.025m half
+    // z = 50/2 = 25mm full -> 0.0125m half
     auto bb = data.solids["test_box"]->GetBoundingBox();
     double tol = 1e-9;
-    EXPECT_NEAR(bb.max_corner.GetX(), 0.1, tol);  // half of full width 0.2
-    EXPECT_NEAR(bb.max_corner.GetY(), 0.05, tol); // half of full width 0.1
-    EXPECT_NEAR(bb.max_corner.GetZ(), 0.025, tol); // half of full width 0.05
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.05, tol);
+    EXPECT_NEAR(bb.max_corner.GetY(), 0.025, tol);
+    EXPECT_NEAR(bb.max_corner.GetZ(), 0.0125, tol);
 }
 
 
@@ -158,10 +159,10 @@ TEST(GDMLParser, LengthUnitConversion) {
     auto bb_cm = data.solids["box_cm"]->GetBoundingBox();
     auto bb_m  = data.solids["box_m"]->GetBoundingBox();
 
-    // GDML <box> x,y,z are HALF-widths. All three boxes specify the same half-width:
-    // 100mm = 10cm = 0.1m. In SIREN meters, bounding box max_corner = 0.1m.
+    // GDML <box> x,y,z are FULL widths. All three boxes specify the same full-width:
+    // 100mm = 10cm = 0.1m -> bounding box max_corner = 0.05m half-extent.
     double tol = 1e-9;
-    double expected = 0.1; // half-width in meters
+    double expected = 0.05; // half-extent in meters
 
     // All three should produce the same bounding box
     EXPECT_NEAR(bb_mm.max_corner.GetX(), expected, tol);
@@ -624,6 +625,6 @@ TEST(GDMLParser, LengthQuantityInSolid) {
 
     ASSERT_TRUE(data.solids.count("test") > 0);
     auto bb = data.solids["test"]->GetBoundingBox();
-    EXPECT_NEAR(bb.max_corner.GetX(), 0.05, 1e-9)
-        << "5cm quantity = 50mm half-width, box full-width = 100mm, AABB max = 50mm = 0.05m";
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.025, 1e-9)
+        << "5cm quantity = 50mm full-width -> AABB max = half-extent = 25mm = 0.025m";
 }

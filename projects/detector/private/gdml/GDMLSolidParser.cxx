@@ -108,11 +108,12 @@ std::shared_ptr<Geometry> BuildBooleanGeometry(BooleanOperation op,
 }
 
 std::shared_ptr<Geometry> ParseBox(SolidContext const & ctx) {
-    // GDML <box> x,y,z are half-widths
-    // SIREN Box constructor takes full widths as arguments
-    double const x_full_width = L(ctx, "x") * 2.0;
-    double const y_full_width = L(ctx, "y") * 2.0;
-    double const z_full_width = L(ctx, "z") * 2.0;
+    // GDML <box> x,y,z are full-widths
+    // SIREN Box constructor takes full widths
+    // Geant4 Box constructor takes half-widths (confirmed their GDML conversion)
+    double const x_full_width = L(ctx, "x");
+    double const y_full_width = L(ctx, "y");
+    double const z_full_width = L(ctx, "z");
     return Box(x_full_width, y_full_width, z_full_width).create();
 }
 
@@ -135,22 +136,28 @@ std::shared_ptr<Geometry> ParseOrb(SolidContext const & ctx) {
 
 std::shared_ptr<Geometry> ParseTube(SolidContext const & ctx) {
     GDMLPhiRange phi = ReadPhiRange(ctx.node, ctx.ascale, ctx.data.constants);
-    // GDML <tube> z is half-height; SIREN Cylinder takes full height.
-    return Cylinder(L(ctx, "rmax"), L(ctx, "rmin"), L(ctx, "z") * 2.0,
+    // GDML <tube> z is full-height
+    // SIREN Cylinder constructor takes full height
+    // Geant4 G4Tubs constructor takes half-height (confirmed their GDML conversion)
+    return Cylinder(L(ctx, "rmax"), L(ctx, "rmin"), L(ctx, "z"),
                     phi.start, phi.delta).create();
 }
 
 std::shared_ptr<Geometry> ParseCone(SolidContext const & ctx) {
     GDMLPhiRange phi = ReadPhiRange(ctx.node, ctx.ascale, ctx.data.constants);
-    // GDML <cone> z is half-height; SIREN Cone takes full height.
+    // GDML <cone> z is full-height
+    // SIREN Cone takes full height
+    // Geant4 G4Cons takes half-height (confirmed their GDML conversion)
     return Cone(L(ctx, "rmin1"), L(ctx, "rmax1"),
                 L(ctx, "rmin2"), L(ctx, "rmax2"),
-                L(ctx, "z") * 2.0, phi.start, phi.delta).create();
+                L(ctx, "z"), phi.start, phi.delta).create();
 }
 
 std::shared_ptr<Geometry> ParseTrd(SolidContext const & ctx) {
-    // GDML <trd> uses half-widths; SIREN Trd also uses half-widths.
-    return Trd(L(ctx, "x1"), L(ctx, "x2"), L(ctx, "y1"), L(ctx, "y2"), L(ctx, "z")).create();
+    // GDML <trd> x1,x2,y1,y2,z are full-lengths; SIREN Trd takes half-lengths.
+    // (Geant4 applies 0.5 in its GDML reader before calling G4Trd.)
+    return Trd(0.5 * L(ctx, "x1"), 0.5 * L(ctx, "x2"),
+               0.5 * L(ctx, "y1"), 0.5 * L(ctx, "y2"), 0.5 * L(ctx, "z")).create();
 }
 
 std::shared_ptr<Geometry> ParsePolycone(SolidContext const & ctx) {
@@ -187,6 +194,12 @@ std::shared_ptr<Geometry> ParsePolyhedra(SolidContext const & ctx) {
         throw std::runtime_error("polyhedra '" + ctx.name + "' has non-monotonic z-planes");
     }
 
+    // GDML <polyhedra> rmin/rmax are tangent (apothem) distances to the flat
+    // sides (Geant4 G4Polyhedra zPlane convention). SIREN's Polyhedra uses the
+    // same apothem convention internally (see Polyhedra.cxx ComputeIntersections
+    // and GetBoundingBox, which scale by 1/cos(half-side) to reach the
+    // circumradius), so the values pass through unchanged -- matching Geant4's
+    // own G4GDMLReadSolids, which also forwards rmin/rmax without conversion.
     return Polyhedra(numSide, phi.start, planes.z, planes.rmin, planes.rmax, phi.delta).create();
 }
 
@@ -236,7 +249,9 @@ std::shared_ptr<Geometry> ParseEllipticalTube(SolidContext const & ctx) {
 std::shared_ptr<Geometry> ParseCutTube(SolidContext const & ctx) {
     double rmin = L(ctx, "rmin");
     double rmax = L(ctx, "rmax");
-    double hz = L(ctx, "z");
+    // GDML <cutTube> z is full-height; SIREN CutTube takes half-height dz.
+    // (Geant4 applies 0.5 in its GDML reader before calling G4CutTubs.)
+    double hz = 0.5 * L(ctx, "z");
     GDMLPhiRange phi = ReadPhiRange(ctx.node, ctx.ascale, ctx.data.constants);
 
     if(rmax <= 0 || hz <= 0) return nullptr;
@@ -247,9 +262,12 @@ std::shared_ptr<Geometry> ParseCutTube(SolidContext const & ctx) {
 }
 
 std::shared_ptr<Geometry> ParseTrap(SolidContext const & ctx) {
-    return Trap(L(ctx, "z"), A(ctx, "theta"), A(ctx, "phi"),
-                L(ctx, "y1"), L(ctx, "x1"), L(ctx, "x2"), A(ctx, "alpha1"),
-                L(ctx, "y2"), L(ctx, "x3"), L(ctx, "x4"), A(ctx, "alpha2")).create();
+    // GDML <trap> z,y1,x1,x2,y2,x3,x4 are full-lengths; SIREN Trap takes
+    // half-lengths. Angles (theta,phi,alpha1,alpha2) are unchanged.
+    // (Geant4 applies 0.5 to the lengths in its GDML reader before G4Trap.)
+    return Trap(0.5 * L(ctx, "z"), A(ctx, "theta"), A(ctx, "phi"),
+                0.5 * L(ctx, "y1"), 0.5 * L(ctx, "x1"), 0.5 * L(ctx, "x2"), A(ctx, "alpha1"),
+                0.5 * L(ctx, "y2"), 0.5 * L(ctx, "x3"), 0.5 * L(ctx, "x4"), A(ctx, "alpha2")).create();
 }
 
 std::shared_ptr<Geometry> ParseEllipsoid(SolidContext const & ctx) {
@@ -269,9 +287,11 @@ std::shared_ptr<Geometry> ParseEllipsoid(SolidContext const & ctx) {
 }
 
 std::shared_ptr<Geometry> ParsePara(SolidContext const & ctx) {
-    double dx = L(ctx, "x");
-    double dy = L(ctx, "y");
-    double dz = L(ctx, "z");
+    // GDML <para> x,y,z are full-lengths; SIREN Para takes half-lengths.
+    // (Geant4 applies 0.5 in its GDML reader before calling G4Para.)
+    double const dx = 0.5 * L(ctx, "x");
+    double const dy = 0.5 * L(ctx, "y");
+    double const dz = 0.5 * L(ctx, "z");
     if(dx <= 0 || dy <= 0 || dz <= 0) return nullptr;
 
     return Para(dx, dy, dz, A(ctx, "alpha"), A(ctx, "theta"), A(ctx, "phi")).create();

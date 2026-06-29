@@ -356,10 +356,10 @@ TEST(GDMLParser, NonIdenticalSolidsWithPointerSuffixes) {
     EXPECT_EQ(vol.solid_ref, "mybox__1")
         << "solidref with pointer suffix should resolve to specific instance";
     double tol = 1e-9;
-    EXPECT_NEAR(data.solids["mybox__1"]->GetBoundingBox().max_corner.GetX(), 0.1, tol)
-        << "First instance should be x=100mm -> half-width 0.1m";
-    EXPECT_NEAR(data.solids["mybox__2"]->GetBoundingBox().max_corner.GetX(), 0.2, tol)
-        << "Second instance should be x=200mm -> half-width 0.2m";
+    EXPECT_NEAR(data.solids["mybox__1"]->GetBoundingBox().max_corner.GetX(), 0.05, tol)
+        << "First instance should be x=100mm full-width -> half-extent 0.05m";
+    EXPECT_NEAR(data.solids["mybox__2"]->GetBoundingBox().max_corner.GetX(), 0.1, tol)
+        << "Second instance should be x=200mm full-width -> half-extent 0.1m";
 }
 
 // Identical materials with different pointer suffixes should collapse
@@ -512,10 +512,10 @@ TEST(GDMLParser, MixedPointerThenBareSolids) {
         auto const & vol = data.volumes.at("World");
         EXPECT_EQ(vol.solid_ref, "mybox__1");
         double tol = 1e-9;
-        EXPECT_NEAR(data.solids["mybox__1"]->GetBoundingBox().max_corner.GetX(), 0.2, tol)
-            << "First instance (from pointer-suffixed) should be the larger box";
-        EXPECT_NEAR(data.solids["mybox__2"]->GetBoundingBox().max_corner.GetX(), 0.1, tol)
-            << "Second instance (from bare) should be the smaller box";
+        EXPECT_NEAR(data.solids["mybox__1"]->GetBoundingBox().max_corner.GetX(), 0.1, tol)
+            << "First instance (from pointer-suffixed) should be the larger box (200mm->0.1m)";
+        EXPECT_NEAR(data.solids["mybox__2"]->GetBoundingBox().max_corner.GetX(), 0.05, tol)
+            << "Second instance (from bare) should be the smaller box (100mm->0.05m)";
     }
 
     // Identical: pointer-suffixed first, bare second -> dedup to one

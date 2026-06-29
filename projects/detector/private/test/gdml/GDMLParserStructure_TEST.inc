@@ -106,10 +106,10 @@ TEST(GDMLParser, RotationHandling) {
 
     auto dm = LoadGDMLFromString(gdml);
 
-    // The child box is 400x100x100 mm (half-widths: 0.4x0.1x0.1 m)
+    // The child box is 400x100x100 mm full-widths (half-extents 0.2x0.05x0.05 m).
     // Placed at x=200mm=0.2m with z-rotation of 90 degrees.
     // After 90-deg z-rotation, the long axis (originally x) becomes the y axis.
-    // So the child occupies roughly: x in [0.1, 0.3], y in [-0.4, 0.4]
+    // So the child occupies roughly: x in [0.15, 0.25], y in [-0.2, 0.2]
 
     // The child sector should exist
     auto const & sectors = dm->GetSectors();
@@ -120,10 +120,10 @@ TEST(GDMLParser, RotationHandling) {
     EXPECT_EQ(MaterialAt(*dm, 0.2, 0.0, 0.0), "Iron")
         << "Center of rotated child at (0.2,0,0) should be Iron";
 
-    // After rotation, the long axis is along y. A point at (0.2, 0.3, 0) should
-    // still be inside (within the rotated half-width of 0.4 along y).
-    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.3, 0.0), "Iron")
-        << "Point at (0.2, 0.3, 0) should be inside the rotated child (long axis now along y)";
+    // After rotation, the long axis is along y. A point at (0.2, 0.15, 0) should
+    // still be inside (within the rotated half-extent of 0.2 along y).
+    EXPECT_EQ(MaterialAt(*dm, 0.2, 0.15, 0.0), "Iron")
+        << "Point at (0.2, 0.15, 0) should be inside the rotated child (long axis now along y)";
 
     // A point far from the child should be in Air
     EXPECT_EQ(MaterialAt(*dm, 1.0, 1.0, 0.0), "Air")
@@ -132,9 +132,11 @@ TEST(GDMLParser, RotationHandling) {
 
 
 TEST(GDMLParser, CompoundRotationGroundTruth) {
+    // child_box GDML full-widths 1.0x0.4x0.2 m -> half-extents 0.5x0.2x0.1 m,
+    // matching the local probe margins (0.1/0.2/0.1 at local (0.4,0,0)) used below.
     std::string gdml = GDMLFull("", kAirIron,
         R"(<box name="world_box" x="5" y="5" z="5" lunit="m"/>
-    <box name="child_box" x="0.5" y="0.2" z="0.1" lunit="m"/>)",
+    <box name="child_box" x="1.0" y="0.4" z="0.2" lunit="m"/>)",
         R"(<volume name="Child">
       <materialref ref="Iron"/><solidref ref="child_box"/>
     </volume>
