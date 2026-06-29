@@ -24,8 +24,8 @@ void register_QuarkDISFromSpline(pybind11::module_ & m) {
 
         .def(init<>())
         .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>, std::string>(),
-                arg("total_xs_data"),
                 arg("differential_xs_data"),
+                arg("total_xs_data"),
                 arg("interaction"),
                 arg("target_mass"),
                 arg("minimum_Q2"),
@@ -33,8 +33,8 @@ void register_QuarkDISFromSpline(pybind11::module_ & m) {
                 arg("target_types"),
                 arg("units") = std::string("cm"))
         .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>, std::string>(),
-                arg("total_xs_data"),
                 arg("differential_xs_data"),
+                arg("total_xs_data"),
                 arg("interaction"),
                 arg("target_mass"),
                 arg("minimum_Q2"),
@@ -42,8 +42,8 @@ void register_QuarkDISFromSpline(pybind11::module_ & m) {
                 arg("target_types"),
                 arg("units") = std::string("cm"))
         .def(init<std::string, std::string, int, double, double, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>, std::string>(),
-                arg("total_xs_filename"),
                 arg("differential_xs_filename"),
+                arg("total_xs_filename"),
                 arg("interaction"),
                 arg("target_mass"),
                 arg("minimum_Q2"),
@@ -51,14 +51,14 @@ void register_QuarkDISFromSpline(pybind11::module_ & m) {
                 arg("target_types"),
                 arg("units") = std::string("cm"))
         .def(init<std::string, std::string, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>, std::string>(),
-                arg("total_xs_filename"),
                 arg("differential_xs_filename"),
+                arg("total_xs_filename"),
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))
         .def(init<std::string, std::string, int, double, double, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>, std::string>(),
-                arg("total_xs_filename"),
                 arg("differential_xs_filename"),
+                arg("total_xs_filename"),
                 arg("interaction"),
                 arg("target_mass"),
                 arg("minimum_Q2"),
@@ -66,8 +66,8 @@ void register_QuarkDISFromSpline(pybind11::module_ & m) {
                 arg("target_types"),
                 arg("units") = std::string("cm"))
         .def(init<std::string, std::string, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>, std::string>(),
-                arg("total_xs_filename"),
                 arg("differential_xs_filename"),
+                arg("total_xs_filename"),
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))

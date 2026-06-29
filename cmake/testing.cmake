@@ -10,7 +10,7 @@ set_target_properties(gtest_main PROPERTIES FOLDER extern)
 set_target_properties(gmock PROPERTIES FOLDER extern)
 set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
-if(${CIBUILDWHEEL})
+if(CIBUILDWHEEL)
     macro(package_add_test TESTNAME)
     endmacro()
 else()

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <utility>
 #include <string>
+#include <limits>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

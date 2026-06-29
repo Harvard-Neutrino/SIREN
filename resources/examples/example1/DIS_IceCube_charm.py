@@ -45,7 +45,7 @@ if not SPLINES_DIR:
     raise RuntimeError(
         "SIREN_CHARM_SPLINE_DIR is not set. Set it to the directory containing "
         "the QuarkDIS charm-target spline files "
-        "(dsdxdy_nu-N-{cc,nc}-charm-*.fits and sigma_nu-N-{cc,nc}-charm-*.fits) "
+        "(dsdxidy_nu-N-{cc,nc}-charm-*.fits and sigma_nu-N-{cc,nc}-charm-*.fits) "
         "before running this example."
     )
 EXPERIMENT        = "IceCube"
@@ -92,7 +92,7 @@ def make_quark_dis_xs(pdf, target, current_type):
     int_type = 1 if current_type == "cc" else 2
     isoscalar_mass = (0.938272 + 0.939565) / 2
     return siren.interactions.QuarkDISFromSpline(
-        os.path.join(SPLINES_DIR, f"dsdxdy_nu-N-{current_type}-charm-{pdf}.fits"),
+        os.path.join(SPLINES_DIR, f"dsdxidy_nu-N-{current_type}-charm-{pdf}.fits"),
         os.path.join(SPLINES_DIR, f"sigma_nu-N-{current_type}-charm-{pdf}.fits"),
         int(int_type),         # interaction type: 1=CC, 2=NC
         isoscalar_mass,

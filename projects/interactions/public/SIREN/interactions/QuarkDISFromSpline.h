@@ -9,6 +9,7 @@
 #include <cstdint>                                            // for uint32_t
 #include <utility>                                            // for pair
 #include <algorithm>
+#include <limits>                                             // for numeric_limits (NaN default arg)
 #include <stdexcept>                                          // for runtime...
 
 #include <cereal/cereal.hpp>
