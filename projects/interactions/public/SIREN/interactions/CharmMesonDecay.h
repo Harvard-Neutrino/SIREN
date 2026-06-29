@@ -42,9 +42,9 @@ public:
     CharmMesonDecay();
     CharmMesonDecay(siren::dataclasses::Particle::ParticleType primary);
     virtual bool equal(Decay const & other) const override;
-    double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
+    double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const &) const override;
     double TotalDecayWidth(siren::dataclasses::Particle::ParticleType primary) const override;
-    double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
+    double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     void SampleFinalStateHadronic(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
