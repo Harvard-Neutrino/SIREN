@@ -197,7 +197,7 @@ TEST(CharmMesonDecay3Body, TotalDecayWidthAndBranchingSums) {
             InteractionRecord r;
             r.signature = sig;
             double w = 0.0;
-            EXPECT_NO_THROW(w = decay.TotalDecayWidthForFinalState(r));
+            EXPECT_NO_THROW(w = decay.TotalDecayWidth(r));
             EXPECT_GT(w, 0.0);
             sum_width += w;
         }
@@ -218,14 +218,14 @@ TEST(CharmMesonDecay3Body, TotalDecayWidthAndBranchingSums) {
     bad_primary.signature.primary_type = ParticleType::PiPlus;
     bad_primary.signature.target_type = ParticleType::Decay;
     bad_primary.signature.secondary_types = {ParticleType::Hadrons};
-    EXPECT_THROW(decay.TotalDecayWidthForFinalState(bad_primary), std::runtime_error);
+    EXPECT_THROW(decay.TotalDecayWidth(bad_primary), std::runtime_error);
 
     // Matched primary (D0) but an unimplemented set of secondaries throws.
     InteractionRecord bad_secondaries;
     bad_secondaries.signature.primary_type = ParticleType::D0;
     bad_secondaries.signature.target_type = ParticleType::Decay;
     bad_secondaries.signature.secondary_types = {ParticleType::PiPlus, ParticleType::PiMinus, ParticleType::Pi0};
-    EXPECT_THROW(decay.TotalDecayWidthForFinalState(bad_secondaries), std::runtime_error);
+    EXPECT_THROW(decay.TotalDecayWidth(bad_secondaries), std::runtime_error);
 }
 
 // --- Test 5: FinalStateProbability sanity + q^2 closure ---------------------

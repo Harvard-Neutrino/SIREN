@@ -43,7 +43,7 @@ bool CharmMesonDecay3Body::equal(Decay const & other) const {
         return primary_types == x->primary_types;
 }
 
-double CharmMesonDecay3Body::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double CharmMesonDecay3Body::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
     return TotalDecayWidth(record.signature.primary_type);
 }
 
@@ -55,14 +55,14 @@ double CharmMesonDecay3Body::TotalDecayWidth(siren::dataclasses::Particle::Parti
       // make a fake record and full from total decay width for final state
       siren::dataclasses::InteractionRecord fake_record;
       fake_record.signature = sig;
-      double this_width = TotalDecayWidthForFinalState(fake_record);
+      double this_width = TotalDecayWidth(fake_record);
       total_width += this_width;
     }
     return total_width;
 }
 
 // current problem: in implementation we see kaons and pions both as hadrons, but they should have different branching ratios and form factors
-double CharmMesonDecay3Body::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double CharmMesonDecay3Body::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
     // Sentinel-init: all valid branching ratios and lifetimes are strictly
     // positive, so a negative value unambiguously flags an unmatched mode.
     double branching_ratio = -1.0;
@@ -106,11 +106,11 @@ double CharmMesonDecay3Body::TotalDecayWidthForFinalState(dataclasses::Interacti
         // Signatures come from GetPossibleSignaturesFromParent, so an unsupported
         // primary means the lists are out of sync. Fail loudly rather than
         // return an indeterminate width.
-        throw std::runtime_error("CharmMesonDecay3Body::TotalDecayWidthForFinalState: unsupported primary particle type");
+        throw std::runtime_error("CharmMesonDecay3Body::TotalDecayWidth: unsupported primary particle type");
     }
     // Guard the matched-primary / unmatched-secondaries case (sentinel still set).
     if (tau <= 0.0 || branching_ratio < 0.0) {
-        throw std::runtime_error("CharmMesonDecay3Body::TotalDecayWidthForFinalState: no implemented decay mode matches this signature");
+        throw std::runtime_error("CharmMesonDecay3Body::TotalDecayWidth: no implemented decay mode matches this signature");
     }
     return branching_ratio * siren::utilities::Constants::hbar / tau * siren::utilities::Constants::GeV;
 }
@@ -170,7 +170,7 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay3Body::GetPossible
 }
 
 double CharmMesonDecay3Body::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
-    return TotalDecayWidthForFinalState(record);
+    return TotalDecayWidth(record);
 }
 
 // this is temporary implementation

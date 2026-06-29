@@ -296,7 +296,7 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
     }
 }
 
-// --- Test 4: TotalDecayWidthForFinalState fails loudly on bad signatures --
+// --- Test 4: TotalDecayWidth fails loudly on bad signatures --
 
 TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
     CharmMesonDecay decay(ParticleType::D0);
@@ -306,7 +306,7 @@ TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
     InteractionRecord good;
     good.signature = sigs[0];
     double w = 0.0;
-    EXPECT_NO_THROW(w = decay.TotalDecayWidthForFinalState(good));
+    EXPECT_NO_THROW(w = decay.TotalDecayWidth(good));
     EXPECT_GT(w, 0.0);
 
     // Unsupported primary type.
@@ -314,14 +314,14 @@ TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
     bad_primary.signature.primary_type = ParticleType::PiPlus;
     bad_primary.signature.target_type = ParticleType::Decay;
     bad_primary.signature.secondary_types = {ParticleType::Hadrons};
-    EXPECT_THROW(decay.TotalDecayWidthForFinalState(bad_primary), std::runtime_error);
+    EXPECT_THROW(decay.TotalDecayWidth(bad_primary), std::runtime_error);
 
     // Matched primary (D0) but a signature with no implemented mode.
     InteractionRecord bad_secondaries;
     bad_secondaries.signature.primary_type = ParticleType::D0;
     bad_secondaries.signature.target_type = ParticleType::Decay;
     bad_secondaries.signature.secondary_types = {ParticleType::PiPlus, ParticleType::PiMinus};
-    EXPECT_THROW(decay.TotalDecayWidthForFinalState(bad_secondaries), std::runtime_error);
+    EXPECT_THROW(decay.TotalDecayWidth(bad_secondaries), std::runtime_error);
 }
 
 // --- Test 5: analytic angle-average matches a numeric quadrature oracle -----
@@ -387,7 +387,7 @@ TEST(CharmMesonDecay, LabDecayLengthIsBetaGammaCTau) {
         double prev_L = -1.0, prev_E = -1.0;
         for (double E_D : {1.0e4, 1.0e5, 1.0e6}) {   // 10 TeV, 100 TeV, 1 PeV
             InteractionRecord rec = make_boosted_D(cs.d, cs.mD, E_D);
-            double L_m = decay.TotalDecayLength(rec);
+            double L_m = decay.TotalDecayLengthAllFinalStates(rec);
             double p = std::sqrt(E_D * E_D - cs.mD * cs.mD);
             double betagamma = p / cs.mD;
             double expected_m = betagamma * c_m_per_s * cs.tau;
@@ -406,9 +406,9 @@ TEST(CharmMesonDecay, LabDecayLengthSpeciesOrdering) {
     // At fixed boost energy the L ordering follows the lifetimes: D+ > Ds > D0.
     double E_D = 1.0e5;   // 100 TeV
     CharmMesonDecay d0(ParticleType::D0), dp(ParticleType::DPlus), ds(ParticleType::DsPlus);
-    double L_D0 = d0.TotalDecayLength(make_boosted_D(ParticleType::D0,     Constants::D0Mass,     E_D));
-    double L_Dp = dp.TotalDecayLength(make_boosted_D(ParticleType::DPlus,  Constants::DPlusMass,  E_D));
-    double L_Ds = ds.TotalDecayLength(make_boosted_D(ParticleType::DsPlus, Constants::DsPlusMass, E_D));
+    double L_D0 = d0.TotalDecayLengthAllFinalStates(make_boosted_D(ParticleType::D0,     Constants::D0Mass,     E_D));
+    double L_Dp = dp.TotalDecayLengthAllFinalStates(make_boosted_D(ParticleType::DPlus,  Constants::DPlusMass,  E_D));
+    double L_Ds = ds.TotalDecayLengthAllFinalStates(make_boosted_D(ParticleType::DsPlus, Constants::DsPlusMass, E_D));
     EXPECT_GT(L_Dp, L_Ds);
     EXPECT_GT(L_Ds, L_D0);
     // At 100 TeV a D0 travels a few meters -- squarely in the Taupede regime.

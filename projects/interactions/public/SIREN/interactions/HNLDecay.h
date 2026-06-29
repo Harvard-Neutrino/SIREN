@@ -83,9 +83,9 @@ public:
     virtual bool equal(Decay const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     // if only one coupling provided, assume it is U4t
-    virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
+    virtual double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const &) const override;
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
-    virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
+    virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;

@@ -17,7 +17,7 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def(init<>())
         .def(init<std::string const &, std::string const &>())
         .def(init<std::string const &, std::string const &, std::string const &>())
-        .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel)
+        .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel, arg("detector_model"))
         .def("LoadMaterialModel",&DetectorModel::LoadMaterialModel)
         .def("LoadGDML",&DetectorModel::LoadGDML, arg("filename"), arg("strict") = false)
         .def("GetMassDensity", (

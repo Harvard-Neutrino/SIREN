@@ -49,6 +49,17 @@ PYBIND11_MODULE(math,m) {
         .def_static("vector_product", [](Vector3D const & a, Vector3D const & b)->Vector3D{return vector_product(a, b);})
         .def_static("cross_product", [](Vector3D const & a, Vector3D const & b)->Vector3D{return cross_product(a, b);});
 
+    class_<Matrix3D, std::shared_ptr<Matrix3D>>(m, "Matrix3D")
+        .def(init<>())
+        .def(init<double,double,double,double,double,double,double,double,double>(),
+             arg("xx"), arg("xy"), arg("xz"),
+             arg("yx"), arg("yy"), arg("yz"),
+             arg("zx"), arg("zy"), arg("zz"))
+        .def(init<const Matrix3D &>())
+        .def("__str__", [](Matrix3D const & m) { std::stringstream ss; ss << m; return ss.str(); })
+        .def(self == self)
+        .def(self != self);
+
     class_<Quaternion, std::shared_ptr<Quaternion>>(m, "Quaternion")
         .def(init<>())
         .def(init<const double, const double, const double, const double>())
@@ -86,8 +97,14 @@ PYBIND11_MODULE(math,m) {
         .def("GetAxisAngle", (void (Quaternion::*)(Vector3D &, double &) const)(&Quaternion::GetAxisAngle))
         .def("GetAxisAngle", (std::tuple<Vector3D, double> (Quaternion::*)()const)(&Quaternion::GetAxisAngle))
         .def("GetEulerAngles", &Quaternion::GetEulerAngles)
-        .def("GetEulerAnglesZXZr", &Quaternion::GetEulerAnglesZXZr)
-        .def("GetEulerAnglesXYZs", &Quaternion::GetEulerAnglesXYZs)
+        .def("GetEulerAnglesZXZr", [](Quaternion const & q) {
+            double a, b, g; q.GetEulerAnglesZXZr(a, b, g);
+            return std::make_tuple(a, b, g);
+        })
+        .def("GetEulerAnglesXYZs", [](Quaternion const & q) {
+            double a, b, g; q.GetEulerAnglesXYZs(a, b, g);
+            return std::make_tuple(a, b, g);
+        })
         .def("SetEulerAngles", &Quaternion::SetEulerAngles)
         .def("SetEulerAnglesZXZr", &Quaternion::SetEulerAnglesZXZr)
         .def("SetEulerAnglesXYZs", &Quaternion::SetEulerAnglesXYZs)
