@@ -46,7 +46,6 @@ class CharmMesonDecay3Body : public Decay {
 friend cereal::access;
 private:
     const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus};
-    siren::utilities::Interpolator1D<double> inverseCdf; // for dGamma (form-factor model; not used by FinalStateProbability)
     // Shared closure helpers: SampleFinalState's density and FinalStateProbability
     // both build on these, so Sample == Density by construction.
     static double KStarMass();
@@ -67,14 +66,11 @@ public:
     double TotalDecayWidth(siren::dataclasses::Particle::ParticleType primary) const override;
     double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
-    double DifferentialDecayWidth(std::vector<double> constants, double Q2, double mD, double mK) const;
     void SampleFinalStateHadronic(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::Particle::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
-    std::vector<double> FormFactorFromRecord(dataclasses::CrossSectionDistributionRecord const & record) const;
-    void computeDiffGammaCDF(std::vector<double> constants, double mD, double mK);
 
 public:
     virtual std::vector<std::string> DensityVariables() const override;

@@ -5,7 +5,6 @@
  * Tests:
  * 1. Interpolator1D with a known linear inverse CDF (sanity check)
  * 2. Interpolator1D with the actual D meson decay CDF table
- * 2b. DifferentialDecayWidth (4-arg + from-record) vs analytic form factor
  * 3. SampleFinalState q^2 distribution closes with FinalStateProbability
  * 4. TotalDecayWidthForFinalState throws on unsupported signatures
  *
@@ -83,7 +82,8 @@ TEST(Interpolator1D, LinearInverseCDF) {
 // --- Test 2: Interpolator1D with D meson decay CDF -----------------------
 
 TEST(Interpolator1D, DMesonDecayCDF) {
-    // Replicate computeDiffGammaCDF for D0 -> K- e+ nu_e
+    // Build an inverse-CDF table locally from a single-pole form factor for
+    // D0 -> K- e+ nu_e (self-contained Interpolator1D sanity check).
     double mD = Constants::D0Mass;
     double mK = Constants::KMinusMass;
     double F0CKM = 0.719;
@@ -176,94 +176,6 @@ TEST(Interpolator1D, DMesonDecayCDF) {
     double mean_linear = sum_q2_linear / Nsamp;
 
     EXPECT_NEAR(mean_interp, mean_linear, 0.05);
-}
-
-// --- Test 2b: DifferentialDecayWidth vs analytic form factor -------------
-
-TEST(CharmMesonDecay, DiffDecayWidthComparison) {
-    // Verify the SIREN DifferentialDecayWidth matches the analytic single-pole
-    // form-factor formula, both via the 4-arg path and the from-record path.
-    double mD = Constants::D0Mass;   // PDG D0 mass
-    double mK = Constants::KMinusMass;
-    double F0CKM = 0.719;
-    double alpha = 0.50;             // D0 pole parameter
-    double ms_star = 2.00697;
-    double GF = Constants::FermiConstant;
-
-    // Analytic form factor. Note EK enters only as EK*EK, so the sign
-    // convention of EK is irrelevant (matches the source 4-arg routine).
-    auto dGamma_analytical = [&](double Q2) -> double {
-        double Q2tilde = Q2 / (ms_star * ms_star);
-        double ff2 = std::pow(F0CKM / ((1 - Q2tilde) * (1 - alpha * Q2tilde)), 2);
-        double EK = 0.5 * (Q2 - (mD * mD + mK * mK)) / mD;
-        double pk_sq = EK * EK - mK * mK;
-        if (pk_sq < 0) return 0.0;
-        return std::pow(GF, 2) / (24 * std::pow(M_PI, 3)) * ff2 * std::pow(std::sqrt(pk_sq), 3);
-    };
-
-    CharmMesonDecay decay(ParticleType::D0);
-    auto sigs = decay.GetPossibleSignaturesFromParent(ParticleType::D0);
-    auto sig = sigs[0]; // D0 -> K- e+ nu_e
-
-    double Q2_tests[] = {0.01, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 1.2, 1.35};
-    for (double Q2 : Q2_tests) {
-        double anal = dGamma_analytical(Q2);
-        if (anal <= 0.0) continue;
-
-        // from-record path: reconstruct the kinematics in the D rest frame.
-        double EK_rest = (mD * mD + mK * mK - Q2) / (2 * mD);
-        double PK_rest = std::sqrt(std::max(0.0, EK_rest * EK_rest - mK * mK));
-
-        InteractionRecord rec;
-        rec.signature = sig;
-        rec.primary_mass = mD;
-        rec.primary_momentum = {mD, 0, 0, 0};  // D at rest
-        rec.target_mass = 0;
-        rec.secondary_momenta = {
-            {EK_rest, PK_rest, 0, 0},  // K along x
-            {0, 0, 0, 0},              // lepton (not used by DDW)
-            {0, 0, 0, 0}               // neutrino (not used by DDW)
-        };
-        rec.secondary_masses = {mK, Constants::electronMass, 0.0};
-
-        double siren_ddw_from_record = decay.DifferentialDecayWidth(rec);
-
-        // 4-arg path with the D0 form-factor constants.
-        std::vector<double> my_constants = {F0CKM, alpha, ms_star};
-        double siren_ddw_4arg = decay.DifferentialDecayWidth(my_constants, Q2, mD, mK);
-
-        // The 4-arg routine reproduces the analytic formula to floating point.
-        EXPECT_NEAR(siren_ddw_4arg, anal, std::abs(anal) * 1e-9);
-        // The from-record path round-trips Q^2 through 4-vectors; looser tol.
-        EXPECT_NEAR(siren_ddw_from_record, anal, std::abs(anal) * 1e-6);
-    }
-
-    // Pin the per-meson pole parameter alpha used by FormFactorFromRecord:
-    // 0.50 for D0, 0.44 for D+.
-    InteractionRecord d0rec;
-    d0rec.signature = sig;
-    d0rec.primary_mass = mD;
-    d0rec.primary_momentum = {mD, 0, 0, 0};
-    d0rec.secondary_momenta = {{mK, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
-    d0rec.secondary_masses = {mK, Constants::electronMass, 0.0};
-    CrossSectionDistributionRecord d0cdr(d0rec);
-    std::vector<double> d0ff = decay.FormFactorFromRecord(d0cdr);
-    EXPECT_NEAR(d0ff[1], 0.50, 1e-12);
-
-    CharmMesonDecay decayp(ParticleType::DPlus);
-    auto sigsp = decayp.GetPossibleSignaturesFromParent(ParticleType::DPlus);
-    auto sigp = sigsp[0]; // D+ -> K0bar e+ nu
-    double mDp = Constants::DPlusMass;
-    double mK0 = Constants::K0Mass;
-    InteractionRecord dprec;
-    dprec.signature = sigp;
-    dprec.primary_mass = mDp;
-    dprec.primary_momentum = {mDp, 0, 0, 0};
-    dprec.secondary_momenta = {{mK0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
-    dprec.secondary_masses = {mK0, Constants::electronMass, 0.0};
-    CrossSectionDistributionRecord dpcdr(dprec);
-    std::vector<double> dpff = decayp.FormFactorFromRecord(dpcdr);
-    EXPECT_NEAR(dpff[1], 0.44, 1e-12);
 }
 
 // --- Test 3: SampleFinalState q^2 closes with FinalStateProbability -------

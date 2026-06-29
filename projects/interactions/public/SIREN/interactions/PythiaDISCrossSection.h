@@ -55,16 +55,13 @@ private:
 
     // Pythia instance (mutable because SampleFinalState is const)
     mutable std::unique_ptr<Pythia8::Pythia> pythia_;
-    mutable bool pythia_initialized_ = false;
     mutable std::shared_ptr<SIRENRndm> siren_rndm_;
 
     // Signature bookkeeping
     std::vector<dataclasses::InteractionSignature> signatures_;
     std::set<siren::dataclasses::ParticleType> primary_types_;
     std::set<siren::dataclasses::ParticleType> target_types_;
-    std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
-    std::set<siren::dataclasses::ParticleType> D_types_;
 
     // DIS parameters
     int interaction_type_;  // 1=CC, 2=NC
@@ -88,7 +85,6 @@ private:
     static bool IsCharmedHadron(int pdgId);
     static siren::dataclasses::ParticleType PdgToParticleType(int pdgId);
     static double GetLeptonMass(siren::dataclasses::ParticleType lepton_type);
-    static double GetHadronMass(siren::dataclasses::ParticleType hadron_type);
     static std::map<std::string, int> getIndices(siren::dataclasses::InteractionSignature signature);
 
 public:

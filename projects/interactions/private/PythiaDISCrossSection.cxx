@@ -214,19 +214,6 @@ double PythiaDISCrossSection::GetLeptonMass(siren::dataclasses::ParticleType lep
     }
 }
 
-double PythiaDISCrossSection::GetHadronMass(siren::dataclasses::ParticleType hadron_type) {
-    switch(hadron_type) {
-        case siren::dataclasses::ParticleType::D0:
-        case siren::dataclasses::ParticleType::D0Bar:
-            return siren::utilities::Constants::D0Mass;
-        case siren::dataclasses::ParticleType::DPlus:
-        case siren::dataclasses::ParticleType::DMinus:
-            return siren::utilities::Constants::DPlusMass;
-        default:
-            return 0.0;
-    }
-}
-
 std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses::InteractionSignature signature) {
     // Identify meson by elimination (not via isD(), which only covers D0/D+/-).
     // First pass: claim lepton and Hadrons. Second pass: whatever remains is the meson.
@@ -307,17 +294,18 @@ void PythiaDISCrossSection::InitializeSignatures() {
             (primary_type == siren::dataclasses::ParticleType::NuEBar ||
              primary_type == siren::dataclasses::ParticleType::NuMuBar ||
              primary_type == siren::dataclasses::ParticleType::NuTauBar);
+        std::set<siren::dataclasses::ParticleType> D_types_local;
         if (is_antineutrino) {
-            D_types_ = {siren::dataclasses::ParticleType::D0Bar,
+            D_types_local = {siren::dataclasses::ParticleType::D0Bar,
                         siren::dataclasses::ParticleType::DMinus,
                         siren::dataclasses::ParticleType::DsMinus};
         } else {
-            D_types_ = {siren::dataclasses::ParticleType::D0,
+            D_types_local = {siren::dataclasses::ParticleType::D0,
                         siren::dataclasses::ParticleType::DPlus,
                         siren::dataclasses::ParticleType::DsPlus};
         }
 
-        for (auto meson_type : D_types_) {
+        for (auto meson_type : D_types_local) {
             dataclasses::InteractionSignature full_signature = signature;
             full_signature.secondary_types.push_back(meson_type);
             for(auto target_type : target_types_) {
@@ -578,8 +566,6 @@ void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const 
     // The SIREN RNG is connected here and updated per-event in SampleFinalState.
     siren_rndm_ = std::make_shared<SIRENRndm>();
     pythia_->rndm.rndmEnginePtr(siren_rndm_);
-
-    pythia_initialized_ = true;
 }
 
 void PythiaDISCrossSection::GeneratePythiaCharmSamples(

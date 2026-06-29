@@ -10,18 +10,12 @@
 #include <vector>                                          // for vector
 #include <assert.h>                                        // for assert
 #include <stddef.h>                                        // for size_t
-#include <map>
-#include <limits>
-#include <cmath>
-#include <string>
 #include <stdexcept>
-#include <iostream>
 
 #include <rk/rk.hh>                                        // for P4, Boost
 #include <rk/geom3.hh>                                     // for Vector3
 
 #include <photospline/splinetable.h>                       // for splinetable
-//#include <photospline/cinter/splinetable.h>
 
 #include "SIREN/interactions/CrossSection.h"     // for CrossSection
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
@@ -513,8 +507,6 @@ double QuarkDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType pr
     total_cross_section_.searchcenters(&log_energy, &center);
 
     double log_xs = total_cross_section_.ndsplineeval(&log_energy, &center, 0);
-    if (std::pow(10.0, log_xs) == 0) {
-    }
 
     return unit * std::pow(10.0, log_xs);
 }
@@ -609,8 +601,6 @@ double QuarkDISFromSpline::DifferentialCrossSection(double energy, double xi, do
     }
     double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
     assert(result >= 0);
-    if (std::isinf(result)) {
-    }
     return unit * result;
 }
 
@@ -926,105 +916,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     hadron.SetMass(p4X_msq > 0.0 ? std::sqrt(p4X_msq) : 0.0);
     hadron.SetHelicity(record.target_helicity);
     meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
-
-
-    // #############################################
-    // Included for posterity: original hadronization scheme
-    // ##############################################
-
-    /*
-
-    rk::P4 p4_lab = p2_lab + pq_lab;
-
-    rk::P4 p3;
-    rk::P4 p4;
-    p3 = p3_lab; // now we have our lepton momentum set, which should not be modified from here on
-    p4 = p4_lab; // momentum of the virtual charm
-
-
-    // compute the energy and 3-momentum of the virtual charm
-    double p3c = std::sqrt(std::pow(p4.px(), 2) + std::pow(p4.py(), 2) + std::pow(p4.pz(), 2));
-    double Ec = p4.e(); //energy of primary charm
-    double mCH = getHadronMass(record.signature.secondary_types[meson_index]); // obtain charmed hadron mass
-
-    // accept-reject sampling for a valid momentum fragmentation
-    bool frag_accept;
-    double randValue;
-    double z;
-    double ECH;
-
-    // add a maximum number of trials in the while loop
-    int max_sampling = 500;
-    int sampling = 0;
-
-    // sample again if this eenrgy is not kinematically allowed
-    // this samples in the lab frame the energy of the D-meson such that mass is real
-    do {
-        sampling += 1;
-        if (sampling > max_sampling) {
-            // throw(siren::utilities::InjectionFailure("Failed to sample hadronization!"));
-            break;
-        }
-        randValue = random->Uniform(0,1);
-        z = inverseCdfTable(randValue);
-        ECH = z * Ec;
-        if (std::pow(ECH, 2) - std::pow(mCH, 2) <= 0) {
-            frag_accept = false;
-        } else {
-            frag_accept = true;
-        }
-    } while (!frag_accept);
-    // new attempt of using the isoscalar mass as the remnant hadronic shower mass
-    double mX = target_mass_;
-    double Mc = p4.m();
-    //compute the energies in the charm rest frame
-    double E_CH_c = (std::pow(Mc, 2) - std::pow(mX, 2) + std::pow(mCH, 2)) / (2 * Mc);
-    double p_c = std::sqrt((std::pow(Mc, 2) - std::pow(mCH + mX, 2)) * (std::pow(Mc, 2) - std::pow(mCH - mX, 2))) / (2 * Mc);
-    // compute the lorentz boost parameters
-    double gamma = p4.gamma();
-    double beta = p4.beta();
-    // using the lab frame fragmented energy and the
-    double cosTheta = std::max(std::min(((ECH - gamma * E_CH_c)/(gamma * beta * p_c)), 1.), -1.);
-    // now compute the momentum vectors in the rest frame
-    double sinTheta = std::sin(std::acos(cosTheta));
-    rk::P4 p4CH_c(p_c * geom3::Vector3(cosTheta, sinTheta, 0), mCH);
-    rk::P4 p4X_c(p_c * geom3::Vector3(-cosTheta, -sinTheta, 0), mX);
-    // these all assume boost direction is charm direction. Now we should rotate back to charm lab momentum direction
-    geom3::Vector3 pc_lab_momentum = p4.momentum();
-    geom3::UnitVector3 pc_lab_dir = pc_lab_momentum.direction();
-    geom3::Rotation3 x_to_pc_lab_rot = geom3::rotationBetween(x_dir, pc_lab_dir);
-    p4X_c.rotate(x_to_pc_lab_rot);
-    p4CH_c.rotate(x_to_pc_lab_rot);
-
-    // finally, we perform a random azimuthal rotation
-    double c_phi = random->Uniform(0, 2 * M_PI);
-    geom3::Rotation3 azimuth_rand_rot(pc_lab_dir, c_phi);
-    p4X_c.rotate(azimuth_rand_rot);
-    p4CH_c.rotate(azimuth_rand_rot);
-
-    // and boost them back to the lab frame
-    rk::Boost boost_from_crest_to_lab = p4.labBoost();
-    rk::P4 p4X = p4X_c.boost(boost_from_crest_to_lab);
-    rk::P4 p4CH = p4CH_c.boost(boost_from_crest_to_lab);
-
-
-
-    // now we proceed to saving the final state kinematics
-    std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
-    siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
-    siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[hadron_index];
-    siren::dataclasses::SecondaryParticleRecord & meson = secondaries[meson_index];
-
-    lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
-    lepton.SetMass(p3.m());
-    lepton.SetHelicity(record.primary_helicity);
-    hadron.SetFourMomentum({p4X.e(), p4X.px(), p4X.py(), p4X.pz()});
-    hadron.SetMass(p4X.m());
-    hadron.SetHelicity(record.target_helicity);
-    meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
-    meson.SetMass(p4CH.m());
-    meson.SetHelicity(record.target_helicity); // this needs working on
-    */
 }
 
 double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {

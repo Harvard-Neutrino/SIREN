@@ -63,9 +63,7 @@ private:
     std::vector<dataclasses::InteractionSignature> signatures_;
     std::set<siren::dataclasses::ParticleType> primary_types_;
     std::set<siren::dataclasses::ParticleType> target_types_;
-    std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
-    std::set<siren::dataclasses::ParticleType> D_types_;
 
     // used by the DIS process
     int interaction_type_;

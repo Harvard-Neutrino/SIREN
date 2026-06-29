@@ -85,8 +85,6 @@ std::vector<dataclasses::InteractionSignature> DMesonELoss::GetPossibleSignature
     return signatures;
 }
 
-// i am here
-
 double DMesonELoss::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);

@@ -21,54 +21,13 @@
 namespace siren {
 namespace interactions {
 
-CharmMesonDecay3Body::CharmMesonDecay3Body() {
-  // this is the default initialization but should never be used
-
-  // we need to compute cdf here b/c otherwise SampleFinalState becomes non constant
-  // in this case, we will need to compute all the possible dGamma's here
-  // maybe add a map here, but for now we hard code first
-  std::vector<double> constants;
-  constants.resize(3);
-  // check the primary and secondaries of the signature
-  constants[0] = 0.725; // this is f^+(0)|V_cs| for charged D
-  constants[1] = 0.44; // this is alpha, same for all K final states
-  constants[2] = 2.01027; // this is excited charged D meson
-
-  double mD = particleMass(siren::dataclasses::Particle::ParticleType::DPlus);
-  double mK = particleMass(siren::dataclasses::Particle::ParticleType::K0Bar);
-
-  computeDiffGammaCDF(constants, mD, mK);
-}
+CharmMesonDecay3Body::CharmMesonDecay3Body() {}
 
 CharmMesonDecay3Body::CharmMesonDecay3Body(siren::dataclasses::Particle::ParticleType primary) {
-
-  //standard stuff, constant across primary types
-  std::vector<double> constants;
-  constants.resize(3);
-  double mD;
-  double mK;
-
-  if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
-    constants[0] = 0.725; // this is f^+(0)|V_cs| for charged D
-    constants[1] = 0.44; // this is alpha, same for all K final states
-    constants[2] = 2.01027; // this is excited charged D meson
-
-    mD = particleMass(siren::dataclasses::Particle::ParticleType::DPlus);
-    mK = particleMass(siren::dataclasses::Particle::ParticleType::K0Bar);
-
-  } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
-    constants[0] = 0.719; // this is f^+(0)|V_cs| for charged D
-    constants[1] = 0.50; // this is alpha, same for all K final states
-    constants[2] = 2.00697; // this is excited charged D meson
-
-    mD = particleMass(siren::dataclasses::Particle::ParticleType::D0);
-    mK = particleMass(siren::dataclasses::Particle::ParticleType::KMinus);
-  } else {
+  if (primary != siren::dataclasses::Particle::ParticleType::DPlus &&
+      primary != siren::dataclasses::Particle::ParticleType::D0) {
     throw std::runtime_error("CharmMesonDecay3Body: only D0 and D+ are implemented. Use CharmMesonDecay, which covers D0/D+/Ds and their anti-flavors.");
   }
-
-  computeDiffGammaCDF(constants, mD, mK);
-
 }
 
 bool CharmMesonDecay3Body::equal(Decay const & other) const {
@@ -242,121 +201,8 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay3Body::GetPossible
     return signatures;
 }
 
-std::vector<double> CharmMesonDecay3Body::FormFactorFromRecord(dataclasses::CrossSectionDistributionRecord const & record) const {
-  dataclasses::InteractionSignature signature = record.signature;
-  std::vector<double> constants;
-  constants.resize(3);
-  // check the primary and secondaries of the signature
-  if (signature.primary_type == dataclasses::Particle::ParticleType::DPlus && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::K0Bar) {
-    constants[0] = 0.725; // this is f^+(0)|V_cs| for charged D
-    constants[1] = 0.44; // this is alpha, same for all K final states
-    constants[2] = 2.01027; // this is excited charged D meson
-  } else if (signature.primary_type == dataclasses::Particle::ParticleType::D0 && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::KMinus) {
-    constants[0] = 0.719; // this is f^+(0)|V_cs| for neutral D
-    constants[1] = 0.50; // this is alpha, same for all K final states
-    constants[2] = 2.00697; // this is excited neutral D meson
-  }
-  return constants;
-}
-
 double CharmMesonDecay3Body::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
-    // first let the fully hadronic state be handled separately
-    dataclasses::InteractionSignature signature = record.signature;
-    if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
-      return TotalDecayWidthForFinalState(record);
-    }
-    // get the form factor constants
-    std::vector<double> constants = FormFactorFromRecord(record);
-    // calculate the q^2
-    rk::P4 pD(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-    rk::P4 pKPi(geom3::Vector3(record.secondary_momenta[0][1], record.secondary_momenta[0][2], record.secondary_momenta[0][3]), record.secondary_masses[0]);
-    double Q2 = (pD - pKPi).dot(pD - pKPi);
-    // primary and secondary masses are also needed
-    double mD = record.primary_mass;
-    double mK = record.secondary_masses[0];
-    return DifferentialDecayWidth(constants, Q2, mD, mK);
-}
-
-double CharmMesonDecay3Body::DifferentialDecayWidth(std::vector<double> constants, double Q2, double mD, double mK) const {
-    // get the numerical constants from the vector
-    double F0CKM = constants[0];
-    double alpha = constants[1];
-    double ms = constants[2];
-    double Q2tilde = Q2 / (ms * ms);
-    // compute the 3-momentum as a function of Q2
-    // double EK = 0.5 * (Q2 - pow(mD, 2) + pow(mK, 2)) / mD; // energy of Kaon
-    double EK = 0.5 * (pow(mD, 2) + pow(mK, 2) - Q2) / mD; // energy of Kaon
-    if (EK * EK < mK * mK) return 0.0;
-
-    double PK = pow(pow(EK, 2) - pow(mK, 2), 0.5);
-    // plug in the constants
-    double dGamma = pow(siren::utilities::Constants::FermiConstant,2) / (24 * pow(siren::utilities::Constants::pi,3)) * pow(F0CKM,2) *
-                    pow((1/((1-Q2tilde) * (1 - alpha * Q2tilde))),2) * pow(PK,3);
-    return dGamma;
-}
-
-void CharmMesonDecay3Body::computeDiffGammaCDF(std::vector<double> constants, double mD, double mK) {
-
-  // returns a 1D interpolater table for dGamma cdf
-  // define the pdf with only Q2 as the input
-  std::function<double(double)> pdf = [&] (double x) -> double {
-            return DifferentialDecayWidth(constants, x, mD, mK);
-        };
-  // first normalize the integral
-  double min = 0;
-  double max = 1.4; // these set the min and max of the Q2 considered
-  double normalization = siren::utilities::rombergIntegrate(pdf, min, max);
-  std::function<double(double)> normed_pdf = [&] (double x) -> double {
-            return DifferentialDecayWidth(constants, x, mD, mK) / normalization;
-        };
-  // now create the spline and compute the CDF
-
-  // set the Q2 nodes (use 100 nodes)
-  std::vector<double> Q2spline;
-  for (int i = 0; i < 100; ++i) {
-      Q2spline.push_back(0.01 + i * (max-min) / 100 );
-  }
-
-  // declare the cdf vectors
-  std::vector<double> cdf_vector;
-  std::vector<double> cdf_Q2_nodes;
-  std::vector<double> pdf_vector;
-
-  cdf_Q2_nodes.push_back(0);
-  cdf_vector.push_back(0);
-  pdf_vector.push_back(0);
-
-  // compute the spline table
-  for (int i = 0; i < Q2spline.size(); ++i) {
-      if (i == 0) {
-          double cur_Q2 = Q2spline[i];
-          double cur_pdf = normed_pdf(cur_Q2);
-          double area = cur_Q2 * cur_pdf * 0.5;
-          pdf_vector.push_back(cur_pdf);
-          cdf_vector.push_back(area);
-          cdf_Q2_nodes.push_back(cur_Q2);
-          continue;
-      }
-      double cur_Q2 = Q2spline[i];
-      double cur_pdf = normed_pdf(cur_Q2);
-      double area = 0.5 * (pdf_vector[i - 1] + cur_pdf) * (Q2spline[i] - Q2spline[i - 1]);
-      pdf_vector.push_back(cur_pdf);
-      cdf_Q2_nodes.push_back(cur_Q2);
-      cdf_vector.push_back(area + cdf_vector.back());
-  }
-
-  cdf_Q2_nodes.push_back(max);
-  cdf_vector.push_back(1);
-  pdf_vector.push_back(0);
-
-  // set the spline table
-  siren::utilities::TableData1D<double> inverse_cdf_data;
-  inverse_cdf_data.x = cdf_vector;
-  inverse_cdf_data.f = cdf_Q2_nodes;
-
-  inverseCdf = siren::utilities::Interpolator1D<double>(inverse_cdf_data);
-  return;
-
+    return TotalDecayWidthForFinalState(record);
 }
 
 // this is temporary implementation
