@@ -49,6 +49,10 @@ using detector::DetectorDirection;
 //---------------
 
 void Weighter::Initialize() {
+    // Idempotent: clear any weighters from a prior Initialize() so this can be
+    // called again after LoadWeighter() or after injectors are overwritten.
+    primary_process_weighters.clear();
+    secondary_process_weighter_maps.clear();
     int i = 0;
     primary_process_weighters.reserve(injectors.size());
     secondary_process_weighter_maps.reserve(injectors.size());
@@ -194,11 +198,17 @@ void Weighter::SaveWeighter(std::string const & filename) const {
 }
 
 void Weighter::LoadWeighter(std::string const & filename) {
-    std::cout << "Weighter loading not yet supported... sorry!\n";
-    exit(0);
     std::ifstream is(filename+".siren_weighter", std::ios::binary);
     ::cereal::BinaryInputArchive archive(is);
-    //this->load(archive,0);
+    // Read members in the same order Weighter::save writes them; the polymorphic
+    // Injector / PhysicalProcess (and the cross sections and decays they hold)
+    // are reconstructed via their registered cereal load hooks. Then rebuild the
+    // per-process weighters.
+    archive(::cereal::make_nvp("Injectors", injectors));
+    archive(::cereal::make_nvp("DetectorModel", detector_model));
+    archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
+    archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+    Initialize();
 }
 
 Weighter::Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes)

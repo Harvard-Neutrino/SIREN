@@ -308,3 +308,36 @@ class Weighter:
             float: The calculated event weight.
         """
         return self(interaction_tree)
+
+    def save(self, filename: str):
+        """
+        Serialize the weighter to ``<filename>.siren_weighter``.
+
+        Args:
+            filename: Base path; the ".siren_weighter" suffix is added.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        self.__weighter.SaveWeighter(filename)
+
+    def load(self, filename: str):
+        """
+        Restore the weighter from ``<filename>.siren_weighter``.
+
+        Constructs the underlying C++ weighter via its ``(injectors, filename)``
+        constructor, which loads the detector model and physical processes from
+        the file. The detector / interactions / distributions therefore do NOT
+        need to be configured first (unlike a freshly built weighter). Only the
+        injectors are used -- to bind the weighter to your live injection
+        processes for the generation-probability cancellation; if they were not
+        set, the injectors serialized in the file are used instead.
+
+        Args:
+            filename: Base path; the ".siren_weighter" suffix is added.
+        """
+        if self.__injectors is not None:
+            injectors = [injector._Injector__injector if isinstance(injector, _PyInjector) else injector
+                         for injector in self.__injectors]
+        else:
+            injectors = []
+        self.__weighter = _Weighter(injectors, filename)

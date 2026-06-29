@@ -116,39 +116,32 @@ class SIREN_Controller:
         # Define the primary injection process primary type
         self.primary_injection_process.primary_type = primary_type
 
-        # Default injection distributions
+        # Default injection distributions. The pybind Process exposes a
+        # `distributions` list property (the old Add*Distribution methods were
+        # removed upstream), so assemble the full list and assign it once.
+        primary_idist_list = []
         if "mass" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
+            primary_idist_list.append(_distributions.PrimaryMass(0))
         if "helicity" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryNeutrinoHelicityDistribution()
-            )
+            primary_idist_list.append(_distributions.PrimaryNeutrinoHelicityDistribution())
 
         # Add all injection distributions
         for _, idist in primary_injection_distributions.items():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
+            primary_idist_list.append(idist)
+        self.primary_injection_process.distributions = primary_idist_list
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
             secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_injection_process.primary_type = secondary_type
 
-            # Add all injection distributions
-            for idist in secondary_injection_distributions[i_sec]:
-                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
-
+            sec_idist_list = list(secondary_injection_distributions[i_sec])
             # Add the position distribution
             if fid_vol_secondary and self.fid_vol is not None:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-                )
+                sec_idist_list.append(_distributions.SecondaryBoundedVertexDistribution(self.fid_vol))
             else:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution()
-                )
+                sec_idist_list.append(_distributions.SecondaryPhysicalVertexDistribution())
+            secondary_injection_process.distributions = sec_idist_list
 
             self.secondary_injection_processes.append(secondary_injection_process)
 
@@ -170,30 +163,24 @@ class SIREN_Controller:
         # Define the primary physical process primary type
         self.primary_physical_process.primary_type = primary_type
 
-        # Default physical distributions
+        # Default physical distributions (assign the `distributions` list, as for
+        # the injection processes above).
+        primary_pdist_list = []
         if "mass" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
+            primary_pdist_list.append(_distributions.PrimaryMass(0))
         if "helicity" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryNeutrinoHelicityDistribution()
-            )
+            primary_pdist_list.append(_distributions.PrimaryNeutrinoHelicityDistribution())
 
         # Add all physical distributions
         for _, pdist in primary_physical_distributions.items():
-            self.primary_physical_process.AddPhysicalDistribution(pdist)
+            primary_pdist_list.append(pdist)
+        self.primary_physical_process.distributions = primary_pdist_list
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_physical_process.primary_type = secondary_type
-
-            # Add all physical distributions
-            for pdist in secondary_physical_distributions[i_sec]:
-                secondary_physical_process.AddPhysicalDistribution(pdist)
-
+            secondary_physical_process.distributions = list(secondary_physical_distributions[i_sec])
             self.secondary_physical_processes.append(secondary_physical_process)
 
     def SetProcesses(
@@ -295,15 +282,14 @@ class SIREN_Controller:
                 secondary_injection_process = _injection.SecondaryInjectionProcess()
                 secondary_injection_process.primary_type = secondary_type
 
-            # Add the secondary position distribution
+            # Add the secondary position distribution (append to whatever the
+            # process already carries; the pybind `distributions` is a list property).
+            sec_dists = list(secondary_injection_process.distributions)
             if fid_vol_secondary and self.fid_vol is not None:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-                )
+                sec_dists.append(_distributions.SecondaryBoundedVertexDistribution(self.fid_vol))
             else:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution()
-                )
+                sec_dists.append(_distributions.SecondaryPhysicalVertexDistribution())
+            secondary_injection_process.distributions = sec_dists
 
             if not inj_sec_defined:
                 self.secondary_injection_processes.append(secondary_injection_process)
@@ -510,7 +496,7 @@ class SIREN_Controller:
             assert(self.primary_injection_process.primary_type is not None)
             # Use controller injection objects
             self.injectors.append(
-                _injection.Injector(
+                _injection._Injector(
                     self.events_to_inject,
                     self.detector_model,
                     self.primary_injection_process,
@@ -523,7 +509,7 @@ class SIREN_Controller:
             assert(len(filenames)>0) # require at least one injector filename
             for filename in filenames:
                 self.injectors.append(
-                    _injection.Injector(
+                    _injection._Injector(
                         self.events_to_inject,
                         filename,
                         self.random,
@@ -537,7 +523,7 @@ class SIREN_Controller:
         if filename is None:
             assert(self.primary_physical_process.primary_type is not None)
             # Use controller physical objects
-            self.weighter = _injection.Weighter(
+            self.weighter = _injection._Weighter(
                 self.injectors,
                 self.detector_model,
                 self.primary_physical_process,
@@ -545,7 +531,7 @@ class SIREN_Controller:
             )
         else:
             # Try initilalizing with the provided filename
-            self.weighter = _injection.Weighter(
+            self.weighter = _injection._Weighter(
                 self.injectors,
                 filename
             )
@@ -689,10 +675,14 @@ class SIREN_Controller:
                 datasets["num_secondaries"][-1].append(isec+1)
             datasets["num_interactions"].append(id+1)
 
-        # save injector and weighter
-        self.injector.SaveInjector(filename)
-        # weighter saving not yet supported
-        #self.weighter.SaveWeighter(filename)
+        # save injector and weighter (writes <filename>.siren_injector and
+        # <filename>.siren_weighter alongside the event file). These are the
+        # pybind _Injector/_Weighter objects, so use their C++ serialization
+        # methods (SaveInjector writes the literal path; SaveWeighter appends
+        # the .siren_weighter suffix). The weighter is optional.
+        self.injector.SaveInjector(filename + ".siren_injector")
+        if hasattr(self, "weighter"):
+            self.weighter.SaveWeighter(filename)
 
         # save events
         ak_array = ak.Array(datasets)

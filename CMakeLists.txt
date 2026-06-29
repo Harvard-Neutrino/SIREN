@@ -34,6 +34,8 @@ option(SIREN_PYTHON_PACKAGE
 )
 option(SIREN_WITH_MARLEY "Enable MARLEY support if available" ON)
 option(SIREN_REQUIRE_MARLEY "Fail configure if MARLEY requested but not found" OFF)
+option(SIREN_WITH_PYTHIA8 "Enable Pythia8 support if available" OFF)
+option(SIREN_REQUIRE_PYTHIA8 "Fail configure if Pythia8 requested but not found" OFF)
 
 # include cmake dependencies
 include(GNUInstallDirs)
@@ -188,6 +190,10 @@ endif()
 include(MARLEY)
 if(TARGET MARLEY)
     apply_siren_compile_options(MARLEY)
+endif()
+include(PYTHIA8)
+if(TARGET PYTHIA8)
+    apply_siren_compile_options(PYTHIA8)
 endif()
 
 # load macros for googletest

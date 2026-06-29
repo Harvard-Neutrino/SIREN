@@ -96,5 +96,12 @@ bool isCharged(ParticleType p){
            p==ParticleType::Hadrons);
 }
 
+
+bool isD(Particle::ParticleType p){
+		return(p==Particle::ParticleType::D0 || p==Particle::ParticleType::D0Bar ||
+				p==Particle::ParticleType::DPlus || p==Particle::ParticleType::DMinus ||
+				p==Particle::ParticleType::DsPlus || p==Particle::ParticleType::DsMinus);
+	}
+    
 } // namespace utilities
 } // namespace siren

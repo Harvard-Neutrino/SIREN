@@ -7,8 +7,8 @@
 
 // this implements a class to sample numbers just like in an i3 service
 
-#include <random> // default_random_engine, uniform_real_distribution
-#include <cstdint>                                      // for uint32_t
+#include <random> // mt19937_64, uniform_real_distribution
+#include <cstdint>                                      // for uint64_t
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -59,7 +59,12 @@ public:
 
 private:
     uint64_t seed;
-    std::default_random_engine configuration;
+    // 64-bit Mersenne Twister (period 2^19937-1). The period must far exceed
+    // (number of seeds) x (draws per event) x (events per seed) so that distinct
+    // seeds never collide into overlapping draw sequences. A given seed
+    // deterministically fixes the entire sequence; only the seed is serialized
+    // (version 0), so any cached samples or golden baselines are keyed to the seed.
+    std::mt19937_64 configuration;
     std::uniform_real_distribution<double> generator;
 };
 
@@ -67,4 +72,3 @@ private:
 } // namespace siren
 
 #endif // SIREN_Random_H
-

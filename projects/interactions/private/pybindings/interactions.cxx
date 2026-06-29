@@ -16,14 +16,22 @@
 #include "../../public/SIREN/interactions/HNLDISFromSpline.h"
 #include "../../public/SIREN/interactions/HNLDecay.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
+#include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
+#include "../../public/SIREN/interactions/CharmMesonDecay.h"
+#include "../../public/SIREN/interactions/CharmMesonDecay3Body.h"
+#include "../../public/SIREN/interactions/DMesonELoss.h"
+#ifdef SIREN_HAS_PYTHIA8
+#include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
+#endif
 
 
 #include "./Interaction.h"
 #include "./CrossSection.h"
 #include "./DarkNewsCrossSection.h"
 #include "./DarkNewsDecay.h"
-#include "./Decay.h"
 #include "./DISFromSpline.h"
+#include "./QuarkDISFromSpline.h"
+#include "./Decay.h"
 #include "./DummyCrossSection.h"
 //#include "./ElasticScattering.h"
 #include "./ElectroweakDecay.h"
@@ -33,6 +41,10 @@
 #include "./HNLDISFromSpline.h"
 #include "./HNLDecay.h"
 #include "./InteractionCollection.h"
+#include "./CharmMesonDecay.h"
+#include "./CharmMesonDecay3Body.h"
+#include "./DMesonELoss.h"
+#include "./PythiaDISCrossSection.h"
 #include "./MarleyCrossSection.h"
 
 #include <pybind11/pybind11.h>
@@ -61,5 +73,10 @@ PYBIND11_MODULE(interactions,m) {
     register_HNLDISFromSpline(m);
     register_HNLDecay(m);
     register_InteractionCollection(m);
+    register_QuarkDISFromSpline(m);
+    register_CharmMesonDecay(m);
+    register_CharmMesonDecay3Body(m);
+    register_DMesonELoss(m);
+    register_PythiaDISCrossSection(m);
     register_MarleyCrossSection(m);
 }

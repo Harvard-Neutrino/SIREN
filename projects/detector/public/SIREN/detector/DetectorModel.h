@@ -109,6 +109,9 @@ friend siren::detector::Path;
                                 DetectorSector & best_sector) const;
 
 public:
+    // Threshold below which a direction vector's magnitude is treated as zero
+    // for the purpose of falling back to the intersection direction.
+    constexpr static double distance_threshold = 1e-5;
     DetectorModel();
     DetectorModel(std::string const & detector_model, std::string const & material_model);
     DetectorModel(std::string const & path, std::string const & detector_model, std::string const & material_model);

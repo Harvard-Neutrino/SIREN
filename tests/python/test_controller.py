@@ -482,3 +482,92 @@ class TestEndToEnd:
         weighter, events = full_setup
         weights = [weighter.EventWeight(e) for e in events]
         assert len(set(weights)) > 1 or len(events) == 1
+
+
+# ---------------------------------------------------------------------------
+# Serialization: injector/weighter save + load round-trips
+# ---------------------------------------------------------------------------
+
+class TestSerialization:
+    """Guard the injector/weighter serialization the SaveEvents path and the
+    Weighter wrapper expose. The controller inject->save path was previously
+    untested, which let a wrapper/pybind API mismatch (.save vs SaveInjector/
+    SaveWeighter, and a removed Add*Distribution API) go unnoticed."""
+
+    def _ccm_pieces(self):
+        NuMu = dc.Particle.ParticleType.NuMu
+        dm = detector.DetectorModel()
+        det_dir = _util.get_detector_model_path("CCM")
+        dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
+        dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
+        int_col = interactions.InteractionCollection(NuMu, [interactions.DummyCrossSection()])
+        p_inj = injection.PrimaryInjectionProcess()
+        p_inj.primary_type = NuMu
+        p_inj.interactions = int_col
+        p_inj.distributions = [
+            distributions.PrimaryMass(0), distributions.Monoenergetic(1.0),
+            distributions.IsotropicDirection(),
+            distributions.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 25.0)]
+        p_phys = injection.PhysicalProcess()
+        p_phys.primary_type = NuMu
+        p_phys.interactions = int_col
+        p_phys.distributions = [distributions.PrimaryMass(0), distributions.IsotropicDirection()]
+        return NuMu, dm, p_inj, p_phys
+
+    def test_controller_save_events_writes_loadable_injector_and_weighter(self, tmp_path):
+        """SIREN_Controller inject -> SaveEvents writes .siren_injector /
+        .siren_weighter via the pybind SaveInjector/SaveWeighter, and the saved
+        weighter reloads through the (injectors, filename) constructor."""
+        from siren.SIREN_Controller import SIREN_Controller
+        NuMu = dc.Particle.ParticleType.NuMu
+        try:
+            c = SIREN_Controller(3, experiment="CCM")
+        except (AttributeError, TypeError, OSError) as e:
+            pytest.skip(f"Cannot create CCM controller: {e}")
+        c.SetInteractions(interactions.InteractionCollection(NuMu, [interactions.DummyCrossSection()]))
+        inj_d = {"mass": distributions.PrimaryMass(0), "energy": distributions.Monoenergetic(1.0),
+                 "direction": distributions.IsotropicDirection(),
+                 "position": distributions.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 25.0)}
+        phys_d = {"mass": distributions.PrimaryMass(0), "direction": distributions.IsotropicDirection()}
+        c.SetProcesses(NuMu, inj_d, phys_d)
+        c.Initialize()
+        c.GenerateEvents(verbose=False)
+        base = str(tmp_path / "ev")
+        c.SaveEvents(base, hdf5=False, parquet=False, verbose=False)
+        assert os.path.exists(base + ".siren_injector")
+        assert os.path.exists(base + ".siren_weighter")
+        w2 = injection._Weighter(c.injectors, base)   # (injectors, filename) load ctor
+        assert np.isfinite(w2.EventWeight(c.events[0]))
+
+    def test_weighter_wrapper_load_needs_only_injectors(self, tmp_path):
+        """Weighter.load() restores via the (injectors, filename) ctor and must NOT
+        require the detector / interactions / distributions to be configured."""
+        NuMu, dm, p_inj, p_phys = self._ccm_pieces()
+        inj = injection._Injector(10, dm, p_inj, utilities.SIREN_random(7))
+        event = inj.GenerateEvent()
+
+        configured = injection.Weighter(
+            injectors=[inj], detector_model=dm, primary_type=NuMu,
+            primary_interactions=[interactions.DummyCrossSection()],
+            primary_physical_distributions=[distributions.PrimaryMass(0),
+                                            distributions.IsotropicDirection()])
+        base = str(tmp_path / "w")
+        configured.save(base)
+        ref = configured(event)
+
+        # a fresh wrapper that ONLY knows the injectors -- no detector/process config
+        fresh = injection.Weighter(injectors=[inj])
+        fresh.load(base)
+        assert np.isclose(fresh(event), ref)
+
+    def test_injector_save_reload_roundtrip(self, tmp_path):
+        """Injector SaveInjector writes the literal path; reload via the filename ctor."""
+        NuMu, dm, p_inj, p_phys = self._ccm_pieces()
+        inj = injection._Injector(10, dm, p_inj, utilities.SIREN_random(11))
+        path = str(tmp_path / "inj.siren_injector")
+        inj.SaveInjector(path)
+        assert os.path.getsize(path) > 0
+        inj2 = injection._Injector(10, path, utilities.SIREN_random(11))   # filename ctor
+        ev = inj2.GenerateEvent()
+        w = injection._Weighter([inj2], dm, p_phys)
+        assert np.isfinite(w.EventWeight(ev))

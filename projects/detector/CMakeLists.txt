@@ -65,6 +65,7 @@ package_add_test(UnitTest_Axis ${PROJECT_SOURCE_DIR}/projects/detector/private/t
 package_add_test(UnitTest_DensityDistribution ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DensityDistribution_TEST.cxx)
 package_add_test(UnitTest_Distribution1D ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Distribution1D_TEST.cxx)
 package_add_test(UnitTest_DetectorModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DetectorModel_TEST.cxx)
+package_add_test(UnitTest_DetectorModelDegenerateDirection ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DetectorModelDegenerateDirection_TEST.cxx)
 package_add_test(UnitTest_MaterialModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/MaterialModel_TEST.cxx)
 package_add_test(UnitTest_Path ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Path_TEST.cxx)
 package_add_test(UnitTest_GDMLParser ${PROJECT_SOURCE_DIR}/projects/detector/private/test/GDMLParser_TEST.cxx)
