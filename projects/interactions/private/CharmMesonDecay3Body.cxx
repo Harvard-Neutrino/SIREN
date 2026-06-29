@@ -17,9 +17,13 @@
 #include "SIREN/utilities/Interpolator.h"
 
 #include "SIREN/interactions/Decay.h"
+#include "SIREN/interactions/CharmDecayKinematics.h"
 
 namespace siren {
 namespace interactions {
+
+using charm_decay::particleMass;
+using charm_decay::KStarMass;
 
 CharmMesonDecay3Body::CharmMesonDecay3Body() {}
 
@@ -37,42 +41,6 @@ bool CharmMesonDecay3Body::equal(Decay const & other) const {
         return false;
     else
         return primary_types == x->primary_types;
-}
-
-
-double CharmMesonDecay3Body::particleMass(siren::dataclasses::ParticleType particle) {
-    switch(particle){
-			case siren::dataclasses::ParticleType::D0:
-				return( siren::utilities::Constants::D0Mass);
-			case siren::dataclasses::ParticleType::D0Bar:
-				return( siren::utilities::Constants::D0Mass);
-			case siren::dataclasses::ParticleType::DPlus:
-				return( siren::utilities::Constants::DPlusMass);
-			case siren::dataclasses::ParticleType::DMinus:
-				return( siren::utilities::Constants::DPlusMass);
-			case siren::dataclasses::ParticleType::K0:
-				return( siren::utilities::Constants::K0Mass);
-			case siren::dataclasses::ParticleType::K0Bar:
-				return( siren::utilities::Constants::K0Mass);
-			case siren::dataclasses::ParticleType::KPlus:
-				return( siren::utilities::Constants::KPlusMass);
-			case siren::dataclasses::ParticleType::KMinus:
-				return( siren::utilities::Constants::KMinusMass);
-      case siren::dataclasses::ParticleType::EPlus:
-        return( siren::utilities::Constants::electronMass );
-      case siren::dataclasses::ParticleType::EMinus:
-        return( siren::utilities::Constants::electronMass );
-      case siren::dataclasses::ParticleType::MuPlus:
-        return( siren::utilities::Constants::muonMass );
-      case siren::dataclasses::ParticleType::MuMinus:
-        return( siren::utilities::Constants::muonMass );
-      case siren::dataclasses::ParticleType::TauPlus:
-        return( siren::utilities::Constants::tauMass );
-      case siren::dataclasses::ParticleType::TauMinus:
-        return( siren::utilities::Constants::tauMass );
-      default:
-        return(0.0);
-    }
 }
 
 double CharmMesonDecay3Body::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
@@ -223,29 +191,16 @@ void CharmMesonDecay3Body::SampleFinalState(dataclasses::CrossSectionDistributio
       return;
     }
 
-    // =========================================================================
-    // 3-body phase space sampling following Pythia's approach
-    // (ParticleDecays::threeBody in ParticleDecays.cc)
+    // 3-body phase space (Pythia ParticleDecays::threeBody):
+    // D (m0) -> K (m1) + lepton (m2) + neutrino (m3). Sample
+    // m23 = sqrt(q^2) flat with accept-reject on the phase-space weight, then
+    // apply the V-A matrix-element correction.
     //
-    // D (m0) -> K (m1) + lepton (m2) + neutrino (m3)
-    //
-    // Phase space: sample m23 (lepton-neutrino invariant mass = sqrt(q^2))
-    // flat in allowed range, accept-reject on phase space weight.
-    // Then apply V-A matrix element correction.
-    //
-    // K / K*(892) mixing: a fraction (1 - fracK) of events use mK*=0.892 GeV
-    // as the hadron mass instead of the pseudoscalar K mass, which broadens
-    // the lepton spectrum through phase-space and matrix-element effects.
-    //
-    // NOTE (design decision): this is *kinematic* K/K* mixing only. The
-    // secondary particle's ParticleType is always left at the K species from
-    // the signature (K0bar / K-), even when the K* mass was drawn. We do not
-    // advertise separate K* signatures in GetPossibleSignaturesFromParent()
-    // and we do not re-type the secondary. This is intentional -- for our use
-    // case (weighting lepton/neutrino kinematics correctly in the presence of
-    // the resonant K* contribution) the mass treatment is what matters, and
-    // downstream propagation treats the secondary as a pseudoscalar K.
-    // =========================================================================
+    // K/K*(892) mixing is KINEMATIC only: a fraction (1 - fracK) of events draw
+    // the K*(892) mass for the hadron, broadening the lepton spectrum. The
+    // secondary's ParticleType stays the signature K species (K0bar / K-) -- we
+    // neither advertise separate K* signatures nor re-type the secondary, since
+    // only the mass matters for weighting the lepton/neutrino kinematics.
 
     double mD      = particleMass(record.signature.primary_type);
     double mK_base = particleMass(record.signature.secondary_types[0]); // K mass from signature
@@ -362,139 +317,10 @@ void CharmMesonDecay3Body::SampleFinalState(dataclasses::CrossSectionDistributio
     neutrino.SetHelicity(record.primary_helicity);
 }
 
-// ---------------------------------------------------------------------------
-// Closure-correct FinalStateProbability machinery (see CharmMesonDecay.cxx for
-// the full derivation). FinalStateProbability MUST be the normalized q^2
-// density that SampleFinalState produces: the sampler draws m23 = sqrt(q^2)
-// flat with accept-reject on p1Abs*p23Abs, then accept-rejects on the V-A
-// weight wtME = mD*E_l*(p_nu . p_K). The accepted m23 density is therefore
-// proportional to p1Abs*p23Abs*<max(0,wtME)>_angle, and the q^2 density carries
-// the Jacobian 1/(2 m23). Both the numerator and the per-component normalizer
-// use the same SampledQ2Density, so Sample == Density by construction. The
-// form-factor DifferentialDecayWidth is a separate quantity the sampler never
-// used and is NOT the closure density.
-// ---------------------------------------------------------------------------
-
-double CharmMesonDecay3Body::KStarMass() {
-  // Single source of truth for the K*(892) mass shared by the sampler and the
-  // FinalStateProbability normalizer.
-  return siren::utilities::Constants::KPrimePlusMass;
-}
-
-namespace {
-// Integral over [lo, hi] of max(0, a2*c^2 + a1*c + a0). Closed form with a
-// linear/constant fallback for a2 ~ 0 and numerically stable quadratic roots.
-double integratePositivePartQuadratic(double a2, double a1, double a0,
-                                      double lo, double hi) {
-    if (hi <= lo) return 0.0;
-    auto F = [&](double c) { return a2 * c * c * c / 3.0 + a1 * c * c / 2.0 + a0 * c; };
-    auto seg = [&](double x0, double x1) -> double {
-        if (x1 <= x0) return 0.0;
-        return F(x1) - F(x0);
-    };
-    double scale = std::abs(a1) + std::abs(a0) + 1.0;
-    if (std::abs(a2) < 1e-12 * scale) {
-        if (std::abs(a1) < 1e-300) return (a0 > 0.0) ? seg(lo, hi) : 0.0;
-        double root = -a0 / a1;
-        if (a1 > 0.0) return seg(std::max(lo, root), hi);
-        return seg(lo, std::min(hi, root));
-    }
-    double disc = a1 * a1 - 4.0 * a2 * a0;
-    if (disc <= 0.0) {
-        return (a2 > 0.0) ? seg(lo, hi) : 0.0;
-    }
-    double sq = std::sqrt(disc);
-    double qq = -0.5 * (a1 + ((a1 >= 0.0) ? sq : -sq));
-    double r1 = qq / a2;
-    double r2 = a0 / qq;
-    double rlo = std::min(r1, r2), rhi = std::max(r1, r2);
-    if (a2 > 0.0) {
-        return seg(lo, std::min(hi, rlo)) + seg(std::max(lo, rhi), hi);
-    }
-    return seg(std::max(lo, rlo), std::min(hi, rhi));
-}
-} // namespace
-
-double CharmMesonDecay3Body::VAWeightAngleAverage(double mD, double mK, double ml, double m23) const {
-    // Analytic angle-average of the sampler's ACCEPTED V-A weight,
-    //   (1/2) * integral_{-1}^{1} clamp(wtME(c), 0, wtMEmax) dc.
-    // wtME(c) = mD * E_l(c) * (p_nu(c) . p_K) is an exact quadratic in
-    // c = cos(theta_lepton) after the boost to the D rest frame, so the positive
-    // and clipped parts integrate in closed form via
-    // clamp(q, 0, M) = max(0, q) - max(0, q - M). Matches SampleFinalState's
-    // accepted density exactly (closure) with no quadrature error; the same
-    // integral is also evaluated numerically in the unit tests as a cross-check.
-    double mnu = 0.0;
-    double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
-                                 * (mD + mK - m23) * (mD - mK + m23)) / mD;
-    double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
-                                  * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
-    if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
-    double E23 = std::sqrt(p1Abs * p1Abs + m23 * m23);
-    double bz = -p1Abs / E23;
-    double gamma = E23 / m23;
-    double Elrest = std::sqrt(p23Abs * p23Abs + ml * ml);
-    double EK = std::sqrt(p1Abs * p1Abs + mK * mK);
-    double C = Elrest;
-    double D = bz * p23Abs;
-    double A = EK - p1Abs * bz;
-    double B = p1Abs - EK * bz;
-    double pref = mD * gamma * gamma * p23Abs;
-    if (pref <= 0.0) return 0.0;
-    double a0 = C * A;
-    double a1 = C * B + D * A;
-    double a2 = D * B;
-    double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
-                              mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
-    double qmax = wtMEmax / pref;
-    double integral = integratePositivePartQuadratic(a2, a1, a0, -1.0, 1.0)
-                    - integratePositivePartQuadratic(a2, a1, a0 - qmax, -1.0, 1.0);
-    return 0.5 * pref * integral;
-}
-
-double CharmMesonDecay3Body::SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const {
-  double m23 = std::sqrt(q2);
-  double m23Max = mD - mK;
-  if (m23 <= ml || m23 >= m23Max) return 0.0;
-  double mnu = 0.0;
-  double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
-                               * (mD + mK - m23) * (mD - mK + m23)) / mD;
-  double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
-                                * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
-  if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
-  // Phase-space weight WITH the sampler's rejection ceiling. SampleFinalState
-  // accept-rejects m23 against wtPSmax = 0.5*p1Max*p23Max, which p1Abs*p23Abs can
-  // exceed; there the sampler saturates (always accepts), so the accepted
-  // density is flat at wtPSmax. Reproduce the clip for exact closure.
-  double m23Min = ml + mnu;
-  double p1Max = 0.5 * std::sqrt((mD - mK - m23Min) * (mD + mK + m23Min)
-                               * (mD + mK - m23Min) * (mD - mK + m23Min)) / mD;
-  double p23Max = 0.5 * std::sqrt((m23Max - ml - mnu) * (m23Max + ml + mnu)
-                                * (m23Max + ml - mnu) * (m23Max - ml + mnu)) / m23Max;
-  double wtPSmax = 0.5 * p1Max * p23Max;
-  double wtPS = p1Abs * p23Abs;
-  if (wtPS > wtPSmax) wtPS = wtPSmax;
-  double me = apply_va ? VAWeightAngleAverage(mD, mK, ml, m23) : 1.0;
-  return wtPS * me / (2.0 * m23);
-}
-
-double CharmMesonDecay3Body::SampledQ2Normalization(double mD, double mK, double ml, bool apply_va) const {
-  // Cached per (mD, mK, ml, apply_va) so per-event FinalStateProbability does
-  // not re-integrate the fixed-kinematics normalizer.
-  double key = ((mD * 1e3 + mK) * 1e3 + ml) * 2.0 + (apply_va ? 1.0 : 0.0);
-  long ikey = (long)std::llround(key * 1e3);
-  auto it = norm_cache.find(ikey);
-  if (it != norm_cache.end()) return it->second;
-  double q2min = ml * ml;
-  double q2max = (mD - mK) * (mD - mK);
-  std::function<double(double)> integrand = [&](double q2) -> double {
-    return SampledQ2Density(mD, mK, ml, q2, apply_va);
-  };
-  double n = siren::utilities::rombergIntegrate(integrand, q2min, q2max);
-  norm_cache[ikey] = n;
-  return n;
-}
-
+// FinalStateProbability is the normalized q^2 density SampleFinalState produces
+// (closure rationale in CharmDecayKinematics.h). Builds the same K/K*(892)
+// mixture the sampler used, evaluates charm_decay::SampledQ2Density for the
+// recorded component, and normalizes via charm_decay::SampledQ2Normalization.
 double CharmMesonDecay3Body::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   dataclasses::InteractionSignature signature = record.signature;
   // Guard: finalize() does not copy the signature, so a finalized record can
@@ -540,9 +366,9 @@ double CharmMesonDecay3Body::FinalStateProbability(dataclasses::InteractionRecor
   }
   if (comp < 0) return 0.0;
 
-  double g = SampledQ2Density(mD, masses[comp], ml, q2, apply_va);
+  double g = charm_decay::SampledQ2Density(mD, masses[comp], ml, q2, apply_va);
   if (g <= 0.0) return 0.0;
-  double norm = SampledQ2Normalization(mD, masses[comp], ml, apply_va);
+  double norm = charm_decay::SampledQ2Normalization(mD, masses[comp], ml, apply_va, norm_cache);
   if (norm <= 0.0) return 0.0;
 
   // Normalized q^2 pdf summing over the K/K* mixture.

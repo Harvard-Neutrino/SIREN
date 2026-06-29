@@ -114,13 +114,11 @@ double DMesonELoss::DifferentialCrossSection(dataclasses::InteractionRecord cons
     double final_energy = interaction.secondary_momenta[0][0];
     double z = 1 - final_energy / primary_energy;
 
-    // The density support MUST match the sampler's realized support, or
-    // FinalStateProbability is mis-normalized (closure break, worst at low primary
-    // energy). SampleFinalState accepts z in [z_min_, z_max_] AND enforces the
-    // energy-dependent kinematic cut final_energy >= Dmass, i.e. z <= 1 - Dmass/E.
-    // Apply the same cut here and normalize the Gaussian over the identical
-    // [z_min_, z_hi] interval. z_hi collapses below z_min_ for sub-threshold
-    // primaries (E <= Dmass), where there is no valid final state.
+    // Density support must match the sampler's realized support or
+    // FinalStateProbability is mis-normalized (closure break, worst at low E).
+    // Apply the same energy-dependent cut z <= 1 - Dmass/E the sampler enforces and
+    // normalize the Gaussian over [z_min_, z_hi]; z_hi collapses below z_min_ for
+    // sub-threshold primaries (E <= Dmass), where there is no valid final state.
     double z_kin = 1.0 - Dmass / primary_energy;          // kinematic upper limit
     double z_hi = (z_max_ < z_kin) ? z_max_ : z_kin;
     if(z_hi <= z_min_ || z < z_min_ || z > z_hi) {
@@ -193,11 +191,9 @@ void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& 
         double z = sigma * sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2) + z0;
         // now modify the energy of the charm hadron and the corresponding momentum
         final_energy = primary_energy * (1-z);
-        // Reject z outside [z_min_, z_max_] so the realized sampling density is the
-        // truncated Gaussian that DifferentialCrossSection/FinalStateProbability
-        // normalize over the same interval (closure). z < z_min_ would otherwise let
-        // the D meson GAIN energy (final_energy > primary_energy). The kinematic cut
-        // final_energy^2 >= Dmass^2 is a defensive guard.
+        // Reject z outside [z_min_, z_max_] so the realized density matches the
+        // truncated Gaussian the density normalizes over (closure). z < z_min_ would
+        // let the D GAIN energy; final_energy^2 >= Dmass^2 is a defensive guard.
         accept = (z >= z_min_) && (z <= z_max_) &&
                  (pow(final_energy, 2) - pow(Dmass, 2) >= 0);
     } while (!accept);
@@ -235,15 +231,10 @@ double DMesonELoss::FinalStateProbability(dataclasses::InteractionRecord const &
     }
 }
 
-// NOTE: SampleFinalState samples a single inelasticity DOF z (the D meson is set
-// collinear with the parent, so there is no independent azimuth). That same z is
-// fully captured by the density: DifferentialCrossSection reconstructs
-// z = 1 - final_energy/primary_energy and FinalStateProbability returns the
-// (truncated, normalized) Gaussian in z. Sampled DOF == density DOF, so this class
-// is closure-safe in the standard unbiased configuration (the same cross-section
-// object supplies both the injection and physical densities). Like the other charm
-// cross sections here, BIASING the D kinematics with a separate phase-space channel
-// is NOT supported and would produce incorrect weights.
+// SampleFinalState samples a single inelasticity DOF z (D set collinear, no
+// azimuth), fully captured by the density (truncated, normalized Gaussian in z).
+// Sampled DOF == density DOF, so this is closure-safe in the unbiased config.
+// Biasing the D kinematics with a separate phase-space channel is unsupported.
 std::vector<std::string> DMesonELoss::DensityVariables() const {
     return std::vector<std::string>{"Bjorken y"};
 }

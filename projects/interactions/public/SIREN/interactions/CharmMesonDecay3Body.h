@@ -2,16 +2,11 @@
 #ifndef SIREN_CharmMesonDecay3Body_H
 #define SIREN_CharmMesonDecay3Body_H
 
-// CharmMesonDecay3Body -- Pythia-style 3-body phase-space decay for D mesons
-//
-// Sister class to CharmMesonDecay (the legacy 2-body-cascade implementation).
-// Both inherit from Decay and share the same decay-width machinery
-// (DifferentialDecayWidth, TotalDecayWidthForFinalState, FinalStateProbability,
-// and the signature catalog). The only behavioural difference is in
-// SampleFinalState, where this class generates the final-state kinematics by
-// sampling 3-body phase space (following Pythia's ParticleDecays::threeBody)
-// with V-A matrix element reweighting. It also mixes D -> K l nu with
-// D -> K*(892) l nu channels per event, in line with PDG branching ratios.
+// CharmMesonDecay3Body -- Pythia-style 3-body phase-space decay for D0/D+.
+// Sampler draws final-state kinematics from 3-body phase space
+// (Pythia ParticleDecays::threeBody) with V-A matrix-element reweighting and
+// per-event K / K*(892) kinematic mixing (PDG branching ratios). Independent of
+// CharmMesonDecay; shares only the inline charm_decay:: closure kinematics.
 
 #include <map>
 #include <set>
@@ -46,22 +41,13 @@ class CharmMesonDecay3Body : public Decay {
 friend cereal::access;
 private:
     const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus};
-    // Shared closure helpers: SampleFinalState's density and FinalStateProbability
-    // both build on these, so Sample == Density by construction.
-    static double KStarMass();
-    double SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const;
-    double SampledQ2Normalization(double mD, double mK, double ml, bool apply_va) const;
-    // Per-component normalization cache (not serialized; keyed by mass set).
+    // Per-component q^2-normalization cache (not serialized; keyed by mass set).
+    // Closure helpers live in charm_decay:: (CharmDecayKinematics.h).
     mutable std::map<long, double> norm_cache;
 public:
     CharmMesonDecay3Body();
     CharmMesonDecay3Body(siren::dataclasses::Particle::ParticleType primary);
     virtual bool equal(Decay const & other) const override;
-    static double particleMass(siren::dataclasses::ParticleType particle);
-    // Analytic angle-average of the accepted V-A weight (q^2 density factor).
-    // Public so the unit tests can cross-check it against a numeric quadrature;
-    // pure function of the decay masses and m23.
-    double VAWeightAngleAverage(double mD, double mK, double ml, double m23) const;
     double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     double TotalDecayWidth(siren::dataclasses::Particle::ParticleType primary) const override;
     double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;

@@ -41,13 +41,10 @@ private:
     std::set<siren::dataclasses::Particle::ParticleType> target_types_ = {siren::dataclasses::Particle::ParticleType::PPlus};
 
     // Truncation bounds for the inelasticity z, shared by SampleFinalState
-    // (rejection) and DifferentialCrossSection/FinalStateProbability (normalization).
-    // The ACTUAL upper limit is the energy-dependent kinematic cut z <= 1 - mD/E
-    // (final_energy >= mD); both the sampler and the density apply it, and the
-    // Gaussian is normalized over [z_min_, min(z_max_, 1 - mD/E)] so the supports
-    // match exactly at every energy (closure). z_max_ = 1 lets kinematics set the
-    // top; z_min_ is a small floor keeping z > 0 (no energy gain) and away from the
-    // z -> 0 null-recoil degeneracy.
+    // (rejection) and the density (normalization). The actual upper limit is the
+    // energy-dependent kinematic cut z <= 1 - mD/E; the Gaussian is normalized over
+    // [z_min_, min(z_max_, 1 - mD/E)] so supports match at every energy (closure).
+    // z_min_ floors z > 0 (no energy gain, away from the null-recoil degeneracy).
     static constexpr double z_min_ = 0.001;
     static constexpr double z_max_ = 1.0;
 

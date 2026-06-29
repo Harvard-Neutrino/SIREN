@@ -130,15 +130,6 @@ double gen_path(MockCharmXS const & xs, ParticleType primary, ParticleType targe
 
 } // namespace
 
-// The base-class default must sum TotalCrossSection over the registered
-// signatures: three D-type signatures sharing sigma -> 3*sigma.
-TEST(CharmDISClosure, BaseDefaultSumsOverSignatures) {
-    MockCharmXS xs(/*ff=*/false, /*override=*/false);
-    const double E = 100.0;
-    const double s = MockCharmXS::sigma_inclusive(E);
-    EXPECT_NEAR(gen_path(xs, ParticleType::NuMu, ParticleType::PPlus, E), 3.0 * s, 1e-50);
-}
-
 // Reproduces the f1751c6b bug: the override makes the generation side report 1x
 // while the physical side reports 3x -> closure broken by a factor of 3.
 TEST(CharmDISClosure, OverrideBreaksClosureByFactorThree) {

@@ -35,13 +35,18 @@
 #include "SIREN/utilities/Constants.h"
 #include "SIREN/utilities/Random.h"
 #include "SIREN/interactions/CharmMesonDecay.h"
+#include "SIREN/interactions/CharmDecayKinematics.h"
 #include "SIREN/dataclasses/Particle.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 
+#include "CharmDecayTestHelpers.h"
+
 using namespace siren::utilities;
 using namespace siren::interactions;
 using namespace siren::dataclasses;
+using siren::interactions::charm_decay_test::reconstruct_q2;
+using siren::interactions::charm_decay_test::numericVAWeightAngleAverage;
 
 // --- Test 1: Interpolator1D with known linear CDF ------------------------
 
@@ -181,15 +186,6 @@ TEST(Interpolator1D, DMesonDecayCDF) {
 // --- Test 3: SampleFinalState q^2 closes with FinalStateProbability -------
 
 namespace {
-// Reconstruct q^2 = (p_D - p_K)^2 from a finalized record.
-double reconstruct_q2(const InteractionRecord & rec) {
-    double qE  = rec.primary_momentum[0] - rec.secondary_momenta[0][0];
-    double qpx = rec.primary_momentum[1] - rec.secondary_momenta[0][1];
-    double qpy = rec.primary_momentum[2] - rec.secondary_momenta[0][2];
-    double qpz = rec.primary_momentum[3] - rec.secondary_momenta[0][3];
-    return qE * qE - qpx * qpx - qpy * qpy - qpz * qpz;
-}
-
 // Build a record at a given q^2 in the D rest frame with hadron mass mK so that
 // FinalStateProbability can be evaluated on a single mixture component.
 InteractionRecord make_record_at_q2(const InteractionSignature & sig,
@@ -351,50 +347,18 @@ TEST(CharmMesonDecay, UnsupportedSignaturesThrow) {
 // --- Test 5: analytic angle-average matches a numeric quadrature oracle -----
 //
 // The weighting code (FinalStateProbability via SampledQ2Density) uses the
-// closed-form CharmMesonDecay::VAWeightAngleAverage. The closed form must
-// reproduce a high-resolution numeric quadrature of the identical clamped V-A
-// weight, evaluated with the same rk::P4 boosts SampleFinalState uses.
-namespace {
-double numericVAWeightAngleAverage(double mD, double mK, double ml, double m23) {
-    double mnu = 0.0;
-    double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
-                                 * (mD + mK - m23) * (mD - mK + m23)) / mD;
-    double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
-                                  * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
-    if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
-    double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
-                              mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
-    rk::P4 p4m23(geom3::Vector3(0.0, 0.0, -p1Abs), m23);
-    rk::Boost boost = p4m23.labBoost();
-    rk::P4 p4K(geom3::Vector3(0.0, 0.0, p1Abs), mK);
-    const int N = 20000;            // even -> composite Simpson
-    double h = 2.0 / N, sum = 0.0;
-    for (int i = 0; i <= N; ++i) {
-        double c = -1.0 + i * h;
-        double s = std::sqrt(std::max(0.0, 1.0 - c * c));
-        geom3::Vector3 dir(s, 0.0, c);
-        rk::P4 p4l = rk::P4(p23Abs * dir, ml).boost(boost);
-        rk::P4 p4nu = rk::P4(-p23Abs * dir, mnu).boost(boost);
-        double w = mD * p4l.e() * p4nu.dot(p4K);
-        if (w < 0.0) w = 0.0;
-        if (w > wtMEmax) w = wtMEmax;
-        double wgt = (i == 0 || i == N) ? 1.0 : ((i % 2) ? 4.0 : 2.0);
-        sum += wgt * w;
-    }
-    return 0.5 * (sum * h / 3.0);
-}
-} // namespace
-
+// closed-form charm_decay::VAWeightAngleAverage. It must reproduce a numeric
+// quadrature of the identical clamped V-A weight (numericVAWeightAngleAverage,
+// in CharmDecayTestHelpers.h), evaluated with the same rk::P4 boosts.
 TEST(CharmMesonDecay, VAWeightAngleAverageMatchesNumericReference) {
-    CharmMesonDecay d0(ParticleType::D0), dp(ParticleType::DPlus);
-    struct Case { CharmMesonDecay* dec; double mD; double mK; double ml; };
+    struct Case { double mD; double mK; double ml; };
     std::vector<Case> cases = {
-        {&d0, Constants::D0Mass,    Constants::KMinusMass,    Constants::electronMass},
-        {&d0, Constants::D0Mass,    Constants::KMinusMass,    Constants::muonMass},
-        {&d0, Constants::D0Mass,    Constants::KPrimePlusMass, Constants::electronMass},
-        {&dp, Constants::DPlusMass, Constants::K0Mass,        Constants::electronMass},
-        {&dp, Constants::DPlusMass, Constants::K0Mass,        Constants::muonMass},
-        {&dp, Constants::DPlusMass, Constants::KPrimePlusMass, Constants::muonMass},
+        {Constants::D0Mass,    Constants::KMinusMass,    Constants::electronMass},
+        {Constants::D0Mass,    Constants::KMinusMass,    Constants::muonMass},
+        {Constants::D0Mass,    Constants::KPrimePlusMass, Constants::electronMass},
+        {Constants::DPlusMass, Constants::K0Mass,        Constants::electronMass},
+        {Constants::DPlusMass, Constants::K0Mass,        Constants::muonMass},
+        {Constants::DPlusMass, Constants::KPrimePlusMass, Constants::muonMass},
     };
     for (auto & cs : cases) {
         double m23Min = cs.ml;
@@ -402,7 +366,7 @@ TEST(CharmMesonDecay, VAWeightAngleAverageMatchesNumericReference) {
         const int NG = 40;
         for (int g = 1; g < NG; ++g) {
             double m23 = m23Min + (m23Max - m23Min) * (double)g / NG;
-            double ana = cs.dec->VAWeightAngleAverage(cs.mD, cs.mK, cs.ml, m23);
+            double ana = charm_decay::VAWeightAngleAverage(cs.mD, cs.mK, cs.ml, m23);
             double num = numericVAWeightAngleAverage(cs.mD, cs.mK, cs.ml, m23);
             // Tolerance is quadrature-limited (Simpson degrades to O(h^2) at the
             // clamp kinks); 1e-4 relative is far tighter than any real algebra bug.

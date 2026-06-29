@@ -35,22 +35,13 @@ class CharmMesonDecay : public Decay {
 friend cereal::access;
 private:
     const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus, siren::dataclasses::Particle::ParticleType::DsPlus, siren::dataclasses::Particle::ParticleType::D0Bar, siren::dataclasses::Particle::ParticleType::DMinus, siren::dataclasses::Particle::ParticleType::DsMinus};
-    // Shared closure helpers: SampleFinalState's density and FinalStateProbability
-    // both build on these, so Sample == Density by construction.
-    static double KStarMass();
-    double SampledQ2Density(double mD, double mK, double ml, double q2, bool apply_va) const;
-    double SampledQ2Normalization(double mD, double mK, double ml, bool apply_va) const;
-    // Per-component normalization cache (not serialized; keyed by mass set).
+    // Per-component q^2-normalization cache (not serialized; keyed by mass set).
+    // Closure helpers live in charm_decay:: (CharmDecayKinematics.h).
     mutable std::map<long, double> norm_cache;
 public:
     CharmMesonDecay();
     CharmMesonDecay(siren::dataclasses::Particle::ParticleType primary);
     virtual bool equal(Decay const & other) const override;
-    static double particleMass(siren::dataclasses::ParticleType particle);
-    // Analytic angle-average of the accepted V-A weight (q^2 density factor).
-    // Public so the unit tests can cross-check it against a numeric quadrature;
-    // it is a pure function of the decay masses and m23.
-    double VAWeightAngleAverage(double mD, double mK, double ml, double m23) const;
     double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     double TotalDecayWidth(siren::dataclasses::Particle::ParticleType primary) const override;
     double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;

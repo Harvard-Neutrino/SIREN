@@ -24,6 +24,7 @@
 #include <Pythia8/Pythia.h>
 
 #include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/CharmCrossSectionHelpers.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/Particle.h"
 #include "SIREN/utilities/Random.h"
@@ -132,15 +133,7 @@ PythiaDISCrossSection::PythiaDISCrossSection(
 // --- File I/O ---
 
 void PythiaDISCrossSection::SetUnits(std::string units) {
-    std::transform(units.begin(), units.end(), units.begin(),
-        [](unsigned char c){ return std::tolower(c); });
-    if(units == "cm") {
-        unit = 1.0;
-    } else if(units == "m") {
-        unit = 10000.0;
-    } else {
-        throw std::runtime_error("Cross section units not supported!");
-    }
+    unit = charm_xsec::UnitForString(units);
 }
 
 void PythiaDISCrossSection::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
@@ -204,14 +197,7 @@ siren::dataclasses::ParticleType PythiaDISCrossSection::PdgToParticleType(int pd
 }
 
 double PythiaDISCrossSection::GetLeptonMass(siren::dataclasses::ParticleType lepton_type) {
-    int32_t lepton_number = std::abs(static_cast<int32_t>(lepton_type));
-    switch(lepton_number) {
-        case 11: return siren::utilities::Constants::electronMass;
-        case 13: return siren::utilities::Constants::muonMass;
-        case 15: return siren::utilities::Constants::tauMass;
-        case 12: case 14: case 16: return 0;
-        default: throw std::runtime_error("Unknown lepton type!");
-    }
+    return charm_xsec::GetLeptonMass(lepton_type);
 }
 
 std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses::InteractionSignature signature) {
@@ -236,11 +222,9 @@ std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses:
 // --- Signatures ---
 
 void PythiaDISCrossSection::InitializeSignatures() {
-    // PythiaDISCrossSection forces charm only in charged-current (the non-charm
-    // CKM elements are zeroed in ApplyPythiaCharmConfig). Z exchange has no such
-    // handle, so NC charm cannot be forced and SampleFinalState would exhaust its
-    // attempt budget and throw. Reject NC at construction with an actionable
-    // pointer to the tool that does support NC charm (QuarkDISFromSpline).
+    // Charm is forced only in CC (non-charm CKM zeroed in ApplyPythiaCharmConfig).
+    // Z exchange has no such handle, so NC charm can't be forced and sampling would
+    // exhaust its budget; reject NC at construction (use QuarkDISFromSpline for NC).
     if(interaction_type_ != 1) {
         if(interaction_type_ == 2)
             throw std::runtime_error("PythiaDISCrossSection supports only charged-current charm production (interaction_type=1). Neutral-current charm is not forced by Z exchange in Pythia, so per-event sampling would fail; use QuarkDISFromSpline for NC charm.");
@@ -254,24 +238,8 @@ void PythiaDISCrossSection::InitializeSignatures() {
             throw std::runtime_error("PythiaDISCrossSection only supports neutrinos as primaries!");
         }
 
-        siren::dataclasses::ParticleType charged_lepton_product = siren::dataclasses::ParticleType::unknown;
+        siren::dataclasses::ParticleType charged_lepton_product = charm_xsec::ChargedLeptonProduct(primary_type);
         siren::dataclasses::ParticleType neutral_lepton_product = primary_type;
-
-        if(primary_type == siren::dataclasses::ParticleType::NuE) {
-            charged_lepton_product = siren::dataclasses::ParticleType::EMinus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuEBar) {
-            charged_lepton_product = siren::dataclasses::ParticleType::EPlus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuMu) {
-            charged_lepton_product = siren::dataclasses::ParticleType::MuMinus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuMuBar) {
-            charged_lepton_product = siren::dataclasses::ParticleType::MuPlus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuTau) {
-            charged_lepton_product = siren::dataclasses::ParticleType::TauMinus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuTauBar) {
-            charged_lepton_product = siren::dataclasses::ParticleType::TauPlus;
-        } else {
-            throw std::runtime_error("InitializeSignatures: Unknown parent neutrino type!");
-        }
 
         if(interaction_type_ == 1) {
             signature.secondary_types.push_back(charged_lepton_product);
@@ -284,12 +252,10 @@ void PythiaDISCrossSection::InitializeSignatures() {
         // Hadron remnant
         signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
 
-        // Charmed meson types. For nu the c quark fragments to D0/D+/Ds+; for nubar
-        // the cbar quark fragments to Dbar0/D-/Ds-. SampleFinalState writes Pythia's
-        // actual produced PID into the signature's meson slot, so the registered set
-        // must include the correct charge to keep weighter signature lookups in range
-        // (otherwise event_weight would be NaN).
-        // TODO: Add Lambda_c (4122) support.
+        // Charmed meson types: nu -> D0/D+/Ds+, nubar -> Dbar0/D-/Ds-.
+        // SampleFinalState writes Pythia's actual PID into the meson slot, so the
+        // registered set must carry the correct charge or weighter lookups go out of
+        // range (NaN weight). TODO: Add Lambda_c (4122) support.
         bool is_antineutrino =
             (primary_type == siren::dataclasses::ParticleType::NuEBar ||
              primary_type == siren::dataclasses::ParticleType::NuMuBar ||
@@ -326,11 +292,8 @@ double PythiaDISCrossSection::TotalCrossSection(dataclasses::InteractionRecord c
     if(primary_energy < InteractionThreshold(interaction)) return 0;
     double total_xs = TotalCrossSection(primary_type, primary_energy);
     // Partition the inclusive charm cross section across D species by fragmentation
-    // fraction for the specific D meson in this signature. The total spline holds the
-    // single inclusive charm cross section, so without this each of the registered
-    // D-type signatures (D0 + D+ + Ds) would return the full value and summing over
-    // them -- as the base-class TotalCrossSectionAllFinalStates and the Weighter do --
-    // would triple-count charm production. Mirrors QuarkDISFromSpline::TotalCrossSection.
+    // fraction; without this, summing the three registered D-type signatures would
+    // triple-count charm production. Mirrors QuarkDISFromSpline::TotalCrossSection.
     for(auto const & sec_type : interaction.signature.secondary_types) {
         if(siren::dataclasses::isD(sec_type)) {
             total_xs *= FragmentationFraction(sec_type);
@@ -415,9 +378,8 @@ double PythiaDISCrossSection::DifferentialCrossSection(double energy, double x, 
     if(!has_differential_)
         throw std::runtime_error("PythiaDISCrossSection::DifferentialCrossSection called but no differential spline was loaded (the unbiased default uses a constant FinalStateProbability).");
     double log_energy = log10(energy);
-    // Out of spline SUPPORT -> raise, never silently return 0: a silent zero on a
-    // genuinely sampled event would bias that event's physical density (and hence
-    // its weight) to zero. The energy extent and the (x, y) grid define validity.
+    // Out of spline support -> raise, never silently return 0 (would bias the
+    // event's weight to zero). Energy extent and the (x,y) grid define validity.
     if(log_energy < differential_cross_section_.lower_extent(0)
             || log_energy > differential_cross_section_.upper_extent(0))
         throw std::runtime_error("PythiaDISCrossSection: energy " + std::to_string(energy)
@@ -449,36 +411,17 @@ double PythiaDISCrossSection::InteractionThreshold(dataclasses::InteractionRecor
 // --- Fragmentation fractions ---
 
 double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {
-    // Approximate fractions from Pythia (charm hadronization), renormalized to
-    // sum to 1.0 over the implemented D species. Raw fractions D0:D+/-:Ds =
-    // 0.60:0.23:0.15 sum to 0.98 because the Lambda_c channel is not modeled; the
-    // unmodeled Lambda_c fraction is redistributed by dividing each by 0.98 so the
-    // partitioned signatures exactly recover the inclusive charm cross section.
-    // Values kept in lockstep with QuarkDISFromSpline::FragmentationFraction.
-    if (secondary == siren::dataclasses::ParticleType::D0 || secondary == siren::dataclasses::ParticleType::D0Bar) {
-        return 0.6 / 0.98;
-    } else if (secondary == siren::dataclasses::ParticleType::DPlus || secondary == siren::dataclasses::ParticleType::DMinus) {
-        return 0.23 / 0.98;
-    } else if (secondary == siren::dataclasses::ParticleType::DsPlus || secondary == siren::dataclasses::ParticleType::DsMinus) {
-        return 0.15 / 0.98;
-    }
-    // Lambda_c (~0.09) not yet implemented; its fraction is folded into the above.
-    return 0;
+    return charm_xsec::FragmentationFraction(secondary);
 }
 
 double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
-    // The final state is sampled by Pythia, whose per-event density is not
-    // analytically available. With NO differential spline we return a constant:
-    // in the standard unbiased configuration the same cross-section object
-    // supplies both the injection and physical densities, so this factor cancels
-    // in the weight ratio and only TotalCrossSection (interaction depth /
-    // position / survival) matters. Biasing the final-state kinematics is not
-    // supported in this mode.
+    // Pythia's per-event density is not analytic. With NO differential spline,
+    // return a constant: in the unbiased config it cancels in the weight ratio and
+    // only TotalCrossSection matters (biasing the final state is unsupported).
     if(!has_differential_) return 1.0;
 
-    // A Pythia-derived differential spline was supplied: report the true density
-    // dsigma/sigma so weights remain correct under reweighting. The fragmentation
-    // fraction in TotalCrossSection cancels per-signature in CrossSectionProbability.
+    // With a Pythia-derived differential spline, report dsigma/sigma. The
+    // fragmentation fraction in TotalCrossSection cancels per-signature.
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if (!std::isfinite(dxs) || !std::isfinite(txs) || dxs <= 0 || txs <= 0) return 0.0;
@@ -490,11 +433,11 @@ double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionReco
 // --- Signature accessors ---
 
 std::vector<siren::dataclasses::ParticleType> PythiaDISCrossSection::GetPossiblePrimaries() const {
-    return std::vector<siren::dataclasses::ParticleType>(primary_types_.begin(), primary_types_.end());
+    return charm_xsec::ToVector(primary_types_);
 }
 
 std::vector<siren::dataclasses::ParticleType> PythiaDISCrossSection::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
-    return std::vector<siren::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
+    return charm_xsec::ToVector(target_types_);
 }
 
 std::vector<dataclasses::InteractionSignature> PythiaDISCrossSection::GetPossibleSignatures() const {
@@ -502,15 +445,11 @@ std::vector<dataclasses::InteractionSignature> PythiaDISCrossSection::GetPossibl
 }
 
 std::vector<siren::dataclasses::ParticleType> PythiaDISCrossSection::GetPossibleTargets() const {
-    return std::vector<siren::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
+    return charm_xsec::ToVector(target_types_);
 }
 
 std::vector<dataclasses::InteractionSignature> PythiaDISCrossSection::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
-    std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType> key(primary_type, target_type);
-    if(signatures_by_parent_types_.find(key) != signatures_by_parent_types_.end()) {
-        return signatures_by_parent_types_.at(key);
-    }
-    return std::vector<dataclasses::InteractionSignature>();
+    return charm_xsec::SignaturesForParents(signatures_by_parent_types_, primary_type, target_type);
 }
 
 std::vector<std::string> PythiaDISCrossSection::DensityVariables() const {

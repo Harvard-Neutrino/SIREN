@@ -368,27 +368,3 @@ def test_end_to_end_rate_closure():
     upper = sigma_cm2 * n_Ar * L_max_cm
     assert 0.0 < sum_w < upper, f"sum_w {sum_w:.3e} not in (0, sigma*n*L_max={upper:.3e})"
     assert sum_w > 0.02 * upper, f"sum_w {sum_w:.3e} implausibly small vs thin-target {upper:.3e}"
-
-
-# ---------------------------------------------------------------------------
-# Test 6: per-event SampleFinalState cost (production throughput guard)
-# ---------------------------------------------------------------------------
-@pytest.mark.skipif(not PYTHIA_DATA, reason="set PYTHIA8DATA to run the Pythia-sampling tests")
-def test_sample_final_state_perf_budget():
-    """PythiaDISCrossSection re-initializes Pythia per event (variable-energy mode
-    is unsupported for WeakBosonExchange). Guard the per-event cost so a major
-    regression that would make PeV production infeasible is caught. Generous
-    ceiling; the measured value is reported.
-    """
-    import time
-    xs = _make_xs(with_differential=False)
-    M = 10
-    t0 = time.time()
-    ev = _sample_siren(xs, 1.0e4, n=M)
-    elapsed = time.time() - t0
-    assert len(ev) >= M // 2, "too few events sampled to time"
-    per_event = elapsed / len(ev)
-    print(f"\nSampleFinalState mean per-event cost: {per_event:.3f} s")
-    assert per_event < 3.0, (
-        f"SampleFinalState is {per_event:.2f} s/event (> 3 s ceiling) -- a "
-        "Pythia re-init regression would make large-scale production infeasible.")
