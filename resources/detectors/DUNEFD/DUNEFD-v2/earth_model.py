@@ -299,11 +299,9 @@ _PREM = [
     ("inner_crust",  6356000, "ROCK",       2.9),
     ("upper_crust",  6371000, "ROCK",       2.65),
 ]
-_ATMO = [
-    ("atmo_low",  6371000 + 12000,  "AIR", 4.0e-4),
-    ("atmo_mid",  6371000 + 50000,  "AIR", 6.0e-5),
-    ("atmo_top",  6371000 + 200000, "AIR", 1.0e-6),
-]
+# Atmosphere shells are generated at load time from a pluggable air-density model
+# (default US Standard Atmosphere 1976; see atmosphere.py) as mass-conserving
+# spherical shells, replacing the old 3 hand-set AIR shells. See add_earth_model.
 
 # ---- schematic geology ----
 CONTACT_Z = -150.0    # Poorman/Yates contact (ENU z rel. detector)
@@ -318,7 +316,7 @@ DIKES = [(-400.0, 200.0, 315.0, 40.0, 30000.0),
 BEAM_AZIMUTH_DEG = 277.15
 
 
-def add_earth_model(model):
+def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
     """Add the Homestake overburden + PREM Earth to a DUNE FD DetectorModel.
 
     Must be called after the detector GDML is loaded. The model is in the SITE
@@ -326,6 +324,13 @@ def add_earth_model(model):
     +x = right-handed. The overburden is built in a local ENU frame (z = up) and
     rotated into the site frame, so the real Black Hills topography is oriented
     correctly relative to the beam.
+
+    The atmosphere is built as mass-conserving spherical shells from a pluggable
+    air-density model (``atmosphere``; default ``atmosphere.USStandard1976``) out
+    to ``atmo_top_km`` km ASL, and the near-surface ``local_air`` box is set from
+    the same model. Pass a custom ``atmosphere.Atmosphere`` subclass (e.g. an
+    NRLMSIS / GDAS / CORSIKA-Linsley profile) for atmospheric-neutrino production
+    studies where a specific or seasonal air column matters.
     """
     from siren.math import Vector3D, Quaternion, Matrix3D
     from siren.geometry import Box, Sphere, Placement, TriangularMesh, BooleanGeometry, BooleanOperation
@@ -374,8 +379,8 @@ def add_earth_model(model):
     # Shift every detector volume up to open a gap for the overburden.
     sectors = model.Sectors
     dup = {"local_crust", "local_air", "Poorman_bulk", "Yates_lens", "dike_0", "dike_1"}
-    dup |= set(n for n, *_ in (_PREM + _ATMO))
-    if any(s.name in dup for s in sectors):
+    dup |= set(n for n, *_ in _PREM)
+    if any(s.name in dup or s.name.startswith("atmo_") for s in sectors):
         raise RuntimeError("add_earth_model already applied to this model")
     SHIFT = 100000
     for s in sectors:
@@ -383,8 +388,21 @@ def add_earth_model(model):
             s.level += SHIFT
     model.Sectors = sorted(sectors, key=lambda s: s.level)
 
-    # ---- PREM background (far negative levels; innermost = highest wins) --
-    shells = _PREM + _ATMO                        # innermost first
+    # ---- atmosphere shells from the air-density model (mass-conserving) ---
+    # Built as spheres above R_PREM; R_PREM <-> the site surface (Z_SURF_SITE
+    # ASL), so a shell whose outer edge is at altitude h (ASL) has radius
+    # R_PREM + (h - Z_SURF_SITE). Each density is the mass-conserving (column-
+    # preserving) mean over its band -- the value that matters for slant depth.
+    atm_mod = _load_sibling("atmosphere", "atmosphere.py")
+    if atmosphere is None:
+        atmosphere = atm_mod.USStandard1976()
+    _init_site()                                   # sets Z_SURF_SITE, Z_DET_ASL
+    bnds = atm_mod.default_boundaries(Z_SURF_SITE, atmo_top_km * 1000.0)
+    atmo_shells = [(f"atmo_{k}", R_PREM + (asl_top - Z_SURF_SITE), "AIR", rho)
+                   for k, (asl_top, rho) in enumerate(atmosphere.shells(bnds))]
+
+    # ---- PREM + atmosphere (far negative levels; innermost = highest wins) -
+    shells = _PREM + atmo_shells                   # innermost first (ascending R)
     n_sh = len(shells)
     for i, (name, Rsh, material, rho) in enumerate(shells):
         sector(name, material, -200 + (n_sh - 1 - i), Sphere(earth_place, float(Rsh), 0.0), rho)
@@ -395,9 +413,12 @@ def add_earth_model(model):
     sector("local_crust", "ROCK", 1,
            Box(Placement(V3(0, (BASE_Z + deep) / 2, 0), q_enu_site),
                2 * L_HALF, 2 * L_HALF, BASE_Z - deep), 2.75)
+    # local_air density from the same atmosphere model: mass-conserving over the
+    # box's air column (site surface up to the box top; ENU sky -> ASL via Z_DET_ASL).
+    air_rho = atmosphere.shell_density_gcc(Z_SURF_SITE, Z_DET_ASL + sky)
     sector("local_air", "AIR", 2,
            Box(Placement(V3(0, (BASE_Z + sky) / 2, 0), q_enu_site),
-               2 * L_HALF, 2 * L_HALF, sky - BASE_Z), 1.205e-3)
+               2 * L_HALF, 2 * L_HALF, sky - BASE_Z), air_rho)
 
     # ---- graded terrain mesh + formations -------------------------------
     tris_enu, leaves = _build_graded_mesh(V3)
