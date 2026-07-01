@@ -1,18 +1,16 @@
 """
 Shared atmosphere density model for SIREN detector loaders.
 
-Promotes the previously per-detector (and, for DUNE, missing) atmosphere code
-into a single shared module. Provides a pluggable barometric air-density model
-(default US Standard Atmosphere 1976) and describes the atmosphere as a set of
-altitude bands that ``siren.earth.sectors`` turns into detector sectors -- either
-as true exponential-density shells (preferred) or, for backward compatibility,
-as constant mass-conserving shells.
+Provides a pluggable barometric air-density model (default US Standard
+Atmosphere 1976) and describes the atmosphere as a set of altitude bands that
+``siren.earth.sectors`` turns into detector sectors -- either as true
+exponential-density shells (preferred) or as constant mass-conserving shells.
 
 Dependency-light: standard library only. Sector construction (which needs the
 compiled ``siren.detector`` module) lives in ``siren.earth.sectors``.
 
 Altitudes here are measured above a reference surface (the loader anchors that
-surface to a radius: R_PREM for SBN, the DEM site-surface radius for DUNE).
+surface to a radius, e.g. R_PREM for a detector site at sea level).
 """
 
 from __future__ import annotations
@@ -21,9 +19,9 @@ import math
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-# Default altitude bands (m above the reference surface), matching the six-shell
-# US-Std-1976 approximation SBN has used. Band count sets the atmosphere sector
-# count; each band becomes one sector.
+# Default altitude bands (m above the reference surface): a six-shell
+# approximation of the US Standard Atmosphere 1976. Band count sets the
+# atmosphere sector count; each band becomes one sector.
 DEFAULT_SHELL_ALTS: List[Tuple[float, float]] = [
     (0,      4000),
     (4000,   10000),
@@ -102,7 +100,7 @@ class AtmosphereForm:
     """How to build the atmosphere for a site.
 
     ``mode`` is "exponential" (true per-band exponential density, preferred) or
-    "shells" (constant mass-conserving shells; legacy). ``surface_radius`` is the
+    "shells" (constant mass-conserving shells). ``surface_radius`` is the
     absolute radius (m) that altitude 0 maps to.
     """
     model: Atmosphere = field(default_factory=USStandard1976)
@@ -136,7 +134,7 @@ class AtmosphereForm:
 def constant_shell_layers(model: Atmosphere = None,
                           surface_radius: float = 6371000.0,
                           bands: List[Tuple[float, float]] = None) -> List[Tuple]:
-    """Legacy 5-tuple constant atmosphere layers, for compatibility re-exports.
+    """Constant-density atmosphere layers in the 5-tuple layer-table form.
 
     Returns ``(name, outer_radius_m, "AIR", "constant", rho_mean)`` entries.
     """

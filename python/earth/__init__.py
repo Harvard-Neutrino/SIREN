@@ -5,8 +5,7 @@ SIREN detector loaders.
 The submodules ``prem`` and ``atmosphere`` are pure-data (standard library only);
 ``sectors`` builds DetectorSectors and imports the compiled siren.detector module
 lazily inside its builder function. Import this package for the canonical
-constants and the shared ``build_earth_sectors`` builder instead of copying PREM
-into each detector package.
+constants and the shared ``build_earth_sectors`` builder.
 """
 
 from .prem import (

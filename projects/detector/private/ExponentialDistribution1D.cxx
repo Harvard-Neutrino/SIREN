@@ -34,9 +34,9 @@ bool ExponentialDistribution1D::compare(const Distribution1D& dist) const {
     return true;
 }
 
-// Derivative and AntiDerivative are unchanged in form: with
-// rho(x) = A*exp(sigma*(x-x0)), rho'(x) = rho(x)*sigma and the antiderivative
-// is rho(x)/sigma, so both remain Evaluate(x)*sigma and Evaluate(x)/sigma.
+// With rho(x) = A*exp(sigma*(x-x0)), rho'(x) = rho(x)*sigma and the
+// antiderivative is rho(x)/sigma, so Derivative and AntiDerivative are
+// Evaluate(x)*sigma and Evaluate(x)/sigma.
 double ExponentialDistribution1D::Derivative(double x) const {
     return Evaluate(x) * sigma_;
 }

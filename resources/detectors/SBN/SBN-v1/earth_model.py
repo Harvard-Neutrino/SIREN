@@ -5,10 +5,9 @@ Adds concentric PREM spherical shells and an exponential atmosphere to a
 DetectorModel that was loaded via LoadGDML. The GDML volumes always take
 priority over these Earth sectors wherever both exist.
 
-The PREM layers and the atmosphere model are the canonical, shared ones defined
-in ``siren.earth`` (a single source of truth used by every SIREN detector); this
-module only supplies the SBN-specific pieces: the BNB "up" direction, the ground
-level, and the local crustal-thickening correction.
+The PREM layers and the atmosphere model are the shared ones defined in
+``siren.earth``; this module only supplies the SBN-specific pieces: the BNB
+"up" direction, the ground level, and the local crustal-thickening correction.
 
 The PREM layers follow Dziewonski & Anderson, PEPI 25 (1981) 297, with the
 standard global-average Moho at 24.4 km depth. A local crustal thickening
@@ -64,9 +63,9 @@ _LOCAL_MOHO_THETA = 0.3
 # Shared atmosphere model (US Standard Atmosphere 1976, isothermal).
 _ATMOSPHERE = USStandard1976()
 
-# Legacy compatibility re-exports. The atmosphere sectors are now built as true
-# exponential-density shells, but these constant-shell constants remain the
-# reference description (and are what the offline tests introspect).
+# Constant-shell reference description of the atmosphere. The sectors are
+# built as true exponential-density shells; these constants give the
+# equivalent mass-conserving constant-shell approximation.
 _RHO_0 = _ATMOSPHERE.rho0
 _SCALE_HEIGHT = _ATMOSPHERE.scale_height
 

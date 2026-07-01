@@ -3,7 +3,7 @@ Canonical PREM Earth model, shared by all SIREN detector loaders.
 
 This is the single source of truth for the Preliminary Reference Earth Model
 (Dziewonski & Anderson, PEPI 25 (1981) 297). Detector packages import the
-canonical layer table from here instead of each carrying their own copy.
+canonical layer table from here.
 
 This module is intentionally dependency-light: it imports only the standard
 library so that it can be imported for its constants without pulling in the
@@ -33,7 +33,7 @@ PREM_MATERIALS = ("INNERCORE", "OUTERCORE", "MANTLE", "ROCK", "AIR")
 
 # The canonical PREM layers, innermost to outermost. This IS the model; any
 # site that wants a coarser (constant-shell) view derives it via
-# collapse_to_constant() rather than hand-maintaining a second table.
+# collapse_to_constant().
 CANONICAL_PREM_LAYERS: List[Tuple] = [
     ("innercore_boundary",    1221500, "INNERCORE", "polynomial",
      [13.0885, 0.0, -2.17742748697875934e-13]),
@@ -57,9 +57,9 @@ CANONICAL_PREM_LAYERS: List[Tuple] = [
 
 
 # ---- dataclass views (GDML-ready seam) -------------------------------------
-# The dataclass form mirrors what a future GDML <siren_density> element would
-# carry (see docs/gdml_variable_density_extension.md), so a later "read PREM
-# from GDML" path can produce these without changing the sector builder.
+# The dataclass form mirrors what a future GDML density element would carry,
+# so a later "read PREM from GDML" path can produce these without changing
+# the sector builder.
 
 @dataclass(frozen=True)
 class DensityForm:
@@ -106,9 +106,8 @@ def collapse_to_constant(layers: Sequence[Tuple] = None,
     """Return a constant-density view of the canonical (polynomial) PREM.
 
     Each output shell's density is the mass-conserving radial mean of the
-    canonical density over that shell, so total mass is preserved. This is the
-    correct way to obtain a coarse constant-shell PREM instead of hand-picking
-    numbers. ``boundaries`` optionally re-bins the layers onto a coarser set of
+    canonical density over that shell, so total mass is preserved.
+    ``boundaries`` optionally re-bins the layers onto a coarser set of
     outer radii (each must coincide with a canonical layer boundary).
     """
     if layers is None:

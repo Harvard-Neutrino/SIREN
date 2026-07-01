@@ -1,7 +1,6 @@
 """
 SBN geometry: coordinate frames and rigid transforms.
 
-Minimal port of the transform graph from g4bnb/sbn_geometry.py into SIREN.
 Provides composable frame-to-frame transforms for the Fermilab SBN program
 detectors (ICARUS, SBND, MicroBooNE) and beamlines (BNB, NuMI).
 
