@@ -2,6 +2,7 @@
 #ifndef SIREN_Process_H
 #define SIREN_Process_H
 
+#include <map>                                           // for map
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
@@ -18,8 +19,11 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"         // for Particle
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/VertexWeightingMode.h"
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/injection/PhaseSpaceChannel.h"
 
 namespace siren {
 namespace injection {
@@ -58,6 +62,9 @@ public:
 class PhysicalProcess : public Process {
 protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
+    std::map<siren::dataclasses::InteractionSignature,
+             std::shared_ptr<MultiChannelPhaseSpace>> phase_space_map_;
+    siren::dataclasses::VertexWeightingMode weighting_mode_;
 public:
     PhysicalProcess() = default;
     PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
@@ -69,6 +76,25 @@ public:
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist);
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & GetPhysicalDistributions() const;
     virtual void SetPhysicalDistributions(std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & distributions);
+
+    // Per-signature phase space channels.
+    void SetPhaseSpace(siren::dataclasses::InteractionSignature const & sig,
+                       std::shared_ptr<MultiChannelPhaseSpace> ps);
+    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace(
+        siren::dataclasses::InteractionSignature const & sig) const;
+    bool HasPhaseSpace(siren::dataclasses::InteractionSignature const & sig) const;
+    bool HasAnyPhaseSpace() const;
+
+    // Read access to the full signature -> phase-space map, so a caller can
+    // enumerate this process's mixtures (e.g. to feed the weight optimizer's
+    // accumulators) without knowing the signatures in advance.
+    std::map<siren::dataclasses::InteractionSignature,
+             std::shared_ptr<MultiChannelPhaseSpace>> const &
+    GetPhaseSpaceMap() const { return phase_space_map_; }
+
+    void SetWeightingMode(siren::dataclasses::VertexWeightingMode mode) { weighting_mode_ = mode; }
+    siren::dataclasses::VertexWeightingMode GetWeightingMode() const { return weighting_mode_; }
+
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

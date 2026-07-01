@@ -26,7 +26,8 @@ def _has_resource(installed_resources_root: Path, kind: str, name: str) -> bool:
     [
         ("detectors", "IceCube"),
         ("detectors", "MINERvA"),
-        ("detectors", "MiniBooNE"),
+        # MiniBooNE is now provided via the SBN composite loader
+        # (load_detector("SBN", detector="MiniBooNE")), not as a standalone resource.
         ("fluxes", "BNB"),
         ("fluxes", "NUMI"),
     ],
@@ -46,7 +47,6 @@ def test_canonical_resource_present(installed_resources_root, kind, name):
         ("detectors", "SINE"),
         ("detectors", "UNDINE"),
         ("detectors", "MINERvA"),
-        ("detectors", "MiniBooNE"),
     ],
 )
 def test_detector_model_path_resolution(utilities, installed_resources_root, kind, name):
