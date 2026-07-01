@@ -105,7 +105,7 @@ class TestControllerConstructor:
         """A pre-built DetectorModel (e.g. a GDML composite) can be passed
         directly, bypassing experiment/file loading."""
         from siren.SIREN_Controller import SIREN_Controller
-        model = siren.load_detector("CCM")
+        model = siren.utilities.load_detector("CCM")
         c = SIREN_Controller(7, detector_model=model)
         assert c.detector_model is model
         assert c.detector_model_file is None
