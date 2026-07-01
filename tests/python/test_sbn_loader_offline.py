@@ -158,11 +158,17 @@ def offline_sbn_cache(tmp_path):
         tmp_path, "gdml/numi_g4export_2026-05-19.gdml",
         _beamline_fixture_gdml("numi_fixture", "NuMIFixtureAir"))
     _write_fixture_file(
+        tmp_path, "gdml/g4lbnf.gdml",
+        _beamline_fixture_gdml("lbnf_fixture", "LBNFFixtureAir"))
+    _write_fixture_file(
         tmp_path, "gdml/icarus_refactored_nounderscore_20230918_nowires.gdml",
         _detector_fixture_gdml("icarus_fixture"))
     _write_fixture_file(
         tmp_path, "gdml/sbnd_v02_06.gdml",
         _detector_fixture_gdml("sbnd_fixture"))
+    _write_fixture_file(
+        tmp_path, "gdml/nd_hall_with_lar_tms_sand.gdml",
+        _detector_fixture_gdml("dune_nd_fixture"))
     return tmp_path
 
 
