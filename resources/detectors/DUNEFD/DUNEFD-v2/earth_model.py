@@ -290,18 +290,9 @@ def _build_graded_mesh(V3):
     return tris, leaves
 
 
-# ---- PREM shells ----
-_PREM = [
-    ("innercore",    1221500, "INNERCORE", 13.0),
-    ("outercore",    3480000, "OUTERCORE", 11.0),
-    ("lower_mantle", 5701000, "MANTLE",     4.9),
-    ("upper_mantle", 6336000, "MANTLE",     3.4),
-    ("inner_crust",  6356000, "ROCK",       2.9),
-    ("upper_crust",  6371000, "ROCK",       2.65),
-]
-# Atmosphere shells are generated at load time from a pluggable air-density model
-# (default US Standard Atmosphere 1976; see atmosphere.py) as mass-conserving
-# spherical shells, replacing the old 3 hand-set AIR shells. See add_earth_model.
+# The PREM shells and the atmosphere are the canonical, shared ones from
+# siren.earth (see add_earth_model); this module supplies only the DUNE-specific
+# Homestake overburden (DEM terrain, formations, dikes) built on top of them.
 
 # ---- schematic geology ----
 CONTACT_Z = -150.0    # Poorman/Yates contact (ENU z rel. detector)
@@ -333,8 +324,15 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
     studies where a specific or seasonal air column matters.
     """
     from siren.math import Vector3D, Quaternion, Matrix3D
-    from siren.geometry import Box, Sphere, Placement, TriangularMesh, BooleanGeometry, BooleanOperation
+    from siren.geometry import Box, Placement, TriangularMesh, BooleanGeometry, BooleanOperation
     from siren.detector import DetectorSector, ConstantDensityDistribution
+    from siren.earth import (
+        CANONICAL_PREM_LAYERS,
+        USStandard1976,
+        AtmosphereForm,
+        build_earth_sectors,
+        insert_sectors_above,
+    )
     V3 = Vector3D
 
     # ---- load materials (supplements the GDML's own) ----
@@ -357,73 +355,59 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
     q_enu_site.SetMatrix(Matrix3D(*R))
     enu_placement = Placement(V3(0.0, 0.0, 0.0), q_enu_site)
 
-    # Earth center is DEPTH below the surface; the detector (geometry origin,
-    # y~0) is the 4850L, so the center sits at y = -(R_PREM - DEPTH) (straight
-    # down). The PREM surface sphere (R_PREM) then passes through y = +DEPTH.
-    earth_place = Placement(V3(0.0, -(R_PREM - DEPTH), 0.0))
+    # ---- canonical PREM + exponential atmosphere via the shared builder ----
+    # siren.earth places PREM/atmosphere below every existing volume using the
+    # predict-count-and-shift-up level scheme (World and the detector volumes
+    # shift up to make room). The site surface sits at radius R_PREM because the
+    # Earth center is DEPTH below the detector origin (y ~ 0 == 4850L).
+    if atmosphere is None:
+        atmosphere = USStandard1976()
+    _init_site()                                   # sets Z_SURF_SITE, Z_DET_ASL
 
-    def sector(name, material, level, geo, rho):
+    build_earth_sectors(
+        model,
+        surface_offset=DEPTH,
+        prem_layers=CANONICAL_PREM_LAYERS,
+        atmosphere=AtmosphereForm(model=atmosphere, mode="exponential",
+                                  top_m=atmo_top_km * 1000.0),
+        up_axis=(0.0, 1.0, 0.0),
+        r_prem=R_PREM,
+    )
+
+    # ---- site overburden: built in ENU, inserted just above "World" --------
+    # The local crust/air and Homestake formations must override the vacuum
+    # World box but stay below the detector volumes. insert_sectors_above shifts
+    # the detector volumes up and gives the overburden the freed levels
+    # (ascending priority: local_crust lowest, dikes highest) -- no absolute or
+    # negative level constants.
+    def _geo(name, material, geo, rho):
         s = DetectorSector()
         s.name = name
         s.material_id = mats.GetMaterialId(material)
-        s.level = level
         s.geo = geo
         s.density = ConstantDensityDistribution(float(rho))
-        model.AddSector(s)
+        return s
 
-    # ---- level strategy -------------------------------------------------
-    # The composite has the vacuum "World" box at level 0 and all detector
-    # volumes above it (the DUSEL_Rock world boxes are unwrapped away by
-    # as_assembly). We want:
-    #   PREM (<0) < World(0) < local_crust/air < overburden < detector volumes.
-    # Shift every detector volume up to open a gap for the overburden.
-    sectors = model.Sectors
-    dup = {"local_crust", "local_air", "Poorman_bulk", "Yates_lens", "dike_0", "dike_1"}
-    dup |= set(n for n, *_ in _PREM)
-    if any(s.name in dup or s.name.startswith("atmo_") for s in sectors):
-        raise RuntimeError("add_earth_model already applied to this model")
-    SHIFT = 100000
-    for s in sectors:
-        if s.name not in ("UNIVERSE", "World"):
-            s.level += SHIFT
-    model.Sectors = sorted(sectors, key=lambda s: s.level)
-
-    # ---- atmosphere shells from the air-density model (mass-conserving) ---
-    # Built as spheres above R_PREM; R_PREM <-> the site surface (Z_SURF_SITE
-    # ASL), so a shell whose outer edge is at altitude h (ASL) has radius
-    # R_PREM + (h - Z_SURF_SITE). Each density is the mass-conserving (column-
-    # preserving) mean over its band -- the value that matters for slant depth.
-    atm_mod = _load_sibling("atmosphere", "atmosphere.py")
-    if atmosphere is None:
-        atmosphere = atm_mod.USStandard1976()
-    _init_site()                                   # sets Z_SURF_SITE, Z_DET_ASL
-    bnds = atm_mod.default_boundaries(Z_SURF_SITE, atmo_top_km * 1000.0)
-    atmo_shells = [(f"atmo_{k}", R_PREM + (asl_top - Z_SURF_SITE), "AIR", rho)
-                   for k, (asl_top, rho) in enumerate(atmosphere.shells(bnds))]
-
-    # ---- PREM + atmosphere (far negative levels; innermost = highest wins) -
-    shells = _PREM + atmo_shells                   # innermost first (ascending R)
-    n_sh = len(shells)
-    for i, (name, Rsh, material, rho) in enumerate(shells):
-        sector(name, material, -200 + (n_sh - 1 - i), Sphere(earth_place, float(Rsh), 0.0), rho)
+    overburden = []
 
     # ---- local crust bridge + air (built in ENU, placed into site frame) --
     deep = -15000.0
     sky = 5000.0
-    sector("local_crust", "ROCK", 1,
+    overburden.append(_geo("local_crust", "ROCK",
            Box(Placement(V3(0, (BASE_Z + deep) / 2, 0), q_enu_site),
-               2 * L_HALF, 2 * L_HALF, BASE_Z - deep), 2.75)
-    # local_air density from the same atmosphere model: mass-conserving over the
-    # box's air column (site surface up to the box top; ENU sky -> ASL via Z_DET_ASL).
-    air_rho = atmosphere.shell_density_gcc(Z_SURF_SITE, Z_DET_ASL + sky)
-    sector("local_air", "AIR", 2,
+               2 * L_HALF, 2 * L_HALF, BASE_Z - deep), 2.75))
+    # local_air density from the same atmosphere model: mass-conserving mean of
+    # the air column from the site surface up to the box top (altitudes measured
+    # above the site surface, ASL top = Z_DET_ASL + sky).
+    air_rho = atmosphere.shell_mean_density(0.0, max(1.0, (Z_DET_ASL + sky) - Z_SURF_SITE))
+    overburden.append(_geo("local_air", "AIR",
            Box(Placement(V3(0, (BASE_Z + sky) / 2, 0), q_enu_site),
-               2 * L_HALF, 2 * L_HALF, sky - BASE_Z), air_rho)
+               2 * L_HALF, 2 * L_HALF, sky - BASE_Z), air_rho))
 
     # ---- graded terrain mesh + formations -------------------------------
     tris_enu, leaves = _build_graded_mesh(V3)
     mesh = TriangularMesh(enu_placement, tris_enu)
-    sector("Poorman_bulk", "Poorman_phyllite", 3, mesh, 2.80)
+    overburden.append(_geo("Poorman_bulk", "Poorman_phyllite", mesh, 2.80))
 
     dd = math.radians(CONTACT_DIP); cz = math.radians(CONTACT_DIPDIR)
     nx, ny, nz = -math.sin(dd)*math.sin(cz), -math.sin(dd)*math.cos(cz), math.cos(dd)
@@ -433,7 +417,7 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
     yates_slab = Box(Placement(cen_enu, rot_cont), 120000.0, 120000.0, Hz)
     yates_bool = BooleanGeometry(enu_placement, BooleanOperation.INTERSECTION,
                                  TriangularMesh(tris_enu), yates_slab)
-    sector("Yates_lens", "Yates_amphibolite", 4, yates_bool, 2.95)
+    overburden.append(_geo("Yates_lens", "Yates_amphibolite", yates_bool, 2.95))
 
     ceiling = DEPTH + 700
     for i, (x0, y0, strike_az, t, L) in enumerate(DIKES):
@@ -443,4 +427,6 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
                    t, L, ceiling - BASE_Z)
         dike_bool = BooleanGeometry(enu_placement, BooleanOperation.INTERSECTION,
                                     TriangularMesh(tris_enu), dike)
-        sector(f"dike_{i}", "Rhyolite_dike", 5 + i, dike_bool, 2.62)
+        overburden.append(_geo(f"dike_{i}", "Rhyolite_dike", dike_bool, 2.62))
+
+    insert_sectors_above(model, "World", overburden)
