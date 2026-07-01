@@ -22,6 +22,17 @@ _SBN_DIR = os.path.join(
     "SBN", "SBN-v1")
 
 
+def _bnb_ground_level(sbn_detector_module):
+    """BNB-frame ground level used by the earth model.
+
+    Mirrors the value detector.add_earth_model() is called with
+    (sbn_loader._FNAL_SITE_GRADE_Y + geo.T_MiniBooNE_local[1]) so density
+    tests can convert PREM radii to BNB-frame y-coordinates.
+    """
+    return (sbn_detector_module.sbn_loader._FNAL_SITE_GRADE_Y
+            + sbn_detector_module.geo.T_MiniBooNE_local[1])
+
+
 @pytest.fixture
 def sbn_detector_module():
     module_names = ("sbn_detector_offline",
@@ -314,7 +325,7 @@ def test_prem_density_upper_crust(
     earth = _load_earth_constants()
 
     r_crust = earth.R_PREM - 5000.0
-    y_bnb = r_crust - (earth.R_PREM - earth._GRADE_Y_BNB)
+    y_bnb = r_crust - (earth.R_PREM - _bnb_ground_level(sbn_detector_module))
 
     rho = _geo_density(model, 0, y_bnb, 0)
     assert abs(rho - 2.6) < 0.01, f"Upper crust density {rho} != 2.6"
@@ -332,7 +343,7 @@ def test_prem_density_upper_mantle(
     earth = _load_earth_constants()
 
     r_mantle = earth.R_PREM - earth._LOCAL_MOHO_DEPTH - 1000.0
-    y_bnb = r_mantle - (earth.R_PREM - earth._GRADE_Y_BNB)
+    y_bnb = r_mantle - (earth.R_PREM - _bnb_ground_level(sbn_detector_module))
 
     rho = _geo_density(model, 0, y_bnb, 0)
     coeffs = [2.691, 1.08679956050855438e-07]
@@ -355,21 +366,21 @@ def test_local_moho_at_45km(
     # 30 km depth: between PREM Moho (24.4 km) and local Moho (45 km).
     # Should be ROCK thanks to the local correction.
     r_30 = earth.R_PREM - 30000.0
-    y_30 = r_30 - (earth.R_PREM - earth._GRADE_Y_BNB)
+    y_30 = r_30 - (earth.R_PREM - _bnb_ground_level(sbn_detector_module))
     sector_30 = _geo_sector_name(model, 0, y_30, 0)
     assert sector_30 == "local_thick_crust", \
         f"30 km depth near Fermilab should be local_thick_crust, got {sector_30}"
 
     # 44 km depth: still above local Moho -> local_thick_crust
     r_44 = earth.R_PREM - 44000.0
-    y_44 = r_44 - (earth.R_PREM - earth._GRADE_Y_BNB)
+    y_44 = r_44 - (earth.R_PREM - _bnb_ground_level(sbn_detector_module))
     sector_44 = _geo_sector_name(model, 0, y_44, 0)
     assert sector_44 == "local_thick_crust", \
         f"44 km depth near Fermilab should be local_thick_crust, got {sector_44}"
 
     # 46 km depth: below local Moho -> PREM mantle
     r_46 = earth.R_PREM - 46000.0
-    y_46 = r_46 - (earth.R_PREM - earth._GRADE_Y_BNB)
+    y_46 = r_46 - (earth.R_PREM - _bnb_ground_level(sbn_detector_module))
     sector_46 = _geo_sector_name(model, 0, y_46, 0)
     assert sector_46 == "moho_boundary", \
         f"46 km depth near Fermilab should be moho_boundary, got {sector_46}"
@@ -393,7 +404,7 @@ def test_prem_moho_far_from_fermilab(
     import math
     alpha = 2500000.0 / earth.R_PREM
     x = r * math.sin(alpha)
-    y = r * math.cos(alpha) - (earth.R_PREM - earth._GRADE_Y_BNB)
+    y = r * math.cos(alpha) - (earth.R_PREM - _bnb_ground_level(sbn_detector_module))
     sector = _geo_sector_name(model, x, y, 0)
     assert sector == "moho_boundary", \
         f"30 km depth at 2500 km from Fermilab should be PREM mantle, got {sector}"
@@ -410,7 +421,7 @@ def test_innercore_density(
     model = sbn_detector_module.load_detector(detector_name, earth_model=True)
     earth = _load_earth_constants()
 
-    y_center = -(earth.R_PREM - earth._GRADE_Y_BNB)
+    y_center = -(earth.R_PREM - _bnb_ground_level(sbn_detector_module))
     rho = _geo_density(model, 0, y_center, 0)
     assert 12.5 < rho < 14.0, f"Inner core density {rho} not in [12.5, 14.0]"
 
