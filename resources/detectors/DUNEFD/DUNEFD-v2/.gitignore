@@ -1,0 +1,8 @@
+# Generated/cached at load time -- do not commit or ship.
+# The module GDMLs live in SIREN-data (detectors/DUNEFD/v2/{HD,VD}/) and are
+# fetched on first use; the overburden DEM/materials are downloaded/derived.
+composite_*.gdml
+gdml/
+dem/
+*_homestake_materials.dat
+__pycache__/
