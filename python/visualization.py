@@ -128,7 +128,9 @@ def plot_cross_sections(model, center=(0.0, 0.0, 0.0), half=15.0,
         return name_of.get(k, "%.3g" % d)
 
     labels = [label_for(d) for d in present]
-    colors = cm.turbo(np.linspace(0.04, 0.96, len(present)))
+    # turbo only exists in matplotlib >= 3.3; degrade to viridis on older ones
+    cmap_src = getattr(cm, "turbo", cm.viridis)
+    colors = cmap_src(np.linspace(0.04, 0.96, len(present)))
     cmap = ListedColormap(colors)
     norm = BoundaryNorm(np.arange(len(present) + 1) - 0.5, len(present))
     idx_of = {d: i for i, d in enumerate(present)}
@@ -2078,7 +2080,10 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
     if picker and not isinstance(model, str):
         fg = "w" if dark else "k"
         pl.add_text("", position="upper_left", font_size=10, color=fg, name="pick")
-        def _cb(pt):
+        # use_picker=True makes pyvista invoke callback(point, picker); the
+        # point is already divided by plotter.scale (i.e. z_exag is undone,
+        # see pyvista picking.py "HACK: handle scale"), so use it as-is.
+        def _cb(pt, *_):
             try:
                 sec = model.GetContainingSector(DetectorPosition(
                     Vector3D(float(pt[0]), float(pt[1]), float(pt[2]))))

@@ -39,6 +39,8 @@ PYBIND11_MODULE(geometry,m) {
         .def("IsInside", (bool (Geometry::*)(siren::math::Vector3D const &) const) &Geometry::IsInside)
         .def("Intersections", (std::vector<Geometry::Intersection> (Geometry::*)(siren::math::Vector3D const &, siren::math::Vector3D const &) const) &Geometry::Intersections)
         .def("DistanceToClosestApproach",&Geometry::DistanceToClosestApproach)
+        .def("GetBoundingBox",&Geometry::GetBoundingBox)
+        .def("GetWorldBoundingBox",&Geometry::GetWorldBoundingBox)
         .def_property_readonly("name",&Geometry::GetName)
         .def_property("placement",&Geometry::GetPlacement, &Geometry::SetPlacement)
         .def("ComputeIntersections",&Geometry::ComputeIntersections)
