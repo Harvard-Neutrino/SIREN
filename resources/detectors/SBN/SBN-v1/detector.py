@@ -98,7 +98,9 @@ _DETECTOR_SPECS = {
     # shell, in an air vault), generated locally by
     # sbn_loader.ensure_miniboone_gdml (no remote URL). Placed at the G4BNB
     # bsim::Location (0, 1.896, 541.34) m via the MiniBooNE_local frame.
-    # unwrap=False so the air-vault world volume is emitted as a real sector.
+    # unwrap=True: the MB_AIR bounding world box is dropped (as_assembly) so
+    # the enclosure volumes sit directly in the site geology; keeping it as a
+    # real sector would carve an air box out of the surrounding glacial till.
     "MiniBooNE": {
         "file": "gdml/miniboone_tank.gdml",
         "prefix": "miniboone",

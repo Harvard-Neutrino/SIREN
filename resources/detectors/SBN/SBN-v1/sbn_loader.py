@@ -253,7 +253,7 @@ def _build_miniboone_gdml():
         return f'      <physvol name="{pv}"><volumeref ref="{vol}"/></physvol>'
 
     solids = "\n".join([
-        f'    <box name="mb_world" lunit="m" x="{_MB_WORLD_FULL}" y="{_MB_WORLD_FULL:.4f}" z="{_MB_WORLD_FULL_Y}"/>',
+        f'    <box name="mb_world" lunit="m" x="{_MB_WORLD_FULL:.4f}" y="{_MB_WORLD_FULL_Y:.4f}" z="{_MB_WORLD_FULL:.4f}"/>',
         f'    <sphere name="mb_berm_sphere" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BERM_SPHERE_R:.4f}" startphi="0" deltaphi="360" starttheta="0" deltatheta="45"/>',
         f'    <sphere name="mb_inner_oil" lunit="m" aunit="deg" rmin="0" rmax="{_MB_BARRIER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',
         f'    <sphere name="mb_veto_oil" lunit="m" aunit="deg" rmin="{_MB_BARRIER_R}" rmax="{_MB_TANK_INNER_R}" startphi="0" deltaphi="360" starttheta="0" deltatheta="180"/>',

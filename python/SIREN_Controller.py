@@ -72,9 +72,13 @@ class SIREN_Controller:
         self.materials_model_file = materials_model_file
         if detector_model is not None:
             # Use a pre-built DetectorModel directly (e.g. a GDML composite from
-            # load_detector("SBN", detector=...)). There are no separate
-            # densities/materials files in that case.
+            # load_detector("SBN", detector=...)). It supersedes any
+            # experiment/file configuration, so clear the file paths -- there
+            # are no densities/materials files for file-derived helpers like
+            # GetFiducialVolume() to consult.
             self.detector_model = detector_model
+            self.detector_model_file = None
+            self.materials_model_file = None
         else:
             if experiment is not None:
                 # Find the density and materials files

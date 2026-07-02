@@ -114,6 +114,25 @@ class TestControllerConstructor:
         # No densities.dat to parse a fiducial line from -> graceful None.
         assert c.GetFiducialVolume() is None
 
+    def test_prebuilt_detector_model_overrides_file_configuration(self):
+        """detector_model supersedes experiment/file arguments: the file
+        paths are cleared so file-derived helpers (GetFiducialVolume) do not
+        consult a densities.dat that does not describe the actual model."""
+        from siren.SIREN_Controller import SIREN_Controller
+        model = siren.utilities.load_detector("CCM")
+        det_dir = siren.utilities.get_detector_model_path("CCM")
+        c = SIREN_Controller(
+            3,
+            experiment="CCM",
+            detector_model_file=os.path.join(det_dir, "densities.dat"),
+            materials_model_file=os.path.join(det_dir, "materials.dat"),
+            detector_model=model,
+        )
+        assert c.detector_model is model
+        assert c.detector_model_file is None
+        assert c.materials_model_file is None
+        assert c.GetFiducialVolume() is None
+
 
 # ---------------------------------------------------------------------------
 # Detector model queries
