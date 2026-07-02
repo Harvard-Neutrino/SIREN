@@ -23,6 +23,12 @@ import numpy as np
 
 _THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 
+# Generated/downloaded data (DEM tiles, materials .dat) goes in the writable
+# mirror of this resource directory: _THIS_DIR itself may be a read-only
+# site-packages install. Sibling .py sources are still read from _THIS_DIR.
+from siren.download import writable_data_dir
+_ABS_DIR = writable_data_dir(_THIS_DIR)
+
 # SURF/Homestake 4850L site
 SITE_LAT = 44.352
 SITE_LON = -103.751
@@ -47,7 +53,7 @@ def _load_sibling(name, filename):
 
 
 # ---- DEM access (Copernicus GLO-30) ----
-_DEM_DIR = os.path.join(_THIS_DIR, "dem")
+_DEM_DIR = os.path.join(_ABS_DIR, "dem")
 _TILES = {}
 _SAT = {}
 
@@ -62,7 +68,13 @@ def _ensure_dem():
     if _TILES:
         return
     os.makedirs(_DEM_DIR, exist_ok=True)
-    import tifffile
+    try:
+        import tifffile
+    except ImportError as e:
+        raise ImportError(
+            "The DUNE FD terrain model reads Copernicus GLO-30 DEM tiles, "
+            "which requires the optional 'tifffile' package. Install it with "
+            "'pip install tifffile' to use earth_model=True.") from e
     for ul_lon, fn in [(-104.0, "cop30_N44_W104.tif"), (-105.0, "cop30_N44_W105.tif")]:
         path = os.path.join(_DEM_DIR, fn)
         if not os.path.isfile(path):
@@ -337,7 +349,7 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
 
     # ---- load materials (supplements the GDML's own) ----
     geo_mod = _load_sibling("homestake_geology", "homestake_geology.py")
-    mat_path = os.path.join(_THIS_DIR, "DUNEFD_homestake_materials.dat")
+    mat_path = os.path.join(_ABS_DIR, "DUNEFD_homestake_materials.dat")
     if not os.path.isfile(mat_path):
         geo_mod.write_materials_dat(mat_path)
     model.LoadMaterialModel(mat_path)
@@ -405,8 +417,15 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
                2 * L_HALF, 2 * L_HALF, sky - BASE_Z), air_rho))
 
     # ---- graded terrain mesh + formations -------------------------------
+    # Build the DEM mesh (and its BVH) once in each frame it is needed:
+    # `mesh` carries the ENU->site placement and is the Poorman_bulk sector
+    # geometry; `terrain_enu` is the same triangles with identity placement,
+    # shared by the boolean intersections below, whose components live in the
+    # boolean's local (ENU) frame -- the enclosing BooleanGeometry applies the
+    # ENU->site placement, so a placed mesh there would rotate twice.
     tris_enu, leaves = _build_graded_mesh(V3)
     mesh = TriangularMesh(enu_placement, tris_enu)
+    terrain_enu = TriangularMesh(tris_enu)
     overburden.append(_geo("Poorman_bulk", "Poorman_phyllite", mesh, 2.80))
 
     dd = math.radians(CONTACT_DIP); cz = math.radians(CONTACT_DIPDIR)
@@ -416,7 +435,7 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
     cen_enu = V3(-nx*Hz/2, -ny*Hz/2, CONTACT_Z - nz*Hz/2)
     yates_slab = Box(Placement(cen_enu, rot_cont), 120000.0, 120000.0, Hz)
     yates_bool = BooleanGeometry(enu_placement, BooleanOperation.INTERSECTION,
-                                 TriangularMesh(tris_enu), yates_slab)
+                                 terrain_enu, yates_slab)
     overburden.append(_geo("Yates_lens", "Yates_amphibolite", yates_bool, 2.95))
 
     ceiling = DEPTH + 700
@@ -426,7 +445,7 @@ def add_earth_model(model, atmosphere=None, atmo_top_km=100.0):
         dike = Box(Placement(V3(x0, y0, 0.5*(BASE_Z + ceiling)), rotd),
                    t, L, ceiling - BASE_Z)
         dike_bool = BooleanGeometry(enu_placement, BooleanOperation.INTERSECTION,
-                                    TriangularMesh(tris_enu), dike)
+                                    terrain_enu, dike)
         overburden.append(_geo(f"dike_{i}", "Rhyolite_dike", dike_bool, 2.62))
 
     insert_sectors_above(model, "World", overburden)
