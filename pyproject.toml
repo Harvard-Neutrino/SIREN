@@ -80,6 +80,13 @@ dependencies = [
 ]
 [project.optional-dependencies]
 DarkNews = ["DarkNews>=0.4.2"]
+# Geometry visualization (siren.visualization):
+#   plot_cross_sections needs matplotlib (>=3.3 for the turbo colormap);
+#   view() needs pyg4ometry; view_pv() / view(backend="pyvista") needs pyvista;
+#   to_web() needs pygltflib (plus jinja2 for the .html path);
+#   to_gdml needs none of these (writes standard GDML for any external viewer).
+visualization = ["matplotlib>=3.3"]
+visualization-3d = ["matplotlib>=3.3", "pyg4ometry", "pyvista>=0.39", "pygltflib", "jinja2"]
 
 [project.scripts]
 siren-download = "siren.download:main"
