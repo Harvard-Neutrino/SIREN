@@ -52,6 +52,34 @@ def shift_levels_up(sectors, count, exempt=("UNIVERSE",)):
     return min_level
 
 
+def insert_sectors_above(model, anchor_name, new_sectors):
+    """Insert already-built DetectorSectors just above ``anchor_name``.
+
+    Uses the predict-count-and-shift-up scheme: every existing sector with a
+    higher level than the anchor is shifted up by ``len(new_sectors)`` to open a
+    gap, then the new sectors are assigned the freed levels (in ascending
+    priority: the first entry lands just above the anchor). This places
+    site-specific overburden between a background volume (e.g. "World") and the
+    detector volumes without any absolute/negative level constants.
+    """
+    sectors = model.Sectors
+    anchor = next((s for s in sectors if s.name == anchor_name), None)
+    if anchor is None:
+        raise RuntimeError(
+            "insert_sectors_above: no sector named {!r}".format(anchor_name))
+    anchor_level = anchor.level
+    n = len(new_sectors)
+    for s in sectors:
+        if s.level > anchor_level:
+            s.level = s.level + n
+    level = anchor_level + 1
+    for s in new_sectors:
+        s.level = level
+        level += 1
+        sectors.append(s)
+    model.Sectors = sorted(sectors, key=lambda s: s.level)
+
+
 def build_earth_sectors(model, *, surface_offset, prem_layers=None,
                         atmosphere=None, extra_sectors=(),
                         up_axis=(0.0, 1.0, 0.0), r_prem=6371000.0):

@@ -30,6 +30,7 @@ from .sectors import (
     build_earth_sectors,
     PositionedSector,
     shift_levels_up,
+    insert_sectors_above,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "Atmosphere", "USStandard1976", "AtmosphereForm", "AtmosphereBand",
     "DEFAULT_SHELL_ALTS", "default_boundaries", "constant_shell_layers",
     "build_earth_sectors", "PositionedSector", "shift_levels_up",
+    "insert_sectors_above",
 ]

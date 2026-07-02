@@ -61,6 +61,7 @@ public:
     AABB GetBoundingBox() const override;
 
     size_t TriangleCount() const { return triangles_.size(); }
+    std::vector<Triangle> const & GetTriangles() const { return triangles_; }
 
     // Validate that the mesh is a closed 2-manifold surface.
     // Returns empty string if valid, or a description of the defect.

@@ -18,12 +18,6 @@ interior. The correction is an Earth-centered spherical shell spanning depths
 24.4-45 km with a polar-angle cut (~17 deg around Fermilab), covering the entire
 Fermilab-to-Sanford-Lab baseline (1285 km) with margin.
 
-Earth center in BNB coordinates:
-  The BNB frame has y = up, origin at the BNB target. Fermilab grade
-  is _GRADE_Y_BNB = 7.62 m above the target. We equate grade with
-  the PREM surface radius (6371 km), so the Earth center sits at
-  (0, -(R_PREM - _GRADE_Y_BNB), 0) in BNB coordinates.
-
 References:
   PREM: Dziewonski & Anderson, PEPI 25 (1981) 297
   Atmosphere: US Standard Atmosphere 1976
@@ -51,7 +45,6 @@ from siren.earth import (
     PositionedSector,
 )
 
-_GRADE_Y_BNB = 7.62
 _PREM_MOHO_DEPTH = 24400.0
 _LOCAL_MOHO_DEPTH = 45000.0
 
@@ -82,7 +75,7 @@ def _all_layers():
     return list(_PREM_LAYERS) + list(_ATMO_LAYERS)
 
 
-def add_earth_model(model: Any) -> None:
+def add_earth_model(model: Any, ground_level: float) -> None:
     """Add PREM + atmosphere sectors to a DetectorModel loaded from GDML.
 
     Must be called after model.LoadGDML() so that the GDML volumes already have
@@ -96,8 +89,6 @@ def add_earth_model(model: Any) -> None:
     """
     from siren.math import Vector3D, Quaternion
     from siren.geometry import Sphere, Placement
-
-    ground_level = _GRADE_Y_BNB
 
     # Earth center along the BNB +y (radially-outward through Fermilab) axis.
     earth_center = Vector3D(0.0, -(R_PREM - ground_level), 0.0)

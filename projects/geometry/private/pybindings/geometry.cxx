@@ -20,6 +20,7 @@
 #include "../../public/SIREN/geometry/Trap.h"
 #include "../../public/SIREN/geometry/Ellipsoid.h"
 #include "../../public/SIREN/geometry/Para.h"
+#include "../../public/SIREN/geometry/GeometryMesh.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -96,6 +97,18 @@ PYBIND11_MODULE(geometry,m) {
         .def_property("X",&Box::GetX, &Box::SetX)
         .def_property("Y",&Box::GetY, &Box::SetY)
         .def_property("Z",&Box::GetZ, &Box::SetZ);
+
+    // TriangularMesh
+
+    class_<TriangularMesh, std::shared_ptr<TriangularMesh>, Geometry>(m, "TriangularMesh")
+        .def(init<>())
+        .def(init<std::vector<std::array<siren::math::Vector3D, 3>> const &>())
+        .def(init<Placement const &, std::vector<std::array<siren::math::Vector3D, 3>> const &>())
+        .def(init<Placement const &>())
+        .def(init<const TriangularMesh&>())
+        .def("TriangleCount", &TriangularMesh::TriangleCount)
+        .def("GetTriangles", &TriangularMesh::GetTriangles)
+        .def("ValidateClosed", &TriangularMesh::ValidateClosed);
 
     // Cone
 

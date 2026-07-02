@@ -54,11 +54,17 @@ _DATA_BASE = (
 )
 
 
-def _beamline_sources():
+def _beamline_sources(lbnf=False):
+    """Beamline GDML sources placed in the BNB world.
+
+    Always includes the BNB and NuMI beamlines. The DUNE LBNF beam (g4lbnf)
+    is appended only when ``lbnf=True`` -- it is the DUNE beamline (~700 KB /
+    911 volumes), off by default so SBN-only loads stay lean.
+    """
     T_numi = geo.transform("NuMI", "BNB")
     numi_origin_bnb = T_numi.apply([0.0, 0.0, 0.0])
     numi_rx, numi_ry, numi_rz = geo.gdml_rotation_angles(T_numi.R.T)
-    return [
+    sources = [
         {
             "file": "gdml/BooNE_50m.gdml",
             "prefix": "bnb",
@@ -78,6 +84,25 @@ def _beamline_sources():
             "sha256": "39670d52a6181352a8ae7c798387a9c58de950462c634e57da7d39fb23abe30a",
         },
     ]
+    if lbnf:
+        # DUNE LBNF beamline (g4lbnf export, OptEngDesignJul2020). Placed via
+        # the LBNF->BNB edge in sbn_geometry (MI-10/MI-60 FSCS survey bridged
+        # through NuMI; horizontal ~10-15 m; vertical y_up=8.369 m, MCZero at
+        # site grade = MiniBooNE room floor). Provenance: the LBNF/ README in
+        # SIREN-data.
+        T_lbnf = geo.transform("LBNF", "BNB")
+        lbnf_origin_bnb = T_lbnf.apply([0.0, 0.0, 0.0])
+        lbnf_rx, lbnf_ry, lbnf_rz = geo.gdml_rotation_angles(T_lbnf.R.T)
+        sources.append({
+            "file": "gdml/g4lbnf.gdml",
+            "prefix": "lbnf",
+            "position": tuple(lbnf_origin_bnb),
+            "rotation": (lbnf_rx, lbnf_ry, lbnf_rz),
+            "unwrap": False,
+            "url": f"{_DATA_BASE}/LBNF/g4lbnf.gdml",
+            "sha256": "f0e0f32cc3cf45fb1a783d84d470a5d2caa06b7ba667648482f8e4137d507cdc",
+        })
+    return sources
 
 _DETECTOR_SPECS = {
     "ICARUS": {
@@ -94,25 +119,59 @@ _DETECTOR_SPECS = {
         "url": f"{_DATA_BASE}/SBND/sbnd_v02_06.gdml",
         "sha256": "224a0efa55e66b1fb3b527937e4a899854c2bbab367db3659e55466c4e7f013a",
     },
+    # MiniBooNE: spherical mineral-oil tank (inner oil + veto shell + steel
+    # shell, in an air vault), generated locally by
+    # sbn_loader.ensure_miniboone_gdml (no remote URL). Placed at the G4BNB
+    # bsim::Location (0, 1.896, 541.34) m via the MiniBooNE_local frame.
+    # unwrap=True: the MB_AIR bounding world box is dropped (as_assembly) so
+    # the enclosure volumes sit directly in the site geology; keeping it as a
+    # real sector would carve an air box out of the surrounding glacial till.
+    "MiniBooNE": {
+        "file": "gdml/miniboone_tank.gdml",
+        "prefix": "miniboone",
+        "unwrap": True,
+        "url": None,
+        "sha256": "",
+    },
+    # DUNE near-detector hall (ND-LAr + TMS + SAND), material-aggregated from
+    # dunendggd @ TDR_Production_geometry_v_1.2.0 with DUNENDGGD_AGGREGATE=1
+    # (fine readout/straws/slabs collapsed to homogenized blocks; active LAr
+    # volTPCActive preserved). Placed via the DUNE_ND -> LBNF -> BNB edges in
+    # sbn_geometry (~555 m downstream of the LBNF target, on the beam axis).
+    # unwrap=True: place the hall+rock contents, not the dunendggd world box.
+    # Provenance: the DUNE_ND/ README in SIREN-data.
+    "DUNE_ND": {
+        "file": "gdml/nd_hall_with_lar_tms_sand.gdml",
+        "prefix": "dune_nd",
+        "unwrap": True,
+        "url": f"{_DATA_BASE}/DUNE_ND/nd_hall_with_lar_tms_sand.gdml",
+        "sha256": "b277cb887dba1dae1a3d6358eccdd7338e4e07c51b022b519eb70491d36ba243",
+    },
 }
 
 
 def fetch_data():
     """Download GDML files for all detectors (called by siren-download --fetch)."""
-    all_sources = list(_beamline_sources())
+    # MiniBooNE's tank GDML has no remote URL; generate it locally first so
+    # _ensure_gdml_files finds it present rather than failing to download.
+    sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
+    all_sources = list(_beamline_sources(lbnf=True))
     for spec in _DETECTOR_SPECS.values():
         if spec.get("file"):
             all_sources.append(spec)
     sbn_loader._ensure_gdml_files(_ABS_DIR, all_sources)
 
 
-def load_detector(detector=None, earth_model=False):
+def load_detector(detector=None, earth_model=False, lbnf=False):
     """Load an SBN detector model.
 
     Parameters
     ----------
     detector : str
-        Which detector to load ("ICARUS" or "SBND").
+        Which detector to load: "ICARUS", "SBND", "MiniBooNE", or "DUNE_ND"
+        (the aggregated DUNE near-detector hall, placed on the LBNF beam axis
+        ~555 m downstream of the LBNF target; pair with lbnf=True to also place
+        the LBNF beamline).
     earth_model : bool, optional
         If *False* (default), only load the GDML site-geology volume
         (beamlines, detector, local stratigraphy within ~500 m).
@@ -124,6 +183,11 @@ def load_detector(detector=None, earth_model=False):
         correction for the Midwest crust.  Use this for atmospheric
         neutrino studies or BSM searches where interactions can occur
         far from the detector.
+    lbnf : bool, optional
+        If *True*, also place the DUNE LBNF beamline (g4lbnf) in the
+        BNB world via the LBNF->BNB transform (MCZero at site grade,
+        ~263 m west of the BNB target).  Off by default: it is the DUNE
+        beam (~700 KB / 911 volumes), not part of an SBN-only model.
 
     Returns
     -------
@@ -141,6 +205,10 @@ def load_detector(detector=None, earth_model=False):
             f'Choose from: {", ".join(_DETECTOR_SPECS.keys())}')
 
     spec = _DETECTOR_SPECS[detector]
+
+    # MiniBooNE's placeholder tank GDML is generated locally (no download).
+    if detector == "MiniBooNE":
+        sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
 
     from siren.detector import DetectorModel, GeometryPosition
     from siren.math import Vector3D, Quaternion, Matrix3D
@@ -167,7 +235,7 @@ def load_detector(detector=None, earth_model=False):
         rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R.T)
         det_rotation = (rx, ry, rz)
 
-    sources = list(_beamline_sources())
+    sources = list(_beamline_sources(lbnf=lbnf))
     if spec["file"] is not None:
         sources.append({
             "file": spec["file"],
@@ -187,7 +255,7 @@ def load_detector(detector=None, earth_model=False):
 
     if earth_model:
         earth = _load_sibling("earth_model", "earth_model.py")
-        earth.add_earth_model(model)
+        earth.add_earth_model(model, sbn_loader._FNAL_SITE_GRADE_Y + geo.T_MiniBooNE_local[1])
 
     # DetectorOrigin is the point in BNB (geometry) coordinates that
     # corresponds to (0,0,0) in DetectorCoordinates. We place it at

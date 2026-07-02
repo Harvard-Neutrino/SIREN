@@ -143,6 +143,7 @@ T_ICARUS_IN_NUMI_M = np.array([4.503730, 80.153901, 795.112945])
 # NOT target-relative.
 SAND_CENTER_Z_BNB_M = 0.0
 
+T_MiniBooNE_local = np.array([0.0, 1.89614, 541.34])
 
 # ======================================================================
 # Build the frame graph
@@ -179,6 +180,11 @@ def _build_graph() -> FrameGraph:
         "MicroBooNE LArSoft World origin",
         "horizontal west", "up", "along BNB beam axis"))
 
+    g.add_frame(Frame("MiniBooNE_local",
+        "MiniBooNE detector local frame (axes = BNB axes; origin at tank center).",
+        "MiniBooNE spherical-tank center",
+        "horizontal west", "up", "along BNB beam axis"))
+
     # ICARUS LArSoft -> NuMI (from icaruscode GNuMIFlux.xml, confirmed by DocDB 22998)
     g.add_transform(Transform(
         "ICARUS_LArSoft", "NuMI", R_ICARUS_TO_NUMI, T_ICARUS_IN_NUMI_M,
@@ -199,6 +205,115 @@ def _build_graph() -> FrameGraph:
     g.add_transform(Transform.translation(
         "MicroBooNE_LArSoft", "BNB", [0.0, 0.0, 470.0],
         "G4BNB MicroBooNE Location (0, 0, 47000) cm"))
+
+    # MiniBooNE tank center -> BNB (G4BNB bsim::Location, refined survey).
+    # From G4BNB NuBeamOutput.cc:136:
+    #   bsim::Location(0., 189.614, 54134.0, "MiniBooNE")  [cm]
+    # i.e. on-axis (x = 0), +1.89614 m vertical, 541.34 m downstream.
+    # PRD 79 (2009) 072002 quotes the nominal 541 m baseline; this tuple
+    # is the beam-group's refined value (Z. Pavlovic).
+    g.add_transform(Transform.translation(
+        "MiniBooNE_local", "BNB", T_MiniBooNE_local,
+        "G4BNB MiniBooNE bsim::Location (0, 189.614, 54134) cm; NuBeamOutput.cc:136"))
+
+    # ==================================================================
+    # DUNE / LBNF beamline + near detectors
+    #
+    # Authoritative beam<->detector transforms from the DUNE GNuMIFlux
+    # configs -- the same kind of dk2nu/GENIE flux-driver artifact as the
+    # icaruscode GNuMIFlux.xml used for NuMI above. GNuMIFlux <beampos>
+    # "( user ) = ( beam )" gives one physical point in both frames;
+    # <beamdir> is the user->beam rotation (here a single rotation about x
+    # = the beam declination). So r_beam = Rx(theta) @ r_user + t.
+    #
+    # NOTE: these anchor the DUNE detectors to their *beams*. The 2x2
+    # (ProtoDUNE-ND) is in the NuMI beam (MINOS/MINERvA hall) -> reaches
+    # BNB via the existing NuMI edge. The full DUNE_ND is in the LBNF beam;
+    # since no single flux artifact crosses experiments, the LBNF->BNB site
+    # tie (LBNF vs BNB/NuMI target offset + azimuth) is instead derived below
+    # from the Fermilab MI-10/MI-60 survey bridged through NuMI.
+    # ==================================================================
+    def _Rx(theta):
+        c, s = math.cos(theta), math.sin(theta)
+        return np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+
+    # LBNF beam frame: MCZERO at the target / Horn 1, +z along the
+    # (horizontal-built) beam axis, +y up. Matches the g4lbnf Tunnel world.
+    g.add_frame(Frame("LBNF",
+        "LBNF beam frame (g4lbnf Tunnel world; MCZERO at target).",
+        "LBNF target / Horn 1 (MCZERO)",
+        "horizontal", "up", "along LBNF beam axis (downstream, built horizontal)"))
+
+    # DUNE ND geometry frame (edep-sim / dunendggd world); level hall, the
+    # beam enters dipping 101 mrad.
+    g.add_frame(Frame("DUNE_ND",
+        "DUNE near detector geometry frame (edep-sim / dunendggd world).",
+        "DUNE ND hall reference", "beam-left", "up", "downstream (level)"))
+
+    # DUNE_ND -> LBNF. GNuMIFlux DUNEND: beamdir Rx(-0.101); beampos
+    # user(0, 0.05387, 6.66) m = beam(0, 0, 562.1179) m. Places the ND on
+    # the beam axis ~555 m downstream (~0.73 m below); the target sits
+    # ~552.6 m upstream and ~56.7 m above the ND (562 * 0.101 = 56.8 m check).
+    _R_nd_lbnf = _Rx(-0.101)
+    _t_nd_lbnf = (np.array([0.0, 0.0, 562.1179])
+                  - _R_nd_lbnf @ np.array([0.0, 0.05387, 6.66]))
+    g.add_transform(Transform(
+        "DUNE_ND", "LBNF", _R_nd_lbnf, _t_nd_lbnf,
+        "DUNE/ND_Production toolbox/generator/GNuMIFlux.xml param_set DUNEND "
+        "(beamdir rotation x -0.101 rad; beampos (0,0.05387,6.66)=(0,0,562.1179) m)"))
+
+    # 2x2 ProtoDUNE-ND: in the NuMI beam in the MINOS/MINERvA near hall
+    # (NOT LBNF). Ties to NuMI -> BNB (existing), so the 2x2 prototype is
+    # placeable in the BNB world. GNuMIFlux ProtoDUNE-ND: beamdir
+    # Rx(-0.0582977560) (= NuMI 58.3 mrad declination); beampos
+    # (0,0,0)=(0,0,1036.48837) m (2x2 origin on the NuMI axis, 1036.49 m
+    # downstream of the NuMI target; matches g4lbne zdetNear[1]=1036.49).
+    g.add_frame(Frame("ProtoDUNE_ND_2x2",
+        "DUNE 2x2 ArgonCube prototype frame (MINOS/MINERvA near hall, NuMI beam).",
+        "2x2 detector center", "beam-left", "up", "downstream (level)"))
+    g.add_transform(Transform(
+        "ProtoDUNE_ND_2x2", "NuMI", _Rx(-0.0582977560),
+        np.array([0.0, 0.0, 1036.48837]),
+        "DUNE/2x2_sim run-genie/flux/GNuMIFlux.xml param_set ProtoDUNE-ND "
+        "(beamdir rotation x -0.0582977560 rad; beampos (0,0,0)=(0,0,1036.48837) m)"))
+
+    # LBNF -> BNB: closes the DUNE system into the SBN/BNB world.
+    #
+    # Rotation: the LBNF beam frame (g4lbnf Tunnel world -- +z = beam axis,
+    # built horizontal; +y up; +x = up x beam) pointed along the real LBNF
+    # beam: true azimuth 287.79 deg (toward SURF) and 101 mrad downward.
+    # Columns of R are the LBNF axes expressed in BNB (x=west, y=up, z=north).
+    #
+    # Translation: the LBNF target (MCZero = g4lbnf origin) in BNB. Solved from
+    # the Fermilab-survey MI-10 / MI-60 straight-section centers (FSCS, ft):
+    #   MI-10 = (E 99673.5943, N 97303.9630),  MI-60 = (E 101513.8611, N 97129.4878).
+    # Projected to ENU (FSCS Y-axis geodetic azimuth alpha = 38 16 48.0143") and
+    # bridged into BNB through NuMI: MI-60 + 350 m lands on the graph's NuMI
+    # point; MI-10 + 328 m -> the LBNF target. Validated -- MI-10 tangent + 7.2
+    # deg extraction = 288.1 deg ~ 287.79; the survey->BNB chain reproduces the
+    # NuMI matrix to ~1 deg. Horizontal good to ~10-15 m. VERTICAL: the LBNF
+    # MCZero is at grade. The SBN model takes the Fermilab site grade (minus
+    # berm/overburden) to be the MiniBooNE computer-room floor, already encoded
+    # in sbn_loader: _FNAL_SITE_GRADE_Y (6.4733 m, tank-center frame) + the
+    # tank-center->BNB shift _MB_Y_BNB (1.89614 m) = 8.369 m in the BNB frame
+    # (so the BNB beam axis is ~8.4 m below grade). Hence y_up = 8.369 m.
+    # (Uniform-grade approximation; the actual LBNF-site grade is ~757.5 ft
+    # DUSAF = MI-10 + ~42 ft per CDR Vol3 p107, but we use the model grade.)
+    # Hardcoded -- keep in sync with sbn_loader._FNAL_SITE_GRADE_Y.
+    _lb_b, _lb_d = math.radians(287.79), 0.101
+    _cb, _sb = math.cos(_lb_b), math.sin(_lb_b)
+    _cd, _sd = math.cos(_lb_d), math.sin(_lb_d)
+    _z_lbnf = np.array([-_cd * _sb, -_sd, _cd * _cb])   # LBNF +z (dipping beam) in BNB
+    _x_lbnf = np.array([_cb, 0.0, _sb])                 # LBNF +x (horiz perp = up x beam)
+    _y_lbnf = np.cross(_z_lbnf, _x_lbnf)                # LBNF +y (tilted up)
+    g.add_transform(Transform(
+        "LBNF", "BNB",
+        np.column_stack([_x_lbnf, _y_lbnf, _z_lbnf]),
+        np.array([261.5, 8.369, 35.8]),                 # (x_west, y_up=site grade, z_north) m
+        "LBNF beam (az 287.79 deg, 101 mrad down) placed in BNB via the Fermilab "
+        "MI-10/MI-60 FSCS survey centers bridged through NuMI; horizontal ~10-15 m, "
+        "y_up=8.369 m: LBNF MCZero at site grade (MiniBooNE room floor; "
+        "sbn_loader _FNAL_SITE_GRADE_Y + _MB_Y_BNB)"))
 
     return g
 
@@ -272,11 +387,29 @@ def _build_detectors() -> dict[str, Detector]:
         np.array([-1.281750, -1.165, -5.184]),
         np.array([+1.281750, +1.165, +5.184]))
 
+    # MiniBooNE: spherical mineral-oil tank, inner radius 6.1 m. The native
+    # frame is MiniBooNE_local (origin at the tank center); the tank position
+    # in the BNB frame is carried by the MiniBooNE_local -> BNB edge above, so
+    # center_native is the origin and the active volume is the tank bounding
+    # box. This matches how the LArSoft detectors are handled (GDML in the
+    # native frame, placed via the frame transform).
+    _mb_tank_r = 6.1
     detectors["MiniBooNE"] = Detector(
-        "MiniBooNE", "BNB",
-        np.array([0.0, 1.89614, 541.34]),
-        np.array([0.0, 1.89614, 541.34]) - 6.1,
-        np.array([0.0, 1.89614, 541.34]) + 6.1)
+        "MiniBooNE", "MiniBooNE_local",
+        np.array([0.0, 0.0, 0.0]),
+        np.array([-_mb_tank_r, -_mb_tank_r, -_mb_tank_r]),
+        np.array([+_mb_tank_r, +_mb_tank_r, +_mb_tank_r]))
+
+    # DUNE near-detector hall. Native frame == the dunendggd/edep-sim hall
+    # "world" frame, which is exactly the DUNE_ND frame already in the graph, so
+    # placement in BNB (DUNE_ND -> LBNF -> BNB) is exact. center_native is the
+    # hall-world origin and the active box is a nominal ND-LAr extent, not the
+    # exact per-detector active-LAr center/extent.
+    detectors["DUNE_ND"] = Detector(
+        "DUNE_ND", "DUNE_ND",
+        np.array([0.0, 0.0, 0.0]),
+        np.array([-3.5, -1.7, -2.5]),
+        np.array([+3.5, +1.7, +2.5]))
 
     return detectors
 
