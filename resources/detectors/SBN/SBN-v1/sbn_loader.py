@@ -136,8 +136,9 @@ def build_composite(
 
     source_physvols = "\n".join(physvols)
 
-    # GDML <box> x/y/z are half-widths
-    # So this gives a full 1600 m x 400 m x 1800 m box
+    # GDML <box> x/y/z are FULL widths (GDMLSolidParser ParseBox). The
+    # placement math below works in half-extents, so the box attributes are
+    # written as 2x these values. Site volume: 1600 m x 400 m x 1800 m.
     box_half_x = 800.0
     box_half_y = 200.0
     box_half_z = 900.0
@@ -166,9 +167,9 @@ def build_composite(
 {materials_xml}
   </materials>
   <solids>
-    <box name="sol_site_volume" lunit="m" x="{box_half_x}" y="{box_half_y}" z="{box_half_z}"/>
-    <box name="sol_atmosphere" lunit="m" x="{child_half_x}" y="{atmo_half_height}" z="{child_half_z}"/>
-    <box name="sol_dolomite_bedrock" lunit="m" x="{child_half_x}" y="{bedrock_half_height}" z="{child_half_z}"/>
+    <box name="sol_site_volume" lunit="m" x="{2.0 * box_half_x}" y="{2.0 * box_half_y}" z="{2.0 * box_half_z}"/>
+    <box name="sol_atmosphere" lunit="m" x="{2.0 * child_half_x}" y="{2.0 * atmo_half_height}" z="{2.0 * child_half_z}"/>
+    <box name="sol_dolomite_bedrock" lunit="m" x="{2.0 * child_half_x}" y="{2.0 * bedrock_half_height}" z="{2.0 * child_half_z}"/>
   </solids>
   <structure>
     <volume name="vol_atmosphere">

@@ -5,7 +5,9 @@ Provides composable frame-to-frame transforms for the Fermilab SBN program
 detectors (ICARUS, SBND, MicroBooNE) and beamlines (BNB, NuMI).
 
 World coordinate system (BNB frame):
-  Origin : BNB beryllium target at MI-12
+  Origin : G4BNB SAND world volume center (the Be target sits ~39 cm
+           downstream, at z = +0.3905 m; bsim::Location positions and
+           dk2nu flux rays use this same SAND-center reference)
   x      : horizontal west
   y      : up
   z      : along BNB beam axis (approximately north)
@@ -133,11 +135,13 @@ R_ICARUS_TO_NUMI = np.array([
 ])
 T_ICARUS_IN_NUMI_M = np.array([4.503730, 80.153901, 795.112945])
 
-# The BNB frame origin coincides with the SAND world volume center
-# in the BooNE GDML. G4BNB bsim::Location detector positions and
-# dk2nu flux ray origins are all expressed relative to this point.
-# The BNB target sits ~39 cm downstream (z = +0.3905 m in SAND).
-BNB_TARGET_Z_SAND_M = 0.0
+# z position (BNB frame) at which the BooNE GDML SAND world center is placed.
+# The BNB frame origin is DEFINED as the SAND world center -- the reference
+# that G4BNB bsim::Location detector positions and dk2nu flux ray origins
+# use -- so no shift is applied. The physical Be target sits ~39 cm
+# downstream of this origin (z = +0.3905 m); positions in this frame are
+# NOT target-relative.
+SAND_CENTER_Z_BNB_M = 0.0
 
 
 # ======================================================================

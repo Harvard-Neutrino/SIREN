@@ -62,7 +62,7 @@ def _beamline_sources():
         {
             "file": "gdml/BooNE_50m.gdml",
             "prefix": "bnb",
-            "position": (0.0, 0.0, -geo.BNB_TARGET_Z_SAND_M),
+            "position": (0.0, 0.0, geo.SAND_CENTER_Z_BNB_M),
             "rotation": None,
             "unwrap": False,
             "url": f"{_DATA_BASE}/BNB/BooNE_50m.gdml",
