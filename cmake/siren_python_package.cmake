@@ -67,16 +67,20 @@ add_custom_command(
     VERBATIM
 )
 
-# Copy python files into the staging area. Depend on every file under
-# python/ (globbed) so that editing any module -- not just a hard-coded few
-# -- re-triggers the copy. (Adding a brand-new file still needs a reconfigure
-# to re-evaluate the glob, as with the resources glob below.)
-file(GLOB_RECURSE PYTHON_FILES ${CMAKE_SOURCE_DIR}/python/*)
+# Copy python files into the staging area.
+#
+# Depend on EVERY file under python/, not a hardcoded subset: the copy command
+# stages the whole directory, so if the dependency list omits a file, editing
+# that file does not restage and `cmake --install` ships a stale copy. The glob
+# uses CONFIGURE_DEPENDS so that adding or removing a python file re-runs the
+# glob at build time (no manual reconfigure needed).
+file(GLOB_RECURSE PYTHON_PACKAGE_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS
+    ${CMAKE_SOURCE_DIR}/python/*)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
     DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-        ${PYTHON_FILES}
+        ${PYTHON_PACKAGE_FILES}
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/python
         ${PACKAGE_STAGING_DIR}/${PROJECT_NAME}
@@ -85,8 +89,10 @@ add_custom_command(
     VERBATIM
 )
 
-# Copy resources into the staging area
-file(GLOB_RECURSE RESOURCES_FILES ${CMAKE_SOURCE_DIR}/resources/*)
+# Copy resources into the staging area. CONFIGURE_DEPENDS re-runs the glob at
+# build time so added/removed resource files are picked up (and a stale glob
+# referencing a deleted file cannot break the build after a branch switch).
+file(GLOB_RECURSE RESOURCES_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/resources/*)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_resources
     DEPENDS
