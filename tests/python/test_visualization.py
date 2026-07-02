@@ -29,6 +29,19 @@ def test_import_does_not_require_optional_deps():
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
+def test_solid_xml_box_emits_full_widths():
+    """A Box exports its full widths (GDML <box> x == Box.X)."""
+    from siren import visualization
+    from siren.geometry import Box
+
+    box = Box(2.0, 4.0, 6.0)
+    el = ET.fromstring(visualization._solid_xml(box, "TESTBOX"))
+    assert el.tag == "box"
+    assert float(el.get("x")) == pytest.approx(2.0)
+    assert float(el.get("y")) == pytest.approx(4.0)
+    assert float(el.get("z")) == pytest.approx(6.0)
+
+
 @pytest.fixture(scope="module")
 def ccm_model(detectors_dir):
     from siren.detector import DetectorModel

@@ -188,8 +188,9 @@ def _solid_xml(geo, name):
     """Return GDML <solid> XML for *geo*, or None to fall back to a bbox."""
     cls = type(geo).__name__
     if cls == "Box":
+        # Box.X/Y/Z and GDML <box> x/y/z are both full widths.
         return ('<box name="%s" lunit="m" x="%s" y="%s" z="%s"/>'
-                % (name, _fmt(geo.X / 2), _fmt(geo.Y / 2), _fmt(geo.Z / 2)))
+                % (name, _fmt(geo.X), _fmt(geo.Y), _fmt(geo.Z)))
     if cls == "Sphere":
         return ('<sphere name="%s" lunit="m" aunit="rad" rmin="%s" rmax="%s" '
                 'startphi="%s" deltaphi="%s" starttheta="%s" deltatheta="%s"/>'
