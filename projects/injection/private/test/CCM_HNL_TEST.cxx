@@ -258,8 +258,8 @@ TEST(Injector, Generation)
 
     // Primary position distribution: treat targets as point sources, generate from center
     double max_dist = 25; // m
-    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_interactions->TargetTypes());
-    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_interactions->TargetTypes());
+    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist);
+    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist);
     primary_injection_process_upper_injector->AddPrimaryInjectionDistribution(upper_pos_dist);
     primary_injection_process_lower_injector->AddPrimaryInjectionDistribution(lower_pos_dist);
     //primary_physical_process_upper_injector->AddPhysicalDistribution(upper_pos_dist);
