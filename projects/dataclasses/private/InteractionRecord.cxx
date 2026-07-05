@@ -663,25 +663,25 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
         record.primary_momentum[1] = GetThreeMomentum().at(0);
         record.primary_momentum[2] = GetThreeMomentum().at(1);
         record.primary_momentum[3] = GetThreeMomentum().at(2);
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_initial_position = GetInitialPosition();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.interaction_vertex = GetInteractionVertex();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_mass = GetMass();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_helicity = GetHelicity();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_initial_time = GetInitialTime();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.interaction_time = GetInteractionTime();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
 }
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {

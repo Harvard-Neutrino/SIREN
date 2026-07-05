@@ -960,7 +960,7 @@ def get_parent_indices(tree):
         if parent is None:
             parent_indices.append(-1)
         else:
-            parent_indices.append(index_of.get(id(parent), -1))
+            parent_indices.append(index_of[id(parent)])
     return parent_indices
 
 def SaveEvents(events,
