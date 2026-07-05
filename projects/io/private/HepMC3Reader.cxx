@@ -41,10 +41,11 @@ double double_attr(Ptr const & obj, std::string const & name, double fallback = 
     return a ? a->value() : fallback;
 }
 
-// The primary is the incoming particle that is not the status-20 target.
+// The primary is the incoming particle that is not a target. Targets carry
+// status 20 (primary interaction) or 22 (deeper cascade interaction).
 HepMC3::GenParticlePtr find_primary(HepMC3::GenVertexPtr const & vertex) {
     for(auto const & pin : vertex->particles_in()) {
-        if(pin->status() != 20) return pin;
+        if(pin->status() != 20 && pin->status() != 22) return pin;
     }
     return nullptr;
 }
@@ -70,10 +71,11 @@ siren::dataclasses::InteractionRecord VertexToRecord(HepMC3::GenVertexPtr const 
         rec.primary_initial_time = double_attr(primary, "siren.primary_initial_time") * C::second;
     }
 
-    // Target (status-20 incoming), if present; its absence marks a decay vertex.
+    // Target (status-20 primary or status-22 deeper-interaction incoming), if
+    // present; its absence marks a decay vertex.
     HepMC3::GenParticlePtr target;
     for(auto const & pin : vertex->particles_in()) {
-        if(pin->status() == 20) { target = pin; break; }
+        if(pin->status() == 20 || pin->status() == 22) { target = pin; break; }
     }
     if(target) {
         rec.signature.target_type = pdg_to_type(target->pid());

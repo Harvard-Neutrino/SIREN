@@ -229,6 +229,41 @@ TEST(HepMC3RoundTrip, DeepTreeTopology) {
     EXPECT_EQ(lt.tree[3]->record.signature.secondary_types.size(), 1u);
 }
 
+// A non-root interaction that has a real target must round-trip through the
+// status-22 (non-primary target) encoding, while the root keeps the single
+// status-20 target. Guards the writer 20->22 split and the matching reader
+// change that treats 20 and 22 as targets.
+TEST(HepMC3RoundTrip, NonRootTargetSurvives) {
+    using PT = ParticleType;
+    // root: NuMu + EPlus -> NuMu(1:1)   [root target -> status 20]
+    InteractionRecord root = MkRec(PT::NuMu, PT::EPlus, ParticleID(),
+        {PT::NuMu}, {ParticleID(1, 1)});
+    // child: NuMu(1:1) + HNucleus -> EMinus(1:2)   [non-root target -> status 22]
+    InteractionRecord child = MkRec(PT::NuMu, PT::HNucleus, ParticleID(1, 1),
+        {PT::EMinus}, {ParticleID(1, 2)});
+
+    InteractionTree tree;
+    auto d0 = tree.add_entry(root);
+    tree.add_entry(child, d0);
+    tree.header.event_number = 5;
+
+    std::string const path = std::string(::testing::TempDir()) + "siren_hepmc3_nonroot_target.hepmc3";
+    std::vector<std::shared_ptr<InteractionTree>> trees = {std::make_shared<InteractionTree>(tree)};
+    siren::io::SaveInteractionTreesAsHepMC3(trees, path);
+    std::vector<std::shared_ptr<InteractionTree>> loaded =
+        siren::io::LoadInteractionTreesFromHepMC3(path);
+    std::remove(path.c_str());
+
+    ASSERT_EQ(loaded.size(), 1u);
+    InteractionTree const & lt = *loaded[0];
+    ASSERT_EQ(lt.tree.size(), 2u);
+    EXPECT_TRUE(lt.tree[0]->is_root());
+    EXPECT_EQ(lt.tree[0]->record.signature.target_type, PT::EPlus);      // root target survives
+    EXPECT_FALSE(lt.tree[1]->is_root());
+    EXPECT_EQ(lt.tree[1]->parent_index, 0u);
+    EXPECT_EQ(lt.tree[1]->record.signature.target_type, PT::HNucleus);   // non-root target survives
+}
+
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

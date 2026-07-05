@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <utility>
 #include <cstdint>
 
 namespace siren { namespace dataclasses { struct InteractionTree; } }
@@ -23,6 +24,33 @@ public:
         std::string siren_version;                          // ToolInfo version (may be empty)
         std::vector<std::string> weight_names = {"CV"};     // GenRunInfo weight names
         std::map<std::string, std::string> provenance;      // extra GenRunInfo siren.* attributes
+        // Extra non-PDG particle codes to declare (NuHepMC G.R.11), merged with
+        // SIREN's built-in BSM set: code -> {name, description}.
+        std::map<int, std::pair<std::string, std::string>> additional_particle_numbers;
+
+        // Run-level generation counts, stored as metadata to normalize
+        // the flux-averaged cross section. A negative value means "not provided".
+        long long attempted_events = -1;   // total sampled including rejected
+        long long accepted_events  = -1;   // events saved (auto-filled from tree count if < 0)
+
+        // Flux-averaged total cross section (NuHepMC E.C.4 / G.R.6). SIREN's per-event
+        // weight is a *rate* weight, so sum(weights)/attempted is only a true per-atom
+        // cross section when the physical flux is unit-normalized and the target
+        // column-density normalization is divided out. The siren.fatx.* diagnostics are
+        // always written; the reserved NuHepMC.FluxAveragedTotalCrossSection key is only
+        // emitted when fatx_per_atom is set (opt-in that the value is a per-atom sigma).
+        bool fatx_per_atom = false;
+        bool fatx_partition_by_primary = false;  // emit per-primary siren.fatx.<pdg>
+        std::string cross_section_unit = "pb";   // NuHepMC.Units.CrossSection.Unit
+        std::string target_scale = "PerAtom";    // NuHepMC.Units.CrossSection.TargetScale
+        int cv_weight_index = 0;                 // weight slot used as the CV rate weight
+
+        // Internal: process registry + FATX accumulators populated by the pre-scan in
+        // SaveInteractionTreesAsHepMC3. Callers normally leave these empty.
+        std::map<std::string, int> process_ids;      // signature key -> process id
+        std::map<int, std::string> process_names;    // process id -> human name
+        double fatx_weight_sum = 0.0;                // sum of CV weights over accepted
+        std::map<int, double> fatx_weight_sum_by_primary;  // per primary PDG
     };
 
     HepMC3Writer(std::string const & filename, Options const & options);
@@ -33,7 +61,7 @@ public:
     HepMC3Writer & operator=(HepMC3Writer const &) = delete;
 
     // Append one tree as a GenEvent with the given event number.
-    void Write(siren::dataclasses::InteractionTree const & tree, int event_number);
+    void Write(siren::dataclasses::InteractionTree const & tree, std::uint64_t event_number);
     void Close();
 
 private:

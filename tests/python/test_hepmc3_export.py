@@ -59,7 +59,8 @@ def test_io_save_hepmc3(dc, tmp_path):
     out = str(tmp_path / "events.hepmc3")
     _run_or_skip(lambda: sio.SaveInteractionTreesAsHepMC3([tree], out))
 
-    text = open(out).read()
+    with open(out) as f:
+        text = f.read()
     assert "HepMC::Version" in text          # valid HepMC3 Ascii header
     assert "U GEV CM" in text                # units line
     assert text.count("\nE ") >= 1 or text.startswith("E ") or "\nE 7 " in text

@@ -17,7 +17,22 @@ PYBIND11_MODULE(hepmc3, m) {
         .def(py::init<>())
         .def_readwrite("siren_version", &HepMC3Writer::Options::siren_version)
         .def_readwrite("weight_names", &HepMC3Writer::Options::weight_names)
-        .def_readwrite("provenance", &HepMC3Writer::Options::provenance);
+        .def_readwrite("provenance", &HepMC3Writer::Options::provenance)
+        // Extra non-PDG particle codes to declare (NuHepMC G.R.11), merged with
+        // SIREN's built-in BSM set. Python type: Dict[int, Tuple[str, str]] mapping
+        // code -> (name, description). A code equal to a built-in overrides it.
+        .def_readwrite("additional_particle_numbers",
+                       &HepMC3Writer::Options::additional_particle_numbers)
+        // Run-level generation counts (metadata + FATX normalization); < 0 = unset.
+        .def_readwrite("attempted_events", &HepMC3Writer::Options::attempted_events)
+        .def_readwrite("accepted_events", &HepMC3Writer::Options::accepted_events)
+        // Flux-averaged cross section controls (NuHepMC E.C.4 / G.R.6).
+        .def_readwrite("fatx_per_atom", &HepMC3Writer::Options::fatx_per_atom)
+        .def_readwrite("fatx_partition_by_primary",
+                       &HepMC3Writer::Options::fatx_partition_by_primary)
+        .def_readwrite("cross_section_unit", &HepMC3Writer::Options::cross_section_unit)
+        .def_readwrite("target_scale", &HepMC3Writer::Options::target_scale)
+        .def_readwrite("cv_weight_index", &HepMC3Writer::Options::cv_weight_index);
 
     py::class_<HepMC3Writer>(m, "HepMC3Writer")
         .def(py::init<std::string const &, HepMC3Writer::Options const &>(),

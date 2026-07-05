@@ -600,7 +600,13 @@ class SIREN_Controller:
             _dataclasses.SaveInteractionTrees(self.events, filename)
         if hepmc3:
             from . import hepmc3 as _hepmc3
-            _hepmc3.SaveInteractionTreesAsHepMC3(self.events, filename + ".hepmc3")
+            opts = _hepmc3.HepMC3WriterOptions()
+            # Store the generation counts (from the injector) as run metadata; used
+            # to normalize the flux-averaged cross section. Absent after LoadEvents.
+            if getattr(self, "injector", None) is not None:
+                opts.attempted_events = int(self.injector.InjectionAttempts())
+                opts.accepted_events = int(self.injector.InjectedEvents())
+            _hepmc3.SaveInteractionTreesAsHepMC3(self.events, filename + ".hepmc3", opts)
         # A dictionary containing each dataset we'd like to save
         datasets = {
             "event_weight":[], # weight of entire event
