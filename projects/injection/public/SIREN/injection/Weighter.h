@@ -85,10 +85,6 @@ private:
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
     std::vector<std::shared_ptr<Injector>> const & GetInjectors() const;
-    // Accessors for the PHYSICAL side of the weighting (the detector model and
-    // physical processes). Unlike the injection side, which is deliberately
-    // different for each injector, the physical config must be shared across a
-    // set of pooled weighters; these let callers verify that from Python.
     std::shared_ptr<siren::detector::DetectorModel> GetDetectorModel() const;
     std::shared_ptr<siren::injection::PhysicalProcess> GetPrimaryPhysicalProcess() const;
     std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> const & GetSecondaryPhysicalProcesses() const;

@@ -1,10 +1,3 @@
-// Pins the post-selection vertex-time hooks Decay::SampleDecayTime and
-// CrossSection::SampleInteractionTime: the base hooks are the identity, and an
-// override applied through SetInteractionTime shifts record.interaction_time
-// and back-syncs the daughter production times. The wiring here mirrors
-// Injector::SampleCrossSection (SampleFinalState -> hook -> SetInteractionTime
-// if it differs -> Finalize).
-
 #include <cmath>
 #include <memory>
 #include <string>
