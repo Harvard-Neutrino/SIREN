@@ -498,17 +498,17 @@ class SIREN_Controller:
                     )
 
     # set the stopping condition of the injector with a python function
-    # must accept two arguments, assumes first is datum and the second is the index of the secondary particle
+    # must accept three arguments: the tree, the parent datum, and the index of the secondary particle
     def SetInjectorStoppingCondition(self, stopping_condition):
         self.injector.SetStoppingCondition(stopping_condition)
 
     # Initialize the injector, either from an existing .siren_injector file or from controller injection objects
     def InitializeInjector(self, filenames=None):
-        if type(filenames) == str:
-            if os.path.isfile(filenames):
-                filenames = [filenames]
+        # A single filename is one injector; wrap it so the loop below does not
+        # iterate the string character by character when the file is missing.
+        if isinstance(filenames, str):
+            filenames = [filenames]
         self.injectors=[]
-        filenames = None
         if filenames is None:
             assert(self.primary_injection_process.primary_type is not None)
             # Use controller injection objects
@@ -568,7 +568,15 @@ class SIREN_Controller:
         if N is None:
             N = self.events_to_inject
         count = 0
-        self.gen_times,self.global_times = [],[]
+        # self.events accumulates across calls (appended to, never reset), so
+        # gen_times/global_times must accumulate the same way: resetting them
+        # here would desync their length from self.events after a prior
+        # LoadEvents or GenerateEvents call, and SaveEvents indexes both lists
+        # by the same event index.
+        if not hasattr(self, "gen_times"):
+            self.gen_times = []
+        if not hasattr(self, "global_times"):
+            self.global_times = []
         prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
             if verbose: print("Injecting Event %d/%d  " % (count, N), end="\r")
@@ -586,15 +594,18 @@ class SIREN_Controller:
     # Load events from the custom SIREN event format
     def LoadEvents(self, filename):
         self.events = _dataclasses.LoadInteractionTrees(filename)
-        self.gen_times = np.zeros_like(self.events)
-        self.global_times = np.zeros_like(self.events)
+        # Plain lists (not np.zeros_like, which yields an ndarray with no
+        # .append) so a subsequent GenerateEvents call can append in sync with
+        # self.events instead of crashing or desyncing lengths.
+        self.gen_times = [0.0] * len(self.events)
+        self.global_times = [0.0] * len(self.events)
 
     # Load events from a HepMC3 file written by SIREN
     def LoadEventsFromHepMC3(self, filename, strict=True):
         from . import hepmc3 as _hepmc3
         self.events = _hepmc3.LoadInteractionTreesFromHepMC3(filename, strict)
-        self.gen_times = np.zeros_like(self.events)
-        self.global_times = np.zeros_like(self.events)
+        self.gen_times = [0.0] * len(self.events)
+        self.global_times = [0.0] * len(self.events)
 
     # Save events to hdf5, parquet, and/or custom SIREN filetypes
     # if the weighter exists, calculate the event weight too
@@ -745,9 +756,11 @@ class SIREN_Controller:
         # <filename>.siren_weighter alongside the event file). These are the
         # pybind _Injector/_Weighter objects, so use their C++ serialization
         # methods (SaveInjector writes the literal path; SaveWeighter appends
-        # the .siren_weighter suffix). The weighter is optional.
-        self.injector.SaveInjector(filename + ".siren_injector")
-        if hasattr(self, "weighter"):
+        # the .siren_weighter suffix). Both are optional: a load-then-save flow
+        # (LoadEvents / LoadEventsFromHepMC3 without Initialize) has neither.
+        if getattr(self, "injector", None) is not None:
+            self.injector.SaveInjector(filename + ".siren_injector")
+        if getattr(self, "weighter", None) is not None:
             self.weighter.SaveWeighter(filename)
 
         # save events
