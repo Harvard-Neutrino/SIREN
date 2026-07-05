@@ -126,6 +126,20 @@ std::shared_ptr<HepMC3::DoubleAttribute> D(double v) {
     return std::make_shared<HepMC3::DoubleAttribute>(v);
 }
 
+// Write a set ParticleID as two SIREN-namespaced attributes. major_id is
+// uint64 (ULongAttribute; unsigned long is 64-bit on SIREN's LP64 targets, as
+// with siren.event_number) and minor_id is int32 (IntAttribute). An unset id
+// writes nothing, so the reader treats an absent siren.id.* as "no stored id"
+// and only then falls back to generating one for topology.
+void WriteParticleID(HepMC3::GenParticlePtr const & particle,
+                     siren::dataclasses::ParticleID const & id) {
+    if(!id.IsSet()) return;
+    particle->add_attribute("siren.id.major",
+        std::make_shared<HepMC3::ULongAttribute>(static_cast<unsigned long>(id.GetMajorID())));
+    particle->add_attribute("siren.id.minor",
+        std::make_shared<HepMC3::IntAttribute>(id.GetMinorID()));
+}
+
 // Declare a NuHepMC ID registry on the run info: a VectorIntAttribute id-list
 // under list_key, plus a Name and Description StringAttribute per id under
 // info_stub + "[<id>]". The list key is plural (...IDs); the per-id namespace is
@@ -530,9 +544,10 @@ struct HepMC3Writer::Impl {
             evt.add_vertex(vertex);
 
             if(primary_is_new) {
-                // Helicity for a reused (non-root) primary was already written on
-                // it as the parent's outgoing secondary.
+                // Helicity and ParticleID for a reused (non-root) primary were
+                // already written on it as the parent's outgoing secondary.
                 primary->add_attribute("siren.helicity", D(rec.primary_helicity));
+                WriteParticleID(primary, rec.primary_id);
             }
             // primary_initial_position/time are per-record quantities -- a
             // daughter's initial position is its parent's interaction vertex, not
@@ -549,7 +564,10 @@ struct HepMC3Writer::Impl {
                 primary->add_attribute("siren.primary_initial_time",
                     D(SecondsFromInternal(rec.primary_initial_time)));
             }
-            if(target) target->add_attribute("siren.helicity", D(rec.target_helicity));
+            if(target) {
+                target->add_attribute("siren.helicity", D(rec.target_helicity));
+                WriteParticleID(target, rec.target_id);
+            }
             for(auto const & item : outgoing) {
                 std::size_t const j = item.second;
                 // siren.helicity is unconditional on every particle (the reader's
@@ -561,15 +579,17 @@ struct HepMC3Writer::Impl {
                 item.first->add_attribute("siren.helicity", D(helicity));
                 if(j < rec.secondary_times.size())
                     item.first->add_attribute("siren.time", D(SecondsFromInternal(rec.secondary_times[j])));
+                if(j < rec.secondary_ids.size())
+                    WriteParticleID(item.first, rec.secondary_ids[j]);
             }
-            // siren.param.* namespace contract (round-trips with HepMC3Reader):
+            // siren.param.* namespace contract:
             // each interaction_parameters entry {key -> double} becomes exactly one
             // scalar DoubleAttribute on the vertex named "siren.param." + key, carrying
             // the raw internal value (no unit conversion). The reader rebuilds the map
             // by stripping the "siren.param." prefix. Keys are generator-defined flat
             // ASCII with no embedded dot (e.g. energy, bjorken_x, bjorken_y). This map
             // is reweighting-critical: the Weighter consumes it opaquely via
-            // FinalStateProbability, so every key must survive the round trip.
+            // FinalStateProbability, so every key must survive.
             for(auto const & kv : rec.interaction_parameters) {
                 vertex->add_attribute("siren.param." + kv.first, D(kv.second));
             }

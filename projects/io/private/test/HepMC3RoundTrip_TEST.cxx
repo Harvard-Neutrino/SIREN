@@ -76,7 +76,8 @@ void ExpectVecClose(std::array<double, 3> const & a, std::array<double, 3> const
     for(int i = 0; i < 3; ++i) EXPECT_NEAR(a[i], b[i], tol) << "component " << i;
 }
 
-// Compare the reweighting-critical fields (ids are intentionally not stored).
+// Compare the reweighting-critical fields (ParticleIDs are checked in the
+// dedicated ParticleIDsRoundTrip test).
 void ExpectRecordClose(InteractionRecord const & orig, InteractionRecord const & got) {
     double const tol = 1e-6;
     EXPECT_EQ(orig.signature.primary_type, got.signature.primary_type);
@@ -284,6 +285,77 @@ TEST(HepMC3RoundTrip, WeightsStateProvenanceRestored) {
     auto it = loaded[0]->header.provenance.find("siren.weights_state");
     ASSERT_NE(it, loaded[0]->header.provenance.end());
     EXPECT_EQ(it->second, "computed");
+}
+
+// Set ParticleIDs survive the round trip: the writer emits siren.id.major/minor
+// for each set id and the reader restores them, including the shared-particle
+// invariant that a daughter's primary id equals its parent's outgoing-secondary id.
+TEST(HepMC3RoundTrip, ParticleIDsRoundTrip) {
+    using PT = ParticleType;
+
+    InteractionRecord root;
+    root.signature.primary_type = PT::NuMu;
+    root.signature.target_type = PT::EPlus;
+    root.signature.secondary_types = {PT::NuMu, PT::EMinus};
+    root.primary_id = ParticleID(10, 1);
+    root.target_id = ParticleID(10, 2);
+    root.primary_momentum = {10.0, 1.0, 2.0, 9.5};
+    root.interaction_vertex = {1.0, 2.0, 3.0};
+    root.interaction_time = 5.0;
+    root.secondary_ids = {ParticleID(10, 3), ParticleID(10, 4)};
+    root.secondary_momenta = {{6.0, 0.5, 1.0, 5.8}, {4.0, 0.5, 1.0, 3.7}};
+    root.secondary_masses = {0.0, 0.0};
+    root.secondary_helicities = {0.0, 0.0};
+    root.secondary_times = {5.0, 5.0};
+
+    InteractionRecord child;
+    child.signature.primary_type = PT::NuMu;
+    child.signature.target_type = PT::Decay;
+    child.signature.secondary_types = {PT::EMinus, PT::NuMu};
+    child.primary_id = ParticleID(10, 3);   // == root secondary 0 (shared particle)
+    child.primary_momentum = {6.0, 0.5, 1.0, 5.8};
+    child.interaction_vertex = {2.0, 3.0, 4.0};
+    child.interaction_time = 6.0;
+    child.secondary_ids = {ParticleID(10, 5), ParticleID(10, 6)};
+    child.secondary_momenta = {{3.0, 0.2, 0.5, 2.9}, {3.0, 0.3, 0.5, 2.9}};
+    child.secondary_masses = {0.0, 0.0};
+    child.secondary_helicities = {0.0, 0.0};
+    child.secondary_times = {6.0, 6.0};
+
+    InteractionTree tree;
+    auto r = tree.add_entry(root);
+    tree.add_entry(child, r);
+    tree.header.event_number = 7;
+
+    std::string const path = std::string(::testing::TempDir()) + "siren_hepmc3_ids.hepmc3";
+    std::vector<std::shared_ptr<InteractionTree>> trees = {std::make_shared<InteractionTree>(tree)};
+    siren::io::SaveInteractionTreesAsHepMC3(trees, path);
+    std::vector<std::shared_ptr<InteractionTree>> loaded =
+        siren::io::LoadInteractionTreesFromHepMC3(path);
+    std::remove(path.c_str());
+
+    ASSERT_EQ(loaded.size(), 1u);
+    InteractionTree const & lt = *loaded[0];
+    ASSERT_EQ(lt.tree.size(), 2u);
+    InteractionRecord const & lr = lt.tree[0]->record;
+    InteractionRecord const & lc = lt.tree[1]->record;
+
+    // Root ids survive exactly.
+    EXPECT_EQ(lr.primary_id, ParticleID(10, 1));
+    EXPECT_EQ(lr.target_id, ParticleID(10, 2));
+    ASSERT_EQ(lr.secondary_ids.size(), 2u);
+    EXPECT_EQ(lr.secondary_ids[0], ParticleID(10, 3));
+    EXPECT_EQ(lr.secondary_ids[1], ParticleID(10, 4));
+
+    // Child ids survive exactly.
+    EXPECT_EQ(lc.primary_id, ParticleID(10, 3));
+    ASSERT_EQ(lc.secondary_ids.size(), 2u);
+    EXPECT_EQ(lc.secondary_ids[0], ParticleID(10, 5));
+    EXPECT_EQ(lc.secondary_ids[1], ParticleID(10, 6));
+
+    // Shared-particle invariant: the daughter's primary is the same id as the
+    // parent's outgoing secondary it descends from.
+    EXPECT_EQ(lc.primary_id, lr.secondary_ids[0]);
 }
 
 int main(int argc, char ** argv) {

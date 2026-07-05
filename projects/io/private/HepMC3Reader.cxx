@@ -40,7 +40,7 @@ using siren::dataclasses::ParticleType;
 ParticleType pdg_to_type(int pid) { return static_cast<ParticleType>(pid); }
 
 // Detect gzip by content (magic bytes 0x1f 0x8b) rather than by filename, so a
-// gzip file without a .gz suffix still round-trips and a missing/plaintext file
+// gzip file without a .gz suffix still loads and a missing/plaintext file
 // falls through to the Ascii reader (which reports the open/parse error).
 bool looks_gzip(std::string const & filename) {
     std::ifstream f(filename, std::ios::binary);
@@ -94,18 +94,30 @@ HepMC3::GenParticlePtr find_primary(HepMC3::GenVertexPtr const & vertex) {
     return nullptr;
 }
 
-// Assigns fresh ParticleIDs to reconstructed records so a re-exported tree does
-// not collapse topology (HepMC3Writer only joins particles across vertices on a
-// set ParticleID). HepMC3 shares one GenParticlePtr between a parent vertex's
-// outgoing secondary and the daughter vertex's incoming primary, so keying this
-// map on the raw pointer identity gives the same ParticleID to both sides of
-// that join, exactly mirroring the writer's shared-particle contract.
+// Reads a ParticleID from the siren.id.major/minor attributes the
+// writer emits for every set id; returns an unset ParticleID when either is
+// absent (a foreign file, or a particle whose id was unset at write time).
+siren::dataclasses::ParticleID ReadStoredId(HepMC3::GenParticlePtr const & particle) {
+    std::shared_ptr<HepMC3::ULongAttribute> const major =
+        particle->attribute<HepMC3::ULongAttribute>("siren.id.major");
+    std::shared_ptr<HepMC3::IntAttribute> const minor =
+        particle->attribute<HepMC3::IntAttribute>("siren.id.minor");
+    siren::dataclasses::ParticleID id;
+    if(major && minor)
+        id.SetID(static_cast<uint64_t>(major->value()), static_cast<int32_t>(minor->value()));
+    return id;
+}
+
+// Resolves the ParticleID for a primary/secondary:
+// this is the stored ID if it is present, otherwise a new ID is generated
+// Keying on the pointer ensures that the same GenParticlePtr always resolves to the same ParticleID
 siren::dataclasses::ParticleID GetOrAssignId(
         HepMC3::GenParticlePtr const & particle,
         std::map<HepMC3::GenParticlePtr, siren::dataclasses::ParticleID> & ids) {
     auto it = ids.find(particle);
     if(it != ids.end()) return it->second;
-    siren::dataclasses::ParticleID const id = siren::dataclasses::ParticleID::GenerateID();
+    siren::dataclasses::ParticleID id = ReadStoredId(particle);
+    if(!id.IsSet()) id = siren::dataclasses::ParticleID::GenerateID();
     ids[particle] = id;
     return id;
 }
@@ -146,6 +158,10 @@ siren::dataclasses::InteractionRecord VertexToRecord(
         rec.signature.target_type = pdg_to_type(target->pid());
         rec.target_mass = target->generated_mass();
         rec.target_helicity = required_double_attr(target, "siren.helicity", "target particle", strict);
+        // Targets are never shared across vertices, so read the stored id only
+        // when present (no topology-generation fallback): an unset target id
+        // reads as unset.
+        rec.target_id = ReadStoredId(target);
     } else {
         // No target particle: either a genuine decay, or an unknown-target
         // interaction (the writer omits the target particle for both). The
@@ -156,9 +172,9 @@ siren::dataclasses::InteractionRecord VertexToRecord(
             ? ParticleType::unknown : ParticleType::Decay;
     }
 
-    // Outgoing secondaries. Each gets a fresh ParticleID (or the id already
-    // assigned to it as another vertex's primary, if this event was itself
-    // re-exported) so a daughter vertex's incoming primary -- the same
+    // Outgoing secondaries. Each id is the stored id when present,
+    // else a fresh ParticleID (or the id already assigned to it as another
+    // vertex's primary) so a daughter vertex's incoming primary -- the same
     // GenParticlePtr -- resolves to the identical id and re-export can rejoin
     // the topology.
     for(auto const & out : vertex->particles_out()) {
