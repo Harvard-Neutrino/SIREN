@@ -168,6 +168,7 @@ struct InteractionTree {
       if(version == 1) {
           archive(::cereal::make_nvp("Tree", tree));
           archive(::cereal::make_nvp("Header", header));
+          validate_indices();
       } else if(version == 0) {
           archive(::cereal::make_nvp("Tree", tree));
           rebuild_indices_from_legacy();
@@ -181,6 +182,11 @@ private:
   // edges after a version-0 load, then clear the legacy pointers so no reference
   // cycle survives into the running process.
   void rebuild_indices_from_legacy();
+
+  // Throw if any datum's node_id, parent_index, or daughter_indices is out of
+  // range for tree, so a corrupt archive fails loudly at load rather than
+  // silently corrupting downstream flattening or looping depth().
+  void validate_indices() const;
 };
 
 void SaveInteractionTrees(std::vector<std::shared_ptr<InteractionTree>>& trees, std::string const & filename);

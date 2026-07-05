@@ -14,8 +14,13 @@ namespace dataclasses {
 int InteractionTreeDatum::depth(InteractionTree const & owner) const {
     int depth = 0;
     std::uint32_t p = parent_index;
+    // An acyclic parent chain visits at most tree.size() nodes; exceeding that
+    // means the indices form a cycle (a corrupt archive), so stop rather than
+    // spin forever.
     while(p != kNoParent) {
         ++depth;
+        if(static_cast<std::size_t>(depth) > owner.tree.size())
+            throw std::runtime_error("InteractionTreeDatum::depth: parent_index chain exceeds tree size");
         p = owner.tree.at(p)->parent_index;
     }
     return depth;
@@ -49,6 +54,10 @@ bool InteractionTree::operator==(InteractionTree const & other) const {
 std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(std::shared_ptr<InteractionTreeDatum> datum,
         std::shared_ptr<InteractionTreeDatum> parent) {
     datum->node_id = static_cast<std::uint32_t>(tree.size());
+    // A node is a leaf at insertion; its daughters are recorded as they are
+    // added. Drop any indices carried over from a datum copied out of another
+    // tree, which would otherwise dangle into this one.
+    datum->daughter_indices.clear();
     if (parent) {
         datum->parent_index = parent->node_id;
         parent->daughter_indices.push_back(datum->node_id);
@@ -101,6 +110,22 @@ void InteractionTree::rebuild_indices_from_legacy() {
     for(std::shared_ptr<InteractionTreeDatum> & datum : tree) {
         datum->legacy_parent = nullptr;
         datum->legacy_daughters.clear();
+    }
+    validate_indices();
+}
+
+void InteractionTree::validate_indices() const {
+    std::uint32_t const n = static_cast<std::uint32_t>(tree.size());
+    for(std::uint32_t i = 0; i < n; ++i) {
+        std::shared_ptr<InteractionTreeDatum> const & datum = tree[i];
+        if(not datum) continue;
+        if(datum->node_id != i)
+            throw std::runtime_error("InteractionTree: node_id does not equal its position");
+        if(datum->parent_index != kNoParent and datum->parent_index >= n)
+            throw std::runtime_error("InteractionTree: parent_index out of range");
+        for(std::uint32_t d : datum->daughter_indices)
+            if(d >= n)
+                throw std::runtime_error("InteractionTree: daughter_index out of range");
     }
 }
 
