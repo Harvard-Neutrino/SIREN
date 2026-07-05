@@ -19,6 +19,14 @@ SIREN_PYTHON_PACKAGE = {env="SIREN_PYTHON_PACKAGE", default="OFF"}
 [tool.cibuildwheel]
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 skip = "pp*"
+# Confirm the built wheel actually bundles HepMC3 and siren.hepmc3 imports.
+test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py"
+# Importing siren pulls numpy/scipy; those have no binary wheels for musllinux
+# cp38/cp39 or aarch64 cp38 and cannot source-build in the isolated test env
+# (scipy needs OpenBLAS). The wheels still build and bundle HepMC3 on these
+# targets -- only the import smoke test is skipped there. HepMC3 bundling is
+# still exercised on every other wheel (macOS, manylinux, and musllinux cp310+).
+test-skip = "cp38-musllinux* cp39-musllinux* cp38-manylinux_aarch64"
 
 [tool.cibuildwheel.windows]
 environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }

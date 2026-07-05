@@ -65,9 +65,39 @@ jobs:
             "${{ steps.gsl.outputs.version }}" \
             ".gsl-cache/gsl-${{ steps.gsl.outputs.version }}.tar.gz"
 
+  populate_hepmc3_cache:
+    name: Populate HepMC3 cache
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.hepmc3.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read HepMC3 version
+        id: hepmc3
+        shell: bash
+        run: |
+          ver=$(grep '^HEPMC3_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Cache HepMC3 source tarball
+        id: cache
+        uses: actions/cache@v5
+        with:
+          path: .hepmc3-cache
+          key: hepmc3-${{ steps.hepmc3.outputs.version }}-v1
+
+      - name: Download HepMC3 if not cached
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          bash tools/wheels/fetch_hepmc3.sh \
+            "${{ steps.hepmc3.outputs.version }}" \
+            ".hepmc3-cache/HepMC3-${{ steps.hepmc3.outputs.version }}.tar.gz"
+
   build_wheels_macos:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }}) - ${{ matrix.py }}
-    needs: [populate_cfitsio_cache, populate_gsl_cache]
+    needs: [populate_cfitsio_cache, populate_gsl_cache, populate_hepmc3_cache]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -110,6 +140,12 @@ jobs:
           path: .gsl-cache
           key: gsl-${{ needs.populate_gsl_cache.outputs.version }}-v1
 
+      - name: Restore HepMC3 source tarball
+        uses: actions/cache/restore@v5
+        with:
+          path: .hepmc3-cache
+          key: hepmc3-${{ needs.populate_hepmc3_cache.outputs.version }}-v1
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1
         env:
@@ -123,7 +159,7 @@ jobs:
 
   build_wheels_linux:
     name: Build wheels on ${{ matrix.os }} - ${{ matrix.py }} - ${{ matrix.image }}_${{ matrix.arch }}
-    needs: populate_cfitsio_cache
+    needs: [populate_cfitsio_cache, populate_hepmc3_cache]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -148,6 +184,12 @@ jobs:
         with:
           path: .cfitsio-cache
           key: cfitsio-${{ needs.populate_cfitsio_cache.outputs.version }}-v1
+
+      - name: Restore HepMC3 source tarball
+        uses: actions/cache/restore@v5
+        with:
+          path: .hepmc3-cache
+          key: hepmc3-${{ needs.populate_hepmc3_cache.outputs.version }}-v1
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1

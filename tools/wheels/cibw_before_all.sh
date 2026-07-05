@@ -29,6 +29,7 @@ PHOTOSPLINE_COMMIT="1faf62b8ad7116fbfcdf1ac7ade763ab9e547402"
 CFITSIO_VERSION="4.6.3"
 GSL_VERSION="2.8"
 ZLIB_VERSION="1.3.1"
+HEPMC3_VERSION="3.3.1"
 
 mkdir -p $CI_INSTALL_PREFIX
 
@@ -133,6 +134,44 @@ else
     echo "Unknown runner OS: $RUNNER_OS" 1>&2
     exit 1
 fi
+
+# HepMC3 (ROOT-free) for the optional siren.io HepMC3 export module. Built from
+# source with cmake on every platform; the tarball is cached under the project
+# tree by the workflow's populate_hepmc3_cache job (fetch logic in
+# fetch_hepmc3.sh). ROOT/protobuf/python/tests/examples are all disabled so the
+# build has no third-party dependencies (C1: never link ROOT).
+HEPMC3_TARBALL="HepMC3-$HEPMC3_VERSION.tar.gz"
+HEPMC3_CACHE_DIR="$PROJECT_DIR/.hepmc3-cache"
+
+mkdir -p "$HEPMC3_CACHE_DIR"
+if [ -f "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" ] && \
+   tar -tzf "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" >/dev/null 2>&1; then
+    echo "Using cached $HEPMC3_CACHE_DIR/$HEPMC3_TARBALL"
+else
+    if [ -f "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" ]; then
+        echo "Cached HepMC3 tarball is corrupt; re-downloading"
+        rm -f "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL"
+    else
+        echo "HepMC3 tarball not in cache; downloading"
+    fi
+    bash "$PROJECT_DIR/tools/wheels/fetch_hepmc3.sh" \
+        "$HEPMC3_VERSION" "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL"
+fi
+
+mkdir -p "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION"
+tar -xzf "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" \
+    -C "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION" --strip-components=1
+mkdir -p "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION/build"
+cd "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION/build"
+cmake ../ -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX \
+    -DHEPMC3_ENABLE_ROOTIO=OFF \
+    -DHEPMC3_ENABLE_PROTOBUFIO=OFF \
+    -DHEPMC3_ENABLE_PYTHON=OFF \
+    -DHEPMC3_ENABLE_TEST=OFF \
+    -DHEPMC3_BUILD_EXAMPLES=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+cmake --build . --config Release --parallel
+cmake --install . --config Release
 
 #cd $CI_DOWNLOAD_PATH
 #mkdir -p $CI_DOWNLOAD_PATH/photopline
