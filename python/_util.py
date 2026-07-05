@@ -1215,6 +1215,18 @@ def convert_siren_events_to_hepmc3(in_path, out_path=None, weighter=None, option
     -------
     str
         The output path written.
+
+    Notes
+    -----
+    This function IS the weight-patch path. To update the central-value weights
+    of a written HepMC3 file, re-run this function on the original
+    ``.siren_events`` file with a new (or corrected) ``weighter``; the fresh CVs
+    overwrite the tree headers and a new HepMC3 file is written. A HepMC3 file is
+    NEVER a valid input for patching: the HepMC3 reader is run-level-lossy by
+    design (the run-level injection/normalization metadata a Weighter needs to
+    recompute weights is not round-tripped), so weights must always be recomputed
+    from the native ``.siren_events`` + ``.siren_weighter`` pair, not from a
+    HepMC3 round trip.
     """
     from . import hepmc3 as _hepmc3
     trees = _dataclasses.LoadInteractionTrees(in_path)
@@ -1238,4 +1250,243 @@ def convert_siren_events_to_hepmc3(in_path, out_path=None, weighter=None, option
         options.weights_state = "unweighted"
     _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path, options)
     return out_path
+
+
+def _strip_known_suffix(path, suffix):
+    """Return ``path`` with a trailing ``suffix`` removed if present."""
+    if path is not None and path.endswith(suffix):
+        return path[:-len(suffix)]
+    return path
+
+
+def _resolve_set_paths(entry):
+    """Normalize one ``combine_and_export_hepmc3`` set entry.
+
+    ``entry`` is either a mapping (dict) or a 2-tuple/list. A mapping recognizes
+    the keys ``events`` (or ``events_path``), ``weighter`` (or ``weighter_path``),
+    and the optional per-set count fields ``attempted``, ``accepted`` and
+    ``events_to_inject``. A 2-tuple is ``(events_path, weighter_path)``. A bare
+    string is treated as a shared base path (the naming convention
+    ``SIREN_Controller.SaveEvents`` uses, where the events file is
+    ``<base>.siren_events`` and the weighter file is ``<base>.siren_weighter``).
+
+    A mapping may also carry ``weights_state``. Pooling recomputes every weight
+    from the native pair, so it only makes sense for weighted sets; a set marked
+    ``"unweighted"`` is rejected (see ``combine_and_export_hepmc3``), so its state
+    is surfaced here.
+
+    Returns ``(events_base, weighter_base, counts, weights_state)`` where the two
+    bases are the suffix-free stems the C++ ``LoadInteractionTrees`` /
+    ``_Weighter(..., stem)`` loaders expect, ``counts`` is a dict with any of the
+    three count fields that were supplied (missing ones absent), and
+    ``weights_state`` is the declared state or ``None`` when unspecified.
+    """
+    counts = {}
+    weights_state = None
+    if isinstance(entry, str):
+        events_path = entry
+        weighter_path = entry
+    elif isinstance(entry, dict):
+        events_path = entry.get("events", entry.get("events_path"))
+        weighter_path = entry.get("weighter", entry.get("weighter_path"))
+        if events_path is None:
+            raise ValueError("combine set entry is missing an 'events' path")
+        if weighter_path is None:
+            # Fall back to the SaveEvents naming convention: the weighter shares
+            # the events file's base path with the .siren_weighter suffix.
+            weighter_path = _strip_known_suffix(events_path, ".siren_events")
+        for key in ("attempted", "accepted", "events_to_inject"):
+            if key in entry and entry[key] is not None:
+                counts[key] = int(entry[key])
+        weights_state = entry.get("weights_state")
+    else:
+        try:
+            events_path, weighter_path = entry
+        except (TypeError, ValueError):
+            raise ValueError(
+                "combine set entry must be a dict, an (events, weighter) tuple, "
+                "or a base-path string; got %r" % (entry,))
+    events_base = _strip_known_suffix(events_path, ".siren_events")
+    weighter_base = _strip_known_suffix(weighter_path, ".siren_weighter")
+    return events_base, weighter_base, counts, weights_state
+
+
+def _primary_process_signatures(injector):
+    """Return a sorted, hashable marker of an injector's primary interaction
+    signatures, for a cheap cross-set physical-config sanity check.
+
+    Combines the primary type with the (primary, target, secondaries) tuples of
+    every cross section and decay in the primary process's interaction
+    collection. Returns ``None`` if the signatures cannot be read (so the guard
+    degrades to a no-op rather than raising on an exotic process).
+    """
+    try:
+        # Injectors deserialized from a weighter file are raw C++ Injector
+        # objects; if a Python Injector wrapper slipped in, unwrap it.
+        raw = getattr(injector, "_Injector__injector", injector)
+        if raw is None:
+            raw = injector
+        process = raw.GetPrimaryProcess()
+        collection = process.interactions
+        interactions = list(collection.GetCrossSections()) + list(collection.GetDecays())
+        markers = [("primary_type", int(collection.GetPrimaryType()))]
+        for inter in interactions:
+            for sig in inter.GetPossibleSignatures():
+                markers.append((
+                    int(sig.primary_type),
+                    int(sig.target_type),
+                    tuple(int(s) for s in sig.secondary_types),
+                ))
+    except Exception:
+        return None
+    return tuple(sorted(markers, key=repr))
+
+
+def combine_and_export_hepmc3(sets, out_path, options=None):
+    """Pool multiple SIREN simulation sets and export ONE HepMC3 file.
+
+    Combining simulation sets is not a matter of averaging stored per-set
+    scalars: the C++ Weighter is natively pooled, so
+    ``EventWeight(tree) = 1 / sum_i(N_i * G_i / P_i)`` over its injector list, and
+    the per-injector physical probability ``P_i`` depends on injector ``i``'s
+    injection bounds. The only correct combination is to build ONE Weighter whose
+    injector list is the UNION of every set's injectors and re-run
+    ``EventWeight`` on every event of every set. There is no shortcut through the
+    per-set weights stored in the individual files.
+
+    Parameters
+    ----------
+    sets : list
+        One entry per simulation set. Each entry provides a ``.siren_events``
+        path and a ``.siren_weighter`` path, as either a dict (keys ``events`` /
+        ``weighter``, plus optional per-set count fields ``attempted``,
+        ``accepted``, ``events_to_inject``), an ``(events, weighter)`` tuple, or a
+        single base-path string (the ``SIREN_Controller.SaveEvents`` naming
+        convention where both files share a base path). This tooling operates on
+        the native ``.siren_events`` + ``.siren_weighter`` pair ONLY; never feed
+        it HepMC3 files, whose reader is run-level-lossy by design. A dict entry
+        may also carry ``weights_state``; a set marked ``"unweighted"`` is
+        rejected -- unweighted and computed sets must not be silently pooled.
+    out_path : str
+        Output HepMC3 path (``.hepmc3`` appended if absent; ``.gz`` appended when
+        the passed ``options`` request gzip).
+    options : siren.hepmc3.HepMC3WriterOptions, optional
+        Passed through to the writer. Its ``weights_state`` is forced to
+        ``"computed"`` (the weights written are the freshly pooled CVs). When any
+        set supplies count fields, the summed attempted / accepted /
+        events_to_inject are written into the options for the FATX normalization.
+
+    Returns
+    -------
+    (str, list of float)
+        The output path written, and the flat list of pooled central-value
+        weights in the order the events were exported (all of set 0, then set 1,
+        ...), so callers can reuse them without re-reading the file.
+
+    Notes
+    -----
+    Every set must share the same physical configuration (detector + physical
+    processes); only the injection (generation) side may differ between sets.
+    The pooled Weighter is built from the FIRST set's ``.siren_weighter`` file
+    (which supplies the shared detector + physical processes) with the union of
+    all sets' injectors passed live to override the file's injectors. A cheap
+    guard compares each set's primary-process interaction signatures and raises
+    if they disagree.
+    """
+    from . import injection as _injection
+    from . import hepmc3 as _hepmc3
+
+    if not sets:
+        raise ValueError("combine_and_export_hepmc3 requires at least one set")
+
+    # a. Load each set's trees and Weighter.
+    loaded_trees = []
+    loaded_weighters = []
+    per_set_counts = []
+    first_weighter_base = None
+    reference_sig = None
+    all_injectors = []
+    for i_set, entry in enumerate(sets):
+        events_base, weighter_base, counts, weights_state = _resolve_set_paths(entry)
+        # Refuse to silently pool an unweighted set: pooling recomputes weights
+        # from the native pair, so a set that declares itself unweighted (no
+        # meaningful weights) must not be mixed with weighted/computed sets.
+        if weights_state is not None and str(weights_state).lower() == "unweighted":
+            raise ValueError(
+                "combine_and_export_hepmc3: set %d declares weights_state "
+                "'unweighted'; unweighted and computed sets must not be pooled. "
+                "Only weighted sets (with a usable .siren_weighter) can be "
+                "combined." % i_set)
+        # A usable weighter file is mandatory: without it there is no way to
+        # recompute a pooled weight, and combining would produce garbage.
+        if not os.path.isfile(weighter_base + ".siren_weighter"):
+            raise ValueError(
+                "combine_and_export_hepmc3: set %d has no weighter file at "
+                "'%s.siren_weighter'; pooling requires each set's weighter."
+                % (i_set, weighter_base))
+        if first_weighter_base is None:
+            first_weighter_base = weighter_base
+
+        trees = _dataclasses.LoadInteractionTrees(events_base)
+        loaded_trees.append(trees)
+        per_set_counts.append(counts)
+
+        # Load this set's serialized weighter (no live injectors -> use the
+        # file's own injectors, detector and physical processes).
+        set_weighter = _injection._Weighter([], weighter_base)
+        loaded_weighters.append(set_weighter)
+
+        set_injectors = list(set_weighter.GetInjectors())
+        # b-guard: physical configs must match across sets. Compare the primary
+        # process interaction signatures of each injector against the reference.
+        for inj in set_injectors:
+            sig = _primary_process_signatures(inj)
+            if sig is None:
+                continue
+            if reference_sig is None:
+                reference_sig = sig
+            elif sig != reference_sig:
+                raise ValueError(
+                    "combine_and_export_hepmc3: set %d has a primary interaction "
+                    "signature that differs from the first set; all sets must "
+                    "share the same physical configuration (detector + physical "
+                    "processes)." % i_set)
+        all_injectors.extend(set_injectors)
+
+    # b. Pool: build ONE Weighter over the union of injectors. Passing the live
+    # union overrides the file's injectors; the file supplies detector +
+    # physical processes.
+    pooled = _injection._Weighter(all_injectors, first_weighter_base)
+
+    # c. Recompute every event's weight against the pooled Weighter and write it
+    # into the CV slot (header.weights[0]) via the list-copy pattern.
+    pooled_weights = []
+    flat_trees = []
+    for trees in loaded_trees:
+        for tree in trees:
+            w = pooled.EventWeight(tree)
+            _set_header_cv(tree, w)
+            pooled_weights.append(float(w))
+            flat_trees.append(tree)
+
+    # d. Export ONE HepMC3 file. Weights are the freshly pooled CVs.
+    if options is None:
+        options = _hepmc3.HepMC3WriterOptions()
+    options.weights_state = "computed"
+    # Sum the per-set counts the caller provided; leave a field unset (-1) when
+    # no set supplied it, so the writer's normalization falls back sensibly.
+    for field, opt_name in (("attempted", "attempted_events"),
+                            ("accepted", "accepted_events"),
+                            ("events_to_inject", "events_to_inject")):
+        provided = [c[field] for c in per_set_counts if field in c]
+        if provided:
+            setattr(options, opt_name, int(sum(provided)))
+
+    if not out_path.endswith(".hepmc3") and not out_path.endswith(".hepmc3.gz"):
+        out_path = out_path + ".hepmc3"
+    if getattr(options, "gzip", False) and not out_path.endswith(".gz"):
+        out_path = out_path + ".gz"
+    _hepmc3.SaveInteractionTreesAsHepMC3(flat_trees, out_path, options)
+
+    return out_path, pooled_weights
 

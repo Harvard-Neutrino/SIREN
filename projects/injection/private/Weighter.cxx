@@ -139,6 +139,10 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     return 1./inv_weight;
 }
 
+std::vector<std::shared_ptr<Injector>> const & Weighter::GetInjectors() const {
+    return injectors;
+}
+
 std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
     if(i_inj < 0 || static_cast<size_t>(i_inj) >= injectors.size()) {
         throw std::out_of_range("i_inj index out of range in GetInteractionProbabilities");
