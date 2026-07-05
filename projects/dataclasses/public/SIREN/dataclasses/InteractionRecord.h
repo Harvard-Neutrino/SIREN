@@ -72,6 +72,8 @@ private:
     bool vertex_distance_from_closest_approach_set = false;
     bool initial_distance_from_closest_approach_set = false;
     bool helicity_set = false;
+    bool initial_time_set = false;
+    bool interaction_time_set = false;
 
     mutable double mass;
     mutable double energy;
@@ -85,6 +87,8 @@ private:
     mutable double vertex_distance_from_closest_approach;
     mutable double initial_distance_from_closest_approach;
     mutable double helicity = 0;
+    mutable double initial_time = 0;
+    mutable double interaction_time;
     std::map<std::string, double> interaction_parameters;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
@@ -117,6 +121,8 @@ public:
     double const & GetVertexDistanceFromClosestApproach() const;
     double const & GetInitialDistanceFromClosestApproach() const;
     double const & GetHelicity() const;
+    double const & GetInitialTime() const;
+    double const & GetInteractionTime() const;
 
     void SetMass(double mass);
     void SetEnergy(double energy);
@@ -131,6 +137,8 @@ public:
     void SetVertexDistanceFromClosestApproach(double vertex_distance_from_closest_approach);
     void SetInitialDistanceFromClosestApproach(double initial_distance_from_closest_approach);
     void SetHelicity(double helicity);
+    void SetInitialTime(double initial_time);
+    void SetInteractionTime(double interaction_time);
     void SetInteractionParameters(std::map<std::string, double> const & parameters);
     void SetInteractionParameter(std::string const & name, double value);
 
@@ -145,6 +153,7 @@ public:
     void UpdatePointOfClosestApproach() const;
     void UpdateVertexDistanceFromClosestApproach() const;
     void UpdateInitialDistanceFromClosestApproach() const;
+    void UpdateInteractionTime() const;
 
     void FinalizeAvailable(InteractionRecord & record) const;
     void Finalize(InteractionRecord & record) const;
@@ -164,6 +173,7 @@ private:
     bool direction_set = false;
     bool momentum_set = false;
     bool helicity_set = false;
+    bool time_set = false;
 
     mutable double mass = 0;
     mutable double energy = 0;
@@ -171,6 +181,10 @@ private:
     mutable std::array<double, 3> direction = {0, 0, 0};
     mutable std::array<double, 3> momentum = {0, 0, 0};
     mutable double helicity = 0;
+    mutable double time = 0;
+    double initial_time = 0;
+
+    friend class CrossSectionDistributionRecord;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::SecondaryParticleRecord const& record);
     friend std::string (::to_str)(siren::dataclasses::SecondaryParticleRecord const & record);
@@ -201,6 +215,7 @@ public:
     std::array<double, 4> GetFourMomentum() const;
     std::array<double, 3> const & GetInitialPosition() const;
     double const & GetHelicity() const;
+    double const & GetTime() const;
 
     void SetMass(double mass);
     void SetEnergy(double energy);
@@ -209,6 +224,7 @@ public:
     void SetThreeMomentum(std::array<double, 3> momentum);
     void SetFourMomentum(std::array<double, 4> momentum);
     void SetHelicity(double helicity);
+    void SetTime(double time);
 
     void UpdateMass() const;
     void UpdateEnergy() const;
@@ -230,6 +246,7 @@ public:
     std::array<double, 4> const & primary_momentum;
     double const & primary_helicity;
     std::array<double, 3> const & interaction_vertex;
+    double const & interaction_time;
 
     ParticleID const target_id;
     ParticleType const & target_type;
@@ -239,6 +256,8 @@ public:
     std::map<std::string, double> interaction_parameters;
 private:
     std::vector<SecondaryParticleRecord> secondary_particles;
+    bool interaction_time_set = false;
+    double overridden_interaction_time = 0;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const& record);
     friend std::string (::to_str)(siren::dataclasses::CrossSectionDistributionRecord const & record);
@@ -260,6 +279,7 @@ public:
     double const & GetPrimaryHelicity() const;
 
     std::array<double, 3> const & GetInteractionVertex() const;
+    double const & GetInteractionTime() const;
     ParticleID const & GetTargetID() const;
     ParticleType const & GetTargetType() const;
 
@@ -269,6 +289,7 @@ public:
     double & GetTargetHelicity();
     std::map<std::string, double> & GetInteractionParameters();
 
+    void SetInteractionTime(double interaction_time);
     void SetTargetMass(double mass);
     void SetTargetHelicity(double helicity);
     void SetInteractionParameters(std::map<std::string, double> const & parameters);
@@ -287,6 +308,7 @@ public:
     InteractionSignature signature;
     ParticleID primary_id;
     std::array<double, 3> primary_initial_position = {0, 0, 0};
+    double primary_initial_time = 0;
     double primary_mass = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     double primary_helicity = 0;
@@ -294,10 +316,12 @@ public:
     double target_mass = 0;
     double target_helicity = 0;
     std::array<double, 3> interaction_vertex = {0, 0, 0};
+    double interaction_time = 0;
     std::vector<ParticleID> secondary_ids;
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> secondary_helicities;
+    std::vector<double> secondary_times;
     std::map<std::string, double> interaction_parameters;
 
     bool operator==(InteractionRecord const & other) const;
@@ -324,8 +348,27 @@ public:
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
             archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("InteractionSignature", signature));
+            archive(::cereal::make_nvp("PrimaryID", primary_id));
+            archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
+            archive(::cereal::make_nvp("PrimaryInitialTime", primary_initial_time));
+            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
+            archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
+            archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
+            archive(::cereal::make_nvp("TargetID", target_id));
+            archive(::cereal::make_nvp("TargetMass", target_mass));
+            archive(::cereal::make_nvp("TargetHelicity", target_helicity));
+            archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
+            archive(::cereal::make_nvp("InteractionTime", interaction_time));
+            archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
+            archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
+            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
+            archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
+            archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 0!");
+            throw std::runtime_error("InteractionRecord only supports version <= 1!");
         }
     }
     template<typename Archive>
@@ -346,8 +389,32 @@ public:
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
             archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
+            // Times are not stored in version 0 archives; default them,
+            // sizing secondary_times to match the other secondary vectors.
+            primary_initial_time = 0;
+            interaction_time = 0;
+            secondary_times.assign(secondary_momenta.size(), 0);
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("InteractionSignature", signature));
+            archive(::cereal::make_nvp("PrimaryID", primary_id));
+            archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
+            archive(::cereal::make_nvp("PrimaryInitialTime", primary_initial_time));
+            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
+            archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
+            archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
+            archive(::cereal::make_nvp("TargetID", target_id));
+            archive(::cereal::make_nvp("TargetMass", target_mass));
+            archive(::cereal::make_nvp("TargetHelicity", target_helicity));
+            archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
+            archive(::cereal::make_nvp("InteractionTime", interaction_time));
+            archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
+            archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
+            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
+            archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
+            archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 0!");
+            throw std::runtime_error("InteractionRecord only supports version <= 1!");
         }
     }
 };
@@ -364,9 +431,12 @@ public:
     std::array<double, 4> const & momentum;
     double const & helicity;
     std::array<double, 3> const & initial_position;
+    double const & initial_time;
 private:
     bool length_set = false;
     mutable double length;
+    bool interaction_time_set = false;
+    mutable double interaction_time;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, SecondaryDistributionRecord const& record);
 
@@ -381,6 +451,9 @@ public:
     void SetLength(double const & length);
     double const & GetLength() const;
 
+    void SetInteractionTime(double const & interaction_time);
+    double const & GetInteractionTime() const;
+
     void Finalize(InteractionRecord & record) const;
 };
 
@@ -388,6 +461,6 @@ public:
 } // namespace dataclasses
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 1);
 
 #endif // SIREN_InteractionRecord_H
