@@ -92,7 +92,7 @@ for secondary_type in secondary_processes.keys():
     ]
 
 # Define stopping condition for the injector
-def stop(datum, i):
+def stop(tree, datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
     return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 

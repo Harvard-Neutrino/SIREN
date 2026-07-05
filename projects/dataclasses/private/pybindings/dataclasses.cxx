@@ -202,20 +202,38 @@ PYBIND11_MODULE(dataclasses, m) {
     py::class_<InteractionTreeDatum, std::shared_ptr<InteractionTreeDatum>>(m, "InteractionTreeDatum")
         .def(py::init<InteractionRecord&>())
         .def_readwrite("record",&InteractionTreeDatum::record)
-        .def_readwrite("parent",&InteractionTreeDatum::parent)
-        .def_readwrite("daughters",&InteractionTreeDatum::daughters)
-        .def("depth",&InteractionTreeDatum::depth)
+        .def_readonly("node_id",&InteractionTreeDatum::node_id)
+        .def_readonly("parent_index",&InteractionTreeDatum::parent_index)
+        .def_readwrite("daughter_indices",&InteractionTreeDatum::daughter_indices)
+        .def("is_root",&InteractionTreeDatum::is_root)
+        .def("depth",&InteractionTreeDatum::depth, pybind11::arg("tree"))
+        .def("__str__", [](InteractionTreeDatum const & d){ return to_str(d); })
+        .def("__repr__", [](InteractionTreeDatum const & d){ return to_repr(d); })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionTreeDatum>),
             &(siren::serialization::pickle_load<InteractionTreeDatum>)
         ))
         ;
 
+    py::class_<InteractionTreeHeader, std::shared_ptr<InteractionTreeHeader>>(m, "InteractionTreeHeader")
+        .def(py::init<>())
+        .def_readwrite("event_number", &InteractionTreeHeader::event_number)
+        .def_readwrite("weights", &InteractionTreeHeader::weights)
+        .def_readwrite("provenance", &InteractionTreeHeader::provenance)
+        .def("__str__", [](InteractionTreeHeader const & h){ return to_str(h); })
+        .def("__repr__", [](InteractionTreeHeader const & h){ return to_repr(h); })
+        ;
+
     py::class_<InteractionTree, std::shared_ptr<InteractionTree>>(m, "InteractionTree")
         .def(py::init<>())
         .def_readwrite("tree",&InteractionTree::tree)
+        .def_readwrite("header", &InteractionTree::header)
+        .def("at", &InteractionTree::at, pybind11::arg("node_id"))
+        .def("depth", &InteractionTree::depth, pybind11::arg("node_id"))
         .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionTreeDatum&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
         .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionRecord&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
+        .def("__str__", [](InteractionTree const & t){ return to_str(t); })
+        .def("__repr__", [](InteractionTree const & t){ return to_repr(t); })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionTree>),
             &(siren::serialization::pickle_load<InteractionTree>)
@@ -223,7 +241,8 @@ PYBIND11_MODULE(dataclasses, m) {
         ;
 
     m.def("SaveInteractionTrees",&SaveInteractionTrees);
-    m.def("LoadInteractionTrees",&LoadInteractionTrees, py::return_value_policy::reference);
+    m.def("LoadInteractionTrees",&LoadInteractionTrees);
+    m.attr("kNoParent") = pybind11::int_(siren::dataclasses::kNoParent);
 
     m.def("GetParticleMass", &GetParticleMass, py::arg("particle_type"));
 

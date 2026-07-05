@@ -294,9 +294,9 @@ TEST(Injector, Generation)
     std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, detector_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
-    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
-      [&] (std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
-        if(datum->depth() >=1) return true;
+    std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
+      [&] (siren::dataclasses::InteractionTree const & tree, std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
+        if(datum->depth(tree) >=1) return true;
         return false;
     };
     upper_injector->SetStoppingCondition(stopping_condition);

@@ -448,6 +448,8 @@ public:
     SecondaryDistributionRecord(InteractionRecord & record);
     SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index);
 
+    size_t GetSecondaryIndex() const;
+
     void SetLength(double const & length);
     double const & GetLength() const;
 

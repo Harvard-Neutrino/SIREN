@@ -116,7 +116,7 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-            if(datum->depth() == 0) {
+            if(datum->is_root()) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
                 generation_probability *= primary_process_weighters[idx]->GenerationProbability(*datum);
@@ -147,7 +147,7 @@ std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::In
     std::vector<double> int_probs;
     for(auto const & datum : tree.tree) {
         std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-        if(datum->depth() == 0) {
+        if(datum->is_root()) {
             bounds = injectors[i_inj]->PrimaryInjectionBounds(datum->record);
             int_probs.push_back(primary_process_weighters[i_inj]->InteractionProbability(bounds, datum->record));
         }
@@ -172,7 +172,7 @@ std::vector<double> Weighter::GetSurvivalProbabilities(siren::dataclasses::Inter
     std::vector<double> survival_probs;
     for(auto const & datum : tree.tree) {
         std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-        if(datum->depth() == 0) {
+        if(datum->is_root()) {
             std::get<0>(bounds) = datum->record.primary_initial_position;
             std::get<1>(bounds) = std::get<0>(injectors[i_inj]->PrimaryInjectionBounds(datum->record));
             survival_probs.push_back(primary_process_weighters[i_inj]->SurvivalProbability(bounds, datum->record));
