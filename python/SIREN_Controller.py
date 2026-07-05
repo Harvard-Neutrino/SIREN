@@ -594,10 +594,13 @@ class SIREN_Controller:
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True, # filetypes to save events
                    save_int_probs=False,save_int_params=False,save_survival_probs=False,
-                   verbose=True):
+                   verbose=True, hepmc3=False):
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
+        if hepmc3:
+            from . import hepmc3 as _hepmc3
+            _hepmc3.SaveInteractionTreesAsHepMC3(self.events, filename + ".hepmc3")
         # A dictionary containing each dataset we'd like to save
         datasets = {
             "event_weight":[], # weight of entire event

@@ -966,12 +966,16 @@ def SaveEvents(events,
                save_hdf5=True,
                save_parquet=True,
                save_siren_events=True,
+               save_hepmc3=False,
                fid_vol=None,
                output_filename=None):
 
 
     # Optionally save things
     if save_siren_events: _dataclasses.SaveInteractionTrees(events, output_filename)
+    if save_hepmc3:
+        from . import hepmc3 as _hepmc3
+        _hepmc3.SaveInteractionTreesAsHepMC3(events, output_filename + ".hepmc3")
     # A dictionary containing each dataset we'd like to save
     datasets = {
         "event_weight":[], # weight of entire event

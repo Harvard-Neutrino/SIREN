@@ -33,6 +33,7 @@ add_custom_command(
       interactions
       distributions
       injection
+      hepmc3
       "${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_STAGING_DIR}/siren"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -58,6 +59,9 @@ add_custom_command(
         "${PACKAGE_STAGING_DIR}/siren/"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:injection>"
+        "${PACKAGE_STAGING_DIR}/siren/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:hepmc3>"
         "${PACKAGE_STAGING_DIR}/siren/"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:SIREN>"

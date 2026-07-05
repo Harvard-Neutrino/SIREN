@@ -6,6 +6,8 @@ from . import detector
 from . import interactions
 from . import distributions
 from . import injection
+# siren.hepmc3 (HepMC3 output) is imported lazily where used rather than here,
+# so importing siren does not require HepMC3 to be present.
 
 from . import _util
 from . import resources
