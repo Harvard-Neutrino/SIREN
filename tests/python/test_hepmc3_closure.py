@@ -46,7 +46,11 @@ def _build(inject_secondaries):
         det_dir = _util.get_detector_model_path("CCM")
         dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
         dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
-    except Exception as e:  # detector model files not available in this env
+    except (ValueError, RuntimeError) as e:
+        # ValueError: get_detector_model_path found no CCM resource folder.
+        # RuntimeError: LoadMaterialModel/LoadDetectorModel could not open a
+        # materials.dat/densities.dat file. Both mean the CCM data files are
+        # genuinely missing from this environment; anything else is a real bug.
         pytest.skip(f"CCM detector model unavailable: {e}")
 
     xs = interactions.DummyCrossSection()
@@ -106,7 +110,11 @@ def _build(inject_secondaries):
         try:
             ev = inj.GenerateEvent()
         except RuntimeError:
-            break  # injection attempts exhausted
+            # The only RuntimeError GenerateEvent() raises is the max-attempts
+            # sentinel ("Injector has already made the maximum number of
+            # injection attempts!"); InjectionFailure is caught internally and
+            # surfaces as an empty tree, so this cannot mask another failure.
+            break
         if len(ev.tree) > 0:
             events.append(ev)
     if not events:
@@ -261,6 +269,7 @@ def _build_params():
         try:
             ev = inj.GenerateEvent()
         except RuntimeError:
+            # Max-attempts sentinel only; see the identical guard in _build().
             break
         if len(ev.tree) > 0:
             events.append(ev)

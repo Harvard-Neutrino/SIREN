@@ -6,7 +6,9 @@ helicities, momenta, geometry) for a real BSM model, plus the G.R.11 BSM
 particle-number declaration (N4 == 5914).
 
 Requires the DarkNews package and its cross-section tables, so it SKIPS cleanly
-when DarkNews is unavailable or the tables cannot be built in this environment.
+when DarkNews is unavailable or its tables/model fail to load (OSError or
+RuntimeError) in this environment. Any other failure -- including during
+injector/weighter construction or event generation -- is a real test failure.
 It is modeled on resources/examples/example2/DipolePortal_CCM.py.
 """
 import os
@@ -18,22 +20,19 @@ siren = pytest.importorskip("siren")
 pytest.importorskip("DarkNews")
 
 
-def _build_darknews_ccm(events_to_inject=2):
-    """Return (events, gen_times, weighter) for a tiny CCM dipole run.
+def _load_darknews_resources(model_kwargs, experiment="CCM"):
+    """Return (detector_model, primary_type, primary_processes,
+    secondary_processes) for the CCM dipole model.
 
-    Any failure to construct the DarkNews processes/tables raises, and the
-    caller turns that into a skip -- the point of the test is the HepMC3 round
-    trip, not DarkNews table generation.
+    This is the legitimately-optional part: it needs the DarkNews cross
+    section/decay tables, which may require network access or a data cache
+    this environment does not have. Only OSError/RuntimeError from table
+    lookup or model construction are treated as an unavailable-dependency
+    skip; anything else (e.g. a SIREN-side regression) propagates.
     """
-    import numpy as np
     from siren import utilities
-    from siren._util import GenerateEvents, get_processes_model_path
+    from siren._util import get_processes_model_path
 
-    model_kwargs = {
-        "m4": 0.0235, "mu_tr_mu4": 6e-7, "UD4": 0, "Umu4": 0, "epsilon": 0.0,
-        "gD": 0.0, "decay_product": "photon", "noHC": True, "HNLtype": "dirac",
-    }
-    experiment = "CCM"
     detector_model = utilities.load_detector(experiment)
     primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
@@ -45,6 +44,31 @@ def _build_darknews_ccm(events_to_inject=2):
     primary_processes, secondary_processes, _, _ = utilities.load_processes(
         "DarkNewsTables", primary_type=primary_type,
         detector_model=detector_model, table_name=table_name, **model_kwargs)
+
+    return detector_model, primary_type, primary_processes, secondary_processes
+
+
+def _build_darknews_ccm(events_to_inject=2):
+    """Return (events, gen_times, weighter) for a tiny CCM dipole run.
+
+    Only DarkNews resource loading (tables/model) is skip-eligible; injector
+    and weighter construction and event generation are expected to succeed and
+    raise on failure like any other SIREN code path.
+    """
+    import numpy as np
+    from siren._util import GenerateEvents
+
+    model_kwargs = {
+        "m4": 0.0235, "mu_tr_mu4": 6e-7, "UD4": 0, "Umu4": 0, "epsilon": 0.0,
+        "gD": 0.0, "decay_product": "photon", "noHC": True, "HNLtype": "dirac",
+    }
+    experiment = "CCM"
+
+    try:
+        detector_model, primary_type, primary_processes, secondary_processes = (
+            _load_darknews_resources(model_kwargs, experiment))
+    except (OSError, RuntimeError) as exc:
+        pytest.skip(f"DarkNews tables/model unavailable: {exc}")
 
     mass_ddist = siren.distributions.PrimaryMass(0)
     edist = siren.distributions.Monoenergetic(0.02965)
@@ -92,10 +116,7 @@ def _build_darknews_ccm(events_to_inject=2):
 
 def test_darknews_hepmc3_roundtrip_reweight():
     from siren import hepmc3, _util
-    try:
-        events, gen_times, weighter = _build_darknews_ccm(events_to_inject=2)
-    except Exception as exc:  # DarkNews tables/model unavailable in this environment
-        pytest.skip(f"DarkNews setup unavailable: {exc}")
+    events, gen_times, weighter = _build_darknews_ccm(events_to_inject=2)
 
     if len(events) == 0:
         pytest.skip("no DarkNews events generated")

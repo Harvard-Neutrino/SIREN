@@ -51,22 +51,59 @@ if(NOT HEPMC3_FOUND)
     DOC "HepMC3 core library")
 
   if(HEPMC3_INCLUDE_DIR AND HEPMC3_LIBRARY)
-    if(NOT TARGET HepMC3::HepMC3)
-      add_library(HepMC3::HepMC3 UNKNOWN IMPORTED)
-      set_target_properties(HepMC3::HepMC3 PROPERTIES
-        IMPORTED_LOCATION "${HEPMC3_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${HEPMC3_INCLUDE_DIR}")
+    # The manual path has no CMake package version to check, so read the
+    # version macro straight out of the discovered headers. HepMC3/Version.h
+    # defines HEPMC3_VERSION_CODE as 1000000*X + 1000*Y + Z (e.g. 3003001 for
+    # 3.3.1); compare against the same floor used by the config-mode request.
+    set(_hepmc3_manual_version_header "${HEPMC3_INCLUDE_DIR}/HepMC3/Version.h")
+    set(HEPMC3_MANUAL_VERSION_OK FALSE)
+    if(EXISTS "${_hepmc3_manual_version_header}")
+      file(STRINGS "${_hepmc3_manual_version_header}" _hepmc3_version_code_line
+        REGEX "^#define[ \t]+HEPMC3_VERSION_CODE[ \t]+[0-9]+")
+      if(_hepmc3_version_code_line)
+        string(REGEX REPLACE
+          "^#define[ \t]+HEPMC3_VERSION_CODE[ \t]+([0-9]+).*" "\\1"
+          _hepmc3_version_code "${_hepmc3_version_code_line}")
+        # Decode 1000000*X + 1000*Y + Z back into X.Y.Z for VERSION_LESS.
+        math(EXPR _hepmc3_ver_major "${_hepmc3_version_code} / 1000000")
+        math(EXPR _hepmc3_ver_minor "(${_hepmc3_version_code} / 1000) % 1000")
+        math(EXPR _hepmc3_ver_patch "${_hepmc3_version_code} % 1000")
+        set(_hepmc3_manual_version "${_hepmc3_ver_major}.${_hepmc3_ver_minor}.${_hepmc3_ver_patch}")
+        if(NOT _hepmc3_manual_version VERSION_LESS HEPMC3_MINIMUM_VERSION)
+          set(HEPMC3_MANUAL_VERSION_OK TRUE)
+        endif()
+      endif()
     endif()
-    set(HEPMC3_FOUND TRUE)
-    message(STATUS "Found HepMC3 (manual): ${HEPMC3_LIBRARY}")
+
+    if(HEPMC3_MANUAL_VERSION_OK)
+      if(NOT TARGET HepMC3::HepMC3)
+        add_library(HepMC3::HepMC3 UNKNOWN IMPORTED)
+        set_target_properties(HepMC3::HepMC3 PROPERTIES
+          IMPORTED_LOCATION "${HEPMC3_LIBRARY}"
+          INTERFACE_INCLUDE_DIRECTORIES "${HEPMC3_INCLUDE_DIR}")
+      endif()
+      set(HEPMC3_FOUND TRUE)
+      set(HepMC3_VERSION "${_hepmc3_manual_version}")
+      message(STATUS "Found HepMC3 (manual): ${HEPMC3_LIBRARY} (version ${HepMC3_VERSION})")
+    elseif(_hepmc3_manual_version)
+      message(STATUS
+        "Found HepMC3 ${_hepmc3_manual_version} (manual) at ${HEPMC3_LIBRARY}, "
+        "but >= ${HEPMC3_MINIMUM_VERSION} is required for NuHepMC output; "
+        "treating as not found")
+    else()
+      message(STATUS
+        "Found a HepMC3 install (manual) at ${HEPMC3_LIBRARY} but could not "
+        "determine its version from ${_hepmc3_manual_version_header}; "
+        "treating as not found")
+    endif()
   endif()
 endif()
 
 # 2b) Explicit version floor. Config mode should already have rejected an old
 # HepMC3 above, but a config that does not honor the version request would still
 # set HepMC3_VERSION; reject it here so we degrade exactly like not-found. The
-# manual fallback leaves HepMC3_VERSION empty (no way to read it), so only a
-# known-and-too-old version trips this guard.
+# manual fallback resolves and checks its own version just above, so this only
+# re-guards the config-mode path.
 if(HEPMC3_FOUND AND DEFINED HepMC3_VERSION AND HepMC3_VERSION
     AND HepMC3_VERSION VERSION_LESS HEPMC3_MINIMUM_VERSION)
   message(STATUS

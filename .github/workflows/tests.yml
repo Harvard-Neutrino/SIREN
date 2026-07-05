@@ -76,4 +76,9 @@ jobs:
         run: pip install -v .
 
       - name: Run pytest
+        env:
+          # This job builds HepMC3 from source and points SIREN at it, so a
+          # find_package regression that silently falls back to the no-HepMC3
+          # stub must fail the job instead of letting the HepMC3 suite skip.
+          SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes

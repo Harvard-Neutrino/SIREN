@@ -112,14 +112,14 @@ An `"unweighted"` export is a **plain HepMC3 file**: it carries the `siren.*` pr
 SaveEvents(events, weighter, gen_times, output_filename="my_output", save_hepmc3=True)
 ```
 
-**2. Generate now, weight later.** Save without a weighter, then reweight the native `.siren_events` file with the converter. Reweighting reads the native file, **not** a HepMC3 round trip (the HepMC3 reader is run-level-lossy by design), so the `.siren_weighter` companion file must be present:
+**2. Generate now, weight later.** Save without a weighter, then convert the native `.siren_events` file with the converter, passing the (in-memory) `weighter` object to recompute the CV. Reweighting reads the native file, **not** a HepMC3 round trip (the HepMC3 reader is run-level-lossy by design). `convert_siren_events_to_hepmc3` does not read a `.siren_weighter` companion file itself -- you build or load the `Weighter` and pass it in directly:
 
 ```python
 from siren._util import convert_siren_events_to_hepmc3
 convert_siren_events_to_hepmc3("my_output.siren_events", weighter=weighter)
 ```
 
-or from the shell, without weights:
+or from the shell, without weights (the CLI has no `weighter` option, so the CVs are left as whatever the native file already carries):
 
 ```bash
 python -m siren.hepmc3_convert my_output.siren_events -o my_output.hepmc3
