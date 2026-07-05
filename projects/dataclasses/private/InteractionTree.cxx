@@ -115,14 +115,22 @@ void InteractionTree::validate_indices() const {
     std::uint32_t const n = static_cast<std::uint32_t>(tree.size());
     for(std::uint32_t i = 0; i < n; ++i) {
         std::shared_ptr<InteractionTreeDatum> const & datum = tree[i];
-        if(not datum) continue;
+        if(not datum)
+            throw std::runtime_error("InteractionTree: null datum in tree vector");
         if(datum->node_id != i)
             throw std::runtime_error("InteractionTree: node_id does not equal its position");
-        if(datum->parent_index != kNoParent and datum->parent_index >= n)
-            throw std::runtime_error("InteractionTree: parent_index out of range");
-        for(std::uint32_t d : datum->daughter_indices)
+        if(datum->parent_index != kNoParent) {
+            if(datum->parent_index >= n)
+                throw std::runtime_error("InteractionTree: parent_index out of range");
+            if(not tree[datum->parent_index])
+                throw std::runtime_error("InteractionTree: parent_index points to null datum");
+        }
+        for(std::uint32_t d : datum->daughter_indices) {
             if(d >= n)
                 throw std::runtime_error("InteractionTree: daughter_index out of range");
+            if(not tree[d])
+                throw std::runtime_error("InteractionTree: daughter_index points to null datum");
+        }
     }
 }
 
