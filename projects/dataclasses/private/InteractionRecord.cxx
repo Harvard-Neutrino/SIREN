@@ -20,12 +20,7 @@ namespace dataclasses {
 
 namespace {
 // Flight time for a particle with the given energy and momentum magnitude
-// that traverses a straight path of the given length. Lengths are in
-// internal units (m = 1) so the result is in internal time units
-// (second = 1e9). beta = |p|/E is the speed; a physical particle has
-// beta in (0, 1]. A non-finite or non-positive velocity (a NaN/inf record,
-// or an at-rest E <= m particle) contributes no delay, and beta is capped
-// at 1 so a spacelike |p| > E record can never yield a superluminal time.
+// that traverses a straight path of the given length.
 double FlightTime(double length, double energy, double momentum) {
     if(not (length > 0) or not (energy > 0) or not (momentum > 0))
         return 0;
@@ -825,9 +820,7 @@ double const & SecondaryParticleRecord::GetHelicity() const {
 
 double const & SecondaryParticleRecord::GetTime() const {
     // Secondaries are created at the interaction vertex, so their default
-    // production time is the vertex time (including any override applied
-    // through CrossSectionDistributionRecord::SetInteractionTime). A
-    // process can override this per particle to model delayed emission.
+    // production time is the vertex time
     if(time_set)
         return time;
     return initial_time;
