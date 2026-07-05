@@ -41,6 +41,14 @@ public:
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
+    // Post-selection hook for overriding the vertex interaction time. Called by
+    // the Injector after this cross section has been selected at a vertex and
+    // before the CrossSectionDistributionRecord is finalized. The default
+    // returns the record's automatically-computed flight time so existing
+    // physics is unchanged; processes with their own time structure may
+    // override it. See the call site in Injector::SampleCrossSection for why
+    // this is post-selection rather than pre-Finalize.
+    virtual double SampleInteractionTime(siren::dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const;
 
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const = 0;

@@ -103,6 +103,20 @@ void pyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecor
         } while (false);
 }
 
+double pyCrossSection::SampleInteractionTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    // REF variant: the record argument is non-copyable, so it must be passed to
+    // Python by reference (as SampleFinalState does) rather than copied.
+    SELF_OVERRIDE_REF(
+        self,
+        CrossSection,
+        double,
+        SampleInteractionTime,
+        "SampleInteractionTime",
+        record,
+        random
+    )
+}
+
 std::vector<siren::dataclasses::ParticleType> pyCrossSection::GetPossibleTargets() const {
     SELF_OVERRIDE_PURE(
         self,

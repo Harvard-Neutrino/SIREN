@@ -42,6 +42,14 @@ public:
     virtual double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
+    // Post-selection hook for overriding the vertex decay time. Called by the
+    // Injector after this decay has been selected at a vertex and before the
+    // CrossSectionDistributionRecord is finalized. The default returns the
+    // record's automatically-computed flight time so existing physics is
+    // unchanged; processes with their own time structure may override it. See
+    // the call site in Injector::SampleCrossSection for why this is
+    // post-selection rather than pre-Finalize.
+    virtual double SampleDecayTime(siren::dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;

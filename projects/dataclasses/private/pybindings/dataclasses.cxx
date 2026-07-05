@@ -170,6 +170,32 @@ PYBIND11_MODULE(dataclasses, m) {
         .def("finalize", &CrossSectionDistributionRecord::Finalize)
         ;
 
+    py::class_<SecondaryDistributionRecord, std::shared_ptr<SecondaryDistributionRecord>>(m, "SecondaryDistributionRecord")
+        .def(py::init<InteractionRecord &>())
+        .def(py::init<InteractionRecord const &, size_t>())
+        .def("__str__", [](SecondaryDistributionRecord const & sdr) { return to_str(sdr); })
+        .def("__repr__", [](SecondaryDistributionRecord const & sdr) { return to_repr(sdr); })
+        .def_property_readonly("secondary_index", &SecondaryDistributionRecord::GetSecondaryIndex)
+        .def_property_readonly("id",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {siren::dataclasses::ParticleID id = sdr.id; return id;})
+        .def_property_readonly("type",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {siren::dataclasses::ParticleType pt = sdr.type; return pt;})
+        .def_property_readonly("mass",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {double m = sdr.mass; return m;})
+        .def_property_readonly("direction",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {std::array<double, 3> d = sdr.direction; return d;})
+        .def_property_readonly("momentum",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {std::array<double, 4> p = sdr.momentum; return p;})
+        .def_property_readonly("helicity",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {double h = sdr.helicity; return h;})
+        .def_property_readonly("initial_position",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {std::array<double, 3> ip = sdr.initial_position; return ip;})
+        .def_property_readonly("initial_time",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {double t = sdr.initial_time; return t;})
+        .def_property("length", ((double const & (SecondaryDistributionRecord::*)() const)(&SecondaryDistributionRecord::GetLength)), &SecondaryDistributionRecord::SetLength)
+        .def_property("interaction_time", ((double const & (SecondaryDistributionRecord::*)() const)(&SecondaryDistributionRecord::GetInteractionTime)), &SecondaryDistributionRecord::SetInteractionTime)
+        .def("finalize", &SecondaryDistributionRecord::Finalize)
+        ;
 
     py::class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
         .def(py::init<>())

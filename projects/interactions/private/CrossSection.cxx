@@ -12,6 +12,11 @@ void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std
     csdr.Finalize(record);
 }
 
+double CrossSection::SampleInteractionTime(siren::dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    // Identity default: keep the flight-time value already on the record.
+    return record.GetInteractionTime();
+}
+
 double CrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
     std::vector<siren::dataclasses::InteractionSignature> signatures = this->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
     siren::dataclasses::InteractionRecord fake_record = record;

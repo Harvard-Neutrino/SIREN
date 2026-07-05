@@ -41,6 +41,7 @@ public:
     double DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const override;
     double InteractionThreshold(dataclasses::InteractionRecord const & interaction) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
+    double SampleInteractionTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override;

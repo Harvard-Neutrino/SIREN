@@ -36,6 +36,11 @@ double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interactio
     return p1.beta() * p1.gamma() * tau * siren::utilities::Constants::hbarc;
 }
 
+double Decay::SampleDecayTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    // Identity default: keep the flight-time value already on the record.
+    return record.GetInteractionTime();
+}
+
 } // namespace interactions
 } // namespace siren
 

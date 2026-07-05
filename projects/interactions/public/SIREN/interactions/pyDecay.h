@@ -43,6 +43,7 @@ public:
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     double DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
+    double SampleDecayTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<std::string> DensityVariables() const override;
