@@ -25,33 +25,34 @@ find_package(HepMC3 CONFIG QUIET)
 if(HepMC3_FOUND AND TARGET HepMC3::HepMC3)
   set(HEPMC3_FOUND TRUE)
   message(STATUS "Found HepMC3 via config: ${HepMC3_DIR}")
-  return()
 endif()
 
 # 2) Fallback: manual find + UNKNOWN IMPORTED target.
-find_path(HEPMC3_INCLUDE_DIR
-  NAMES HepMC3/GenEvent.h
-  HINTS $ENV{HEPMC3_ROOT}
-  PATHS ${CMAKE_PREFIX_PATH} /usr /usr/local /opt/local /opt/homebrew
-  PATH_SUFFIXES include
-  DOC "HepMC3 include directory")
+if(NOT HEPMC3_FOUND)
+  find_path(HEPMC3_INCLUDE_DIR
+    NAMES HepMC3/GenEvent.h
+    HINTS $ENV{HEPMC3_ROOT}
+    PATHS ${CMAKE_PREFIX_PATH} /usr /usr/local /opt/local /opt/homebrew
+    PATH_SUFFIXES include
+    DOC "HepMC3 include directory")
 
-find_library(HEPMC3_LIBRARY
-  NAMES HepMC3
-  HINTS $ENV{HEPMC3_ROOT}
-  PATHS ${CMAKE_PREFIX_PATH} /usr /usr/local /opt/local /opt/homebrew
-  PATH_SUFFIXES lib lib64
-  DOC "HepMC3 core library")
+  find_library(HEPMC3_LIBRARY
+    NAMES HepMC3
+    HINTS $ENV{HEPMC3_ROOT}
+    PATHS ${CMAKE_PREFIX_PATH} /usr /usr/local /opt/local /opt/homebrew
+    PATH_SUFFIXES lib lib64
+    DOC "HepMC3 core library")
 
-if(HEPMC3_INCLUDE_DIR AND HEPMC3_LIBRARY)
-  if(NOT TARGET HepMC3::HepMC3)
-    add_library(HepMC3::HepMC3 UNKNOWN IMPORTED)
-    set_target_properties(HepMC3::HepMC3 PROPERTIES
-      IMPORTED_LOCATION "${HEPMC3_LIBRARY}"
-      INTERFACE_INCLUDE_DIRECTORIES "${HEPMC3_INCLUDE_DIR}")
+  if(HEPMC3_INCLUDE_DIR AND HEPMC3_LIBRARY)
+    if(NOT TARGET HepMC3::HepMC3)
+      add_library(HepMC3::HepMC3 UNKNOWN IMPORTED)
+      set_target_properties(HepMC3::HepMC3 PROPERTIES
+        IMPORTED_LOCATION "${HEPMC3_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${HEPMC3_INCLUDE_DIR}")
+    endif()
+    set(HEPMC3_FOUND TRUE)
+    message(STATUS "Found HepMC3 (manual): ${HEPMC3_LIBRARY}")
   endif()
-  set(HEPMC3_FOUND TRUE)
-  message(STATUS "Found HepMC3 (manual): ${HEPMC3_LIBRARY}")
 endif()
 
 if(NOT HEPMC3_FOUND)
@@ -60,4 +61,41 @@ if(NOT HEPMC3_FOUND)
   else()
     message(STATUS "HepMC3 not found; siren.io builds without HepMC3 support")
   endif()
+  return()
+endif()
+
+# 3) Probe optional zlib compression support (for gzip output). WriterGZ/ReaderGZ
+#    only compile+link when HepMC3 was built with compression AND the gate macros
+#    are defined; the HepMC3 config does not export them, so probe here and, only
+#    if the probe links, let the io target define the macros itself. A failed
+#    probe simply disables gzip -- it is never a configure error.
+# bxzstr (HepMC3's compression backend) is header-only: the inflate/deflate calls
+# are emitted into the CONSUMER'S translation unit and libHepMC3 exports none of
+# them, so the probe (and later the io target) must link zlib itself. Without zlib
+# the probe would fail to link and gzip would be (correctly) disabled -- but if zlib
+# is present we must link it or the real build link-fails.
+find_package(ZLIB QUIET)
+if(ZLIB_FOUND)
+  set(_hepmc3_gz_src "${CMAKE_CURRENT_BINARY_DIR}/hepmc3_gz_probe.cxx")
+  file(WRITE "${_hepmc3_gz_src}"
+  "#ifndef HEPMC3_USE_COMPRESSION\n#define HEPMC3_USE_COMPRESSION 1\n#endif\n"
+  "#ifndef HEPMC3_Z_SUPPORT\n#define HEPMC3_Z_SUPPORT 1\n#endif\n"
+  "#include <memory>\n"
+  "#include <HepMC3/WriterGZ.h>\n#include <HepMC3/WriterAscii.h>\n"
+  "#include <HepMC3/ReaderGZ.h>\n#include <HepMC3/ReaderAscii.h>\n"
+  "#include <HepMC3/GenRunInfo.h>\n"
+  "int main(){ HepMC3::WriterGZ<HepMC3::WriterAscii> w(\"probe.hepmc3.gz\", std::make_shared<HepMC3::GenRunInfo>());\n"
+  "  HepMC3::ReaderGZ<HepMC3::ReaderAscii> r(\"probe.hepmc3.gz\"); return 0; }\n")
+  try_compile(HEPMC3_HAS_COMPRESSION
+    "${CMAKE_CURRENT_BINARY_DIR}/hepmc3_gz_probe"
+    "${_hepmc3_gz_src}"
+    LINK_LIBRARIES HepMC3::HepMC3 ZLIB::ZLIB
+    CMAKE_FLAGS "-DCMAKE_CXX_STANDARD=17")
+else()
+  set(HEPMC3_HAS_COMPRESSION FALSE)
+endif()
+if(HEPMC3_HAS_COMPRESSION)
+  message(STATUS "HepMC3 compression (gzip) available")
+else()
+  message(STATUS "HepMC3 compression not available; gzip output disabled")
 endif()

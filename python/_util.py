@@ -1094,10 +1094,16 @@ def convert_siren_events_to_hepmc3(in_path, out_path=None, weighter=None, option
     if out_path is None:
         base = in_path[:-len(".siren_events")] if in_path.endswith(".siren_events") else in_path
         out_path = base + ".hepmc3"
+    # If gzip is requested, ensure a .gz suffix so the file self-describes (the reader
+    # also sniffs the gzip magic bytes, but a .gz name is the clearer convention).
+    if options is not None and getattr(options, "gzip", False) and not out_path.endswith(".gz"):
+        out_path = out_path + ".gz"
     if weighter is not None:
         for tree in trees:
             w = weighter(tree) if callable(weighter) else weighter.EventWeight(tree)
-            tree.header.weights = [float(w)]
+            weights = list(tree.header.weights) or [0.0]
+            weights[0] = float(w)  # overwrite only the CV slot, keeping any named weights
+            tree.header.weights = weights
     from . import hepmc3 as _hepmc3
     if options is not None:
         _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path, options)

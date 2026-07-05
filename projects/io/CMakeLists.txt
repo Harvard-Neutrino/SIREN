@@ -20,6 +20,18 @@ target_link_libraries(SIREN_io
 if(HEPMC3_FOUND)
     target_link_libraries(SIREN_io PUBLIC HepMC3::HepMC3)
     target_compile_definitions(SIREN_io PUBLIC SIREN_HAS_HEPMC3=1)
+    if(HEPMC3_HAS_COMPRESSION)
+        # CompressedIO.h only pulls in the (bxzstr) gzip typedefs when both
+        # HEPMC3_USE_COMPRESSION and HEPMC3_Z_SUPPORT are defined; our writer/reader
+        # gate the WriterGZ/ReaderGZ paths on SIREN_HEPMC3_HAS_COMPRESSION. bxzstr is
+        # header-only, so the io target itself must link zlib (libHepMC3 does not).
+        find_package(ZLIB REQUIRED)
+        target_link_libraries(SIREN_io PUBLIC ZLIB::ZLIB)
+        target_compile_definitions(SIREN_io PUBLIC
+            SIREN_HEPMC3_HAS_COMPRESSION=1
+            HEPMC3_USE_COMPRESSION=1
+            HEPMC3_Z_SUPPORT=1)
+    endif()
 endif()
 
 apply_siren_compile_options(SIREN_io)
@@ -37,6 +49,9 @@ if(NOT CIBUILDWHEEL)
         target_link_libraries(UnitTest_HepMC3Writer HepMC3::HepMC3)
         package_add_test(UnitTest_HepMC3RoundTrip ${PROJECT_SOURCE_DIR}/projects/io/private/test/HepMC3RoundTrip_TEST.cxx)
         target_link_libraries(UnitTest_HepMC3RoundTrip HepMC3::HepMC3)
+        if(HEPMC3_HAS_COMPRESSION)
+            target_compile_definitions(UnitTest_HepMC3RoundTrip PRIVATE SIREN_HEPMC3_HAS_COMPRESSION=1)
+        endif()
     endif()
 endif()
 

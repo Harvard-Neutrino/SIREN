@@ -3,6 +3,8 @@
 #include <map>
 #include <array>
 #include <string>
+#include <memory>
+#include <fstream>
 #include <stdexcept>
 
 #include "SIREN/dataclasses/InteractionTree.h"
@@ -15,7 +17,11 @@
 #include <HepMC3/GenEvent.h>
 #include <HepMC3/GenParticle.h>
 #include <HepMC3/GenVertex.h>
+#include <HepMC3/Reader.h>
 #include <HepMC3/ReaderAscii.h>
+#ifdef SIREN_HEPMC3_HAS_COMPRESSION
+#include <HepMC3/ReaderGZ.h>
+#endif
 
 #include "SIREN/dataclasses/ParticleType.h"
 #include "SIREN/utilities/Constants.h"
@@ -29,6 +35,18 @@ namespace C = siren::utilities::Constants;
 using siren::dataclasses::ParticleType;
 
 ParticleType pdg_to_type(int pid) { return static_cast<ParticleType>(pid); }
+
+// Detect gzip by content (magic bytes 0x1f 0x8b) rather than by filename, so a
+// gzip file without a .gz suffix still round-trips and a missing/plaintext file
+// falls through to the Ascii reader (which reports the open/parse error).
+bool looks_gzip(std::string const & filename) {
+    std::ifstream f(filename, std::ios::binary);
+    if(!f) return false;
+    char b0 = 0, b1 = 0;
+    f.get(b0);
+    f.get(b1);
+    return static_cast<unsigned char>(b0) == 0x1f && static_cast<unsigned char>(b1) == 0x8b;
+}
 
 // HepMC3 FourVector is (px, py, pz, E); SIREN stores [E, px, py, pz].
 std::array<double, 4> siren_momentum(HepMC3::FourVector const & p) {
@@ -160,18 +178,30 @@ siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt) {
 
 std::vector<std::shared_ptr<siren::dataclasses::InteractionTree>>
 LoadInteractionTreesFromHepMC3(std::string const & filename) {
-    HepMC3::ReaderAscii reader(filename);
-    if(reader.failed()) {
+    // Auto-detect gzip by content (magic bytes); deduce_reader is avoided to stay off
+    // HepMC3's optional plugin/root/protobuf paths.
+    std::unique_ptr<HepMC3::Reader> reader;
+    if(looks_gzip(filename)) {
+#ifdef SIREN_HEPMC3_HAS_COMPRESSION
+        reader = std::make_unique<HepMC3::ReaderGZ<HepMC3::ReaderAscii>>(filename);
+#else
+        throw std::runtime_error("HepMC3Reader: '" + filename + "' looks gzip-compressed "
+                                 "but this SIREN build's HepMC3 has no compression support");
+#endif
+    } else {
+        reader = std::make_unique<HepMC3::ReaderAscii>(filename);
+    }
+    if(reader->failed()) {
         throw std::runtime_error("HepMC3Reader: could not open '" + filename + "' for reading");
     }
     std::vector<std::shared_ptr<siren::dataclasses::InteractionTree>> trees;
     while(true) {
         HepMC3::GenEvent evt;
-        reader.read_event(evt);
-        if(reader.failed()) break;
+        reader->read_event(evt);
+        if(reader->failed()) break;
         trees.push_back(std::make_shared<siren::dataclasses::InteractionTree>(GenEventToTree(evt)));
     }
-    reader.close();
+    reader->close();
     return trees;
 }
 

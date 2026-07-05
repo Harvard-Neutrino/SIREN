@@ -32,7 +32,7 @@ PYBIND11_MODULE(hepmc3, m) {
                        &HepMC3Writer::Options::fatx_partition_by_primary)
         .def_readwrite("cross_section_unit", &HepMC3Writer::Options::cross_section_unit)
         .def_readwrite("target_scale", &HepMC3Writer::Options::target_scale)
-        .def_readwrite("cv_weight_index", &HepMC3Writer::Options::cv_weight_index);
+        .def_readwrite("gzip", &HepMC3Writer::Options::gzip);
 
     py::class_<HepMC3Writer>(m, "HepMC3Writer")
         .def(py::init<std::string const &, HepMC3Writer::Options const &>(),

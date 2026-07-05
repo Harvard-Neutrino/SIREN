@@ -43,7 +43,11 @@ public:
         bool fatx_partition_by_primary = false;  // emit per-primary siren.fatx.<pdg>
         std::string cross_section_unit = "pb";   // NuHepMC.Units.CrossSection.Unit
         std::string target_scale = "PerAtom";    // NuHepMC.Units.CrossSection.TargetScale
-        int cv_weight_index = 0;                 // weight slot used as the CV rate weight
+
+        // Gzip-compress the output (HepMC3 WriterGZ). Requires a HepMC3 build with
+        // zlib support; throws at construction if unsupported. Output should carry a
+        // .gz suffix so the reader auto-detects it (e.g. events.hepmc3.gz).
+        bool gzip = false;
 
         // Internal: process registry + FATX accumulators populated by the pre-scan in
         // SaveInteractionTreesAsHepMC3. Callers normally leave these empty.

@@ -46,7 +46,11 @@ std::string ProcessName(siren::dataclasses::InteractionSignature const & s) {
 #include <HepMC3/GenParticle.h>
 #include <HepMC3/GenVertex.h>
 #include <HepMC3/GenRunInfo.h>
+#include <HepMC3/Writer.h>
 #include <HepMC3/WriterAscii.h>
+#ifdef SIREN_HEPMC3_HAS_COMPRESSION
+#include <HepMC3/WriterGZ.h>
+#endif
 
 #include "SIREN/dataclasses/ParticleID.h"
 #include "SIREN/dataclasses/ParticleType.h"
@@ -214,13 +218,15 @@ struct HepMC3Writer::Impl {
             DeclareAdditionalParticleNumbers(*run_info_, particles);
         }
 
-        // Run-level generation counts (metadata; also the FATX normalization).
+        // Run-level generation counts (metadata; also the FATX normalization). Emitted
+        // as DoubleAttribute so large low-acceptance runs (attempts > INT_MAX) do not
+        // overflow -- the exact integer is preserved up to 2^53.
         if(options_.attempted_events >= 0)
             run_info_->add_attribute("siren.attempted_events",
-                std::make_shared<HepMC3::IntAttribute>(static_cast<int>(options_.attempted_events)));
+                D(static_cast<double>(options_.attempted_events)));
         if(options_.accepted_events >= 0)
             run_info_->add_attribute("siren.accepted_events",
-                std::make_shared<HepMC3::IntAttribute>(static_cast<int>(options_.accepted_events)));
+                D(static_cast<double>(options_.accepted_events)));
 
         // NuHepMC process ID registry (G.R.8): one id per distinct root interaction
         // signature, assigned in the generator ("Other", >= 700) band by the pre-scan.
@@ -234,22 +240,13 @@ struct HepMC3Writer::Impl {
             DeclareIdRegistry(*run_info_, "NuHepMC.ProcessIDs", "NuHepMC.ProcessInfo", ids, info);
         }
 
-        // Cross-section units (G.R.6) + flux-averaged total cross section (E.C.4), at
-        // run level. SIREN's per-event weight is a rate weight, so the raw ingredients
-        // (siren.fatx.*) are always written for reconstruction; the reserved
-        // NuHepMC.FluxAveragedTotalCrossSection key is only emitted under the explicit
-        // fatx_per_atom opt-in (see Options docs for the per-atom caveat).
-        run_info_->add_attribute("NuHepMC.Units.CrossSection.Unit",
-            std::make_shared<HepMC3::StringAttribute>(options_.cross_section_unit));
-        run_info_->add_attribute("NuHepMC.Units.CrossSection.TargetScale",
-            std::make_shared<HepMC3::StringAttribute>(options_.target_scale));
+        // Flux-averaged total cross section (NuHepMC E.C.4), at run level. SIREN's
+        // per-event weight is a rate weight, so the raw ingredient siren.fatx.weight_sum
+        // (combined with siren.attempted_events) is always written for reconstruction.
+        // The reserved NuHepMC.FluxAveragedTotalCrossSection key AND its G.R.6 units are
+        // emitted only under the explicit fatx_per_atom opt-in (see Options docs), so a
+        // NuHepMC reader never sees a per-atom claim the rate weight cannot back.
         run_info_->add_attribute("siren.fatx.weight_sum", D(options_.fatx_weight_sum));
-        if(options_.attempted_events >= 0)
-            run_info_->add_attribute("siren.fatx.attempted",
-                D(static_cast<double>(options_.attempted_events)));
-        if(options_.accepted_events >= 0)
-            run_info_->add_attribute("siren.fatx.accepted",
-                D(static_cast<double>(options_.accepted_events)));
         {
             long long const norm = (options_.attempted_events > 0) ? options_.attempted_events
                                                                    : options_.accepted_events;
@@ -266,8 +263,13 @@ struct HepMC3Writer::Impl {
                     double const fatx = kGeVm2_to_pb * options_.fatx_weight_sum
                                         / static_cast<double>(norm);
                     run_info_->add_attribute("siren.fatx.value", D(fatx));
-                    if(options_.fatx_per_atom)
+                    if(options_.fatx_per_atom) {
+                        run_info_->add_attribute("NuHepMC.Units.CrossSection.Unit",
+                            std::make_shared<HepMC3::StringAttribute>(options_.cross_section_unit));
+                        run_info_->add_attribute("NuHepMC.Units.CrossSection.TargetScale",
+                            std::make_shared<HepMC3::StringAttribute>(options_.target_scale));
                         run_info_->add_attribute("NuHepMC.FluxAveragedTotalCrossSection", D(fatx));
+                    }
                 }
             }
         }
@@ -277,7 +279,16 @@ struct HepMC3Writer::Impl {
         run_info_->add_attribute("NuHepMC.Conventions",
             std::make_shared<HepMC3::VectorStringAttribute>(std::vector<std::string>{"E.C.5"}));
 
-        writer_ = std::make_unique<HepMC3::WriterAscii>(filename, run_info_);
+        if(options_.gzip) {
+#ifdef SIREN_HEPMC3_HAS_COMPRESSION
+            writer_ = std::make_unique<HepMC3::WriterGZ<HepMC3::WriterAscii>>(filename, run_info_);
+#else
+            throw std::runtime_error("HepMC3Writer: gzip output requested but this SIREN "
+                                     "build's HepMC3 has no compression support");
+#endif
+        } else {
+            writer_ = std::make_unique<HepMC3::WriterAscii>(filename, run_info_);
+        }
         if(writer_->failed()) {
             throw std::runtime_error("HepMC3Writer: could not open '" + filename + "' for writing");
         }
@@ -443,7 +454,7 @@ struct HepMC3Writer::Impl {
 
     Options options_;
     std::shared_ptr<HepMC3::GenRunInfo> run_info_;
-    std::unique_ptr<HepMC3::WriterAscii> writer_;
+    std::unique_ptr<HepMC3::Writer> writer_;
 };
 
 HepMC3Writer::HepMC3Writer(std::string const & filename, Options const & options)
@@ -510,12 +521,10 @@ void SaveInteractionTreesAsHepMC3(
             opts.process_ids[key] = id;
             opts.process_names[id] = ProcessName(sig);
         }
-        double w = 1.0;
+        // CV weight is slot 0 (the 'CV' weight_names entry), matching what
+        // TreeToGenEvent writes into evt.weights(); keep FATX consistent with it.
         std::vector<double> const & wv = tree->header.weights;
-        if(!wv.empty()) {
-            int const idx = opts.cv_weight_index;
-            w = (idx >= 0 && static_cast<std::size_t>(idx) < wv.size()) ? wv[idx] : wv.front();
-        }
+        double const w = wv.empty() ? 1.0 : wv.front();
         opts.fatx_weight_sum += w;
         opts.fatx_weight_sum_by_primary[pdg(sig.primary_type)] += w;
         ++accepted;
