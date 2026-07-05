@@ -310,7 +310,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
             if(it == secondary_process_map.end()) {
                 continue;
             }
-            if(stopping_condition(parent, i)) {
+            if(stopping_condition(tree, parent, i)) {
                 continue;
             }
             secondaries.emplace_back(
@@ -330,12 +330,20 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
 
                 siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
                 std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+                // Daughter record is authoritative for its production time; keep the
+                // parent's secondary_times slot in sync (single write point, after the
+                // daughter override is finalized).
+                size_t sidx = secondary_dist->GetSecondaryIndex();
+                if(sidx < parent->record.secondary_times.size())
+                    parent->record.secondary_times[sidx] = secondary_record.primary_initial_time;
                 add_secondaries(secondary_datum);
             }
         }
     } catch(siren::utilities::InjectionFailure const & e) {
         return siren::dataclasses::InteractionTree();
     }
+    tree.header.event_number = injected_events;
+    tree.header.provenance["generator"] = "SIREN";
     injected_events += 1;
     return tree;
 }
@@ -360,7 +368,7 @@ double Injector::GenerationProbability(siren::dataclasses::InteractionTree const
     double probability = 1.0;
     std::vector<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
     while(it != tree.tree.cend()) {
-        if((*it)->depth()==0) probability *= GenerationProbability((*it));
+        if((*it)->is_root()) probability *= GenerationProbability((*it));
         else probability *= SecondaryGenerationProbability((*it));
         ++it;
     }

@@ -60,7 +60,7 @@ protected:
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     // This function returns true if the given secondary index i of the datum should not be simulated
     // Defaults to no secondary interactions being saved
-    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition= [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
+    std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition= [&](siren::dataclasses::InteractionTree const & tree, std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
         return true;
     };
     Injector();
@@ -78,8 +78,8 @@ public:
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random);
 
-    void SetStoppingCondition(std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
-    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> GetStoppingCondition() {return stopping_condition;}
+    void SetStoppingCondition(std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
+    std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> GetStoppingCondition() {return stopping_condition;}
     std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<siren::injection::PrimaryInjectionProcess> process);
     std::shared_ptr<distributions::SecondaryVertexPositionDistribution> FindSecondaryVertexDistribution(std::shared_ptr<siren::injection::SecondaryInjectionProcess> process);
     void SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary);

@@ -669,7 +669,7 @@ class SIREN_Controller:
                  # primary particle stuff
                 datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
-                datasets["num_daughters"][-1].append(len(datum.daughters))
+                datasets["num_daughters"][-1].append(len(datum.daughter_indices))
 
                 # parent interaction index (from the tree's parent/daughter edges)
                 datasets["parent_idx"][-1].append(parent_indices[id])

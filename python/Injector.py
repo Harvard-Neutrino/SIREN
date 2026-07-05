@@ -39,7 +39,7 @@ class Injector:
         primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
         secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
         secondary_injection_distributions: Optional[Dict[_dataclasses.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
-        stopping_condition: Optional[Callable[[_dataclasses.InteractionTreeDatum, int], bool]] = None,
+        stopping_condition: Optional[Callable[[_dataclasses.InteractionTree, _dataclasses.InteractionTreeDatum, int], bool]] = None,
     ):
         self.__seed = None
         self.__number_of_events = 0

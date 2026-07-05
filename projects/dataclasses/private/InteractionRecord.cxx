@@ -1166,6 +1166,10 @@ SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const
     initial_position(record.primary_initial_position),
     initial_time(record.primary_initial_time) {}
 
+size_t SecondaryDistributionRecord::GetSecondaryIndex() const {
+    return secondary_index;
+}
+
 double const & SecondaryDistributionRecord::GetLength() const {
     if(not length_set) {
         throw std::runtime_error("Length not set!");

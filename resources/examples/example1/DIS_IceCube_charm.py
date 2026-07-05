@@ -192,7 +192,7 @@ injector.primary_interactions              = primary_interactions
 injector.primary_injection_distributions   = primary_injection_distributions
 injector.secondary_interactions            = secondary_interactions
 injector.secondary_injection_distributions = secondary_injection_distributions
-injector.stopping_condition                = lambda datum, i: False
+injector.stopping_condition                = lambda tree, datum, i: False
 
 events, gen_times = GenerateEvents(injector)
 print(f"Generated {len(events)} events")

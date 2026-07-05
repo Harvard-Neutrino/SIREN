@@ -9,8 +9,8 @@ silently mis-links parentage whenever two secondaries share identical
 four-momenta (a common, physical situation).
 
 The fix reads parentage directly from the tree's parent/daughter edges via
-``InteractionTreeDatum.parent`` -- the authoritative link the injector records
-when it builds the tree. Both flattening functions now delegate to the shared
+``InteractionTreeDatum.parent_index`` -- the authoritative integer edge the
+injector records when it builds the tree. Both flattening functions now delegate to the shared
 ``siren._util.get_parent_indices`` helper. These tests build a small tree by
 hand with two secondaries that share identical momenta and prove the new
 reconstruction links each daughter to the correct parent where the old momentum
@@ -57,7 +57,7 @@ def _build_degenerate_momentum_tree(dc):
 
     Almost every particle shares the same momentum ``M``, so matching a primary
     momentum against earlier secondary momenta cannot tell the branches apart.
-    The true parentage (from the ``.parent`` edges) is ``[-1, 0, 0, 1, 2]``.
+    The true parentage (from the ``.parent_index`` edges) is ``[-1, 0, 0, 1, 2]``.
 
     Note idx4's true parent is index 2 while its depth is 2, so ``parent index``
     and ``depth - 1`` deliberately disagree there -- a reconstruction that merely
@@ -113,7 +113,7 @@ def _momentum_parent_indices(entries):
     parent_idx = []
     for datum in entries:
         primary_momentum = np.array(datum.record.primary_momentum, dtype=float)
-        if datum.depth() == 0:
+        if datum.is_root():
             parent_idx.append(-1)
         else:
             for _id in range(len(secondary_momenta)):
@@ -130,12 +130,12 @@ def test_ground_truth_edges(dc):
     """Sanity: the hand-built tree has the parent/daughter edges we expect."""
     tree, _expected = _build_degenerate_momentum_tree(dc)
     entries = list(tree.tree)
-    assert [d.depth() for d in entries] == [0, 1, 1, 2, 2]
-    assert entries[0].parent is None
-    assert entries[1].parent is entries[0]
-    assert entries[2].parent is entries[0]
-    assert entries[3].parent is entries[1]
-    assert entries[4].parent is entries[2]
+    assert [tree.depth(i) for i in range(len(entries))] == [0, 1, 1, 2, 2]
+    assert entries[0].is_root()
+    assert entries[1].parent_index == 0
+    assert entries[2].parent_index == 0
+    assert entries[3].parent_index == 1
+    assert entries[4].parent_index == 2
     # the two root secondaries genuinely share identical four-momenta
     m0, m1 = entries[0].record.secondary_momenta
     assert list(m0) == list(m1)
@@ -152,12 +152,12 @@ def test_get_parent_indices_uses_tree_edges(dc):
     # each entry points at the *actual* parent object, not merely a same-depth
     # node (idx4's parent is index 2, not depth-1 == 1)
     for i, datum in enumerate(tree.tree):
-        if datum.parent is None:
+        if datum.is_root():
             assert result[i] == -1
         else:
-            assert tree.tree[result[i]] is datum.parent
+            assert result[i] == datum.parent_index
     # guard specifically against a depth-based stand-in
-    depth_minus_one = [d.depth() - 1 for d in tree.tree]
+    depth_minus_one = [tree.depth(i) - 1 for i in range(len(tree.tree))]
     assert result != depth_minus_one
 
 

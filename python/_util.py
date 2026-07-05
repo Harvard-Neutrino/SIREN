@@ -943,24 +943,21 @@ def get_parent_indices(tree):
     ``tree``) of the interaction whose secondary particle became this datum's
     primary, or ``-1`` for a root/primary interaction that has no parent.
 
-    Parentage is read directly from the tree's parent/daughter edges via the
-    ``InteractionTreeDatum.parent`` pointer -- the authoritative link the
-    injector records when it builds the tree. Earlier versions instead matched a
-    datum's primary four-momentum against earlier interactions' secondary
-    momenta, which is O(n^2) per tree and silently mis-links parentage whenever
-    two secondaries share identical four-momenta.
+    Parentage is read directly from each datum's ``.parent_index`` -- the
+    authoritative integer edge the injector records when it builds the tree.
+    Because a datum's ``node_id`` equals its position in the tree, a datum's
+    ``.parent_index`` is exactly the index of its parent within ``tree``, so it
+    is returned as-is (with ``-1`` substituted for roots). Earlier versions
+    instead matched a datum's primary four-momentum against earlier
+    interactions' secondary momenta, which is O(n^2) per tree and silently
+    mis-links parentage whenever two secondaries share identical four-momenta.
     """
-    # Map each datum's object identity to its position in the flattened tree.
-    # pybind11 returns the same wrapper object for a given C++ shared_ptr, so a
-    # datum's ``.parent`` is identity-equal to its entry in ``tree``.
-    index_of = {id(datum): i for i, datum in enumerate(tree)}
     parent_indices = []
     for datum in tree:
-        parent = datum.parent
-        if parent is None:
+        if datum.is_root():
             parent_indices.append(-1)
         else:
-            parent_indices.append(index_of.get(id(parent), -1))
+            parent_indices.append(int(datum.parent_index))
     return parent_indices
 
 def SaveEvents(events,
