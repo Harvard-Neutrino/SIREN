@@ -94,13 +94,15 @@ def test_counts_and_fatx_metadata(dc, tmp_path):
     assert "NuHepMC.Version.Major" in attrs
     assert "NuHepMC.FluxAveragedTotalCrossSection" in attrs
     assert "NuHepMC.Units.CrossSection.Unit" in attrs
-    assert "NuHepMC.Units.CrossSection.TargetScale" in attrs
+    # TargetScale is a valid claim only under the fatx_per_atom opt-in (not set here).
+    assert "NuHepMC.Units.CrossSection.TargetScale" not in attrs
 
 
 def test_fatx_target_scale_labels_per_atom_optin(dc, tmp_path):
     """In a NuHepMC mode the reserved FATX key + units are always emitted; the
-    fatx_per_atom opt-in only selects the TargetScale label (the claim that the
-    value is a genuine per-atom sigma vs an unnormalized rate)."""
+    fatx_per_atom opt-in adds an in-spec TargetScale (PerAtom/PerNucleon). The
+    rate-weight default omits TargetScale rather than claiming an out-of-spec
+    value."""
     from siren import hepmc3
     # With the opt-in the caller-provided TargetScale is used.
     out = str(tmp_path / "peratom.hepmc3")
@@ -113,7 +115,8 @@ def test_fatx_target_scale_labels_per_atom_optin(dc, tmp_path):
     assert "NuHepMC.FluxAveragedTotalCrossSection" in text
     assert "NuHepMC.Units.CrossSection.Unit" in text
     assert "PerAtom" in text
-    # Without the opt-in the value is labelled Unnormalized (rate-weight caveat).
+    # Without the opt-in the FATX value is still written, but no TargetScale is
+    # claimed (an absent scale means the rate-weight default, not a per-atom sigma).
     out2 = str(tmp_path / "unnorm.hepmc3")
     opts2 = hepmc3.HepMC3WriterOptions()
     opts2.attempted_events = 1000
@@ -121,7 +124,7 @@ def test_fatx_target_scale_labels_per_atom_optin(dc, tmp_path):
     _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out2, opts2)
     text2 = open(out2).read()
     assert "NuHepMC.FluxAveragedTotalCrossSection" in text2
-    assert "Unnormalized" in text2
+    assert "NuHepMC.Units.CrossSection.TargetScale" not in text2
 
 
 def test_unweighted_mode_omits_nuhepmc_and_fatx(dc, tmp_path):
@@ -138,13 +141,20 @@ def test_unweighted_mode_omits_nuhepmc_and_fatx(dc, tmp_path):
     assert "NuHepMC." not in text
     assert "siren.fatx.value" not in text
     assert "siren.fatx.weight_sum" not in text
+    # Per-event NuHepMC attributes are gated on the same conformance guard, so a
+    # file with no NuHepMC.Version declares neither a signal_process_id (E.R.3,
+    # which would reference an undeclared process id) nor a lab_pos (E.R.5).
+    assert "signal_process_id" not in text
+    assert "lab_pos" not in text
     # Counts still present (later pooling needs them).
     assert "siren.attempted_events" in text
     assert "siren.accepted_events" in text
 
 
 def test_fatx_value_matches_estimator(dc, tmp_path):
-    """FATX estimate == 3.894e8 pb/GeV^-2 * sum(weights)/attempted (via pyhepmc)."""
+    """FATX estimate == 3.894e8 pb/GeV^-2 * sum(CV weights) (via pyhepmc). The CV
+    weight already carries the 1/EventsToInject flux normalization, so the sum is
+    itself the unbiased flux-averaged estimate -- no further division by a count."""
     pyhepmc = pytest.importorskip("pyhepmc")
     out = str(tmp_path / "est.hepmc3")
     from siren import hepmc3
@@ -157,31 +167,8 @@ def test_fatx_value_matches_estimator(dc, tmp_path):
         evt = f.read()
         ri = evt.run_info
     val = float(str(ri.attributes["NuHepMC.FluxAveragedTotalCrossSection"]))
-    expected = 3.894e8 * sum(weights) / 10.0
+    expected = 3.894e8 * sum(weights)
     assert abs(val - expected) / expected < 1e-6
-
-
-def test_norm_basis_records_denominator(dc, tmp_path):
-    """siren.fatx.norm_basis records which count normalized the FATX: "attempted"
-    when attempted_events was provided, "accepted" when the code fell back to the
-    accepted count. A pooler must not mix the two bases."""
-    pyhepmc = pytest.importorskip("pyhepmc")
-    from siren import hepmc3
-    # attempted provided -> attempted basis.
-    out = str(tmp_path / "basis_att.hepmc3")
-    opts = hepmc3.HepMC3WriterOptions()
-    opts.attempted_events = 1000
-    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out, opts)
-    with pyhepmc.open(out) as f:
-        attrs = f.read().run_info.attributes
-    assert str(attrs["siren.fatx.norm_basis"]) == "attempted"
-    # attempted absent -> silent fallback to the accepted (auto-filled) count.
-    out2 = str(tmp_path / "basis_acc.hepmc3")
-    opts2 = hepmc3.HepMC3WriterOptions()  # no attempted_events
-    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out2, opts2)
-    with pyhepmc.open(out2) as f:
-        attrs2 = f.read().run_info.attributes
-    assert str(attrs2["siren.fatx.norm_basis"]) == "accepted"
 
 
 def test_events_to_inject_persisted(dc, tmp_path):
@@ -234,13 +221,13 @@ def test_partitioned_fatx_carries_raw_sums(dc, tmp_path):
     # Raw per-primary accepted counts.
     assert float(str(attrs["siren.fatx.%d.accepted" % numu])) == 2
     assert float(str(attrs["siren.fatx.%d.accepted" % nuebar])) == 1
-    # Normalized values are still present, and equal 3.894e8 * weight_sum / norm.
-    norm = 1000.0
-    exp_numu = 3.894e8 * 8.0 / norm
+    # Per-primary values are present and equal 3.894e8 * weight_sum (the CV weight
+    # already carries 1/EventsToInject, so no further division by a count).
+    exp_numu = 3.894e8 * 8.0
     assert abs(float(str(attrs["siren.fatx.%d" % numu])) - exp_numu) / exp_numu < 1e-6
-    # Poolability: the normalized value can be reconstructed from the raw ingredients.
+    # Poolability: the value can be reconstructed from the raw weight_sum ingredient.
     ws = float(str(attrs["siren.fatx.%d.weight_sum" % numu]))
-    assert abs(3.894e8 * ws / norm - float(str(attrs["siren.fatx.%d" % numu]))) / exp_numu < 1e-6
+    assert abs(3.894e8 * ws - float(str(attrs["siren.fatx.%d" % numu]))) / exp_numu < 1e-6
 
 
 def test_partitioned_fatx_suppressed_when_unweighted(dc, tmp_path):
@@ -300,18 +287,17 @@ def test_fatx_precision_sweep(dc, tmp_path):
     from siren import hepmc3
     # Same constant the writer uses: 1 GeV^-2 = 3.894e8 pb (PDG).
     kGeVm2_to_pb = 3.894e8
-    norm = 1000  # attempted_events; exact integer denominator
     # Targets span 28 decades. For each we pick the CV weight that makes the
-    # writer's estimate 3.894e8 * weight_sum / norm land on the target magnitude.
+    # writer's estimate 3.894e8 * weight_sum land on the target magnitude.
     for exponent in range(-2, -31, -1):
         target = 10.0 ** exponent
-        weight = target * norm / kGeVm2_to_pb
+        weight = target / kGeVm2_to_pb
         # The value the writer will actually compute and emit for this weight.
-        expected = kGeVm2_to_pb * weight / norm
+        expected = kGeVm2_to_pb * weight
 
         out = str(tmp_path / ("sweep_%d.hepmc3" % exponent))
         opts = hepmc3.HepMC3WriterOptions()
-        opts.attempted_events = norm
+        opts.attempted_events = 1000
         opts.fatx_per_atom = True
         _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, weight)], out, opts)
 

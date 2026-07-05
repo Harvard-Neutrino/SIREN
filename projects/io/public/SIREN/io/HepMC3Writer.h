@@ -38,32 +38,42 @@ public:
         // SIREN's built-in BSM set: code -> {name, description}.
         std::map<int, std::pair<std::string, std::string>> additional_particle_numbers;
 
-        // Run-level generation counts, stored as metadata to normalize
-        // the flux-averaged cross section. A negative value means "not provided".
+        // Run-level generation counts, stored as metadata (siren.attempted_events /
+        // siren.accepted_events). accepted_events also gates whether the file has
+        // any real content to back a NuHepMC.Version declaration: with < 1 accepted
+        // event the writer stays silent on all NuHepMC.* keys. Neither count is a
+        // divisor in the FATX formula below -- see fatx_per_atom. A negative value
+        // means "not provided".
         long long attempted_events = -1;   // total sampled including rejected
         long long accepted_events  = -1;   // events saved (auto-filled from tree count if < 0)
 
         // The Injector's EventsToInject seed (the pooled-weighting N_i target). Not
-        // used in any normalization; emitted as siren.events_to_inject when >= 0 so a
-        // downstream pooler can reconstruct the intended per-file event budget. A
-        // negative value means "not provided".
+        // used in any normalization here (it is already baked into each event's CV
+        // weight by siren::injection::Weighter::EventWeight); emitted as
+        // siren.events_to_inject when >= 0 so a downstream pooler can reconstruct
+        // the intended per-file event budget. A negative value means "not provided".
         long long events_to_inject = -1;
 
-        // Flux-averaged total cross section (NuHepMC E.C.4 / G.R.6). SIREN's per-event
-        // weight is a *rate* weight, so sum(weights)/attempted is only a true per-atom
-        // cross section when the physical flux is unit-normalized and the target
-        // column-density normalization is divided out. In a NuHepMC mode (weights_state
-        // != "unweighted") the mandatory NuHepMC.FluxAveragedTotalCrossSection key and
-        // its G.R.6 units are ALWAYS emitted, so the invariant "version declared <=>
-        // FATX emitted" holds. fatx_per_atom selects the TargetScale label describing the
-        // value: target_scale (default "PerAtom", the caller's assertion that the per-atom
-        // normalization holds) when set, otherwise the literal "Unnormalized" so a reader
-        // is warned the value is a raw rate. Under "unweighted" no siren.fatx.* or
-        // NuHepMC.* keys are emitted.
-        bool fatx_per_atom = true;
+        // Flux-averaged total cross section (NuHepMC G.C.2, a run-level constant;
+        // G.R.6 units). SIREN's per-event CV weight (Weighter::EventWeight) already
+        // divides by the injector's EventsToInject, so fatx_weight_sum -- summed
+        // once over the accepted events -- is already the unbiased flux-averaged
+        // total cross section in GeV^-2; the writer only applies the GeV^-2 -> pb
+        // unit conversion and does NOT divide by attempted_events/accepted_events
+        // (that would double-normalize and make the reported value shrink with run
+        // size instead of converging). Emitted whenever weights_state != "unweighted"
+        // and there is at least one accepted event. NuHepMC.Units.CrossSection.
+        // TargetScale is only in-spec as "PerAtom"/"PerNucleon" (G.R.6), so it is
+        // only emitted when fatx_per_atom asserts one of those via target_scale;
+        // when fatx_per_atom is false the key is omitted rather than filled with an
+        // out-of-spec placeholder, and a reader should treat the value as an
+        // unnormalized rate weight. The default is false because SIREN's per-event
+        // weight is a rate weight, not a per-atom cross section, so claiming a
+        // per-atom TargetScale by default would be false.
+        bool fatx_per_atom = false;
         bool fatx_partition_by_primary = false;  // emit per-primary siren.fatx.<pdg>
         std::string cross_section_unit = "pb";   // NuHepMC.Units.CrossSection.Unit
-        std::string target_scale = "PerAtom";    // NuHepMC.Units.CrossSection.TargetScale
+        std::string target_scale = "PerAtom";    // NuHepMC.Units.CrossSection.TargetScale, when fatx_per_atom
 
         // Gzip-compress the output (HepMC3 WriterGZ). Requires a HepMC3 build with
         // zlib support; throws at construction if unsupported. Output should carry a

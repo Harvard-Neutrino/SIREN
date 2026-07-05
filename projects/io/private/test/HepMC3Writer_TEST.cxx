@@ -152,12 +152,11 @@ TEST(HepMC3Writer, RoundTripStructure) {
 // the writer ever changes the divisor on one slot but not the others, the 4-vector
 // stops being Minkowski and this test fails.
 //
-// The per-event lab_pos time component (4th entry, in seconds) is a KNOWN LOSSY
-// slot: it is emitted through HepMC3::VectorDoubleAttribute, whose to_string uses
+// The per-event lab_pos vector carries three spatial slots only. A seconds time
+// slot is deliberately not emitted: HepMC3::VectorDoubleAttribute::to_string uses
 // std::to_string(double) == "%f" with only 6 fractional digits, so any lab time
-// below ~5e-7 s (i.e. every realistic sub-microsecond neutrino lab time) is
-// truncated to 0.000000 on write. This test pins that truncated behavior so the
-// finding is visible; the full-precision time is available from the vertex t-slot
+// below ~5e-7 s (every realistic sub-microsecond neutrino lab time) would truncate
+// to 0.000000 on write. The full-precision time is available from the vertex t-slot
 // above (t_seconds = position().t() * cm / c / second).
 TEST(HepMC3Writer, VertexTimeSlotScaleConsistency) {
     namespace C = siren::utilities::Constants;
@@ -220,27 +219,21 @@ TEST(HepMC3Writer, VertexTimeSlotScaleConsistency) {
     // only true when the slot used the same length divisor as the spatial slots.
     EXPECT_NEAR(pos.t() / (C::c / C::cm), t, 1e-12);
 
-    // The per-event lab_pos vector: spatial slots are the CM vertex position (same
-    // cm divisor as above) and survive at full precision because they are O(100).
+    // The per-event lab_pos vector carries three spatial slots only (the CM vertex
+    // position, same cm divisor as above); a seconds time slot is deliberately not
+    // emitted because VectorDoubleAttribute %f formatting truncates a ns-scale time
+    // to exactly zero. The lossless lab time lives in the Minkowski vertex t-slot.
     auto lab = evt.attribute<HepMC3::VectorDoubleAttribute>("lab_pos");
     ASSERT_TRUE(static_cast<bool>(lab));
     std::vector<double> const lab_pos = lab->value();
-    ASSERT_EQ(lab_pos.size(), 4u);
+    ASSERT_EQ(lab_pos.size(), 3u);
     EXPECT_NEAR(lab_pos[0], x[0] * spatial_scale, 1e-9);
     EXPECT_NEAR(lab_pos[1], x[1] * spatial_scale, 1e-9);
     EXPECT_NEAR(lab_pos[2], x[2] * spatial_scale, 1e-9);
 
-    // The intended lab time is t / Constants::second == 5e-9 s. But the
-    // VectorDoubleAttribute %f formatting (6 fractional digits) truncates it to
-    // exactly 0 on write. Pin the truncated value: this is the documented finding,
-    // not a passing round trip. The recoverable, lossless lab time lives in the
-    // vertex t-slot, cross-checked here to be exact.
-    double const intended_lab_time = t / C::second; // 5e-9 s
-    EXPECT_GT(intended_lab_time, 0.0);
-    EXPECT_LT(intended_lab_time, 5e-7); // below the %f truncation floor
-    EXPECT_EQ(lab_pos[3], 0.0);         // lossy: the intended 5e-9 s is gone
-    // The same physical time, taken from the full-precision Minkowski vertex slot,
+    // The physical lab time, taken from the full-precision Minkowski vertex slot,
     // is preserved to machine precision (this is the value consumers should use).
+    double const intended_lab_time = t / C::second; // 5e-9 s
     double const lab_time_from_vertex = pos.t() * C::cm / C::c / C::second;
     EXPECT_NEAR(lab_time_from_vertex, intended_lab_time, intended_lab_time * 1e-12);
 

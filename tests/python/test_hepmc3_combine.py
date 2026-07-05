@@ -235,12 +235,13 @@ def _last_float(line):
 
 
 def test_fatx_merge_single_flux(tmp_path):
-    """FATX poolability: the two per-set files' (weight_sum, norm) pool to the
-    combined file's siren.fatx.value via k*(ws1+ws2)/(norm1+norm2).
+    """FATX poolability: the two per-set files' weight_sum ingredients pool to the
+    combined file's siren.fatx.value via k*(ws1+ws2).
 
     Both per-set files and the combined file carry the SAME pooled central
     values, so the raw ingredient siren.fatx.weight_sum is additive across files
-    and the merged estimate reproduces the monolithic combined estimate exactly.
+    and rescaling their sum by k reproduces the combined estimate exactly (the CV
+    weight already carries 1/EventsToInject, so there is no count denominator).
     """
     from siren import hepmc3, dataclasses as dc, _util
 
@@ -284,10 +285,10 @@ def test_fatx_merge_single_flux(tmp_path):
     hepmc3.SaveInteractionTreesAsHepMC3(treesA, outA, optsA)
     hepmc3.SaveInteractionTreesAsHepMC3(treesB, outB, optsB)
 
-    ws1, norm1, _v1 = _fatx_ingredients(outA)
-    ws2, norm2, _v2 = _fatx_ingredients(outB)
+    ws1, _norm1, _v1 = _fatx_ingredients(outA)
+    ws2, _norm2, _v2 = _fatx_ingredients(outB)
 
-    merged = K_GEVM2_TO_PB * (ws1 + ws2) / (norm1 + norm2)
+    merged = K_GEVM2_TO_PB * (ws1 + ws2)
     assert merged == pytest.approx(value_comb, rel=1e-9), (merged, value_comb)
 
 

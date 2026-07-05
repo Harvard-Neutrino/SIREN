@@ -120,9 +120,10 @@ def test_external_reader_pyhepmc(dc, tmp_path):
     assert statuses.count(20) == 1
     assert statuses.count(22) >= 1
 
-    # E.R.5/E.C.5: per-event lab position with a time component.
+    # E.R.5: per-event lab position (three spatial slots; the lossless time lives
+    # in the Minkowski vertex ct slot, not a truncation-prone lab_pos seconds slot).
     lab = str(evt.attributes["lab_pos"]).split()
-    assert len(lab) == 4
+    assert len(lab) == 3
     # vertex {1,2,3} internal meters -> {100,200,300} CM
     assert [round(float(v)) for v in lab[:3]] == [100, 200, 300]
 
