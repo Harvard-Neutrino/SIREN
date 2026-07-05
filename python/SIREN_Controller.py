@@ -590,9 +590,9 @@ class SIREN_Controller:
         self.global_times = np.zeros_like(self.events)
 
     # Load events from a HepMC3 file written by SIREN
-    def LoadEventsFromHepMC3(self, filename):
+    def LoadEventsFromHepMC3(self, filename, strict=True):
         from . import hepmc3 as _hepmc3
-        self.events = _hepmc3.LoadInteractionTreesFromHepMC3(filename)
+        self.events = _hepmc3.LoadInteractionTreesFromHepMC3(filename, strict)
         self.gen_times = np.zeros_like(self.events)
         self.global_times = np.zeros_like(self.events)
 
@@ -625,6 +625,10 @@ class SIREN_Controller:
             if getattr(self, "injector", None) is not None:
                 opts.attempted_events = int(self.injector.InjectionAttempts())
                 opts.accepted_events = int(self.injector.InjectedEvents())
+                # The pooled-weighting seed N_i (EventsToInject); persisted as
+                # siren.events_to_inject so a downstream pooler can reconstruct the
+                # intended per-file event budget.
+                opts.events_to_inject = int(self.injector.EventsToInject())
             out = filename + ".hepmc3"
             if hepmc3_gzip and not out.endswith(".gz"):
                 out = out + ".gz"

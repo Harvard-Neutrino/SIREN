@@ -1058,6 +1058,7 @@ def SaveEvents(events,
                hepmc3_weights="auto",
                hepmc3_gzip=False,
                fid_vol=None,
+               injector=None,
                output_filename=None):
 
     # Resolve the HepMC3 weight policy up front so per-event central values are
@@ -1079,6 +1080,13 @@ def SaveEvents(events,
         opts = _hepmc3.HepMC3WriterOptions()
         opts.weights_state = hepmc3_state
         opts.gzip = bool(hepmc3_gzip)
+        # Generation counts (from the injector, when supplied) as run metadata:
+        # attempted/accepted normalize the FATX; events_to_inject is the pooled-
+        # weighting seed N_i. Absent when no injector is passed.
+        if injector is not None:
+            opts.attempted_events = int(injector.InjectionAttempts())
+            opts.accepted_events = int(injector.InjectedEvents())
+            opts.events_to_inject = int(injector.EventsToInject())
         out = output_filename + ".hepmc3"
         if hepmc3_gzip and not out.endswith(".gz"):
             out = out + ".gz"
@@ -1104,8 +1112,14 @@ def SaveEvents(events,
         t0 = time.time()
         if hepmc3_cv is not None:
             datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
+        elif weighter is None:
+            datasets["event_weight"].append(0)
+        elif callable(weighter):
+            datasets["event_weight"].append(weighter(event))
         else:
-            datasets["event_weight"].append(weighter(event) if weighter is not None else 0)
+            # A siren.injection.Weighter object is not callable; it exposes
+            # EventWeight (same duck-typing resolve_hepmc3_weight_policy uses).
+            datasets["event_weight"].append(weighter.EventWeight(event))
         datasets["event_weight_time"].append(time.time()-t0)
         datasets["event_gen_time"].append(gen_times[ie])
         # add empty lists for each per interaction dataset
@@ -1171,9 +1185,9 @@ def LoadEvents(filename):
 
 
 # Load events from a HepMC3 file written by SIREN
-def LoadEventsFromHepMC3(filename):
+def LoadEventsFromHepMC3(filename, strict=True):
     from . import hepmc3 as _hepmc3
-    return _hepmc3.LoadInteractionTreesFromHepMC3(filename)
+    return _hepmc3.LoadInteractionTreesFromHepMC3(filename, strict)
 
 
 def convert_siren_events_to_hepmc3(in_path, out_path=None, weighter=None, options=None):

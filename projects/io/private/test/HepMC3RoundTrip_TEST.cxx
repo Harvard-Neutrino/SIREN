@@ -264,6 +264,28 @@ TEST(HepMC3RoundTrip, NonRootTargetSurvives) {
     EXPECT_EQ(lt.tree[1]->record.signature.target_type, PT::HNucleus);   // non-root target survives
 }
 
+// The writer records how the per-event CV weights were produced in a run-level
+// siren.weights_state attribute; the reader restores it into every tree header's
+// provenance map so a downstream re-weighting pass can honor the original policy.
+TEST(HepMC3RoundTrip, WeightsStateProvenanceRestored) {
+    InteractionTree tree = BuildTree();
+    std::string const path = std::string(::testing::TempDir()) + "siren_hepmc3_weights_state.hepmc3";
+    std::vector<std::shared_ptr<InteractionTree>> trees = {std::make_shared<InteractionTree>(tree)};
+
+    siren::io::HepMC3Writer::Options opts;
+    opts.weights_state = "computed";
+    siren::io::SaveInteractionTreesAsHepMC3(trees, path, opts);
+
+    std::vector<std::shared_ptr<InteractionTree>> loaded =
+        siren::io::LoadInteractionTreesFromHepMC3(path);
+    std::remove(path.c_str());
+
+    ASSERT_EQ(loaded.size(), 1u);
+    auto it = loaded[0]->header.provenance.find("siren.weights_state");
+    ASSERT_NE(it, loaded[0]->header.provenance.end());
+    EXPECT_EQ(it->second, "computed");
+}
+
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

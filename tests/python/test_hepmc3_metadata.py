@@ -161,6 +161,171 @@ def test_fatx_value_matches_estimator(dc, tmp_path):
     assert abs(val - expected) / expected < 1e-6
 
 
+def test_norm_basis_records_denominator(dc, tmp_path):
+    """siren.fatx.norm_basis records which count normalized the FATX: "attempted"
+    when attempted_events was provided, "accepted" when the code fell back to the
+    accepted count. A pooler must not mix the two bases."""
+    pyhepmc = pytest.importorskip("pyhepmc")
+    from siren import hepmc3
+    # attempted provided -> attempted basis.
+    out = str(tmp_path / "basis_att.hepmc3")
+    opts = hepmc3.HepMC3WriterOptions()
+    opts.attempted_events = 1000
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out, opts)
+    with pyhepmc.open(out) as f:
+        attrs = f.read().run_info.attributes
+    assert str(attrs["siren.fatx.norm_basis"]) == "attempted"
+    # attempted absent -> silent fallback to the accepted (auto-filled) count.
+    out2 = str(tmp_path / "basis_acc.hepmc3")
+    opts2 = hepmc3.HepMC3WriterOptions()  # no attempted_events
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out2, opts2)
+    with pyhepmc.open(out2) as f:
+        attrs2 = f.read().run_info.attributes
+    assert str(attrs2["siren.fatx.norm_basis"]) == "accepted"
+
+
+def test_events_to_inject_persisted(dc, tmp_path):
+    """The pooled-weighting seed N_i (Injector EventsToInject) is persisted as
+    siren.events_to_inject when set, and absent when left unset (< 0)."""
+    from siren import hepmc3
+    out = str(tmp_path / "n_i.hepmc3")
+    opts = hepmc3.HepMC3WriterOptions()
+    opts.attempted_events = 1000
+    opts.events_to_inject = 500
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out, opts)
+    text = open(out).read()
+    assert "siren.events_to_inject" in text
+    # Left unset -> not emitted.
+    out2 = str(tmp_path / "no_n_i.hepmc3")
+    opts2 = hepmc3.HepMC3WriterOptions()
+    opts2.attempted_events = 1000
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out2, opts2)
+    assert "siren.events_to_inject" not in open(out2).read()
+
+
+def test_partitioned_fatx_carries_raw_sums(dc, tmp_path):
+    """A partitioned (mixed-primary) file must be losslessly poolable: each primary
+    carries the normalized siren.fatx.<pdg> value plus the raw ingredients
+    (.weight_sum, .accepted) that formed it, so summing raw across files and
+    renormalizing reproduces the combined estimate."""
+    pyhepmc = pytest.importorskip("pyhepmc")
+    from siren import hepmc3
+    out = str(tmp_path / "part.hepmc3")
+    opts = hepmc3.HepMC3WriterOptions()
+    opts.attempted_events = 1000
+    opts.fatx_partition_by_primary = True
+    # Two primaries: NuMu with weights 2 + 6, NuEBar with weight 4.
+    trees = [
+        _tree(dc, dc.ParticleType.NuMu, 2.0),
+        _tree(dc, dc.ParticleType.NuEBar, 4.0),
+        _tree(dc, dc.ParticleType.NuMu, 6.0),
+    ]
+    _write_or_skip(dc, trees, out, opts)
+    with pyhepmc.open(out) as f:
+        attrs = f.read().run_info.attributes
+    numu = int(dc.ParticleType.NuMu)
+    nuebar = int(dc.ParticleType.NuEBar)
+    # The partition marker flags that per-primary keys are present (a consumer must
+    # read the per-pdg breakdown, not treat siren.fatx.value as the whole story).
+    assert int(str(attrs["siren.fatx_partitioned"])) == 1
+    # Raw per-primary CV weight sums.
+    assert abs(float(str(attrs["siren.fatx.%d.weight_sum" % numu])) - 8.0) < 1e-9
+    assert abs(float(str(attrs["siren.fatx.%d.weight_sum" % nuebar])) - 4.0) < 1e-9
+    # Raw per-primary accepted counts.
+    assert float(str(attrs["siren.fatx.%d.accepted" % numu])) == 2
+    assert float(str(attrs["siren.fatx.%d.accepted" % nuebar])) == 1
+    # Normalized values are still present, and equal 3.894e8 * weight_sum / norm.
+    norm = 1000.0
+    exp_numu = 3.894e8 * 8.0 / norm
+    assert abs(float(str(attrs["siren.fatx.%d" % numu])) - exp_numu) / exp_numu < 1e-6
+    # Poolability: the normalized value can be reconstructed from the raw ingredients.
+    ws = float(str(attrs["siren.fatx.%d.weight_sum" % numu]))
+    assert abs(3.894e8 * ws / norm - float(str(attrs["siren.fatx.%d" % numu]))) / exp_numu < 1e-6
+
+
+def test_partitioned_fatx_suppressed_when_unweighted(dc, tmp_path):
+    """fatx_partition_by_primary must be gated by the same NuHepMC-mode guard as
+    the rest of the FATX block: with weights_state == "unweighted" a mixed-primary
+    file emits NO per-primary siren.fatx.<pdg> keys and NO siren.fatx_partitioned
+    marker, and it must not fall back to presenting a single conflated global FATX
+    value. (Under "header" the same inputs DO emit the partition; this is purely
+    the suppression axis.)"""
+    from siren import hepmc3
+    numu = int(dc.ParticleType.NuMu)
+    nuebar = int(dc.ParticleType.NuEBar)
+    trees = [
+        _tree(dc, dc.ParticleType.NuMu, 2.0),
+        _tree(dc, dc.ParticleType.NuEBar, 4.0),
+        _tree(dc, dc.ParticleType.NuMu, 6.0),
+    ]
+
+    # Control: default (header) mode with the same inputs DOES partition.
+    ctrl = str(tmp_path / "part_header.hepmc3")
+    ctrl_opts = hepmc3.HepMC3WriterOptions()
+    ctrl_opts.attempted_events = 1000
+    ctrl_opts.fatx_partition_by_primary = True
+    _write_or_skip(dc, trees, ctrl, ctrl_opts)
+    ctrl_text = open(ctrl).read()
+    assert "siren.fatx_partitioned" in ctrl_text
+    assert ("siren.fatx.%d" % numu) in ctrl_text
+
+    # Unweighted mode with partitioning requested: everything FATX is suppressed.
+    out = str(tmp_path / "part_unweighted.hepmc3")
+    opts = hepmc3.HepMC3WriterOptions()
+    opts.weights_state = "unweighted"
+    opts.attempted_events = 1000
+    opts.fatx_partition_by_primary = True
+    _write_or_skip(dc, trees, out, opts)
+    text = open(out).read()
+    assert "siren.weights_state" in text and "unweighted" in text
+    # No partition marker and no per-primary keys.
+    assert "siren.fatx_partitioned" not in text
+    assert ("siren.fatx.%d" % numu) not in text
+    assert ("siren.fatx.%d" % nuebar) not in text
+    # And no conflated single global FATX value presented as the answer.
+    assert "siren.fatx.value" not in text
+    assert "NuHepMC.FluxAveragedTotalCrossSection" not in text
+    # Counts still survive for later pooling.
+    assert "siren.accepted_events" in text
+
+
+def test_fatx_precision_sweep(dc, tmp_path):
+    """The ascii writer must preserve the flux-averaged cross-section value across
+    a wide magnitude range. Driving synthetic header CV weights so the writer's
+    normal path emits FATX values from 1e-2 pb down to 1e-30 pb, the read-back
+    value must match the writer's own estimate to a relative error < 1e-12 at
+    every magnitude. A larger error would mean the ascii float formatting (default
+    16 significant digits) is truncating precision on small cross sections."""
+    pyhepmc = pytest.importorskip("pyhepmc")
+    from siren import hepmc3
+    # Same constant the writer uses: 1 GeV^-2 = 3.894e8 pb (PDG).
+    kGeVm2_to_pb = 3.894e8
+    norm = 1000  # attempted_events; exact integer denominator
+    # Targets span 28 decades. For each we pick the CV weight that makes the
+    # writer's estimate 3.894e8 * weight_sum / norm land on the target magnitude.
+    for exponent in range(-2, -31, -1):
+        target = 10.0 ** exponent
+        weight = target * norm / kGeVm2_to_pb
+        # The value the writer will actually compute and emit for this weight.
+        expected = kGeVm2_to_pb * weight / norm
+
+        out = str(tmp_path / ("sweep_%d.hepmc3" % exponent))
+        opts = hepmc3.HepMC3WriterOptions()
+        opts.attempted_events = norm
+        opts.fatx_per_atom = True
+        _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, weight)], out, opts)
+
+        with pyhepmc.open(out) as f:
+            attrs = f.read().run_info.attributes
+        # Both the raw ingredient and the normalized estimate must survive.
+        got_weight_sum = float(str(attrs["siren.fatx.weight_sum"]))
+        got_fatx = float(str(attrs["NuHepMC.FluxAveragedTotalCrossSection"]))
+        assert abs(got_weight_sum - weight) <= abs(weight) * 1e-12, \
+            (exponent, got_weight_sum, weight)
+        assert abs(got_fatx - expected) <= abs(expected) * 1e-12, \
+            (exponent, got_fatx, expected)
+
+
 def test_write_throughput_benchmark(dc, tmp_path, capsys):
     """Not a hard gate: report events/s and gzip-vs-ascii size where available."""
     out = str(tmp_path / "perf.hepmc3")
@@ -198,3 +363,35 @@ def test_gzip_roundtrip(dc, tmp_path):
         assert f.read(2) == b"\x1f\x8b"
     back = _util.LoadEventsFromHepMC3(out)  # reader auto-detects the .gz suffix
     assert len(back) == len(trees)
+
+
+def test_strict_reader_rejects_missing_helicity(dc, tmp_path):
+    """siren.helicity is emitted unconditionally on every particle, so a written
+    file with one helicity line removed is corrupt: a strict load (the default)
+    raises naming the attribute, while strict=False tolerates it (0.0 fallback)."""
+    from siren import hepmc3, _util
+    out = str(tmp_path / "corrupt.hepmc3")
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out)
+
+    # Textually drop the first siren.helicity attribute line from the ascii file.
+    with open(out) as f:
+        lines = f.readlines()
+    removed = 0
+    kept = []
+    for ln in lines:
+        if "siren.helicity" in ln and removed == 0:
+            removed += 1
+            continue
+        kept.append(ln)
+    assert removed == 1, "fixture did not contain a siren.helicity line to remove"
+    with open(out, "w") as f:
+        f.writelines(kept)
+
+    # Strict (default) raises, naming the missing attribute.
+    with pytest.raises(RuntimeError) as exc:
+        _util.LoadEventsFromHepMC3(out)  # strict defaults to True
+    assert "siren.helicity" in str(exc.value)
+
+    # Lax tolerates the corruption and still returns the tree.
+    back = _util.LoadEventsFromHepMC3(out, strict=False)
+    assert len(back) == 1

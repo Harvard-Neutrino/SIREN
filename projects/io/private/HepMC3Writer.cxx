@@ -1,6 +1,9 @@
 #include "SIREN/io/HepMC3Writer.h"
 
 #include <cmath>
+#include <cstddef>
+#include <limits>
+#include <algorithm>
 #include <stdexcept>
 
 #include "SIREN/dataclasses/InteractionTree.h"
@@ -31,6 +34,24 @@ std::string ProcessName(siren::dataclasses::InteractionSignature const & s) {
         n += std::to_string(pdg(s.secondary_types[j]));
     }
     return n;
+}
+
+// Deterministic total order on signatures: lexicographic over
+// (primary pdg, target pdg, secondary pdgs). Process ids are assigned in this
+// order so identical physics gets identical ids across files regardless of the
+// order the trees were encountered in.
+bool SignatureLess(siren::dataclasses::InteractionSignature const & a,
+                   siren::dataclasses::InteractionSignature const & b) {
+    if(pdg(a.primary_type) != pdg(b.primary_type))
+        return pdg(a.primary_type) < pdg(b.primary_type);
+    if(pdg(a.target_type) != pdg(b.target_type))
+        return pdg(a.target_type) < pdg(b.target_type);
+    std::size_t const n = std::min(a.secondary_types.size(), b.secondary_types.size());
+    for(std::size_t j = 0; j < n; ++j) {
+        if(pdg(a.secondary_types[j]) != pdg(b.secondary_types[j]))
+            return pdg(a.secondary_types[j]) < pdg(b.secondary_types[j]);
+    }
+    return a.secondary_types.size() < b.secondary_types.size();
 }
 
 } // namespace
@@ -238,6 +259,13 @@ struct HepMC3Writer::Impl {
             run_info_->add_attribute("siren.accepted_events",
                 D(static_cast<double>(options_.accepted_events)));
 
+        // The pooled-weighting seed N_i (Injector EventsToInject). Pure metadata:
+        // never used in a normalization here, but persisted so a downstream pooler
+        // can reconstruct each file's intended event budget.
+        if(options_.events_to_inject >= 0)
+            run_info_->add_attribute("siren.events_to_inject",
+                D(static_cast<double>(options_.events_to_inject)));
+
         // NuHepMC process ID registry (G.R.8): one id per distinct root interaction
         // signature, assigned in the generator ("Other", >= 700) band by the pre-scan.
         if(nuhepmc_mode && !options_.process_names.empty()) {
@@ -260,11 +288,18 @@ struct HepMC3Writer::Impl {
         // "NuHepMC.Version declared <=> FluxAveragedTotalCrossSection emitted".
         if(nuhepmc_mode) {
             run_info_->add_attribute("siren.fatx.weight_sum", D(options_.fatx_weight_sum));
-            long long const norm = (options_.attempted_events > 0) ? options_.attempted_events
-                                                                   : options_.accepted_events;
+            // The denominator actually used: attempted when provided, else accepted.
+            // Recorded so a pooler knows which basis every fatx value below was formed
+            // on and never mixes an attempted-basis file with an accepted-basis one.
+            bool const norm_is_attempted = (options_.attempted_events > 0);
+            long long const norm = norm_is_attempted ? options_.attempted_events
+                                                      : options_.accepted_events;
             if(norm > 0) {
                 double const fatx = kGeVm2_to_pb * options_.fatx_weight_sum
                                     / static_cast<double>(norm);
+                run_info_->add_attribute("siren.fatx.norm_basis",
+                    std::make_shared<HepMC3::StringAttribute>(
+                        norm_is_attempted ? std::string("attempted") : std::string("accepted")));
                 // The reserved key + its units back the version declaration.
                 run_info_->add_attribute("siren.fatx.value", D(fatx));
                 run_info_->add_attribute("NuHepMC.Units.CrossSection.Unit",
@@ -274,14 +309,27 @@ struct HepMC3Writer::Impl {
                         options_.fatx_per_atom ? options_.target_scale : std::string("Unnormalized")));
                 run_info_->add_attribute("NuHepMC.FluxAveragedTotalCrossSection", D(fatx));
 
-                // Optional per-primary breakdown (opt-in, needs >1 primary).
+                // Optional per-primary breakdown (opt-in, needs >1 primary). Each
+                // primary carries the normalized siren.fatx.<pdg> value plus the raw
+                // ingredients that formed it -- the CV weight sum and the accepted
+                // count -- so partitioned files can be losslessly pooled: summing the
+                // raw weight_sum and accepted across files and renormalizing by the
+                // pooled denominator reproduces the combined estimate exactly.
                 if(options_.fatx_partition_by_primary
                    && options_.fatx_weight_sum_by_primary.size() > 1) {
                     run_info_->add_attribute("siren.fatx_partitioned",
                         std::make_shared<HepMC3::IntAttribute>(1));
-                    for(auto const & kv : options_.fatx_weight_sum_by_primary)
-                        run_info_->add_attribute("siren.fatx." + std::to_string(kv.first),
+                    for(auto const & kv : options_.fatx_weight_sum_by_primary) {
+                        std::string const stub = "siren.fatx." + std::to_string(kv.first);
+                        run_info_->add_attribute(stub,
                             D(kGeVm2_to_pb * kv.second / static_cast<double>(norm)));
+                        run_info_->add_attribute(stub + ".weight_sum", D(kv.second));
+                        auto const cit = options_.accepted_by_primary.find(kv.first);
+                        long long const acc = (cit != options_.accepted_by_primary.end())
+                                                  ? cit->second : 0;
+                        run_info_->add_attribute(stub + ".accepted",
+                            D(static_cast<double>(acc)));
+                    }
                 }
             }
         }
@@ -313,7 +361,13 @@ struct HepMC3Writer::Impl {
         evt.set_run_info(run_info_);
         // HepMC3's GenEvent stores the event number as int; SIREN event numbers
         // above INT_MAX cannot be represented in the format and are narrowed here.
+        // When that narrowing is lossy the full 64-bit identity is preserved as a
+        // per-event ULongAttribute the reader prefers over the narrowed field.
         evt.set_event_number(static_cast<int>(event_number));
+        if(event_number > static_cast<std::uint64_t>(std::numeric_limits<int>::max()))
+            evt.add_attribute("siren.event_number",
+                std::make_shared<HepMC3::ULongAttribute>(
+                    static_cast<unsigned long>(event_number)));
 
         // NuHepMC E.R.3 signal_process_id from the root interaction signature
         // (plain IntAttribute, no NuHepMC. prefix). Ids come from the pre-scan.
@@ -523,26 +577,41 @@ void SaveInteractionTreesAsHepMC3(
     // finalized at construction -- this avoids relying on late run-info flushing.
     HepMC3Writer::Options opts = options;
     long long accepted = 0;
-    int next_process_id = 700; // NuHepMC generator ("Other") process-id band
+    // First pass: accumulate FATX sums/counts and collect one representative
+    // signature per distinct root process key (dedup by key, keep the first).
+    std::map<std::string, siren::dataclasses::InteractionSignature> sig_by_key;
     for(auto const & tree : trees) {
         if(!tree || tree->tree.empty()) continue;
         siren::dataclasses::InteractionSignature const & sig =
             tree->tree.front()->record.signature;
         std::string const key = ProcessKey(sig);
-        if(opts.process_ids.find(key) == opts.process_ids.end()) {
-            int const id = next_process_id++;
-            opts.process_ids[key] = id;
-            opts.process_names[id] = ProcessName(sig);
-        }
+        sig_by_key.emplace(key, sig);
         // CV weight is slot 0 (the 'CV' weight_names entry), matching what
         // TreeToGenEvent writes into evt.weights(); keep FATX consistent with it.
         std::vector<double> const & wv = tree->header.weights;
         double const w = wv.empty() ? 1.0 : wv.front();
         opts.fatx_weight_sum += w;
         opts.fatx_weight_sum_by_primary[pdg(sig.primary_type)] += w;
+        opts.accepted_by_primary[pdg(sig.primary_type)] += 1;
         ++accepted;
     }
     if(opts.accepted_events < 0) opts.accepted_events = accepted;
+
+    // Second pass: assign process ids in a deterministic signature order so the
+    // same physics gets the same id across files, independent of tree order.
+    std::vector<siren::dataclasses::InteractionSignature> sigs;
+    sigs.reserve(sig_by_key.size());
+    for(auto const & kv : sig_by_key) sigs.push_back(kv.second);
+    std::sort(sigs.begin(), sigs.end(), SignatureLess);
+    int next_process_id = 700; // NuHepMC generator ("Other") process-id band
+    for(auto const & sig : sigs) {
+        std::string const key = ProcessKey(sig);
+        if(opts.process_ids.find(key) == opts.process_ids.end()) {
+            int const id = next_process_id++;
+            opts.process_ids[key] = id;
+            opts.process_names[id] = ProcessName(sig);
+        }
+    }
 
     HepMC3Writer writer(filename, opts);
     int index = 0;

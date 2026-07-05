@@ -43,6 +43,12 @@ public:
         long long attempted_events = -1;   // total sampled including rejected
         long long accepted_events  = -1;   // events saved (auto-filled from tree count if < 0)
 
+        // The Injector's EventsToInject seed (the pooled-weighting N_i target). Not
+        // used in any normalization; emitted as siren.events_to_inject when >= 0 so a
+        // downstream pooler can reconstruct the intended per-file event budget. A
+        // negative value means "not provided".
+        long long events_to_inject = -1;
+
         // Flux-averaged total cross section (NuHepMC E.C.4 / G.R.6). SIREN's per-event
         // weight is a *rate* weight, so sum(weights)/attempted is only a true per-atom
         // cross section when the physical flux is unit-normalized and the target
@@ -70,6 +76,7 @@ public:
         std::map<int, std::string> process_names;    // process id -> human name
         double fatx_weight_sum = 0.0;                // sum of CV weights over accepted
         std::map<int, double> fatx_weight_sum_by_primary;  // per primary PDG
+        std::map<int, long long> accepted_by_primary;      // per primary PDG accepted count
     };
 
     HepMC3Writer(std::string const & filename, Options const & options);

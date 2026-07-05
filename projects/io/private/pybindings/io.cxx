@@ -29,6 +29,9 @@ PYBIND11_MODULE(hepmc3, m) {
         // Run-level generation counts (metadata + FATX normalization); < 0 = unset.
         .def_readwrite("attempted_events", &HepMC3Writer::Options::attempted_events)
         .def_readwrite("accepted_events", &HepMC3Writer::Options::accepted_events)
+        // The Injector's EventsToInject seed (pooled-weighting N_i); emitted as
+        // siren.events_to_inject when >= 0. < 0 = unset.
+        .def_readwrite("events_to_inject", &HepMC3Writer::Options::events_to_inject)
         // Flux-averaged cross section controls (NuHepMC E.C.4 / G.R.6).
         .def_readwrite("fatx_per_atom", &HepMC3Writer::Options::fatx_per_atom)
         .def_readwrite("fatx_partition_by_primary",
@@ -49,6 +52,8 @@ PYBIND11_MODULE(hepmc3, m) {
           "Write a list of InteractionTrees to a HepMC3 Ascii file.");
 
     m.def("LoadInteractionTreesFromHepMC3", &LoadInteractionTreesFromHepMC3,
-          py::arg("filename"),
-          "Read a HepMC3 Ascii file written by SIREN back into InteractionTrees.");
+          py::arg("filename"), py::arg("strict") = true,
+          "Read a HepMC3 Ascii file written by SIREN back into InteractionTrees. "
+          "With strict=True (default) a missing/mistyped required siren.* attribute "
+          "(helicity, primary initial position/time) raises; strict=False tolerates it.");
 }
