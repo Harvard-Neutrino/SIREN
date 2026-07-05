@@ -935,6 +935,34 @@ def GenerateEvents(injector, N=None):
         count += 1
     return events,gen_times
 
+def get_parent_indices(tree):
+    """Return the parent interaction index for each datum in an InteractionTree.
+
+    ``tree`` is the ordered list of ``InteractionTreeDatum`` objects, i.e.
+    ``event.tree``. The returned list holds, for each datum, the index (within
+    ``tree``) of the interaction whose secondary particle became this datum's
+    primary, or ``-1`` for a root/primary interaction that has no parent.
+
+    Parentage is read directly from the tree's parent/daughter edges via the
+    ``InteractionTreeDatum.parent`` pointer -- the authoritative link the
+    injector records when it builds the tree. Earlier versions instead matched a
+    datum's primary four-momentum against earlier interactions' secondary
+    momenta, which is O(n^2) per tree and silently mis-links parentage whenever
+    two secondaries share identical four-momenta.
+    """
+    # Map each datum's object identity to its position in the flattened tree.
+    # pybind11 returns the same wrapper object for a given C++ shared_ptr, so a
+    # datum's ``.parent`` is identity-equal to its entry in ``tree``.
+    index_of = {id(datum): i for i, datum in enumerate(tree)}
+    parent_indices = []
+    for datum in tree:
+        parent = datum.parent
+        if parent is None:
+            parent_indices.append(-1)
+        else:
+            parent_indices.append(index_of.get(id(parent), -1))
+    return parent_indices
+
 def SaveEvents(events,
                weighter=None,
                gen_times=None,
@@ -980,6 +1008,8 @@ def SaveEvents(events,
                   "secondary_momenta",
                   "parent_idx"]:
             datasets[k].append([])
+        # parent index of each interaction, taken from the tree's parent edges
+        parent_indices = get_parent_indices(event.tree)
         # loop over interactions
         for id, datum in enumerate(event.tree):
             datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
@@ -988,15 +1018,8 @@ def SaveEvents(events,
             datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
             datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
 
-            # check parent idx; match on secondary momenta
-            if datum.depth()==0:
-                datasets["parent_idx"][-1].append(-1)
-            else:
-                for _id in range(len(datasets["secondary_momenta"][-1])):
-                    for secondary_momentum in datasets["secondary_momenta"][-1][_id]:
-                        if (datasets["primary_momentum"][-1][-1] == secondary_momentum).all():
-                            datasets["parent_idx"][-1].append(_id)
-                            break
+            # parent interaction index (from the tree's parent/daughter edges)
+            datasets["parent_idx"][-1].append(parent_indices[id])
 
             if fid_vol is not None:
                 pos = _math.Vector3D(datasets["vertex"][-1][-1])

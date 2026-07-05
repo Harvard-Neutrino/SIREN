@@ -652,6 +652,8 @@ class SIREN_Controller:
             if save_int_params:
                 datasets.setdefault("int_params", [])
                 datasets["int_params"].append({})
+            # parent index of each interaction, taken from the tree's parent edges
+            parent_indices = _util.get_parent_indices(event.tree)
             # loop over interactions
             for id, datum in enumerate(event.tree):
                 if save_int_params:
@@ -669,15 +671,8 @@ class SIREN_Controller:
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
                 datasets["num_daughters"][-1].append(len(datum.daughters))
 
-                # check parent idx; match on secondary momenta
-                if datum.depth()==0:
-                    datasets["parent_idx"][-1].append(-1)
-                else:
-                    for _id in range(len(datasets["secondary_momenta"][-1])):
-                        for secondary_momentum in datasets["secondary_momenta"][-1][_id]:
-                            if (datasets["primary_momentum"][-1][-1] == secondary_momentum).all():
-                                datasets["parent_idx"][-1].append(_id)
-                                break
+                # parent interaction index (from the tree's parent/daughter edges)
+                datasets["parent_idx"][-1].append(parent_indices[id])
 
                 if self.fid_vol is not None:
                     pos = _math.Vector3D(datasets["vertex"][-1][-1])
