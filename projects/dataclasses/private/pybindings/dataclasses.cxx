@@ -101,6 +101,8 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_property("initial_position", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialPosition)), &PrimaryDistributionRecord::SetInitialPosition)
         .def_property("interaction_vertex", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionVertex)), &PrimaryDistributionRecord::SetInteractionVertex)
         .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
+        .def_property("initial_time", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialTime)), &PrimaryDistributionRecord::SetInitialTime)
+        .def_property("interaction_time", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionTime)), &PrimaryDistributionRecord::SetInteractionTime)
         .def("finalize", &PrimaryDistributionRecord::Finalize);
 
     py::class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
@@ -122,6 +124,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_property("three_momentum", ((std::array<double, 3> const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetThreeMomentum)), &SecondaryParticleRecord::SetThreeMomentum)
         .def_property("four_momentum", ((std::array<double, 4> (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetFourMomentum)), &SecondaryParticleRecord::SetFourMomentum)
         .def_property("helicity", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetHelicity)), &SecondaryParticleRecord::SetHelicity)
+        .def_property("time", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetTime)), &SecondaryParticleRecord::SetTime)
         .def("finalize", &SecondaryParticleRecord::Finalize)
         ;
 
@@ -147,6 +150,7 @@ PYBIND11_MODULE(dataclasses, m) {
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {double h = cdr.primary_helicity; return h;})
         .def_property_readonly("interaction_vertex",
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> iv = cdr.interaction_vertex; return iv;})
+        .def_property("interaction_time", ((double const & (siren::dataclasses::CrossSectionDistributionRecord::*)() const)(&siren::dataclasses::CrossSectionDistributionRecord::GetInteractionTime)), &siren::dataclasses::CrossSectionDistributionRecord::SetInteractionTime)
         .def_property_readonly("target_id",
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::ParticleID id = cdr.target_id; return id;})
         .def_property_readonly("target_type",
@@ -174,6 +178,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("signature",&InteractionRecord::signature)
         .def_readwrite("primary_id",&InteractionRecord::primary_id)
         .def_readwrite("primary_initial_position",&InteractionRecord::primary_initial_position)
+        .def_readwrite("primary_initial_time",&InteractionRecord::primary_initial_time)
         .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
         .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
         .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
@@ -181,10 +186,12 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("target_mass",&InteractionRecord::target_mass)
         .def_readwrite("target_helicity",&InteractionRecord::target_helicity)
         .def_readwrite("interaction_vertex",&InteractionRecord::interaction_vertex)
+        .def_readwrite("interaction_time",&InteractionRecord::interaction_time)
         .def_readwrite("secondary_ids",&InteractionRecord::secondary_ids)
         .def_readwrite("secondary_masses",&InteractionRecord::secondary_masses)
         .def_readwrite("secondary_momenta",&InteractionRecord::secondary_momenta)
         .def_readwrite("secondary_helicities",&InteractionRecord::secondary_helicities)
+        .def_readwrite("secondary_times",&InteractionRecord::secondary_times)
         .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters)
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionRecord>),

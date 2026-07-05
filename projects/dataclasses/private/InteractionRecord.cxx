@@ -6,6 +6,7 @@
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
                     //
 #include "SIREN/utilities/StringManipulation.h"  // for tab
+#include "SIREN/utilities/Constants.h"           // for c
 
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const& record);
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
@@ -15,6 +16,20 @@ std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistribu
 
 namespace siren {
 namespace dataclasses {
+
+namespace {
+// Flight time for a particle with the given energy and momentum magnitude
+// that traverses a straight path of the given length. Lengths are in
+// internal units (m = 1) so the result is in internal time units
+// (second = 1e9). Degenerate configurations (zero path or zero velocity)
+// contribute no delay.
+double FlightTime(double length, double energy, double momentum) {
+    double beta = (energy > 0) ? (momentum / energy) : 0;
+    if(length > 0 and beta > 0)
+        return length / (beta * siren::utilities::Constants::c);
+    return 0;
+}
+}
 
 PrimaryDistributionRecord::PrimaryDistributionRecord(ParticleType type) :
     id(ParticleID::GenerateID()),
@@ -151,6 +166,17 @@ double const & PrimaryDistributionRecord::GetHelicity() const {
     return helicity;
 }
 
+double const & PrimaryDistributionRecord::GetInitialTime() const {
+    return initial_time;
+}
+
+double const & PrimaryDistributionRecord::GetInteractionTime() const {
+    if(not interaction_time_set) {
+        UpdateInteractionTime();
+    }
+    return interaction_time;
+}
+
 void PrimaryDistributionRecord::SetParticle(Particle const & particle) {
     if(particle.id != id) {
         throw std::runtime_error("Cannot set particle with different ID!");
@@ -243,6 +269,16 @@ void PrimaryDistributionRecord::SetInitialDistanceFromClosestApproach(double ini
 void PrimaryDistributionRecord::SetHelicity(double helicity) {
     helicity_set = true;
     this->helicity = helicity;
+}
+
+void PrimaryDistributionRecord::SetInitialTime(double initial_time) {
+    initial_time_set = true;
+    this->initial_time = initial_time;
+}
+
+void PrimaryDistributionRecord::SetInteractionTime(double interaction_time) {
+    interaction_time_set = true;
+    this->interaction_time = interaction_time;
 }
 
 void PrimaryDistributionRecord::SetInteractionParameters(std::map<std::string, double> const & parameters) {
@@ -599,6 +635,26 @@ void PrimaryDistributionRecord::UpdateInitialDistanceFromClosestApproach() const
     }
 }
 
+void PrimaryDistributionRecord::UpdateInteractionTime() const {
+    if(interaction_time_set)
+        return;
+    // Compute the path length directly from the finalized positions rather
+    // than GetLength() so the flight time is always consistent with them.
+    std::array<double, 3> const & initial = GetInitialPosition();
+    std::array<double, 3> const & vertex = GetInteractionVertex();
+    double distance = std::sqrt(
+        (vertex.at(0) - initial.at(0))*(vertex.at(0) - initial.at(0)) +
+        (vertex.at(1) - initial.at(1))*(vertex.at(1) - initial.at(1)) +
+        (vertex.at(2) - initial.at(2))*(vertex.at(2) - initial.at(2))
+    );
+    // The velocity only needs the momentum magnitude, which is available
+    // from energy and mass even when the direction is not derivable.
+    double energy = GetEnergy();
+    double mass = GetMass();
+    double momentum = (energy > mass) ? std::sqrt(energy*energy - mass*mass) : 0;
+    interaction_time = initial_time + FlightTime(distance, energy, momentum);
+}
+
 void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) const {
     record.signature.primary_type = type;
     record.primary_id = GetID();
@@ -622,6 +678,12 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
     try {
         record.primary_helicity = GetHelicity();
     } catch(std::runtime_error e) {}
+    try {
+        record.primary_initial_time = GetInitialTime();
+    } catch(std::runtime_error e) {}
+    try {
+        record.interaction_time = GetInteractionTime();
+    } catch(std::runtime_error e) {}
 }
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
@@ -632,6 +694,8 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.primary_mass = GetMass();
     record.primary_momentum = GetFourMomentum();
     record.primary_helicity = GetHelicity();
+    record.primary_initial_time = GetInitialTime();
+    record.interaction_time = GetInteractionTime();
     for (auto const & x : interaction_parameters) {
         record.interaction_parameters[x.first] = x.second;
     }
@@ -643,7 +707,8 @@ SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & recor
     secondary_index(secondary_index),
     id((record.secondary_ids.size() > secondary_index and record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
     type(record.signature.secondary_types.at(secondary_index)),
-    initial_position(record.interaction_vertex)
+    initial_position(record.interaction_vertex),
+    initial_time(record.interaction_time)
 {}
 
 Particle SecondaryParticleRecord::GetParticle() const {
@@ -755,6 +820,16 @@ double const & SecondaryParticleRecord::GetHelicity() const {
     return helicity;
 }
 
+double const & SecondaryParticleRecord::GetTime() const {
+    // Secondaries are created at the interaction vertex, so their default
+    // production time is the vertex time (including any override applied
+    // through CrossSectionDistributionRecord::SetInteractionTime). A
+    // process can override this per particle to model delayed emission.
+    if(time_set)
+        return time;
+    return initial_time;
+}
+
 void SecondaryParticleRecord::SetMass(double mass) {
     mass_set = true;
     this->mass = mass;
@@ -790,6 +865,11 @@ void SecondaryParticleRecord::SetFourMomentum(std::array<double, 4> momentum) {
 void SecondaryParticleRecord::SetHelicity(double helicity) {
     helicity_set = true;
     this->helicity = helicity;
+}
+
+void SecondaryParticleRecord::SetTime(double time) {
+    time_set = true;
+    this->time = time;
 }
 
 void SecondaryParticleRecord::UpdateMass() const {
@@ -859,6 +939,7 @@ void SecondaryParticleRecord::Finalize(InteractionRecord & record) const {
     record.secondary_masses.at(secondary_index) = GetMass();
     record.secondary_momenta.at(secondary_index) = GetFourMomentum();
     record.secondary_helicities.at(secondary_index) = GetHelicity();
+    record.secondary_times.at(secondary_index) = GetTime();
 }
 
 /////////////////////////////////////////
@@ -873,6 +954,7 @@ CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord
     primary_momentum(record.primary_momentum),
     primary_helicity(record.primary_helicity),
     interaction_vertex(record.interaction_vertex),
+    interaction_time(record.interaction_time),
     target_id((record.target_id) ? (record.target_id) : (ParticleID::GenerateID())),
     target_type(record.signature.target_type),
     target_mass(record.target_mass),
@@ -916,6 +998,12 @@ std::array<double, 3> const & CrossSectionDistributionRecord::GetInteractionVert
     return interaction_vertex;
 }
 
+double const & CrossSectionDistributionRecord::GetInteractionTime() const {
+    if(interaction_time_set)
+        return overridden_interaction_time;
+    return interaction_time;
+}
+
 ParticleID const & CrossSectionDistributionRecord::GetTargetID() const {
     return target_id;
 }
@@ -942,6 +1030,17 @@ double & CrossSectionDistributionRecord::GetTargetHelicity() {
 
 std::map<std::string, double> & CrossSectionDistributionRecord::GetInteractionParameters() {
     return interaction_parameters;
+}
+
+void CrossSectionDistributionRecord::SetInteractionTime(double interaction_time) {
+    interaction_time_set = true;
+    overridden_interaction_time = interaction_time;
+    // Keep the secondaries' default production times in sync with the
+    // overridden vertex time so their getters agree with what Finalize
+    // will write.
+    for(SecondaryParticleRecord & secondary : secondary_particles) {
+        secondary.initial_time = interaction_time;
+    }
 }
 
 void CrossSectionDistributionRecord::SetTargetMass(double mass) {
@@ -981,6 +1080,12 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;
 
+    // Apply a process-supplied vertex time override before the secondaries
+    // are finalized so their default production times pick it up.
+    if(interaction_time_set) {
+        record.interaction_time = overridden_interaction_time;
+    }
+
     for (auto const & x : interaction_parameters) {
         record.interaction_parameters[x.first] = x.second;
     }
@@ -989,6 +1094,7 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     record.secondary_masses.resize(secondary_particles.size());
     record.secondary_momenta.resize(secondary_particles.size());
     record.secondary_helicities.resize(secondary_particles.size());
+    record.secondary_times.resize(secondary_particles.size());
 
     for(SecondaryParticleRecord const & secondary : secondary_particles) {
         secondary.Finalize(record);
@@ -1006,6 +1112,10 @@ InteractionRecord SecondaryDistributionRecord::CreateSecondaryRecord(Interaction
     record.primary_momentum = parent_record.secondary_momenta.at(secondary_index);
     record.primary_helicity = parent_record.secondary_helicities.at(secondary_index);
     record.primary_initial_position = parent_record.interaction_vertex;
+    // Parent records from version 0 archives predate secondary_times; fall
+    // back to the parent vertex time in that case.
+    record.primary_initial_time = (parent_record.secondary_times.size() > secondary_index) ?
+        parent_record.secondary_times.at(secondary_index) : parent_record.interaction_time;
     return record;
 }
 
@@ -1029,7 +1139,8 @@ SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord & rec
     }(record)),
     momentum(record.primary_momentum),
     helicity(record.primary_helicity),
-    initial_position(record.primary_initial_position) {}
+    initial_position(record.primary_initial_position),
+    initial_time(record.primary_initial_time) {}
 
 SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index) :
     secondary_index(secondary_index),
@@ -1049,7 +1160,8 @@ SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const
     }(record)),
     momentum(record.primary_momentum),
     helicity(record.primary_helicity),
-    initial_position(record.primary_initial_position) {}
+    initial_position(record.primary_initial_position),
+    initial_time(record.primary_initial_time) {}
 
 double const & SecondaryDistributionRecord::GetLength() const {
     if(not length_set) {
@@ -1063,10 +1175,24 @@ void SecondaryDistributionRecord::SetLength(double const & length) {
     this->length = length;
 }
 
+double const & SecondaryDistributionRecord::GetInteractionTime() const {
+    if(not interaction_time_set) {
+        double momentum_magnitude = std::sqrt(momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2) + momentum.at(3)*momentum.at(3));
+        interaction_time = initial_time + FlightTime(GetLength(), momentum.at(0), momentum_magnitude);
+    }
+    return interaction_time;
+}
+
+void SecondaryDistributionRecord::SetInteractionTime(double const & interaction_time) {
+    interaction_time_set = true;
+    this->interaction_time = interaction_time;
+}
+
 void SecondaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.signature.primary_type = type;
     record.primary_id = id;
     record.primary_initial_position = initial_position;
+    record.primary_initial_time = initial_time;
     record.primary_mass = mass;
     record.primary_momentum = momentum;
     record.primary_helicity = helicity;
@@ -1074,6 +1200,7 @@ void SecondaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.interaction_vertex.at(0) += length*direction.at(0);
     record.interaction_vertex.at(1) += length*direction.at(1);
     record.interaction_vertex.at(2) += length*direction.at(2);
+    record.interaction_time = GetInteractionTime();
 }
 
 /////////////////////////////////////////
@@ -1083,6 +1210,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         signature,
         primary_id,
         primary_initial_position,
+        primary_initial_time,
         primary_mass,
         primary_momentum,
         primary_helicity,
@@ -1090,16 +1218,19 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         target_mass,
         target_helicity,
         interaction_vertex,
+        interaction_time,
         secondary_ids,
         secondary_masses,
         secondary_momenta,
         secondary_helicities,
+        secondary_times,
         interaction_parameters)
         ==
         std::tie(
         other.signature,
         other.primary_id,
         other.primary_initial_position,
+        other.primary_initial_time,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
@@ -1107,10 +1238,12 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.target_mass,
         other.target_helicity,
         other.interaction_vertex,
+        other.interaction_time,
         other.secondary_ids,
         other.secondary_masses,
         other.secondary_momenta,
         other.secondary_helicities,
+        other.secondary_times,
         other.interaction_parameters);
 }
 
@@ -1119,6 +1252,7 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         signature,
         primary_id,
         primary_initial_position,
+        primary_initial_time,
         primary_mass,
         primary_momentum,
         primary_helicity,
@@ -1126,16 +1260,19 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         target_mass,
         target_helicity,
         interaction_vertex,
+        interaction_time,
         secondary_ids,
         secondary_masses,
         secondary_momenta,
         secondary_helicities,
+        secondary_times,
         interaction_parameters)
         <
         std::tie(
         other.signature,
         other.primary_id,
         other.primary_initial_position,
+        other.primary_initial_time,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
@@ -1143,10 +1280,12 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.target_mass,
         other.target_helicity,
         other.interaction_vertex,
+        other.interaction_time,
         other.secondary_ids,
         other.secondary_masses,
         other.secondary_momenta,
         other.secondary_helicities,
+        other.secondary_times,
         other.interaction_parameters);
 }
 
@@ -1220,6 +1359,18 @@ std::string to_str(siren::dataclasses::PrimaryDistributionRecord const & record)
     else
         ss << "unset\n";
 
+    ss << tab << "InitialTime: ";
+    if(record.initial_time_set)
+        ss << record.initial_time << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "InteractionTime: ";
+    if(record.interaction_time_set)
+        ss << record.interaction_time << '\n';
+    else
+        ss << "unset\n";
+
     ss << "]";
 
     return ss.str();
@@ -1250,6 +1401,10 @@ std::string to_repr(siren::dataclasses::PrimaryDistributionRecord const & record
         ss << ", interaction_vertex=(" << record.interaction_vertex.at(0) << ", " << record.interaction_vertex.at(1) << ", " << record.interaction_vertex.at(2) << ")";
     if(record.helicity_set)
         ss << ", helicity=" << record.helicity;
+    if(record.initial_time_set)
+        ss << ", initial_time=" << record.initial_time;
+    if(record.interaction_time_set)
+        ss << ", interaction_time=" << record.interaction_time;
 
     ss << ")";
 
@@ -1284,6 +1439,7 @@ std::string to_str(siren::dataclasses::CrossSectionDistributionRecord const & re
        << record.interaction_vertex.at(0) << " "
        << record.interaction_vertex.at(1) << " "
        << record.interaction_vertex.at(2) << '\n';
+    ss << tab << "InteractionTime: " << record.GetInteractionTime() << '\n';
     ss << tab << "TargetID: " << to_repr(record.GetTargetID()) << '\n';
     ss << tab << "TargetType: " << record.target_type << '\n';
     ss << tab << "TargetMass: " << record.target_mass << '\n';
@@ -1328,6 +1484,7 @@ std::string to_repr(siren::dataclasses::CrossSectionDistributionRecord const& re
        << record.interaction_vertex.at(0) << ", "
        << record.interaction_vertex.at(1) << ", "
        << record.interaction_vertex.at(2) << "), ";
+    ss << "interaction_time=" << record.GetInteractionTime() << ", ";
     ss << "target_id=" << to_repr(record.GetTargetID()) << ", ";
     ss << "target_type=" << record.target_type << ", ";
     ss << "target_mass=" << record.target_mass << ", ";
@@ -1375,6 +1532,8 @@ std::string to_repr(siren::dataclasses::CrossSectionDistributionRecord const& re
                << secondary.momentum.at(2) << ")";
         if (secondary.helicity_set)
             ss << ", helicity=" << secondary.helicity;
+        if (secondary.time_set)
+            ss << ", time=" << secondary.time;
         ss << "}";
     }
     ss << "]";
@@ -1432,6 +1591,12 @@ std::string to_str(siren::dataclasses::SecondaryParticleRecord const& record) {
         ss << record.helicity << '\n';
     else
         ss << "unset\n";
+    ss << tab << "InitialTime: " << record.initial_time << '\n';
+    ss << tab << "Time: ";
+    if (record.time_set)
+        ss << record.time << '\n';
+    else
+        ss << "unset\n";
     ss << ']';
 
     return ss.str();
@@ -1465,6 +1630,8 @@ std::string to_repr(siren::dataclasses::SecondaryParticleRecord const& record) {
            << record.momentum.at(2) << ")";
     if (record.helicity_set)
         ss << ", helicity=" << record.helicity;
+    if (record.time_set)
+        ss << ", time=" << record.time;
     ss << ")";
     return ss.str();
 }
@@ -1499,10 +1666,18 @@ std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistribu
 
     os << "InitialPosition: " << record.initial_position.at(0) << " " << record.initial_position.at(1) << " " << record.initial_position.at(2) << "\n";
 
+    os << "InitialTime: " << record.initial_time << "\n";
+
     if(record.length_set) {
         os << "Length: " << record.GetLength() << "\n";
     } else {
         os << "Length: " << "None" << "\n";
+    }
+
+    if(record.length_set or record.interaction_time_set) {
+        os << "InteractionTime: " << record.GetInteractionTime() << "\n";
+    } else {
+        os << "InteractionTime: " << "None" << "\n";
     }
 
     return os;
@@ -1528,7 +1703,9 @@ std::string to_str(siren::dataclasses::InteractionRecord const & record) {
 
     ss << tab << "PrimaryID: " << to_repr(record.primary_id) << '\n';
     ss << tab << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << '\n';
+    ss << tab << "PrimaryInitialTime: " << record.primary_initial_time << '\n';
     ss << tab << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << '\n';
+    ss << tab << "InteractionTime: " << record.interaction_time << '\n';
     ss << tab << "PrimaryMass: " << record.primary_mass << '\n';
     ss << tab << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << '\n';
     ss << tab << "TargetID: " << to_repr(record.target_id) << '\n';
@@ -1543,6 +1720,10 @@ std::string to_str(siren::dataclasses::InteractionRecord const & record) {
     }
     ss << tab << "SecondaryMasses:\n";
     for(auto const & secondary: record.secondary_masses) {
+        ss << tab << tab << secondary << '\n';
+    }
+    ss << tab << "SecondaryTimes:\n";
+    for(auto const & secondary: record.secondary_times) {
         ss << tab << tab << secondary << '\n';
     }
     ss << tab << "InteractionParameters:\n";
@@ -1564,7 +1745,9 @@ std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
     ss << ", ";
     ss << "primary_id=" << to_repr(record.primary_id) << ", ";
     ss << "primary_initial_position=(" << record.primary_initial_position.at(0) << ", " << record.primary_initial_position.at(1) << ", " << record.primary_initial_position.at(2) << "), ";
+    ss << "primary_initial_time=" << record.primary_initial_time << ", ";
     ss << "interaction_vertex=(" << record.interaction_vertex.at(0) << ", " << record.interaction_vertex.at(1) << ", " << record.interaction_vertex.at(2) << "), ";
+    ss << "interaction_time=" << record.interaction_time << ", ";
     ss << "primary_mass=" << record.primary_mass << ", ";
     ss << "primary_momentum=(" << record.primary_momentum.at(0) << ", " << record.primary_momentum.at(1) << ", " << record.primary_momentum.at(2) << ", " << record.primary_momentum.at(3) << "), ";
     ss << "target_id=" << to_repr(record.target_id) << ", ";
@@ -1590,6 +1773,14 @@ std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
         ss << record.secondary_masses.at(0);
         for(size_t i=1; i<record.secondary_masses.size(); ++i) {
             ss << ", " << record.secondary_masses.at(i);
+        }
+    }
+    ss << "], ";
+    ss << "secondary_times=[";
+    if(record.secondary_times.size() > 0) {
+        ss << record.secondary_times.at(0);
+        for(size_t i=1; i<record.secondary_times.size(); ++i) {
+            ss << ", " << record.secondary_times.at(i);
         }
     }
     ss << "], ";

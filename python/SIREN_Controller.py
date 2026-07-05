@@ -606,7 +606,9 @@ class SIREN_Controller:
             "event_global_time":[], # global time of each event
             "num_interactions":[], # number of interactions per event
             "vertex":[], # vertex of each interaction of an event
+            "vertex_time":[], # time of each interaction vertex of an event
             "primary_initial_position":[], # initial position of primary in each interaction of an event
+            "primary_initial_time":[], # initial time of primary in each interaction of an event
             "in_fiducial":[], # whether or not each vertex is in the fiducial volume
             "primary_type":[], # primary type of each interaction
             "target_type":[], # target type of each interaction
@@ -614,6 +616,7 @@ class SIREN_Controller:
             "secondary_types":[], # secondary type of each interaction
             "primary_momentum":[], # primary momentum of each interaction
             "secondary_momenta":[], # secondary momentum of each interaction
+            "secondary_times":[], # production time of each secondary of each interaction
             "parent_idx":[], # index of the parent interaction
             "num_daughters":[], # number of daughter interactions
         }
@@ -632,7 +635,9 @@ class SIREN_Controller:
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
             for k in ["vertex",
+                      "vertex_time",
                       "primary_initial_position",
+                      "primary_initial_time",
                       "in_fiducial",
                       "primary_type",
                       "target_type",
@@ -640,6 +645,7 @@ class SIREN_Controller:
                       "secondary_types",
                       "primary_momentum",
                       "secondary_momenta",
+                      "secondary_times",
                       "parent_idx",
                       "num_daughters"]:
                 datasets[k].append([])
@@ -654,7 +660,9 @@ class SIREN_Controller:
                             datasets["int_params"][-1][param_name] = []
                         datasets["int_params"][-1][param_name].append(param_value)
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+                datasets["vertex_time"][-1].append(datum.record.interaction_time)
                 datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
+                datasets["primary_initial_time"][-1].append(datum.record.primary_initial_time)
 
                  # primary particle stuff
                 datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
@@ -685,10 +693,18 @@ class SIREN_Controller:
                 # secondary particle stuff
                 datasets["secondary_types"][-1].append([])
                 datasets["secondary_momenta"][-1].append([])
-                for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.signature.secondary_types,
-                                                                   datum.record.secondary_momenta)):
+                datasets["secondary_times"][-1].append([])
+                # events loaded from old files predate secondary_times;
+                # fall back to the vertex time for them
+                sec_times = datum.record.secondary_times
+                if len(sec_times) != len(datum.record.secondary_momenta):
+                    sec_times = [datum.record.interaction_time] * len(datum.record.secondary_momenta)
+                for isec, (sec_type, sec_momenta, sec_time) in enumerate(zip(datum.record.signature.secondary_types,
+                                                                             datum.record.secondary_momenta,
+                                                                             sec_times)):
                     datasets["secondary_types"][-1][-1].append(int(sec_type))
                     datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
+                    datasets["secondary_times"][-1][-1].append(sec_time)
                 datasets["num_secondaries"][-1].append(isec+1)
             datasets["num_interactions"].append(id+1)
 
