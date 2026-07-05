@@ -182,37 +182,47 @@ struct HepMC3Writer::Impl {
         if(options_.weight_names.empty()) options_.weight_names = {"CV"};
         run_info_->set_weight_names(options_.weight_names);
 
-        // NuHepMC version signalling (G.R.1-R.3).
-        run_info_->add_attribute("NuHepMC.Version.Major", std::make_shared<HepMC3::IntAttribute>(1));
-        run_info_->add_attribute("NuHepMC.Version.Minor", std::make_shared<HepMC3::IntAttribute>(0));
-        run_info_->add_attribute("NuHepMC.Version.Patch", std::make_shared<HepMC3::IntAttribute>(0));
+        // Weight provenance is always echoed. "unweighted" turns off every NuHepMC.*
+        // key: the per-event CV weight is only a 1.0 placeholder, so a NuHepMC reader
+        // must not be told this is a conforming, rate-normalized file. In that mode the
+        // output is a plain HepMC3 file carrying siren.* provenance only.
+        run_info_->add_attribute("siren.weights_state",
+            std::make_shared<HepMC3::StringAttribute>(options_.weights_state));
+        bool const nuhepmc_mode = (options_.weights_state != "unweighted");
+
+        // NuHepMC version signalling (G.R.1-R.3). Only in a NuHepMC mode.
+        if(nuhepmc_mode) {
+            run_info_->add_attribute("NuHepMC.Version.Major", std::make_shared<HepMC3::IntAttribute>(1));
+            run_info_->add_attribute("NuHepMC.Version.Minor", std::make_shared<HepMC3::IntAttribute>(0));
+            run_info_->add_attribute("NuHepMC.Version.Patch", std::make_shared<HepMC3::IntAttribute>(0));
+        }
 
         for(auto const & kv : options_.provenance) {
             run_info_->add_attribute("siren." + kv.first,
                                      std::make_shared<HepMC3::StringAttribute>(kv.second));
         }
 
-        // NuHepMC vertex status registry (G.R.9). 1 is the standard primary code;
-        // 21/22 are in the generator-dependent band and so must be declared.
-        DeclareIdRegistry(*run_info_, "NuHepMC.VertexStatusIDs", "NuHepMC.VertexStatusInfo",
-            {1, 21, 22},
-            {{1,  {"PrimaryInteraction", "Primary interaction vertex where the beam particle interacts"}},
-             {21, {"SecondaryInteraction", "Interaction vertex of a secondary (cascade) particle"}},
-             {22, {"Decay", "Vertex where a particle decays"}}});
+        if(nuhepmc_mode) {
+            // NuHepMC vertex status registry (G.R.9). 1 is the standard primary code;
+            // 21/22 are in the generator-dependent band and so must be declared.
+            DeclareIdRegistry(*run_info_, "NuHepMC.VertexStatusIDs", "NuHepMC.VertexStatusInfo",
+                {1, 21, 22},
+                {{1,  {"PrimaryInteraction", "Primary interaction vertex where the beam particle interacts"}},
+                 {21, {"SecondaryInteraction", "Interaction vertex of a secondary (cascade) particle"}},
+                 {22, {"Decay", "Vertex where a particle decays"}}});
 
-        // NuHepMC particle status registry (G.R.10). 1/2/4/20 are standard codes;
-        // 22 (deeper-interaction target) is generator-dependent and must be declared.
-        DeclareIdRegistry(*run_info_, "NuHepMC.ParticleStatusIDs", "NuHepMC.ParticleStatusInfo",
-            {1, 2, 4, 20, 22},
-            {{1,  {"FinalState", "Undecayed final-state particle"}},
-             {2,  {"DecayedOrReinteracted", "Particle that decayed or re-interacted downstream"}},
-             {4,  {"IncomingBeam", "Incoming beam particle of the primary interaction"}},
-             {20, {"Target", "Target of the primary interaction"}},
-             {22, {"NonTargetInteractionTarget", "Target of a deeper (non-primary) interaction in the cascade"}}});
+            // NuHepMC particle status registry (G.R.10). 1/2/4/20 are standard codes;
+            // 22 (deeper-interaction target) is generator-dependent and must be declared.
+            DeclareIdRegistry(*run_info_, "NuHepMC.ParticleStatusIDs", "NuHepMC.ParticleStatusInfo",
+                {1, 2, 4, 20, 22},
+                {{1,  {"FinalState", "Undecayed final-state particle"}},
+                 {2,  {"DecayedOrReinteracted", "Particle that decayed or re-interacted downstream"}},
+                 {4,  {"IncomingBeam", "Incoming beam particle of the primary interaction"}},
+                 {20, {"Target", "Target of the primary interaction"}},
+                 {22, {"NonTargetInteractionTarget", "Target of a deeper (non-primary) interaction in the cascade"}}});
 
-        // NuHepMC additional particle numbers (G.R.11): SIREN's non-PDG codes,
-        // plus any the caller supplies.
-        {
+            // NuHepMC additional particle numbers (G.R.11): SIREN's non-PDG codes,
+            // plus any the caller supplies.
             std::map<int, std::pair<std::string, std::string>> particles = SirenAdditionalParticleNumbers();
             for(auto const & kv : options_.additional_particle_numbers) particles[kv.first] = kv.second;
             DeclareAdditionalParticleNumbers(*run_info_, particles);
@@ -230,7 +240,7 @@ struct HepMC3Writer::Impl {
 
         // NuHepMC process ID registry (G.R.8): one id per distinct root interaction
         // signature, assigned in the generator ("Other", >= 700) band by the pre-scan.
-        if(!options_.process_names.empty()) {
+        if(nuhepmc_mode && !options_.process_names.empty()) {
             std::vector<int> ids;
             std::map<int, std::pair<std::string, std::string>> info;
             for(auto const & kv : options_.process_names) {
@@ -240,44 +250,47 @@ struct HepMC3Writer::Impl {
             DeclareIdRegistry(*run_info_, "NuHepMC.ProcessIDs", "NuHepMC.ProcessInfo", ids, info);
         }
 
-        // Flux-averaged total cross section (NuHepMC E.C.4), at run level. SIREN's
-        // per-event weight is a rate weight, so the raw ingredient siren.fatx.weight_sum
-        // (combined with siren.attempted_events) is always written for reconstruction.
-        // The reserved NuHepMC.FluxAveragedTotalCrossSection key AND its G.R.6 units are
-        // emitted only under the explicit fatx_per_atom opt-in (see Options docs), so a
-        // NuHepMC reader never sees a per-atom claim the rate weight cannot back.
-        run_info_->add_attribute("siren.fatx.weight_sum", D(options_.fatx_weight_sum));
-        {
+        // Flux-averaged total cross section (NuHepMC E.C.4), at run level. The rate
+        // normalization is only meaningful for weighted output, so under "unweighted"
+        // (nuhepmc_mode false) no siren.fatx.* or NuHepMC FATX keys are emitted -- the
+        // per-event CV placeholder carries no rate information. In a NuHepMC mode the
+        // raw ingredient siren.fatx.weight_sum is written for reconstruction, and the
+        // mandatory NuHepMC.FluxAveragedTotalCrossSection key + G.R.6 units are always
+        // emitted whenever a normalization exists (norm > 0), preserving the invariant
+        // "NuHepMC.Version declared <=> FluxAveragedTotalCrossSection emitted".
+        if(nuhepmc_mode) {
+            run_info_->add_attribute("siren.fatx.weight_sum", D(options_.fatx_weight_sum));
             long long const norm = (options_.attempted_events > 0) ? options_.attempted_events
                                                                    : options_.accepted_events;
             if(norm > 0) {
-                bool const mixed = options_.fatx_partition_by_primary
-                                   && options_.fatx_weight_sum_by_primary.size() > 1;
-                if(mixed) {
+                double const fatx = kGeVm2_to_pb * options_.fatx_weight_sum
+                                    / static_cast<double>(norm);
+                // The reserved key + its units back the version declaration.
+                run_info_->add_attribute("siren.fatx.value", D(fatx));
+                run_info_->add_attribute("NuHepMC.Units.CrossSection.Unit",
+                    std::make_shared<HepMC3::StringAttribute>(options_.cross_section_unit));
+                run_info_->add_attribute("NuHepMC.Units.CrossSection.TargetScale",
+                    std::make_shared<HepMC3::StringAttribute>(
+                        options_.fatx_per_atom ? options_.target_scale : std::string("Unnormalized")));
+                run_info_->add_attribute("NuHepMC.FluxAveragedTotalCrossSection", D(fatx));
+
+                // Optional per-primary breakdown (opt-in, needs >1 primary).
+                if(options_.fatx_partition_by_primary
+                   && options_.fatx_weight_sum_by_primary.size() > 1) {
                     run_info_->add_attribute("siren.fatx_partitioned",
                         std::make_shared<HepMC3::IntAttribute>(1));
                     for(auto const & kv : options_.fatx_weight_sum_by_primary)
                         run_info_->add_attribute("siren.fatx." + std::to_string(kv.first),
                             D(kGeVm2_to_pb * kv.second / static_cast<double>(norm)));
-                } else {
-                    double const fatx = kGeVm2_to_pb * options_.fatx_weight_sum
-                                        / static_cast<double>(norm);
-                    run_info_->add_attribute("siren.fatx.value", D(fatx));
-                    if(options_.fatx_per_atom) {
-                        run_info_->add_attribute("NuHepMC.Units.CrossSection.Unit",
-                            std::make_shared<HepMC3::StringAttribute>(options_.cross_section_unit));
-                        run_info_->add_attribute("NuHepMC.Units.CrossSection.TargetScale",
-                            std::make_shared<HepMC3::StringAttribute>(options_.target_scale));
-                        run_info_->add_attribute("NuHepMC.FluxAveragedTotalCrossSection", D(fatx));
-                    }
                 }
             }
         }
 
         // Optional conventions adhered to (G.R.5 signalling): E.C.5 = the per-event
-        // lab position carries a time component.
-        run_info_->add_attribute("NuHepMC.Conventions",
-            std::make_shared<HepMC3::VectorStringAttribute>(std::vector<std::string>{"E.C.5"}));
+        // lab position carries a time component. NuHepMC modes only.
+        if(nuhepmc_mode)
+            run_info_->add_attribute("NuHepMC.Conventions",
+                std::make_shared<HepMC3::VectorStringAttribute>(std::vector<std::string>{"E.C.5"}));
 
         if(options_.gzip) {
 #ifdef SIREN_HEPMC3_HAS_COMPRESSION

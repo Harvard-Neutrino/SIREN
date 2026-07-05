@@ -24,6 +24,16 @@ public:
         std::string siren_version;                          // ToolInfo version (may be empty)
         std::vector<std::string> weight_names = {"CV"};     // GenRunInfo weight names
         std::map<std::string, std::string> provenance;      // extra GenRunInfo siren.* attributes
+
+        // Weight provenance, always echoed as the GenRunInfo StringAttribute
+        // "siren.weights_state". Allowed values: "computed" (per-event CV weights
+        // were computed by a weighter before writing), "header" (per-event weights
+        // come from each tree's header, trusted as-is), or "unweighted" (no
+        // meaningful per-event weight; the CV slot is a 1.0 placeholder). Only the
+        // first two are NuHepMC modes: when weights_state == "unweighted" the file
+        // carries NO NuHepMC.* attributes at all (plain HepMC3 with siren.* only),
+        // and no siren.fatx.* diagnostics (rate normalization is meaningless).
+        std::string weights_state = "header";
         // Extra non-PDG particle codes to declare (NuHepMC G.R.11), merged with
         // SIREN's built-in BSM set: code -> {name, description}.
         std::map<int, std::pair<std::string, std::string>> additional_particle_numbers;
@@ -36,10 +46,15 @@ public:
         // Flux-averaged total cross section (NuHepMC E.C.4 / G.R.6). SIREN's per-event
         // weight is a *rate* weight, so sum(weights)/attempted is only a true per-atom
         // cross section when the physical flux is unit-normalized and the target
-        // column-density normalization is divided out. The siren.fatx.* diagnostics are
-        // always written; the reserved NuHepMC.FluxAveragedTotalCrossSection key is only
-        // emitted when fatx_per_atom is set (opt-in that the value is a per-atom sigma).
-        bool fatx_per_atom = false;
+        // column-density normalization is divided out. In a NuHepMC mode (weights_state
+        // != "unweighted") the mandatory NuHepMC.FluxAveragedTotalCrossSection key and
+        // its G.R.6 units are ALWAYS emitted, so the invariant "version declared <=>
+        // FATX emitted" holds. fatx_per_atom selects the TargetScale label describing the
+        // value: target_scale (default "PerAtom", the caller's assertion that the per-atom
+        // normalization holds) when set, otherwise the literal "Unnormalized" so a reader
+        // is warned the value is a raw rate. Under "unweighted" no siren.fatx.* or
+        // NuHepMC.* keys are emitted.
+        bool fatx_per_atom = true;
         bool fatx_partition_by_primary = false;  // emit per-primary siren.fatx.<pdg>
         std::string cross_section_unit = "pb";   // NuHepMC.Units.CrossSection.Unit
         std::string target_scale = "PerAtom";    // NuHepMC.Units.CrossSection.TargetScale

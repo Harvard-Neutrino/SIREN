@@ -80,6 +80,7 @@ def test_counts_and_fatx_metadata(dc, tmp_path):
     opts.attempted_events = 1000
     weights = (2.0, 4.0, 6.0)
     trees = [_tree(dc, dc.ParticleType.NuMu, w) for w in weights]
+    # Default weights_state ("header") is a NuHepMC mode: the trees carry header CVs.
     _write_or_skip(dc, trees, out, opts)
     with pyhepmc.open(out) as f:
         attrs = f.read().run_info.attributes
@@ -89,23 +90,57 @@ def test_counts_and_fatx_metadata(dc, tmp_path):
     # FATX raw ingredient (siren.fatx.weight_sum) == sum of the CV weights.
     assert abs(float(str(attrs["siren.fatx.weight_sum"])) - sum(weights)) < 1e-9
     assert "siren.fatx.value" in attrs
-    # Reserved per-atom key AND its G.R.6 units are gated OFF by default (rate-weight caveat).
-    assert "NuHepMC.FluxAveragedTotalCrossSection" not in attrs
-    assert "NuHepMC.Units.CrossSection.Unit" not in attrs
+    # Invariant: a declared NuHepMC.Version implies the mandatory FATX key + G.R.6 units.
+    assert "NuHepMC.Version.Major" in attrs
+    assert "NuHepMC.FluxAveragedTotalCrossSection" in attrs
+    assert "NuHepMC.Units.CrossSection.Unit" in attrs
+    assert "NuHepMC.Units.CrossSection.TargetScale" in attrs
 
 
-def test_fatx_reserved_key_requires_opt_in(dc, tmp_path):
+def test_fatx_target_scale_labels_per_atom_optin(dc, tmp_path):
+    """In a NuHepMC mode the reserved FATX key + units are always emitted; the
+    fatx_per_atom opt-in only selects the TargetScale label (the claim that the
+    value is a genuine per-atom sigma vs an unnormalized rate)."""
     from siren import hepmc3
+    # With the opt-in the caller-provided TargetScale is used.
     out = str(tmp_path / "peratom.hepmc3")
     opts = hepmc3.HepMC3WriterOptions()
     opts.attempted_events = 1000
-    opts.fatx_per_atom = True  # caller asserts the per-atom normalization holds
+    opts.fatx_per_atom = True
+    opts.target_scale = "PerAtom"
     _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out, opts)
     text = open(out).read()
-    # The reserved key AND its units are emitted only under the opt-in.
     assert "NuHepMC.FluxAveragedTotalCrossSection" in text
     assert "NuHepMC.Units.CrossSection.Unit" in text
-    assert "NuHepMC.Units.CrossSection.TargetScale" in text
+    assert "PerAtom" in text
+    # Without the opt-in the value is labelled Unnormalized (rate-weight caveat).
+    out2 = str(tmp_path / "unnorm.hepmc3")
+    opts2 = hepmc3.HepMC3WriterOptions()
+    opts2.attempted_events = 1000
+    opts2.fatx_per_atom = False
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out2, opts2)
+    text2 = open(out2).read()
+    assert "NuHepMC.FluxAveragedTotalCrossSection" in text2
+    assert "Unnormalized" in text2
+
+
+def test_unweighted_mode_omits_nuhepmc_and_fatx(dc, tmp_path):
+    """weights_state == "unweighted" produces a plain HepMC3 file: no NuHepMC.*
+    keys and no siren.fatx.* keys, but the generation counts survive for pooling."""
+    from siren import hepmc3
+    out = str(tmp_path / "unweighted.hepmc3")
+    opts = hepmc3.HepMC3WriterOptions()
+    opts.weights_state = "unweighted"
+    opts.attempted_events = 1000
+    _write_or_skip(dc, [_tree(dc, dc.ParticleType.NuMu, 2.0)], out, opts)
+    text = open(out).read()
+    assert "siren.weights_state" in text and "unweighted" in text
+    assert "NuHepMC." not in text
+    assert "siren.fatx.value" not in text
+    assert "siren.fatx.weight_sum" not in text
+    # Counts still present (later pooling needs them).
+    assert "siren.attempted_events" in text
+    assert "siren.accepted_events" in text
 
 
 def test_fatx_value_matches_estimator(dc, tmp_path):

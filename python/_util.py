@@ -960,6 +960,94 @@ def get_parent_indices(tree):
             parent_indices.append(int(datum.parent_index))
     return parent_indices
 
+
+def _event_weight(weighter, tree):
+    """Central-value weight of one tree via a Weighter instance or a callable.
+    EventWeight is preferred so a Weighter that also happens to be callable is
+    still invoked through its documented method."""
+    if hasattr(weighter, "EventWeight"):
+        return float(weighter.EventWeight(tree))
+    return float(weighter(tree))
+
+
+def _set_header_cv(tree, w):
+    """Overwrite only the CV slot (index 0) of a tree's header weights, keeping
+    any additional named weights. Mirrors convert_siren_events_to_hepmc3."""
+    weights = list(tree.header.weights) or [0.0]
+    weights[0] = float(w)
+    tree.header.weights = weights
+
+
+def resolve_hepmc3_weight_policy(events, hepmc3_weights, weighter):
+    """Resolve the HepMC3 weight policy for a set of trees.
+
+    ``hepmc3_weights`` selects how per-event central-value weights reach the
+    HepMC3 (and native) output:
+
+    - ``"auto"``: if a weighter is available, compute every event weight once and
+      populate the tree headers (state ``"computed"``); else if any tree already
+      carries non-empty header weights, trust them (state ``"header"``); else
+      leave headers untouched (state ``"unweighted"``).
+    - ``"none"``: leave headers untouched (state ``"unweighted"``).
+    - ``"header"``: trust the existing header weights (state ``"header"``).
+    - a Weighter instance (has ``EventWeight``) or a callable: compute weights the
+      same as auto-with-weighter (state ``"computed"``).
+    - a sequence of floats: one CV weight per event, written to the headers
+      (state ``"header"``); length must equal ``len(events)``.
+
+    Headers are populated in place so both the native ``.siren_events`` file and
+    the HepMC3 file carry the same CV. The tabular-convention sentinel
+    (weighter-is-None -> weight 0) is NEVER written into a header: unweighted
+    means untouched headers, never zeros.
+
+    Returns ``(cv_weights, weights_state)`` where ``cv_weights`` is a list of the
+    per-event CV weights when they were computed here (for reuse by the tabular
+    datasets) or ``None`` when headers were left untouched / trusted as-is.
+    """
+    # Explicit per-event sequence of floats.
+    if hepmc3_weights is not None and not isinstance(hepmc3_weights, str) \
+            and not callable(hepmc3_weights) and not hasattr(hepmc3_weights, "EventWeight"):
+        try:
+            seq = list(hepmc3_weights)
+        except TypeError:
+            seq = None
+        if seq is not None:
+            if len(seq) != len(events):
+                raise ValueError(
+                    "hepmc3_weights sequence length %d != number of events %d"
+                    % (len(seq), len(events)))
+            for tree, w in zip(events, seq):
+                _set_header_cv(tree, w)
+            return [float(w) for w in seq], "header"
+
+    # A weighter passed directly (callable or Weighter instance) -> compute.
+    direct_weighter = None
+    if callable(hepmc3_weights) or hasattr(hepmc3_weights, "EventWeight"):
+        direct_weighter = hepmc3_weights
+
+    if hepmc3_weights is None or hepmc3_weights == "none":
+        return None, "unweighted"
+
+    if hepmc3_weights == "header":
+        return None, "header"
+
+    # "auto" (or a directly-passed weighter): prefer a weighter, then existing
+    # headers, then unweighted.
+    active = direct_weighter if direct_weighter is not None else weighter
+    if hepmc3_weights == "auto" or direct_weighter is not None:
+        if active is not None:
+            cv = [_event_weight(active, tree) for tree in events]
+            for tree, w in zip(events, cv):
+                _set_header_cv(tree, w)
+            return cv, "computed"
+        # No weighter: trust existing headers if any are populated, else unweighted.
+        if any(len(tree.header.weights) > 0 for tree in events):
+            return None, "header"
+        return None, "unweighted"
+
+    raise ValueError("unrecognized hepmc3_weights policy: %r" % (hepmc3_weights,))
+
+
 def SaveEvents(events,
                weighter=None,
                gen_times=None,
@@ -967,15 +1055,34 @@ def SaveEvents(events,
                save_parquet=True,
                save_siren_events=True,
                save_hepmc3=False,
+               hepmc3_weights="auto",
+               hepmc3_gzip=False,
                fid_vol=None,
                output_filename=None):
 
+    # Resolve the HepMC3 weight policy up front so per-event central values are
+    # computed exactly once (BEFORE any file is written) and shared by the native
+    # file, the HepMC3 file, and the tabular datasets below. Under "auto" the
+    # available weighter populates the headers; the computed array is reused for
+    # the event_weight column so the CV is never recomputed.
+    hepmc3_cv = None
+    hepmc3_state = "unweighted"
+    if save_hepmc3 or save_siren_events:
+        hepmc3_cv, hepmc3_state = resolve_hepmc3_weight_policy(
+            events, hepmc3_weights, weighter)
 
-    # Optionally save things
+    # Optionally save things. Headers are already populated (when the policy chose
+    # to) so the native .siren_events file carries the same CV as the HepMC3 file.
     if save_siren_events: _dataclasses.SaveInteractionTrees(events, output_filename)
     if save_hepmc3:
         from . import hepmc3 as _hepmc3
-        _hepmc3.SaveInteractionTreesAsHepMC3(events, output_filename + ".hepmc3")
+        opts = _hepmc3.HepMC3WriterOptions()
+        opts.weights_state = hepmc3_state
+        opts.gzip = bool(hepmc3_gzip)
+        out = output_filename + ".hepmc3"
+        if hepmc3_gzip and not out.endswith(".gz"):
+            out = out + ".gz"
+        _hepmc3.SaveInteractionTreesAsHepMC3(events, out, opts)
     # A dictionary containing each dataset we'd like to save
     datasets = {
         "event_weight":[], # weight of entire event
@@ -995,7 +1102,10 @@ def SaveEvents(events,
     for ie, event in enumerate(events):
         print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
         t0 = time.time()
-        datasets["event_weight"].append(weighter(event) if weighter is not None else 0)
+        if hepmc3_cv is not None:
+            datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
+        else:
+            datasets["event_weight"].append(weighter(event) if weighter is not None else 0)
         datasets["event_weight_time"].append(time.time()-t0)
         datasets["event_gen_time"].append(gen_times[ie])
         # add empty lists for each per interaction dataset
@@ -1078,36 +1188,40 @@ def convert_siren_events_to_hepmc3(in_path, out_path=None, weighter=None, option
         replaced by ``.hepmc3`` (or ``.hepmc3`` appended otherwise).
     weighter : callable or Weighter, optional
         When given, each tree's central-value weight (``tree.header.weights[0]``)
-        is overwritten with the computed weight so the HepMC3 CV weight is set;
-        a callable is invoked as ``weighter(tree)``, otherwise
-        ``weighter.EventWeight(tree)`` is used. When ``None`` the existing header
-        weights are kept.
+        is overwritten with the computed weight so the HepMC3 CV weight is set
+        (weights_state ``"computed"``); a callable is invoked as ``weighter(tree)``,
+        otherwise ``weighter.EventWeight(tree)`` is used. When ``None`` the existing
+        header weights are kept (``"header"`` if any tree carries them, else
+        ``"unweighted"``).
     options : siren.hepmc3.HepMC3WriterOptions, optional
         Passed through to the writer (e.g. to request gzip or set FATX metadata).
+        Its ``weights_state`` is set to reflect the resolved policy above.
 
     Returns
     -------
     str
         The output path written.
     """
+    from . import hepmc3 as _hepmc3
     trees = _dataclasses.LoadInteractionTrees(in_path)
     if out_path is None:
         base = in_path[:-len(".siren_events")] if in_path.endswith(".siren_events") else in_path
         out_path = base + ".hepmc3"
+    if options is None:
+        options = _hepmc3.HepMC3WriterOptions()
     # If gzip is requested, ensure a .gz suffix so the file self-describes (the reader
     # also sniffs the gzip magic bytes, but a .gz name is the clearer convention).
-    if options is not None and getattr(options, "gzip", False) and not out_path.endswith(".gz"):
+    if getattr(options, "gzip", False) and not out_path.endswith(".gz"):
         out_path = out_path + ".gz"
     if weighter is not None:
         for tree in trees:
             w = weighter(tree) if callable(weighter) else weighter.EventWeight(tree)
-            weights = list(tree.header.weights) or [0.0]
-            weights[0] = float(w)  # overwrite only the CV slot, keeping any named weights
-            tree.header.weights = weights
-    from . import hepmc3 as _hepmc3
-    if options is not None:
-        _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path, options)
+            _set_header_cv(tree, w)
+        options.weights_state = "computed"
+    elif any(len(tree.header.weights) > 0 for tree in trees):
+        options.weights_state = "header"
     else:
-        _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path)
+        options.weights_state = "unweighted"
+    _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path, options)
     return out_path
 

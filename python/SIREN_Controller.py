@@ -601,19 +601,34 @@ class SIREN_Controller:
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True, # filetypes to save events
                    save_int_probs=False,save_int_params=False,save_survival_probs=False,
-                   verbose=True, hepmc3=False):
+                   verbose=True, hepmc3=False, hepmc3_weights="auto", hepmc3_gzip=False):
+
+        # Resolve the HepMC3 weight policy up front so per-event central values are
+        # computed exactly once (BEFORE any file is written) and reused by the native
+        # file, the HepMC3 file, and the tabular datasets below. Under "auto" the
+        # controller's weighter (when present) populates the tree headers.
+        hepmc3_cv = None
+        hepmc3_state = "unweighted"
+        if hepmc3 or siren_events:
+            hepmc3_cv, hepmc3_state = _util.resolve_hepmc3_weight_policy(
+                self.events, hepmc3_weights, getattr(self, "weighter", None))
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
         if hepmc3:
             from . import hepmc3 as _hepmc3
             opts = _hepmc3.HepMC3WriterOptions()
+            opts.weights_state = hepmc3_state
+            opts.gzip = bool(hepmc3_gzip)
             # Store the generation counts (from the injector) as run metadata; used
             # to normalize the flux-averaged cross section. Absent after LoadEvents.
             if getattr(self, "injector", None) is not None:
                 opts.attempted_events = int(self.injector.InjectionAttempts())
                 opts.accepted_events = int(self.injector.InjectedEvents())
-            _hepmc3.SaveInteractionTreesAsHepMC3(self.events, filename + ".hepmc3", opts)
+            out = filename + ".hepmc3"
+            if hepmc3_gzip and not out.endswith(".gz"):
+                out = out + ".gz"
+            _hepmc3.SaveInteractionTreesAsHepMC3(self.events, out, opts)
         # A dictionary containing each dataset we'd like to save
         datasets = {
             "event_weight":[], # weight of entire event
@@ -641,7 +656,10 @@ class SIREN_Controller:
         for ie, event in enumerate(self.events):
             if verbose: print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
-            datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
+            if hepmc3_cv is not None:
+                datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
+            else:
+                datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
             if save_int_probs:
                 datasets["int_probs"].append(self.weighter.GetInteractionProbabilities(event)if hasattr(self,"weighter") else [])
             if save_survival_probs:

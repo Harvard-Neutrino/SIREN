@@ -18,6 +18,9 @@ PYBIND11_MODULE(hepmc3, m) {
         .def_readwrite("siren_version", &HepMC3Writer::Options::siren_version)
         .def_readwrite("weight_names", &HepMC3Writer::Options::weight_names)
         .def_readwrite("provenance", &HepMC3Writer::Options::provenance)
+        // Weight provenance echoed as siren.weights_state; "computed"/"header" are
+        // NuHepMC modes, "unweighted" suppresses all NuHepMC.* and siren.fatx.* keys.
+        .def_readwrite("weights_state", &HepMC3Writer::Options::weights_state)
         // Extra non-PDG particle codes to declare (NuHepMC G.R.11), merged with
         // SIREN's built-in BSM set. Python type: Dict[int, Tuple[str, str]] mapping
         // code -> (name, description). A code equal to a built-in overrides it.
