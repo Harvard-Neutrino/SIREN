@@ -700,7 +700,7 @@ class SIREN_Controller:
                     datasets["secondary_types"][-1][-1].append(int(sec_type))
                     datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
                     datasets["secondary_times"][-1][-1].append(sec_time)
-                datasets["num_secondaries"][-1].append(isec+1)
+                datasets["num_secondaries"][-1].append(len(datum.record.secondary_momenta))
             datasets["num_interactions"].append(id+1)
 
         # save injector and weighter (writes <filename>.siren_injector and

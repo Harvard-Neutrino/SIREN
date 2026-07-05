@@ -20,12 +20,7 @@ namespace dataclasses {
 
 namespace {
 // Flight time for a particle with the given energy and momentum magnitude
-// that traverses a straight path of the given length. Lengths are in
-// internal units (m = 1) so the result is in internal time units
-// (second = 1e9). beta = |p|/E is the speed; a physical particle has
-// beta in (0, 1]. A non-finite or non-positive velocity (a NaN/inf record,
-// or an at-rest E <= m particle) contributes no delay, and beta is capped
-// at 1 so a spacelike |p| > E record can never yield a superluminal time.
+// that traverses a straight path of the given length.
 double FlightTime(double length, double energy, double momentum) {
     if(not (length > 0) or not (energy > 0) or not (momentum > 0))
         return 0;
@@ -668,25 +663,25 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
         record.primary_momentum[1] = GetThreeMomentum().at(0);
         record.primary_momentum[2] = GetThreeMomentum().at(1);
         record.primary_momentum[3] = GetThreeMomentum().at(2);
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_initial_position = GetInitialPosition();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.interaction_vertex = GetInteractionVertex();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_mass = GetMass();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_helicity = GetHelicity();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.primary_initial_time = GetInitialTime();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
     try {
         record.interaction_time = GetInteractionTime();
-    } catch(std::runtime_error e) {}
+    } catch(std::runtime_error const &) {}
 }
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
@@ -825,9 +820,7 @@ double const & SecondaryParticleRecord::GetHelicity() const {
 
 double const & SecondaryParticleRecord::GetTime() const {
     // Secondaries are created at the interaction vertex, so their default
-    // production time is the vertex time (including any override applied
-    // through CrossSectionDistributionRecord::SetInteractionTime). A
-    // process can override this per particle to model delayed emission.
+    // production time is the vertex time
     if(time_set)
         return time;
     return initial_time;

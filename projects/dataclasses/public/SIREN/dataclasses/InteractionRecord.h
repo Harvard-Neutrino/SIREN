@@ -87,9 +87,6 @@ private:
     mutable double vertex_distance_from_closest_approach;
     mutable double initial_distance_from_closest_approach;
     mutable double helicity = 0;
-    // Times default to zero rather than throwing when unset so that the
-    // automatic propagation rule works without any distribution knowing
-    // about time.
     mutable double initial_time = 0;
     mutable double interaction_time;
     std::map<std::string, double> interaction_parameters;
@@ -185,9 +182,6 @@ private:
     mutable std::array<double, 3> momentum = {0, 0, 0};
     mutable double helicity = 0;
     mutable double time = 0;
-    // Default production time: the vertex time of the parent interaction.
-    // CrossSectionDistributionRecord keeps this in sync when the vertex
-    // time is overridden.
     double initial_time = 0;
 
     friend class CrossSectionDistributionRecord;
