@@ -54,9 +54,6 @@ bool InteractionTree::operator==(InteractionTree const & other) const {
 std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(std::shared_ptr<InteractionTreeDatum> datum,
         std::shared_ptr<InteractionTreeDatum> parent) {
     datum->node_id = static_cast<std::uint32_t>(tree.size());
-    // A node is a leaf at insertion; its daughters are recorded as they are
-    // added. Drop any indices carried over from a datum copied out of another
-    // tree, which would otherwise dangle into this one.
     datum->daughter_indices.clear();
     if (parent) {
         datum->parent_index = parent->node_id;

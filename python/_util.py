@@ -943,14 +943,7 @@ def get_parent_indices(tree):
     ``tree``) of the interaction whose secondary particle became this datum's
     primary, or ``-1`` for a root/primary interaction that has no parent.
 
-    Parentage is read directly from each datum's ``.parent_index`` -- the
-    authoritative integer edge the injector records when it builds the tree.
-    Because a datum's ``node_id`` equals its position in the tree, a datum's
-    ``.parent_index`` is exactly the index of its parent within ``tree``, so it
-    is returned as-is (with ``-1`` substituted for roots). Earlier versions
-    instead matched a datum's primary four-momentum against earlier
-    interactions' secondary momenta, which is O(n^2) per tree and silently
-    mis-links parentage whenever two secondaries share identical four-momenta.
+    Parentage is read directly from each datum's ``.parent_index``
     """
     parent_indices = []
     for datum in tree:
