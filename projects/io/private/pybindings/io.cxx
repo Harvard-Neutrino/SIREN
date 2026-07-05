@@ -6,6 +6,7 @@
 #include <pybind11/stl.h>
 
 #include "SIREN/io/HepMC3Writer.h"
+#include "SIREN/io/HepMC3Reader.h"
 #include "SIREN/dataclasses/InteractionTree.h"
 
 namespace py = pybind11;
@@ -28,4 +29,8 @@ PYBIND11_MODULE(hepmc3, m) {
           py::arg("trees"), py::arg("filename"),
           py::arg("options") = HepMC3Writer::Options(),
           "Write a list of InteractionTrees to a HepMC3 Ascii file.");
+
+    m.def("LoadInteractionTreesFromHepMC3", &LoadInteractionTreesFromHepMC3,
+          py::arg("filename"),
+          "Read a HepMC3 Ascii file written by SIREN back into InteractionTrees.");
 }

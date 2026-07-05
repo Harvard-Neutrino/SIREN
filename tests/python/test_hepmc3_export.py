@@ -68,6 +68,27 @@ def test_io_save_hepmc3(dc, tmp_path):
     assert "1.0000000000000000e+02" in text
 
 
+def test_roundtrip_write_read(dc, tmp_path):
+    from siren import hepmc3 as sio
+
+    tree = _make_tree(dc)
+    out = str(tmp_path / "roundtrip.hepmc3")
+    _run_or_skip(lambda: sio.SaveInteractionTreesAsHepMC3([tree], out))
+
+    loaded = sio.LoadInteractionTreesFromHepMC3(out)
+    assert len(loaded) == 1
+    lt = loaded[0]
+    assert len(lt.tree) == 1
+    assert lt.header.event_number == 7
+    assert list(lt.header.weights) == [3.0]
+
+    rec = lt.tree[0].record
+    assert rec.signature.primary_type == dc.ParticleType.NuMu
+    assert list(rec.primary_momentum) == pytest.approx([10.0, 0.0, 0.0, 10.0], abs=1e-6)
+    assert list(rec.interaction_vertex) == pytest.approx([1.0, 2.0, 3.0], abs=1e-6)
+    assert rec.interaction_parameters["Q2"] == pytest.approx(0.7, abs=1e-6)
+
+
 def test_util_saveevents_hepmc3(dc, tmp_path):
     from siren import _util
 

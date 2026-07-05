@@ -2,6 +2,7 @@
 #core files
 LIST (APPEND io_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/io/private/HepMC3Writer.cxx
+    ${PROJECT_SOURCE_DIR}/projects/io/private/HepMC3Reader.cxx
 )
 add_library(SIREN_io OBJECT ${io_SOURCES})
 set_property(TARGET SIREN_io PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -34,6 +35,8 @@ if(NOT CIBUILDWHEEL)
     if(HEPMC3_FOUND)
         package_add_test(UnitTest_HepMC3Writer ${PROJECT_SOURCE_DIR}/projects/io/private/test/HepMC3Writer_TEST.cxx)
         target_link_libraries(UnitTest_HepMC3Writer HepMC3::HepMC3)
+        package_add_test(UnitTest_HepMC3RoundTrip ${PROJECT_SOURCE_DIR}/projects/io/private/test/HepMC3RoundTrip_TEST.cxx)
+        target_link_libraries(UnitTest_HepMC3RoundTrip HepMC3::HepMC3)
     endif()
 endif()
 

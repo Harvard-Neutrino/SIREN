@@ -172,10 +172,18 @@ struct HepMC3Writer::Impl {
             evt.add_vertex(vertex);
 
             if(primary_is_new) {
+                // Helicity for a reused (non-root) primary was already written on
+                // it as the parent's outgoing secondary.
                 primary->add_attribute("siren.helicity", D(rec.primary_helicity));
-                // Written as three scalar attributes rather than a vector
-                // attribute so the writer compiles against older HepMC3 (3.2.x)
-                // that lacks VectorDoubleAttribute.
+            }
+            // primary_initial_position/time are per-record quantities -- a
+            // daughter's initial position is its parent's interaction vertex, not
+            // the root's -- so they are written for every vertex's primary,
+            // including the shared particle reused from the parent, and are read
+            // back by the secondary vertex-position distributions during
+            // reweighting. Three scalar attributes avoid VectorDoubleAttribute,
+            // which is absent from HepMC3 3.2.x.
+            {
                 std::vector<double> const pos = PositionCM(rec.primary_initial_position);
                 primary->add_attribute("siren.primary_initial_position.x", D(pos[0]));
                 primary->add_attribute("siren.primary_initial_position.y", D(pos[1]));
