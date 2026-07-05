@@ -14,6 +14,10 @@
 using namespace siren::distributions;
 using siren::geometry::Sphere;
 
+// Fixed seed so the uniform-sampling chi2 test is reproducible; an unseeded
+// draw exceeds the 3-sigma tolerance ~0.27% of runs.
+static const uint64_t test_seed = 1234;
+
 
 TEST(SphereVolumePositionDistribution, Constructor) {
     Sphere sphere(10.0, 1.0);
@@ -78,7 +82,7 @@ TEST(SphereVolumePositionDistribution, SamplingIsUniformInVolume) {
     double outer = 10.0;
     SphereVolumePositionDistribution dist(Sphere(outer, inner));
 
-    auto rand = std::make_shared<siren::utilities::SIREN_random>();
+    auto rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     size_t N = 100000;
     size_t n_bins = 20;
     DistributionTest test(inner*inner*inner, outer*outer*outer, n_bins);
