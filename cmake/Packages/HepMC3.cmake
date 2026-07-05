@@ -15,16 +15,23 @@
 
 set(HEPMC3_FOUND FALSE)
 
+# The NuHepMC writer uses the Vector*Attribute types (VectorDoubleAttribute etc.)
+# that HepMC3 3.2.x does not provide; 3.3 is the floor. Older versions are
+# treated exactly like not-found.
+set(HEPMC3_MINIMUM_VERSION 3.3)
+
 if(DEFINED SIREN_WITH_HEPMC3 AND NOT SIREN_WITH_HEPMC3)
   message(STATUS "HepMC3 support disabled (SIREN_WITH_HEPMC3=OFF)")
   return()
 endif()
 
-# 1) Preferred: upstream package config (defines HepMC3::HepMC3).
-find_package(HepMC3 CONFIG QUIET)
+# 1) Preferred: upstream package config (defines HepMC3::HepMC3). Requesting the
+# minimum version makes config mode reject an older HepMC3 (HepMC3_FOUND stays
+# false) before we ever adopt the target.
+find_package(HepMC3 ${HEPMC3_MINIMUM_VERSION} CONFIG QUIET)
 if(HepMC3_FOUND AND TARGET HepMC3::HepMC3)
   set(HEPMC3_FOUND TRUE)
-  message(STATUS "Found HepMC3 via config: ${HepMC3_DIR}")
+  message(STATUS "Found HepMC3 via config: ${HepMC3_DIR} (version ${HepMC3_VERSION})")
 endif()
 
 # 2) Fallback: manual find + UNKNOWN IMPORTED target.
@@ -53,6 +60,19 @@ if(NOT HEPMC3_FOUND)
     set(HEPMC3_FOUND TRUE)
     message(STATUS "Found HepMC3 (manual): ${HEPMC3_LIBRARY}")
   endif()
+endif()
+
+# 2b) Explicit version floor. Config mode should already have rejected an old
+# HepMC3 above, but a config that does not honor the version request would still
+# set HepMC3_VERSION; reject it here so we degrade exactly like not-found. The
+# manual fallback leaves HepMC3_VERSION empty (no way to read it), so only a
+# known-and-too-old version trips this guard.
+if(HEPMC3_FOUND AND DEFINED HepMC3_VERSION AND HepMC3_VERSION
+    AND HepMC3_VERSION VERSION_LESS HEPMC3_MINIMUM_VERSION)
+  message(STATUS
+    "Found HepMC3 ${HepMC3_VERSION}, but >= ${HEPMC3_MINIMUM_VERSION} is "
+    "required for NuHepMC output; treating as not found")
+  set(HEPMC3_FOUND FALSE)
 endif()
 
 if(NOT HEPMC3_FOUND)
