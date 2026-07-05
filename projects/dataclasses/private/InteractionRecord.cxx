@@ -1,6 +1,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 
 #include <cmath>
+#include <algorithm>  // for min
 #include <tuple>    // for tie, operator==, tuple
 #include <cassert>
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
@@ -21,13 +22,15 @@ namespace {
 // Flight time for a particle with the given energy and momentum magnitude
 // that traverses a straight path of the given length. Lengths are in
 // internal units (m = 1) so the result is in internal time units
-// (second = 1e9). Degenerate configurations (zero path or zero velocity)
-// contribute no delay.
+// (second = 1e9). beta = |p|/E is the speed; a physical particle has
+// beta in (0, 1]. A non-finite or non-positive velocity (a NaN/inf record,
+// or an at-rest E <= m particle) contributes no delay, and beta is capped
+// at 1 so a spacelike |p| > E record can never yield a superluminal time.
 double FlightTime(double length, double energy, double momentum) {
-    double beta = (energy > 0) ? (momentum / energy) : 0;
-    if(length > 0 and beta > 0)
-        return length / (beta * siren::utilities::Constants::c);
-    return 0;
+    if(not (length > 0) or not (energy > 0) or not (momentum > 0))
+        return 0;
+    double beta = std::min(momentum / energy, 1.0);
+    return length / (beta * siren::utilities::Constants::c);
 }
 }
 
