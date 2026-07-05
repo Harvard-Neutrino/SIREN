@@ -1,0 +1,15 @@
+SIREN links against HepMC3 for optional HepMC3/NuHepMC event I/O
+(projects/io: HepMC3Writer / HepMC3Reader). HepMC3 is a separate work,
+not authored by the SIREN developers, and is used unmodified via
+dynamic or static linking; no HepMC3 source is vendored in this
+repository.
+
+  Name:      HepMC3
+  Copyright: (C) 2014-2024 HepMC3 Authors (CERN)
+  License:   LGPL-3.0-or-later (see ./COPYING and ./LICENCE)
+  Upstream:  https://gitlab.cern.ch/hepmc/HepMC3
+
+SIREN is itself distributed under the GNU Lesser General Public License
+version 3 (see the repository-root LICENSE), the same license family as
+HepMC3, so linking imposes no additional restrictions beyond providing
+this attribution and the accompanying license text.

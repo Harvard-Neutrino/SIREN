@@ -589,6 +589,13 @@ class SIREN_Controller:
         self.gen_times = np.zeros_like(self.events)
         self.global_times = np.zeros_like(self.events)
 
+    # Load events from a HepMC3 file written by SIREN
+    def LoadEventsFromHepMC3(self, filename):
+        from . import hepmc3 as _hepmc3
+        self.events = _hepmc3.LoadInteractionTreesFromHepMC3(filename)
+        self.gen_times = np.zeros_like(self.events)
+        self.global_times = np.zeros_like(self.events)
+
     # Save events to hdf5, parquet, and/or custom SIREN filetypes
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,

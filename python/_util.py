@@ -1059,3 +1059,49 @@ def SaveEvents(events,
 def LoadEvents(filename):
     return _dataclasses.LoadInteractionTrees(filename)
 
+
+# Load events from a HepMC3 file written by SIREN
+def LoadEventsFromHepMC3(filename):
+    from . import hepmc3 as _hepmc3
+    return _hepmc3.LoadInteractionTreesFromHepMC3(filename)
+
+
+def convert_siren_events_to_hepmc3(in_path, out_path=None, weighter=None, options=None):
+    """Convert a SIREN ``.siren_events`` file to a HepMC3 ascii file.
+
+    Parameters
+    ----------
+    in_path : str
+        Path to a ``.siren_events`` file (as written by ``SaveEvents``).
+    out_path : str, optional
+        Output path. Defaults to ``in_path`` with a trailing ``.siren_events``
+        replaced by ``.hepmc3`` (or ``.hepmc3`` appended otherwise).
+    weighter : callable or Weighter, optional
+        When given, each tree's central-value weight (``tree.header.weights[0]``)
+        is overwritten with the computed weight so the HepMC3 CV weight is set;
+        a callable is invoked as ``weighter(tree)``, otherwise
+        ``weighter.EventWeight(tree)`` is used. When ``None`` the existing header
+        weights are kept.
+    options : siren.hepmc3.HepMC3WriterOptions, optional
+        Passed through to the writer (e.g. to request gzip or set FATX metadata).
+
+    Returns
+    -------
+    str
+        The output path written.
+    """
+    trees = _dataclasses.LoadInteractionTrees(in_path)
+    if out_path is None:
+        base = in_path[:-len(".siren_events")] if in_path.endswith(".siren_events") else in_path
+        out_path = base + ".hepmc3"
+    if weighter is not None:
+        for tree in trees:
+            w = weighter(tree) if callable(weighter) else weighter.EventWeight(tree)
+            tree.header.weights = [float(w)]
+    from . import hepmc3 as _hepmc3
+    if options is not None:
+        _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path, options)
+    else:
+        _hepmc3.SaveInteractionTreesAsHepMC3(trees, out_path)
+    return out_path
+
