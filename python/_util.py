@@ -1379,25 +1379,15 @@ def _resolve_set_paths(entry):
     return events_base, weighter_base, counts, weights_state
 
 
-def _primary_process_signatures(injector):
-    """Return a sorted, hashable marker of an injector's INJECTION-side primary
-    interaction signatures, for a cheap (best-effort, non-fatal) cross-set
-    sanity check.
+def _process_interaction_signature(process):
+    """Return a sorted, hashable marker of one process's interaction collection.
 
-    Combines the primary type with the (primary, target, secondaries) tuples of
-    every cross section and decay in the injection process's interaction
-    collection. Returns ``None`` if the signatures cannot be read (so the guard
-    degrades to a no-op rather than raising on an exotic process). This is the
-    injection side, not the physical side that must actually match across
-    pooled sets -- see the caller for why.
+    Combines the collection's primary type with the (primary, target,
+    secondaries) tuples of every cross section and decay it holds. Returns
+    ``None`` if the signatures cannot be read (so a guard built on it degrades
+    to a no-op rather than raising on an exotic process).
     """
     try:
-        # Injectors deserialized from a weighter file are raw C++ Injector
-        # objects; if a Python Injector wrapper slipped in, unwrap it.
-        raw = getattr(injector, "_Injector__injector", injector)
-        if raw is None:
-            raw = injector
-        process = raw.GetPrimaryProcess()
         collection = process.interactions
         interactions = list(collection.GetCrossSections()) + list(collection.GetDecays())
         markers = [("primary_type", int(collection.GetPrimaryType()))]
@@ -1411,6 +1401,57 @@ def _primary_process_signatures(injector):
     except Exception:
         return None
     return tuple(sorted(markers, key=repr))
+
+
+def _primary_process_signatures(injector):
+    """Return a marker of an injector's INJECTION-side primary interaction
+    signatures, for a cheap (best-effort, non-fatal) cross-set sanity check.
+
+    This is the injection side, which is deliberately allowed to differ between
+    pooled sets; it is only a fallback proxy used when the physical side cannot
+    be read (see ``_physical_config_signature`` and the caller).
+    """
+    # Injectors deserialized from a weighter file are raw C++ Injector objects;
+    # if a Python Injector wrapper slipped in, unwrap it.
+    raw = getattr(injector, "_Injector__injector", injector)
+    if raw is None:
+        raw = injector
+    try:
+        process = raw.GetPrimaryProcess()
+    except Exception:
+        return None
+    return _process_interaction_signature(process)
+
+
+def _physical_config_signature(weighter):
+    """Return a marker of a Weighter's PHYSICAL side: the interaction signatures
+    of its primary physical process plus every secondary physical process.
+
+    This is the config that MUST match across pooled sets (the injection side
+    may differ). Returns ``None`` if any piece cannot be read -- e.g. an exotic
+    Python-trampoline process, or a stale build whose ``Weighter`` pybind lacks
+    the ``GetPrimaryPhysicalProcess`` accessor -- so the caller can fall back to
+    the best-effort injection-side proxy instead of raising spuriously.
+    """
+    getter = getattr(weighter, "GetPrimaryPhysicalProcess", None)
+    if getter is None:
+        return None
+    try:
+        primary = getter()
+    except Exception:
+        return None
+    if primary is None:
+        return None
+    parts = [_process_interaction_signature(primary)]
+    try:
+        secondaries = list(weighter.GetSecondaryPhysicalProcesses())
+    except Exception:
+        secondaries = []
+    for sec in secondaries:
+        parts.append(_process_interaction_signature(sec))
+    if any(part is None for part in parts):
+        return None
+    return tuple(parts)
 
 
 def combine_and_export_hepmc3(sets, out_path, options=None):
@@ -1468,12 +1509,14 @@ def combine_and_export_hepmc3(sets, out_path, options=None):
     processes); only the injection (generation) side may differ between sets.
     The pooled Weighter is built from the FIRST set's ``.siren_weighter`` file
     (which supplies the shared detector + physical processes) with the union of
-    all sets' injectors passed live to override the file's injectors. A cheap
-    best-effort guard compares each set's injection-side primary interaction
-    signatures and warns (does not raise) on a difference, since the injection
-    side is explicitly allowed to vary; the ``Weighter`` pybind class does not
-    currently expose its physical process or detector model, so this check
-    cannot validate the thing that actually must match.
+    all sets' injectors passed live to override the file's injectors. Each set's
+    physical-side interaction signatures (its primary and secondary physical
+    processes, read via ``Weighter.GetPrimaryPhysicalProcess`` /
+    ``GetSecondaryPhysicalProcesses``) are compared against the first set's, and
+    a genuine mismatch RAISES ``ValueError`` -- pooling different physics would
+    silently produce meaningless weights. The injection side is deliberately not
+    checked (it is allowed to vary); it is only used as a best-effort warning
+    fallback when the physical signature cannot be read.
     """
     from . import injection as _injection
     from . import hepmc3 as _hepmc3
@@ -1486,6 +1529,7 @@ def combine_and_export_hepmc3(sets, out_path, options=None):
     loaded_weighters = []
     per_set_counts = []
     first_weighter_base = None
+    reference_phys_sig = None
     reference_sig = None
     all_injectors = []
     # Dedup injectors by the resolved absolute path of the .siren_weighter file
@@ -1553,29 +1597,41 @@ def combine_and_export_hepmc3(sets, out_path, options=None):
         set_injectors = list(set_weighter.GetInjectors())
         # b-guard: the PHYSICAL config (detector + physical processes) is what
         # must match across sets; the injection side may legitimately differ
-        # (that is the whole point of pooling distinct injectors). The
-        # `Weighter` pybind class does not expose its physical process or
-        # detector model, only `GetInjectors`, so this signature is read off
-        # each injector's INJECTION-side interaction collection as a
-        # best-effort proxy -- it is NOT the physical-side check the docstring
-        # promises. A mismatch here is therefore only a warning (an
-        # intentionally different injection-side interaction collection is
-        # allowed), not a hard error; there is currently no way to validate
-        # genuine physical incompatibility from Python without a
-        # Weighter-side physical-process accessor.
-        for inj in set_injectors:
-            sig = _primary_process_signatures(inj)
-            if sig is None:
-                continue
-            if reference_sig is None:
-                reference_sig = sig
-            elif sig != reference_sig:
-                logger.warning(
-                    "combine_and_export_hepmc3: set %d's injector has an "
-                    "injection-side interaction signature that differs from "
-                    "the first set's; this is allowed (only the physical "
-                    "config must match, which this best-effort check cannot "
-                    "verify)." % i_set)
+        # (that is the whole point of pooling distinct injectors). The Weighter
+        # exposes its primary and secondary physical processes, so we build a
+        # real physical-side signature and HARD-ERROR on a genuine mismatch --
+        # pooling two sets with different physics would silently produce
+        # meaningless weights (and would trip the Weighter's own
+        # process/injector head-match assertion).
+        phys_sig = _physical_config_signature(set_weighter)
+        if phys_sig is not None:
+            if reference_phys_sig is None:
+                reference_phys_sig = phys_sig
+            elif phys_sig != reference_phys_sig:
+                raise ValueError(
+                    "combine_and_export_hepmc3: set %d's physical configuration "
+                    "(primary/secondary physical process interaction "
+                    "signatures) differs from the first set's; pooled sets must "
+                    "share the same physical process. Only the injection "
+                    "(generation) side may differ between sets." % i_set)
+        else:
+            # Physical side unreadable (exotic Python-trampoline process, or a
+            # stale build without the physical-process accessor). Fall back to
+            # the best-effort injection-side proxy: it cannot validate the
+            # physical config, so a difference is only a warning.
+            for inj in set_injectors:
+                sig = _primary_process_signatures(inj)
+                if sig is None:
+                    continue
+                if reference_sig is None:
+                    reference_sig = sig
+                elif sig != reference_sig:
+                    logger.warning(
+                        "combine_and_export_hepmc3: set %d's injector has an "
+                        "injection-side interaction signature that differs from "
+                        "the first set's, and the physical config could not be "
+                        "read to verify compatibility; ensure all pooled sets "
+                        "share the same physical process." % i_set)
 
         # Dedup: only add this set's injectors to the pooled union the first
         # time its weighter file (by resolved absolute path) is seen. A repeat

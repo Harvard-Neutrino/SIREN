@@ -40,7 +40,7 @@ def _detector():
     return dm
 
 
-def _make_injector(dm, power_index, e_min, e_max, seed, n_inject):
+def _make_injector(dm, power_index, e_min, e_max, seed, n_inject, primary_type=None):
     """A single-vertex injector whose only weight-relevant knob is the power law."""
     from siren import dataclasses as dc
     from siren import injection
@@ -49,13 +49,13 @@ def _make_injector(dm, power_index, e_min, e_max, seed, n_inject):
     from siren import math as smath
     from siren import utilities
 
-    NuMu = dc.Particle.ParticleType.NuMu
+    ptype = dc.Particle.ParticleType.NuMu if primary_type is None else primary_type
 
     xs = interactions.DummyCrossSection()
-    int_col = interactions.InteractionCollection(NuMu, [xs])
+    int_col = interactions.InteractionCollection(ptype, [xs])
 
     primary_inj = injection.PrimaryInjectionProcess()
-    primary_inj.primary_type = NuMu
+    primary_inj.primary_type = ptype
     primary_inj.interactions = int_col
     primary_inj.distributions = [
         distributions.PrimaryMass(0),
@@ -70,17 +70,17 @@ def _make_injector(dm, power_index, e_min, e_max, seed, n_inject):
     return inj
 
 
-def _shared_physical_process(dm):
+def _shared_physical_process(dm, primary_type=None):
     from siren import dataclasses as dc
     from siren import injection
     from siren import interactions
     from siren import distributions
 
-    NuMu = dc.Particle.ParticleType.NuMu
+    ptype = dc.Particle.ParticleType.NuMu if primary_type is None else primary_type
     xs = interactions.DummyCrossSection()
-    int_col = interactions.InteractionCollection(NuMu, [xs])
+    int_col = interactions.InteractionCollection(ptype, [xs])
     primary_phys = injection.PhysicalProcess()
-    primary_phys.primary_type = NuMu
+    primary_phys.primary_type = ptype
     primary_phys.interactions = int_col
     primary_phys.distributions = [
         distributions.PrimaryMass(0),
@@ -323,3 +323,66 @@ def test_combine_requires_weighter_file(tmp_path):
     with pytest.raises(ValueError) as exc:
         _util.combine_and_export_hepmc3(sets, out)
     assert "weighter" in str(exc.value)
+
+
+def test_weighter_exposes_physical_process(tmp_path):
+    """The new C++ accessor surfaces the primary/secondary physical processes so
+    the combiner can build a REAL physical-side signature, not just the
+    injection-side proxy."""
+    from siren import injection, dataclasses as dc, _util
+
+    _injA, _injB, _physA, _dm, baseA, _baseB, _nA, _nB = _build_two_sets(tmp_path)
+
+    w = injection._Weighter([], baseA)
+    prim = w.GetPrimaryPhysicalProcess()
+    assert prim is not None
+    assert int(prim.primary_type) == int(dc.Particle.ParticleType.NuMu)
+    # Single-vertex config: no secondary physical processes.
+    assert list(w.GetSecondaryPhysicalProcesses()) == []
+    # A detector model must come back too (used for parity with the injectors).
+    assert w.GetDetectorModel() is not None
+    # The physical-side signature must be readable (non-None), so the guard is a
+    # real check rather than degrading to the injection-side warning fallback.
+    assert _util._physical_config_signature(w) is not None
+
+
+def _build_mismatched_physics_sets(tmp_path):
+    """Two sets with genuinely different PHYSICAL processes (NuMu vs NuE), each
+    internally consistent. Pooling them is physically meaningless and must be
+    refused."""
+    from siren import dataclasses as dc, injection
+
+    dm = _detector()
+    n_inject = 40
+    NuMu = dc.Particle.ParticleType.NuMu
+    NuE = dc.Particle.ParticleType.NuE
+
+    injA = _make_injector(dm, 1.5, 0.5, 4.0, seed=303, n_inject=n_inject, primary_type=NuMu)
+    injB = _make_injector(dm, 1.5, 0.5, 4.0, seed=404, n_inject=n_inject, primary_type=NuE)
+    physA = _shared_physical_process(dm, primary_type=NuMu)
+    physB = _shared_physical_process(dm, primary_type=NuE)
+
+    eventsA = _generate(injA, n_inject)
+    eventsB = _generate(injB, n_inject)
+    if not eventsA or not eventsB:
+        pytest.skip("no non-empty events generated for one of the mismatched sets")
+
+    baseA = str(tmp_path / "physNuMu")
+    baseB = str(tmp_path / "physNuE")
+    _save_set(eventsA, baseA)
+    injection._Weighter([injA], dm, physA).SaveWeighter(baseA)
+    _save_set(eventsB, baseB)
+    injection._Weighter([injB], dm, physB).SaveWeighter(baseB)
+    return baseA, baseB
+
+
+def test_combine_refuses_mismatched_physical_config(tmp_path):
+    """Pooling sets with mismatched physical processes raises before any HepMC3 write."""
+    from siren import _util
+
+    baseA, baseB = _build_mismatched_physics_sets(tmp_path)
+    out = str(tmp_path / "combined_bad_physics.hepmc3")
+    with pytest.raises(ValueError) as exc:
+        _util.combine_and_export_hepmc3([baseA, baseB], out)
+    msg = str(exc.value).lower()
+    assert "physical" in msg

@@ -143,6 +143,18 @@ std::vector<std::shared_ptr<Injector>> const & Weighter::GetInjectors() const {
     return injectors;
 }
 
+std::shared_ptr<siren::detector::DetectorModel> Weighter::GetDetectorModel() const {
+    return detector_model;
+}
+
+std::shared_ptr<siren::injection::PhysicalProcess> Weighter::GetPrimaryPhysicalProcess() const {
+    return primary_physical_process;
+}
+
+std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> const & Weighter::GetSecondaryPhysicalProcesses() const {
+    return secondary_physical_processes;
+}
+
 std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
     if(i_inj < 0 || static_cast<size_t>(i_inj) >= injectors.size()) {
         throw std::out_of_range("i_inj index out of range in GetInteractionProbabilities");
