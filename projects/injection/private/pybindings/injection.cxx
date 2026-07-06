@@ -436,7 +436,7 @@ PYBIND11_MODULE(injection,m) {
 
   // Injection
 
-  class_<FailureLedger, std::shared_ptr<FailureLedger>>(m, "FailureLedger")
+  class_<FailureLedger>(m, "FailureLedger")
     .def(init<>())
     .def("Clear", &FailureLedger::Clear)
     .def("entries", [](FailureLedger const & ledger) {
@@ -519,7 +519,7 @@ PYBIND11_MODULE(injection,m) {
 
   // Weighter classes
 
-  class_<VertexWeightFactors, std::shared_ptr<VertexWeightFactors>>(m, "VertexWeightFactors")
+  class_<VertexWeightFactors>(m, "VertexWeightFactors")
     .def_readonly("injector_index", &VertexWeightFactors::injector_index)
     .def_readonly("depth", &VertexWeightFactors::depth)
     .def_readonly("primary_pdg", &VertexWeightFactors::primary_pdg)
@@ -531,7 +531,7 @@ PYBIND11_MODULE(injection,m) {
     .def_readonly("cancelled", &VertexWeightFactors::cancelled)
     .def_readonly("flags", &VertexWeightFactors::flags);
 
-  class_<EventWeightBreakdown, std::shared_ptr<EventWeightBreakdown>>(m, "EventWeightBreakdown")
+  class_<EventWeightBreakdown>(m, "EventWeightBreakdown")
     .def_readonly("total", &EventWeightBreakdown::total)
     .def_readonly("vertices", &EventWeightBreakdown::vertices);
 
