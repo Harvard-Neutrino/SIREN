@@ -9,6 +9,8 @@ automatically.
 """
 
 from . import distributions as _d
+from . import particles as _particles
+from .errors import ConfigurationError
 
 DV = _d.DistributionVariable
 
@@ -175,4 +177,111 @@ def validate_reweighting_compatibility(injection_distributions, physical_distrib
             f"{sorted(extra)} that are not covered by injection distributions. "
             f"Injection density variables: {sorted(inj_density)}, "
             f"Physical density variables: {sorted(phys_density)}"
+        )
+
+
+def _expand_rule_names(rule):
+    """Return the particle name(s) a child()/depth_below() rule references.
+
+    child() rules name a particle; depth_below() rules name none.
+    """
+    name = getattr(rule, "name", None)
+    return [name] if name is not None else []
+
+
+def validate_expansion_wiring(vertices):
+    """Check that a set of Vertex expand declarations forms a closed graph.
+
+    Parameters
+    ----------
+    vertices : iterable
+        Objects with ``.particle``, ``.expand`` (tuple of rules from
+        ``siren.expand.child``/``depth_below``), and ``.continue_if``.
+        An object may additionally expose ``.secondary_types`` (an
+        iterable of ParticleType/name the vertex's interactions can
+        produce); when absent, case (c) below is skipped for that
+        vertex since there is nothing to cross-check against.
+
+    Raises
+    ------
+    ConfigurationError
+        (a) An expand rule names a child particle with no registered
+            Vertex for that particle type.
+        (b) A registered secondary Vertex (any vertex other than a root,
+            i.e. one that some other vertex's expand list could reach)
+            is unreachable from every other vertex's expand list.
+        (c) A vertex declares secondaries (via ``.secondary_types``) but
+            has no expansion declaration at all (empty ``.expand``).
+    """
+    vertices = list(vertices)
+    by_particle = {}
+    for v in vertices:
+        ptype = _particles.resolve(v.particle)
+        by_particle[ptype] = v
+
+    named_children = set()
+    for v in vertices:
+        for rule in v.expand:
+            for name in _expand_rule_names(rule):
+                ptype = _particles.resolve(name)
+                named_children.add(ptype)
+                # (a) expand rule names a child with no registered Vertex.
+                if ptype not in by_particle:
+                    raise ConfigurationError(
+                        f"Vertex {v.particle!r} declares expand rule "
+                        f"child({name!r}) but no Vertex is registered for "
+                        f"particle {name!r}. Fix: register a Vertex for "
+                        f"{name!r}, or remove this expand rule."
+                    )
+
+    # (b) a registered secondary Vertex unreachable from any expand list.
+    root = vertices[0].particle if vertices else None
+    for v in vertices:
+        if v.particle == root:
+            continue
+        ptype = _particles.resolve(v.particle)
+        if ptype not in named_children:
+            raise ConfigurationError(
+                f"Vertex {v.particle!r} is registered but unreachable: no "
+                f"other Vertex's expand list names it. Fix: add "
+                f"child({v.particle!r}) to the expand list of the vertex "
+                f"that produces it, or remove this Vertex."
+            )
+
+    # (c) secondaries present with no expansion declaration at all.
+    for v in vertices:
+        secondary_types = getattr(v, "secondary_types", None)
+        if not secondary_types:
+            continue
+        if not v.expand:
+            raise ConfigurationError(
+                f"Vertex {v.particle!r} has secondaries "
+                f"{list(secondary_types)!r} but declares no expand rules. "
+                f"Fix: add expand=[siren.expand.child(...)] naming which "
+                f"secondaries should recurse."
+            )
+
+
+def check_expand_vs_legacy_stopping(has_legacy_stopping, has_expand_or_continue_if):
+    """Reject configurations mixing legacy stopping_condition with expand.
+
+    Parameters
+    ----------
+    has_legacy_stopping : bool
+        True if a legacy ``stopping_condition`` callable was supplied.
+    has_expand_or_continue_if : bool
+        True if any Vertex supplies ``expand`` and/or ``continue_if``.
+
+    Raises
+    ------
+    ConfigurationError
+        If both are set: the legacy callable and the declarative
+        expand/continue_if fields are mutually exclusive.
+    """
+    if has_legacy_stopping and has_expand_or_continue_if:
+        raise ConfigurationError(
+            "Both a legacy stopping_condition callable and Vertex "
+            "expand/continue_if fields are set. Fix: use one control "
+            "surface only -- drop stopping_condition and express the "
+            "chain with Vertex(expand=[...], continue_if=...)."
         )
