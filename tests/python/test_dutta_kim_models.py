@@ -332,6 +332,215 @@ def test_dutta_kim_directed_phase_space_topology(vector_portal, processes_dir):
     assert chi_prime_decay.FinalStateProbability(chi_prime_record) > 0.0
 
 
+def test_meson_three_body_recursive2body_jacobian_matches_sampler(processes_dir):
+    """MesonThreeBodySIRENDecay: FinalStateProbability equals the density its own
+    SampleFinalState draws, verifying the Recursive2Body-to-Dalitz Jacobian.
+
+    The rejection sampler draws (E_nu, E_phi) proportional to |M|^2 in the parent
+    rest frame, then places the overall orientation isotropically. So its
+    generated density in the (s_pair, cos_theta_sub) marginal is
+
+        g(s_pair, cos_sub) = |M|^2 / Z * |d(E_nu,E_phi)/d(s_pair,cos_sub)|
+
+    with Z = integral |M|^2 dE_nu dE_phi = 64 pi^3 m_M Gamma (from total_width),
+    and the change-of-variables Jacobian |d(E_nu,E_phi)/d(s_pair,cos_sub)| in
+    closed form is (1/(2 m_M)) (p_pair/sqrt_s) p_nu_star -- an INDEPENDENT
+    kinematic identity, NOT the Recursive2Body Jacobian under test.
+
+    FinalStateProbability returns the full R2B density; its marginal over the two
+    flat isotropic angles (dOmega_pair = 4 pi, azimuth = 2 pi) multiplies by
+    8 pi^2. The per-sample importance weight w = f_marg / g must therefore be a
+    CONSTANT (== 1) for every sample when the R2B Jacobian matches the sampler.
+    The current code uses p_spectator = sqrt(lambda_parent)/(2 sqrt(s_pair));
+    substituting the frequently-suspected /(2 m_M) makes w vary sample to sample
+    (CV ~ 0.12) and mis-scales it, so this test fails hard on the wrong Jacobian.
+    """
+    import numpy as np
+    from siren import _util
+
+    meson = _util.load_module(
+        "test_dutta_kim_MesonProduction_jacobian",
+        str(processes_dir / "DarkNewsTables" / "MesonProduction.py"),
+    )
+
+    decay = meson.MesonThreeBodySIRENDecay(
+        m_meson=0.13957039, m_lepton=0.10565837, m_mediator=0.017, g_mu=1.0e-3)
+    core = decay._decay
+    m_M = core.m_M
+    m_l = core.m_l
+    m_phi = core.m_phi
+    # Z = integral |M|^2 dE_nu dE_phi, from Gamma = Z / (64 pi^3 m_M).
+    Z = 64.0 * math.pi ** 3 * m_M * decay._total_width
+
+    signature = decay.GetPossibleSignatures()[0]
+
+    def _rest_energies(rec):
+        """(E_nu, E_phi) in the parent rest frame from the record secondaries."""
+        idx = {int(st): i for i, st in enumerate(signature.secondary_types)}
+        i_nu = idx[decay.pdgid_neutrino]
+        i_phi = idx[decay.pdgid_mediator]
+        p_parent = np.array(rec.primary_momentum, dtype=float)
+        e0 = p_parent[0]
+        mom0 = np.linalg.norm(p_parent[1:])
+        mass0 = math.sqrt(max(e0 ** 2 - mom0 ** 2, 0.0))
+        p_nu = np.array(rec.secondary_momenta[i_nu], dtype=float)
+        p_phi = np.array(rec.secondary_momenta[i_phi], dtype=float)
+        if mom0 < 1e-12:
+            return p_nu[0], p_phi[0]
+        beta = mom0 / e0
+        gamma = e0 / mass0
+        bhat = p_parent[1:] / mom0
+        e_nu = gamma * (p_nu[0] - beta * float(np.dot(p_nu[1:], bhat)))
+        e_phi = gamma * (p_phi[0] - beta * float(np.dot(p_phi[1:], bhat)))
+        return e_nu, e_phi
+
+    def _sampler_density_marginal(e_nu, e_phi):
+        """g(s_pair, cos_sub): |M|^2/Z times an independent change-of-vars Jacobian."""
+        matel = core._matel_sq(e_nu, e_phi)
+        if matel <= 0.0:
+            return 0.0
+        e_l = m_M - e_nu - e_phi
+        s_pair = m_M ** 2 + m_l ** 2 - 2.0 * m_M * e_l
+        if s_pair <= 0.0:
+            return 0.0
+        sqrt_s = math.sqrt(s_pair)
+        lam_parent = (m_M ** 2 - (m_l + sqrt_s) ** 2) * (m_M ** 2 - (m_l - sqrt_s) ** 2)
+        if lam_parent <= 0.0:
+            return 0.0
+        p_pair = math.sqrt(lam_parent) / (2.0 * m_M)
+        p_nu_star = (s_pair - m_phi ** 2) / (2.0 * sqrt_s)
+        d_e_d_sc = (1.0 / (2.0 * m_M)) * (p_pair / sqrt_s) * p_nu_star
+        return matel / Z * d_e_d_sc
+
+    # Test both a rest-frame pion and a strongly boosted one; the R2B density is
+    # frame-independent, so the weight must be flat in either frame.
+    for e_pi in (m_M, 2.0):
+        pz = math.sqrt(max(e_pi ** 2 - m_M ** 2, 0.0))
+        template = siren.dataclasses.InteractionRecord()
+        template.signature = signature
+        template.primary_mass = m_M
+        template.primary_momentum = [e_pi, 0.0, 0.0, pz]
+        template.secondary_masses = list(decay.SecondaryMasses(signature.secondary_types))
+        template.secondary_momenta = [[0.0, 0.0, 0.0, 0.0]
+                                      for _ in template.secondary_masses]
+        template.secondary_helicities = [0, 0, 0]
+
+        rng = siren.utilities.SIREN_random(2024)
+        weights = []
+        for _ in range(20000):
+            csdr = siren.dataclasses.CrossSectionDistributionRecord(template)
+            decay.SampleFinalState(csdr, rng)
+            out = siren.dataclasses.InteractionRecord()
+            out.signature = signature
+            out.primary_mass = template.primary_mass
+            out.primary_momentum = template.primary_momentum
+            out.secondary_masses = list(template.secondary_masses)
+            out.secondary_momenta = [[0.0, 0.0, 0.0, 0.0]
+                                     for _ in template.secondary_masses]
+            out.secondary_helicities = [0, 0, 0]
+            csdr.finalize(out)
+            e_nu, e_phi = _rest_energies(out)
+            g = _sampler_density_marginal(e_nu, e_phi)
+            if g <= 0.0:
+                continue
+            f_marg = decay.FinalStateProbability(out) * 8.0 * math.pi ** 2
+            weights.append(f_marg / g)
+
+        weights = np.array(weights)
+        assert weights.size > 15000
+        mean = weights.mean()
+        cv = weights.std() / mean
+        # Sample == Density: the ratio is a constant equal to 1. The wrong
+        # /(2 m_M) Jacobian gives mean ~ 0.2 and CV ~ 0.12, far outside these.
+        assert mean == pytest.approx(1.0, abs=1e-3)
+        assert cv < 1.0e-2
+
+
+def test_meson_three_body_sampler_matches_dalitz_marginal(processes_dir):
+    """_sample_rest_frame draws |M|^2 on the Dalitz plane: the E_nu marginal
+    matches the band-integrated physical marginal and rejects the
+    band-averaged alternative that a uniform-in-band proposal with
+    unweighted acceptance would produce."""
+    import numpy as np
+    from siren import _util
+
+    meson = _util.load_module(
+        "test_dutta_kim_MesonProduction_marginal",
+        str(processes_dir / "DarkNewsTables" / "MesonProduction.py"),
+    )
+
+    d = meson.MesonThreeBodyDecay(0.13957039, 0.10565837, 0.017, 1.0e-3, "scalar")
+
+    # Deterministic bound on the acceptance weight |M|^2 * band(E_nu).
+    max_weight = 0.0
+    for e_nu in np.linspace(0.0, d.E_nu_max, 200):
+        lims = d._E_phi_limits(e_nu)
+        if lims[0] is None:
+            continue
+        band = lims[1] - lims[0]
+        for e_phi in np.linspace(lims[0], lims[1], 40):
+            max_weight = max(max_weight, d._matel_sq(e_nu, e_phi) * band)
+    max_weight *= 1.2
+
+    rng = siren.utilities.SIREN_random(123)
+    n = 20000
+    samples = np.array(
+        [meson._sample_rest_frame(d, max_weight, rng)[0] for _ in range(n)])
+
+    grid = np.linspace(1e-6, d.E_nu_max * (1 - 1e-6), 100)
+    p_phys, p_avg = [], []
+    for e_nu in grid:
+        lims = d._E_phi_limits(e_nu)
+        if lims[0] is None or lims[1] <= lims[0]:
+            p_phys.append(0.0)
+            p_avg.append(0.0)
+            continue
+        xs = np.linspace(lims[0], lims[1], 300)
+        integ = np.trapezoid([d._matel_sq(e_nu, x) for x in xs], xs)
+        p_phys.append(integ)                        # int |M|^2 dE_phi
+        p_avg.append(integ / (lims[1] - lims[0]))   # band-averaged |M|^2
+    p_phys = np.array(p_phys) / np.trapezoid(p_phys, grid)
+    p_avg = np.array(p_avg) / np.trapezoid(p_avg, grid)
+
+    hist, edges = np.histogram(samples, bins=24, range=(0.0, d.E_nu_max),
+                               density=True)
+    centers = 0.5 * (edges[1:] + edges[:-1])
+    err = np.sqrt(np.maximum(hist, 1e-12) / (n * (edges[1] - edges[0])))
+    chi2_phys = np.mean(
+        ((hist - np.interp(centers, grid, p_phys)) / np.maximum(err, 1e-12)) ** 2)
+    chi2_avg = np.mean(
+        ((hist - np.interp(centers, grid, p_avg)) / np.maximum(err, 1e-12)) ** 2)
+
+    assert chi2_phys < 3.0, (
+        f"E_nu marginal disagrees with the physical Dalitz marginal "
+        f"(chi2/dof {chi2_phys:.2f})")
+    assert chi2_avg > 10.0, (
+        f"test lost discriminating power (chi2/dof vs band-averaged "
+        f"alternative {chi2_avg:.2f})")
+
+
+def test_meson_three_body_check_closure_passes(processes_dir):
+    """siren.check_closure certifies MesonThreeBodySIRENDecay: its Recursive2Body
+    sampler and FinalStateProbability are the same distribution.
+
+    The gauge reads the fallback cos(theta) in the parent rest frame for a
+    Recursive2Body measure; the lab coordinate is degenerate at ~1 for a
+    boosted parent, collapsing the flatness test to a single bin.
+    """
+    from siren import _util
+
+    meson = _util.load_module(
+        "test_dutta_kim_MesonProduction_closure",
+        str(processes_dir / "DarkNewsTables" / "MesonProduction.py"),
+    )
+
+    decay = meson.MesonThreeBodySIRENDecay(m_mediator=0.017, g_mu=1.0e-3)
+    report = siren.check_closure(decay, primary_energy=2.0, samples=6000, seed=0)
+    assert report.ok, str(report)
+    fmean, _ferr = report.flatness
+    assert fmean == pytest.approx(1.0, abs=0.1)
+
+
 # ------------------------------------------------------------------ #
 #  End-to-end chain test                                               #
 # ------------------------------------------------------------------ #

@@ -13,6 +13,7 @@
 
 - Event weights are normalized by the realized injected-event count instead of the configured target count (falls back to the configured count when weighting precedes generation).
 - ConvertDensity now rejects non-Decay2Body SolidAngleLab conversions as unconvertible (MeasureCompatibilityError) instead of silently applying the parent-rest-frame two-body boost Jacobian in the wrong frame; Decay2Body SolidAngleLab conversions are unchanged.
+- MesonProduction three-body rest-frame sampler: the acceptance is weighted by the E_phi kinematic band width, so the accepted (E_nu, E_phi) density is proportional to |M|^2 on the Dalitz plane as FinalStateProbability and total_width assume. A uniform-in-band proposal with unweighted acceptance carries an extra 1/band(E_nu) factor that oversamples both Dalitz edges, biasing MesonThreeBodySIRENDecay and BiasedMesonThreeBodyDecay event samples (E_nu-marginal chi2/dof vs the physical marginal: 130 unweighted, 1.2 weighted; the Recursive2Body FinalStateProbability was verified against the engine Jacobian to 1e-14 and is unchanged).
 
 ### Fixed
 

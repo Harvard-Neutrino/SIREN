@@ -516,8 +516,17 @@ def _dGamma_dEV_dcosV(E_V_lab, cos_theta_V_lab, E_pi, p_pi, decay_obj):
     return max(prefactor_rf * val / max(jacobian, 1e-30), 0.0)
 
 
-def _sample_rest_frame(decay_obj, max_matel, random):
-    """Rejection-sample (E_nu, E_phi) from the matrix element in the rest frame."""
+def _sample_rest_frame(decay_obj, max_weight, random):
+    """Rejection-sample (E_nu, E_phi) from |M|^2 on the Dalitz region.
+
+    The proposal draws E_nu uniformly and then E_phi uniformly within its
+    E_nu-dependent kinematic band, so the proposal density carries a
+    1/band(E_nu) factor. The acceptance weight is |M|^2 * band(E_nu): the
+    band factors cancel and the accepted density is proportional to |M|^2
+    alone, matching the Dalitz-plane density that FinalStateProbability
+    and total_width integrate. max_weight bounds |M|^2 * band over the
+    region (see _find_max_matel).
+    """
     d = decay_obj
     for _ in range(10000):
         E_nu = random.Uniform(0.0, d.E_nu_max)
@@ -527,9 +536,9 @@ def _sample_rest_frame(decay_obj, max_matel, random):
         E_phi = random.Uniform(lims[0], lims[1])
         if d.m_M - E_nu - E_phi < d.m_l:
             continue
-        matel = d._matel_sq(E_nu, E_phi)
-        u = random.Uniform(0.0, max_matel)
-        if u <= matel:
+        weight = d._matel_sq(E_nu, E_phi) * (lims[1] - lims[0])
+        u = random.Uniform(0.0, max_weight)
+        if u <= weight:
             return E_nu, E_phi
     lims = d._E_phi_limits(d.E_nu_max * 0.5)
     return d.E_nu_max * 0.5, 0.5 * (lims[0] + lims[1]) if lims[0] is not None else d.m_phi
@@ -675,6 +684,8 @@ class MesonThreeBodySIRENDecay(_Decay):
         self._pair_second_index = 2
 
     def _find_max_matel(self, n_samples=10000):
+        # Bounds |M|^2 * band(E_nu), the acceptance weight used by
+        # _sample_rest_frame.
         d = self._decay
         max_val = 0.0
         for _ in range(n_samples):
@@ -685,7 +696,7 @@ class MesonThreeBodySIRENDecay(_Decay):
             E_phi = np.random.uniform(lims[0], lims[1])
             if d.m_M - E_nu - E_phi < d.m_l:
                 continue
-            val = d._matel_sq(E_nu, E_phi)
+            val = d._matel_sq(E_nu, E_phi) * (lims[1] - lims[0])
             if val > max_val:
                 max_val = val
         return max_val * 1.2
@@ -947,6 +958,8 @@ class BiasedMesonThreeBodyDecay(_Decay):
         self._beta_chi = self._p_cm_chi / self._E_chi_rf if self._E_chi_rf > 0 else 0.0
 
     def _find_max_matel(self, n_samples=10000):
+        # Bounds |M|^2 * band(E_nu), the acceptance weight used by
+        # _sample_rest_frame.
         d = self._decay
         max_val = 0.0
         for _ in range(n_samples):
@@ -957,7 +970,7 @@ class BiasedMesonThreeBodyDecay(_Decay):
             E_phi = np.random.uniform(lims[0], lims[1])
             if d.m_M - E_nu - E_phi < d.m_l:
                 continue
-            val = d._matel_sq(E_nu, E_phi)
+            val = d._matel_sq(E_nu, E_phi) * (lims[1] - lims[0])
             if val > max_val:
                 max_val = val
         return max_val * 1.2

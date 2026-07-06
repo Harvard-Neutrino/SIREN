@@ -528,11 +528,20 @@ def _coordinate_frame(model):
     """Which frame the empirical coordinate is read in, from the declared
     measure. SolidAngleRest densities are flat over rest-frame solid angle, so
     the coordinate must be the rest-frame cos(theta) for the sampler/density
-    ratio to be flat; SolidAngleLab uses the lab frame. Other measures default
-    to the lab frame with a descriptive label.
+    ratio to be flat; SolidAngleLab uses the lab frame.
+
+    Recursive2Body factors the final state into a spectator plus a pair whose
+    overall orientation is isotropic in the parent (or centre-of-mass) rest
+    frame; the spectator's rest-frame cos(theta) therefore carries the full
+    [-1, 1] spread the fallback coordinate needs. In the lab frame a boosted
+    parent collimates every secondary to cos(theta) ~ 1 (a single bin, stderr
+    inf), so the lab coordinate is degenerate for exactly these measures. Read
+    the rest-frame coordinate for Recursive2Body too. Other measures default to
+    the lab frame with a descriptive label.
     """
     mtype = model.Measure().type
-    if mtype == _injection.PhaseSpaceMeasureType.SolidAngleRest:
+    if mtype in (_injection.PhaseSpaceMeasureType.SolidAngleRest,
+                 _injection.PhaseSpaceMeasureType.Recursive2Body):
         return "rest"
     return "lab"
 
