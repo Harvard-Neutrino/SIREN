@@ -493,7 +493,9 @@ int MultiChannelPhaseSpace::Sample(
     ThrowOnIncompatibility();
 
     if (channels.empty()) {
-        throw std::runtime_error("MultiChannelPhaseSpace has no channels");
+        throw siren::utilities::ConfigurationError(
+            "MultiChannelPhaseSpace has no channels"
+            " [siren-docs: errors#configuration]");
     }
 
     ThrowIfWeightsInconsistent(channels, weights, "Sample");
@@ -522,7 +524,9 @@ double MultiChannelPhaseSpace::ComputeContributions(
     ThrowOnIncompatibility();
 
     if (channels.empty()) {
-        throw std::runtime_error("MultiChannelPhaseSpace has no channels");
+        throw siren::utilities::ConfigurationError(
+            "MultiChannelPhaseSpace has no channels"
+            " [siren-docs: errors#configuration]");
     }
 
     ThrowIfWeightsInconsistent(channels, weights, "ComputeContributions");

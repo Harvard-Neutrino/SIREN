@@ -111,12 +111,25 @@ _M_V1 = 0.017
 # Part 1: a real assembled injector + weighter (multi-vertex, data-free)       #
 # --------------------------------------------------------------------------- #
 
-def _load_ccm_detector():
-    """Load the CCM detector model, or skip if its data files are missing.
+def _skip_unless_ccm_data():
+    """Skip only when the CCM detector data files are absent.
 
-    Only a missing-data condition (ValueError from path resolution, RuntimeError
-    from a failed file open) is a skip; anything else is a real regression.
+    Missing files are an environment condition; any error raised while
+    PARSING present files is a real regression and must propagate.
     """
+    try:
+        det_dir = _util.get_detector_model_path("CCM")
+    except ValueError as e:
+        pytest.skip(f"CCM detector model path unavailable: {e}")
+    missing = [p for p in (os.path.join(det_dir, "materials.dat"),
+                           os.path.join(det_dir, "densities.dat"))
+               if not os.path.exists(p)]
+    if missing:
+        pytest.skip("CCM detector data missing: " + ", ".join(missing))
+
+
+def _load_ccm_detector():
+    """Load the CCM detector model; errors propagate to the caller."""
     dm = detector.DetectorModel()
     det_dir = _util.get_detector_model_path("CCM")
     dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
@@ -342,10 +355,8 @@ def _load_archive():
 def test_golden_weighted_distributions():
     """Fixed-seed assembled chain reproduces the archived weighted distributions
     to rtol=1e-12."""
-    try:
-        detector_model = _load_ccm_detector()
-    except (ValueError, RuntimeError) as e:
-        pytest.skip(f"CCM detector model unavailable: {e}")
+    _skip_unless_ccm_data()
+    detector_model = _load_ccm_detector()
 
     archive = _load_archive()
     fresh = _generate_chain_arrays(detector_model)
