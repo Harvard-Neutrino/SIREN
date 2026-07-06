@@ -458,53 +458,14 @@ def _build_onshell_events(chain_module, n_events=12, seed=99):
     fiducial = siren.geometry.Box(
         siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
         4.0, 4.0, 4.0)
-    targets = {"fiducial": fiducial}
 
     models = chain_module.build_onshell_models()
-    ps = chain_module.build_onshell_phase_spaces(targets, models)
-    primary_ps = chain_module.build_primary_phase_spaces(
-        targets, models["pion_decay"])
+    primary, secondaries = chain_module.build_vertices(models, fiducial)
 
-    injector = Injector(
-        number_of_events=n_events,
-        detector_model=detector_model,
-        seed=seed,
-        primary_type=PT(211),
-        primary_interactions=[models["pion_decay"]],
-        primary_injection_distributions=[
-            distributions.PrimaryMass(M_PION),
-            distributions.Monoenergetic(2.0),
-            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
-            distributions.PointSourcePositionDistribution([0, 0, 0], 300.0),
-        ],
-        secondary_interactions=models["secondary_interactions"],
-        secondary_injection_distributions={
-            pt: [distributions.SecondaryPhysicalVertexDistribution()]
-            for pt in models["secondary_interactions"]
-        },
-        secondary_phase_spaces=ps,
-        primary_phase_spaces=primary_ps,
-        stopping_condition=chain_module.onshell_stopping_condition,
-    )
-
-    events = []
-    for ev in injector:
-        if ev.tree:
-            events.append(ev)
-        if len(events) >= n_events:
-            break
-
-    weighter = Weighter(
-        injectors=[injector],
-        detector_model=detector_model,
-        primary_type=PT(211),
-        primary_interactions=[models["pion_decay"]],
-        primary_physical_distributions=[
-            distributions.Monoenergetic(2.0),
-            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
-        ],
-        secondary_interactions=models["secondary_interactions"],
-    )
+    injector = Injector(detector=detector_model, primary=primary,
+                        secondaries=secondaries, events=n_events, seed=seed)
+    events = injector.generate(n_events, on_shortfall="warn")
+    weighter = Weighter(injector, primary_physical=primary.physical)
     return events, weighter
 
 
@@ -519,79 +480,26 @@ class TestOnShellChain:
         assert PT(5923) in sec
         assert models["pion_decay"] is not None
 
-    def test_chain_phase_spaces_build(self, chain_module):
-        models = chain_module.build_onshell_models()
+    def test_chain_vertices_compile(self, chain_module):
         detector_model = siren.utilities.load_detector("SBN", detector="SBND")
         fiducial = siren.geometry.Box(
             siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
             4.0, 4.0, 4.0)
-        targets = {"fiducial": fiducial}
-        ps = chain_module.build_onshell_phase_spaces(targets, models)
-        assert PT(5922) in ps
-        assert PT(5917) in ps
-        assert PT(5918) in ps
-        assert PT(5923) in ps
+        models = chain_module.build_onshell_models()
+        primary, secondaries = chain_module.build_vertices(models, fiducial)
+        assert [v._resolved_particle for v in secondaries] == [
+            PT(5922), PT(5917), PT(5918), PT(5923)]
+        for is_primary, v in [(True, primary)] + [(False, s)
+                                                  for s in secondaries]:
+            proc = v.compile(is_primary=is_primary, detector=detector_model)
+            assert proc is not None
 
     def test_chain_end_to_end(self, chain_module):
-        detector_model = siren.utilities.load_detector("SBN", detector="SBND")
-        fiducial = siren.geometry.Box(
-            siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
-            4.0, 4.0, 4.0)
-        targets = {"fiducial": fiducial}
-
-        models = chain_module.build_onshell_models()
-        ps = chain_module.build_onshell_phase_spaces(targets, models)
-        primary_ps = chain_module.build_primary_phase_spaces(
-            targets, models["pion_decay"])
-
-        N_EVENTS = 10
-        injector = Injector(
-            number_of_events=N_EVENTS,
-            detector_model=detector_model,
-            seed=99,
-            primary_type=PT(211),
-            primary_interactions=[models["pion_decay"]],
-            primary_injection_distributions=[
-                distributions.PrimaryMass(M_PION),
-                distributions.Monoenergetic(2.0),
-                distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
-                distributions.PointSourcePositionDistribution([0, 0, 0], 300.0),
-            ],
-            secondary_interactions=models["secondary_interactions"],
-            secondary_injection_distributions={
-                pt: [distributions.SecondaryPhysicalVertexDistribution()]
-                for pt in models["secondary_interactions"]
-            },
-            secondary_phase_spaces=ps,
-            primary_phase_spaces=primary_ps,
-            stopping_condition=chain_module.onshell_stopping_condition,
-        )
-
-        events = []
-        for ev in injector:
-            if ev.tree:
-                events.append(ev)
-            if len(events) >= N_EVENTS:
-                break
-
+        events, weighter = _build_onshell_events(chain_module, n_events=10,
+                                                 seed=99)
         assert len(events) > 0, "No events generated"
         for ev in events:
-            records = list(ev.tree)
-            assert len(records) >= 2
-
-        weighter = Weighter(
-            injectors=[injector],
-            detector_model=detector_model,
-            primary_type=PT(211),
-            primary_interactions=[models["pion_decay"]],
-            primary_physical_distributions=[
-                distributions.Monoenergetic(2.0),
-                distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
-            ],
-            secondary_interactions=models["secondary_interactions"],
-        )
-
-        for ev in events:
+            assert len(list(ev.tree)) >= 2
             w = weighter(ev)
             assert math.isfinite(w), f"Non-finite weight: {w}"
             assert w > 0, f"Non-positive weight: {w}"
@@ -626,88 +534,103 @@ class TestOnShellChain:
 #  Off-shell chain assembly                                           #
 # ------------------------------------------------------------------ #
 
+def _build_offshell_vertices(chain_module, vp, fiducial):
+    """Off-shell (4-vertex, virtual chi') chain as spec-form vertices."""
+    from siren import channels, expand
+
+    models = chain_module.build_onshell_models()
+    pion_decay = models["pion_decay"]
+    v1_to_chi = models["models"]["v1_to_chi"]
+    offshell_xs = vp.VectorPortalOffShellXS(
+        M_CHI, M_CHI_PRIME, M_V1, M_V2, G_D, EPSILON_2, pdgid_V1=5923)
+    visible_decay = models["models"]["visible_decay"]
+
+    sx = channels.PairMass.tabulated(*chain_module.build_sX_cdf(pion_decay))
+    p_star = injection.TwoBodyRestMomentum(M_CHI_PRIME, M_CHI, M_V1)
+    chip_width = G_D ** 2 * p_star ** 3 / (6.0 * math.pi * M_CHI_PRIME ** 2)
+    sv = distributions.SecondaryPhysicalVertexDistribution
+
+    primary = siren.Vertex(
+        PT(211), pion_decay,
+        distributions=[
+            distributions.PrimaryMass(M_PION),
+            distributions.Monoenergetic(2.0),
+            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
+            distributions.PointSourcePositionDistribution([0, 0, 0], 300.0),
+        ],
+        physical=[
+            distributions.Monoenergetic(2.0),
+            distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
+        ],
+        kinematics=0.98 * channels.toward_3body(2, fiducial, strategy="direct",
+                                                pair_mass=sx)
+                   + 0.02 * channels.physical(),
+        expand=(expand.child("V1_prod"),))
+
+    v1 = siren.Vertex(
+        "V1_prod", v1_to_chi, position=sv(),
+        kinematics=0.98 * channels.toward(0, fiducial)
+                   + 0.02 * channels.physical(),
+        expand=(expand.child("chi", index=0),))
+
+    chi = siren.Vertex(
+        "chi", offshell_xs, position=sv(),
+        # 2->3 scatter: direct V1_sig (pair index 1) at the detector with a
+        # Breit-Wigner pair mass on the virtual chi' resonance
+        kinematics=0.98 * channels.toward_3body(
+            1, fiducial, spectator=2, strategy="recursive",
+            pair_mass=channels.PairMass.breit_wigner(M_CHI_PRIME, chip_width))
+                   + 0.02 * channels.physical(),
+        expand=(expand.child("V1_sig"),))
+
+    v1s = siren.Vertex(
+        "V1_sig", visible_decay, position=sv(),
+        kinematics=0.5 * channels.physical() + 0.5 * channels.isotropic(0),
+        expand=(expand.depth_below(0),))
+
+    return primary, (v1, chi, v1s)
+
+
 class TestOffShellChain:
 
-    def test_chain_models_load(self, chain_module):
-        models = chain_module.build_offshell_models()
-        sec = models["secondary_interactions"]
-        assert PT(5922) in sec
-        assert PT(5917) in sec
-        assert PT(5923) in sec
-        assert PT(5918) not in sec
+    def test_chain_vertices_build(self, chain_module, vp):
+        fiducial = siren.geometry.Box(
+            siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
+            4.0, 4.0, 4.0)
+        primary, secondaries = _build_offshell_vertices(chain_module, vp,
+                                                        fiducial)
+        particles = [v._resolved_particle for v in secondaries]
+        assert particles == [PT(5922), PT(5917), PT(5923)]
+        assert PT(5918) not in particles
 
-    def test_chain_phase_spaces_build(self, chain_module):
-        models = chain_module.build_offshell_models()
+    def test_chain_vertices_compile(self, chain_module, vp):
         detector_model = siren.utilities.load_detector("SBN", detector="SBND")
         fiducial = siren.geometry.Box(
             siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
             4.0, 4.0, 4.0)
-        targets = {"fiducial": fiducial}
-        ps = chain_module.build_offshell_phase_spaces(targets, models)
-        assert PT(5922) in ps
-        assert PT(5917) in ps
-        assert PT(5923) in ps
+        primary, secondaries = _build_offshell_vertices(chain_module, vp,
+                                                        fiducial)
+        for is_primary, v in [(True, primary)] + [(False, s)
+                                                  for s in secondaries]:
+            proc = v.compile(is_primary=is_primary, detector=detector_model)
+            assert proc is not None
 
-    def test_chain_end_to_end(self, chain_module):
+    def test_chain_end_to_end(self, chain_module, vp):
         detector_model = siren.utilities.load_detector("SBN", detector="SBND")
         fiducial = siren.geometry.Box(
             siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
             4.0, 4.0, 4.0)
-        targets = {"fiducial": fiducial}
+        primary, secondaries = _build_offshell_vertices(chain_module, vp,
+                                                        fiducial)
 
-        models = chain_module.build_offshell_models()
-        ps = chain_module.build_offshell_phase_spaces(targets, models)
-        primary_ps = chain_module.build_primary_phase_spaces(
-            targets, models["pion_decay"])
-
-        N_EVENTS = 10
-        injector = Injector(
-            number_of_events=N_EVENTS,
-            detector_model=detector_model,
-            seed=77,
-            primary_type=PT(211),
-            primary_interactions=[models["pion_decay"]],
-            primary_injection_distributions=[
-                distributions.PrimaryMass(M_PION),
-                distributions.Monoenergetic(2.0),
-                distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
-                distributions.PointSourcePositionDistribution([0, 0, 0], 300.0),
-            ],
-            secondary_interactions=models["secondary_interactions"],
-            secondary_injection_distributions={
-                pt: [distributions.SecondaryPhysicalVertexDistribution()]
-                for pt in models["secondary_interactions"]
-            },
-            secondary_phase_spaces=ps,
-            primary_phase_spaces=primary_ps,
-            stopping_condition=chain_module.offshell_stopping_condition,
-        )
-
-        events = []
-        for ev in injector:
-            if ev.tree:
-                events.append(ev)
-            if len(events) >= N_EVENTS:
-                break
+        injector = Injector(detector=detector_model, primary=primary,
+                            secondaries=secondaries, events=10, seed=77)
+        events = injector.generate(10, on_shortfall="warn")
+        weighter = Weighter(injector, primary_physical=primary.physical)
 
         assert len(events) > 0, "No events generated"
         for ev in events:
-            records = list(ev.tree)
-            assert len(records) >= 2
-
-        weighter = Weighter(
-            injectors=[injector],
-            detector_model=detector_model,
-            primary_type=PT(211),
-            primary_interactions=[models["pion_decay"]],
-            primary_physical_distributions=[
-                distributions.Monoenergetic(2.0),
-                distributions.FixedDirection(siren.math.Vector3D(0, 0, 1)),
-            ],
-            secondary_interactions=models["secondary_interactions"],
-        )
-
-        for ev in events:
+            assert len(list(ev.tree)) >= 2
             w = weighter(ev)
             assert math.isfinite(w), f"Non-finite weight: {w}"
             assert w > 0, f"Non-positive weight: {w}"
