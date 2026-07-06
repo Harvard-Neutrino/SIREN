@@ -23,6 +23,8 @@
 #include "../../public/SIREN/geometry/Para.h"
 #include "../../public/SIREN/geometry/GeometryMesh.h"
 
+#include "../../../utilities/public/SIREN/utilities/Errors.h"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -93,16 +95,12 @@ PYBIND11_MODULE(geometry,m) {
 
     class_<Box, std::shared_ptr<Box>, Geometry>(m, "Box")
         .def(init<>())
-        // Positional Box(x, y, z) places the box at the ORIGIN, which reads as
-        // a size-only constructor and silently drops the intended center. Warn
-        // and keep the origin placement; the hard error lands once callers move
-        // to the widths/center form.
-        .def(init([](double x, double y, double z) {
-            PyErr_WarnEx(PyExc_DeprecationWarning,
+        // Positional Box(x, y, z) reads as size-only and silently drops the
+        // intended center, so it raises with the keyword fix-it.
+        .def(init([](double x, double y, double z) -> std::shared_ptr<Box> {
+            throw siren::utilities::ConfigurationError(
                 "Box(x, y, z) places the box at the ORIGIN; pass "
-                "Box(widths=(x, y, z), center=(cx, cy, cz))",
-                1);
-            return std::make_shared<Box>(x, y, z);
+                "Box(widths=(x, y, z), center=(cx, cy, cz))");
         }))
         .def(init([](std::array<double, 3> widths, std::array<double, 3> center) {
             Placement placement(siren::math::Vector3D(center[0], center[1], center[2]));
