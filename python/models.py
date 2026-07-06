@@ -174,7 +174,12 @@ def decay_model_base(base=None):
         )
 
         def __init__(self, *args, **kwargs):
-            base.__init__(self)
+            # Forward to the pybind base so a base that takes constructor
+            # arguments receives them, and an unexpected argument raises from
+            # the base rather than vanishing. The shipped bases (Decay,
+            # DarkNewsDecay) bind only a zero-arg constructor, so the common
+            # empty-args call stays valid.
+            super().__init__(*args, **kwargs)
 
         # ---- declared metadata -> signature methods ----
 
@@ -326,7 +331,12 @@ def cross_section_model_base(base=None):
         )
 
         def __init__(self, *args, **kwargs):
-            base.__init__(self)
+            # Forward to the pybind base so a base that takes constructor
+            # arguments receives them, and an unexpected argument raises from
+            # the base rather than vanishing. The shipped bases (CrossSection,
+            # DarkNewsCrossSection) bind only a zero-arg constructor, so the
+            # common empty-args call stays valid.
+            super().__init__(*args, **kwargs)
 
         # ---- declared metadata -> target/signature methods ----
 

@@ -7,19 +7,31 @@ and if a model's own sampler disagrees with its own density, weights computed
 against that model are wrong by a kinematics-dependent factor that no amount
 of statistics averages away.
 
-check_closure draws samples from the model's sampler, evaluates the model's
-own analytic density on each sample, and checks that the sampler and density
-describe the same distribution: the importance-sampling normalization
-E[f / g] must equal 1, and each declared DensityVariable's sampled mean must
-match its density-weighted mean. It also runs a frame heuristic for
-SolidAngle*-type measures, since a rest-frame/lab-frame swap is the single
-most common way a sampler and its stated measure silently diverge.
+check_closure runs two complementary checks:
+
+* An ABSOLUTE normalization check. Where the declared measure has a
+  self-contained reference density (SolidAngleRest 2-body: uniform 1/(4*pi)
+  per steradian over the sphere), it draws validation samples from that
+  reference, evaluates FinalStateProbability on each, and estimates the
+  integral of the density over the measure as E[f / g_ref], which must equal
+  1. This is the ONLY check that catches a uniform scale error -- a density
+  off by a constant factor everywhere -- because it fixes the absolute scale.
+
+* A SHAPE (flatness) check. It bins f / g_empirical over a fallback
+  coordinate; because g_empirical is a 1-D marginal carrying an unknown
+  constant, each bin ratio is normalized by their weighted mean before testing
+  for a flat profile at 1.0. This detects a cos(theta)-dependent mismatch
+  between sampler and density but is BLIND to a uniform scale error by
+  construction. Each declared DensityVariable's sampled mean is also compared
+  to its density-weighted mean, and a frame heuristic flags a rest-frame /
+  lab-frame swap for SolidAngle*-type measures.
 
 This module never generates events for physics use; it exists only to certify
 that a model's sampler and density are the same distribution.
 """
 
 import math
+import weakref
 
 from . import dataclasses as _dataclasses
 from . import injection as _injection
@@ -31,18 +43,43 @@ _MIN_SAMPLES = 200
 _MIN_BIN_COUNT = 5
 _N_BINS = 20
 
-# Cache keyed by a hash of the call parameters (falls back to id(model) if the
-# parameters are unhashable), so repeated checks in a session/notebook do not
-# re-draw samples each time. Values are ClosureReport instances.
-_CACHE = {}
+# Result cache keyed on the model INSTANCE (via a WeakKeyDictionary) so that
+# two objects of the same class with different internal state never collide,
+# and a cached report dies with the model that produced it. Each instance maps
+# to {call_params: ClosureReport}. A model that cannot be weakly referenced is
+# simply not cached.
+_CACHE = weakref.WeakKeyDictionary()
 
 
-def _cache_key(model, primary_energy, target, samples, seed, tol_sigma):
+def _params_key(primary_energy, target, samples, seed, tol_sigma):
+    """The per-instance sub-key: the call parameters other than the model."""
+    return (primary_energy, target, samples, seed, tol_sigma)
+
+
+def _cache_get(model, params):
+    """Return a cached ClosureReport for (model instance, params), or None.
+
+    Unhashable/unweakrefable models never hit the cache; identity is exact.
+    """
     try:
-        return (type(model).__qualname__, primary_energy, target, samples,
-                seed, tol_sigma)
+        per_model = _CACHE.get(model)
     except TypeError:
-        return (type(model).__qualname__, id(model), samples, seed, tol_sigma)
+        return None
+    if per_model is None:
+        return None
+    return per_model.get(params)
+
+
+def _cache_put(model, params, report):
+    """Store a report under the model instance; skip silently if unweakrefable."""
+    try:
+        per_model = _CACHE.get(model)
+        if per_model is None:
+            per_model = {}
+            _CACHE[model] = per_model
+    except TypeError:
+        return
+    per_model[params] = report
 
 
 def _is_mixture(obj):
@@ -57,27 +94,60 @@ def _is_multichannel(obj):
 class ClosureReport:
     """Result of a check_closure run.
 
+    Two orthogonal checks feed ``ok``:
+
+    * ``normalization`` -- an ABSOLUTE test that the model's density integrates
+      to 1. It is populated only when the declared measure has a self-contained
+      reference density the gauge can integrate against (currently a
+      SolidAngleRest 2-body measure, whose reference is the uniform
+      ``1/(4*pi)`` per steradian over the sphere). Validation samples are drawn
+      from that reference, so the estimate ``E[f / g_ref]`` equals the integral
+      of the model's FinalStateProbability over the reference measure and must
+      be 1.0. This is the ONLY check that catches a uniform scale error in
+      FinalStateProbability -- a density off by a constant factor everywhere.
+      When no self-contained reference exists it is ``(nan, nan)`` and does not
+      gate ``ok``.
+
+    * ``flatness`` -- a SHAPE-only test. It bins ``f / g_empirical`` over a
+      fallback coordinate and, because ``g_empirical`` is a 1-D marginal that
+      carries an unknown constant, normalizes each bin ratio by their weighted
+      mean before testing for a flat profile at 1.0. It therefore detects a
+      cos(theta)-dependent (shape) mismatch between sampler and density but is
+      blind to a uniform scale error BY CONSTRUCTION. Reported as
+      ``(mean, stderr)`` of the self-normalized profile (mean is ~1.0 by
+      construction; ``worst_region`` names the most deviant bin).
+
     Attributes
     ----------
     ok : bool
-        True when the normalization estimate is within tol_sigma of 1.0 and
-        no fatal flag was raised while probing the model or mixture.
+        True when every populated check passes within tol_sigma and no fatal
+        flag was raised while probing the model or mixture. Specifically: the
+        normalization estimate (when present) is within tol_sigma of 1.0, no
+        flatness bin deviates from 1.0 by more than tol_sigma of its Poisson
+        uncertainty, and no moment z-score exceeds tol_sigma.
     normalization : tuple
-        (estimate, stderr) of E[f / g] over the drawn samples; expected 1.0.
+        (estimate, stderr) of the absolute integral E[f / g_ref] over the
+        reference measure; expected 1.0. ``(nan, nan)`` when the declared
+        measure has no self-contained reference density.
+    flatness : tuple
+        (mean, stderr) of the self-normalized bin ratios of f / g_empirical;
+        a shape diagnostic only. ``(nan, nan)`` when no binned profile was
+        computed.
     moment_z : dict
         {variable_name: z_score} of sampled vs density-weighted mean, one
         entry per DensityVariable (or per fallback coordinate).
     worst_region : str
-        Human string naming the bin with the largest normalized deviation,
-        or "" if no binned diagnostic was computed.
+        Human string naming the flatness bin with the largest normalized
+        deviation, or "" if no binned diagnostic was computed.
     frame_check : str or None
         A note when the declared SolidAngle* frame looks wrong, else None.
     """
 
-    def __init__(self, ok, normalization, moment_z, worst_region,
+    def __init__(self, ok, normalization, flatness, moment_z, worst_region,
                  frame_check, notes=None):
         self.ok = bool(ok)
         self.normalization = tuple(normalization)
+        self.flatness = tuple(flatness)
         self.moment_z = dict(moment_z)
         self.worst_region = worst_region
         self.frame_check = frame_check
@@ -89,11 +159,22 @@ class ClosureReport:
             raise ClosureError(str(self))
 
     def __str__(self):
-        est, err = self.normalization
+        n_est, n_err = self.normalization
+        f_est, f_err = self.flatness
         lines = []
         lines.append("Closure report: %s" % ("PASS" if self.ok else "FAIL"))
-        lines.append("  normalization E[f/g] = %.4f +/- %.4f (expect 1.0)"
-                      % (est, err))
+        if math.isfinite(n_est):
+            lines.append(
+                "  normalization (absolute) E[f/g_ref] = %.4f +/- %.4f "
+                "(expect 1.0)" % (n_est, n_err))
+        else:
+            lines.append(
+                "  normalization (absolute): (not available for this measure; "
+                "cannot detect a uniform scale error)")
+        lines.append(
+            "  flatness (shape only) = %.4f +/- %.4f "
+            "(self-normalized bin ratios; blind to a uniform scale error)"
+            % (f_est, f_err))
         if self.moment_z:
             lines.append("  moment z-scores:")
             for name in sorted(self.moment_z):
@@ -109,8 +190,8 @@ class ClosureReport:
         return "\n".join(lines)
 
     def __repr__(self):
-        return "<ClosureReport ok=%r normalization=%r>" % (
-            self.ok, self.normalization)
+        return ("<ClosureReport ok=%r normalization=%r flatness=%r>"
+                % (self.ok, self.normalization, self.flatness))
 
 
 def check_closure(model_or_mixture, *, primary_energy=None, target=None,
@@ -136,16 +217,17 @@ def check_closure(model_or_mixture, *, primary_energy=None, target=None,
         Seed for the validation RNG stream. Always its own stream, never a
         generation stream, so closure checks do not perturb injection.
     tol_sigma : float
-        Normalization estimate must fall within tol_sigma stderr of 1.0 for
-        ok to be True.
+        Tolerance in standard errors for every gated check: the absolute
+        normalization estimate must fall within tol_sigma of 1.0, each flatness
+        bin within tol_sigma of its Poisson uncertainty, and each moment
+        z-score below tol_sigma, for ok to be True.
 
     Returns
     -------
     ClosureReport
     """
-    key = _cache_key(model_or_mixture, primary_energy, target, samples,
-                      seed, tol_sigma)
-    cached = _CACHE.get(key)
+    params = _params_key(primary_energy, target, samples, seed, tol_sigma)
+    cached = _cache_get(model_or_mixture, params)
     if cached is not None:
         return cached
 
@@ -158,7 +240,7 @@ def check_closure(model_or_mixture, *, primary_energy=None, target=None,
             model_or_mixture, primary_energy=primary_energy, target=target,
             samples=samples, seed=seed, tol_sigma=tol_sigma)
 
-    _CACHE[key] = report
+    _cache_put(model_or_mixture, params, report)
     return report
 
 
@@ -202,6 +284,7 @@ def _check_closure_mixture(obj, *, primary_energy, target, samples, seed,
     return ClosureReport(
         ok=ok,
         normalization=(float("nan"), float("nan")),
+        flatness=(float("nan"), float("nan")),
         moment_z={},
         worst_region="",
         frame_check=None,
@@ -280,6 +363,64 @@ def _draw_samples(model, template, random, n):
             f_i = 0.0
         drawn.append((out_rec, f_i))
     return drawn
+
+
+def _reference_channel(model, signature):
+    """A self-contained reference channel with a known analytic density, or None.
+
+    Returns (channel, g_ref) where g_ref is the channel's density over its own
+    measure -- the value the model's FinalStateProbability is integrated
+    against. Only SolidAngleRest 2-body has such a reference here: the
+    Isotropic2BodyChannel draws directions uniform in rest-frame solid angle,
+    so g_ref = 1/(4*pi) per steradian, independent of the sampled point.
+    """
+    measure = model.Measure()
+    n_finals = len(signature.secondary_types)
+    if (n_finals == 2
+            and measure.type == _injection.PhaseSpaceMeasureType.SolidAngleRest):
+        return _injection.Isotropic2BodyChannel(0), 1.0 / (4.0 * math.pi)
+    return None, None
+
+
+def _estimate_absolute_normalization(model, template, signature, random, n):
+    """Estimate the absolute integral of FinalStateProbability over the measure.
+
+    Draws n samples from a reference channel whose density g_ref over the
+    declared measure is known analytically (uniform 1/(4*pi) for SolidAngleRest
+    2-body). For each drawn record it evaluates f = FinalStateProbability and
+    forms f / g_ref; the Monte Carlo mean of that ratio is an unbiased estimate
+    of the integral of f over the reference measure, which must equal 1.0 for a
+    correctly normalized density. Because the samples come from the reference
+    -- NOT the model's own sampler -- this estimate is sensitive to a uniform
+    scale error in f (a density scaled by a constant everywhere returns that
+    constant instead of 1.0), which the shape-only flatness check cannot see.
+
+    Returns (estimate, stderr), or (nan, nan) when no self-contained reference
+    density is available for the declared measure.
+    """
+    channel, g_ref = _reference_channel(model, signature)
+    if channel is None:
+        return float("nan"), float("nan")
+
+    ratios = []
+    for _ in range(n):
+        out_rec = _blank_like(template)
+        channel.Sample(random, None, out_rec)
+        f_i = float(model.FinalStateProbability(out_rec))
+        if not math.isfinite(f_i) or f_i < 0.0:
+            f_i = 0.0
+        ratios.append(f_i / g_ref)
+
+    if not ratios:
+        return float("nan"), float("nan")
+    m = len(ratios)
+    mean = sum(ratios) / m
+    if m > 1:
+        var = sum((r - mean) ** 2 for r in ratios) / (m - 1)
+        stderr = math.sqrt(var / m)
+    else:
+        stderr = float("inf")
+    return mean, stderr
 
 
 def _boost_to_rest(momentum, mass):
@@ -427,12 +568,24 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
         return ClosureReport(
             ok=False,
             normalization=(float("nan"), float("nan")),
+            flatness=(float("nan"), float("nan")),
             moment_z={},
             worst_region="",
             frame_check=None,
             notes=["every drawn sample has FinalStateProbability <= 0; "
                    "sampler and density cannot be compared"],
         )
+
+    # Absolute normalization: integrate FinalStateProbability against a
+    # reference channel whose density over the declared measure is known. This
+    # is the only diagnostic that catches a uniform scale error in the density;
+    # populated only when a self-contained reference exists (SolidAngleRest
+    # 2-body). A separate validation stream so it does not perturb the draw
+    # already consumed above.
+    norm_random = _utilities.SIREN_random((int(seed) & 0x7FFFFFFF) ^ 0x5A5A5A5A)
+    norm_est, norm_err = _estimate_absolute_normalization(
+        model, template, signature, norm_random, n)
+    has_reference = math.isfinite(norm_est)
 
     # Empirical sampling density g_i via a 1-D histogram of the fallback
     # coordinate (cos theta of the first secondary, read in the measure's
@@ -487,11 +640,14 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
         hi = lo + bin_width
         bin_ratio_info.append((lo, hi, ratio, count))
 
-    # Closure holds when f_i / g_i is FLAT across bins. Its absolute scale
+    # Flatness (SHAPE-only) check. f_i / g_i must be FLAT across bins for the
+    # sampler and density to describe the same distribution. Its absolute scale
     # carries a fixed measure/marginalization constant (f is a density over the
     # full measure; g is the 1-D cos(theta) marginal), so the gauge normalizes
     # each bin ratio by the weighted mean and tests that the normalized profile
-    # sits at 1.0. A sampler/density mismatch bends the profile away from flat.
+    # sits at 1.0. A shape mismatch bends the profile away from flat, but a
+    # UNIFORM scale error cancels in the self-normalization and is invisible
+    # here -- the absolute normalization check above is what catches that.
     if ratios:
         total_w = sum(ratio_weights)
         scale = sum(r * w for r, w in zip(ratios, ratio_weights)) / total_w
@@ -522,8 +678,8 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
                 best = (lo, hi, norm, count, z)
         if best is not None:
             lo, hi, norm, _count, z = best
-            worst_region = ("cost in [%.2f, %.2f): ratio %.2f (z=%.1f)"
-                             % (lo, hi, norm, z))
+            worst_region = ("%s in [%.2f, %.2f): ratio %.2f (z=%.1f)"
+                             % (coord_name, lo, hi, norm, z))
 
     # Per-DensityVariable moment check: self-normalized importance-weighted
     # mean of the fallback coordinate vs its plain sampled mean. Only one
@@ -548,11 +704,32 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
 
     frame_note = _frame_check(model, template, drawn)
 
-    # A flat normalized profile passes; the gauge fails when any well-populated
-    # bin's normalized ratio deviates from 1.0 by more than tol_sigma of its own
-    # Poisson-scale uncertainty, or when a declared-variable moment z-score
-    # exceeds tol_sigma. Two or more usable bins are required to see a shape.
+    # The gauge passes only when every populated check passes:
+    #  * the absolute normalization estimate (when a reference density exists)
+    #    is within tol_sigma of 1.0 -- this catches a uniform scale error;
+    #  * the shape profile is flat: no well-populated bin's self-normalized
+    #    ratio deviates from 1.0 by more than tol_sigma of its own Poisson-scale
+    #    uncertainty (two or more usable bins are required to see a shape);
+    #  * no declared-variable moment z-score exceeds tol_sigma.
     ok = math.isfinite(mean_ratio) and len(norm_ratios) >= 2
+
+    if has_reference:
+        if not math.isfinite(norm_est):
+            ok = False
+        elif norm_err > 0.0:
+            if abs(norm_est - 1.0) > tol_sigma * norm_err:
+                ok = False
+        elif abs(norm_est - 1.0) > 1e-9:
+            # Zero stderr means f/g_ref was constant over the samples: the
+            # estimate is exact, so it must equal 1 outright.
+            ok = False
+    else:
+        notes.append(
+            "no self-contained reference density for measure %r; the absolute "
+            "normalization was not checked, so a uniform scale error in "
+            "FinalStateProbability would not be caught (only shape is tested)"
+            % (model.Measure(),))
+
     if ok:
         for (lo, hi, ratio, count), w in zip(bin_ratio_info, ratio_weights):
             norm = ratio / scale if scale > 0.0 else ratio
@@ -567,7 +744,8 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
 
     return ClosureReport(
         ok=ok,
-        normalization=(mean_ratio, stderr),
+        normalization=(norm_est, norm_err),
+        flatness=(mean_ratio, stderr),
         moment_z=moment_z,
         worst_region=worst_region,
         frame_check=frame_note,

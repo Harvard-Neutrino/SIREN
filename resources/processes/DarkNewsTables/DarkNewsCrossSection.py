@@ -224,7 +224,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     % inputs[0]
                 )
                 return 0
-            val = max(0, interpolator(inputs))
+            val = interpolator(inputs)
             if hasattr(val, "item"):
                 val = val.item()
             if val < 0:
@@ -237,6 +237,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                         inputs,
                     )
                 )
+                val = 0
             return val
 
         UseSinglePoint, Interpolate, closest_idx = self._interpolation_flags(
