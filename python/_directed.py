@@ -12,7 +12,7 @@ of the same Decay model).
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Union
+from typing import Dict, Union
 
 from . import channels as _channels
 from .errors import ConfigurationError

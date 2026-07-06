@@ -17,8 +17,6 @@ holds it via a pybind trampoline pointer.
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Sequence, Tuple, Union
-
 from . import particles as _particles
 from . import expand as _expand
 from .errors import ConfigurationError
