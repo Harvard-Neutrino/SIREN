@@ -43,6 +43,18 @@ _MIN_SAMPLES = 200
 _MIN_BIN_COUNT = 5
 _N_BINS = 20
 
+# Below this empirical cos(theta) spread the coordinate is single-valued: it
+# carries no shape, so the flatness shape check has nothing to gauge and the
+# empirical-range rebin would divide by ~0. Above it the rebin resolves the
+# shape a cone-directed or forward-collapsed sampler actually populates.
+_EMPIRICAL_MIN_WIDTH = 1e-9
+
+# Below this spread a coordinate is treated as kinematically pinned for the
+# purpose of CHOOSING which secondary to read: binning a micro-range
+# amplifies Poisson noise into spurious moment shifts, so the gauge prefers
+# a secondary whose angular spread is at least this wide.
+_RESOLVABLE_MIN_WIDTH = 1e-3
+
 # Result cache keyed on the model INSTANCE (via a WeakKeyDictionary) so that
 # two objects of the same class with different internal state never collide,
 # and a cached report dies with the model that produced it. Each instance maps
@@ -525,20 +537,29 @@ def _frame_check(model, template, samples_xy):
 
 
 def _coordinate_frame(model):
-    """Which frame the empirical coordinate is read in, from the declared
-    measure. SolidAngleRest densities are flat over rest-frame solid angle, so
-    the coordinate must be the rest-frame cos(theta) for the sampler/density
-    ratio to be flat; SolidAngleLab uses the lab frame.
+    """Which frame the empirical coordinate is read in.
 
-    Recursive2Body factors the final state into a spectator plus a pair whose
-    overall orientation is isotropic in the parent (or centre-of-mass) rest
-    frame; the spectator's rest-frame cos(theta) therefore carries the full
-    [-1, 1] spread the fallback coordinate needs. In the lab frame a boosted
-    parent collimates every secondary to cos(theta) ~ 1 (a single bin, stderr
-    inf), so the lab coordinate is degenerate for exactly these measures. Read
-    the rest-frame coordinate for Recursive2Body too. Other measures default to
-    the lab frame with a descriptive label.
+    Scatter topologies (Scatter2to2/Scatter2to3) read the collision
+    centre-of-mass frame: the secondaries are isotropic (or, for a forward
+    process, symmetric) about the beam axis in the CM, so the CM cos(theta) is
+    the coordinate against which the sampler/density ratio is flat. The lab
+    frame collimates every secondary of a fixed-target scatter to cos(theta) ~ 1
+    (a single bin, stderr inf), and the primary rest frame is the wrong frame
+    entirely for a two-body collision. The CM boost is by the total 4-momentum
+    primary + target-at-rest (see _cm_boost).
+
+    Otherwise the frame follows the declared measure. SolidAngleRest densities
+    are flat over rest-frame solid angle, so the coordinate is the parent
+    rest-frame cos(theta); SolidAngleLab uses the lab frame. Recursive2Body
+    factors the final state into a spectator plus a pair whose orientation is
+    isotropic in the parent rest frame, so its coordinate is the rest-frame
+    cos(theta) too. Other measures default to the lab frame with a descriptive
+    label.
     """
+    topology = model.Topology()
+    if topology in (_injection.PhaseSpaceTopology.Scatter2to2,
+                    _injection.PhaseSpaceTopology.Scatter2to3):
+        return "cm"
     mtype = model.Measure().type
     if mtype in (_injection.PhaseSpaceMeasureType.SolidAngleRest,
                  _injection.PhaseSpaceMeasureType.Recursive2Body):
@@ -546,19 +567,101 @@ def _coordinate_frame(model):
     return "lab"
 
 
-def _extract_coordinate(out_rec, template, frame, boost):
-    """cos(theta) of the first secondary, in the frame the measure declares.
+def _cm_boost(template):
+    """Boost into the collision centre-of-mass frame for a scatter template.
 
-    The single fallback coordinate for the normalization/moment checks. Read in
-    the parent rest frame for a rest-frame measure (so f/g is flat for a
-    correct sampler) and in the lab frame otherwise.
+    The CM frame is the rest frame of the total 4-momentum primary +
+    target-at-rest; its invariant mass is sqrt(s). Falls back to the identity
+    when no target mass is present (a decay template) so the caller can use one
+    code path for every frame.
     """
-    if not out_rec.secondary_momenta:
+    p_primary = list(template.primary_momentum)
+    m_target = getattr(template, "target_mass", 0.0) or 0.0
+    total = [p_primary[0] + m_target, p_primary[1], p_primary[2], p_primary[3]]
+    s = total[0] ** 2 - (total[1] ** 2 + total[2] ** 2 + total[3] ** 2)
+    if s <= 0.0:
+        return lambda p4: p4
+    return _boost_to_rest(total, math.sqrt(s))
+
+
+def _coordinate_secondary_index(model):
+    """Which secondary's direction is the fallback coordinate.
+
+    A Recursive2Body final state factors into a spectator plus a pair whose
+    orientation is isotropic in the parent (or CM) rest frame; the SPECTATOR
+    carries that isotropic orientation, so its cos(theta) is the coordinate f/g
+    is flat in. A pair member's individual direction convolves the pair
+    orientation with the sub-decay angle and is NOT flat, so reading it would
+    manufacture a shape mismatch that is not in the density. Every other measure
+    reads the first secondary.
+    """
+    measure = model.Measure()
+    if measure.type == _injection.PhaseSpaceMeasureType.Recursive2Body:
+        spectator = getattr(measure, "spectator", 0)
+        if spectator is not None:
+            return int(spectator)
+    return 0
+
+
+def _extract_coordinate(out_rec, template, frame, boost, index=0):
+    """cos(theta) of the selected secondary, in the frame the gauge selected.
+
+    The single fallback coordinate for the flatness/moment checks. Read in the
+    parent rest frame for a rest-frame measure and in the collision CM frame for
+    a scatter topology (so f/g is flat for a correct sampler); in the lab frame
+    otherwise. Any non-lab frame applies the supplied boost. index selects which
+    secondary is read (the Recursive2Body spectator; see
+    _coordinate_secondary_index).
+    """
+    if not out_rec.secondary_momenta or index >= len(out_rec.secondary_momenta):
         return None
-    p4 = list(out_rec.secondary_momenta[0])
-    if frame == "rest":
+    p4 = list(out_rec.secondary_momenta[index])
+    if frame != "lab":
         p4 = boost(p4)
     return _costheta(p4)
+
+
+def _bin_ratios(coords, valid_idx, f_values, lo, hi, n_bins=_N_BINS):
+    """Histogram f/g over [lo, hi] and return the per-bin ratio profile.
+
+    Returns (bin_ratio_info, ratios, ratio_weights): bin_ratio_info is a list of
+    (bin_lo, bin_hi, ratio, count) for every bin with at least _MIN_BIN_COUNT
+    samples, and ratios/ratio_weights are the parallel ratio and count lists.
+    g_b is the sampled fraction in the bin divided by the bin width; the ratio
+    is the mean FinalStateProbability in the bin over g_b. A bin below the count
+    floor is dropped so a sparse tail does not manufacture a spurious deviation.
+    """
+    width = hi - lo
+    if width <= 0.0:
+        return [], [], []
+    bin_width = width / n_bins
+    bin_counts = [0] * n_bins
+    bin_members = [[] for _ in range(n_bins)]
+    for local_i, c in enumerate(coords):
+        cc = min(max(c, lo), hi)
+        idx = min(int((cc - lo) / width * n_bins), n_bins - 1)
+        bin_counts[idx] += 1
+        bin_members[idx].append(valid_idx[local_i])
+
+    n_valid = len(coords)
+    ratios = []
+    ratio_weights = []
+    bin_ratio_info = []
+    for b in range(n_bins):
+        count = bin_counts[b]
+        if count < _MIN_BIN_COUNT or n_valid == 0:
+            continue
+        g_b = count / float(n_valid) / bin_width
+        f_mean_b = sum(f_values[i] for i in bin_members[b]) / count
+        if g_b <= 0.0:
+            continue
+        ratio = f_mean_b / g_b
+        ratios.append(ratio)
+        ratio_weights.append(count)
+        b_lo = lo + b * bin_width
+        b_hi = b_lo + bin_width
+        bin_ratio_info.append((b_lo, b_hi, ratio, count))
+    return bin_ratio_info, ratios, ratio_weights
 
 
 def _check_closure_model(model, *, primary_energy, target, samples, seed,
@@ -604,50 +707,83 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
     # every topology has at least one secondary whose direction can be read off
     # the record.
     frame = _coordinate_frame(model)
-    boost = _boost_to_rest(template.primary_momentum, template.primary_mass)
-    coord_name = "costheta_secondary0_%s" % frame
-    coords = []
-    valid_idx = []
-    for i, (out_rec, f_i) in enumerate(drawn):
-        c = _extract_coordinate(out_rec, template, frame, boost)
-        if c is None:
-            continue
-        coords.append(c)
-        valid_idx.append(i)
+    if frame == "cm":
+        boost = _cm_boost(template)
+    else:
+        boost = _boost_to_rest(template.primary_momentum, template.primary_mass)
+    sec_index = _coordinate_secondary_index(model)
+
+    def _collect(index):
+        cs, vi = [], []
+        for i, (out_rec, _f_i) in enumerate(drawn):
+            c = _extract_coordinate(out_rec, template, frame, boost, index)
+            if c is None:
+                continue
+            cs.append(c)
+            vi.append(i)
+        return cs, vi
+
+    coords, valid_idx = _collect(sec_index)
+
+    # The gauge bins the f/g ratio, so any secondary with resolvable angular
+    # spread is a valid coordinate; a kinematically pinned one (e.g. a heavy
+    # recoil nucleus collinear in the CM) carries no shape and would force the
+    # micro-range rebin to amplify noise. When the preferred secondary is
+    # degenerate, read the secondary with the largest spread instead.
+    def _spread(cs):
+        return (max(cs) - min(cs)) if cs else 0.0
+
+    if _spread(coords) < _RESOLVABLE_MIN_WIDTH:
+        n_sec = len(template.secondary_masses)
+        best = (sec_index, coords, valid_idx, _spread(coords))
+        for alt in range(n_sec):
+            if alt == sec_index:
+                continue
+            cs, vi = _collect(alt)
+            if _spread(cs) > best[3]:
+                best = (alt, cs, vi, _spread(cs))
+        if best[0] != sec_index and best[3] >= _RESOLVABLE_MIN_WIDTH:
+            notes.append(
+                "secondary %d cos(theta) is kinematically pinned "
+                "(spread %.3g); reading secondary %d (spread %.3g) instead"
+                % (sec_index, _spread(coords), best[0], best[3]))
+            sec_index, coords, valid_idx = best[0], best[1], best[2]
+
+    coord_name = "costheta_secondary%d_%s" % (sec_index, frame)
 
     if len(coords) < _MIN_SAMPLES:
         notes.append(
             "fewer than %d samples had an extractable coordinate; "
             "normalization/moment estimates are unreliable" % _MIN_SAMPLES)
 
-    n_bins = _N_BINS
-    bin_width = 2.0 / n_bins
-    bin_counts = [0] * n_bins
-    bin_members = [[] for _ in range(n_bins)]
-    for local_i, c in enumerate(coords):
-        cc = min(max(c, -1.0), 1.0)
-        idx = min(int((cc + 1.0) / 2.0 * n_bins), n_bins - 1)
-        bin_counts[idx] += 1
-        bin_members[idx].append(valid_idx[local_i])
-
-    n_valid = len(coords)
-    ratios = []
-    ratio_weights = []
-    bin_ratio_info = []
-    for b in range(n_bins):
-        count = bin_counts[b]
-        if count < _MIN_BIN_COUNT or n_valid == 0:
-            continue
-        g_b = count / float(n_valid) / bin_width
-        f_mean_b = sum(f_values[i] for i in bin_members[b]) / count
-        if g_b <= 0.0:
-            continue
-        ratio = f_mean_b / g_b
-        ratios.append(ratio)
-        ratio_weights.append(count)
-        lo = -1.0 + b * bin_width
-        hi = lo + bin_width
-        bin_ratio_info.append((lo, hi, ratio, count))
+    # Bin f/g over the coordinate. The primary binning spans the full [-1, 1]
+    # cos(theta) domain. When a forward-collapsed or cone-directed sampler leaves
+    # every sample in one [-1, 1] bin (fewer than two populated bins), the shape
+    # is unresolved there, so rebin over the empirical coordinate range
+    # [min(c), max(c)] to gauge the shape the sampler actually populates. The
+    # fallback fires only when the primary binning is degenerate, so a healthy
+    # model keeps its [-1, 1] bins unchanged. A zero-width empirical range is a
+    # single-valued coordinate carrying no shape and is guarded below.
+    bin_ratio_info, ratios, ratio_weights = _bin_ratios(
+        coords, valid_idx, f_values, -1.0, 1.0)
+    shape_unresolved = False
+    if len(ratios) < 2 and coords:
+        c_lo = min(coords)
+        c_hi = max(coords)
+        if c_hi - c_lo > _EMPIRICAL_MIN_WIDTH:
+            bin_ratio_info, ratios, ratio_weights = _bin_ratios(
+                coords, valid_idx, f_values, c_lo, c_hi)
+            coord_name += "_empirical"
+            notes.append(
+                "cos(theta) collapsed to a single [-1, 1] bin; the flatness "
+                "shape was gauged over the empirical range [%.4g, %.4g]"
+                % (c_lo, c_hi))
+        else:
+            shape_unresolved = True
+            notes.append(
+                "cos(theta) is single-valued (empirical width %.2e <= %.0e); "
+                "the coordinate carries no shape, so the flatness shape check "
+                "is trivially satisfied" % (c_hi - c_lo, _EMPIRICAL_MIN_WIDTH))
 
     # Flatness (SHAPE-only) check. f_i / g_i must be FLAT across bins for the
     # sampler and density to describe the same distribution. Its absolute scale
@@ -690,28 +826,71 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
             worst_region = ("%s in [%.2f, %.2f): ratio %.2f (z=%.1f)"
                              % (coord_name, lo, hi, norm, z))
 
-    # Per-DensityVariable moment check: self-normalized importance-weighted
-    # mean of the fallback coordinate vs its plain sampled mean. Only one
+    # Per-DensityVariable moment check: the coordinate's density mean vs its
+    # sampled mean, built from the SAME flatness bins so it gauges shape at the
+    # flatness resolution rather than a frame mismatch. The density mean
+    # reweights each bin's occupancy by the bin's self-normalized flatness ratio
+    # r_b = ratio_b / scale (the density-over-sampler shape there); the sampled
+    # mean weights bins by occupancy alone. Their difference is driven purely by
+    # r_b deviating from 1. The uncertainty on that difference propagates each
+    # bin's Poisson relative error 1/sqrt(count_b) through the same weights, so
+    # the z-score is a fixed-scale test statistic: when the sampler matches the
+    # density r_b = 1 +/- 1/sqrt(count_b) is pure noise and the shift stays within
+    # its own uncertainty (z ~ O(1) independent of sample count), while a real
+    # shape mismatch drives r_b systematically off 1 and lifts z. Only one
     # fallback coordinate is available (see _extract_coordinate), so every
-    # declared DensityVariable name is reported against the same coordinate;
-    # this is documented here rather than silently mislabeled.
+    # declared DensityVariable name is reported against it.
     density_vars = list(model.DensityVariables())
     moment_z = {}
-    if coords and math.isfinite(mean_ratio):
-        sample_mean = sum(coords) / len(coords)
-        f_subset = [f_values[i] for i in valid_idx]
-        f_sum = sum(f_subset)
-        if f_sum > 0.0:
-            analytic_mean = sum(c * f for c, f in zip(coords, f_subset)) / f_sum
-            sample_var = (sum((c - sample_mean) ** 2 for c in coords)
-                          / max(len(coords) - 1, 1))
-            se = math.sqrt(sample_var / len(coords)) if len(coords) > 1 else float("inf")
-            z = (sample_mean - analytic_mean) / se if se > 0.0 else 0.0
-            labels = density_vars if density_vars else [coord_name]
-            for label in labels:
-                moment_z[label] = z
+    if bin_ratio_info and scale > 0.0 and not shape_unresolved:
+        total_count = sum(count for _lo, _hi, _r, count in bin_ratio_info)
+        if total_count > 0:
+            centers = [0.5 * (lo + hi) for lo, hi, _r, _c in bin_ratio_info]
+            occ = [count / total_count for _lo, _hi, _r, count in bin_ratio_info]
+            r_b = [ratio / scale for _lo, _hi, ratio, _c in bin_ratio_info]
+            dens_w = [o * r for o, r in zip(occ, r_b)]
+            dens_norm = sum(dens_w)
+            sample_mean = sum(c * o for c, o in zip(centers, occ))
+            if dens_norm > 0.0:
+                density_mean = sum(c * w for c, w in zip(centers, dens_w)) / dens_norm
+                # Propagate each bin's Poisson error on r_b (relative 1/sqrt(count))
+                # through the density-mean weights; the shift is measured against
+                # this estimator uncertainty so the z does not grow with N.
+                var = 0.0
+                for (lo, hi, ratio, count), c, o in zip(bin_ratio_info, centers, occ):
+                    r = ratio / scale
+                    d_shift = o * r * (c - density_mean) / dens_norm
+                    rel = 1.0 / math.sqrt(count)
+                    var += (d_shift * rel) ** 2
+                sigma = math.sqrt(var)
+                z = (density_mean - sample_mean) / sigma if sigma > 0.0 else 0.0
+                labels = density_vars if density_vars else [coord_name]
+                for label in labels:
+                    moment_z[label] = z
 
     frame_note = _frame_check(model, template, drawn)
+
+    # The single-coordinate flatness/moment construction compares the mean
+    # JOINT density in a bin against the bin's occupancy. Those agree under
+    # perfect closure only when the joint density is constant along the
+    # dimensions the coordinate integrates out: single-dof measures
+    # (SolidAngleRest 2-body, MandelstamQ2 2->2) and decays whose overall
+    # orientation is isotropic. A Scatter2to3 Recursive2Body density is
+    # forward-peaked in the pair angle, so the per-bin ratio varies even when
+    # sampler and density agree exactly -- the shape verdict has no
+    # jurisdiction there and must not gate ok in either direction. The
+    # mixture-level E[f/g] closure test is the authoritative statement for
+    # such processes.
+    shape_applicable = not (
+        model.Topology() == _injection.PhaseSpaceTopology.Scatter2to3
+        and model.Measure().type
+            == _injection.PhaseSpaceMeasureType.Recursive2Body)
+    if not shape_applicable:
+        notes.append(
+            "shape verdict not applicable: the joint density of a Scatter2to3 "
+            "Recursive2Body process varies along integrated-out dimensions, so "
+            "bin ratios are not flat even under perfect closure; certify this "
+            "model with a mixture-level E[f/g] closure test")
 
     # The gauge passes only when every populated check passes:
     #  * the absolute normalization estimate (when a reference density exists)
@@ -720,7 +899,11 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
     #    ratio deviates from 1.0 by more than tol_sigma of its own Poisson-scale
     #    uncertainty (two or more usable bins are required to see a shape);
     #  * no declared-variable moment z-score exceeds tol_sigma.
-    ok = math.isfinite(mean_ratio) and len(norm_ratios) >= 2
+    # A single-valued coordinate carries no shape, so the flatness requirement is
+    # trivially satisfied and does not gate ok (the normalization and moment
+    # checks still apply).
+    ok = ((not shape_applicable) or shape_unresolved
+          or (math.isfinite(mean_ratio) and len(norm_ratios) >= 2))
 
     if has_reference:
         if not math.isfinite(norm_est):
@@ -739,7 +922,7 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
             "FinalStateProbability would not be caught (only shape is tested)"
             % (model.Measure(),))
 
-    if ok:
+    if ok and shape_applicable:
         for (lo, hi, ratio, count), w in zip(bin_ratio_info, ratio_weights):
             norm = ratio / scale if scale > 0.0 else ratio
             # Poisson relative error on the bin's occupancy sets the tolerance.
@@ -747,9 +930,10 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
             if abs(norm - 1.0) > tol_sigma * rel:
                 ok = False
                 break
-    for z in moment_z.values():
-        if math.isfinite(z) and abs(z) > tol_sigma:
-            ok = False
+    if shape_applicable:
+        for z in moment_z.values():
+            if math.isfinite(z) and abs(z) > tol_sigma:
+                ok = False
 
     return ClosureReport(
         ok=ok,
