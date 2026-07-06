@@ -17,6 +17,7 @@
 #include <vector>
 #include <array>
 #include <sstream>
+#include <fstream>
 
 #include "SIREN/utilities/Random.h"
 #include "SIREN/dataclasses/Particle.h"
@@ -52,6 +53,13 @@ static const std::string ccm_hnl_diff_xsec_table_path = "/home/nwkamp/Research/P
 
 static const std::string ccm_hnl_material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/materials/CCM.dat";
 static const std::string ccm_hnl_detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/densities/PREM_ccm.dat";
+
+// True only when the hardcoded material/detector data files exist, so a test
+// can GTEST_SKIP() rather than abort on environments without the private data.
+inline bool CCMHNLDataPresent() {
+    return std::ifstream(ccm_hnl_material_file).good()
+        && std::ifstream(ccm_hnl_detector_file).good();
+}
 
 static const double ccm_hnl_mass = 0.01375; // in GeV; The HNL mass we are injecting
 static const double ccm_hnl_dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength

@@ -165,6 +165,9 @@ TEST(Injector, Generation)
 {
     using ParticleType = ParticleType;
 
+    if(!siren::injection::test::CCMHNLDataPresent()) {
+        GTEST_SKIP() << "CCM_HNL data files are not present in this environment";
+    }
 
     // Load the detector model
     std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
@@ -353,6 +356,9 @@ TEST(Injector, Generation)
 // generated tree, across the full upper-injector CCM dipole-HNL chain.
 TEST(Injector, BreakdownInvariant)
 {
+    if(!siren::injection::test::CCMHNLDataPresent()) {
+        GTEST_SKIP() << "CCM_HNL data files are not present in this environment";
+    }
     siren::injection::test::CCMHNLFixture fixture = siren::injection::test::MakeCCMHNLFixture();
 
     unsigned int checked = 0;
