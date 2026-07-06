@@ -10,9 +10,8 @@ read structures the engine already produced.
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
-from . import injection as _injection
 from . import particles as _particles
 
 

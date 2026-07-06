@@ -233,13 +233,18 @@ def validate_expansion_wiring(vertices):
                         f"particle {name!r}. Fix: register a Vertex for "
                         f"{name!r}, or remove this expand rule."
                     )
+            # A depth_below rule (no named particle) expands every secondary,
+            # so all of this vertex's secondary types become reachable.
+            if not _expand_rule_names(rule):
+                for t in (getattr(v, "secondary_types", None) or []):
+                    named_children.add(_particles.resolve(t))
 
     # (b) a registered secondary Vertex unreachable from any expand list.
-    root = vertices[0].particle if vertices else None
+    root = _particles.resolve(vertices[0].particle) if vertices else None
     for v in vertices:
-        if v.particle == root:
-            continue
         ptype = _particles.resolve(v.particle)
+        if ptype == root:
+            continue
         if ptype not in named_children:
             raise ConfigurationError(
                 f"Vertex {v.particle!r} is registered but unreachable: no "
@@ -288,13 +293,14 @@ def check_expand_vs_legacy_stopping(has_legacy_stopping, has_expand_or_continue_
 
 
 def validate_secondary_keys(*dicts_with_labels):
-    """Check that every secondary-keyed dict shares the interactions keys.
+    """Check that no secondary-keyed dict carries an unknown key.
 
     Each argument is a (label, mapping) pair. The first pair is the reference
-    key set (the secondary interactions); every other mapping must key on
-    exactly the same ParticleTypes. A typo'd or missing key raises
-    ConfigurationError naming the offending mapping and the key difference,
-    so a phase-space or weighting-mode dict cannot silently miss a secondary.
+    key set (the secondary interactions); every other mapping's keys must be a
+    subset of it. An EXTRA key -- a phase-space or weighting-mode entry for a
+    particle with no registered interaction -- raises ConfigurationError, since
+    it is almost always a typo. A MISSING key is allowed: not every secondary
+    needs a custom phase space or weighting mode.
     """
     pairs = [(label, mapping) for label, mapping in dicts_with_labels
              if mapping is not None]

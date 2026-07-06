@@ -147,7 +147,6 @@ class Injector:
         """
         from . import _validation
         from . import expand as _expand
-        from . import errors as _errors
 
         if self.__seed is None:
             random = _utilities.SIREN_random()
@@ -218,11 +217,13 @@ class Injector:
         back into the same private fields the legacy path populates, so a
         single assembly path serves both surfaces.
         """
-        from . import errors as _errors
-        if self.__stopping_condition is not None:
-            _validation.check_expand_vs_legacy_stopping(True, True)
-
         primary = self.__primary_vertex
+        all_vertices = [primary] + list(self.__secondary_vertices)
+        has_expand = any(v.expand or v.continue_if is not None
+                         for v in all_vertices)
+        _validation.check_expand_vs_legacy_stopping(
+            self.__stopping_condition is not None, has_expand)
+
         self.__keepalive.append(primary)
         self.__primary_type = primary._resolved_particle
         self.__primary_interactions = list(primary.interactions)
@@ -236,7 +237,9 @@ class Injector:
             self.__secondary_injection_distributions[ptype] = list(sv.distributions)
             specs.append(sv.as_vertex_spec())
 
-        if self.__secondary_vertices:
+        # Compile the expansion callable only when the spec actually declares
+        # expansion; a legacy stopping_condition alone passes through untouched.
+        if self.__secondary_vertices and has_expand:
             _validation.validate_expansion_wiring(specs)
             self.__stopping_condition = _expand.compile_expansion(specs)
 
@@ -332,6 +335,11 @@ class Injector:
         max_attempts = self.__max_attempts
         if max_attempts is None:
             max_attempts = events * 1000
+
+        # The engine throws once its own attempt quota (events_to_inject) is
+        # reached, so raise that quota to the retry budget; otherwise a
+        # sub-unity efficiency could never reach `events` successes.
+        self.__injector.ResetInjectedEvents(max_attempts)
 
         # Give the efficiency estimate a minimum sample before it can abort, so
         # an unlucky early run is not cut short.
