@@ -701,18 +701,13 @@ class Simulation:
 
             channels.append(
                 _injection.DetectorDirected3BodyChannel(
-                    target,
-                    spectator_idx,
-                    pair_indices[0],
-                    pair_indices[1],
-                    directed_pair_idx,
+                    factorization=_injection.ThreeBodyMode.Recursive,
+                    target=target,
+                    spectator_index=spectator_idx,
+                    pair_first_index=pair_indices[0],
+                    pair_second_index=pair_indices[1],
+                    directed_index=directed_pair_idx,
                 ))
-            weights.append(fraction)
-
-        elif isinstance(interaction, _interactions.CrossSection):
-            channels.append(
-                _injection.DetectorDirectedScatteringChannel(
-                    target, daughter_idx))
             weights.append(fraction)
 
         # Normalize

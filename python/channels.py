@@ -440,7 +440,8 @@ def toward_3body(directed: Union[int, str], target, *,
         )
         if strategy == "direct":
             return siren.injection.DetectorDirected3BodyChannel(
-                target, directed_idx, **common_kwargs)
+                factorization=siren.injection.ThreeBodyMode.Direct,
+                target=target, directed_index=directed_idx, **common_kwargs)
 
         n_sec = len(signature.secondary_types)
         if spectator is None:
@@ -455,8 +456,10 @@ def toward_3body(directed: Union[int, str], target, *,
                 "index {} for signature {}".format(directed_idx, spectator_idx, signature))
         pair_first_idx, pair_second_idx = others[0], others[1]
         return siren.injection.DetectorDirected3BodyChannel(
-            target, spectator_idx, pair_first_idx, pair_second_idx,
-            directed_idx, **common_kwargs)
+            factorization=siren.injection.ThreeBodyMode.Recursive,
+            target=target, spectator_index=spectator_idx,
+            pair_first_index=pair_first_idx, pair_second_index=pair_second_idx,
+            directed_index=directed_idx, **common_kwargs)
 
     label = "toward_3body({!r}, strategy={!r})".format(directed, strategy)
     return Channel(factory, weight=1.0, label=label)

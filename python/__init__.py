@@ -51,6 +51,36 @@ from . import Weighter
 injection.Weighter = Weighter.Weighter
 del Weighter
 
+# The proxy exists so legacy PhaseSpaceConvention enum-value access warns once
+# while still returning the real _PhaseSpaceConvention enum member, which C++
+# signatures and channel-value comparisons continue to accept.
+import warnings as _psc_warnings
+
+
+class _PhaseSpaceConventionProxy:
+    _MSG = (
+        "PhaseSpaceConvention is deprecated; use PhaseSpaceMeasure (siren.Measure). "
+        "Mapping: RestFrameSolidAngle -> Measure.SolidAngleRest(), "
+        "LabFrameSolidAngle -> Measure.SolidAngleLab(), "
+        "Recursive2Body -> Measure.Recursive2Body(), "
+        "Dalitz -> Measure.DalitzPair(), "
+        "HelicityAngles -> Measure.HelicityAngles(), "
+        "MandelstamST -> Measure.MandelstamQ2(), "
+        "BjorkenXY -> Measure.BjorkenXY(), "
+        "Custom -> a declared PhaseSpaceMeasure."
+    )
+
+    def __getattr__(self, name):
+        value = getattr(injection._PhaseSpaceConvention, name)
+        _psc_warnings.warn(self._MSG, DeprecationWarning, stacklevel=2)
+        return value
+
+    def __repr__(self):
+        return "<deprecated PhaseSpaceConvention proxy; use siren.Measure>"
+
+
+injection.PhaseSpaceConvention = _PhaseSpaceConventionProxy()
+
 dataclasses.Particle.ParticleType = dataclasses.ParticleType
 
 def darknews_version():

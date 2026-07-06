@@ -687,3 +687,92 @@ def test_builder_tiles_optimize_and_stay_unbiased():
         if g > 0 and math.isfinite(g):
             ws.append(f / g)
     assert 0.9 <= np.mean(ws) <= 1.1
+
+
+# ------------------------------------------------------------------ #
+#  3-body ctor: keyword form is byte-identical to positional forms    #
+# ------------------------------------------------------------------ #
+
+import warnings  # noqa: E402
+
+
+def _make_3body_record(M=1.0, E=3.0, masses=(0.1, 0.05, 0.1)):
+    pz = math.sqrt(max(E * E - M * M, 0.0))
+    rec = siren.dataclasses.InteractionRecord()
+    sig = siren.dataclasses.InteractionSignature()
+    sig.primary_type = siren.dataclasses.ParticleType(211)
+    sig.secondary_types = [
+        siren.dataclasses.ParticleType(-13),
+        siren.dataclasses.ParticleType(14),
+        siren.dataclasses.ParticleType(5922),
+    ]
+    rec.signature = sig
+    rec.primary_mass = M
+    rec.primary_momentum = [E, 0.0, 0.0, pz]
+    rec.secondary_masses = list(masses)
+    rec.secondary_momenta = [[0, 0, 0, 0]] * 3
+    rec.secondary_helicities = [0, 0, 0]
+    rec.interaction_vertex = [0, 0, 0]
+    rec.primary_initial_position = [0, 0, 0]
+    return rec
+
+
+def _assert_sample_identity(old, new):
+    ra = siren.utilities.SIREN_random(1234)
+    rb = siren.utilities.SIREN_random(1234)
+    r_old = _make_3body_record()
+    r_new = _make_3body_record()
+    old.Sample(ra, None, r_old)
+    new.Sample(rb, None, r_new)
+    assert r_old.secondary_momenta == r_new.secondary_momenta
+    assert old.Density(None, r_old) == new.Density(None, r_new)
+    assert old.Measure() == new.Measure()
+    assert old.Topology() == new.Topology()
+
+
+def test_3body_direct_keyword_matches_positional():
+    """Direct keyword ctor samples identically to the positional Direct form."""
+    box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        old = siren.injection.DetectorDirected3BodyChannel(box, 2)
+    new = siren.injection.DetectorDirected3BodyChannel(
+        factorization=siren.injection.ThreeBodyMode.Direct, target=box,
+        directed_index=2)
+    _assert_sample_identity(old, new)
+
+
+def test_3body_recursive_keyword_matches_positional():
+    """Recursive keyword ctor samples identically to the positional Recursive form."""
+    box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        old = siren.injection.DetectorDirected3BodyChannel(box, 0, 1, 2, 1)
+    new = siren.injection.DetectorDirected3BodyChannel(
+        factorization=siren.injection.ThreeBodyMode.Recursive, target=box,
+        spectator_index=0, pair_first_index=1, pair_second_index=2,
+        directed_index=1)
+    _assert_sample_identity(old, new)
+
+
+def test_3body_recursive_without_indices_raises():
+    """Recursive factorization without spectator/pair indices raises ConfigurationError."""
+    box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+    with pytest.raises(siren.errors.ConfigurationError):
+        siren.injection.DetectorDirected3BodyChannel(
+            factorization=siren.injection.ThreeBodyMode.Recursive, target=box,
+            directed_index=1)
+
+
+def test_3body_positional_direct_warns():
+    """Positional Direct form emits a DeprecationWarning naming the keyword ctor."""
+    box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+    with pytest.warns(DeprecationWarning, match="factorization=ThreeBodyMode"):
+        siren.injection.DetectorDirected3BodyChannel(box, 2)
+
+
+def test_3body_positional_recursive_warns():
+    """Positional Recursive form emits a DeprecationWarning naming the keyword ctor."""
+    box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+    with pytest.warns(DeprecationWarning, match="factorization=ThreeBodyMode"):
+        siren.injection.DetectorDirected3BodyChannel(box, 0, 1, 2, 1)

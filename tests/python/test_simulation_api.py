@@ -638,11 +638,12 @@ class TestSecondaryBiasing:
         import siren
         fid = siren.get_fiducial_volume("IceCube")
         ch = siren.injection.DetectorDirected3BodyChannel(
-            fid,
+            factorization=siren.injection.ThreeBodyMode.Recursive,
+            target=fid,
             spectator_index=0,
             pair_first_index=1,
             pair_second_index=2,
-            directed_pair_index=1,
+            directed_index=1,
             mass_mode=siren.injection.InvariantMassMode.Uniform,
         )
         assert ch.Name() == "DetectorDirected3Body"
@@ -651,7 +652,9 @@ class TestSecondaryBiasing:
     def test_3body_channel_topology_measure(self):
         import siren
         fid = siren.get_fiducial_volume("IceCube")
-        ch = siren.injection.DetectorDirected3BodyChannel(fid, directed_index=2)
+        ch = siren.injection.DetectorDirected3BodyChannel(
+            factorization=siren.injection.ThreeBodyMode.Direct,
+            target=fid, directed_index=2)
         assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
         assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body(2, 0, 1)
 
@@ -750,6 +753,40 @@ class TestSecondaryBiasing:
         assert abs(siren.injection.Kallen(1.0, 0.0, 0.0) - 1.0) < 1e-14
         p = siren.injection.TwoBodyRestMomentum(0.3, 0.106, 0.140)
         assert p > 0
+
+    def test_builder_dispatches_2body_directed(self):
+        """A 2-secondary signature builds physical@0 + DetectorDirected2Body."""
+        import siren
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        xs = siren.interactions.DummyCrossSection()
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.N4
+        sig.target_type = siren.dataclasses.ParticleType.Decay
+        sig.secondary_types = [siren.particles.NuLight, siren.particles.Gamma]
+        mc = siren.Simulation._build_phase_space_for_signature(
+            box, sig, xs, siren.particles.Gamma)
+        assert isinstance(mc.channels[0],
+                          siren.injection.PhysicalCrossSectionChannel)
+        assert any(isinstance(c, siren.injection.DetectorDirected2BodyChannel)
+                   for c in mc.channels[1:])
+
+    def test_builder_dispatches_3body_directed(self):
+        """A 3-secondary signature builds physical@0 + DetectorDirected3Body."""
+        import siren
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        xs = siren.interactions.DummyCrossSection()
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.N4
+        sig.target_type = siren.dataclasses.ParticleType.Decay
+        sig.secondary_types = [
+            siren.particles.NuLight, siren.particles.EMinus, siren.particles.EPlus]
+        mc = siren.Simulation._build_phase_space_for_signature(
+            box, sig, xs, siren.particles.EMinus,
+            spectator_type=siren.particles.NuLight)
+        assert isinstance(mc.channels[0],
+                          siren.injection.PhysicalCrossSectionChannel)
+        assert any(isinstance(c, siren.injection.DetectorDirected3BodyChannel)
+                   for c in mc.channels[1:])
 
 
 class TestWeighterBatch:
