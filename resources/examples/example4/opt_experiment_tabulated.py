@@ -18,7 +18,7 @@ import siren
 from siren import distributions, injection
 from siren.Injector import Injector
 from siren.Weighter import Weighter
-from siren.optimize import optimize_chain_weights
+from siren.tune import optimize_chain_weights
 
 from DuttaKim_SBND_full_chain import (
     build_onshell_models, build_onshell_phase_spaces, build_geometric_targets,
@@ -30,7 +30,8 @@ from DuttaKim_SBND_full_chain import (
 
 def run_config(name, dk2nu_dir, n, opt_batch, opt_iters, mode, nu=-8.6, seed=42):
     detector_model = siren.utilities.load_detector("SBN", detector="SBND")
-    fiducial = siren.geometry.Box((4.5 + 2.022) * 2, 4.074645 * 2, 5.010 * 2)
+    fiducial = siren.geometry.Box(
+        widths=((4.5 + 2.022) * 2, 4.074645 * 2, 5.010 * 2))
     targets = build_geometric_targets(detector_model, fiducial)
 
     chain = build_onshell_models()
@@ -52,7 +53,7 @@ def run_config(name, dk2nu_dir, n, opt_batch, opt_iters, mode, nu=-8.6, seed=42)
         targets, pion_decay, mass_mode=mode, power_law_nu=nu)
 
     injector = Injector(
-        number_of_events=n, detector_model=detector_model, seed=seed,
+        events=n, detector_model=detector_model, seed=seed,
         primary_type=PION, primary_interactions=[pion_decay],
         primary_injection_distributions=[pion_dist],
         primary_weighting_mode=injection.VertexWeightingMode.Fixed(),

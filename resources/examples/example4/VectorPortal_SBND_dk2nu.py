@@ -15,6 +15,9 @@ Biasing:
     - Event weight accounts for interaction probability
 
 Reference: Dutta et al., PRL 129, 111803 (2022) [arXiv:2110.11944]
+
+Requires dk2nu beam-simulation ROOT files (not shipped with SIREN); set
+DK2NU_DIR to their directory.
 """
 
 import os
@@ -119,7 +122,7 @@ chi_type  = siren.dataclasses.Particle.ParticleType(PDGID_CHI)
 
 # Fiducial volume: Box centered at detector origin
 # SBND TPC active volume is roughly 4m x 4m x 5m
-fiducial = Box(4.0, 4.0, 5.0)
+fiducial = Box(widths=(4.0, 4.0, 5.0))
 
 # ---------------------------------------------------------------------------
 # 3. Set up processes

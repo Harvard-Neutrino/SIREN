@@ -2,6 +2,9 @@
 Scan pi->V1 cone half-angle and compute weighted event counts.
 
 If biasing is correct, sum(weights) should be independent of cone width.
+
+Requires a dk2nu beam-simulation ROOT file (not shipped with SIREN) at
+sources/G4BNB/nubeam_reference.dk2nu.root relative to the run directory.
 """
 
 import os, sys, math, numpy as np, time
@@ -21,7 +24,7 @@ _dk = _su.load_module("dk", os.path.join(_dt, "Dk2nuReader.py"))
 # Load data and detector
 dk = _dk.read_dk2nu("sources/G4BNB/nubeam_reference.dk2nu.root", parent_pdg=[211])
 model = load_detector("SBN", detector="SBND")
-fid = Box(4.0, 4.0, 5.0)
+fid = Box(widths=(4.0, 4.0, 5.0))
 dist = _dk.dk2nu_to_primary_distribution(dk, model, parent_pdg=[211])
 
 pion_t = PT(211); v1p = PT(5922); v1s = PT(5923); chi_t = PT(5917)

@@ -215,7 +215,7 @@ def build_injector():
         return True
 
     injector = siren.injection.Injector(
-        number_of_events=N_EVENTS,
+        events=N_EVENTS,
         detector_model=detector_model,
         seed=12345,
         primary_type=pion_type,

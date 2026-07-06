@@ -115,5 +115,5 @@ injector.secondary_interactions            = secondary_processes
 injector.secondary_injection_distributions = secondary_injection_distributions
 
 print(f"Generating {events_to_inject} events ...")
-events = injector.generate_events()
+events = injector.generate(events_to_inject)
 print(f"Done. Generated {len(events)} events.")

@@ -11,6 +11,9 @@ The pion-first version requires additional biasing on the V1->chi chi
 decay to achieve non-zero injection efficiency.
 
 Reference: Dutta et al., PRL 129, 111803 (2022) [arXiv:2110.11944]
+
+Requires dk2nu beam-simulation ROOT files (not shipped with SIREN); set
+DK2NU_DIR to their directory.
 """
 
 import os
@@ -90,7 +93,7 @@ chi_type = siren.dataclasses.Particle.ParticleType(PDGID_CHI)
 v1_type  = siren.dataclasses.Particle.ParticleType(PDGID_V1)
 
 # Fiducial volume
-fiducial = Box(4.0, 4.0, 5.0)
+fiducial = Box(widths=(4.0, 4.0, 5.0))
 
 # ---------------------------------------------------------------------------
 # 3. Compute chi flux from dk2nu pion spectrum

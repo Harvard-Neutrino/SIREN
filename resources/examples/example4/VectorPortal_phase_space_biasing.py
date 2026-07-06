@@ -242,6 +242,6 @@ def sample_representative_chain(fiducial):
 
 
 if __name__ == "__main__":
-    fiducial_volume = siren.geometry.Box(4.0, 4.0, 5.0)
+    fiducial_volume = siren.geometry.Box(widths=(4.0, 4.0, 5.0))
     for label, density in sample_representative_chain(fiducial_volume).items():
         print(f"{label}: density = {density:.6e}")
