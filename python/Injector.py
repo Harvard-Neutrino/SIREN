@@ -290,9 +290,13 @@ class Injector:
                             secondary_processes, validation_random):
         """Run the detector-dependent ValidateChannelDensities probe.
 
-        Only mixtures actually registered on a process are probed; a probe
-        failure surfaces a sampler/density mismatch before any event is drawn.
+        Only mixtures actually registered on a process are probed. A measure
+        incompatibility is a real configuration error and propagates; a probe
+        that simply cannot run on the synthetic template (unsolvable kinematics,
+        missing target mass) is skipped -- the config-time Mixture.validate()
+        already screened measures without a detector.
         """
+        measure_error = _utilities.MeasureCompatibilityError
         processes = [primary_process] + list(secondary_processes)
         for process in processes:
             ps_map = process.GetPhaseSpaceMap()
@@ -300,10 +304,9 @@ class Injector:
                 try:
                     _validation.probe_channel_densities(
                         mcps, sig, self.__detector_model, validation_random)
-                except (ValueError, TypeError):
-                    # A probe that cannot run data-free (missing target mass,
-                    # unconvertible template) is not a configuration error; the
-                    # config-time Mixture.validate() already screened measures.
+                except measure_error:
+                    raise
+                except (ValueError, TypeError, RuntimeError):
                     continue
 
     def __initialize_injector(self):
