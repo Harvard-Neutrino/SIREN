@@ -4,6 +4,7 @@
 #include "SIREN/injection/PhaseSpaceJacobian.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/utilities/Random.h"
+#include "SIREN/utilities/Errors.h"
 
 #include <algorithm>
 #include <cmath>
@@ -71,10 +72,23 @@ int MeasurePriority(PhaseSpaceMeasure const & m) {
     std::ostringstream oss;
     oss << "ConvertDensity: " << reason << " (from "
         << PhaseSpaceMeasureName(from) << " to " << PhaseSpaceMeasureName(to)
-        << " in " << PhaseSpaceTopologyName(topology) << " topology)";
-    throw std::runtime_error(oss.str());
+        << " in " << PhaseSpaceTopologyName(topology) << " topology; "
+        << "from factorization indices [spectator=" << from.spectator
+        << ", pair_first=" << from.pair_first
+        << ", pair_second=" << from.pair_second << "], "
+        << "to factorization indices [spectator=" << to.spectator
+        << ", pair_first=" << to.pair_first
+        << ", pair_second=" << to.pair_second << "])"
+        << " [siren-docs: errors#measure-compat]";
+    throw siren::utilities::MeasureCompatibilityError(oss.str());
 }
 
+} // anonymous namespace
+
+// ConvertDensity is a public free function (declared in PhaseSpaceChannel.h) so
+// the same measure conversion the mixture uses internally is callable directly
+// from Python.  The file-local ThrowUnconvertible / phase_space_jacobian helpers
+// remain visible to it within this translation unit.
 double ConvertDensity(
     double density,
     PhaseSpaceMeasure const & from,
@@ -212,19 +226,31 @@ double ConvertDensity(
                 to, topology, record);
         }
 
-        // SolidAngleLab <-> others: compose through SolidAngleRest
+        // SolidAngleLab <-> others: compose through SolidAngleRest.
+        // Constraint: the rest<->lab leg uses the parent-rest-frame two-body
+        // boost Jacobian (the :Decay2Body direct handler above); only Decay2Body
+        // reaches it.  For any other topology the boost leg would re-enter this
+        // branch unbounded (no topology-correct CM boost is implemented), so we
+        // fail loud instead of silently applying the wrong-frame two-body boost.
         if (from.type == MType::SolidAngleLab || to.type == MType::SolidAngleLab) {
+            if (topology != PhaseSpaceTopology::Decay2Body)
+                ThrowUnconvertible(
+                    "SolidAngleLab boost conversions are only implemented for "
+                    "Decay2Body topology (the rest<->lab Jacobian is the "
+                    "parent-rest-frame two-body boost; a topology-correct CM "
+                    "boost for scattering is not implemented)",
+                    from, to, topology);
             if (from.type == MType::SolidAngleLab) {
                 double d = ConvertDensity(density, from,
                     PhaseSpaceMeasure::SolidAngleRest(),
-                    PhaseSpaceTopology::Decay2Body, record);
+                    topology, record);
                 return ConvertDensity(d, PhaseSpaceMeasure::SolidAngleRest(),
                     to, topology, record);
             } else {
                 double d = ConvertDensity(density, from,
                     PhaseSpaceMeasure::SolidAngleRest(), topology, record);
                 return ConvertDensity(d, PhaseSpaceMeasure::SolidAngleRest(),
-                    to, PhaseSpaceTopology::Decay2Body, record);
+                    to, topology, record);
             }
         }
     }
@@ -347,22 +373,91 @@ double ConvertDensity(
         from, to, topology);
 }
 
-} // anonymous namespace
-
 // ================================================================ //
 //  MultiChannelPhaseSpace                                            //
 // ================================================================ //
+
+namespace {
+
+// Guard the invariant every sampling/density path relies on: one weight per
+// channel, normalized to sum 1.  A mixture whose weights were mutated directly
+// (public members) without a Normalize() call would otherwise sample from the
+// wrong distribution (the cumulative loop silently dumps the leftover mass on
+// the last channel) or mis-scale the density.  Throw instead.
+void ThrowIfWeightsInconsistent(
+    std::vector<std::shared_ptr<PhaseSpaceChannel>> const & channels,
+    std::vector<double> const & weights,
+    const char * where)
+{
+    if (channels.size() != weights.size()) {
+        std::ostringstream oss;
+        oss << "MultiChannelPhaseSpace::" << where
+            << ": weights size (" << weights.size()
+            << ") does not match channels size (" << channels.size() << ")"
+            << " -- call Normalize() or use the validating constructor"
+            << " [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
+    }
+    double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
+    if (std::abs(sum - 1.0) > 1e-9) {
+        std::ostringstream oss;
+        oss << "MultiChannelPhaseSpace::" << where
+            << ": weights sum to " << sum << ", not 1"
+            << " -- call Normalize() or use the validating constructor"
+            << " [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
+    }
+}
+
+} // anonymous namespace
+
+MultiChannelPhaseSpace::MultiChannelPhaseSpace(
+    std::vector<std::shared_ptr<PhaseSpaceChannel>> channels_,
+    std::vector<double> weights_,
+    bool allow_incompatible)
+    : channels(std::move(channels_)),
+      weights(std::move(weights_)),
+      allow_incompatible_(allow_incompatible)
+{
+    Normalize();
+    ThrowOnIncompatibility();
+}
+
+void MultiChannelPhaseSpace::Normalize() {
+    if (weights.empty() && !channels.empty()) {
+        // Uniform prior: 1/N per channel.
+        weights.assign(channels.size(), 1.0 / static_cast<double>(channels.size()));
+        return;
+    }
+    if (weights.size() != channels.size()) {
+        std::ostringstream oss;
+        oss << "MultiChannelPhaseSpace::Normalize: weights size ("
+            << weights.size() << ") does not match channels size ("
+            << channels.size() << ") [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
+    }
+    double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
+    if (sum <= 0.0) {
+        std::ostringstream oss;
+        oss << "MultiChannelPhaseSpace::Normalize: weight sum is "
+            << sum << " (must be > 0) [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
+    }
+    for (double & w : weights) w /= sum;
+}
 
 int MultiChannelPhaseSpace::Sample(
     std::shared_ptr<siren::utilities::SIREN_random> random,
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     siren::dataclasses::InteractionRecord & record) const
 {
-    WarnOnIncompatibility();
+    ThrowOnIncompatibility();
 
     if (channels.empty()) {
         throw std::runtime_error("MultiChannelPhaseSpace has no channels");
     }
+
+    ThrowIfWeightsInconsistent(channels, weights, "Sample");
 
     double r = random->Uniform(0, 1);
     double cumulative = 0.0;
@@ -385,7 +480,8 @@ double MultiChannelPhaseSpace::ComputeContributions(
     std::vector<double> * weighted,
     std::vector<double> * bare) const
 {
-    WarnOnIncompatibility();
+    ThrowOnIncompatibility();
+    ThrowIfWeightsInconsistent(channels, weights, "ComputeContributions");
 
     PhaseSpaceTopology common_topo = CommonTopology();
     PhaseSpaceMeasure common_meas = CommonMeasure();
@@ -654,8 +750,10 @@ PhaseSpaceConvention MultiChannelPhaseSpace::CommonConvention() const {
     return PhaseSpaceConvention::Custom;
 }
 
-std::vector<std::string> MultiChannelPhaseSpace::ValidateChannels() const {
-    std::vector<std::string> diagnostics;
+std::vector<MultiChannelPhaseSpace::ChannelDiagnostic>
+MultiChannelPhaseSpace::ValidateChannelsDetailed() const {
+    using Severity = ChannelDiagnostic::Severity;
+    std::vector<ChannelDiagnostic> diagnostics;
     if (channels.empty()) return diagnostics;
 
     PhaseSpaceTopology topo0 = channels.front()->Topology();
@@ -666,8 +764,9 @@ std::vector<std::string> MultiChannelPhaseSpace::ValidateChannels() const {
             oss << "Topology mismatch: channel 0 (" << channels[0]->Name()
                 << ") is " << PhaseSpaceTopologyName(topo0)
                 << " but channel " << i << " (" << channels[i]->Name()
-                << ") is " << PhaseSpaceTopologyName(topo_i);
-            diagnostics.push_back(oss.str());
+                << ") is " << PhaseSpaceTopologyName(topo_i)
+                << " [siren-docs: errors#measure-compat]";
+            diagnostics.push_back({Severity::Fatal, oss.str()});
         }
     }
     if (!diagnostics.empty()) return diagnostics;
@@ -684,28 +783,46 @@ std::vector<std::string> MultiChannelPhaseSpace::ValidateChannels() const {
                 << " which is not convertible to "
                 << PhaseSpaceMeasureName(common)
                 << " within " << PhaseSpaceTopologyName(topo0)
-                << " topology";
-            diagnostics.push_back(oss.str());
+                << " topology"
+                << " [siren-docs: errors#measure-compat]";
+            diagnostics.push_back({Severity::Fatal, oss.str()});
         } else {
             std::ostringstream oss;
             oss << "Channel " << i << " (" << channels[i]->Name()
                 << ") uses " << PhaseSpaceMeasureName(meas_i)
                 << "; will auto-convert to "
                 << PhaseSpaceMeasureName(common);
-            diagnostics.push_back(oss.str());
+            diagnostics.push_back({Severity::Info, oss.str()});
         }
     }
     return diagnostics;
 }
 
-void MultiChannelPhaseSpace::WarnOnIncompatibility() const {
-    if (compatibility_warning_emitted) return;
-    auto diagnostics = ValidateChannels();
-    if (!diagnostics.empty()) {
-        for (auto const & d : diagnostics) {
-            std::cerr << "SIREN phase-space: " << d << std::endl;
+std::vector<std::string> MultiChannelPhaseSpace::ValidateChannels() const {
+    std::vector<std::string> messages;
+    for (auto const & d : ValidateChannelsDetailed()) {
+        messages.push_back(d.message);
+    }
+    return messages;
+}
+
+void MultiChannelPhaseSpace::ThrowOnIncompatibility() const {
+    if (allow_incompatible_) return;
+    std::vector<std::string> fatal_messages;
+    for (auto const & d : ValidateChannelsDetailed()) {
+        if (d.severity == ChannelDiagnostic::Severity::Fatal) {
+            fatal_messages.push_back(d.message);
         }
-        compatibility_warning_emitted = true;
+        // Info diagnostics are silently permitted: measure auto-conversion is a
+        // supported feature, not an error.
+    }
+    if (!fatal_messages.empty()) {
+        std::ostringstream oss;
+        oss << "MultiChannelPhaseSpace: incompatible channels:";
+        for (auto const & m : fatal_messages) {
+            oss << "\n  - " << m;
+        }
+        throw siren::utilities::MeasureCompatibilityError(oss.str());
     }
 }
 

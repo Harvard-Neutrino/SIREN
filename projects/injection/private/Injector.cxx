@@ -110,25 +110,13 @@ std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::Fi
 }
 
 void Injector::SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary) {
-    std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist;
-    try {
-        vtx_dist = FindPrimaryVertexDistribution(primary);
-    } catch(siren::utilities::AddProcessFailure const & e) {
-        std::cerr << e.what() << std::endl;
-        exit(0);
-    }
+    std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist = FindPrimaryVertexDistribution(primary);
     primary_process = primary;
     primary_position_distribution = vtx_dist;
 }
 
 void Injector::AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryInjectionProcess> secondary) {
-    std::shared_ptr<distributions::SecondaryVertexPositionDistribution> vtx_dist;
-    try {
-        vtx_dist = FindSecondaryVertexDistribution(secondary);
-    } catch(siren::utilities::AddProcessFailure const & e) {
-        std::cerr << e.what() << std::endl;
-        exit(0);
-    }
+    std::shared_ptr<distributions::SecondaryVertexPositionDistribution> vtx_dist = FindSecondaryVertexDistribution(secondary);
     secondary_processes.push_back(secondary);
     secondary_position_distributions.push_back(vtx_dist);
     secondary_process_map.insert({secondary->GetPrimaryType(), secondary});
@@ -792,6 +780,15 @@ siren::dataclasses::InteractionTree const & Injector::GetLastFailedTree() const 
 
 void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     this->events_to_inject = events_to_inject;
+    injected_events = 0;
+    injection_attempts = 0;
+    failed_events = 0;
+    failure_counts_.clear();
+    last_failure_reason_.clear();
+    last_failed_tree_ = siren::dataclasses::InteractionTree();
+}
+
+void Injector::ResetInjectedEvents() {
     injected_events = 0;
     injection_attempts = 0;
     failed_events = 0;

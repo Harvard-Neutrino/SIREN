@@ -8,6 +8,7 @@
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
 #include <stdexcept>
+#include <sstream>
 #include <tuple>
 #include <cassert>
 #include <fstream>
@@ -25,6 +26,7 @@
 #include "SIREN/injection/Process.h"                     // for Phy...
 #include "SIREN/injection/WeightingUtils.h"              // for Cro...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
+#include "SIREN/utilities/Errors.h"                       // for Con...
 
 
 #include "SIREN/injection/Injector.h"
@@ -57,7 +59,16 @@ void Weighter::Initialize() {
     primary_process_weighters.reserve(injectors.size());
     secondary_process_weighter_maps.reserve(injectors.size());
     for(auto const & injector : injectors) {
-        assert(primary_physical_process->MatchesHead(injector->GetPrimaryProcess()));
+        if(!primary_physical_process->MatchesHead(injector->GetPrimaryProcess())) {
+            std::ostringstream oss;
+            oss << "Weighter::Initialize: primary physical process (primary type "
+                << primary_physical_process->GetPrimaryType()
+                << ") does not match the injector primary process (primary type "
+                << injector->GetPrimaryProcess()->GetPrimaryType()
+                << ") for injector " << i
+                << " [siren-docs: errors#configuration]";
+            throw siren::utilities::ConfigurationError(oss.str());
+        }
         primary_process_weighters.push_back(std::make_shared<PrimaryProcessWeighter>(PrimaryProcessWeighter(primary_physical_process, injector->GetPrimaryProcess(), detector_model)));
         std::map<siren::dataclasses::ParticleType, std::shared_ptr<SecondaryProcessWeighter>>
             injector_sec_process_weighter_map;
@@ -66,7 +77,14 @@ void Weighter::Initialize() {
         for(auto const & sec_phys_process : secondary_physical_processes) {
             try{
                 std::shared_ptr<siren::injection::SecondaryInjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->GetPrimaryType());
-                assert(sec_phys_process->MatchesHead(sec_inj_process)); // make sure cross section collection matches
+                if(!sec_phys_process->MatchesHead(sec_inj_process)) { // make sure cross section collection matches
+                    std::ostringstream oss;
+                    oss << "Weighter::Initialize: secondary physical process (primary type "
+                        << sec_phys_process->GetPrimaryType()
+                        << ") does not match the injector secondary process for injector "
+                        << i << " [siren-docs: errors#configuration]";
+                    throw siren::utilities::ConfigurationError(oss.str());
+                }
                 injector_sec_process_weighter_map[sec_phys_process->GetPrimaryType()] =
                     std::make_shared<SecondaryProcessWeighter>(
                             SecondaryProcessWeighter(
@@ -113,7 +131,14 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     double inv_weight = 0;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
         double physical_probability = 1.0;
-        double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
+        // Seed with the number of events actually injected so the
+        // weight normalizes by the realized sample size.  Fall back to the
+        // requested count when weighting before/without generation (InjectedEvents
+        // still 0), which keeps the requested-count normalization for that case.
+        double generation_probability = injectors[idx]->InjectedEvents();
+        if(injectors[idx]->InjectedEvents() == 0) {
+            generation_probability = injectors[idx]->EventsToInject();
+        }
         for(auto const & datum : tree.tree) {
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
             if(datum->is_root()) {
@@ -129,10 +154,33 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                     physical_probability *= phys_prob;
                     generation_probability *= gen_prob;
                 } catch(const std::out_of_range& oor) {
-                    std::cout << "Out of Range error: " << oor.what() << '\n';
-                    return 0;
+                    std::ostringstream oss;
+                    oss << "Weighter::EventWeight: no secondary process weighter for secondary type "
+                        << datum->record.signature.primary_type
+                        << " in injector " << idx
+                        << " (" << oor.what() << ") [siren-docs: errors#configuration]";
+                    throw siren::utilities::ConfigurationError(oss.str());
                 }
             }
+        }
+        // Weight-calculation guard: a finite
+        // generation_probability <= 0 would contribute 0 to inv_weight and, via
+        // the reciprocal below, produce an infinite weight; a non-finite physical
+        // probability is equally unrecoverable.  Both are configuration/physics
+        // failures the caller must not silently absorb.  physical_probability == 0
+        // is NOT caught here: it drives inv_weight to +inf and yields a legitimate
+        // 0.0-weight event.
+        if(generation_probability <= 0.0 || !std::isfinite(physical_probability)) {
+            std::ostringstream oss;
+            oss << "Weighter::EventWeight: unusable probabilities for injector " << idx;
+            if(!tree.tree.empty()) {
+                oss << " (primary type "
+                    << tree.tree.front()->record.signature.primary_type << ")";
+            }
+            oss << ": generation_probability=" << generation_probability
+                << ", physical_probability=" << physical_probability
+                << " [siren-docs: errors#weight-calc]";
+            throw siren::utilities::WeightCalculationError(oss.str());
         }
         inv_weight += generation_probability / physical_probability;
     }
@@ -172,8 +220,12 @@ std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::In
                 bounds = injectors[i_inj]->SecondaryInjectionBounds(datum->record);
                 int_probs.push_back(secondary_process_weighter_maps[i_inj].at(datum->record.signature.primary_type)->InteractionProbability(bounds, datum->record));
             } catch(const std::out_of_range& oor) {
-                std::cout << "Out of Range error: " << oor.what() << '\n';
-                return {};
+                std::ostringstream oss;
+                oss << "Weighter::GetInteractionProbabilities: no secondary process weighter for secondary type "
+                    << datum->record.signature.primary_type
+                    << " in injector " << i_inj
+                    << " (" << oor.what() << ") [siren-docs: errors#configuration]";
+                throw siren::utilities::ConfigurationError(oss.str());
             }
         }
     }
@@ -199,8 +251,12 @@ std::vector<double> Weighter::GetSurvivalProbabilities(siren::dataclasses::Inter
                 std::get<1>(bounds) = std::get<0>(injectors[i_inj]->SecondaryInjectionBounds(datum->record));
                 survival_probs.push_back(secondary_process_weighter_maps[i_inj].at(datum->record.signature.primary_type)->SurvivalProbability(bounds, datum->record));
             } catch(const std::out_of_range& oor) {
-                std::cout << "Out of Range error: " << oor.what() << '\n';
-                return {};
+                std::ostringstream oss;
+                oss << "Weighter::GetSurvivalProbabilities: no secondary process weighter for secondary type "
+                    << datum->record.signature.primary_type
+                    << " in injector " << i_inj
+                    << " (" << oor.what() << ") [siren-docs: errors#configuration]";
+                throw siren::utilities::ConfigurationError(oss.str());
             }
         }
     }

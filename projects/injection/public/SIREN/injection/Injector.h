@@ -140,6 +140,7 @@ public:
     std::string GetLastFailureReason() const;
     siren::dataclasses::InteractionTree const & GetLastFailedTree() const;
     void ResetInjectedEvents(unsigned int events_to_inject);
+    void ResetInjectedEvents();
 
     // --- Channel-weight optimizer support (feed the mixtures' KP accumulators) ---
 
@@ -181,6 +182,8 @@ public:
         }
     }
 
+    // Rebuilds processes via SetPrimaryProcess/AddSecondaryProcess, so a corrupt or
+    // incompatible archive throws siren::utilities::AddProcessFailure instead of exiting.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

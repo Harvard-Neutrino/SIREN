@@ -400,7 +400,7 @@ class Injector:
 
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
-        for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap():
+        for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap().items():
             self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
 

@@ -130,6 +130,15 @@ PYBIND11_MODULE(injection,m) {
   m.def("PhaseSpaceTopologyName", &PhaseSpaceTopologyName);
   m.def("PhaseSpaceMeasureName", &PhaseSpaceMeasureName);
 
+  // Convert a sampling density between phase-space measures within a topology,
+  // applying the analytic Jacobian (the same conversion the mixture uses).
+  m.def("ConvertDensity",
+        (double (*)(double, PhaseSpaceMeasure const &, PhaseSpaceMeasure const &,
+                    PhaseSpaceTopology, siren::dataclasses::InteractionRecord const &))
+            &siren::injection::ConvertDensity,
+        arg("density"), arg("from_measure"), arg("to_measure"),
+        arg("topology"), arg("record"));
+
   // Legacy convention enum (kept for backward compatibility)
   enum_<PhaseSpaceConvention>(m, "PhaseSpaceConvention")
     .value("RestFrameSolidAngle", PhaseSpaceConvention::RestFrameSolidAngle)
@@ -152,10 +161,29 @@ PYBIND11_MODULE(injection,m) {
     .def("Convention", &PhaseSpaceChannel::Convention)
     ;
 
-  class_<MultiChannelPhaseSpace, std::shared_ptr<MultiChannelPhaseSpace>>(m, "MultiChannelPhaseSpace")
+  class_<MultiChannelPhaseSpace, std::shared_ptr<MultiChannelPhaseSpace>> multi_channel_phase_space(m, "MultiChannelPhaseSpace");
+
+  // Severity-tagged compatibility diagnostic returned by ValidateChannelsDetailed,
+  // bound as a nested type so the ValidateChannelsDetailed return type crosses.
+  {
+    class_<MultiChannelPhaseSpace::ChannelDiagnostic> channel_diagnostic(
+        multi_channel_phase_space, "ChannelDiagnostic");
+    enum_<MultiChannelPhaseSpace::ChannelDiagnostic::Severity>(channel_diagnostic, "Severity")
+      .value("Info", MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Info)
+      .value("Fatal", MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Fatal);
+    channel_diagnostic
+      .def_readonly("severity", &MultiChannelPhaseSpace::ChannelDiagnostic::severity)
+      .def_readonly("message", &MultiChannelPhaseSpace::ChannelDiagnostic::message);
+  }
+
+  multi_channel_phase_space
     .def(init<>())
+    .def(init<std::vector<std::shared_ptr<PhaseSpaceChannel>>, std::vector<double>, bool>(),
+         arg("channels"), arg("weights") = std::vector<double>{},
+         arg("allow_incompatible") = false)
     .def_readwrite("channels", &MultiChannelPhaseSpace::channels)
     .def_readwrite("weights", &MultiChannelPhaseSpace::weights)
+    .def("Normalize", &MultiChannelPhaseSpace::Normalize)
     .def("Sample", &MultiChannelPhaseSpace::Sample)
     .def("Density", &MultiChannelPhaseSpace::Density)
     .def("DensityBreakdown", &MultiChannelPhaseSpace::DensityBreakdown,
@@ -178,6 +206,7 @@ PYBIND11_MODULE(injection,m) {
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
     .def("ValidateChannels", &MultiChannelPhaseSpace::ValidateChannels)
+    .def("ValidateChannelsDetailed", &MultiChannelPhaseSpace::ValidateChannelsDetailed)
     .def("ValidateChannelDensities", &MultiChannelPhaseSpace::ValidateChannelDensities,
          arg("random"), arg("detector_model"), arg("template_record"),
          arg("samples_per_channel") = 100)
@@ -425,7 +454,8 @@ PYBIND11_MODULE(injection,m) {
     .def("GetFailureCounts",&Injector::GetFailureCounts)
     .def("GetLastFailureReason",&Injector::GetLastFailureReason)
     .def("GetLastFailedTree",&Injector::GetLastFailedTree, pybind11::return_value_policy::reference_internal)
-    .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
+    .def("ResetInjectedEvents",overload_cast<unsigned int>(&Injector::ResetInjectedEvents))
+    .def("ResetInjectedEvents",overload_cast<>(&Injector::ResetInjectedEvents))
     .def("GetPhaseSpaces",&Injector::GetPhaseSpaces)
     .def("AccumulateEventToMixtures",&Injector::AccumulateEventToMixtures,
          arg("tree"), arg("weight"), arg("discount_fallback") = true,

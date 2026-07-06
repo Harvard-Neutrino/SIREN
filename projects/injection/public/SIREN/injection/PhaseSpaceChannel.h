@@ -95,6 +95,18 @@ public:
         siren::dataclasses::InteractionRecord const &) const { return true; }
 };
 
+// Convert a sampling density from one phase-space measure to another within a
+// given topology, applying the analytic Jacobian.  A from == to (or zero-density)
+// input is returned unchanged; an unimplemented pair or missing required record
+// inputs throws (rather than silently returning the input density).  Exposed so
+// the same conversion the mixture uses internally is callable directly.
+double ConvertDensity(
+    double density,
+    PhaseSpaceMeasure const & from,
+    PhaseSpaceMeasure const & to,
+    PhaseSpaceTopology topology,
+    siren::dataclasses::InteractionRecord const & record);
+
 // A set of PhaseSpaceChannels combined with weights for
 // multi-channel sampling.
 //
@@ -110,7 +122,39 @@ public:
 struct MultiChannelPhaseSpace {
     std::vector<std::shared_ptr<PhaseSpaceChannel>> channels;
     std::vector<double> weights;  // alpha_i, must sum to 1
-    mutable bool compatibility_warning_emitted = false;
+
+    // Transient (never serialized): when set, the fatal-severity compatibility
+    // check in ThrowOnIncompatibility() is skipped, permitting a mixture whose
+    // channels are not mutually convertible.  Off by default.
+    bool allow_incompatible_ = false;
+
+    // Default construction leaves channels/weights empty for the assign-then-use
+    // pattern (populate the public members, then Normalize()).  Kept for pybind
+    // def_readwrite compatibility and existing C++ call sites.
+    MultiChannelPhaseSpace() = default;
+
+    // Validating constructor.  Empty `weights` -> uniform 1/N.  A length mismatch
+    // between channels and weights, or a non-positive weight sum, throws
+    // ConfigurationError.  Otherwise the weights are normalized to sum 1 and,
+    // unless `allow_incompatible` is set, the fatal-severity compatibility check
+    // runs (throwing MeasureCompatibilityError on any Fatal diagnostic).
+    explicit MultiChannelPhaseSpace(
+        std::vector<std::shared_ptr<PhaseSpaceChannel>> channels,
+        std::vector<double> weights = {},
+        bool allow_incompatible = false);
+
+    // Normalize weights in place to sum 1.  Empty weights -> uniform 1/N.
+    // Throws ConfigurationError on channels/weights length mismatch or a
+    // non-positive weight sum.
+    void Normalize();
+
+    // Severity-tagged compatibility diagnostic.  Fatal entries block a mixture
+    // (measures not convertible); Info entries report a supported auto-conversion.
+    struct ChannelDiagnostic {
+        enum class Severity { Info, Fatal };
+        Severity severity;
+        std::string message;
+    };
 
     // Kleiss-Pittau weight-tuning accumulators.  These are transient runtime
     // state -- the mixture owns its own per-channel variance statistics, fed by
@@ -216,9 +260,13 @@ struct MultiChannelPhaseSpace {
     // Legacy interface.
     PhaseSpaceConvention CommonConvention() const;
 
+    // Validate topology and measure compatibility, returning every diagnostic
+    // (Fatal and Info) with a severity tag.  Empty if all checks pass.
+    std::vector<ChannelDiagnostic> ValidateChannelsDetailed() const;
+
     // Validate topology and measure compatibility.
-    // Returns diagnostics (empty if all checks pass).
-    // Throws on topology mismatch or incompatible measure groups.
+    // Returns diagnostic messages (empty if all checks pass); a binding-compatible
+    // view over ValidateChannelsDetailed() that flattens away the severity.
     std::vector<std::string> ValidateChannels() const;
 
     // Structural validation: sample from each channel and verify
@@ -237,7 +285,11 @@ struct MultiChannelPhaseSpace {
     std::vector<std::string> ValidateConventions() const { return ValidateChannels(); }
 
 private:
-    void WarnOnIncompatibility() const;
+    // Collect ValidateChannelsDetailed(); if any Fatal diagnostic is present and
+    // allow_incompatible_ is not set, throw MeasureCompatibilityError joining the
+    // fatal messages.  Info diagnostics (supported auto-conversions) are silently
+    // permitted.
+    void ThrowOnIncompatibility() const;
 
     // Single code path behind Density() and DensityBreakdown(): loops the
     // channels once, converting each g_i to the common measure.  Returns the
