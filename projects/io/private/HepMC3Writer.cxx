@@ -92,12 +92,9 @@ std::vector<double> PositionCM(std::array<double, 3> const & x) {
 
 double SecondsFromInternal(double t_internal) { return t_internal / C::second; }
 
-// is_primary_root is true only for the first root datum encountered in a tree:
-// NuHepMC V.R.1 permits exactly one vertex with the primary-vertex status code,
-// so a forest (an InteractionTree with more than one root -- not produced by
-// SIREN's own Injector, but reachable e.g. via HepMC3Reader reconstructing a
-// foreign file with disconnected vertex chains) must not mark a second root's
-// vertex as primary; it is treated like any other secondary interaction.
+// is_primary_root is true only for the first root datum encountered in a tree: NuHepMC V.R.1
+// allows only one primary-vertex status code (1), other root nodes are demoted to the
+// secondary-interaction nodes (21) so E.R.7's one-beam/one-target invariant holds.
 int VertexStatus(siren::dataclasses::InteractionTreeDatum const & datum, bool is_primary_root) {
     if(is_primary_root) return 1;                                        // primary vertex
     if(datum.record.signature.target_type == ParticleType::Decay) return 22; // decay
@@ -109,10 +106,8 @@ std::shared_ptr<HepMC3::DoubleAttribute> D(double v) {
 }
 
 // Write a set ParticleID as two SIREN-namespaced attributes. major_id is
-// uint64 (ULongAttribute; unsigned long is 64-bit on SIREN's LP64 targets, as
-// with siren.event_number) and minor_id is int32 (IntAttribute). An unset id
-// writes nothing, so the reader treats an absent siren.id.* as "no stored id"
-// and only then falls back to generating one for topology.
+// uint64 (ULongAttribute) and minor_id is int32 (IntAttribute). An unset id
+// writes nothing
 void WriteParticleID(HepMC3::GenParticlePtr const & particle,
                      siren::dataclasses::ParticleID const & id) {
     if(!id.IsSet()) return;
@@ -125,8 +120,7 @@ void WriteParticleID(HepMC3::GenParticlePtr const & particle,
 // Declare a NuHepMC ID registry on the run info: a VectorIntAttribute id-list
 // under list_key, plus a Name and Description StringAttribute per id under
 // info_stub + "[<id>]". The list key is plural (...IDs); the per-id namespace is
-// a distinct singular stub (...Info). Exact spelling and attribute types are
-// load-bearing -- a strict reader throws on a key or type mismatch.
+// a distinct singular stub (...Info). Strict for attribute spelling and types
 void DeclareIdRegistry(HepMC3::GenRunInfo & ri,
                        std::string const & list_key,
                        std::string const & info_stub,
@@ -207,9 +201,9 @@ struct HepMC3Writer::Impl {
         run_info_->set_weight_names(options_.weight_names);
 
         // Weight provenance is always echoed. "unweighted" turns off every NuHepMC.*
-        // key: the per-event CV weight is only a 1.0 placeholder, so a NuHepMC reader
-        // must not be told this is a conforming, rate-normalized file. In that mode the
-        // output is a plain HepMC3 file carrying siren.* provenance only.
+        // key: the per-event CV weight is only a 1.0 placeholder.
+        // Disabling this output indicates that this is not a conforming NuHepMC file.
+        // In that mode the output is a plain HepMC3 file carrying siren.* provenance only.
         run_info_->add_attribute("siren.weights_state",
             std::make_shared<HepMC3::StringAttribute>(options_.weights_state));
         bool const nuhepmc_mode = (options_.weights_state != "unweighted");
@@ -295,24 +289,18 @@ struct HepMC3Writer::Impl {
         // is a single run-wide constant written once, not a per-event running
         // estimate, so G.C.2 -- not E.C.4 -- is the applicable convention).
         //
-        // Weight convention traced from siren::injection::Weighter::EventWeight
-        // (projects/injection/private/Weighter.cxx): each accepted event's CV
-        // weight is physical_probability(x) / (EventsToInject * p_gen(x)), i.e. it
-        // already carries a 1/N factor where N = EventsToInject is the injector's
+        // Each accepted event's CV weight is
+        // physical_probability(x) / (EventsToInject * p_gen(x))
+        // i.e. it already carries a 1/N factor where N = EventsToInject is the injector's
         // configured target event count for the run that produced it. Since events
         // are drawn x_i ~ p_gen, summing the CV weight over the N draws is already
         // the unbiased Monte Carlo estimator of the integral defining the
         // flux-averaged total cross section:
         //   E[sum_i w(x_i)] = N * E_pgen[physical(x) / (N p_gen(x))] = integral physical(x) dx
-        // Rejected/failed injection attempts contribute physical_probability == 0
-        // and are simply absent from the tree list rather than included as
-        // zero-weight terms, which does not bias this sum. Dividing sum(CV) by
-        // attempted_events or accepted_events AGAIN would double-normalize: the
-        // reported value would shrink like 1/(run size) instead of converging to a
-        // constant, so it is not an estimator of any cross section. The fix is to
-        // NOT divide a second time -- fatx_weight_sum, summed once over the
-        // accepted events, is already the (unnormalized-by-anything-further) GeV^-2
-        // estimate; only the pb unit conversion is applied here.
+        // Combining file outputs requires multiplying each file's sum(CV) by
+        // its own EventsToInject, then summing those and dividing by the total EventsToInject
+        // across all files. The per-file sum(CV) is already normalized by its own
+        // EventsToInject, so the file-level sum(CV) is the correct unbiased estimator of the integral.
         //
         // The rate normalization is only meaningful for weighted output and only
         // once at least one accepted event exists (nuhepmc_conformant), so under
