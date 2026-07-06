@@ -398,6 +398,17 @@ void ThrowIfWeightsInconsistent(
             << " [siren-docs: errors#configuration]";
         throw siren::utilities::ConfigurationError(oss.str());
     }
+    for (size_t i = 0; i < weights.size(); ++i) {
+        if (!std::isfinite(weights[i]) || weights[i] < 0.0) {
+            std::ostringstream oss;
+            oss << "MultiChannelPhaseSpace::" << where
+                << ": weight " << i << " is " << weights[i]
+                << " (must be finite and non-negative)"
+                << " -- call Normalize() or use the validating constructor"
+                << " [siren-docs: errors#configuration]";
+            throw siren::utilities::ConfigurationError(oss.str());
+        }
+    }
     double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
     if (std::abs(sum - 1.0) > 1e-9) {
         std::ostringstream oss;
@@ -435,6 +446,15 @@ void MultiChannelPhaseSpace::Normalize() {
             << weights.size() << ") does not match channels size ("
             << channels.size() << ") [siren-docs: errors#configuration]";
         throw siren::utilities::ConfigurationError(oss.str());
+    }
+    for (size_t i = 0; i < weights.size(); ++i) {
+        if (!std::isfinite(weights[i]) || weights[i] < 0.0) {
+            std::ostringstream oss;
+            oss << "MultiChannelPhaseSpace::Normalize: weight " << i << " is "
+                << weights[i] << " (must be finite and non-negative)"
+                << " [siren-docs: errors#configuration]";
+            throw siren::utilities::ConfigurationError(oss.str());
+        }
     }
     double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
     if (sum <= 0.0) {

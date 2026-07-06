@@ -103,6 +103,7 @@ void Weighter::Initialize() {
             return;
         }
         secondary_process_weighter_maps.push_back(injector_sec_process_weighter_map);
+        ++i;
     }
 }
 

@@ -19,6 +19,7 @@
 #include "SIREN/utilities/Random.h"
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <numeric>
 
@@ -1866,6 +1867,22 @@ TEST(MultiChannelCtor, NonPositiveWeightSumThrowsConfigurationError) {
         siren::utilities::ConfigurationError);
 }
 
+// A negative weight that still leaves the sum at 1 is a ConfigurationError:
+// {-0.1, 1.1} sums to 1 but would yield a negative sampling probability.
+TEST(MultiChannelCtor, NegativeWeightWithUnitSumThrowsConfigurationError) {
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(TwoCompatibleChannels(), {-0.1, 1.1}),
+        siren::utilities::ConfigurationError);
+}
+
+// A non-finite weight is a ConfigurationError.
+TEST(MultiChannelCtor, NonFiniteWeightThrowsConfigurationError) {
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(TwoCompatibleChannels(),
+                               {std::numeric_limits<double>::quiet_NaN(), 1.0}),
+        siren::utilities::ConfigurationError);
+}
+
 // Sample() with hand-set, un-normalized public members must throw
 // ConfigurationError (the old cumulative loop silently dumped the leftover
 // probability mass on the last channel).
@@ -1875,6 +1892,28 @@ TEST(MultiChannelGuards, SampleRejectsUnnormalizedWeights) {
     mc.weights = {0.3, 0.3};                   // sums to 0.6, not 1
 
     auto random = std::make_shared<siren::utilities::SIREN_random>(1);
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = 1.0;
+    record.primary_momentum = {5.0, 0.0, 0.0, std::sqrt(25.0 - 1.0)};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {0.0, 0.0};
+    record.secondary_momenta.resize(2);
+
+    EXPECT_THROW(mc.Sample(random, nullptr, record),
+                 siren::utilities::ConfigurationError);
+}
+
+// Hand-set public-member weights that are individually negative (even though
+// they sum to 1) must make Sample throw ConfigurationError -- the guard rejects
+// per-weight sign, not only the sum.
+TEST(MultiChannelGuards, SampleRejectsNegativeWeights) {
+    MultiChannelPhaseSpace mc;
+    mc.channels = TwoCompatibleChannels();
+    mc.weights = {-0.1, 1.1};                  // sums to 1, but weight 0 < 0
+
+    auto random = std::make_shared<siren::utilities::SIREN_random>(3);
     InteractionRecord record;
     record.signature.primary_type = ParticleType::N4;
     record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};

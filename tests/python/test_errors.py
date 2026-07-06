@@ -128,6 +128,7 @@ def test_error_message_carries_doc_anchor():
 
 _SUBPROCESS_SRC = textwrap.dedent(
     """
+    import importlib.machinery
     import importlib.util
     import os
     import sys
@@ -141,8 +142,12 @@ _SUBPROCESS_SRC = textwrap.dedent(
         # __init__ (which would import the whole stack).  This models a consumer
         # that only pulls in a subset of sibling modules.  The module MUST be
         # loaded under its bare name so pybind's PyInit_<name> is found, and
-        # registered in sys.modules so later modules see it.
-        matches = glob.glob(os.path.join(pkgdir, name + ".*.so"))
+        # registered in sys.modules so later modules see it.  Glob every
+        # platform extension suffix (.so, .pyd, .abi3.so, ...) so this is
+        # portable across macOS/Linux/Windows rather than assuming ".so".
+        matches = []
+        for suffix in importlib.machinery.EXTENSION_SUFFIXES:
+            matches += glob.glob(os.path.join(pkgdir, name + "*" + suffix))
         assert matches, "no compiled module for " + name
         spec = importlib.util.spec_from_file_location(name, matches[0])
         mod = importlib.util.module_from_spec(spec)
