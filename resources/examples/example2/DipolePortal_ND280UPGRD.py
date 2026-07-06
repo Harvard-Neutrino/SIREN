@@ -31,7 +31,7 @@ bundle = siren.load_processes(
 flux_file = get_tabulated_flux_file("T2K_NEAR", "PLUS_numu")
 
 sim = siren.Simulation(
-    n_events=100000,
+    events=100000,
     detector=detector_model,
     primary="NuMu",
     interactions=bundle.primary[siren.particles.NuMu],

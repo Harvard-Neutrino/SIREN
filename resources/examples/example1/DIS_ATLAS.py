@@ -6,7 +6,7 @@ position = siren.get_volume_position_distribution_from_sector(
 )
 
 sim = siren.Simulation(
-    n_events=int(1e5),
+    events=int(1e5),
     seed=99,
     detector=detector_model,
     primary="NuMu",

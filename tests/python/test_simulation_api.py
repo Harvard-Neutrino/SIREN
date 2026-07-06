@@ -265,7 +265,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(ValueError, match="energy"):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="NuMu",
                 interactions="CSMSDISSplines",
@@ -281,7 +281,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(ValueError, match="direction"):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="NuMu",
                 interactions="CSMSDISSplines",
@@ -297,7 +297,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(ValueError, match="position"):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="NuMu",
                 interactions="CSMSDISSplines",
@@ -311,7 +311,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(ValueError, match="Cannot specify both"):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="NuMu",
                 interactions="CSMSDISSplines",
@@ -329,7 +329,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(ValueError, match="Cannot specify both.*flux"):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="NuMu",
                 interactions="CSMSDISSplines",
@@ -347,7 +347,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(TypeError):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="NuMu",
                 energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -361,7 +361,7 @@ class TestSimulationValidation:
         import siren
         with pytest.raises(ValueError, match="Unknown particle type"):
             siren.Simulation(
-                n_events=1,
+                events=1,
                 detector="IceCube",
                 primary="InvalidParticle",
                 interactions="CSMSDISSplines",
@@ -379,7 +379,7 @@ class TestSimulationConstruction:
     def test_string_detector(self):
         import siren
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -396,7 +396,7 @@ class TestSimulationConstruction:
     def test_string_primary(self):
         import siren
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -413,7 +413,7 @@ class TestSimulationConstruction:
     def test_enum_primary(self):
         import siren
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary=siren.particles.NuMu,
             interactions="CSMSDISSplines",
@@ -431,7 +431,7 @@ class TestSimulationConstruction:
         import siren
         e = siren.dist.PowerLaw(2, 1e3, 1e6)
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -452,7 +452,7 @@ class TestSimulationConstruction:
         inj_d = siren.dist.FixedDirection([0, 0, 1])
         phys_d = siren.dist.IsotropicDirection()
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -471,7 +471,7 @@ class TestSimulationConstruction:
     def test_mass_auto_inferred(self):
         import siren
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -499,7 +499,7 @@ class TestSimulationConstruction:
     def test_repr(self):
         import siren
         sim = siren.Simulation(
-            n_events=42,
+            events=42,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -523,7 +523,7 @@ class TestSimulationRun:
     def sim(self):
         import siren
         return siren.Simulation(
-            n_events=5,
+            events=5,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -612,7 +612,7 @@ class TestWeighterBatch:
     def test_weight_all(self):
         import siren
         sim = siren.Simulation(
-            n_events=3,
+            events=3,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -644,7 +644,7 @@ class TestReweight:
     def sim_and_results(self):
         import siren
         sim = siren.Simulation(
-            n_events=5,
+            events=5,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -662,7 +662,7 @@ class TestReweight:
     def test_reweight_before_run_raises(self):
         import siren
         sim = siren.Simulation(
-            n_events=1,
+            events=1,
             detector="IceCube",
             primary="NuMu",
             interactions="CSMSDISSplines",
@@ -748,3 +748,40 @@ class TestReweight:
             for a, b in zip(r1.weights, r2.weights)
         )
         assert any_different
+
+
+class TestEventsAlias:
+    """`n_events` is a deprecated alias for `events`."""
+
+    def _kwargs(self, siren):
+        return dict(
+            detector="IceCube",
+            primary="NuMu",
+            interactions="CSMSDISSplines",
+            target="Nucleon",
+            process="CC",
+            energy=siren.dist.PowerLaw(2, 1e3, 1e6),
+            direction=siren.dist.IsotropicDirection(),
+            position=siren.dist.ColumnDepth(
+                600, 600.0, siren.distributions.LeptonDepthFunction()
+            ),
+        )
+
+    def test_n_events_warns_and_sets_count(self):
+        import siren
+        with pytest.warns(DeprecationWarning, match="n_events"):
+            sim = siren.Simulation(n_events=7, **self._kwargs(siren))
+        assert "events=7" in repr(sim)
+
+    def test_events_does_not_warn(self):
+        import siren
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            sim = siren.Simulation(events=7, **self._kwargs(siren))
+        assert "events=7" in repr(sim)
+
+    def test_both_events_and_n_events_raises(self):
+        import siren
+        with pytest.raises(TypeError, match="both 'events' and 'n_events'"):
+            siren.Simulation(events=7, n_events=7, **self._kwargs(siren))

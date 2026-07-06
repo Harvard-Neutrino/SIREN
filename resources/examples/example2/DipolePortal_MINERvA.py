@@ -28,7 +28,7 @@ bundle = siren.load_processes(
 )
 
 sim = siren.Simulation(
-    n_events=100000,
+    events=100000,
     detector=detector_model,
     primary="NuMu",
     interactions=bundle.primary[siren.particles.NuMu],

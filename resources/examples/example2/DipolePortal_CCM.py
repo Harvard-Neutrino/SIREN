@@ -35,7 +35,7 @@ beam_dir = detector_origin - target_origin
 beam_dir.normalize()
 
 sim = siren.Simulation(
-    n_events=1,
+    events=1,
     detector=detector_model,
     primary=siren.particles.NuMu,
     interactions=bundle.primary[siren.particles.NuMu],

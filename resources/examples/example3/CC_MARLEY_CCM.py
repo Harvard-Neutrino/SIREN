@@ -31,7 +31,7 @@ beam_dir.normalize()
 opening_angle = np.arcsin(1.21 / 23.0)
 
 sim = siren.Simulation(
-    n_events=10000,
+    events=10000,
     detector=detector_model,
     primary="NuE",
     interactions="MarleyCrossSection",

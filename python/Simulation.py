@@ -11,7 +11,7 @@ Usage::
     import siren
 
     sim = siren.Simulation(
-        n_events=100_000,
+        events=100_000,
         detector="IceCube",
         primary="NuMu",
         interactions="CSMSDISSplines",
@@ -54,8 +54,9 @@ class Simulation:
 
     Parameters
     ----------
-    n_events : int
-        Number of events to generate.
+    events : int
+        Number of successful events to generate.  The deprecated alias
+        ``n_events`` is still accepted but emits a ``DeprecationWarning``.
     detector : str or DetectorModel
         Detector name (e.g. ``"IceCube"``) or a pre-loaded DetectorModel.
     primary : str or ParticleType
@@ -114,7 +115,7 @@ class Simulation:
     def __init__(
         self,
         *,
-        n_events,
+        events=None,
         detector,
         primary,
         interactions,
@@ -143,6 +144,28 @@ class Simulation:
         # Forward to load_processes
         **process_kwargs,
     ):
+        # ---- Resolve the events count (n_events is a deprecated alias) ----
+        if "n_events" in process_kwargs:
+            n_events = process_kwargs.pop("n_events")
+            if events is not None:
+                raise TypeError(
+                    "Simulation() got both 'events' and 'n_events'. "
+                    "'n_events' is a deprecated alias for 'events'; pass "
+                    "only 'events'."
+                )
+            import warnings
+            warnings.warn(
+                "Simulation(n_events=...) is deprecated; use "
+                "Simulation(events=...) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            events = n_events
+        if events is None:
+            raise TypeError(
+                "Simulation() missing required keyword-only argument: 'events'"
+            )
+
         # ---- Resolve particle types ----
         self._primary_type = _particles.resolve(primary)
         self._target_type = (
@@ -194,7 +217,7 @@ class Simulation:
                 "secondary_position= to Simulation().")
 
         # ---- Store remaining config ----
-        self._n_events = n_events
+        self._events = events
         self._seed = seed
         self._stopping_condition = stopping_condition
 
@@ -364,7 +387,7 @@ class Simulation:
         validate_injection_distributions(self._injection_distributions)
 
         injector = _injection.Injector()
-        injector.number_of_events = self._n_events
+        injector.number_of_events = self._events
         injector.detector_model = self._detector_model
         injector.primary_type = self._primary_type
         injector.primary_interactions = self._primary_interactions
@@ -578,7 +601,7 @@ class Simulation:
 
     def __repr__(self):
         parts = [
-            f"n_events={self._n_events}",
+            f"events={self._events}",
             f"primary={self._primary_type}",
             f"detector={'<loaded>' if self._detector_name is None else self._detector_name!r}",
         ]

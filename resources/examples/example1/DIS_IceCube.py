@@ -1,7 +1,7 @@
 import siren
 
 sim = siren.Simulation(
-    n_events=int(1e5),
+    events=int(1e5),
     detector="IceCube",
     primary="NuMu",
     interactions="CSMSDISSplines",
