@@ -43,13 +43,14 @@ class NotSerializableError(RuntimeError):
         self.offenders = list(offenders) if offenders is not None else []
 
 
-class InjectionShortfall(RuntimeError):
+class InjectionShortfall(RuntimeError, UserWarning):
     """Generation produced fewer successes than requested.
 
-    Carries the ``InjectionReport`` describing where attempts were lost so the
-    caller can act on it. Raised (or, under ``on_shortfall='warn'``, attached
-    to a warning) when the attempt budget is exhausted or efficiency falls
-    below ``min_efficiency`` before the requested count is reached.
+    Both an exception and a warning: ``on_shortfall='raise'`` raises it,
+    ``'warn'`` passes the instance to ``warnings.warn``. Carries the
+    ``InjectionReport`` describing where attempts were lost. Raised when the
+    attempt budget is exhausted or efficiency falls below ``min_efficiency``
+    before the requested count is reached.
     """
 
     def __init__(self, message, report=None):

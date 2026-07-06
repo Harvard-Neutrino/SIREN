@@ -12,6 +12,9 @@ from dataclasses import dataclass, field
 from typing import Tuple, List, Dict, Optional, Union, Callable
 from typing import TYPE_CHECKING
 import math
+import warnings
+
+import numpy as np
 
 if TYPE_CHECKING:
     import siren
@@ -95,7 +98,8 @@ class Weighter:
     interaction datum.
     """
 
-    def __init__(self, 
+    def __init__(self,
+        *args,
         injectors: Optional[List[_Injector]] = None,
         detector_model: Optional[DetectorModel] = None,
         primary_type: Optional[_dataclasses.ParticleType] = None,
@@ -103,18 +107,42 @@ class Weighter:
         primary_physical_distributions: Optional[List[_distributions.WeightableDistribution]] = None,
         secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
         secondary_physical_distributions: Optional[Dict[_dataclasses.ParticleType, List[_distributions.WeightableDistribution]]] = None,
+        primary_physical: Optional[List[_distributions.WeightableDistribution]] = None,
+        secondary_physical: Optional[Dict[_dataclasses.ParticleType, List[_distributions.WeightableDistribution]]] = None,
+        overrides: Optional[Dict[str, object]] = None,
     ):
         """
         Initialize the Weighter with interactions and physical processes.
 
+        Two calling conventions are supported.
+
+        Legacy keyword form::
+
+            Weighter(injectors=[...], detector_model=..., primary_type=...,
+                     primary_interactions=..., primary_physical_distributions=...,
+                     secondary_interactions=..., secondary_physical_distributions=...)
+
+        Spec form, positional injectors plus physical-side keywords, inheriting
+        detector/types/interactions from the injectors themselves::
+
+            Weighter(injector, primary_physical=[...], secondary_physical={...})
+
+        ``overrides`` (spec form only) is a dict of legacy field names
+        (``detector_model``, ``primary_type``, ``primary_interactions``,
+        ``secondary_interactions``) to override what would otherwise be
+        inherited from the injectors.
+
         Args:
-            injectors: List of injector objects.
+            injectors: List of injector objects (legacy keyword form).
             detector_model: The detector model.
             primary_type: The primary particle type.
             primary_interactions: Dictionary of primary particle interactions.
             primary_physical_distributions: List of primary physical distributions.
             secondary_interactions: Dictionary of secondary particle interactions.
             secondary_physical_distributions: Dictionary of secondary physical distributions.
+            primary_physical: Primary physical distributions (spec form).
+            secondary_physical: Secondary physical distributions (spec form).
+            overrides: Legacy-field overrides for the spec form.
 
         Note:
             All parameters are optional and can be set later using property setters.
@@ -132,6 +160,22 @@ class Weighter:
 
         self.__weighter = None
 
+        spec_injectors = self.__detect_spec_injectors(args, injectors)
+
+        if spec_injectors is not None:
+            self.__init_from_injectors(
+                spec_injectors, primary_physical, secondary_physical, overrides)
+            return
+
+        if len(args) == 1 and injectors is None:
+            # Legacy form with injectors passed positionally as a list.
+            injectors = args[0]
+        elif len(args) > 1:
+            raise TypeError(
+                "Weighter() accepts either legacy keyword arguments or "
+                "one-or-more positional Injector arguments, not {} "
+                "positional arguments".format(len(args)))
+
         if injectors is not None:
             self.injectors = injectors
         if detector_model is not None:
@@ -146,6 +190,60 @@ class Weighter:
             self.__secondary_interactions = secondary_interactions
         if secondary_physical_distributions is not None:
             self.__secondary_physical_distributions = secondary_physical_distributions
+
+    @staticmethod
+    def __detect_spec_injectors(args, injectors_kwarg):
+        """Return the positional injectors list if this is the spec-form call.
+
+        Spec form is detected by one-or-more positional args that are each an
+        Injector (python wrapper or raw C++ engine), with no ``injectors=``
+        keyword given. A single positional list (the legacy form) is left for
+        the caller to handle.
+        """
+        if injectors_kwarg is not None:
+            return None
+        if len(args) == 0:
+            return None
+        if len(args) == 1 and isinstance(args[0], list):
+            return None
+        if all(isinstance(a, (_Injector, _PyInjector)) for a in args):
+            return list(args)
+        return None
+
+    def __init_from_injectors(self, injectors, primary_physical,
+                               secondary_physical, overrides):
+        """Populate fields by inheriting from the given injectors' processes."""
+        overrides = overrides or {}
+
+        self.injectors = injectors
+
+        engine0 = injectors[0].engine if isinstance(injectors[0], _PyInjector) else injectors[0]
+        primary_proc = engine0.GetPrimaryProcess()
+
+        self.__detector_model = overrides.get(
+            "detector_model",
+            injectors[0].detector_model if isinstance(injectors[0], _PyInjector)
+            else engine0.GetDetectorModel())
+        self.__primary_type = overrides.get(
+            "primary_type", primary_proc.primary_type)
+        self.__primary_interactions = overrides.get(
+            "primary_interactions",
+            list(primary_proc.interactions.GetCrossSections())
+            + list(primary_proc.interactions.GetDecays()))
+
+        secondary_interactions = overrides.get("secondary_interactions", None)
+        if secondary_interactions is None:
+            secondary_interactions = {}
+            for ptype, sproc in engine0.GetSecondaryProcessMap().items():
+                secondary_interactions[ptype] = (
+                    list(sproc.interactions.GetCrossSections())
+                    + list(sproc.interactions.GetDecays()))
+        self.__secondary_interactions = secondary_interactions
+
+        self.__primary_physical_distributions = (
+            list(primary_physical) if primary_physical is not None else [])
+        self.__secondary_physical_distributions = (
+            dict(secondary_physical) if secondary_physical is not None else {})
 
     @property
     def injectors(self) -> List[_Injector]:
@@ -168,7 +266,11 @@ class Weighter:
         Raises:
             ValueError: If the weighter has already been initialized.
             TypeError: If the input is not a list of Injector objects.
-            ValueError: If any of the injectors are not initialized.
+
+        Note:
+            A python Injector wrapper need not already have built its
+            underlying engine -- it is unwrapped via its ``engine`` property
+            (which builds it lazily) at weighter-initialize time.
         """
 
         if self.__weighter is not None:
@@ -177,8 +279,6 @@ class Weighter:
             raise TypeError("Injectors must be a list.")
         if not all(isinstance(injector, (_Injector, _PyInjector)) for injector in injectors):
             raise TypeError("All injectors must be of type Injector.")
-        if not all(injector._Injector__injector is not None for injector in injectors if isinstance(injector, _PyInjector)):
-            raise ValueError("All injectors must be initialized.")
         self.__injectors = injectors
 
     @property
@@ -398,13 +498,13 @@ class Weighter:
             filename: Base path; the ".siren_weighter" suffix is added.
         """
         if self.__injectors is not None:
-            injectors = [injector._Injector__injector if isinstance(injector, _PyInjector) else injector
+            injectors = [injector.engine if isinstance(injector, _PyInjector) else injector
                          for injector in self.__injectors]
         else:
             injectors = []
         self.__weighter = _Weighter(injectors, filename)
 
-    def weight_all(self, events) -> list:
+    def weight_all(self, events) -> "np.ndarray":
         """
         Calculate weights for a list of events.
 
@@ -412,77 +512,43 @@ class Weighter:
             events: A list of InteractionTree objects.
 
         Returns:
-            list[float]: The calculated event weights.
+            numpy.ndarray: The calculated event weights.
         """
-        return [self(event) for event in events]
+        return np.array([self(event) for event in events])
 
-    def breakdown(self, interaction_tree: InteractionTree) -> "EventWeightBreakdown":
-        """Per-vertex decomposition of the event weight.
-
-        Returns an ``EventWeightBreakdown`` that stores each vertex's
-        interaction probability, position density, physical probability,
-        and generation probability.  Useful for diagnosing inf/0/NaN
-        weights.
-        """
+    @property
+    def engine(self) -> _Weighter:
+        """The raw C++ _Weighter, building it via __initialize_weighter if needed."""
         if self.__weighter is None:
             self.__initialize_weighter()
+        return self.__weighter
 
-        injector_idx = 0
-        cpp_inj = self.__injectors[injector_idx]
-        if isinstance(cpp_inj, _PyInjector):
-            cpp_inj = cpp_inj._Injector__injector
+    def explain(self, interaction_tree: InteractionTree) -> "report.WeightBreakdown":
+        """Per-vertex decomposition of the event weight.
 
-        sec_map = cpp_inj.GetSecondaryProcessMap()
+        Returns a ``report.WeightBreakdown`` built from the engine's
+        ``EventWeightWithBreakdown``, giving each vertex's generation and
+        physical probability, channel densities, cancelled distributions, and
+        diagnostic flags. Useful for diagnosing inf/0/NaN weights.
+        """
+        from .report import WeightBreakdown
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return WeightBreakdown.from_engine(
+            self.engine.EventWeightWithBreakdown(interaction_tree))
 
-        primary_phys = self.__weighter_primary_phys
-        secondary_phys = self.__weighter_secondary_phys
-        ppw = _injection.PrimaryProcessWeighter(
-            primary_phys, cpp_inj.GetPrimaryProcess(),
-            self.__detector_model)
+    def breakdown(self, interaction_tree: InteractionTree) -> "report.WeightBreakdown":
+        """Deprecated alias of explain().
 
-        vertices = []
-        for datum in interaction_tree.tree:
-            rec = datum.record
-            pid = rec.signature.primary_type
-            depth = datum.depth(interaction_tree)
-            secs = list(rec.signature.secondary_types)
-
-            if depth == 0:
-                bounds = cpp_inj.PrimaryInjectionBounds(rec)
-                pw = ppw
-            else:
-                bounds = cpp_inj.SecondaryInjectionBounds(rec)
-                if pid not in secondary_phys:
-                    vertices.append(VertexWeight(
-                        depth=depth, primary_type=int(pid),
-                        secondary_types=[int(s) for s in secs]))
-                    continue
-                pw = _injection.SecondaryProcessWeighter(
-                    secondary_phys[pid], sec_map[pid],
-                    self.__detector_model)
-
-            int_prob = pw.InteractionProbability(bounds, rec)
-            pos_prob = pw.NormalizedPositionProbability(bounds, rec)
-            phys_prob = pw.PhysicalProbability(bounds, rec)
-            gen_prob = pw.GenerationProbability(datum)
-
-            vertices.append(VertexWeight(
-                depth=depth,
-                primary_type=int(pid),
-                secondary_types=[int(s) for s in secs],
-                interaction_probability=int_prob,
-                position_probability=pos_prob,
-                physical_probability=phys_prob,
-                generation_probability=gen_prob,
-            ))
-
-        return EventWeightBreakdown(
-            vertices=vertices,
-            weight=self(interaction_tree),
-        )
+        Retained for backward compatibility; emits a DeprecationWarning and
+        returns the same ``report.WeightBreakdown`` as explain().
+        """
+        warnings.warn(
+            "Weighter.breakdown() is deprecated, use Weighter.explain() instead",
+            DeprecationWarning, stacklevel=2)
+        return self.explain(interaction_tree)
 
     def __initialize_weighter(self):
-        # Defer to the original (reordered so breakdown() can access internals)
         return self.__do_initialize_weighter()
 
     def __do_initialize_weighter(self):
@@ -498,7 +564,7 @@ class Weighter:
             raise ValueError("Primary physical distributions have not been set.")
 
         injectors = [
-            injector._Injector__injector
+            injector.engine
             if isinstance(injector, _PyInjector) else injector
             for injector in self.__injectors
         ]
@@ -513,11 +579,7 @@ class Weighter:
         primary_process.distributions = self.primary_physical_distributions
 
         # Copy weighting mode from the injector's primary process
-        inj0 = injectors[0]
-        if isinstance(inj0, _PyInjector):
-            inj0_cpp = inj0._Injector__injector
-        else:
-            inj0_cpp = inj0
+        inj0_cpp = injectors[0]
         if inj0_cpp is not None:
             primary_process.weighting_mode = inj0_cpp.GetPrimaryProcess().GetWeightingMode()
 
