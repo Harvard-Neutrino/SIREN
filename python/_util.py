@@ -8,6 +8,7 @@ import importlib
 import functools
 
 import time
+import warnings
 from siren import dataclasses as _dataclasses
 from siren import math as _math
 from siren.interactions import DarkNewsCrossSection,DarkNewsDecay
@@ -1028,12 +1029,46 @@ def _get_detector_loader(detector_name):
 
 ###### Injector helper functions #######
 
-# Generate events using an injector object
-# Optionally save events to hdf5, parquet, and/or custom SIREN filetypes
-# If the weighter exists, calculate the event weight too
+# Generate events using an injector object, returning (events, gen_times).
 def GenerateEvents(injector, N=None):
+    """Generate up to N events from an injector; return (events, gen_times).
+
+    Deprecated: use ``siren.generate()`` or ``Injector.generate()`` instead.
+
+    For the python-wrapper ``Injector``, generation is delegated to
+    ``injector.generate(N, on_shortfall='ignore')``, which retries failed
+    attempts internally and returns only successful (non-empty) trees --
+    unlike the historical raw loop, a failed ``GenerateEvent`` attempt is
+    never appended to ``events``. ``gen_times`` cannot be measured per event
+    through that call, so it is synthesized: the whole call is timed once and
+    the total elapsed time is divided evenly across the returned events (an
+    aggregate estimate, not a per-event wall-clock measurement).
+
+    For a raw (non-wrapper) injector -- one with no ``generate`` method, e.g.
+    the engine's own ``_Injector`` -- the historical per-attempt loop over
+    ``generate_event()``/``injected_events`` is used unchanged, including
+    appending empty trees on failure and recording a true per-event
+    wall-clock time for each attempt.
+    """
+    warnings.warn(
+        "siren._util.GenerateEvents is deprecated; use siren.generate() or "
+        "Injector.generate()",
+        DeprecationWarning, stacklevel=2)
+
+    from .Injector import Injector as _PyInjector
+
     if N is None:
         N = injector.number_of_events
+
+    if isinstance(injector, _PyInjector):
+        t0 = time.time()
+        events = injector.generate(N, on_shortfall="ignore")
+        elapsed = time.time() - t0
+        n = len(events)
+        per_event = (elapsed / n) if n > 0 else 0.0
+        gen_times = [per_event] * n
+        return events, gen_times
+
     count = 0
     gen_times = []
     prev_time = time.time()

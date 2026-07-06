@@ -11,7 +11,7 @@ import math
 import pytest
 
 import siren
-from siren.optimize import _kp_update
+from siren.tune import _kp_update
 
 PT = siren.dataclasses.ParticleType
 M_V1 = 0.017

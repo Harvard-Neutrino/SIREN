@@ -17,7 +17,7 @@ Two things are checked:
 import numpy as np
 import pytest
 
-from siren.optimize import _kp_update
+from siren.tune import _kp_update
 
 
 # ----------------------------------------------------------------------
