@@ -137,6 +137,10 @@ public:
     unsigned int InjectionAttempts() const;
     unsigned int EventsToInject() const;
     unsigned int FailedEvents() const;
+    // Deprecated aggregation over the failure ledger: keys are the parent PDG
+    // of the failing vertex (primary failures key on the primary PDG; there is
+    // no sentinel key), and non-fatal skips are excluded.  Prefer
+    // GetFailureLedger() for the structured (depth, pdg, reason) view.
     std::map<int, unsigned int> GetFailureCounts() const;
     std::string GetLastFailureReason() const;
     siren::dataclasses::InteractionTree const & GetLastFailedTree() const;

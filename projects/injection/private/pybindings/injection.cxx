@@ -477,7 +477,10 @@ PYBIND11_MODULE(injection,m) {
     .def("EventsToInject",&Injector::EventsToInject)
     .def("__len__", &Injector::EventsToInject)
     .def("FailedEvents",&Injector::FailedEvents)
-    .def("GetFailureCounts",&Injector::GetFailureCounts)
+    .def("GetFailureCounts",&Injector::GetFailureCounts,
+        "Deprecated: fatal failure counts keyed by the parent PDG of the failing "
+        "vertex (primary failures key on the primary PDG; no sentinel key). "
+        "Prefer GetFailureLedger() for the (depth, pdg, reason) view.")
     .def("GetLastFailureReason",&Injector::GetLastFailureReason)
     .def("GetLastFailedTree",&Injector::GetLastFailedTree, pybind11::return_value_policy::reference_internal)
     .def("GetFailureLedger",&Injector::GetFailureLedger, pybind11::return_value_policy::reference_internal)
