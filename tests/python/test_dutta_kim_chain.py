@@ -597,31 +597,21 @@ class TestOnShellChain:
             assert w > 0, f"Non-positive weight: {w}"
 
     def test_breakdown_sum_invariant(self, chain_module):
-        """Per-vertex breakdown factors reconstruct the total weight.
-
-        Weighter.breakdown() reconstructs each vertex's phys/gen on the Python
-        side (the diagnostic neither MadGraph nor Achilles has); the total
-        weight comes from the C++ EventWeight.  The product of the per-vertex
-        factors equals the total up to ONE global constant -- the 1/N_gen
-        Monte-Carlo normalization that EventWeight applies but per-vertex
-        factors (correctly) do not; empirically the offset is exactly
-        ln(N_gen).  That this offset is identical for every event is precisely
-        what makes the per-vertex variance attribution valid: breakdown()
-        captures every event-varying factor.  This guards that decomposition
-        against future drift.
-        """
+        """Product of per-vertex physical/generation factors equals the total
+        weight up to one global 1/N_gen normalization, identical across events."""
         events, weighter = _build_onshell_events(chain_module, n_events=12, seed=99)
         assert len(events) > 0, "No events generated"
 
         offsets = []
         for ev in events:
-            bd = weighter.breakdown(ev)
-            if not (math.isfinite(bd.weight) and bd.weight > 0):
+            bd = weighter.explain(ev)
+            if not (math.isfinite(bd.total) and bd.total > 0):
                 continue
             if not all(v.is_ok for v in bd.vertices):
                 continue
-            log_prod = sum(math.log(v.vertex_weight) for v in bd.vertices)
-            offsets.append(log_prod - math.log(bd.weight))
+            log_prod = sum(math.log(v.physical / v.generation)
+                           for v in bd.vertices)
+            offsets.append(log_prod - math.log(bd.total))
 
         assert len(offsets) >= 2, "Need >= 2 clean events to check constancy"
         spread = max(offsets) - min(offsets)
