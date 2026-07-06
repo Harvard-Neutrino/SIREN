@@ -93,14 +93,22 @@ void Weighter::Initialize() {
                             )
                     );
             } catch(const std::out_of_range& oor) {
-                std::cout << "Out of Range error: " << oor.what() << '\n';
-                std::cout << "Initialization Incomplete: Particle " <<  sec_phys_process->GetPrimaryType() << " does not exist in injector\n";
-                return;
+                std::ostringstream oss;
+                oss << "Weighter::Initialize: secondary physical process (primary type "
+                    << sec_phys_process->GetPrimaryType()
+                    << ") has no matching injector secondary process for injector "
+                    << i << " (" << oor.what() << ") [siren-docs: errors#configuration]";
+                throw siren::utilities::ConfigurationError(oss.str());
             }
         }
         if(injector_sec_process_weighter_map.size() != injector_sec_process_map.size()) {
-            std::cout << "Initialization Incomplete: No one-to-one mapping between injection and physical distributions for injector " << i << "\n";
-            return;
+            std::ostringstream oss;
+            oss << "Weighter::Initialize: no one-to-one mapping between injection ("
+                << injector_sec_process_map.size() << ") and physical ("
+                << injector_sec_process_weighter_map.size()
+                << ") secondary processes for injector " << i
+                << " [siren-docs: errors#configuration]";
+            throw siren::utilities::ConfigurationError(oss.str());
         }
         secondary_process_weighter_maps.push_back(injector_sec_process_weighter_map);
         ++i;

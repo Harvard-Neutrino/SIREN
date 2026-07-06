@@ -501,6 +501,11 @@ double MultiChannelPhaseSpace::ComputeContributions(
     std::vector<double> * bare) const
 {
     ThrowOnIncompatibility();
+
+    if (channels.empty()) {
+        throw std::runtime_error("MultiChannelPhaseSpace has no channels");
+    }
+
     ThrowIfWeightsInconsistent(channels, weights, "ComputeContributions");
 
     PhaseSpaceTopology common_topo = CommonTopology();

@@ -202,10 +202,11 @@ def _generate_chain_arrays(detector_model):
             break
         try:
             ev = inj.GenerateEvent()
-        except RuntimeError:
-            # The only RuntimeError GenerateEvent() raises is the max-attempts
-            # sentinel; InjectionFailure surfaces as an empty tree, so this
-            # cannot mask another failure.
+        except RuntimeError as err:
+            # Only the max-attempts sentinel ends the loop; any other typed
+            # engine RuntimeError re-raises so it cannot be masked here.
+            if "maximum number of injection attempts" not in str(err):
+                raise
             break
         if len(ev.tree) == 0:
             continue
