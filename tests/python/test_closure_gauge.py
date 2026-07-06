@@ -90,23 +90,17 @@ def test_broken_density_raises():
 # ------------------------------------------------------------------ #
 
 def test_closure_deterministic_under_seed():
-    # A fresh class each call to dodge the per-class cache.
-    def make():
-        class C(siren.DecayModel):
-            parent = "N4"
-            daughters = ("NuLight", "Gamma")
-            measure = siren.Measure.SolidAngleRest()
+    import siren.closure as closure
 
-            def total_width(self):
-                return 1.0
-
-            def differential_width(self, record):
-                return 1.0 / (4.0 * math.pi)
-        return C()
-
-    r1 = siren.check_closure(make(), samples=2000, seed=42)
-    r2 = siren.check_closure(make(), samples=2000, seed=42)
+    # Clear the per-(class, params) cache between calls so the second run
+    # recomputes independently, proving the validation RNG stream is the sole
+    # source of the draw and the same seed reproduces the same report.
+    closure._CACHE.clear()
+    r1 = siren.check_closure(GoodIsoDecay(), samples=2000, seed=42)
+    closure._CACHE.clear()
+    r2 = siren.check_closure(GoodIsoDecay(), samples=2000, seed=42)
     assert r1.normalization[0] == pytest.approx(r2.normalization[0])
+    assert r1.worst_region == r2.worst_region
 
 
 # ------------------------------------------------------------------ #
