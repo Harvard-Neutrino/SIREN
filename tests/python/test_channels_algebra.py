@@ -442,3 +442,18 @@ class TestPhysical:
         mix = channels.Mixture([(1.0, channels.physical())])
         mcps = mix.compile(sig, models=[xs])
         assert isinstance(mcps.channels[0], siren.injection.PhysicalCrossSectionChannel)
+
+
+class TestCompositionScale:
+
+    def test_scaled_mixture_composition_splits_shares(self):
+        """p * mix_a + q * channel gives each sub-channel its share of the total."""
+        composed = (0.3 * (0.5 * channels.isotropic(0) + 0.5 * channels.isotropic(1))
+                    + 0.7 * channels.isotropic(0))
+        weights = [round(w, 6) for w, _ in composed._entries]
+        assert weights == [0.15, 0.15, 0.7]
+
+    def test_standalone_mixture_stays_normalized(self):
+        """A scaled mixture used on its own is still normalized to sum 1."""
+        mix = 0.3 * (0.5 * channels.isotropic(0) + 0.5 * channels.isotropic(1))
+        assert math.isclose(sum(w for w, _ in mix._entries), 1.0)

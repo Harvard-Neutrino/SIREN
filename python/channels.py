@@ -111,12 +111,12 @@ class _MixtureNode:
         if isinstance(other, _MixtureNode):
             return Mixture([(self.weight, self), (other.weight, other)])
         if isinstance(other, Mixture):
-            return Mixture([(self.weight, self)] + list(other._entries))
+            return Mixture([(self.weight, self)] + other._scaled_entries())
         return NotImplemented
 
     def __radd__(self, other):
         if isinstance(other, Mixture):
-            return Mixture(list(other._entries) + [(self.weight, self)])
+            return Mixture(other._scaled_entries() + [(self.weight, self)])
         return NotImplemented
 
     def describe(self) -> str:
@@ -170,26 +170,36 @@ class Mixture:
                 "Mixture: weights sum to {!r}, must be finite and positive".format(total))
         self._entries: List[Tuple[float, "Channel"]] = [
             (w / total, ch) for w, ch in entries]
+        # A composition scale carried by `*`: `p * mixture` sets it so that
+        # `p * mix_a + q * mix_b` gives each sub-channel its p (or q) share of
+        # the combined mixture. It never affects a standalone mixture's
+        # normalized `_entries`.
+        self._scale = 1.0
+
+    def _scaled_entries(self):
+        """The entries as (scale * relative_weight, channel) pairs."""
+        return [(self._scale * w, ch) for w, ch in self._entries]
 
     def __add__(self, other):
         if isinstance(other, _MixtureNode):
-            return Mixture(list(self._entries) + [(other.weight, other)])
+            return Mixture(self._scaled_entries() + [(other.weight, other)])
         if isinstance(other, Mixture):
-            return Mixture(list(self._entries) + list(other._entries))
+            return Mixture(self._scaled_entries() + other._scaled_entries())
         return NotImplemented
 
     def __radd__(self, other):
         if isinstance(other, _MixtureNode):
-            return Mixture([(other.weight, other)] + list(self._entries))
+            return Mixture([(other.weight, other)] + self._scaled_entries())
         return NotImplemented
 
     def __rmul__(self, scalar):
         if not isinstance(scalar, (int, float)):
             return NotImplemented
-        # Rescaling a normalized mixture by a positive scalar renormalizes
-        # right back to the same mixture; kept for algebraic symmetry with
-        # Channel.__rmul__ so `p * mix_a + (1 - p) * mix_b` composes.
-        return Mixture([(scalar * w, ch) for w, ch in self._entries])
+        # Carry the scale for composition without disturbing the normalized
+        # entries, so `p * mix_a + q * mix_b` splits p and q across the mixtures.
+        scaled = Mixture(list(self._entries))
+        scaled._scale = float(scalar)
+        return scaled
 
     def describe(self) -> str:
         parts = ["{:.2f} * {}".format(w, ch.describe()) for w, ch in self._entries]
