@@ -500,6 +500,11 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         int primary_pdg = static_cast<int>(primary_process->GetPrimaryType());
         failure_ledger_.Record(0, primary_pdg, reason, e.what());
         last_failure_reason_ = e.what();
+        // A vertex-distribution throw fires before Finalize sets the signature,
+        // so stamp the primary type to keep the partial tree readable.
+        if(record.signature.primary_type == siren::dataclasses::ParticleType::unknown) {
+            record.signature.primary_type = primary_process->GetPrimaryType();
+        }
         siren::dataclasses::InteractionTree partial_tree;
         partial_tree.add_entry(record);
         last_failed_tree_ = std::move(partial_tree);
@@ -789,8 +794,13 @@ unsigned int Injector::FailedEvents() const {
 }
 
 std::map<int, unsigned int> Injector::GetFailureCounts() const {
+    // Count only failures that ended an event; UnregisteredSecondaryType is a
+    // non-fatal skip that leaves the event intact.
     std::map<int, unsigned int> counts;
     for(auto const & item : failure_ledger_.entries) {
+        if(item.first.reason == siren::utilities::FailureReason::UnregisteredSecondaryType) {
+            continue;
+        }
         counts[item.first.parent_pdg] += static_cast<unsigned int>(item.second.count);
     }
     return counts;
