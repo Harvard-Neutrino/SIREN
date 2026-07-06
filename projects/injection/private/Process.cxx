@@ -65,19 +65,21 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
 
 PhysicalProcess::PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions), phase_space_map_(other.phase_space_map_) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(std::move(other.physical_distributions)), phase_space_map_(std::move(other.phase_space_map_)) {};
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess const & other) {
     Process::operator=(other);
     physical_distributions = other.physical_distributions;
+    phase_space_map_ = other.phase_space_map_;
     return *this;
 };
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess && other) {
     Process::operator=(other);
-    physical_distributions = other.physical_distributions;
+    physical_distributions = std::move(other.physical_distributions);
+    phase_space_map_ = std::move(other.phase_space_map_);
     return *this;
 };
 
@@ -101,6 +103,34 @@ void PhysicalProcess::SetPhysicalDistributions(std::vector<std::shared_ptr<distr
         }
     }
     physical_distributions = distributions;
+}
+
+void PhysicalProcess::SetPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig,
+    std::shared_ptr<MultiChannelPhaseSpace> ps)
+{
+    if (ps) {
+        ps->ValidateConventions();
+    }
+    phase_space_map_[sig] = ps;
+}
+
+std::shared_ptr<MultiChannelPhaseSpace> PhysicalProcess::GetPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig) const
+{
+    auto it = phase_space_map_.find(sig);
+    if (it != phase_space_map_.end()) return it->second;
+    return nullptr;
+}
+
+bool PhysicalProcess::HasPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig) const
+{
+    return phase_space_map_.find(sig) != phase_space_map_.end();
+}
+
+bool PhysicalProcess::HasAnyPhaseSpace() const {
+    return !phase_space_map_.empty();
 }
 
 PrimaryInjectionProcess::PrimaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};

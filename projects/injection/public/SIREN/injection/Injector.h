@@ -42,6 +42,7 @@ namespace siren { namespace distributions { class SecondaryVertexPositionDistrib
 namespace siren { namespace geometry { class Geometry; } }
 namespace siren { namespace injection { class PrimaryInjectionProcess; } }
 namespace siren { namespace injection { class SecondaryInjectionProcess; } }
+namespace siren { namespace injection { struct MultiChannelPhaseSpace; } }
 namespace siren { namespace math { class Vector3D; } }
 namespace siren { namespace utilities { class SIREN_random; } }
 
@@ -56,6 +57,10 @@ protected:
     unsigned int events_to_inject = 0;
     unsigned int injection_attempts = 0;
     unsigned int injected_events = 0;
+    unsigned int failed_events = 0;
+    std::map<int, unsigned int> failure_counts_;
+    std::string last_failure_reason_;
+    siren::dataclasses::InteractionTree last_failed_tree_;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     // This function returns true if the given secondary index i of the datum should not be simulated
@@ -71,6 +76,13 @@ private:
     std::vector<std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distributions;
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondary_process_map;
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
+
+    // Route a tree datum to the mixture that sampled it: depth-0 -> the primary
+    // process, otherwise the secondary process keyed by the record's primary
+    // type -- exactly as generation and weighting route.  Returns nullptr when
+    // the signature has no registered phase space.
+    std::shared_ptr<MultiChannelPhaseSpace> PhaseSpaceForDatum(
+        siren::dataclasses::InteractionTreeDatum const & datum) const;
 public:
     // Constructors
     Injector(unsigned int events_to_inject, std::string filename, std::shared_ptr<siren::utilities::SIREN_random> random);
@@ -93,6 +105,18 @@ public:
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record,
                                     std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
+
+    // Factored version: select interaction channel only (no kinematics).
+    // Sets record.signature and record.target_mass.
+    void SelectChannel(siren::dataclasses::InteractionRecord & record,
+                       std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
+
+    // Find the Decay/CrossSection matching record.signature and call
+    // SampleFinalState.  Used as the fallback when no PhaseSpaceChannel
+    // is registered for this signature.
+    void SampleMatchingFinalState(siren::dataclasses::InteractionRecord & record,
+                                  std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
+
     siren::dataclasses::InteractionRecord SampleSecondaryProcess(siren::dataclasses::SecondaryDistributionRecord & secondary_record) const;
     siren::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
@@ -111,7 +135,33 @@ public:
     unsigned int InjectedEvents() const;
     unsigned int InjectionAttempts() const;
     unsigned int EventsToInject() const;
-    void ResetInjectedEvents();
+    unsigned int FailedEvents() const;
+    std::map<int, unsigned int> GetFailureCounts() const;
+    std::string GetLastFailureReason() const;
+    siren::dataclasses::InteractionTree const & GetLastFailedTree() const;
+    void ResetInjectedEvents(unsigned int events_to_inject);
+
+    // --- Channel-weight optimizer support (feed the mixtures' KP accumulators) ---
+
+    // Enumerate every multi-channel (>= 2 channel) phase-space mixture across the
+    // primary and secondary processes (deduplicated), so a caller can drive
+    // UpdateWeights/ResetAccumulators without navigating the process structure.
+    std::vector<std::shared_ptr<MultiChannelPhaseSpace>> GetPhaseSpaces() const;
+
+    // For each vertex datum in a completed (or failed) event tree, route it to
+    // the mixture that sampled it and fold `weight` into that mixture's KP
+    // accumulator.  Every matching datum is credited (matching the optimizer's
+    // per-vertex variance sum).  recurse = false tunes only the outer vertex
+    // weights.
+    void AccumulateEventToMixtures(
+        siren::dataclasses::InteractionTree const & tree,
+        double weight, bool discount_fallback = true, bool recurse = false) const;
+
+    // Fold each mixture's per-tree selection probability into its success
+    // (failed == false) or failure (failed == true) accumulator, at most once
+    // per tree per mixture (matching the chain failure penalty's per-tree count).
+    void AccumulateSelectionToMixtures(
+        siren::dataclasses::InteractionTree const & tree, bool failed) const;
     operator bool() const;
     void SaveInjector(std::string const & filename) const;
     void LoadInjector(std::string const & filename);

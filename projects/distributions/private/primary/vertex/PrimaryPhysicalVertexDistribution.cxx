@@ -146,7 +146,7 @@ double PrimaryPhysicalVertexDistribution::GenerationProbability(std::shared_ptr<
 PrimaryPhysicalVertexDistribution::PrimaryPhysicalVertexDistribution() {}
 
 std::set<DistributionVariable> PrimaryPhysicalVertexDistribution::RequiredVariables() const {
-    return {DistributionVariable::InitialPosition, DistributionVariable::PrimaryDirection};
+    return {DistributionVariable::InteractionVertex, DistributionVariable::PrimaryDirection};
 }
 
 std::string PrimaryPhysicalVertexDistribution::Name() const {
