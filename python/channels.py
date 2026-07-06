@@ -416,6 +416,10 @@ def toward_3body(directed: Union[int, str], target, *,
     ctor (spectator/pair indices resolved per signature; `spectator`
     selects the spectator daughter, the other two secondaries become the
     pair, with `directed` as the directed member of the pair).
+
+    The channel topology is inferred per signature: a real target type
+    tags the channel Scatter2to3 (2->3 scattering), the Decay marker tags
+    it Decay3Body.
     """
     siren = _siren()
     if mode is None:
@@ -428,7 +432,12 @@ def toward_3body(directed: Union[int, str], target, *,
 
     def factory(signature, *, detector=None, models=None):
         directed_idx = _resolve_index(signature, directed, "toward_3body(directed=...)")
+        decay_marker = siren.dataclasses.Particle.ParticleType.Decay
+        topology = (siren.injection.PhaseSpaceTopology.Decay3Body
+                    if signature.target_type == decay_marker
+                    else siren.injection.PhaseSpaceTopology.Scatter2to3)
         common_kwargs = dict(
+            topology=topology,
             mass_mode=pair_mass.mass_mode,
             resonance_mass=pair_mass.resonance_mass,
             resonance_width=pair_mass.resonance_width,
