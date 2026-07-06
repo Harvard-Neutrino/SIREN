@@ -37,24 +37,6 @@ std::string ProcessName(siren::dataclasses::InteractionSignature const & s) {
     return n;
 }
 
-// Deterministic total order on signatures: lexicographic over
-// (primary pdg, target pdg, secondary pdgs). Process ids are assigned in this
-// order so identical physics gets identical ids across files regardless of the
-// order the trees were encountered in.
-bool SignatureLess(siren::dataclasses::InteractionSignature const & a,
-                   siren::dataclasses::InteractionSignature const & b) {
-    if(pdg(a.primary_type) != pdg(b.primary_type))
-        return pdg(a.primary_type) < pdg(b.primary_type);
-    if(pdg(a.target_type) != pdg(b.target_type))
-        return pdg(a.target_type) < pdg(b.target_type);
-    std::size_t const n = std::min(a.secondary_types.size(), b.secondary_types.size());
-    for(std::size_t j = 0; j < n; ++j) {
-        if(pdg(a.secondary_types[j]) != pdg(b.secondary_types[j]))
-            return pdg(a.secondary_types[j]) < pdg(b.secondary_types[j]);
-    }
-    return a.secondary_types.size() < b.secondary_types.size();
-}
-
 } // namespace
 } // namespace io
 } // namespace siren
@@ -717,7 +699,7 @@ void SaveInteractionTreesAsHepMC3(
     std::vector<siren::dataclasses::InteractionSignature> sigs;
     sigs.reserve(sig_by_key.size());
     for(auto const & kv : sig_by_key) sigs.push_back(kv.second);
-    std::sort(sigs.begin(), sigs.end(), SignatureLess);
+    std::sort(sigs.begin(), sigs.end());
     int next_process_id = 700; // NuHepMC generator ("Other") process-id band
     for(auto const & sig : sigs) {
         std::string const key = ProcessKey(sig);

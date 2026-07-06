@@ -75,6 +75,20 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("primary_type",&InteractionSignature::primary_type)
         .def_readwrite("target_type",&InteractionSignature::target_type)
         .def_readwrite("secondary_types",&InteractionSignature::secondary_types)
+        .def(py::self == py::self)
+        .def(py::self != py::self)
+        .def(py::self < py::self)
+        .def("__hash__", [](InteractionSignature const & s) {
+            std::size_t h = 146527;
+            auto mix = [&h](ParticleType t) {
+                h = h * 31 + static_cast<std::size_t>(
+                    static_cast<uint32_t>(static_cast<int32_t>(t)));
+            };
+            mix(s.primary_type);
+            mix(s.target_type);
+            for(ParticleType const & st : s.secondary_types) mix(st);
+            return h;
+        })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionSignature>),
             &(siren::serialization::pickle_load<InteractionSignature>)

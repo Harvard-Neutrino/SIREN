@@ -26,6 +26,7 @@ struct InteractionSignature {
     std::vector<siren::dataclasses::ParticleType> secondary_types;
 
     bool operator==(InteractionSignature const & other) const;
+    bool operator!=(InteractionSignature const & other) const;
     bool operator<(InteractionSignature const & other) const;
     friend std::string (::to_str)(siren::dataclasses::InteractionSignature const & signature);
     friend std::string (::to_repr)(siren::dataclasses::InteractionSignature const & signature);
