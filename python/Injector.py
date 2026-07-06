@@ -193,6 +193,13 @@ class Injector:
                 "secondary_interactions and secondary_injection_distributions "
                 "must have the same keys")
 
+        # Every trampoline-derived model (authoring bases and legacy direct
+        # subclasses alike) must implement its base's required virtuals; a
+        # silent pure-virtual fall-through aborts opaquely in C++ otherwise.
+        _validation.audit_overrides(self.__primary_interactions)
+        for _models_list in self.__secondary_interactions.values():
+            _validation.audit_overrides(_models_list)
+
         primary_process = self._assemble_primary_process()
         secondary_processes = self._assemble_secondary_processes()
 

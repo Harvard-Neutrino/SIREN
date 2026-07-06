@@ -356,3 +356,179 @@ def probe_channel_densities(mcps, signature, detector_model, random,
     template = build_template_record(signature)
     return mcps.ValidateChannelDensities(
         random, detector_model, template, samples_per_channel)
+
+
+def _pybind_base_of(model):
+    """Return the pybind C++ interaction base a Python model derives from.
+
+    The authoring bases (and legacy direct subclasses) sit above one of
+    Decay/CrossSection/DarkNewsDecay/DarkNewsCrossSection; return the most
+    derived such base found on the MRO, or None if the model is not
+    trampoline-derived.
+    """
+    from . import interactions as _interactions
+    candidates = []
+    for name in ("DarkNewsDecay", "DarkNewsCrossSection", "Decay", "CrossSection"):
+        base = getattr(_interactions, name, None)
+        if base is not None and isinstance(model, base):
+            candidates.append((name, base))
+    if not candidates:
+        return None
+    # DarkNews bases derive from Decay/CrossSection, so prefer them when present.
+    for name in ("DarkNewsDecay", "DarkNewsCrossSection"):
+        for cand_name, base in candidates:
+            if cand_name == name:
+                return base
+    return candidates[0][1]
+
+
+# The required virtual method names per pybind base. A model whose MRO resolves
+# one of these only to the abstract pybind base (no Python override) would abort
+# in C++ with an opaque pure-virtual message; audit_overrides turns that into a
+# named ConfigurationError.
+_REQUIRED_DECAY_METHODS = (
+    "GetPossibleSignatures", "GetPossibleSignaturesFromParent",
+    "TotalDecayWidth", "TotalDecayWidthAllFinalStates",
+    "DifferentialDecayWidth", "FinalStateProbability",
+    "DensityVariables", "SampleFinalState",
+)
+_REQUIRED_CROSS_SECTION_METHODS = (
+    "GetPossiblePrimaries", "GetPossibleTargets",
+    "GetPossibleTargetsFromPrimary", "GetPossibleSignatures",
+    "GetPossibleSignaturesFromParents", "TotalCrossSection",
+    "DifferentialCrossSection", "InteractionThreshold",
+    "FinalStateProbability", "DensityVariables", "SampleFinalState",
+)
+
+
+def _is_pybind_registered(klass):
+    """True for a class registered directly by a pybind module.
+
+    A subclass authored in Python still carries the pybind11 metaclass once it
+    inherits a bound C++ base, so the metaclass alone cannot separate the two.
+    A directly-registered C++ type has no method __dict__ authored in Python:
+    its methods are builtin_function_or_method / instancemethod wrappers with a
+    __module__ under the compiled interactions module, and it defines no
+    ordinary Python function in its own namespace.
+    """
+    import types
+    for value in vars(klass).values():
+        if isinstance(value, types.FunctionType):
+            return False
+    return True
+
+
+def _is_trampoline_derived(model, pybind_base):
+    """True when a Python-authored class sits above the pybind base in the MRO.
+
+    C++-native models resolve their virtuals in C++, so no class between
+    type(model) and the pybind base defines an ordinary Python function; only
+    genuinely Python-authored models do.
+    """
+    for klass in type(model).__mro__:
+        if klass is pybind_base:
+            return False
+        if not _is_pybind_registered(klass):
+            return True
+    return False
+
+
+def _resolves_before_root(model, method_name, abstract_root):
+    """True if method_name is implemented above the abstract Decay/CrossSection.
+
+    Walks type(model).__mro__ and reports the method satisfied when any class
+    before the abstract root defines it -- a Python override or a concrete C++
+    intermediate (e.g. DarkNewsDecay, whose FinalStateProbability delegates to
+    the Python differential hook). Only a method resolving no earlier than the
+    abstract root, which is pure there, is unimplemented.
+    """
+    for klass in type(model).__mro__:
+        if klass is abstract_root:
+            return False
+        if method_name in vars(klass):
+            return True
+    return False
+
+
+def audit_overrides(interactions):
+    """Fail loudly on trampoline models with an unimplemented required virtual.
+
+    ``interactions`` is any iterable yielding interaction objects (or an
+    InteractionCollection). For every trampoline-derived model, walk its MRO
+    for the required virtuals of Decay/CrossSection; a method that resolves only
+    to the abstract root (pure there, with no override or concrete intermediate)
+    raises ConfigurationError naming the class and the missing method. Also
+    enforces the default-sampler measure contract: a model relying on the base
+    SampleFinalState for a measure with no self-contained channel must override
+    sample().
+    """
+    from . import interactions as _interactions
+
+    cross_section_root = getattr(_interactions, "CrossSection")
+    decay_root = getattr(_interactions, "Decay")
+
+    models = _collect_models(interactions)
+    for model in models:
+        pybind_base = _pybind_base_of(model)
+        if pybind_base is None:
+            continue
+        # C++-native models implement their virtuals in C++; only audit models
+        # authored in Python via the trampoline.
+        if not _is_trampoline_derived(model, pybind_base):
+            continue
+        if isinstance(model, cross_section_root):
+            required = _REQUIRED_CROSS_SECTION_METHODS
+            abstract_root = cross_section_root
+        else:
+            required = _REQUIRED_DECAY_METHODS
+            abstract_root = decay_root
+        for method_name in required:
+            if not _resolves_before_root(model, method_name, abstract_root):
+                raise ConfigurationError(
+                    "%s does not implement the required method '%s' of its "
+                    "interaction base; define or correctly spell it"
+                    % (type(model).__name__, method_name))
+        _audit_default_sampler(model)
+
+
+def _audit_default_sampler(model):
+    """Enforce the recursion-safe default-sampler contract for authoring bases.
+
+    A model that leaves SampleFinalState to the authoring-base default must
+    declare a measure with a self-contained channel; otherwise the default
+    would need PhysicalChannelAdapters, which recurses. Skip models that
+    override the sampler or are not authoring-base derived.
+    """
+    from . import models as _models
+
+    base_sfs = getattr(_models_base_sample(model), "SampleFinalState", None)
+    if base_sfs is None:
+        return
+    if type(model).SampleFinalState is not base_sfs:
+        return
+    measure = model.Measure()
+    finals = len(model.GetPossibleSignatures()[0].secondary_types)
+    if _models._self_contained_channel(measure, finals, 0) is None:
+        raise ConfigurationError(
+            "%s uses the default sampler for measure %r, which has no "
+            "self-contained channel; override sample(record, random)"
+            % (type(model).__name__, measure))
+
+
+def _models_base_sample(model):
+    """Find the authoring-base class carrying the default SampleFinalState."""
+    from . import models as _models
+    for klass in type(model).__mro__:
+        if klass.__name__ in ("DecayModel", "CrossSectionModel") \
+                and klass.__module__ == _models.__name__:
+            return klass
+    return None
+
+
+def _collect_models(interactions):
+    """Yield the individual cross-section and decay models from a container."""
+    if interactions is None:
+        return []
+    if hasattr(interactions, "GetCrossSections") and hasattr(interactions, "GetDecays"):
+        return list(interactions.GetCrossSections()) + list(interactions.GetDecays())
+    return list(interactions)
