@@ -522,7 +522,7 @@ PYBIND11_MODULE(injection,m) {
   class_<VertexWeightFactors>(m, "VertexWeightFactors")
     .def_readonly("injector_index", &VertexWeightFactors::injector_index)
     .def_readonly("depth", &VertexWeightFactors::depth)
-    .def_readonly("primary_pdg", &VertexWeightFactors::primary_pdg)
+    .def_readonly("vertex_pdg", &VertexWeightFactors::vertex_pdg)
     .def_readonly("generation", &VertexWeightFactors::generation)
     .def_readonly("physical", &VertexWeightFactors::physical)
     .def_readonly("interaction_prob", &VertexWeightFactors::interaction_prob)

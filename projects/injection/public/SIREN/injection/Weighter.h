@@ -69,7 +69,8 @@ typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryPr
 struct VertexWeightFactors {
     int injector_index = 0;
     int depth = 0;
-    int primary_pdg = 0;
+    // pdg of the particle at this vertex, not the event's primary.
+    int vertex_pdg = 0;
     double generation = 1.0;
     double physical = 1.0;
     double interaction_prob = 1.0;

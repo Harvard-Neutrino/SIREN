@@ -59,7 +59,7 @@ static const double ccm_hnl_dipole_coupling = 1.0e-6; // in GeV^-1; the effectiv
 static const std::string ccm_hnl_mHNL = "0.01375";
 
 // Events to inject
-static const unsigned int ccm_hnl_events_to_inject = 1e2;
+static const unsigned int ccm_hnl_events_to_inject = 100u;
 static const siren::dataclasses::ParticleType ccm_hnl_primary_type = siren::dataclasses::ParticleType::NuMu;
 
 inline std::vector<double> CCMHNLDipoleCouplingVec() {

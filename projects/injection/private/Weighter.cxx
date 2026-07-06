@@ -125,7 +125,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         bool with_diagnostics) const {
     VertexWeightFactors factors;
     factors.injector_index = static_cast<int>(idx);
-    factors.primary_pdg = static_cast<int>(datum->record.signature.primary_type);
+    factors.vertex_pdg = static_cast<int>(datum->record.signature.primary_type);
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
     if(datum->is_root()) {
         factors.depth = 0;
