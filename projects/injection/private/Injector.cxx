@@ -556,8 +556,10 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                     failed_events += 1;
                     int secondary_depth = static_cast<int>(parent->depth(tree)) + 1;
                     int parent_pdg = static_cast<int>(parent->record.signature.primary_type);
+                    std::ostringstream oss;
+                    oss << e.what() << " (secondary pdg " << current_secondary_pdg << ")";
                     failure_ledger_.Record(secondary_depth, parent_pdg,
-                        e.reason(), e.what());
+                        e.reason(), oss.str());
                     last_failure_reason_ = e.what();
                     last_failed_tree_ = std::move(tree);
                     return siren::dataclasses::InteractionTree();
