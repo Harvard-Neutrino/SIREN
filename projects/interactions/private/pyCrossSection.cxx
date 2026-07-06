@@ -115,6 +115,28 @@ double pyCrossSection::SampleInteractionTime(dataclasses::CrossSectionDistributi
     )
 }
 
+std::vector<double> pyCrossSection::SecondaryMasses(std::vector<siren::dataclasses::ParticleType> const & secondary_types) const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        std::vector<double>,
+        SecondaryMasses,
+        "SecondaryMasses",
+        secondary_types
+    )
+}
+
+std::vector<double> pyCrossSection::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        std::vector<double>,
+        SecondaryHelicities,
+        "SecondaryHelicities",
+        record
+    )
+}
+
 std::vector<siren::dataclasses::ParticleType> pyCrossSection::GetPossibleTargets() const {
     SELF_OVERRIDE_PURE(
         self,
@@ -187,6 +209,35 @@ std::vector<std::string> pyCrossSection::DensityVariables() const {
     );
 }
 
+siren::dataclasses::PhaseSpaceTopology pyCrossSection::Topology() const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        siren::dataclasses::PhaseSpaceTopology,
+        Topology,
+        "Topology"
+    )
+}
+
+siren::dataclasses::PhaseSpaceMeasure pyCrossSection::Measure() const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        siren::dataclasses::PhaseSpaceMeasure,
+        Measure,
+        "Measure"
+    )
+}
+
+siren::dataclasses::PhaseSpaceConvention pyCrossSection::Convention() const {
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        siren::dataclasses::PhaseSpaceConvention,
+        Convention,
+        "Convention"
+    )
+}
+
 } // namespace interactions
 } // namespace siren
-

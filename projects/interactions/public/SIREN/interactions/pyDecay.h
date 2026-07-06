@@ -44,10 +44,15 @@ public:
     double DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
     double SampleDecayTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
+    std::vector<double> SecondaryMasses(std::vector<siren::dataclasses::ParticleType> const & secondary_types) const override;
+    std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<std::string> DensityVariables() const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
+    siren::dataclasses::PhaseSpaceTopology Topology() const override;
+    siren::dataclasses::PhaseSpaceMeasure Measure() const override;
+    siren::dataclasses::PhaseSpaceConvention Convention() const override;
 
     Pybind11TrampolineCerealMethods(Decay, pyDecay);
 }; // class pyDecay
@@ -60,4 +65,3 @@ CEREAL_REGISTER_TYPE(siren::interactions::pyDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Decay, siren::interactions::pyDecay);
 
 #endif // SIREN_Decay_H
-
