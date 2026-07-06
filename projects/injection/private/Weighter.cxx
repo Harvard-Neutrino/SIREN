@@ -172,14 +172,14 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                 }
             }
         }
-        // Weight-calculation guard: a finite
-        // generation_probability <= 0 would contribute 0 to inv_weight and, via
-        // the reciprocal below, produce an infinite weight; a non-finite physical
-        // probability is equally unrecoverable.  Both are configuration/physics
-        // failures the caller must not silently absorb.  physical_probability == 0
-        // is NOT caught here: it drives inv_weight to +inf and yields a legitimate
-        // 0.0-weight event.
-        if(generation_probability <= 0.0 || !std::isfinite(physical_probability)) {
+        // Weight-calculation guard: a generation_probability that is <= 0 or
+        // non-finite would produce an infinite or NaN weight via the reciprocal
+        // below; a non-finite physical probability is equally unrecoverable.
+        // Both are configuration/physics failures the caller must not silently
+        // absorb.  physical_probability == 0 is NOT caught here: it drives
+        // inv_weight to +inf and yields a legitimate 0.0-weight event.
+        if(generation_probability <= 0.0 || !std::isfinite(generation_probability)
+           || !std::isfinite(physical_probability)) {
             std::ostringstream oss;
             oss << "Weighter::EventWeight: unusable probabilities for injector " << idx;
             if(!tree.tree.empty()) {
