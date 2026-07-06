@@ -18,6 +18,7 @@ import numpy as np
 import scipy.integrate as _integrate
 
 from siren.interactions import Decay as _Decay
+from siren import DecayModel as _DecayModel
 from siren import dataclasses
 from siren.dataclasses import Particle
 from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
@@ -319,11 +320,20 @@ class MesonThreeBodyDecay:
 #  MesonSimpleDecay  --  pi+ -> mu+ nu_mu  (SM two-body)
 # ===================================================================
 
-class MesonSimpleDecay(_Decay):
+class MesonSimpleDecay(_DecayModel):
     """
     SM two-body decay pi+ -> mu+ nu_mu.
     Width: Gamma = G_F^2 f_pi^2 |V_ud|^2 m_pi m_mu^2 (1 - m_mu^2/m_pi^2)^2 / (8 pi)
+
+    Isotropic in the meson rest frame (SolidAngleRest 2-body): the authoring
+    base derives the signature methods, the width overload pair, the isotropic
+    1/(4 pi) FinalStateProbability, Topology/Measure, and the closure-by-
+    construction Isotropic2BodyChannel sampler from total_width() /
+    differential_width().
     """
+
+    measure = _Measure.SolidAngleRest()
+    daughter_index = 0
 
     def __init__(
         self,
@@ -335,7 +345,7 @@ class MesonSimpleDecay(_Decay):
         pdgid_neutrino=_PDGID_NUMU,
         table_dir=None,
     ):
-        _Decay.__init__(self)
+        _DecayModel.__init__(self)
 
         self.m_meson = m_meson
         self.m_lepton = m_lepton
@@ -343,6 +353,10 @@ class MesonSimpleDecay(_Decay):
         self.pdgid_meson = pdgid_meson
         self.pdgid_lepton = pdgid_lepton
         self.pdgid_neutrino = pdgid_neutrino
+
+        self.parent = Particle.ParticleType(pdgid_meson)
+        self.daughters = (Particle.ParticleType(pdgid_lepton),
+                          Particle.ParticleType(pdgid_neutrino))
 
         f_M, V_Mq = _meson_params(m_meson)
         self.f_M = f_M
@@ -358,54 +372,19 @@ class MesonSimpleDecay(_Decay):
                 * self.m_meson * self.m_lepton**2
                 * (1.0 - r)**2 / (8.0 * math.pi))
 
-    def GetPossibleSignatures(self):
-        sig = dataclasses.InteractionSignature()
-        sig.primary_type = Particle.ParticleType(self.pdgid_meson)
-        sig.target_type = Particle.ParticleType.Decay
-        sig.secondary_types = [
-            Particle.ParticleType(self.pdgid_lepton),
-            Particle.ParticleType(self.pdgid_neutrino),
-        ]
-        return [sig]
-
-    def GetPossibleSignaturesFromParent(self, primary_type):
-        if int(primary_type) == self.pdgid_meson:
-            return self.GetPossibleSignatures()
-        return []
-
-    def TotalDecayWidthAllFinalStates(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_meson:
-            return 0.0
+    def total_width(self):
         return self._total_width
 
-    def TotalDecayWidth(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_meson:
-            return 0.0
-        return self._total_width
-
-    def DifferentialDecayWidth(self, record):
+    def differential_width(self, record):
         if int(record.signature.primary_type) != self.pdgid_meson:
             return 0.0
         return self._total_width / (4.0 * math.pi)
 
-    def FinalStateProbability(self, record):
-        if self._total_width <= 0.0:
-            return 0.0
-        return self.DifferentialDecayWidth(record) / self._total_width
-
-    def DensityVariables(self):
+    def density_variables(self):
         return ["cos_theta"]
 
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
-
-    def Topology(self):
-        return _Topology.Decay2Body
-
-    def Measure(self):
-        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu]
@@ -418,25 +397,6 @@ class MesonSimpleDecay(_Decay):
 
     def equal(self, other):
         return self is other
-
-    def SampleFinalState(self, record, random):
-        P_parent = np.array(record.primary_momentum)
-        p_cm = _two_body_p_cm(self.m_meson, self.m_lepton, self.m_nu)
-
-        cos_theta = random.Uniform(-1.0, 1.0)
-        phi = random.Uniform(0.0, 2.0 * math.pi)
-
-        P_lep = _boost_to_lab(P_parent, p_cm, cos_theta, phi, self.m_lepton)
-        P_nu = _boost_to_lab(P_parent, p_cm, -cos_theta, phi + math.pi, self.m_nu)
-
-        for sec in record.get_secondary_particle_records():
-            if int(sec.type) == self.pdgid_lepton:
-                sec.four_momentum = P_lep
-                sec.mass = self.m_lepton
-            elif int(sec.type) == self.pdgid_neutrino:
-                sec.four_momentum = P_nu
-                sec.mass = self.m_nu
-        return
 
 
 # ===================================================================

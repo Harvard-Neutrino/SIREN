@@ -22,6 +22,7 @@ import numpy as np
 import scipy.integrate as _integrate
 
 from siren.interactions import Decay as _Decay, CrossSection as _CrossSection
+from siren import DecayModel as _DecayModel, CrossSectionModel as _CrossSectionModel
 from siren import dataclasses
 from siren.dataclasses import Particle
 from siren.injection import PhaseSpaceConvention as _PhaseSpaceConvention
@@ -284,8 +285,18 @@ class VectorPortalUpsCase:
 #  VectorPortalUpscatteringXS  --  chi N -> chi' N
 # ===================================================================
 
-class VectorPortalUpscatteringXS(_CrossSection):
-    """On-shell vector-portal upscattering chi + N -> chi' + N."""
+class VectorPortalUpscatteringXS(_CrossSectionModel):
+    """On-shell vector-portal upscattering chi + N -> chi' + N.
+
+    MandelstamQ2 Scatter2to2: the authoring base derives Topology, Measure,
+    DensityVariables, FinalStateProbability (differential / total) and the
+    interaction threshold from the total_xs()/differential_xs() hooks; sample()
+    is overridden because MandelstamQ2 has no self-contained default channel.
+    The HNucleus-aware target/signature methods and the flexible-argument
+    TotalCrossSection/DifferentialCrossSection overloads are kept as-is.
+    """
+
+    measure = _Measure.MandelstamQ2()
 
     def __init__(
         self,
@@ -303,7 +314,7 @@ class VectorPortalUpscatteringXS(_CrossSection):
         A=40,
         Z=18,
     ):
-        _CrossSection.__init__(self)
+        _CrossSectionModel.__init__(self)
 
         self.m_chi = m_chi
         self.m_chi_prime = m_chi_prime
@@ -332,6 +343,11 @@ class VectorPortalUpscatteringXS(_CrossSection):
             A=A,
             Z=Z,
         )
+
+        self.primary = Particle.ParticleType(pdgid_chi)
+        self.target = self.GetPossibleTargets()[0]
+        self.finals = tuple(self.GetPossibleSignatures()[0].secondary_types)
+        self.threshold = self._ups.Ethreshold
 
     def GetPossiblePrimaries(self):
         return [Particle.ParticleType(self.pdgid_chi)]
@@ -391,8 +407,14 @@ class VectorPortalUpscatteringXS(_CrossSection):
             energy = record.primary_momentum[0]
         return float(np.real(self._ups.diff_xsec_Q2(energy, Q2)))
 
-    def InteractionThreshold(self, interaction):
-        return self._ups.Ethreshold
+    def total_xs(self, record):
+        return self.TotalCrossSection(record)
+
+    def differential_xs(self, record):
+        return self.DifferentialCrossSection(record)
+
+    def density_variables(self):
+        return ["Q2"]
 
     def Q2Min(self, interaction):
         return _Q2min(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
@@ -409,23 +431,8 @@ class VectorPortalUpscatteringXS(_CrossSection):
     def SecondaryHelicities(self, record):
         return [record.primary_helicity, record.target_helicity]
 
-    def FinalStateProbability(self, record):
-        total = self.TotalCrossSection(record)
-        if total <= 0.0:
-            return 0.0
-        return self.DifferentialCrossSection(record) / total
-
-    def DensityVariables(self):
-        return ["Q2"]
-
     def Convention(self):
         return _PhaseSpaceConvention.MandelstamST
-
-    def Topology(self):
-        return _Topology.Scatter2to2
-
-    def Measure(self):
-        return _Measure.MandelstamQ2()
 
     def equal(self, other):
         return self is other
@@ -454,7 +461,7 @@ class VectorPortalUpscatteringXS(_CrossSection):
                 return cand
         return random.Uniform(q2min, q2max)
 
-    def SampleFinalState(self, record, random):
+    def sample(self, record, random):
         E_chi = record.primary_momentum[0]
         M = self.m_target
         m_chi = self.m_chi
@@ -877,11 +884,20 @@ class VectorPortalOffShellXS(_CrossSection):
 #  ChiPrimeDecay  --  chi' -> chi + V1
 # ===================================================================
 
-class ChiPrimeDecay(_Decay):
+class ChiPrimeDecay(_DecayModel):
     """
     Two-body decay chi' -> chi + V1.
     Width: Gamma = (g_D^2 / 48 pi) m_chi' lambda^{3/2}(1, r_chi^2, r_V^2)
+
+    Isotropic in the chi' rest frame (SolidAngleRest 2-body): the authoring
+    base derives the signature methods, the width overload pair, the isotropic
+    1/(4 pi) FinalStateProbability, Topology/Measure, and the closure-by-
+    construction Isotropic2BodyChannel sampler from total_width() /
+    differential_width().
     """
+
+    measure = _Measure.SolidAngleRest()
+    daughter_index = 0
 
     def __init__(
         self,
@@ -895,7 +911,7 @@ class ChiPrimeDecay(_Decay):
         pdgid_V1=5922,
         table_dir=None,
     ):
-        _Decay.__init__(self)
+        _DecayModel.__init__(self)
         self.m_chi = m_chi
         self.m_chi_prime = m_chi_prime
         self.m_V1 = m_V1
@@ -904,6 +920,10 @@ class ChiPrimeDecay(_Decay):
         self.pdgid_chi_prime = pdgid_chi_prime
         self.pdgid_chi = pdgid_chi
         self.pdgid_V1 = pdgid_V1
+
+        self.parent = Particle.ParticleType(pdgid_chi_prime)
+        self.daughters = (Particle.ParticleType(pdgid_chi),
+                          Particle.ParticleType(pdgid_V1))
 
         self.table_dir = table_dir or "."
         os.makedirs(self.table_dir, exist_ok=True)
@@ -915,54 +935,19 @@ class ChiPrimeDecay(_Decay):
             return 0.0
         return self.g_D**2 * p**3 / (6.0 * math.pi * self.m_chi_prime**2)
 
-    def GetPossibleSignatures(self):
-        sig = dataclasses.InteractionSignature()
-        sig.primary_type = Particle.ParticleType(self.pdgid_chi_prime)
-        sig.target_type = Particle.ParticleType.Decay
-        sig.secondary_types = [
-            Particle.ParticleType(self.pdgid_chi),
-            Particle.ParticleType(self.pdgid_V1),
-        ]
-        return [sig]
-
-    def GetPossibleSignaturesFromParent(self, primary_type):
-        if int(primary_type) == self.pdgid_chi_prime:
-            return self.GetPossibleSignatures()
-        return []
-
-    def TotalDecayWidthAllFinalStates(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_chi_prime:
-            return 0.0
+    def total_width(self):
         return self._total_width
 
-    def TotalDecayWidth(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_chi_prime:
-            return 0.0
-        return self._total_width
-
-    def DifferentialDecayWidth(self, record):
+    def differential_width(self, record):
         if int(record.signature.primary_type) != self.pdgid_chi_prime:
             return 0.0
         return self._total_width / (4.0 * math.pi)
 
-    def FinalStateProbability(self, record):
-        if self._total_width <= 0.0:
-            return 0.0
-        return self.DifferentialDecayWidth(record) / self._total_width
-
-    def DensityVariables(self):
+    def density_variables(self):
         return ["cos_theta"]
 
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
-
-    def Topology(self):
-        return _Topology.Decay2Body
-
-    def Measure(self):
-        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_V1]
@@ -976,36 +961,26 @@ class ChiPrimeDecay(_Decay):
     def equal(self, other):
         return self is other
 
-    def SampleFinalState(self, record, random):
-        P_parent = np.array(record.primary_momentum)
-        p_cm = _two_body_p_cm(self.m_chi_prime, self.m_chi, self.m_V1)
-
-        cos_theta = random.Uniform(-1.0, 1.0)
-        phi = random.Uniform(0.0, 2.0 * math.pi)
-
-        P_chi = _boost_to_lab(P_parent, p_cm, cos_theta, phi, self.m_chi)
-        P_V1 = _boost_to_lab(P_parent, p_cm, -cos_theta, phi + math.pi, self.m_V1)
-
-        for sec in record.get_secondary_particle_records():
-            if int(sec.type) == self.pdgid_chi:
-                sec.four_momentum = P_chi
-                sec.mass = self.m_chi
-            elif int(sec.type) == self.pdgid_V1:
-                sec.four_momentum = P_V1
-                sec.mass = self.m_V1
-        return
-
 
 # ===================================================================
 #  DarkPhotonDecay  --  V1 -> e- e+
 # ===================================================================
 
-class DarkPhotonDecay(_Decay):
+class DarkPhotonDecay(_DecayModel):
     """
     Two-body decay V1 -> e- e+.
     Width: Gamma = (alpha epsilon^2 m_V / 3) sqrt(1 - 4 m_e^2/m_V^2) (1 + 2 m_e^2/m_V^2)
     Angular distribution: dGamma/d(cos theta) ~ 1 + beta^2 cos^2(theta)
+
+    Declared measure SolidAngleRest 2-body, but the rest-frame angular density
+    is 1 + beta^2 cos^2(theta), NOT isotropic. differential_width carries that
+    shape (the base forms FinalStateProbability = differential / total), and
+    sample() is overridden with the matching rejection sampler so Sample and
+    Density stay the same distribution.
     """
+
+    measure = _Measure.SolidAngleRest()
+    daughter_index = 0
 
     def __init__(
         self,
@@ -1015,10 +990,14 @@ class DarkPhotonDecay(_Decay):
         pdgid_V1=5922,
         table_dir=None,
     ):
-        _Decay.__init__(self)
+        _DecayModel.__init__(self)
         self.m_V1 = m_V1
         self.epsilon = epsilon
         self.pdgid_V1 = pdgid_V1
+
+        self.parent = Particle.ParticleType(pdgid_V1)
+        self.daughters = (Particle.ParticleType.EMinus,
+                          Particle.ParticleType.EPlus)
 
         self.table_dir = table_dir or "."
         os.makedirs(self.table_dir, exist_ok=True)
@@ -1032,34 +1011,10 @@ class DarkPhotonDecay(_Decay):
         beta = math.sqrt(max(1.0 - (2.0 * me / mV)**2, 0.0))
         return (_ALPHA_EM * self.epsilon**2 * mV / 3.0) * beta * (1.0 + 2.0 * me**2 / mV**2)
 
-    def GetPossibleSignatures(self):
-        sig = dataclasses.InteractionSignature()
-        sig.primary_type = Particle.ParticleType(self.pdgid_V1)
-        sig.target_type = Particle.ParticleType.Decay
-        sig.secondary_types = [
-            Particle.ParticleType.EMinus,
-            Particle.ParticleType.EPlus,
-        ]
-        return [sig]
-
-    def GetPossibleSignaturesFromParent(self, primary_type):
-        if int(primary_type) == self.pdgid_V1:
-            return self.GetPossibleSignatures()
-        return []
-
-    def TotalDecayWidthAllFinalStates(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_V1:
-            return 0.0
+    def total_width(self):
         return self._total_width
 
-    def TotalDecayWidth(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_V1:
-            return 0.0
-        return self._total_width
-
-    def DifferentialDecayWidth(self, record):
+    def differential_width(self, record):
         if int(record.signature.primary_type) != self.pdgid_V1:
             return 0.0
         if self._total_width <= 0.0:
@@ -1081,22 +1036,11 @@ class DarkPhotonDecay(_Decay):
         norm = 4.0 * math.pi * (1.0 + beta_e**2 / 3.0)
         return self._total_width * (1.0 + beta_e**2 * cos_theta**2) / norm
 
-    def FinalStateProbability(self, record):
-        if self._total_width <= 0.0:
-            return 0.0
-        return self.DifferentialDecayWidth(record) / self._total_width
-
-    def DensityVariables(self):
+    def density_variables(self):
         return ["cos_theta"]
 
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
-
-    def Topology(self):
-        return _Topology.Decay2Body
-
-    def Measure(self):
-        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [_M_ELECTRON, _M_ELECTRON]
@@ -1110,7 +1054,7 @@ class DarkPhotonDecay(_Decay):
     def equal(self, other):
         return self is other
 
-    def SampleFinalState(self, record, random):
+    def sample(self, record, random):
         me = _M_ELECTRON
         p_cm = _two_body_p_cm(self.m_V1, me, me)
         beta = p_cm / math.sqrt(p_cm**2 + me**2) if p_cm > 0 else 0.0
@@ -1141,7 +1085,7 @@ class DarkPhotonDecay(_Decay):
 #  DarkPhotonToChiDecay  --  V1 -> chi chi_bar
 # ===================================================================
 
-class DarkPhotonToChiDecay(_Decay):
+class DarkPhotonToChiDecay(_DecayModel):
     """
     Two-body decay V1 -> chi chi_bar (dark matter pair production).
 
@@ -1152,7 +1096,16 @@ class DarkPhotonToChiDecay(_Decay):
     (m_V > 2 m_chi).  The chi and chi_bar are both assigned
     the same PDG ID (chi) - the injector treats them identically
     and the stopping condition prevents re-scattering.
+
+    Isotropic in the V1 rest frame (SolidAngleRest 2-body): the authoring
+    base derives the signature methods, the width overload pair, the isotropic
+    1/(4 pi) FinalStateProbability, Topology/Measure, and the closure-by-
+    construction Isotropic2BodyChannel sampler from total_width() /
+    differential_width().
     """
+
+    measure = _Measure.SolidAngleRest()
+    daughter_index = 0
 
     def __init__(
         self,
@@ -1164,12 +1117,16 @@ class DarkPhotonToChiDecay(_Decay):
         pdgid_chi=5917,
         table_dir=None,
     ):
-        _Decay.__init__(self)
+        _DecayModel.__init__(self)
         self.m_V1 = m_V1
         self.m_chi = m_chi
         self.g_D = g_D
         self.pdgid_V1 = pdgid_V1
         self.pdgid_chi = pdgid_chi
+
+        self.parent = Particle.ParticleType(pdgid_V1)
+        self.daughters = (Particle.ParticleType(pdgid_chi),
+                          Particle.ParticleType(pdgid_chi))
 
         self.table_dir = table_dir or "."
         os.makedirs(self.table_dir, exist_ok=True)
@@ -1183,54 +1140,19 @@ class DarkPhotonToChiDecay(_Decay):
         beta = math.sqrt(max(1.0 - (2.0 * mc / mV)**2, 0.0))
         return self.g_D**2 * mV / (12.0 * math.pi) * beta**3
 
-    def GetPossibleSignatures(self):
-        sig = dataclasses.InteractionSignature()
-        sig.primary_type = Particle.ParticleType(self.pdgid_V1)
-        sig.target_type = Particle.ParticleType.Decay
-        sig.secondary_types = [
-            Particle.ParticleType(self.pdgid_chi),
-            Particle.ParticleType(self.pdgid_chi),
-        ]
-        return [sig]
-
-    def GetPossibleSignaturesFromParent(self, primary_type):
-        if int(primary_type) == self.pdgid_V1:
-            return self.GetPossibleSignatures()
-        return []
-
-    def TotalDecayWidthAllFinalStates(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_V1:
-            return 0.0
+    def total_width(self):
         return self._total_width
 
-    def TotalDecayWidth(self, arg1):
-        primary = _primary_type(arg1)
-        if int(primary) != self.pdgid_V1:
-            return 0.0
-        return self._total_width
-
-    def DifferentialDecayWidth(self, record):
+    def differential_width(self, record):
         if int(record.signature.primary_type) != self.pdgid_V1:
             return 0.0
         return self._total_width / (4.0 * math.pi)
 
-    def FinalStateProbability(self, record):
-        if self._total_width <= 0.0:
-            return 0.0
-        return self.DifferentialDecayWidth(record) / self._total_width
-
-    def DensityVariables(self):
+    def density_variables(self):
         return ["cos_theta"]
 
     def Convention(self):
         return _PhaseSpaceConvention.RestFrameSolidAngle
-
-    def Topology(self):
-        return _Topology.Decay2Body
-
-    def Measure(self):
-        return _Measure.SolidAngleRest()
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_chi, self.m_chi]
@@ -1243,23 +1165,6 @@ class DarkPhotonToChiDecay(_Decay):
 
     def equal(self, other):
         return self is other
-
-    def SampleFinalState(self, record, random):
-        p_cm = _two_body_p_cm(self.m_V1, self.m_chi, self.m_chi)
-
-        cos_theta = random.Uniform(-1.0, 1.0)
-        phi = random.Uniform(0.0, 2.0 * math.pi)
-
-        P_parent = np.array(record.primary_momentum)
-        P_chi1 = _boost_to_lab(P_parent, p_cm, cos_theta, phi, self.m_chi)
-        P_chi2 = _boost_to_lab(P_parent, p_cm, -cos_theta, phi + math.pi, self.m_chi)
-
-        secondaries = record.get_secondary_particle_records()
-        secondaries[0].four_momentum = P_chi1
-        secondaries[0].mass = self.m_chi
-        secondaries[1].four_momentum = P_chi2
-        secondaries[1].mass = self.m_chi
-        return
 
 
 # ===================================================================
