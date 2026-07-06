@@ -73,11 +73,11 @@ void ParticleID::SetID(uint64_t major, int32_t minor) {
 }
 
 bool ParticleID::operator<(ParticleID const & other) const {
-    return std::tie(id_set, major_id, minor_id) < std::tie(id_set, other.major_id, other.minor_id);
+    return std::tie(id_set, major_id, minor_id) < std::tie(other.id_set, other.major_id, other.minor_id);
 }
 
 bool ParticleID::operator==(ParticleID const & other) const {
-    return std::tie(id_set, major_id, minor_id) == std::tie(id_set, other.major_id, other.minor_id);
+    return std::tie(id_set, major_id, minor_id) == std::tie(other.id_set, other.major_id, other.minor_id);
 }
 
 bool ParticleID::operator!=(ParticleID const & other) const {

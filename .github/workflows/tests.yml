@@ -31,15 +31,54 @@ jobs:
             libgsl-dev \
             libcfitsio-dev
 
+      - name: Build and install HepMC3 (ROOT-free, from source)
+        # Ubuntu's libhepmc3-dev is 3.2.x, which lacks the Vector*Attribute types
+        # the NuHepMC writer uses. Build the same 3.3.1 the wheels use (version
+        # single-sourced from cibw_before_all.sh, download reused from
+        # fetch_hepmc3.sh) so the distro and wheel builds stay identical.
+        run: |
+          set -euo pipefail
+          HEPMC3_VERSION=$(grep -oP 'HEPMC3_VERSION="\K[^"]+' tools/wheels/cibw_before_all.sh)
+          echo "Building HepMC3 $HEPMC3_VERSION from source"
+          PREFIX="$RUNNER_TEMP/hepmc3-install"
+          SRC="$RUNNER_TEMP/hepmc3-src"
+          mkdir -p "$SRC"
+          bash tools/wheels/fetch_hepmc3.sh "$HEPMC3_VERSION" "$RUNNER_TEMP/HepMC3.tar.gz"
+          tar -xzf "$RUNNER_TEMP/HepMC3.tar.gz" -C "$SRC" --strip-components=1
+          cmake -S "$SRC" -B "$SRC/build" \
+            -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+            -DHEPMC3_ENABLE_ROOTIO=OFF \
+            -DHEPMC3_ENABLE_PROTOBUFIO=OFF \
+            -DHEPMC3_ENABLE_PYTHON=OFF \
+            -DHEPMC3_ENABLE_TEST=OFF \
+            -DHEPMC3_BUILD_EXAMPLES=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          cmake --build "$SRC/build" --parallel
+          cmake --install "$SRC/build"
+          echo "HEPMC3_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PREFIX/lib:$PREFIX/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+
       - name: Install Python build dependencies
         run: |
           python -m pip install --upgrade pip
           pip install scikit-build-core pytest
+          # pyhepmc drives the external-reader validation in
+          # test_hepmc3_nuhepmc.py (importorskip-guarded). It ships its own
+          # bundled HepMC3, so it is independent of the from-source build above.
+          # Non-fatal: on platforms without a wheel the test skips instead of
+          # failing the job.
+          pip install pyhepmc || echo "pyhepmc unavailable; external-reader test will skip"
 
       - name: Build and install SIREN
         env:
-          CMAKE_PREFIX_PATH: /usr  # use apt-installed gsl/cfitsio, not the cibw paths
+          # apt-installed gsl/cfitsio from /usr, plus the from-source HepMC3 3.3.1 prefix
+          CMAKE_PREFIX_PATH: /usr:${{ env.HEPMC3_PREFIX }}
         run: pip install -v .
 
       - name: Run pytest
+        env:
+          # This job builds HepMC3 from source and points SIREN at it, so a
+          # find_package regression that silently falls back to the no-HepMC3
+          # stub must fail the job instead of letting the HepMC3 suite skip.
+          SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes

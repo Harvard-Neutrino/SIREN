@@ -111,6 +111,18 @@ void pyDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & rec
     )
 }
 
+double pyDecay::SampleDecayTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    SELF_OVERRIDE_REF(
+        self,
+        Decay,
+        double,
+        SampleDecayTime,
+        "SampleDecayTime",
+        record,
+        random
+    )
+}
+
 std::vector<siren::dataclasses::InteractionSignature> pyDecay::GetPossibleSignatures() const {
     SELF_OVERRIDE_PURE(
         self,

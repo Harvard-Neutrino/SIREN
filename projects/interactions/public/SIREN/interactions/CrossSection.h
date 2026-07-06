@@ -41,6 +41,7 @@ public:
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
+    virtual double SampleInteractionTime(siren::dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const;
 
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const = 0;

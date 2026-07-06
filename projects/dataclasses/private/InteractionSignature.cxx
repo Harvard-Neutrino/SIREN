@@ -14,6 +14,10 @@ bool InteractionSignature::operator==(InteractionSignature const & other) const 
         std::tie(other.primary_type, other.target_type, other.secondary_types);
 }
 
+bool InteractionSignature::operator!=(InteractionSignature const & other) const {
+    return not (*this == other);
+}
+
 bool InteractionSignature::operator<(InteractionSignature const & other) const {
     return
         std::tie(primary_type, target_type, secondary_types)

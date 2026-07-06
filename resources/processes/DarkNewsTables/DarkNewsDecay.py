@@ -295,7 +295,10 @@ class PyDarkNewsDecay(DarkNewsDecay):
         else:
             print("%s is not a valid decay class type!" % type(self.dec_case))
             exit(0)
-        return self.dec_case.differential_width(momenta)
+        ret = self.dec_case.differential_width(momenta)
+        if hasattr(ret, "item"):
+            ret = ret.item()
+        return ret
 
     def TotalDecayWidthAllFinalStates(self, arg1):
         if isinstance(arg1, dataclasses.InteractionRecord):
@@ -326,7 +329,10 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     )
             else:
                 self.total_width = self.dec_case.total_width()
-        return self.total_width
+        ret = self.total_width
+        if hasattr(ret, "item"):
+            ret = ret.item()
+        return ret
 
     def TotalDecayWidth(self, record):
         sig = self.GetPossibleSignatures()[0]
@@ -345,6 +351,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
         ):
             return 0
         ret = self.dec_case.total_width()
+        if hasattr(ret, "item"):
+            ret = ret.item()
         return ret
 
     def DensityVariables(self):

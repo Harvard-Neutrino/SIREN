@@ -1683,6 +1683,16 @@ std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistribu
     return os;
 }
 
+std::string to_str(siren::dataclasses::SecondaryDistributionRecord const & record) {
+    std::stringstream ss;
+    ss << record;
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::SecondaryDistributionRecord const & record) {
+    return to_str(record);
+}
+
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const & record) {
     os << to_repr(record);
     return os;

@@ -256,10 +256,26 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+    // Sample the final state, then give the selected interaction a chance to
+    // override the vertex time. The hook must run here, post-selection: which
+    // decay/cross section fires at a vertex is only chosen above (in this
+    // function), after the vertex-owning record's position has been frozen by
+    // its Finalize, so there is no reachable point before Finalize at which the
+    // concrete interaction is known. Overriding time here is coherent because
+    // the vertex position is fixed; only the interaction time shifts, and
+    // daughters inherit it through xsec_record.Finalize's back-sync.
+    double proposed_time;
     if(r <= xsec_prob) {
-        matching_cross_sections[index]->SampleFinalState(xsec_record, random);
+        std::shared_ptr<siren::interactions::CrossSection> const & selected = matching_cross_sections[index];
+        selected->SampleFinalState(xsec_record, random);
+        proposed_time = selected->SampleInteractionTime(xsec_record, random);
     } else {
-        matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
+        std::shared_ptr<siren::interactions::Decay> const & selected = matching_decays[index - matching_cross_sections.size()];
+        selected->SampleFinalState(xsec_record, random);
+        proposed_time = selected->SampleDecayTime(xsec_record, random);
+    }
+    if(proposed_time != xsec_record.GetInteractionTime()) {
+        xsec_record.SetInteractionTime(proposed_time);
     }
     xsec_record.Finalize(record);
 }

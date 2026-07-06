@@ -36,6 +36,8 @@ option(SIREN_WITH_MARLEY "Enable MARLEY support if available" ON)
 option(SIREN_REQUIRE_MARLEY "Fail configure if MARLEY requested but not found" OFF)
 option(SIREN_WITH_PYTHIA8 "Enable Pythia8 support if available" OFF)
 option(SIREN_REQUIRE_PYTHIA8 "Fail configure if Pythia8 requested but not found" OFF)
+option(SIREN_WITH_HEPMC3 "Enable HepMC3 output support if available" ON)
+option(SIREN_REQUIRE_HEPMC3 "Fail configure if HepMC3 requested but not found" OFF)
 
 # include cmake dependencies
 include(GNUInstallDirs)
@@ -195,6 +197,7 @@ include(PYTHIA8)
 if(TARGET PYTHIA8)
     apply_siren_compile_options(PYTHIA8)
 endif()
+include(HepMC3)
 
 # load macros for googletest
 include(testing)
@@ -209,6 +212,7 @@ add_subdirectory(projects/detector)
 add_subdirectory(projects/interactions)
 add_subdirectory(projects/distributions)
 add_subdirectory(projects/injection)
+add_subdirectory(projects/io)
 
 # define the target library
 add_library(SIREN SHARED)
@@ -235,6 +239,7 @@ target_link_libraries(SIREN
         SIREN_interactions
         SIREN_distributions
         SIREN_injection
+        SIREN_io
 )
 else()
 target_link_libraries(SIREN
@@ -250,6 +255,7 @@ target_link_libraries(SIREN
         SIREN_interactions
         SIREN_distributions
         SIREN_injection
+        SIREN_io
 )
 endif()
 
@@ -271,6 +277,7 @@ if(DEFINED SKBUILD_PLATLIB_DIR)
             SIREN_interactions
             SIREN_distributions
             SIREN_injection
+            SIREN_io
             EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
@@ -285,6 +292,7 @@ if(DEFINED SKBUILD_PLATLIB_DIR)
             SIREN_interactions
             SIREN_distributions
             SIREN_injection
+            SIREN_io
             EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -300,6 +308,7 @@ else()
         SIREN_interactions
         SIREN_distributions
         SIREN_injection
+        SIREN_io
         EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -348,6 +357,8 @@ if(DEFINED SKBUILD_PLATLIB_DIR)
     install(TARGETS distributions
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS injection
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
+    install(TARGETS hepmc3
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(DIRECTORY ${PROJECT_SOURCE_DIR}/python/
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)

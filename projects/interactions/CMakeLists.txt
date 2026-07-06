@@ -99,6 +99,10 @@ set_target_properties(interactions PROPERTIES
 endif()
 package_add_test(UnitTest_CharmMesonDecay ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmMesonDecay_TEST.cxx)
 
+# Post-selection vertex-time hooks (Decay::SampleDecayTime,
+# CrossSection::SampleInteractionTime): identity default plus override back-sync.
+package_add_test(UnitTest_InteractionTimeHook ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/InteractionTimeHook_TEST.cxx)
+
 # Charm-DIS interaction-depth closure invariant (no Pythia8 needed: uses a mock
 # that exercises the real base-class CrossSection::TotalCrossSectionAllFinalStates).
 package_add_test(UnitTest_CharmDISClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmDISClosure_TEST.cxx)

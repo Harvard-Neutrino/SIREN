@@ -42,6 +42,7 @@ public:
     virtual double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
+    virtual double SampleDecayTime(siren::dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
