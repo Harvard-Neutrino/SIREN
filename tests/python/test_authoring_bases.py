@@ -126,6 +126,46 @@ def test_default_sampler_rejects_unsupported_measure():
         m.SampleFinalState(csdr, rng)
 
 
+class LabDecayWithSampler(siren.DecayModel):
+    """A non-default measure with an explicit sample() override; the engine
+    entry point SampleFinalState must reach the override."""
+
+    parent = "N4"
+    daughters = ("NuLight", "Gamma")
+    measure = siren.Measure.SolidAngleLab()
+
+    def total_width(self):
+        return 1.0
+
+    def differential_width(self, record):
+        return 1.0 / (4.0 * math.pi)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sampled = False
+
+    def sample(self, record, random):
+        self.sampled = True
+        secs = record.get_secondary_particle_records()
+        for spr in secs:
+            spr.four_momentum = [0.01, 0.0, 0.0, 0.01]
+            spr.mass = 0.0
+
+
+def test_sample_override_reached_through_engine_entry_point():
+    m = LabDecayWithSampler()
+    csdr, _rec = _template_csdr(m.GetPossibleSignatures()[0])
+    rng = siren.utilities.SIREN_random(5)
+    # SampleFinalState (the C++ virtual entry point) dispatches to sample().
+    m.SampleFinalState(csdr, rng)
+    assert m.sampled
+
+
+def test_audit_accepts_overridden_sampler_for_unsupported_measure():
+    from siren import _validation
+    _validation.audit_overrides([LabDecayWithSampler()])
+
+
 # ------------------------------------------------------------------ #
 #  __init_subclass__ near-miss override rejection                     #
 # ------------------------------------------------------------------ #

@@ -243,14 +243,9 @@ def decay_model_base(base=None):
         # ---- closure-by-construction default sampler ----
 
         def SampleFinalState(self, record, random):
-            channel = _self_contained_channel(
-                self.Measure(), len(self.daughters), self.daughter_index)
-            if channel is None:
-                raise ConfigurationError(
-                    "%s declares measure %r with no self-contained sampling "
-                    "channel; override sample(record, random)"
-                    % (type(self).__name__, self.Measure()))
-            self._sample_via_channel(channel, record, random)
+            # The engine calls this; it dispatches to sample() so an override
+            # takes effect. The default sample() draws the declared measure.
+            self.sample(record, random)
 
         def _sample_via_channel(self, channel, csdr, random):
             """Bridge a CrossSectionDistributionRecord through an engine channel.
@@ -270,8 +265,7 @@ def decay_model_base(base=None):
 
         def total_width(self):
             raise NotImplementedError(
-                "%s must implement total_width() or set lifetime"
-                % type(self).__name__)
+                "%s must implement total_width()" % type(self).__name__)
 
         def differential_width(self, record):
             raise NotImplementedError(
@@ -283,8 +277,20 @@ def decay_model_base(base=None):
             return []
 
         def sample(self, record, random):
-            """Override to sample a non-default measure; default delegates."""
-            self.SampleFinalState(record, random)
+            """Sample the declared measure via a self-contained engine channel.
+
+            Override for a measure with no self-contained channel. This never
+            delegates to PhysicalDecayChannel, whose Sample dispatches back into
+            SampleFinalState and would recurse.
+            """
+            channel = _self_contained_channel(
+                self.Measure(), len(self.daughters), self.daughter_index)
+            if channel is None:
+                raise ConfigurationError(
+                    "%s declares measure %r with no self-contained sampling "
+                    "channel; override sample(record, random)"
+                    % (type(self).__name__, self.Measure()))
+            self._sample_via_channel(channel, record, random)
 
     return DecayModel
 
@@ -383,19 +389,7 @@ def cross_section_model_base(base=None):
         # ---- default sampler (same recursion-safe contract as decays) ----
 
         def SampleFinalState(self, record, random):
-            channel = _self_contained_channel(
-                self.Measure(), len(self.finals), 0)
-            if channel is None:
-                raise ConfigurationError(
-                    "%s declares measure %r with no self-contained sampling "
-                    "channel; override sample(record, random)"
-                    % (type(self).__name__, self.Measure()))
-            ir = record.record
-            channel.Sample(random, None, ir)
-            secondaries = record.get_secondary_particle_records()
-            for i, spr in enumerate(secondaries):
-                spr.four_momentum = ir.secondary_momenta[i]
-                spr.mass = ir.secondary_masses[i]
+            self.sample(record, random)
 
         # ---- physics hooks ----
 
@@ -411,7 +405,24 @@ def cross_section_model_base(base=None):
             return []
 
         def sample(self, record, random):
-            self.SampleFinalState(record, random)
+            """Sample the declared measure via a self-contained engine channel.
+
+            Override for a measure with no self-contained channel; never
+            delegates to PhysicalCrossSectionChannel, which would recurse.
+            """
+            channel = _self_contained_channel(
+                self.Measure(), len(self.finals), 0)
+            if channel is None:
+                raise ConfigurationError(
+                    "%s declares measure %r with no self-contained sampling "
+                    "channel; override sample(record, random)"
+                    % (type(self).__name__, self.Measure()))
+            ir = record.record
+            channel.Sample(random, None, ir)
+            secondaries = record.get_secondary_particle_records()
+            for i, spr in enumerate(secondaries):
+                spr.four_momentum = ir.secondary_momenta[i]
+                spr.mass = ir.secondary_masses[i]
 
     return CrossSectionModel
 

@@ -494,17 +494,18 @@ def audit_overrides(interactions):
 def _audit_default_sampler(model):
     """Enforce the recursion-safe default-sampler contract for authoring bases.
 
-    A model that leaves SampleFinalState to the authoring-base default must
-    declare a measure with a self-contained channel; otherwise the default
-    would need PhysicalChannelAdapters, which recurses. Skip models that
-    override the sampler or are not authoring-base derived.
+    A model that leaves sample() at the authoring-base default must declare a
+    measure with a self-contained channel; otherwise the default would need
+    PhysicalChannelAdapters, which recurses. Skip models that override sample()
+    or are not authoring-base derived.
     """
     from . import models as _models
 
-    base_sfs = getattr(_models_base_sample(model), "SampleFinalState", None)
-    if base_sfs is None:
+    base_class = _models_base_sample(model)
+    if base_class is None:
         return
-    if type(model).SampleFinalState is not base_sfs:
+    base_sample = getattr(base_class, "sample", None)
+    if base_sample is None or type(model).sample is not base_sample:
         return
     measure = model.Measure()
     finals = len(model.GetPossibleSignatures()[0].secondary_types)
