@@ -25,8 +25,8 @@ using namespace siren::dataclasses;
 
 namespace {
 
-// A two-level tree: a primary interaction (NuMu on EPlus -> NuMu + EMinus) whose
-// first secondary (NuMu, id 1:1) is itself the primary of a daughter vertex.
+// Two-level tree: NuMu on EPlus -> NuMu + EMinus, whose first secondary
+// (NuMu, id 1:1) is itself the primary of a daughter vertex.
 InteractionTree BuildTree() {
     InteractionRecord root;
     root.signature.primary_type = ParticleType::NuMu;
@@ -52,7 +52,7 @@ InteractionTree BuildTree() {
     dau.signature.primary_type = ParticleType::NuMu;
     dau.signature.target_type = ParticleType::EPlus;
     dau.signature.secondary_types = {ParticleType::NuMu};
-    dau.primary_id = ParticleID(1, 1); // == root.secondary_ids[0] -> shared particle
+    dau.primary_id = ParticleID(1, 1); // shared with root.secondary_ids[0]
     dau.primary_momentum = {6.0, 0.0, 0.0, 6.0};
     dau.primary_mass = 0.0;
     dau.primary_helicity = -1.0;
@@ -146,22 +146,16 @@ TEST(HepMC3Writer, RoundTripStructure) {
 }
 
 // The vertex 4-position must be Minkowski self-consistent: the time slot carries
-// c*t re-expressed in the SAME CM length unit used for the spatial slots (divisor
-// Constants::cm). This full-precision GenVertex position() t-slot is the primary
-// subject and is asserted against a number computed directly from Constants -- if
-// the writer ever changes the divisor on one slot but not the others, the 4-vector
-// stops being Minkowski and this test fails.
+// c*t divided by the same Constants::cm divisor as the spatial slots.
 //
 // The per-event lab_pos vector carries three spatial slots only. A seconds time
 // slot is deliberately not emitted: HepMC3::VectorDoubleAttribute::to_string uses
-// std::to_string(double) == "%f" with only 6 fractional digits, so any lab time
-// below ~5e-7 s (every realistic sub-microsecond neutrino lab time) would truncate
-// to 0.000000 on write. The full-precision time is available from the vertex t-slot
-// above (t_seconds = position().t() * cm / c / second).
+// std::to_string (6 fractional digits), which truncates any sub-microsecond lab
+// time to 0.000000. Full-precision time comes from the vertex t-slot instead
+// (t_seconds = position().t() * cm / c / second).
 TEST(HepMC3Writer, VertexTimeSlotScaleConsistency) {
     namespace C = siren::utilities::Constants;
 
-    // A single-vertex tree with a known vertex position and interaction time.
     double const t = 5.0;                        // internal time units
     std::array<double, 3> const x = {1.0, 2.0, 3.0}; // internal meters
     InteractionRecord r;
@@ -210,19 +204,15 @@ TEST(HepMC3Writer, VertexTimeSlotScaleConsistency) {
     EXPECT_NEAR(pos.y(), x[1] * spatial_scale, 1e-9);
     EXPECT_NEAR(pos.z(), x[2] * spatial_scale, 1e-9);
 
-    // Time slot: c*t divided by the SAME cm divisor (Minkowski self-consistency).
+    // Time slot: c*t divided by the same cm divisor (Minkowski self-consistency).
     double const expected_t_slot = (C::c * t) / C::cm;
     EXPECT_NEAR(pos.t(), expected_t_slot, 1e-9);
-    // Cross-check the numeric anchor: c*5/cm = 0.299792458*5/1e-2.
+    // Numeric anchor: c*5/cm = 0.299792458*5/1e-2.
     EXPECT_NEAR(expected_t_slot, 149.89622899999998, 1e-9);
-    // Dividing the time slot by (c/cm) recovers the internal time exactly, which is
-    // only true when the slot used the same length divisor as the spatial slots.
+    // Recovers the internal time exactly only if all slots share the length divisor.
     EXPECT_NEAR(pos.t() / (C::c / C::cm), t, 1e-12);
 
-    // The per-event lab_pos vector carries three spatial slots only (the CM vertex
-    // position, same cm divisor as above); a seconds time slot is deliberately not
-    // emitted because VectorDoubleAttribute %f formatting truncates a ns-scale time
-    // to exactly zero. The lossless lab time lives in the Minkowski vertex t-slot.
+    // lab_pos carries three spatial slots only; no time slot (see truncation note above).
     auto lab = evt.attribute<HepMC3::VectorDoubleAttribute>("lab_pos");
     ASSERT_TRUE(static_cast<bool>(lab));
     std::vector<double> const lab_pos = lab->value();
@@ -231,8 +221,7 @@ TEST(HepMC3Writer, VertexTimeSlotScaleConsistency) {
     EXPECT_NEAR(lab_pos[1], x[1] * spatial_scale, 1e-9);
     EXPECT_NEAR(lab_pos[2], x[2] * spatial_scale, 1e-9);
 
-    // The physical lab time, taken from the full-precision Minkowski vertex slot,
-    // is preserved to machine precision (this is the value consumers should use).
+    // Lab time from the vertex t-slot is preserved to machine precision.
     double const intended_lab_time = t / C::second; // 5e-9 s
     double const lab_time_from_vertex = pos.t() * C::cm / C::c / C::second;
     EXPECT_NEAR(lab_time_from_vertex, intended_lab_time, intended_lab_time * 1e-12);
@@ -293,8 +282,7 @@ std::map<int, int> BeamPidToProcessId(std::string const & path) {
 } // namespace
 
 // Process ids are assigned by a deterministic signature sort, not tree-encounter
-// order, so the same physics gets the same id no matter what order the trees are
-// written in. Writing {A,B} and {B,A} must yield the same beam-pid -> id map.
+// order: writing {A,B} and {B,A} must yield the same beam-pid -> id map.
 TEST(HepMC3Writer, DeterministicProcessIds) {
     InteractionTree a = BuildSimpleTree(ParticleType::NuMu, 1);
     InteractionTree b = BuildSimpleTree(ParticleType::NuEBar, 2);

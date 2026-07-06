@@ -11,9 +11,8 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/ParticleType.h"
 
-// Signature-derived process identity (NuHepMC G.R.8). These helpers use no HepMC3
-// types, so they live outside the SIREN_HAS_HEPMC3 guard and are available to the
-// pre-scan in SaveInteractionTreesAsHepMC3 in both the HepMC3 and stub builds.
+// Signature-derived process identity (NuHepMC G.R.8). No HepMC3 types, so these
+// live outside the SIREN_HAS_HEPMC3 guard for use by the pre-scan in both builds.
 namespace siren {
 namespace io {
 namespace {
@@ -68,8 +67,7 @@ namespace {
 namespace C = siren::utilities::Constants;
 using siren::dataclasses::ParticleType;
 
-// 1 GeV^-2 = (hbar c)^2 = 0.3894 mb = 3.894e8 pb (PDG). pdg() is defined in the
-// always-compiled anonymous namespace above.
+// 1 GeV^-2 = (hbar c)^2 = 0.3894 mb = 3.894e8 pb (PDG).
 constexpr double kGeVm2_to_pb = 3.894e8;
 
 // SIREN four-momentum is [E, px, py, pz]; HepMC3 FourVector is (px, py, pz, E).
@@ -78,8 +76,7 @@ HepMC3::FourVector Momentum(std::array<double, 4> const & p) {
 }
 
 // SIREN positions are internal meters (Constants::m == 1); GenEvent uses CM.
-// The time slot carries c*t re-expressed in the same CM length unit so the
-// 4-vector is Minkowski-consistent.
+// Time slot carries c*t in the same CM length unit (Minkowski-consistent).
 HepMC3::FourVector VertexPosition(std::array<double, 3> const & x, double t_internal) {
     double const s = 1.0 / C::cm; // internal-meter -> CM
     return HepMC3::FourVector(x[0] * s, x[1] * s, x[2] * s, (C::c * t_internal) * s);
@@ -92,9 +89,8 @@ std::vector<double> PositionCM(std::array<double, 3> const & x) {
 
 double SecondsFromInternal(double t_internal) { return t_internal / C::second; }
 
-// is_primary_root is true only for the first root datum encountered in a tree: NuHepMC V.R.1
-// allows only one primary-vertex status code (1), other root nodes are demoted to the
-// secondary-interaction nodes (21) so E.R.7's one-beam/one-target invariant holds.
+// NuHepMC V.R.1 allows only one status-1 primary vertex; other root nodes are
+// demoted to status 21 (secondary interaction).
 int VertexStatus(siren::dataclasses::InteractionTreeDatum const & datum, bool is_primary_root) {
     if(is_primary_root) return 1;                                        // primary vertex
     if(datum.record.signature.target_type == ParticleType::Decay) return 22; // decay
@@ -119,8 +115,7 @@ void WriteParticleID(HepMC3::GenParticlePtr const & particle,
 
 // Declare a NuHepMC ID registry on the run info: a VectorIntAttribute id-list
 // under list_key, plus a Name and Description StringAttribute per id under
-// info_stub + "[<id>]". The list key is plural (...IDs); the per-id namespace is
-// a distinct singular stub (...Info). Strict for attribute spelling and types
+// info_stub + "[<id>]". Strict for attribute spelling and types.
 void DeclareIdRegistry(HepMC3::GenRunInfo & ri,
                        std::string const & list_key,
                        std::string const & info_stub,
@@ -139,10 +134,10 @@ void DeclareIdRegistry(HepMC3::GenRunInfo & ri,
     }
 }
 
-// NuHepMC G.R.11 additional particle numbers. The reference writer and reader
-// disagree on the per-code stub (AdditionalParticleNumber vs AdditionalParticleInfo),
-// so the Name is emitted under both and the Description under Info; a Description
-// is always written (empty allowed) because the reference reader requires one.
+// NuHepMC G.R.11 additional particle numbers. Reference writer/reader disagree
+// on the per-code stub (AdditionalParticleNumber vs AdditionalParticleInfo), so
+// Name is emitted under both and Description (always written, empty allowed)
+// under Info.
 void DeclareAdditionalParticleNumbers(
         HepMC3::GenRunInfo & ri,
         std::map<int, std::pair<std::string, std::string>> const & particles) {
@@ -200,20 +195,15 @@ struct HepMC3Writer::Impl {
         if(options_.weight_names.empty()) options_.weight_names = {"CV"};
         run_info_->set_weight_names(options_.weight_names);
 
-        // Weight provenance is always echoed. "unweighted" turns off every NuHepMC.*
-        // key: the per-event CV weight is only a 1.0 placeholder.
-        // Disabling this output indicates that this is not a conforming NuHepMC file.
-        // In that mode the output is a plain HepMC3 file carrying siren.* provenance only.
+        // "unweighted" turns off every NuHepMC.* key (per-event CV weight is a
+        // 1.0 placeholder); output is then a plain HepMC3 file with siren.* only.
         run_info_->add_attribute("siren.weights_state",
             std::make_shared<HepMC3::StringAttribute>(options_.weights_state));
         bool const nuhepmc_mode = (options_.weights_state != "unweighted");
 
-        // NuHepMC.Version's mandatory backing (G.R.5 FATX + G.R.6 units + G.R.8
-        // process registry) can only be written once there is at least one real,
-        // accepted event: with zero accepted events fatx_weight_sum/process_names
-        // are both vacuous, so a Version declaration would outrun what the file
-        // actually contains. Declare Version only when that backing is available;
-        // see the FATX block and the G.R.8 registry below, which reuse this guard.
+        // Version's mandatory backing (G.R.5 FATX + G.R.6 units + G.R.8 process
+        // registry) needs at least one accepted event. This guard is reused by
+        // the FATX block and the G.R.8 registry below.
         bool const have_events = options_.accepted_events > 0;
         bool const nuhepmc_conformant = nuhepmc_mode && have_events;
 
@@ -255,9 +245,8 @@ struct HepMC3Writer::Impl {
             DeclareAdditionalParticleNumbers(*run_info_, particles);
         }
 
-        // Run-level generation counts (metadata; also the FATX normalization). Emitted
-        // as DoubleAttribute so large low-acceptance runs (attempts > INT_MAX) do not
-        // overflow -- the exact integer is preserved up to 2^53.
+        // Run-level generation counts (also the FATX normalization). DoubleAttribute
+        // avoids int overflow for attempts > INT_MAX; exact up to 2^53.
         if(options_.attempted_events >= 0)
             run_info_->add_attribute("siren.attempted_events",
                 D(static_cast<double>(options_.attempted_events)));
@@ -265,16 +254,13 @@ struct HepMC3Writer::Impl {
             run_info_->add_attribute("siren.accepted_events",
                 D(static_cast<double>(options_.accepted_events)));
 
-        // The pooled-weighting seed N_i (Injector EventsToInject). Pure metadata:
-        // never used in a normalization here, but persisted so a downstream pooler
-        // can reconstruct each file's intended event budget.
+        // Pooled-weighting seed N_i (Injector EventsToInject). Metadata only.
         if(options_.events_to_inject >= 0)
             run_info_->add_attribute("siren.events_to_inject",
                 D(static_cast<double>(options_.events_to_inject)));
 
         // NuHepMC process ID registry (G.R.8): one id per distinct root interaction
         // signature, assigned in the generator ("Other", >= 700) band by the pre-scan.
-        // Gated on nuhepmc_conformant: an empty registry cannot back a Version claim.
         if(nuhepmc_conformant && !options_.process_names.empty()) {
             std::vector<int> ids;
             std::map<int, std::pair<std::string, std::string>> info;
@@ -285,39 +271,18 @@ struct HepMC3Writer::Impl {
             DeclareIdRegistry(*run_info_, "NuHepMC.ProcessIDs", "NuHepMC.ProcessInfo", ids, info);
         }
 
-        // Flux-averaged total cross section, at run level (NuHepMC G.C.2: the value
-        // is a single run-wide constant written once, not a per-event running
-        // estimate, so G.C.2 -- not E.C.4 -- is the applicable convention).
-        //
-        // Each accepted event's CV weight is
-        // physical_probability(x) / (EventsToInject * p_gen(x))
-        // i.e. it already carries a 1/N factor where N = EventsToInject is the injector's
-        // configured target event count for the run that produced it. Since events
-        // are drawn x_i ~ p_gen, summing the CV weight over the N draws is already
-        // the unbiased Monte Carlo estimator of the integral defining the
-        // flux-averaged total cross section:
-        //   E[sum_i w(x_i)] = N * E_pgen[physical(x) / (N p_gen(x))] = integral physical(x) dx
-        // Combining file outputs requires multiplying each file's sum(CV) by
-        // its own EventsToInject, then summing those and dividing by the total EventsToInject
-        // across all files. The per-file sum(CV) is already normalized by its own
-        // EventsToInject, so the file-level sum(CV) is the correct unbiased estimator of the integral.
-        //
-        // The rate normalization is only meaningful for weighted output and only
-        // once at least one accepted event exists (nuhepmc_conformant), so under
-        // "unweighted" or a zero-event run no siren.fatx.* or NuHepMC FATX keys are
-        // emitted.
+        // Flux-averaged total cross section, at run level (NuHepMC G.C.2, not
+        // E.C.4: a single run-wide constant, not a per-event running estimate).
+        // Each CV weight already carries 1/EventsToInject, so sum(CV) is the
+        // unbiased estimator of the integral; only emitted when nuhepmc_conformant.
         if(nuhepmc_conformant) {
             run_info_->add_attribute("siren.fatx.weight_sum", D(options_.fatx_weight_sum));
             double const fatx = kGeVm2_to_pb * options_.fatx_weight_sum;
-            // The reserved key + its units back the version declaration.
             run_info_->add_attribute("siren.fatx.value", D(fatx));
             run_info_->add_attribute("NuHepMC.Units.CrossSection.Unit",
                 std::make_shared<HepMC3::StringAttribute>(options_.cross_section_unit));
-            // NuHepMC.Units.CrossSection.TargetScale is only in-spec as "PerAtom" or
-            // "PerNucleon" (G.R.6); SIREN's rate-weight default (fatx_per_atom ==
-            // false) is neither, so the key is omitted rather than filled with an
-            // out-of-spec placeholder -- a reader must treat an absent TargetScale
-            // as "the per-atom/per-nucleon normalization is not asserted".
+            // TargetScale is only in-spec as "PerAtom" or "PerNucleon" (G.R.6);
+            // omitted when fatx_per_atom is false.
             if(options_.fatx_per_atom) {
                 run_info_->add_attribute("NuHepMC.Units.CrossSection.TargetScale",
                     std::make_shared<HepMC3::StringAttribute>(options_.target_scale));
@@ -325,10 +290,8 @@ struct HepMC3Writer::Impl {
             run_info_->add_attribute("NuHepMC.FluxAveragedTotalCrossSection", D(fatx));
 
             // Optional per-primary breakdown (opt-in, needs >1 primary). Each
-            // primary carries the normalized siren.fatx.<pdg> value plus the raw
-            // ingredient (the CV weight sum) that formed it -- so partitioned files
-            // can be losslessly pooled: summing the raw weight_sum across files and
-            // rescaling by kGeVm2_to_pb reproduces the combined estimate exactly.
+            // primary carries the normalized siren.fatx.<pdg> value plus its raw
+            // weight_sum, so partitioned files can be losslessly pooled.
             if(options_.fatx_partition_by_primary
                && options_.fatx_weight_sum_by_primary.size() > 1) {
                 run_info_->add_attribute("siren.fatx_partitioned",
@@ -346,15 +309,9 @@ struct HepMC3Writer::Impl {
             }
         }
 
-        // Conventions adhered to (G.R.4 signalling), built up from whatever this
-        // file actually backs so the declared set never outruns the content:
-        //  - "G.C.2": the FluxAveragedTotalCrossSection block above, only when
-        //    actually emitted (nuhepmc_conformant).
-        // E.C.5 (lab time in the lab_pos vector) is NOT declared: HepMC3's
-        // VectorDoubleAttribute serializes each entry via a fixed 6-decimal format,
-        // which truncates any sub-microsecond lab time to exactly zero seconds (see
-        // the lab_pos construction below), so the file cannot actually back that
-        // convention's time component.
+        // Conventions adhered to (G.R.4). Only "G.C.2" (FATX block above) is
+        // declared. E.C.5 is NOT: VectorDoubleAttribute's fixed 6-decimal format
+        // truncates sub-microsecond lab time to exactly zero (see lab_pos below).
         if(nuhepmc_conformant) {
             std::vector<std::string> conventions;
             conventions.push_back("G.C.2");
@@ -381,20 +338,14 @@ struct HepMC3Writer::Impl {
                                     std::uint64_t event_number) const {
         HepMC3::GenEvent evt(HepMC3::Units::GEV, HepMC3::Units::CM);
         evt.set_run_info(run_info_);
-        // Same gate the run-level NuHepMC block uses: per-event NuHepMC attributes
-        // (E.R.3 signal_process_id, E.R.5 lab_pos) must not be emitted in a file
-        // that carries no NuHepMC.Version / process registry to back them.
+        // Same gate as the run-level block: per-event E.R.3/E.R.5 attributes need
+        // a backing NuHepMC.Version / process registry.
         bool const nuhepmc_conformant =
             (options_.weights_state != "unweighted") && (options_.accepted_events > 0);
-        // HepMC3's GenEvent stores the event number as int; SIREN event numbers
-        // above INT_MAX cannot be represented in the format and are narrowed here.
-        // When that narrowing is lossy the full 64-bit identity is preserved as a
-        // per-event ULongAttribute the reader prefers over the narrowed field.
-        // ULongAttribute (not the wider ULongLongAttribute HepMC3 also offers) is
-        // used because the reader looks this attribute up by that exact type;
-        // `unsigned long` is 64-bit on SIREN's POSIX/LP64 targets, so no event
-        // number is actually truncated here, but this would need revisiting on an
-        // LLP64 (Windows) build where unsigned long is only 32 bits.
+        // HepMC3 stores the event number as int; values above INT_MAX are narrowed
+        // here but preserved losslessly as a per-event siren.event_number
+        // ULongAttribute (64-bit on SIREN's LP64 targets; would need revisiting
+        // on LLP64/Windows).
         evt.set_event_number(static_cast<int>(event_number));
         if(event_number > static_cast<std::uint64_t>(std::numeric_limits<int>::max()))
             evt.add_attribute("siren.event_number",
@@ -419,23 +370,16 @@ struct HepMC3Writer::Impl {
         }
         evt.weights() = weights;
 
-        // Shared particles: a parent vertex's outgoing secondary is the same
-        // physical particle as the daughter vertex's incoming primary; the
-        // records' ParticleID linkage makes this an exact join (no momentum
-        // matching), keyed only on set ids -- an unset ParticleID compares equal
-        // to every other unset id, so unset ids are never inserted or looked up
-        // here and each such record instead gets its own distinct GenParticle.
+        // A parent vertex's outgoing secondary and the daughter's incoming
+        // primary are the same physical particle, joined via ParticleID. Keyed
+        // only on set ids -- unset ParticleID compares equal to every other
+        // unset id, so unset ids get their own distinct GenParticle instead.
         std::map<siren::dataclasses::ParticleID, HepMC3::GenParticlePtr> particle_by_id;
 
         // E.R.7 requires exactly one status-4 beam and one status-20 target per
-        // event. SIREN's own Injector only ever produces single-rooted trees, but
-        // an InteractionTree is not structurally prevented from holding more than
-        // one root (e.g. HepMC3Reader reconstructing a foreign file with
-        // disconnected vertex chains). primary_root_seen tracks whether the one
-        // allowed primary-vertex/beam/target triple has already been assigned, so
-        // a second root's vertex/primary/target are demoted to the same
-        // secondary-interaction status band as any other cascade vertex instead of
-        // producing multiple status-4/status-20 particles in one event.
+        // event. A tree can hold more than one root (e.g. HepMC3Reader
+        // reconstructing a foreign file); primary_root_seen ensures only the
+        // first root gets the primary triple and later roots are demoted.
         bool primary_root_seen = false;
 
         for(auto const & datum_ptr : tree.tree) {
@@ -450,11 +394,8 @@ struct HepMC3Writer::Impl {
             vertex->set_status(VertexStatus(datum, is_primary_root));
 
             // Incoming primary particle. A non-root datum's primary is the same
-            // physical particle as its parent's outgoing secondary (already
-            // created and attributed when the parent vertex was processed). The
-            // join only fires when the id is actually set: an unset ParticleID
-            // compares equal to every other unset id, so joining on it would
-            // collapse unrelated particles onto a single map entry.
+            // physical particle as its parent's outgoing secondary. Join only
+            // when the id is set, else unset ids would collapse onto one entry.
             HepMC3::GenParticlePtr primary;
             bool primary_is_new = false;
             if(!datum.is_root() && rec.primary_id.IsSet()) {
@@ -466,10 +407,7 @@ struct HepMC3Writer::Impl {
             }
             if(!primary) {
                 // Status 4 (incoming beam) is reserved for the one primary root;
-                // any other root's fresh incoming particle uses 2 (not a
-                // NuHepMC-standard "beam", but a valid generic incoming-particle
-                // status already declared final-state-adjacent in the particle
-                // status registry) so E.R.7's beam-uniqueness invariant holds.
+                // any other root's fresh incoming particle uses 2.
                 int const primary_status = is_primary_root ? 4 : 2;
                 primary = std::make_shared<HepMC3::GenParticle>(
                     Momentum(rec.primary_momentum), pdg(rec.signature.primary_type), primary_status);
@@ -482,10 +420,8 @@ struct HepMC3Writer::Impl {
             HepMC3::GenParticlePtr target;
             ParticleType const target_type = rec.signature.target_type;
             if(target_type != ParticleType::Decay && target_type != ParticleType::unknown) {
-                // The one primary root's target is the NuHepMC target (status 20);
-                // every other target (deeper cascade interactions, and any
-                // non-primary root in a forest) is marked 22 so exactly one
-                // status-20 target exists per event (E.R.7).
+                // The primary root's target is status 20 (NuHepMC target); every
+                // other target is 22, so exactly one status-20 exists (E.R.7).
                 int const target_status = is_primary_root ? 20 : 22;
                 target = std::make_shared<HepMC3::GenParticle>(
                     HepMC3::FourVector(0, 0, 0, rec.target_mass), pdg(target_type), target_status);
@@ -514,18 +450,15 @@ struct HepMC3Writer::Impl {
             evt.add_vertex(vertex);
 
             if(primary_is_new) {
-                // Helicity and ParticleID for a reused (non-root) primary were
-                // already written on it as the parent's outgoing secondary.
+                // A reused (non-root) primary already got these as the parent's
+                // outgoing secondary.
                 primary->add_attribute("siren.helicity", D(rec.primary_helicity));
                 WriteParticleID(primary, rec.primary_id);
             }
-            // primary_initial_position/time are per-record quantities -- a
-            // daughter's initial position is its parent's interaction vertex, not
-            // the root's -- so they are written for every vertex's primary,
-            // including the shared particle reused from the parent, and are read
-            // back by the secondary vertex-position distributions during
-            // reweighting. Three scalar attributes avoid VectorDoubleAttribute,
-            // which is absent from HepMC3 3.2.x.
+            // primary_initial_position/time are per-record (a daughter's initial
+            // position is its parent's interaction vertex, not the root's), so
+            // written for every vertex's primary. Three scalar attributes avoid
+            // VectorDoubleAttribute, absent from HepMC3 3.2.x.
             {
                 std::vector<double> const pos = PositionCM(rec.primary_initial_position);
                 primary->add_attribute("siren.primary_initial_position.x", D(pos[0]));
@@ -540,10 +473,8 @@ struct HepMC3Writer::Impl {
             }
             for(auto const & item : outgoing) {
                 std::size_t const j = item.second;
-                // siren.helicity is unconditional on every particle (the reader's
-                // strict mode requires it); a record with fewer helicity entries
-                // than secondaries defaults the missing ones to 0.0 rather than
-                // producing a file its own strict reader would reject.
+                // siren.helicity is required on every particle (strict reader
+                // mode); missing entries default to 0.0.
                 double const helicity = (j < rec.secondary_helicities.size())
                     ? rec.secondary_helicities[j] : 0.0;
                 item.first->add_attribute("siren.helicity", D(helicity));
@@ -552,21 +483,15 @@ struct HepMC3Writer::Impl {
                 if(j < rec.secondary_ids.size())
                     WriteParticleID(item.first, rec.secondary_ids[j]);
             }
-            // siren.param.* namespace contract:
-            // each interaction_parameters entry {key -> double} becomes exactly one
-            // scalar DoubleAttribute on the vertex named "siren.param." + key, carrying
-            // the raw internal value (no unit conversion). The reader rebuilds the map
-            // by stripping the "siren.param." prefix. Keys are generator-defined flat
-            // ASCII with no embedded dot (e.g. energy, bjorken_x, bjorken_y). This map
-            // is reweighting-critical: the Weighter consumes it opaquely via
-            // FinalStateProbability, so every key must survive.
+            // Each interaction_parameters entry {key -> double} becomes a scalar
+            // DoubleAttribute "siren.param." + key, raw internal value (no unit
+            // conversion). Reader strips the prefix to rebuild the map. Keys are
+            // flat ASCII with no embedded dot (e.g. energy, bjorken_x, bjorken_y).
             for(auto const & kv : rec.interaction_parameters) {
                 vertex->add_attribute("siren.param." + kv.first, D(kv.second));
             }
-            // A genuine decay (target_type == Decay) and an unknown-target
-            // interaction both omit the target particle above, so the reader
-            // cannot tell them apart from the vertex graph alone; this flag
-            // disambiguates without touching NuHepMC vertex status.
+            // Decay and unknown-target interactions both omit the target
+            // particle above; this flag disambiguates them for the reader.
             if(target_type == ParticleType::unknown) {
                 vertex->add_attribute("siren.target_type_unknown",
                     std::make_shared<HepMC3::IntAttribute>(1));
@@ -574,15 +499,9 @@ struct HepMC3Writer::Impl {
         }
 
         // Per-event lab position (E.R.5): the primary interaction vertex in CM.
-        // lab_pos deliberately carries only the three spatial entries, not a
-        // fourth time entry (which would be the E.C.5 convention): HepMC3's
-        // VectorDoubleAttribute serializes every entry via a fixed 6-fractional-
-        // digit format (std::to_string), so a realistic sub-microsecond lab time
-        // would silently truncate to exactly 0.000000 s -- a false zero is worse
-        // than an absent value. The authoritative, lossless lab time is the ct
-        // slot of this same root vertex's GenVertex::position() (a plain scientific-
-        // notation float field, not a std::to_string-serialized attribute); a
-        // reader that needs the lab time should use that instead of lab_pos[3].
+        // Only 3 spatial entries, no 4th time entry (E.C.5): VectorDoubleAttribute's
+        // fixed 6-decimal format would truncate sub-microsecond lab time to a false
+        // zero. Lossless lab time is the ct slot of this vertex's GenVertex::position().
         if(nuhepmc_conformant && !tree.tree.empty()) {
             siren::dataclasses::InteractionRecord const & root = tree.tree.front()->record;
             std::vector<double> const lab = PositionCM(root.interaction_vertex);
@@ -657,9 +576,8 @@ void SaveInteractionTreesAsHepMC3(
     std::vector<std::shared_ptr<siren::dataclasses::InteractionTree>> const & trees,
     std::string const & filename,
     HepMC3Writer::Options const & options) {
-    // Pre-scan every tree once so all run-level metadata (process registry, FATX
-    // weight sums, accepted count) is known before the writer's GenRunInfo is
-    // finalized at construction -- this avoids relying on late run-info flushing.
+    // Pre-scan every tree so run-level metadata (process registry, FATX weight
+    // sums, accepted count) is known before GenRunInfo is finalized at construction.
     HepMC3Writer::Options opts = options;
     long long accepted = 0;
     // First pass: accumulate FATX sums/counts and collect one representative
@@ -671,8 +589,7 @@ void SaveInteractionTreesAsHepMC3(
             tree->tree.front()->record.signature;
         std::string const key = ProcessKey(sig);
         sig_by_key.emplace(key, sig);
-        // CV weight is slot 0 (the 'CV' weight_names entry), matching what
-        // TreeToGenEvent writes into evt.weights(); keep FATX consistent with it.
+        // CV weight is slot 0, matching what TreeToGenEvent writes into evt.weights().
         std::vector<double> const & wv = tree->header.weights;
         double const w = wv.empty() ? 1.0 : wv.front();
         opts.fatx_weight_sum += w;
@@ -698,9 +615,8 @@ void SaveInteractionTreesAsHepMC3(
         }
     }
 
-    // Explicit (non-zero) header event numbers, collected up front so the
-    // running-index fallback below never reassigns a number another tree in this
-    // same file already claims explicitly.
+    // Explicit (non-zero) header event numbers, so the running-index fallback
+    // below never reassigns one already claimed explicitly.
     std::set<std::uint64_t> explicit_numbers;
     for(auto const & tree : trees) {
         if(tree && !tree->tree.empty() && tree->header.event_number != 0)
@@ -710,9 +626,7 @@ void SaveInteractionTreesAsHepMC3(
     HepMC3Writer writer(filename, opts);
     std::uint64_t next_fallback = 0;
     for(auto const & tree : trees) {
-        // Skip null and empty trees, matching the pre-scan above exactly -- a
-        // written GenEvent count that disagreed with the accepted/FATX count
-        // would desync the file's event count from its own normalization metadata.
+        // Skip null and empty trees, matching the pre-scan above exactly.
         if(!tree || tree->tree.empty()) continue;
         std::uint64_t event_number;
         if(tree->header.event_number != 0) {

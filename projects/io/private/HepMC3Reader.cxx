@@ -39,9 +39,7 @@ using siren::dataclasses::ParticleType;
 
 ParticleType pdg_to_type(int pid) { return static_cast<ParticleType>(pid); }
 
-// Detect gzip by content (magic bytes 0x1f 0x8b) rather than by filename, so a
-// gzip file without a .gz suffix still loads and a missing/plaintext file
-// falls through to the Ascii reader (which reports the open/parse error).
+// Detect gzip by content (magic bytes 0x1f 0x8b), not filename.
 bool looks_gzip(std::string const & filename) {
     std::ifstream f(filename, std::ios::binary);
     if(!f) return false;
@@ -56,19 +54,16 @@ std::array<double, 4> siren_momentum(HepMC3::FourVector const & p) {
     return {p.e(), p.px(), p.py(), p.pz()};
 }
 
-// Optional attribute: returns the value if present and typed as a DoubleAttribute,
-// otherwise the fallback. Used for the enumerate-if-present namespaces
-// (siren.param.*, siren.time) and for every attribute in non-strict mode.
+// Optional attribute: value if present as a DoubleAttribute, else fallback.
 template<typename Ptr>
 double double_attr(Ptr const & obj, std::string const & name, double fallback = 0.0) {
     std::shared_ptr<HepMC3::DoubleAttribute> a = obj->template attribute<HepMC3::DoubleAttribute>(name);
     return a ? a->value() : fallback;
 }
 
-// Required attribute: a SIREN file the writer produced always carries this key as
-// a DoubleAttribute, so a missing or mistyped one signals a corrupt/foreign file.
-// In strict mode that throws with the attribute name, the object, and the names of
-// the attributes actually present; in lax mode it degrades to the 0.0 fallback.
+// Required attribute: a SIREN file always carries this key as a DoubleAttribute.
+// Strict mode throws (naming the attribute, object, and attributes present);
+// lax mode degrades to the 0.0 fallback.
 template<typename Ptr>
 double required_double_attr(Ptr const & obj, std::string const & name,
                             std::string const & object, bool strict) {
@@ -94,9 +89,8 @@ HepMC3::GenParticlePtr find_primary(HepMC3::GenVertexPtr const & vertex) {
     return nullptr;
 }
 
-// Reads a ParticleID from the siren.id.major/minor attributes the
-// writer emits for every set id; returns an unset ParticleID when either is
-// absent (a foreign file, or a particle whose id was unset at write time).
+// Reads a ParticleID from siren.id.major/minor; returns an unset ParticleID
+// when either is absent.
 siren::dataclasses::ParticleID ReadStoredId(HepMC3::GenParticlePtr const & particle) {
     std::shared_ptr<HepMC3::ULongAttribute> const major =
         particle->attribute<HepMC3::ULongAttribute>("siren.id.major");
@@ -108,9 +102,9 @@ siren::dataclasses::ParticleID ReadStoredId(HepMC3::GenParticlePtr const & parti
     return id;
 }
 
-// Resolves the ParticleID for a primary/secondary:
-// this is the stored ID if it is present, otherwise a new ID is generated
-// Keying on the pointer ensures that the same GenParticlePtr always resolves to the same ParticleID
+// Resolves the ParticleID for a primary/secondary: stored ID if present, else
+// a new one. Keyed on the pointer so the same GenParticlePtr always resolves
+// to the same ParticleID.
 siren::dataclasses::ParticleID GetOrAssignId(
         HepMC3::GenParticlePtr const & particle,
         std::map<HepMC3::GenParticlePtr, siren::dataclasses::ParticleID> & ids) {
@@ -158,31 +152,26 @@ siren::dataclasses::InteractionRecord VertexToRecord(
         rec.signature.target_type = pdg_to_type(target->pid());
         rec.target_mass = target->generated_mass();
         rec.target_helicity = required_double_attr(target, "siren.helicity", "target particle", strict);
-        // Targets are never shared across vertices, so read the stored id only
-        // when present (no topology-generation fallback): an unset target id
-        // reads as unset.
+        // Targets are never shared across vertices: no topology-generation
+        // fallback, an unset stored id reads as unset.
         rec.target_id = ReadStoredId(target);
     } else {
-        // No target particle: either a genuine decay, or an unknown-target
-        // interaction (the writer omits the target particle for both). The
-        // siren.target_type_unknown vertex flag disambiguates the latter.
+        // No target particle: genuine decay, or unknown-target interaction --
+        // the siren.target_type_unknown vertex flag disambiguates.
         std::shared_ptr<HepMC3::IntAttribute> const unknown_flag =
             vertex->attribute<HepMC3::IntAttribute>("siren.target_type_unknown");
         rec.signature.target_type = (unknown_flag && unknown_flag->value() != 0)
             ? ParticleType::unknown : ParticleType::Decay;
     }
 
-    // Outgoing secondaries. Each id is the stored id when present,
-    // else a fresh ParticleID (or the id already assigned to it as another
-    // vertex's primary) so a daughter vertex's incoming primary -- the same
-    // GenParticlePtr -- resolves to the identical id and re-export can rejoin
-    // the topology.
+    // Outgoing secondaries. Each id is the stored id when present, else a
+    // fresh ParticleID (or the id already assigned as another vertex's
+    // primary, keyed on the shared GenParticlePtr).
     for(auto const & out : vertex->particles_out()) {
         rec.signature.secondary_types.push_back(pdg_to_type(out->pid()));
         rec.secondary_momenta.push_back(siren_momentum(out->momentum()));
         rec.secondary_masses.push_back(out->generated_mass());
-        // Helicity is unconditional (required); siren.time is only emitted when the
-        // record carried a secondary time, so it stays enumerate-if-present.
+        // Helicity is required; siren.time is enumerate-if-present.
         rec.secondary_helicities.push_back(required_double_attr(out, "siren.helicity", "secondary particle", strict));
         rec.secondary_times.push_back(double_attr(out, "siren.time") * C::second);
         rec.secondary_ids.push_back(GetOrAssignId(out, particle_ids));
@@ -201,9 +190,8 @@ siren::dataclasses::InteractionRecord VertexToRecord(
 
 siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt, bool strict) {
     siren::dataclasses::InteractionTree tree;
-    // The GenEvent stores the event number narrowed to int; the writer preserves
-    // the full 64-bit identity in a per-event siren.event_number ULongAttribute
-    // when the value overflowed int, so prefer it when present.
+    // GenEvent's event number is narrowed to int; prefer the full 64-bit
+    // siren.event_number ULongAttribute when present.
     tree.header.event_number = static_cast<std::uint64_t>(evt.event_number());
     {
         std::shared_ptr<HepMC3::ULongAttribute> a =
@@ -214,10 +202,9 @@ siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt, bool 
 
     std::vector<HepMC3::GenVertexPtr> const vertices = evt.vertices();
 
-    // Reconstruct each vertex's record and its parent vertex id (via the shared
-    // incoming primary's production vertex; a beam primary has none -> root).
-    // particle_ids is shared across every vertex in this event so the same
-    // GenParticlePtr always resolves to the same ParticleID.
+    // Parent vertex id is the incoming primary's production vertex (none -> root).
+    // particle_ids is shared across the event so a GenParticlePtr always
+    // resolves to the same ParticleID.
     std::map<int, siren::dataclasses::InteractionRecord> record_by_vid;
     std::map<int, int> parent_vid; // child vid -> parent vid (0 == no parent)
     std::map<HepMC3::GenParticlePtr, siren::dataclasses::ParticleID> particle_ids;
@@ -228,9 +215,8 @@ siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt, bool 
         parent_vid[vertex->id()] = parent ? parent->id() : 0;
     }
 
-    // Insert in topological order (a node only after its parent), independent of
-    // the order vertices() reports, iterating the original order each round so
-    // siblings keep a stable order.
+    // Insert in topological order (a node only after its parent), independent
+    // of vertices() order; siblings keep a stable order across rounds.
     std::map<int, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>> datum_by_vid;
     std::size_t placed = 0;
     bool progress = true;
@@ -263,8 +249,7 @@ siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt, bool 
 
 std::vector<std::shared_ptr<siren::dataclasses::InteractionTree>>
 LoadInteractionTreesFromHepMC3(std::string const & filename, bool strict) {
-    // Auto-detect gzip by content (magic bytes); deduce_reader is avoided to stay off
-    // HepMC3's optional plugin/root/protobuf paths.
+    // Auto-detect gzip by content; avoids deduce_reader's plugin/root/protobuf paths.
     std::unique_ptr<HepMC3::Reader> reader;
     if(looks_gzip(filename)) {
 #ifdef SIREN_HEPMC3_HAS_COMPRESSION
@@ -290,18 +275,14 @@ LoadInteractionTreesFromHepMC3(std::string const & filename, bool strict) {
         HepMC3::GenEvent evt;
         bool const read_ok = reader->read_event(evt);
         // ReaderAscii/ReaderGZ return false only on a genuine mid-file parse
-        // failure (and set the stream's bad bit); a clean end-of-file instead
-        // returns true with an event carrying no vertices, with the stream's eof
-        // bit set. Distinguishing the two means a truncated/corrupt file is
-        // reported instead of silently yielding a partial tree list.
+        // failure (bad bit set); clean EOF returns true with a vertex-less
+        // event (eof bit set).
         if(!read_ok) {
             throw std::runtime_error("HepMC3Reader: failed to parse an event in '" + filename + "'");
         }
         if(reader->failed()) {
             if(!evt.vertices().empty()) {
-                // Successfully parsed the final event; the eof bit merely
-                // reflects that no further event follows. Fall through and
-                // process it normally, then stop on the next iteration.
+                // Final event parsed successfully; process it, then stop next iteration.
             } else {
                 break; // clean end of file
             }
@@ -312,10 +293,8 @@ LoadInteractionTreesFromHepMC3(std::string const & filename, bool strict) {
             evt.set_units(HepMC3::Units::GEV, HepMC3::Units::CM);
         }
         auto tree = std::make_shared<siren::dataclasses::InteractionTree>(GenEventToTree(evt, strict));
-        // Restore run-level weight provenance: the writer records how the per-event
-        // CV weights were produced as a GenRunInfo siren.weights_state
-        // StringAttribute; echo it into each tree header's provenance map when
-        // present so a re-weighting/pooling pass can honor the original policy.
+        // Restore run-level weight provenance from the GenRunInfo
+        // siren.weights_state StringAttribute into the tree header's provenance map.
         std::shared_ptr<HepMC3::GenRunInfo> const ri = evt.run_info();
         if(ri) {
             std::shared_ptr<HepMC3::StringAttribute> ws =

@@ -47,9 +47,7 @@ InteractionTree BuildTree() {
     dec.primary_momentum = {6.0, 0.5, 1.0, 5.8};
     dec.primary_mass = 0.0;
     dec.primary_helicity = -1.0;
-    // A daughter's initial position is its parent's interaction vertex (as
-    // CreateSecondaryRecord sets in real output); non-zero so the round trip is
-    // not vacuously satisfied and the reweighting-critical field is exercised.
+    // Daughter's initial position = parent's interaction vertex, as in real output.
     dec.primary_initial_position = {1.0, 2.0, 3.0};
     dec.primary_initial_time = 5.0;
     dec.interaction_vertex = {2.0, 3.0, 4.0};
@@ -177,9 +175,8 @@ InteractionRecord MkRec(ParticleType prim, ParticleType tgt, ParticleID prim_id,
 
 } // namespace
 
-// A 3-level tree with two daughters at the root, a grandchild, and leaf
-// secondaries that do not spawn vertices -- exercises the reader's
-// order-independent topology reconstruction.
+// 3-level tree: two daughters at the root, a grandchild, and leaf secondaries
+// with no vertex -- exercises order-independent topology reconstruction.
 TEST(HepMC3RoundTrip, DeepTreeTopology) {
     using PT = ParticleType;
     // node0 root -> A(1:1) [->node1], B(1:2) [->node2], leaf(1:3)
@@ -230,10 +227,7 @@ TEST(HepMC3RoundTrip, DeepTreeTopology) {
     EXPECT_EQ(lt.tree[3]->record.signature.secondary_types.size(), 1u);
 }
 
-// A non-root interaction that has a real target must round-trip through the
-// status-22 (non-primary target) encoding, while the root keeps the single
-// status-20 target. Guards the writer 20->22 split and the matching reader
-// change that treats 20 and 22 as targets.
+// Root target uses status 20; a non-root target must round-trip via status 22.
 TEST(HepMC3RoundTrip, NonRootTargetSurvives) {
     using PT = ParticleType;
     // root: NuMu + EPlus -> NuMu(1:1)   [root target -> status 20]
@@ -265,9 +259,8 @@ TEST(HepMC3RoundTrip, NonRootTargetSurvives) {
     EXPECT_EQ(lt.tree[1]->record.signature.target_type, PT::HNucleus);   // non-root target survives
 }
 
-// The writer records how the per-event CV weights were produced in a run-level
-// siren.weights_state attribute; the reader restores it into every tree header's
-// provenance map so a downstream re-weighting pass can honor the original policy.
+// Run-level siren.weights_state attribute round-trips into each tree header's
+// provenance map.
 TEST(HepMC3RoundTrip, WeightsStateProvenanceRestored) {
     InteractionTree tree = BuildTree();
     std::string const path = std::string(::testing::TempDir()) + "siren_hepmc3_weights_state.hepmc3";
@@ -287,9 +280,8 @@ TEST(HepMC3RoundTrip, WeightsStateProvenanceRestored) {
     EXPECT_EQ(it->second, "computed");
 }
 
-// Set ParticleIDs survive the round trip: the writer emits siren.id.major/minor
-// for each set id and the reader restores them, including the shared-particle
-// invariant that a daughter's primary id equals its parent's outgoing-secondary id.
+// Set ParticleIDs round-trip via siren.id.major/minor, including the
+// shared-particle invariant (daughter's primary id == parent's secondary id).
 TEST(HepMC3RoundTrip, ParticleIDsRoundTrip) {
     using PT = ParticleType;
 
@@ -353,8 +345,7 @@ TEST(HepMC3RoundTrip, ParticleIDsRoundTrip) {
     EXPECT_EQ(lc.secondary_ids[0], ParticleID(10, 5));
     EXPECT_EQ(lc.secondary_ids[1], ParticleID(10, 6));
 
-    // Shared-particle invariant: the daughter's primary is the same id as the
-    // parent's outgoing secondary it descends from.
+    // Shared-particle invariant: daughter's primary == parent's outgoing secondary.
     EXPECT_EQ(lc.primary_id, lr.secondary_ids[0]);
 }
 

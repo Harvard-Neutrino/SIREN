@@ -18,19 +18,18 @@ PYBIND11_MODULE(hepmc3, m) {
         .def_readwrite("siren_version", &HepMC3Writer::Options::siren_version)
         .def_readwrite("weight_names", &HepMC3Writer::Options::weight_names)
         .def_readwrite("provenance", &HepMC3Writer::Options::provenance)
-        // Weight provenance echoed as siren.weights_state; "computed"/"header" are
-        // NuHepMC modes, "unweighted" suppresses all NuHepMC.* and siren.fatx.* keys.
+        // Echoed as siren.weights_state; "computed"/"header" are NuHepMC modes,
+        // "unweighted" suppresses all NuHepMC.* and siren.fatx.* keys.
         .def_readwrite("weights_state", &HepMC3Writer::Options::weights_state)
-        // Extra non-PDG particle codes to declare (NuHepMC G.R.11), merged with
-        // SIREN's built-in BSM set. Python type: Dict[int, Tuple[str, str]] mapping
-        // code -> (name, description). A code equal to a built-in overrides it.
+        // Extra non-PDG particle codes (NuHepMC G.R.11), merged with SIREN's
+        // built-in BSM set. Dict[int, Tuple[str, str]]: code -> (name, description).
+        // A code equal to a built-in overrides it.
         .def_readwrite("additional_particle_numbers",
                        &HepMC3Writer::Options::additional_particle_numbers)
         // Run-level generation counts (metadata + FATX normalization); < 0 = unset.
         .def_readwrite("attempted_events", &HepMC3Writer::Options::attempted_events)
         .def_readwrite("accepted_events", &HepMC3Writer::Options::accepted_events)
-        // The Injector's EventsToInject seed (pooled-weighting N_i); emitted as
-        // siren.events_to_inject when >= 0. < 0 = unset.
+        // Emitted as siren.events_to_inject when >= 0. < 0 = unset.
         .def_readwrite("events_to_inject", &HepMC3Writer::Options::events_to_inject)
         // Flux-averaged cross section controls (NuHepMC E.C.4 / G.R.6).
         .def_readwrite("fatx_per_atom", &HepMC3Writer::Options::fatx_per_atom)
