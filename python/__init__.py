@@ -76,6 +76,8 @@ utilities.darknews_version = darknews_version
 # ---- Sub-namespaces (tab-completable) ----
 from . import particles
 from . import dist
+from . import tune
+from . import metrics
 
 # ---- Spec vocabulary ----
 from . import errors
