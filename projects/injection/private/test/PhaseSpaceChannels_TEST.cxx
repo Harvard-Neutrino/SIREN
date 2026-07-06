@@ -8,11 +8,14 @@
 #include "SIREN/injection/DetectorDirectedScatteringChannel.h"
 #include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/Isotropic2BodyChannel.h"
+#include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/PhaseSpaceJacobian.h"
 #include "SIREN/injection/PhysicalChannelAdapters.h"
+#include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Constants.h"
+#include "SIREN/utilities/Errors.h"
 #include "SIREN/utilities/Random.h"
 
 #include <cmath>
@@ -1801,5 +1804,335 @@ TEST(AutoConversion, CrossFactorizationRecursive2Body) {
     if (std::abs(m0 - m2) > 1e-6) {
         EXPECT_NE(jac_A, jac_B)
             << "Jacobians should differ for asymmetric masses";
+    }
+}
+
+// ===================================================================== //
+//  Fail-loud hardening: MultiChannelPhaseSpace validating ctor,          //
+//  guarded Sample/ComputeContributions, measure-compatibility throws,    //
+//  and the SolidAngleLab-topology fix (numeric pin).                     //
+// ===================================================================== //
+
+namespace {
+
+// Two isotropic 2-body channels (Decay2Body, SolidAngleRest) -- a compatible,
+// trivially convertible mixture that exercises the ctor's weight handling.
+std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>>
+TwoCompatibleChannels() {
+    return {
+        std::make_shared<Isotropic2BodyChannel>(0),
+        std::make_shared<Isotropic2BodyChannel>(0),
+    };
+}
+
+} // namespace
+
+// Empty weights -> uniform 1/N.
+TEST(MultiChannelCtor, EmptyWeightsGivesUniform) {
+    MultiChannelPhaseSpace mc(TwoCompatibleChannels());
+    ASSERT_EQ(mc.weights.size(), 2u);
+    EXPECT_NEAR(mc.weights[0], 0.5, 1e-15);
+    EXPECT_NEAR(mc.weights[1], 0.5, 1e-15);
+}
+
+// Non-unit weight sums are normalized to sum 1 while preserving ratios.
+TEST(MultiChannelCtor, NonUnitWeightsAreNormalized) {
+    MultiChannelPhaseSpace mc(TwoCompatibleChannels(), {3.0, 1.0});
+    ASSERT_EQ(mc.weights.size(), 2u);
+    double sum = mc.weights[0] + mc.weights[1];
+    EXPECT_NEAR(sum, 1.0, 1e-12);
+    EXPECT_NEAR(mc.weights[0], 0.75, 1e-12);
+    EXPECT_NEAR(mc.weights[1], 0.25, 1e-12);
+}
+
+// A channels/weights length mismatch is a ConfigurationError.
+TEST(MultiChannelCtor, LengthMismatchThrowsConfigurationError) {
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(TwoCompatibleChannels(), {1.0}),
+        siren::utilities::ConfigurationError);
+    // ConfigurationError is a runtime_error (backward-compat contract).
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(TwoCompatibleChannels(), {1.0, 2.0, 3.0}),
+        std::runtime_error);
+}
+
+// A non-positive weight sum is a ConfigurationError.
+TEST(MultiChannelCtor, NonPositiveWeightSumThrowsConfigurationError) {
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(TwoCompatibleChannels(), {0.0, 0.0}),
+        siren::utilities::ConfigurationError);
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(TwoCompatibleChannels(), {1.0, -1.0}),
+        siren::utilities::ConfigurationError);
+}
+
+// Sample() with hand-set, un-normalized public members must throw
+// ConfigurationError (the old cumulative loop silently dumped the leftover
+// probability mass on the last channel).
+TEST(MultiChannelGuards, SampleRejectsUnnormalizedWeights) {
+    MultiChannelPhaseSpace mc;                 // default ctor: assign-then-use
+    mc.channels = TwoCompatibleChannels();
+    mc.weights = {0.3, 0.3};                   // sums to 0.6, not 1
+
+    auto random = std::make_shared<siren::utilities::SIREN_random>(1);
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = 1.0;
+    record.primary_momentum = {5.0, 0.0, 0.0, std::sqrt(25.0 - 1.0)};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {0.0, 0.0};
+    record.secondary_momenta.resize(2);
+
+    EXPECT_THROW(mc.Sample(random, nullptr, record),
+                 siren::utilities::ConfigurationError);
+}
+
+// Sample() with a channels/weights length mismatch must throw
+// ConfigurationError.
+TEST(MultiChannelGuards, SampleRejectsLengthMismatch) {
+    MultiChannelPhaseSpace mc;
+    mc.channels = TwoCompatibleChannels();
+    mc.weights = {1.0};                        // one weight, two channels
+
+    auto random = std::make_shared<siren::utilities::SIREN_random>(2);
+    InteractionRecord record;
+    EXPECT_THROW(mc.Sample(random, nullptr, record),
+                 siren::utilities::ConfigurationError);
+}
+
+// Density()/ComputeContributions with un-normalized public members must throw
+// ConfigurationError.
+TEST(MultiChannelGuards, DensityRejectsUnnormalizedWeights) {
+    MultiChannelPhaseSpace mc;
+    mc.channels = TwoCompatibleChannels();
+    mc.weights = {0.5, 0.9};                   // sums to 1.4
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = 1.0;
+    record.primary_momentum = {5.0, 0.0, 0.0, std::sqrt(25.0 - 1.0)};
+    record.secondary_masses = {0.0, 0.0};
+    record.secondary_momenta.resize(2);
+
+    EXPECT_THROW(mc.Density(nullptr, record),
+                 siren::utilities::ConfigurationError);
+}
+
+// A non-convertible measure mixture (same topology, incompatible measures)
+// must throw MeasureCompatibilityError from the validating ctor, and NOT throw
+// when allow_incompatible is set.
+TEST(MultiChannelCompat, NonConvertibleMeasuresThrow) {
+    // Two Decay2Body channels: SolidAngleRest and MandelstamQ2 are not mutually
+    // convertible within Decay2Body (MandelstamQ2 is a Scatter2to2 measure).
+    std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>> channels = {
+        std::make_shared<ConfigurableChannel>(
+            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConfigurableChannel>(
+            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2()),
+    };
+
+    EXPECT_THROW(
+        MultiChannelPhaseSpace(channels, {0.5, 0.5}),
+        siren::utilities::MeasureCompatibilityError);
+
+    // allow_incompatible = true opts out of the fatal-compatibility check.
+    EXPECT_NO_THROW(MultiChannelPhaseSpace(channels, {0.5, 0.5}, true));
+}
+
+// A convertible mixed-measure mixture (SolidAngleRest + SolidAngleLab, both
+// Decay2Body, in the same convertibility group) is an Info-level auto-convert,
+// NOT a fatal incompatibility: the validating ctor must accept it and Sample
+// must not throw.
+TEST(MultiChannelCompat, ConvertibleMixedMeasureSamplesWithoutThrowing) {
+    auto rest_channel = std::make_shared<Isotropic2BodyChannel>(0);
+    auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
+    ASSERT_EQ(rest_channel->Measure(), PhaseSpaceMeasure::SolidAngleRest());
+    ASSERT_EQ(lab_channel->Measure(), PhaseSpaceMeasure::SolidAngleLab());
+
+    std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>> channels = {
+        rest_channel, lab_channel};
+
+    // Validating ctor must not throw (auto-conversion is supported behavior).
+    std::shared_ptr<MultiChannelPhaseSpace> mc;
+    ASSERT_NO_THROW(
+        mc = std::make_shared<MultiChannelPhaseSpace>(channels, std::vector<double>{0.5, 0.5}));
+
+    // Sampling and density evaluation must also proceed without throwing.
+    auto random = std::make_shared<siren::utilities::SIREN_random>(42);
+    InteractionRecord record = Make2BodyRecord(1.0, 0.1, 0.2, 5.0);
+    EXPECT_NO_THROW(mc->Sample(random, nullptr, record));
+    double d = 0.0;
+    EXPECT_NO_THROW(d = mc->Density(nullptr, record));
+    EXPECT_TRUE(std::isfinite(d));
+    EXPECT_GT(d, 0.0);
+}
+
+// --------------------------------------------------------------------- //
+//  Numeric pin: ConvertDensity honors the passed topology.
+//
+//  The pinned bug is ConvertDensity's SolidAngleLab composition branch
+//  hardcoding PhaseSpaceTopology::Decay2Body instead of threading the caller's
+//  `topology` through.  The load-bearing consequence is that the SAME measure
+//  pair converts differently depending on topology.  We pin that directly on
+//  the SolidAngleRest <-> MandelstamQ2 pair, which is:
+//    * DEFINED for Scatter2to2 (MandelstamQ2 is a scattering measure), with the
+//      analytic value  rho(Q^2) = rho(Omega_rest) * 2*pi / (2 p_CM^2), and
+//    * UNDEFINED for Decay2Body (no rest<->Q2 handler; ThrowUnconvertible).
+//
+//  So a ConvertDensity call that ignored `topology` (e.g. always assumed
+//  Decay2Body) could not produce the finite Scatter2to2 value below.  This pin
+//  is numeric and independent of the golden archive, and -- unlike a
+//  SolidAngleLab conversion -- involves no rest<->lab boost leg, so it cannot
+//  recurse.
+//
+//  Kinematics (documented so the expected value is reproducible):
+//    s        = m_beam^2 + m_target^2 + 2 m_target E_beam
+//    p_CM^2   = Kallen(s, m_beam^2, m_target^2) / (4 s)
+//    rho(Q^2) = rho(Omega_rest) * 2*pi / (2 p_CM^2)
+// --------------------------------------------------------------------- //
+TEST(ConvertDensityTopology, SolidAngleRestToMandelstamQ2HonorsScatterTopology) {
+    using siren::injection::ConvertDensity;
+    namespace J = siren::injection::phase_space_jacobian;
+
+    double m_beam = 0.1;
+    double m_target = 1.0;
+    double E_beam = 2.0;
+    double s = m_beam * m_beam + m_target * m_target + 2.0 * m_target * E_beam;
+    double p_cm_sq = siren::injection::Kallen(
+        s, m_beam * m_beam, m_target * m_target) / (4.0 * s);
+    ASSERT_GT(p_cm_sq, 0.0);
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.target_type = ParticleType::PPlus;
+    record.signature.secondary_types = {ParticleType::N4, ParticleType::PPlus};
+    record.primary_mass = m_beam;
+    record.primary_momentum = {E_beam, 0.0, 0.0,
+                               std::sqrt(E_beam * E_beam - m_beam * m_beam)};
+    record.target_mass = m_target;
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {m_beam, m_target};
+    record.secondary_momenta.resize(2);
+
+    double density_rest = 1.0 / (4.0 * M_PI);      // isotropic per dOmega_rest
+
+    // Expected Scatter2to2 conversion value, computed from the kinematics.
+    double expected_Q2 = J::SolidAngleRestDensityToMandelstamQ2Density(
+        density_rest, s, m_beam, m_target);
+    double closed_form = density_rest * 2.0 * M_PI / (2.0 * p_cm_sq);
+    ASSERT_NEAR(expected_Q2, closed_form, 1e-12);
+
+    // Under Scatter2to2 the conversion is defined and matches the analytic value.
+    double got_scatter = ConvertDensity(
+        density_rest,
+        PhaseSpaceMeasure::SolidAngleRest(),
+        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceTopology::Scatter2to2,
+        record);
+    EXPECT_TRUE(std::isfinite(got_scatter));
+    EXPECT_NEAR(got_scatter, expected_Q2, 1e-9)
+        << "Scatter2to2 SolidAngleRest->MandelstamQ2 must equal "
+        << expected_Q2 << " but got " << got_scatter;
+
+    // Under Decay2Body the SAME measure pair is unconvertible -- proving the
+    // topology argument is load-bearing (not ignored / not hardcoded).
+    EXPECT_THROW(
+        ConvertDensity(
+            density_rest,
+            PhaseSpaceMeasure::SolidAngleRest(),
+            PhaseSpaceMeasure::MandelstamQ2(),
+            PhaseSpaceTopology::Decay2Body,
+            record),
+        std::runtime_error);
+}
+
+// Companion pin: the reverse direction (MandelstamQ2 -> SolidAngleRest) is the
+// exact inverse under Scatter2to2, and round-trips to the input.
+TEST(ConvertDensityTopology, MandelstamQ2RoundTripUnderScatterTopology) {
+    using siren::injection::ConvertDensity;
+
+    double m_beam = 0.1, m_target = 1.0, E_beam = 2.0;
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.target_type = ParticleType::PPlus;
+    record.signature.secondary_types = {ParticleType::N4, ParticleType::PPlus};
+    record.primary_mass = m_beam;
+    record.primary_momentum = {E_beam, 0.0, 0.0,
+                               std::sqrt(E_beam * E_beam - m_beam * m_beam)};
+    record.target_mass = m_target;
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {m_beam, m_target};
+    record.secondary_momenta.resize(2);
+
+    double density_rest = 0.037;
+    double to_q2 = ConvertDensity(
+        density_rest,
+        PhaseSpaceMeasure::SolidAngleRest(),
+        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceTopology::Scatter2to2, record);
+    double back = ConvertDensity(
+        to_q2,
+        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceMeasure::SolidAngleRest(),
+        PhaseSpaceTopology::Scatter2to2, record);
+
+    ASSERT_TRUE(std::isfinite(to_q2));
+    ASSERT_TRUE(std::isfinite(back));
+    EXPECT_NEAR(back, density_rest, 1e-9 * std::max(1.0, density_rest));
+}
+
+// --------------------------------------------------------------------- //
+//  SolidAngleLab topology guard.
+//
+//  The rest<->lab Jacobian is the parent-rest-frame two-body boost, implemented
+//  only for Decay2Body.  A Scatter2to2 SolidAngleLab conversion has no
+//  topology-correct CM boost, so ConvertDensity must reject it as unconvertible
+//  rather than either (a) silently applying the wrong-frame two-body boost or
+//  (b) re-entering the SolidAngleLab composition branch unbounded (a
+//  stack-overflow).
+// --------------------------------------------------------------------- //
+TEST(ConvertDensityTopology, Scatter2to2SolidAngleLabThrowsUnconvertible) {
+    using siren::injection::ConvertDensity;
+
+    double m_beam = 0.1;
+    double m_target = 1.0;
+    double E_beam = 2.0;
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.target_type = ParticleType::PPlus;
+    record.signature.secondary_types = {ParticleType::N4, ParticleType::PPlus};
+    record.primary_mass = m_beam;
+    record.primary_momentum = {E_beam, 0.0, 0.0, 0.0};   // spatial part == 0
+    record.target_mass = m_target;
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {m_beam, m_target};
+    double p_sec = 0.3;
+    record.secondary_momenta = {
+        {std::sqrt(p_sec * p_sec + m_beam * m_beam), 0.0, 0.0, p_sec},
+        {std::sqrt(p_sec * p_sec + m_target * m_target), 0.0, 0.0, -p_sec},
+    };
+
+    double density_lab = 1.0 / (4.0 * M_PI);
+
+    // Non-Decay2Body SolidAngleLab boost conversions are unconvertible: the call
+    // must throw (and must NOT recurse into a stack overflow).
+    try {
+        ConvertDensity(
+            density_lab,
+            PhaseSpaceMeasure::SolidAngleLab(),
+            PhaseSpaceMeasure::MandelstamQ2(),
+            PhaseSpaceTopology::Scatter2to2,
+            record);
+        FAIL() << "Scatter2to2 SolidAngleLab->MandelstamQ2 must throw as "
+                  "unconvertible, not return a value";
+    } catch (std::runtime_error const & e) {
+        std::string msg = e.what();
+        EXPECT_TRUE(msg.find("Decay2Body") != std::string::npos ||
+                    msg.find("SolidAngleLab") != std::string::npos)
+            << "expected an unconvertible message naming Decay2Body or "
+               "SolidAngleLab, got: " << msg;
     }
 }
