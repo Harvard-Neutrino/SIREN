@@ -82,11 +82,13 @@ void ProcessWeighter<ProcessType>::Initialize() {
     }
     unique_gen_distributions = GetInjectionDistributions();
     unique_phys_distributions = phys_process->GetPhysicalDistributions();
+    cancelled_distribution_names.clear();
     for(typename std::vector<std::shared_ptr<typename ProcessType::InjectionType>>::reverse_iterator gen_it = unique_gen_distributions.rbegin();
             gen_it != unique_gen_distributions.rend(); ++gen_it) {
         for(std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
                 phys_it != unique_phys_distributions.rend(); ++phys_it) {
             if((*gen_it) == (*phys_it)) {
+                cancelled_distribution_names.push_back((*gen_it)->Name());
                 unique_gen_distributions.erase(std::next(gen_it).base());
                 unique_phys_distributions.erase(std::next(phys_it).base());
                 break;

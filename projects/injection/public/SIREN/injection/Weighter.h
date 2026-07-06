@@ -45,6 +45,10 @@ private:
     std::shared_ptr<ProcessType> inj_process;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> unique_gen_distributions;
     std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>> unique_phys_distributions;
+    // Names of the injection/physical distributions that matched by operator==
+    // and were removed from both unique_* sets because they cancel in the weight
+    // ratio. Observation-only; recorded once at Initialize().
+    std::vector<std::string> cancelled_distribution_names;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> const & GetInjectionDistributions();
     void Initialize();
@@ -56,6 +60,8 @@ public:
     double PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionTreeDatum const & datum) const;
+    std::vector<std::string> const & GetCancelledDistributionNames() const { return cancelled_distribution_names; }
+    std::shared_ptr<ProcessType> GetInjectionProcess() const { return inj_process; }
     ProcessWeighter(std::shared_ptr<siren::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<siren::detector::DetectorModel> detector_model);
 
 }; // ProcessWeighter
