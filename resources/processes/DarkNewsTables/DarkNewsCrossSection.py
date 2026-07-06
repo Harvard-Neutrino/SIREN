@@ -220,7 +220,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     interpolator = self.differential_cross_section_interpolator
             elif inputs[0] < interp_table[0, 0]:
                 logger.info(
-                    "Requested interpolation at %2.2f GeV below table boundary. Requring calculation"
+                    "Requested interpolation at %2.2f GeV below table boundary. Requiring calculation"
                     % inputs[0]
                 )
                 return 0
