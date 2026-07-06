@@ -333,21 +333,28 @@ class Injector:
         if max_attempts is None:
             max_attempts = events * 1000
 
+        # Give the efficiency estimate a minimum sample before it can abort, so
+        # an unlucky early run is not cut short.
+        min_efficiency_warmup = 50
+
         trees = []
         attempts = 0
         while len(trees) < events and attempts < max_attempts:
             attempts += 1
             try:
                 tree = self.__injector.GenerateEvent()
-            except RuntimeError:
-                # The engine raises once its own attempt quota is exhausted.
-                break
+            except RuntimeError as err:
+                # The engine raises once its own attempt quota is exhausted;
+                # any other error is a real fault and must not be swallowed.
+                if "maximum number of injection attempts" in str(err):
+                    break
+                raise
             if len(tree.tree) == 0:
                 continue
             trees.append(tree)
             if progress is not None:
                 progress(len(trees), events)
-            if (min_efficiency is not None and attempts >= 50
+            if (min_efficiency is not None and attempts >= min_efficiency_warmup
                     and (len(trees) / attempts) < min_efficiency):
                 report = self.report()
                 message = (
