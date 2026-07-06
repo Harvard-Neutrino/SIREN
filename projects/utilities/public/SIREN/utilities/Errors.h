@@ -6,9 +6,12 @@
 
 // Exception classes are thrown from libSIREN and caught by exception
 // translators registered in the pybind11 extension modules, which are
-// compiled with hidden symbol visibility.  Default visibility on the class
-// is required so the RTTI unifies across shared-library boundaries;
-// without it the typed catch fails and Python sees a plain RuntimeError.
+// compiled with hidden symbol visibility.  On Itanium-ABI platforms
+// (macOS/Linux) RTTI equality is pointer-based, so default visibility on
+// the class is required for the typeinfo to unify across shared-library
+// boundaries; without it the typed catch fails and Python sees a plain
+// RuntimeError.  MSVC compares RTTI by name, so no export attribute is
+// needed on Windows.
 #if defined(_WIN32)
 #define SIREN_EXCEPTION_EXPORT
 #else

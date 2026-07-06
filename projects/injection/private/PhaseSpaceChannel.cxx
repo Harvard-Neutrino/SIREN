@@ -58,6 +58,20 @@ int MeasurePriority(PhaseSpaceMeasure const & m) {
     return 8;
 }
 
+// One channel's measure is a Fatal incompatibility iff it differs from the
+// common measure AND is not convertible to it within the topology.  A measure
+// equal to common, or one that is convertible, is not fatal (the latter is an
+// Info auto-convert).  Single source of truth for the measure-branch fatal
+// classification shared by ValidateChannelsDetailed and HasFatalIncompatibility.
+bool MeasureIsFatal(
+    PhaseSpaceTopology topo,
+    PhaseSpaceMeasure const & common,
+    PhaseSpaceMeasure const & meas)
+{
+    if (meas == common) return false;
+    return !PhaseSpaceCompatible(topo, common, topo, meas);
+}
+
 // Signal a conversion ConvertDensity cannot perform, instead of silently
 // returning the input density unchanged (former gap G6).  The from==to
 // short-circuit handles "no conversion needed"; this throw covers
@@ -800,7 +814,7 @@ MultiChannelPhaseSpace::ValidateChannelsDetailed() const {
     for (size_t i = 0; i < channels.size(); ++i) {
         PhaseSpaceMeasure meas_i = channels[i]->Measure();
         if (meas_i == common) continue;
-        if (!PhaseSpaceCompatible(topo0, common, topo0, meas_i)) {
+        if (MeasureIsFatal(topo0, common, meas_i)) {
             std::ostringstream oss;
             oss << "Measure incompatibility: channel " << i
                 << " (" << channels[i]->Name()
@@ -831,15 +845,37 @@ std::vector<std::string> MultiChannelPhaseSpace::ValidateChannels() const {
     return messages;
 }
 
+bool MultiChannelPhaseSpace::HasFatalIncompatibility() const {
+    // Hot path: enum/measure comparisons only, no allocation beyond trivial
+    // locals.  Mirrors the two Fatal branches of ValidateChannelsDetailed with
+    // the same short-circuit: any topology mismatch is fatal on its own, and
+    // (only when topology is uniform) the measure branch runs.
+    if (channels.empty()) return false;
+
+    PhaseSpaceTopology topo0 = channels.front()->Topology();
+    for (size_t i = 1; i < channels.size(); ++i) {
+        if (channels[i]->Topology() != topo0) return true;
+    }
+
+    PhaseSpaceMeasure common = CommonMeasure();
+    for (size_t i = 0; i < channels.size(); ++i) {
+        if (MeasureIsFatal(topo0, common, channels[i]->Measure())) return true;
+    }
+    return false;
+}
+
 void MultiChannelPhaseSpace::ThrowOnIncompatibility() const {
     if (allow_incompatible_) return;
+    if (!HasFatalIncompatibility()) return;
+
+    // Cold path: a fatal incompatibility exists; build the detailed diagnostics
+    // and throw joining their Fatal messages.  Info diagnostics are silently
+    // permitted: measure auto-conversion is a supported feature, not an error.
     std::vector<std::string> fatal_messages;
     for (auto const & d : ValidateChannelsDetailed()) {
         if (d.severity == ChannelDiagnostic::Severity::Fatal) {
             fatal_messages.push_back(d.message);
         }
-        // Info diagnostics are silently permitted: measure auto-conversion is a
-        // supported feature, not an error.
     }
     if (!fatal_messages.empty()) {
         std::ostringstream oss;

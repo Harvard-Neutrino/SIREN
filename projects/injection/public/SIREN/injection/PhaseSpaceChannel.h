@@ -285,10 +285,18 @@ struct MultiChannelPhaseSpace {
     std::vector<std::string> ValidateConventions() const { return ValidateChannels(); }
 
 private:
-    // Collect ValidateChannelsDetailed(); if any Fatal diagnostic is present and
-    // allow_incompatible_ is not set, throw MeasureCompatibilityError joining the
-    // fatal messages.  Info diagnostics (supported auto-conversions) are silently
-    // permitted.
+    // Hot path: enum comparisons only, no allocation beyond trivial locals.
+    // True iff the mixture has a Fatal-severity incompatibility -- the same
+    // topology-mismatch and measure-not-convertible conditions ValidateChannelsDetailed
+    // classifies as Fatal, without building any diagnostic strings.  Info
+    // auto-convert entries do NOT count.  Shared classification with
+    // ValidateChannelsDetailed so the two never diverge.
+    bool HasFatalIncompatibility() const;
+
+    // If not allow_incompatible_ and HasFatalIncompatibility(), run the cold
+    // ValidateChannelsDetailed() pass, join its Fatal messages, and throw
+    // MeasureCompatibilityError.  Info diagnostics (supported auto-conversions)
+    // are silently permitted.
     void ThrowOnIncompatibility() const;
 
     // Single code path behind Density() and DensityBreakdown(): loops the
