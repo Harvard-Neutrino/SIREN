@@ -67,4 +67,6 @@ public:
 }
 }
 
+#undef SIREN_EXCEPTION_EXPORT
+
 #endif

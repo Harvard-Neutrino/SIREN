@@ -449,7 +449,12 @@ MultiChannelPhaseSpace::MultiChannelPhaseSpace(
 }
 
 void MultiChannelPhaseSpace::Normalize() {
-    if (weights.empty() && !channels.empty()) {
+    if (channels.empty()) {
+        throw siren::utilities::ConfigurationError(
+            "MultiChannelPhaseSpace has no channels"
+            " [siren-docs: errors#configuration]");
+    }
+    if (weights.empty()) {
         // Uniform prior: 1/N per channel.
         weights.assign(channels.size(), 1.0 / static_cast<double>(channels.size()));
         return;

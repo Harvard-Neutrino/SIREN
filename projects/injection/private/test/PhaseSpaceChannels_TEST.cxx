@@ -1846,6 +1846,18 @@ TEST(MultiChannelCtor, NonUnitWeightsAreNormalized) {
     EXPECT_NEAR(mc.weights[1], 0.25, 1e-12);
 }
 
+// An empty mixture is rejected with the "has no channels" message rather
+// than a misleading weight-sum diagnostic.
+TEST(MultiChannelCtor, EmptyChannelsThrowsConfigurationError) {
+    try {
+        MultiChannelPhaseSpace({}, {});
+        FAIL() << "expected ConfigurationError for an empty mixture";
+    } catch (siren::utilities::ConfigurationError const & err) {
+        EXPECT_NE(std::string(err.what()).find("has no channels"),
+                  std::string::npos);
+    }
+}
+
 // A channels/weights length mismatch is a ConfigurationError.
 TEST(MultiChannelCtor, LengthMismatchThrowsConfigurationError) {
     EXPECT_THROW(
