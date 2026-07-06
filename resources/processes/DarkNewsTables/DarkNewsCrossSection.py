@@ -1,4 +1,5 @@
 import os
+import logging
 import numpy as np
 import functools
 from scipy.interpolate import LinearNDInterpolator, PchipInterpolator
@@ -17,6 +18,8 @@ from siren.dataclasses import Particle
 
 # DarkNews methods
 from DarkNews import phase_space
+
+logger = logging.getLogger(__name__)
 
 
 # A class representing a single ups_case DarkNews class
@@ -151,8 +154,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         elif mode == "differential":
             interp_table = self.differential_cross_section_table
         else:
-            print("Invalid interpolation table mode %s" % mode)
-            exit(0)
+            raise ValueError("invalid interpolation table mode %s" % mode)
 
         # first check if we have saved table points already
         if len(interp_table) == 0:
@@ -196,14 +198,13 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             interp_table = self.differential_cross_section_table
             interpolator = self.differential_cross_section_interpolator
         else:
-            print("Invalid interpolation table mode %s" % mode)
-            exit(0)
+            raise ValueError("invalid interpolation table mode %s" % mode)
 
         if self.always_interpolate:
             # check if energy is within table range
 
             if interpolator is None or inputs[0] > interp_table[-1, 0]:
-                print(
+                logger.info(
                     "Requested interpolation at %2.2f GeV. Either this is above the table boundary or the interpolator doesn't yet exist. Filling %s table"
                     % (inputs[0], mode)
                 )
@@ -212,13 +213,13 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     diff=(mode == "differential"),
                     Emax=(1 + self.interp_tolerance) * inputs[0],
                 )
-                print("Added %d points" % n)
+                logger.info("Added %d points" % n)
                 if mode == "total":
                     interpolator = self.total_cross_section_interpolator
                 elif mode == "differential":
                     interpolator = self.differential_cross_section_interpolator
             elif inputs[0] < interp_table[0, 0]:
-                print(
+                logger.info(
                     "Requested interpolation at %2.2f GeV below table boundary. Requring calculation"
                     % inputs[0]
                 )
@@ -227,14 +228,14 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             if hasattr(val, "item"):
                 val = val.item()
             if val < 0:
-                print(
-                    "WARNING: negative interpolated value for %s-%s %s cross section at,"
+                logger.warning(
+                    "WARNING: negative interpolated value for %s-%s %s cross section at, %s"
                     % (
                         self.ups_case.nuclear_target.name,
                         self.ups_case.scattering_regime,
                         mode,
-                    ),
-                    inputs,
+                        inputs,
+                    )
                 )
             return val
 
@@ -244,10 +245,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         if UseSinglePoint:
             if closest_idx < 0:
-                print(
-                    "Trying to use a single table point, but no closest idx found. Exiting..."
-                )
-                exit(0)
+                raise RuntimeError("no closest interpolation-table index found for a single-point lookup")
             return interp_table[closest_idx, -1]
         elif Interpolate:
             val = interpolator(inputs)
@@ -464,8 +462,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         elif energy is not None and target is not None:
             primary = arg1
         else:
-            print("Incorrect function call to TotalCrossSection!")
-            exit(0)
+            raise TypeError("TotalCrossSection expects an InteractionRecord or (energy, target)")
         if int(primary) != self.ups_case.nu_projectile:
             return 0
         interaction = dataclasses.InteractionRecord()
