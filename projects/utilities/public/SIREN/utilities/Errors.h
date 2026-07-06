@@ -21,11 +21,28 @@
 namespace siren {
 namespace utilities {
 
+// Coarse cause categories attached to InjectionFailure so aggregated failure
+// accounting can key on the reason without string parsing.
+enum class FailureReason {
+    Unspecified,
+    NoPathThroughVolume,
+    NoTargetsOnPath,
+    NoColumnDepthSolution,
+    KinematicallyForbidden,
+    UnregisteredSecondaryType,
+    PrimaryVertexFailure,
+    TopLevelCatch
+};
+
 class SIREN_EXCEPTION_EXPORT InjectionFailure : public std::runtime_error {
 public:
-    InjectionFailure() : std::runtime_error("") {};
-    InjectionFailure(const std::string& s) : std::runtime_error(s) {};
-    InjectionFailure(const char * s) : std::runtime_error(s) {};
+    InjectionFailure() : std::runtime_error(""), reason_(FailureReason::Unspecified) {};
+    InjectionFailure(const std::string& s) : std::runtime_error(s), reason_(FailureReason::Unspecified) {};
+    InjectionFailure(const char * s) : std::runtime_error(s), reason_(FailureReason::Unspecified) {};
+    InjectionFailure(FailureReason reason, const std::string& s) : std::runtime_error(s), reason_(reason) {};
+    FailureReason reason() const { return reason_; }
+private:
+    FailureReason reason_;
 };
 
 class SIREN_EXCEPTION_EXPORT AddProcessFailure : public std::runtime_error {
