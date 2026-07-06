@@ -555,7 +555,8 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                 } catch(siren::utilities::InjectionFailure const & e) {
                     failed_events += 1;
                     int secondary_depth = static_cast<int>(parent->depth(tree)) + 1;
-                    failure_ledger_.Record(secondary_depth, current_secondary_pdg,
+                    int parent_pdg = static_cast<int>(parent->record.signature.primary_type);
+                    failure_ledger_.Record(secondary_depth, parent_pdg,
                         e.reason(), e.what());
                     last_failure_reason_ = e.what();
                     last_failed_tree_ = std::move(tree);
@@ -567,6 +568,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         failed_events += 1;
         failure_ledger_.Record(0, 0, siren::utilities::FailureReason::TopLevelCatch, e.what());
         last_failure_reason_ = e.what();
+        last_failed_tree_ = std::move(tree);
         return siren::dataclasses::InteractionTree();
     }
     tree.header.event_number = injected_events;

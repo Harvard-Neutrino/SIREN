@@ -520,6 +520,7 @@ PYBIND11_MODULE(injection,m) {
   // Weighter classes
 
   class_<VertexWeightFactors, std::shared_ptr<VertexWeightFactors>>(m, "VertexWeightFactors")
+    .def_readonly("injector_index", &VertexWeightFactors::injector_index)
     .def_readonly("depth", &VertexWeightFactors::depth)
     .def_readonly("primary_pdg", &VertexWeightFactors::primary_pdg)
     .def_readonly("generation", &VertexWeightFactors::generation)

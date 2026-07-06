@@ -67,6 +67,7 @@ typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryPr
 // physical are the exact per-datum factors the event weight consumes; the other
 // fields are observation-only and never fed back into the weight.
 struct VertexWeightFactors {
+    int injector_index = 0;
     int depth = 0;
     int primary_pdg = 0;
     double generation = 1.0;
