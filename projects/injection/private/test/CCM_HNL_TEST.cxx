@@ -362,7 +362,10 @@ TEST(Injector, BreakdownInvariant)
     siren::injection::test::CCMHNLFixture fixture = siren::injection::test::MakeCCMHNLFixture();
 
     unsigned int checked = 0;
-    while(*fixture.injector && checked < 10) {
+    // Bound on attempts, not accepted events, so GenerateEvent is never called
+    // once the attempt budget is spent (which would throw).
+    while(fixture.injector->InjectionAttempts() < fixture.injector->EventsToInject()
+          && checked < 10) {
         InteractionTree tree = fixture.injector->GenerateEvent();
         if(tree.tree.empty()) continue;
 
@@ -372,6 +375,7 @@ TEST(Injector, BreakdownInvariant)
         EXPECT_NEAR(breakdown.total, weight, 1e-12 * std::max(1.0, std::abs(weight)));
         ++checked;
     }
+    EXPECT_GT(checked, 0u) << "no accepted trees to check the breakdown invariant on";
 }
 
 int main(int argc, char** argv)

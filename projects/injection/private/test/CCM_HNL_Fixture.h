@@ -54,13 +54,6 @@ static const std::string ccm_hnl_diff_xsec_table_path = "/home/nwkamp/Research/P
 static const std::string ccm_hnl_material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/materials/CCM.dat";
 static const std::string ccm_hnl_detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/densities/PREM_ccm.dat";
 
-// True only when the hardcoded material/detector data files exist, so a test
-// can GTEST_SKIP() rather than abort on environments without the private data.
-inline bool CCMHNLDataPresent() {
-    return std::ifstream(ccm_hnl_material_file).good()
-        && std::ifstream(ccm_hnl_detector_file).good();
-}
-
 static const double ccm_hnl_mass = 0.01375; // in GeV; The HNL mass we are injecting
 static const double ccm_hnl_dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength
 static const std::string ccm_hnl_mHNL = "0.01375";
@@ -161,6 +154,19 @@ inline std::vector<std::string> CCMHNLTotXsHcFiles(std::string mHNL) {
         res.push_back(CCMHNLTotXsPath(za[0], za[1], mHNL) + "_hc.dat");
     }
     return res;
+}
+
+// True only when every hardcoded input MakeCCMHNLFixture() loads is present:
+// the material/detector files and a representative differential/total
+// cross-section table.  A test gates on this to GTEST_SKIP() rather than abort
+// on environments without the private data.
+inline bool CCMHNLDataPresent() {
+    std::vector<std::string> const diff = CCMHNLDiffXsHfFiles(ccm_hnl_mHNL);
+    std::vector<std::string> const tot = CCMHNLTotXsHfFiles(ccm_hnl_mHNL);
+    return std::ifstream(ccm_hnl_material_file).good()
+        && std::ifstream(ccm_hnl_detector_file).good()
+        && !diff.empty() && std::ifstream(diff.front()).good()
+        && !tot.empty() && std::ifstream(tot.front()).good();
 }
 
 // Bundles the pieces a BreakdownInvariant-style test needs: the upper
