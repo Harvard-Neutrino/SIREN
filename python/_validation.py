@@ -285,3 +285,68 @@ def check_expand_vs_legacy_stopping(has_legacy_stopping, has_expand_or_continue_
             "surface only -- drop stopping_condition and express the "
             "chain with Vertex(expand=[...], continue_if=...)."
         )
+
+
+def validate_secondary_keys(*dicts_with_labels):
+    """Check that every secondary-keyed dict shares the interactions keys.
+
+    Each argument is a (label, mapping) pair. The first pair is the reference
+    key set (the secondary interactions); every other mapping must key on
+    exactly the same ParticleTypes. A typo'd or missing key raises
+    ConfigurationError naming the offending mapping and the key difference,
+    so a phase-space or weighting-mode dict cannot silently miss a secondary.
+    """
+    pairs = [(label, mapping) for label, mapping in dicts_with_labels
+             if mapping is not None]
+    if not pairs:
+        return
+    ref_label, ref_map = pairs[0]
+    ref_keys = set(ref_map.keys())
+    for label, mapping in pairs[1:]:
+        keys = set(mapping.keys())
+        extra = keys - ref_keys
+        if extra:
+            raise ConfigurationError(
+                "{} has secondary keys {} not present in {} (keys {}). "
+                "Fix: the key is likely a typo or a stray entry; it must "
+                "match a registered secondary type.".format(
+                    label, sorted(str(k) for k in extra),
+                    ref_label, sorted(str(k) for k in ref_keys)))
+
+
+def build_template_record(signature, *, primary_mass=0.02, energy=0.05):
+    """A minimal InteractionRecord for a signature, for config-time probes.
+
+    Fills plausible small masses and a forward-moving primary; consulted only
+    by measure/density probes, never by a real Sample().
+    """
+    import math
+    import siren
+    n_sec = len(signature.secondary_types)
+    pz = math.sqrt(max(energy * energy - primary_mass * primary_mass, 0.0))
+    rec = siren.dataclasses.InteractionRecord()
+    rec.signature.primary_type = signature.primary_type
+    rec.signature.target_type = signature.target_type
+    rec.signature.secondary_types = list(signature.secondary_types)
+    rec.primary_mass = primary_mass
+    rec.primary_momentum = [energy, 0.0, 0.0, pz]
+    rec.secondary_masses = [0.001] * n_sec
+    rec.secondary_momenta = [[0.0, 0.0, 0.0, 0.0]] * n_sec
+    rec.secondary_helicities = [0] * n_sec
+    rec.interaction_vertex = [0.0, 0.0, 0.0]
+    rec.primary_initial_position = [0.0, 0.0, 0.0]
+    return rec
+
+
+def probe_channel_densities(mcps, signature, detector_model, random,
+                            *, samples_per_channel=100):
+    """Run the detector-dependent ValidateChannelDensities probe on a mixture.
+
+    Draws samples through each channel and checks the sampled density matches
+    the analytic density, surfacing a sampler/density mismatch at build time.
+    Raises whatever the engine raises (MeasureCompatibilityError,
+    WeightCalculationError) on failure; a passing probe returns its result.
+    """
+    template = build_template_record(signature)
+    return mcps.ValidateChannelDensities(
+        random, detector_model, template, samples_per_channel)

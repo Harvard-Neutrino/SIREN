@@ -411,6 +411,7 @@ PYBIND11_MODULE(injection,m) {
     .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
     .def("SetPhaseSpace", &PhysicalProcess::SetPhaseSpace)
     .def("GetPhaseSpace", &PhysicalProcess::GetPhaseSpace)
+    .def("GetPhaseSpaceMap", &PhysicalProcess::GetPhaseSpaceMap)
     .def("HasPhaseSpace", overload_cast<siren::dataclasses::InteractionSignature const &>(&PhysicalProcess::HasPhaseSpace, const_))
     .def("HasAnyPhaseSpace", &PhysicalProcess::HasAnyPhaseSpace)
     .def("SetWeightingMode", &PhysicalProcess::SetWeightingMode)
