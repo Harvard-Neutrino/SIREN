@@ -21,6 +21,16 @@ def vector_portal(processes_dir):
 
 
 @pytest.fixture(scope="module")
+def meson_production_module(processes_dir):
+    from siren import _util
+
+    return _util.load_module(
+        "test_dutta_kim_MesonProduction",
+        str(processes_dir / "DarkNewsTables" / "MesonProduction.py"),
+    )
+
+
+@pytest.fixture(scope="module")
 def darknews_processes(processes_dir):
     from siren import _util
 
@@ -780,3 +790,56 @@ def test_dutta_kim_end_to_end_chain(vector_portal, processes_dir):
         w = weighter(event)
         assert math.isfinite(w), f"Weight is not finite: {w}"
         assert w > 0.0, f"Weight is not positive: {w}"
+
+
+def _model_family(vector_portal, meson_production_module):
+    """One instance of every Dutta-Kim model class, test-scale parameters."""
+    vp, mp = vector_portal, meson_production_module
+    return [
+        vp.DarkPhotonToChiDecay(m_V1=0.017, m_chi=0.008, g_D=1.0),
+        vp.ChiPrimeDecay(m_chi_prime=0.050, m_chi=0.008, m_V1=0.017, g_D=1.0),
+        vp.VectorPortalUpscatteringXS(
+            m_chi=0.008, m_chi_prime=0.050, m_V2=0.200, g_D=1.0,
+            epsilon=1.0e-4),
+        vp.VectorPortalOffShellXS(0.008, 0.035, 0.017, 0.05, 1.0, 1.0e-4),
+        vp.BiasedDarkPhotonToChiDecay(
+            0.017, 0.008, 1.0,
+            detector_position=(0.0, 0.0, 10.0), detector_radius=1.0),
+        mp.MesonSimpleDecay(),
+    ]
+
+
+def test_audit_overrides_passes_over_model_family(
+        vector_portal, meson_production_module):
+    """Every model satisfies the trampoline override contract: no required
+    virtual resolves only to the abstract root, and models relying on the
+    default sampler declare a self-contained measure."""
+    from siren import _validation
+
+    _validation.audit_overrides(
+        _model_family(vector_portal, meson_production_module))
+
+
+def test_check_closure_family_coverage(vector_portal, meson_production_module):
+    """check_closure certifies (or honestly declines) every model:
+
+    * on-shell decays and the Q2 upscatter get a full shape verdict;
+    * the cone-biased decay is gauged over its empirical angular range;
+    * the off-shell 2->3 scatter is out of the single-coordinate shape
+      check's jurisdiction and must say so rather than fail, since its
+      mixture-level E[f/g] closure is pinned elsewhere in this suite.
+    """
+    import siren
+
+    vp = vector_portal
+    family = _model_family(vector_portal, meson_production_module)
+    for model in family:
+        report = siren.check_closure(
+            model, primary_energy=1.0, samples=4000, seed=0)
+        assert report.ok, "%s: %s" % (type(model).__name__, report)
+
+    offshell = vp.VectorPortalOffShellXS(0.008, 0.035, 0.017, 0.05, 1.0, 1.0e-4)
+    report = siren.check_closure(
+        offshell, primary_energy=1.0, samples=4000, seed=0)
+    assert any("not applicable" in n for n in report.notes), report.notes
+    assert any("kinematically pinned" in n for n in report.notes), report.notes
