@@ -80,8 +80,9 @@ struct VertexWeightFactors {
 };
 
 // Per-vertex decomposition of an event weight. total equals
-// Weighter::EventWeight(tree) for a tree with no flagged vertices; a flagged
-// vertex marks a zero-generation error path or a zero-physical (weight 0) case.
+// Weighter::EventWeight(tree): a zero-generation vertex (the path EventWeight
+// throws on) is flagged and yields a NaN total, while a zero-physical vertex is
+// flagged and yields a 0.0 total, matching EventWeight's zero-weight case.
 struct EventWeightBreakdown {
     double total = 0.0;
     std::vector<VertexWeightFactors> vertices;
