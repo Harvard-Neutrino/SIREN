@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from typing import Dict, List, Optional
 
-from . import particles as _particles
+from . import dataclasses as _dataclasses
 
 
 def _reason_name(reason) -> str:
@@ -22,9 +22,8 @@ def _reason_name(reason) -> str:
 def _pdg_name(pdg: int) -> str:
     """Human name for a PDG code, falling back to the integer."""
     try:
-        ptype = _particles.resolve(int(pdg))
-        return getattr(ptype, "name", str(pdg))
-    except Exception:
+        return _dataclasses.ParticleType(int(pdg)).name
+    except (ValueError, TypeError):
         return str(pdg)
 
 
