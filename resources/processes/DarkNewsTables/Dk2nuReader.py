@@ -328,6 +328,15 @@ def dk2nu_to_primary_distribution(
         mask = np.ones(len(ptype), dtype=bool)
 
     simulated_pot = dk2nu_data["pot"]
+    # Per-POT weights are meaningless without a positive POT. read_dk2nu leaves
+    # pot at 0.0 when a file has no dkmetaTree/pots branch; dividing by it would
+    # emit inf/nan weights silently. Fail loud at the point the weights are
+    # formed rather than propagate a corrupt distribution.
+    if not (simulated_pot > 0):
+        raise siren.utilities.ConfigurationError(
+            "dk2nu_data['pot'] is %r; a positive simulated POT is required to "
+            "compute per-POT weights. The input file(s) carried no POT metadata "
+            "(no dkmetaTree/pots branch)." % (simulated_pot,))
 
     E = dk2nu_data["E"][mask]
     px = dk2nu_data["px"][mask]

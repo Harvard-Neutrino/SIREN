@@ -146,8 +146,10 @@ class ClosureReport:
         a shape diagnostic only. ``(nan, nan)`` when no binned profile was
         computed.
     moment_z : dict
-        {variable_name: z_score} of sampled vs density-weighted mean, one
-        entry per DensityVariable (or per fallback coordinate).
+        {coordinate_name: z_score} of sampled vs density-weighted mean for the
+        single fallback coordinate this gauge measures (a cos(theta) of one
+        secondary). It is keyed by that coordinate, not by DensityVariable: a
+        declared variable the gauge does not sample carries no entry.
     worst_region : str
         Human string naming the flatness bin with the largest normalized
         deviation, or "" if no binned diagnostic was computed.
@@ -826,7 +828,7 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
             worst_region = ("%s in [%.2f, %.2f): ratio %.2f (z=%.1f)"
                              % (coord_name, lo, hi, norm, z))
 
-    # Per-DensityVariable moment check: the coordinate's density mean vs its
+    # Moment check on the coordinate actually measured: its density mean vs its
     # sampled mean, built from the SAME flatness bins so it gauges shape at the
     # flatness resolution rather than a frame mismatch. The density mean
     # reweights each bin's occupancy by the bin's self-normalized flatness ratio
@@ -837,10 +839,11 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
     # the z-score is a fixed-scale test statistic: when the sampler matches the
     # density r_b = 1 +/- 1/sqrt(count_b) is pure noise and the shift stays within
     # its own uncertainty (z ~ O(1) independent of sample count), while a real
-    # shape mismatch drives r_b systematically off 1 and lifts z. Only one
-    # fallback coordinate is available (see _extract_coordinate), so every
-    # declared DensityVariable name is reported against it.
-    density_vars = list(model.DensityVariables())
+    # shape mismatch drives r_b systematically off 1 and lifts z. The z is keyed
+    # under coord_name, the single coordinate this gauge samples; it is NOT fanned
+    # out to every declared DensityVariable, since a non-angular variable (e.g.
+    # s_pair) is never measured here and carrying the angular z under its name
+    # would misreport an unmeasured variable.
     moment_z = {}
     if bin_ratio_info and scale > 0.0 and not shape_unresolved:
         total_count = sum(count for _lo, _hi, _r, count in bin_ratio_info)
@@ -864,9 +867,7 @@ def _check_closure_model(model, *, primary_energy, target, samples, seed,
                     var += (d_shift * rel) ** 2
                 sigma = math.sqrt(var)
                 z = (density_mean - sample_mean) / sigma if sigma > 0.0 else 0.0
-                labels = density_vars if density_vars else [coord_name]
-                for label in labels:
-                    moment_z[label] = z
+                moment_z[coord_name] = z
 
     frame_note = _frame_check(model, template, drawn)
 

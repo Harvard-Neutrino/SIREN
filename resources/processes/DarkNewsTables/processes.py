@@ -1,4 +1,5 @@
 import os
+import importlib.util
 from typing import Tuple, List, Any, Optional
 import siren
 import collections
@@ -26,6 +27,14 @@ try:
     PyDarkNewsDecay = DarkNewsDecay.PyDarkNewsDecay
     _DARKNEWS_AVAILABLE = True
 except ImportError:
+    # The not-installed fallback is only correct when DarkNews itself is absent.
+    # A version mismatch, typo, or broken import inside DarkNewsDecay.py /
+    # DarkNewsCrossSection.py (or a DarkNews submodule) also raises ImportError;
+    # swallowing that as "DarkNews not installed" hides a real bug. Fall back
+    # only when the DarkNews package cannot be found; re-raise anything else.
+    if importlib.util.find_spec("DarkNews") is not None:
+        raise
+
     ModelContainer = None
 
     class NuclearTarget:
@@ -622,7 +631,11 @@ def load_vector_portal(
     primary_processes = {chi_type: []}
     for tname in target_strs:
         if tname not in target_db:
-            continue
+            raise siren.utilities.ConfigurationError(
+                "load_vector_portal has no nuclear parameters for detector "
+                "target %r; supported targets are %s. Add its "
+                "(pdgid, mass, A, Z) to target_db or remove the material from "
+                "the detector model." % (tname, sorted(target_db)))
         nuc_pdgid, nuc_mass, nuc_A, nuc_Z = target_db[tname]
         ups_case = VectorPortalUpsCase(
             m_chi=m_chi,
