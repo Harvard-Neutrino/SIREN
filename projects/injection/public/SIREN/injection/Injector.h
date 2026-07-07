@@ -175,16 +175,22 @@ public:
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 0) {
+        if(version <= 1) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
+            // FailedEvents added in version 1 so attempts ~= injected + failed
+            // survives a save/load round-trip. cereal passes the current class
+            // version (>= 1) on save, so it is always written here.
+            if(version >= 1) {
+                archive(::cereal::make_nvp("FailedEvents", failed_events));
+            }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             // archive(::cereal::make_nvp("SIRENRandom", random));
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
-            throw std::runtime_error("Injector only supports version <= 0!");
+            throw std::runtime_error("Injector only supports version <= 1!");
         }
     }
 
@@ -192,13 +198,18 @@ public:
     // incompatible archive throws siren::utilities::AddProcessFailure instead of exiting.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
+        if(version <= 1) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
 
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
+            // FailedEvents added in version 1. Version-0 archives omit it, so
+            // failed_events keeps its default (0) for backward compatibility.
+            if(version >= 1) {
+                archive(::cereal::make_nvp("FailedEvents", failed_events));
+            }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             // archive(::cereal::make_nvp("SIRENRandom", random));
             archive(::cereal::make_nvp("PrimaryProcess", _primary_process));
@@ -208,7 +219,7 @@ public:
                 AddSecondaryProcess(secondary_process);
             }
         } else {
-            throw std::runtime_error("Injector only supports version <= 0!");
+            throw std::runtime_error("Injector only supports version <= 1!");
         }
     }
 };
@@ -216,7 +227,7 @@ public:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::Injector, 0);
+CEREAL_CLASS_VERSION(siren::injection::Injector, 1);
 
 #endif // SIREN_Injector_H
 

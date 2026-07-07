@@ -57,6 +57,24 @@ double SelectedFinalStateProbability(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record);
 
+// Channel-selection probability for a Fixed vertex.
+//
+// The injector rate-selects the channel (Injector::SelectChannel) even at a
+// Fixed vertex, so the generation/physical density must carry the same
+// selected_rate/total_rate factor the sampler applied. This helper enumerates
+// candidate signatures exactly like ChannelSelectionProbability, but:
+//   - returns exactly 1.0 (an exact float no-op) when at most one candidate
+//     signature competes for the record's parent (and target where
+//     applicable), so single-channel Fixed configs are unaffected;
+//   - otherwise returns selected_rate/total_rate.
+// It fails loud (throws siren::utilities::WeightCalculationError) rather than
+// silently returning a wrong factor if total_rate <= 0 or the result is
+// non-finite.
+double FixedVertexChannelSelectionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
 } // namespace injection
 } // namespace siren
 

@@ -15,11 +15,13 @@
 - ConvertDensity now rejects non-Decay2Body SolidAngleLab conversions as unconvertible (MeasureCompatibilityError) instead of silently applying the parent-rest-frame two-body boost Jacobian in the wrong frame; Decay2Body SolidAngleLab conversions are unchanged.
 - MesonProduction three-body rest-frame sampler: the acceptance is weighted by the E_phi kinematic band width, so the accepted (E_nu, E_phi) density is proportional to |M|^2 on the Dalitz plane as FinalStateProbability and total_width assume. A uniform-in-band proposal with unweighted acceptance carries an extra 1/band(E_nu) factor that oversamples both Dalitz edges, biasing MesonThreeBodySIRENDecay and BiasedMesonThreeBodyDecay event samples (E_nu-marginal chi2/dof vs the physical marginal: 130 unweighted, 1.2 weighted; the Recursive2Body FinalStateProbability was verified against the engine Jacobian to 1e-14 and is unchanged).
 - Directed 2-body Overlap regime: the sampler now draws from the smaller of the kinematic and bounding cones, which provably contains the cone-intersection lens, so sampled daughter directions cover the whole lens the density reports as 1/omega_eff. The retired tight-cap proposal could enclose only part of the lens (a reproduced geometry left 57% of the lens unreachable), truncating the directed channel's support below its stated density and breaking Sample/Density closure for DetectorDirected2BodyChannel and DetectorDirected3BodyChannel.
+- Fixed-mode vertices charge the channel-selection probability (selected rate over total rate) in both the physical and generation final-state factors whenever the vertex's interaction collection offers more than one channel, matching the rate-weighted channel selection the injector always performs. Single-channel collections are untouched (the factor short-circuits to exactly 1.0), and weighting raises WeightCalculationError when competing channels have no computable total rate.
 
 ### Fixed
 
 - Zero-argument Injector.ResetInjectedEvents() overload; repairs the Python reset_injected_events() wrapper.
 - Injector.load() secondary-process iteration bug (missing .items()).
+- Injector archives carry FailedEvents, and process archives carry the vertex weighting mode (each with a class-version bump; older archives load with the previous defaults). PhysicalProcess copy and move preserve the weighting mode.
 
 ### Added
 

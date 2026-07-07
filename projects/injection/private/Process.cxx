@@ -65,14 +65,15 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
 
 PhysicalProcess::PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions), phase_space_map_(other.phase_space_map_) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions), phase_space_map_(other.phase_space_map_), weighting_mode_(other.weighting_mode_) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(std::move(other.physical_distributions)), phase_space_map_(std::move(other.phase_space_map_)) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(std::move(other.physical_distributions)), phase_space_map_(std::move(other.phase_space_map_)), weighting_mode_(other.weighting_mode_) {};
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess const & other) {
     Process::operator=(other);
     physical_distributions = other.physical_distributions;
     phase_space_map_ = other.phase_space_map_;
+    weighting_mode_ = other.weighting_mode_;
     return *this;
 };
 
@@ -80,6 +81,7 @@ PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess && other) {
     Process::operator=(other);
     physical_distributions = std::move(other.physical_distributions);
     phase_space_map_ = std::move(other.phase_space_map_);
+    weighting_mode_ = other.weighting_mode_;
     return *this;
 };
 

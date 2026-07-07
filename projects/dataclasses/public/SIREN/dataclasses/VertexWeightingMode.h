@@ -3,6 +3,9 @@
 #define SIREN_VertexWeightingMode_H
 
 #include <string>
+#include <cstdint>                            // for uint32_t
+#include <stdexcept>                          // for runtime_error
+#include <cereal/cereal.hpp>                  // for make_nvp, CEREAL_CLASS_VERSION
 
 namespace siren {
 namespace dataclasses {
@@ -17,6 +20,11 @@ namespace dataclasses {
 // A gamma-ray segment provides external bounds for the interaction
 // probability integral. This struct lets the user control which
 // factors are computed and where the integration bounds come from.
+//
+// Note: even a Fixed vertex still charges the channel-selection
+// probability when multiple channels compete, because the injector
+// rate-selects the channel independently of this mode; only the
+// path-interaction and position factors are suppressed here.
 struct VertexWeightingMode {
 
     // Which probability factors to compute at this vertex.
@@ -62,11 +70,39 @@ struct VertexWeightingMode {
     static VertexWeightingMode ExternalBounds() {
         return {true, true, BoundSource::Distribution};
     }
+
+    // ---- Serialization ----
+    // bound_source is archived as its underlying int so the enum encoding
+    // is stable across compilers.
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("ComputeInteractionProbability", compute_interaction_probability));
+            archive(::cereal::make_nvp("ComputePositionProbability", compute_position_probability));
+            archive(::cereal::make_nvp("BoundSource", static_cast<int>(bound_source)));
+        } else {
+            throw std::runtime_error("VertexWeightingMode only supports version <= 0!");
+        }
+    }
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            int bound_source_int;
+            archive(::cereal::make_nvp("ComputeInteractionProbability", compute_interaction_probability));
+            archive(::cereal::make_nvp("ComputePositionProbability", compute_position_probability));
+            archive(::cereal::make_nvp("BoundSource", bound_source_int));
+            bound_source = static_cast<BoundSource>(bound_source_int);
+        } else {
+            throw std::runtime_error("VertexWeightingMode only supports version <= 0!");
+        }
+    }
 };
 
 std::string VertexWeightingModeName(VertexWeightingMode const & mode);
 
 } // namespace dataclasses
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::dataclasses::VertexWeightingMode, 0);
 
 #endif // SIREN_VertexWeightingMode_H

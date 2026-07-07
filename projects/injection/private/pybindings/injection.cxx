@@ -58,6 +58,11 @@ PYBIND11_MODULE(injection,m) {
   m.def("CrossSectionProbability", &CrossSectionProbability);
   m.def("CrossSectionProbabilityWithPhaseSpace", &CrossSectionProbabilityWithPhaseSpace);
   m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
+  m.def("FixedVertexChannelSelectionProbability", &FixedVertexChannelSelectionProbability,
+        "Channel-selection factor a Fixed vertex charges when multiple channels "
+        "compete: exactly 1.0 for a single candidate signature, else "
+        "selected_rate/total_rate. Throws WeightCalculationError on a "
+        "non-positive total rate or non-finite result.");
 
   // Vertex weighting mode
   using VWM = siren::dataclasses::VertexWeightingMode;

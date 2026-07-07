@@ -229,10 +229,14 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
         physical_probability *= prob;
     }
 
-    // Final-state probability: use rate-weighted cross section
-    // probability for Propagated vertices, or direct FinalStateProbability
-    // for Fixed vertices (no rate competition at an externally-determined
-    // vertex).
+    // Final-state probability. Propagated vertices use the rate-weighted cross
+    // section probability. Fixed vertices use the direct final-state density,
+    // but still charge the channel-selection probability: the injector
+    // rate-selects the channel (Injector::SelectChannel) regardless of the
+    // weighting mode, so when multiple channels compete the sampled density
+    // carries a selected_rate/total_rate factor that must appear here too. The
+    // helper short-circuits to exactly 1.0 for single-channel processes, so
+    // this is a no-op there.
     if (mode.compute_interaction_probability) {
         double prob;
         if (phys_process->HasPhaseSpace(record.signature)) {
@@ -253,6 +257,8 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
             prob = siren::injection::SelectedFinalStateProbability(
                 detector_model, phys_process->GetInteractions(), record);
         }
+        prob *= siren::injection::FixedVertexChannelSelectionProbability(
+            detector_model, phys_process->GetInteractions(), record);
         physical_probability *= prob;
     }
 
@@ -279,8 +285,11 @@ double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::I
                 detector_model, inj_process->GetInteractions(), datum.record);
         }
     } else {
-        // Fixed vertex: no rate competition. Use FinalStateProbability
-        // directly (or phase space density if registered).
+        // Fixed vertex: the path-interaction factor is suppressed, but the
+        // injector still rate-selects the channel, so charge the
+        // channel-selection probability on top of the direct final-state
+        // density. The helper returns exactly 1.0 for single-channel
+        // processes, matching the old behavior there.
         if (inj_process->HasPhaseSpace(datum.record.signature)) {
             gen_probability = inj_process->GetPhaseSpace(datum.record.signature)->Density(
                 detector_model, datum.record);
@@ -288,6 +297,8 @@ double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::I
             gen_probability = siren::injection::SelectedFinalStateProbability(
                 detector_model, inj_process->GetInteractions(), datum.record);
         }
+        gen_probability *= siren::injection::FixedVertexChannelSelectionProbability(
+            detector_model, inj_process->GetInteractions(), datum.record);
     }
 
     for(auto gen_dist : unique_gen_distributions) {

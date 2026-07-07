@@ -4,7 +4,11 @@
 #include <set>                                                    // for set
 #include <array>                                                  // for array
 #include <vector>                                                 // for vector
+#include <cmath>                                                  // for isfinite
+#include <cstddef>                                                // for size_t
+#include <string>                                                 // for to_string
 
+#include "SIREN/utilities/Errors.h"                     // for WeightCalculationError
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
 #include "SIREN/interactions/InteractionCollection.h"  // for Cro...
 #include "SIREN/interactions/Decay.h"                   // for Decay
@@ -29,11 +33,16 @@ namespace {
 // Returns (total_rate, selected_channel_rate).
 // The selected_channel_rate is the sum of rates for all channels
 // whose signature matches the record's signature.
+// When candidate_count is non-null it receives the number of candidate
+// signatures enumerated (the number of competing channels), so a caller can
+// distinguish the single-channel case without a second traversal.
 std::pair<double, double> AccumulateRates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record)
+    siren::dataclasses::InteractionRecord const & record,
+    std::size_t * candidate_count = nullptr)
 {
+    std::size_t candidates = 0;
     siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -65,6 +74,7 @@ std::pair<double, double> AccumulateRates(
         for (auto const & signature :
              decay->GetPossibleSignaturesFromParent(
                  record.signature.primary_type)) {
+            ++candidates;
             fake_record.signature = signature;
             double decay_prob = 1.0 / (
                 decay->TotalDecayLength(fake_record)
@@ -88,6 +98,7 @@ std::pair<double, double> AccumulateRates(
             for (auto const & signature :
                  cross_section->GetPossibleSignaturesFromParents(
                      record.signature.primary_type, target)) {
+                ++candidates;
                 fake_record.signature = signature;
                 fake_record.target_mass =
                     detector_model->GetTargetMass(target);
@@ -102,6 +113,9 @@ std::pair<double, double> AccumulateRates(
         }
     }
 
+    if (candidate_count != nullptr) {
+        *candidate_count = candidates;
+    }
     return {total_rate, selected_rate};
 }
 
@@ -230,6 +244,43 @@ double ChannelSelectionProbability(
         AccumulateRates(detector_model, interactions, record);
     if (total_rate == 0) return 0.0;
     return selected_rate / total_rate;
+}
+
+double FixedVertexChannelSelectionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record)
+{
+    std::size_t candidate_count = 0;
+    auto [total_rate, selected_rate] =
+        AccumulateRates(detector_model, interactions, record, &candidate_count);
+
+    // Exact float no-op when at most one channel competes: the injector's
+    // rate selection was trivial, so no branching factor applies. Guarding on
+    // the candidate count (not on selected_rate == total_rate) keeps existing
+    // single-channel Fixed configs bit-for-bit unchanged even if the single
+    // rate is zero or non-finite.
+    if (candidate_count <= 1) {
+        return 1.0;
+    }
+
+    // Multiple channels compete: fail loud rather than silently returning a
+    // wrong factor.
+    if (total_rate <= 0.0) {
+        throw siren::utilities::WeightCalculationError(
+            "FixedVertexChannelSelectionProbability: total interaction rate is "
+            "non-positive (" + std::to_string(total_rate) + ") across "
+            + std::to_string(candidate_count)
+            + " competing channels; cannot form the channel-selection factor.");
+    }
+    double probability = selected_rate / total_rate;
+    if (not std::isfinite(probability)) {
+        throw siren::utilities::WeightCalculationError(
+            "FixedVertexChannelSelectionProbability: non-finite channel-selection "
+            "probability (selected_rate=" + std::to_string(selected_rate)
+            + ", total_rate=" + std::to_string(total_rate) + ").");
+    }
+    return probability;
 }
 
 double CrossSectionProbability(
