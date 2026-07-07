@@ -111,25 +111,13 @@ std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::Fi
 }
 
 void Injector::SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary) {
-    std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist;
-    try {
-        vtx_dist = FindPrimaryVertexDistribution(primary);
-    } catch(siren::utilities::AddProcessFailure const & e) {
-        std::cerr << e.what() << std::endl;
-        exit(0);
-    }
+    std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist = FindPrimaryVertexDistribution(primary);
     primary_process = primary;
     primary_position_distribution = vtx_dist;
 }
 
 void Injector::AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryInjectionProcess> secondary) {
-    std::shared_ptr<distributions::SecondaryVertexPositionDistribution> vtx_dist;
-    try {
-        vtx_dist = FindSecondaryVertexDistribution(secondary);
-    } catch(siren::utilities::AddProcessFailure const & e) {
-        std::cerr << e.what() << std::endl;
-        exit(0);
-    }
+    std::shared_ptr<distributions::SecondaryVertexPositionDistribution> vtx_dist = FindSecondaryVertexDistribution(secondary);
     secondary_processes.push_back(secondary);
     secondary_position_distributions.push_back(vtx_dist);
     secondary_process_map.insert({secondary->GetPrimaryType(), secondary});
@@ -654,20 +642,51 @@ void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
 
+void Injector::ResetInjectedEvents() {
+    injected_events = 0;
+    injection_attempts = 0;
+    failed_events = 0;
+    last_failure_reason_.clear();
+    last_failed_tree_ = siren::dataclasses::InteractionTree();
+}
+
 Injector::operator bool() const {
     return events_to_inject == 0 or injected_events < events_to_inject;
 }
 
+namespace {
+// Header word marking a version-stamped injector archive; headerless
+// archives begin directly with the EventsToInject payload.
+constexpr std::uint32_t kInjectorArchiveMagic = 0x53494E4A; // "SINJ"
+} // anonymous namespace
+
 void Injector::SaveInjector(std::string const & filename) const {
     std::ofstream os(filename, std::ios::binary);
     ::cereal::BinaryOutputArchive archive(os);
-    this->save(archive,0);
+    std::uint32_t magic = kInjectorArchiveMagic;
+    // Must match CEREAL_CLASS_VERSION(siren::injection::Injector, ...).
+    std::uint32_t version = 1;
+    archive(magic, version);
+    this->save(archive, version);
 }
 
 void Injector::LoadInjector(std::string const & filename) {
+    {
+        std::ifstream is(filename, std::ios::binary);
+        ::cereal::BinaryInputArchive archive(is);
+        std::uint32_t magic = 0;
+        archive(magic);
+        if(magic == kInjectorArchiveMagic) {
+            std::uint32_t version = 0;
+            archive(version);
+            this->load(archive, version);
+            return;
+        }
+    }
+    // Headerless archive: version-0 schema from the first byte.
     std::ifstream is(filename, std::ios::binary);
     ::cereal::BinaryInputArchive archive(is);
-    this->load(archive,0);
+    this->load(archive, 0);
 }
 
 } // namespace injection
