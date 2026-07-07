@@ -1,10 +1,16 @@
-"""Fixed-vertex channel-factor pins.
+"""Injector serialization and Fixed-vertex channel-factor pins.
 
-Data-free and fixed-seed throughout: FixedVertexChannelSelectionProbability
-returns exactly 1.0 for a single-channel process (an exact float no-op) and
-selected_rate/total_rate when multiple channels compete, so a Fixed vertex
-charges the same channel-selection factor the injector's rate selection
-applied.
+Data-free and fixed-seed throughout:
+
+  (a) The raw C++ injector (siren.injection._Injector) round-trips
+      InjectionAttempts, InjectedEvents, FailedEvents, and each process's
+      weighting mode across SaveInjector/LoadInjector.
+
+  (b) FixedVertexChannelSelectionProbability returns exactly 1.0 for a
+      single-channel process (an exact float no-op) and
+      selected_rate/total_rate when multiple channels compete, so a Fixed
+      vertex charges the same channel-selection factor the injector's rate
+      selection applied.
 """
 
 import math
@@ -15,8 +21,92 @@ import siren
 from siren import dataclasses as dc
 from siren import injection
 from siren import interactions
+from siren import distributions
+from siren import math as smath
+from siren import utilities
 
 _NuMu = dc.Particle.ParticleType.NuMu
+
+
+def _distributions(max_distance):
+    return [
+        distributions.PrimaryMass(0),
+        distributions.PowerLaw(2.0, 0.5, 5.0),
+        distributions.PrimaryNeutrinoHelicityDistribution(),
+        distributions.IsotropicDirection(),
+        distributions.PointSourcePositionDistribution(
+            smath.Vector3D(0, 0, 0), max_distance),
+    ]
+
+
+def _raw_forced_failure_injector(events, seed, weighting_mode):
+    """A raw _Injector whose every attempt fails (bare detector, zero source
+    distance means every path misses its target), with a Fixed-mode primary
+    process. No detector data files are needed."""
+    dm = siren.detector.DetectorModel()
+    collection = interactions.InteractionCollection(
+        _NuMu, [interactions.DummyCrossSection()])
+    primary = injection.PrimaryInjectionProcess(_NuMu, collection)
+    primary.distributions = _distributions(0.0)
+    primary.weighting_mode = weighting_mode
+    random = utilities.SIREN_random(seed)
+    return injection._Injector(events, dm, primary, random)
+
+
+# ------------------------------------------------------------------ #
+#  (a) SaveInjector/LoadInjector round-trip                           #
+# ------------------------------------------------------------------ #
+
+def test_save_load_preserves_counters_and_weighting_mode(tmp_path):
+    """Counters and the primary process's weighting mode survive a raw
+    SaveInjector/LoadInjector round-trip."""
+    events = 6
+    fixed = injection.VertexWeightingMode.Fixed()
+    inj = _raw_forced_failure_injector(events=events, seed=13, weighting_mode=fixed)
+
+    # Every attempt fails; GenerateEvent catches the failure internally and
+    # returns an empty tree, so drive it up to the configured attempt cap.
+    for _ in range(events):
+        tree = inj.GenerateEvent()
+        assert len(tree.tree) == 0
+
+    assert inj.InjectionAttempts() == events
+    assert inj.InjectedEvents() == 0
+    assert inj.FailedEvents() == events
+    # The accounting invariant that motivated serializing FailedEvents.
+    assert inj.InjectionAttempts() == inj.InjectedEvents() + inj.FailedEvents()
+
+    path = str(tmp_path / "injector_roundtrip")
+    inj.SaveInjector(path)
+
+    reloaded = injection._Injector.__new__(injection._Injector)
+    reloaded.LoadInjector(path)
+
+    assert reloaded.InjectionAttempts() == inj.InjectionAttempts()
+    assert reloaded.InjectedEvents() == inj.InjectedEvents()
+    assert reloaded.FailedEvents() == inj.FailedEvents()
+    assert reloaded.InjectionAttempts() == (
+        reloaded.InjectedEvents() + reloaded.FailedEvents())
+
+    # The archive round-trip preserves the Fixed weighting mode.
+    assert reloaded.GetPrimaryProcess().GetWeightingMode() == fixed
+    assert reloaded.GetPrimaryProcess().GetWeightingMode() != (
+        injection.VertexWeightingMode.Propagated())
+
+
+def test_failed_events_default_when_not_yet_generated(tmp_path):
+    """A freshly-built injector round-trips with all counters at zero."""
+    inj = _raw_forced_failure_injector(
+        events=3, seed=1, weighting_mode=injection.VertexWeightingMode.Propagated())
+    path = str(tmp_path / "injector_fresh")
+    inj.SaveInjector(path)
+    reloaded = injection._Injector.__new__(injection._Injector)
+    reloaded.LoadInjector(path)
+    assert reloaded.InjectionAttempts() == 0
+    assert reloaded.InjectedEvents() == 0
+    assert reloaded.FailedEvents() == 0
+    assert reloaded.GetPrimaryProcess().GetWeightingMode() == (
+        injection.VertexWeightingMode.Propagated())
 
 
 # ------------------------------------------------------------------ #

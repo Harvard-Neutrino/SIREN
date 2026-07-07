@@ -111,12 +111,25 @@ _M_V1 = 0.017
 # Part 1: a real assembled injector + weighter (multi-vertex, data-free)       #
 # --------------------------------------------------------------------------- #
 
-def _load_ccm_detector():
-    """Load the CCM detector model, or skip if its data files are missing.
+def _skip_unless_ccm_data():
+    """Skip only when the CCM detector data files are absent.
 
-    Only a missing-data condition (ValueError from path resolution, RuntimeError
-    from a failed file open) is a skip; anything else is a real regression.
+    Missing files are an environment condition; any error raised while
+    PARSING present files is a real regression and must propagate.
     """
+    try:
+        det_dir = _util.get_detector_model_path("CCM")
+    except ValueError as e:
+        pytest.skip(f"CCM detector model path unavailable: {e}")
+    missing = [p for p in (os.path.join(det_dir, "materials.dat"),
+                           os.path.join(det_dir, "densities.dat"))
+               if not os.path.exists(p)]
+    if missing:
+        pytest.skip("CCM detector data missing: " + ", ".join(missing))
+
+
+def _load_ccm_detector():
+    """Load the CCM detector model; errors propagate to the caller."""
     dm = detector.DetectorModel()
     det_dir = _util.get_detector_model_path("CCM")
     dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
@@ -202,10 +215,11 @@ def _generate_chain_arrays(detector_model):
             break
         try:
             ev = inj.GenerateEvent()
-        except RuntimeError:
-            # The only RuntimeError GenerateEvent() raises is the max-attempts
-            # sentinel; InjectionFailure surfaces as an empty tree, so this
-            # cannot mask another failure.
+        except RuntimeError as err:
+            # Only the max-attempts sentinel ends the loop; any other typed
+            # engine RuntimeError re-raises so it cannot be masked here.
+            if "maximum number of injection attempts" not in str(err):
+                raise
             break
         if len(ev.tree) == 0:
             continue
@@ -341,10 +355,8 @@ def _load_archive():
 def test_golden_weighted_distributions():
     """Fixed-seed assembled chain reproduces the archived weighted distributions
     to rtol=1e-12."""
-    try:
-        detector_model = _load_ccm_detector()
-    except (ValueError, RuntimeError) as e:
-        pytest.skip(f"CCM detector model unavailable: {e}")
+    _skip_unless_ccm_data()
+    detector_model = _load_ccm_detector()
 
     archive = _load_archive()
     fresh = _generate_chain_arrays(detector_model)
