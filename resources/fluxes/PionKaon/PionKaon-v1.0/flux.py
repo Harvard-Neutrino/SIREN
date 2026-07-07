@@ -38,7 +38,7 @@ def load_flux(tag=None, min_energy=None, max_energy=None, physically_normalized=
 
     pid = headers.index(particle)
     energies = [(float(row[0]) + float(row[1])) / 2.0 for row in data]
-    flux     = [float(row[pid]) / (50 * 1000 * 1e4) for row in data]
+    flux     = [float(row[pid]) / 50 * 1000 * 1e4 for row in data] # put flux in units of nu/m^2/GeV/POT
 
     if has_energy_range:
         table = siren.distributions.TabulatedFluxDistribution(
