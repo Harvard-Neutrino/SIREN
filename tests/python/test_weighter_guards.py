@@ -12,7 +12,11 @@ Pinned:
     (InjectedEvents()), not the requested count. Weighting the same event at two
     different realized counts M and N scales as w_M * M == w_N * N.
 
-Skipped (not cheaply constructible from Python; see notes in each test):
+Skipped (not cheaply constructible from Python; see notes in each test). No
+C++ test exercises these two guard behaviors either -- Weighter_TEST.cxx covers
+only the OneMinusExp/LogOneMinusExp numeric helpers -- so the guard behaviors
+are currently unpinned; only the WeightCalculationError *type* is pinned (in
+test_errors.py):
   * generation_probability <= 0 -> WeightCalculationError
   * physical_probability == 0 -> weight exactly 0.0 (no raise)
 
@@ -200,9 +204,12 @@ def test_weight_falls_back_to_events_to_inject_before_generation():
            "does not propagate (InteractionTreeDatum.record returns a copy), so "
            "there is no reliable Python-only way to drive a distribution's "
            "GenerationProbability to 0 for a tree the weighter's bounds "
-           "machinery still accepts. Covered by the C++ Weighter tests / a "
-           "future C++ fixture. The typed WeightCalculationError surface is "
-           "pinned in test_errors.py.")
+           "machinery still accepts. This guard behavior is NOT covered by any "
+           "C++ test: Weighter_TEST.cxx tests only the OneMinusExp/"
+           "LogOneMinusExp numeric helpers. Only the WeightCalculationError "
+           "type (existence + RuntimeError subclassing) is pinned, in "
+           "test_errors.py; the raise-on-nonpositive-generation behavior is "
+           "currently unpinned.")
 def test_generation_density_nonpositive_raises_weight_calc_error():
     # Intended contract:
     #   with a tree whose generation density is 0/negative,
@@ -218,9 +225,11 @@ def test_generation_density_nonpositive_raises_weight_calc_error():
            "the injection range did not zero the physical probability in the "
            "single-vertex chain (the physical energy term is not evaluated the "
            "way a disjoint-support trick assumes), and record doctoring does "
-           "not propagate through the tree. The corrected guard polarity "
-           "(physical==0 -> 0.0, no throw; generation<=0 -> throw) is exercised "
-           "by the C++ side.")
+           "not propagate through the tree. The guard polarity (physical==0 -> "
+           "0.0, no throw; generation<=0 -> throw) is NOT covered by any C++ "
+           "test either: Weighter_TEST.cxx tests only the OneMinusExp/"
+           "LogOneMinusExp numeric helpers, so this behavior is currently "
+           "unpinned.")
 def test_physical_density_zero_gives_zero_weight_without_raising():
     # Intended contract:
     #   with a tree outside the physical support (physical_probability == 0),

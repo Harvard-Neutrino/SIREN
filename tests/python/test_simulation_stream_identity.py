@@ -100,12 +100,22 @@ class TestFacadeRunDeterminism:
 
         assert len(r1) == len(r2)
         for (e1, w1), (e2, w2) in zip(r1, r2):
-            p1 = list(e1.tree[0].record.primary_momentum)
-            p2 = list(e2.tree[0].record.primary_momentum)
+            rec1 = e1.tree[0].record
+            rec2 = e2.tree[0].record
+            p1 = list(rec1.primary_momentum)
+            p2 = list(rec2.primary_momentum)
             assert p1 == pytest.approx(p2, rel=0, abs=0)
-            v1 = list(e1.tree[0].record.interaction_vertex)
-            v2 = list(e2.tree[0].record.interaction_vertex)
+            v1 = list(rec1.interaction_vertex)
+            v2 = list(rec2.interaction_vertex)
             assert v1 == pytest.approx(v2, rel=0, abs=0)
+            # The DIS final state is what the interaction actually samples;
+            # compare it too so a divergence in secondary kinematics (not just
+            # the primary/vertex/weight) is caught. Stream identity is bit-exact,
+            # so a direct == on the nested four-momenta is the right comparison.
+            sm1 = [list(p) for p in rec1.secondary_momenta]
+            sm2 = [list(p) for p in rec2.secondary_momenta]
+            assert sm1 == sm2
+            assert list(rec1.secondary_masses) == list(rec2.secondary_masses)
             assert w1 == pytest.approx(w2, rel=0, abs=0)
 
 

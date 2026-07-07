@@ -813,12 +813,20 @@ class TestSamplingDensityConsistency:
         )
 
     def test_massive_daughter_density_matches_sampling(self):
-        """For massive daughters with moderate boost (dual solutions
-        in SolveLabAngle), the density must still match the sampling
-        distribution.
+        """Isotropic sampling of massive daughters stays uniform in the rest
+        frame.
+
+        Isotropic2BodyChannel samples cos(theta) isotropically in the parent
+        rest frame and boosts to the lab; it never calls SolveLabAngle, so this
+        test does NOT touch that solver's dual-solution branch (which only the
+        DetectorDirected channels reach, and which is covered by the C++
+        TwoBodyKinematics.MassiveTwoSolutions test). It pins that giving the
+        daughters mass leaves the rest-frame cos(theta) distribution flat: the
+        binned chi-squared over _rest_frame_cos_theta must be consistent with
+        uniformity.
         """
-        # mA=0.4 with M=1.0 and gamma~3: beta_daughter > beta_parent
-        # may trigger two solutions
+        # mA=0.4, mB=0.3 with M=1.0 and gamma~3: a massive-daughter kinematic
+        # regime, sampled isotropically in the rest frame.
         iso = siren.injection.Isotropic2BodyChannel(0)
         rec = _make_2body_record(M=1.0, E=3.0, mA=0.4, mB=0.3)
         rng = siren.utilities.SIREN_random(77)
