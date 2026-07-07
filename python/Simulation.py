@@ -1,6 +1,11 @@
 """
 High-level simulation interface that unifies event injection and weighting.
 
+This class is model-agnostic.  All physics-model-specific logic
+(DarkNews, HNL splines, etc.) lives in the process loaders under
+``resources/processes/``.  The Simulation class only knows about the
+generic interfaces: distributions, cross sections, and decays.
+
 Usage::
 
     import siren
@@ -30,9 +35,9 @@ from . import math as _math
 from ._util import GenerateEvents as _GenerateEvents
 from .Results import Results
 from ._validation import (
-    classify_distribution,
     validate_injection_distributions,
     validate_physical_distributions,
+    validate_reweighting_compatibility,
 )
 
 
@@ -42,6 +47,11 @@ class Simulation:
     Accepts all configuration as constructor keyword arguments.  Shared
     state (detector, particle type, interactions) is specified once and
     used for both injection and weighting internally.
+
+    This class is model-agnostic: it does not contain any
+    physics-model-specific logic.  Model-specific behavior (table
+    management, secondary process setup, etc.) belongs in the
+    process loaders invoked by ``load_processes``.
 
     Parameters
     ----------
@@ -54,7 +64,9 @@ class Simulation:
         (e.g. ``"NuMu"``).
     interactions : str or list
         Interaction model name (e.g. ``"CSMSDISSplines"``) or a list of
-        CrossSection/Decay objects.
+        CrossSection/Decay objects.  When a string is provided, additional
+        kwargs (``target``, ``process``, ``isoscalar``, and any extra
+        ``**process_kwargs``) are forwarded to ``load_processes``.
     energy : distribution, optional
         Energy distribution, used for both injection and weighting.
         Mutually exclusive with ``injection_energy``/``physical_energy``.
@@ -93,14 +105,13 @@ class Simulation:
         keys are ParticleType and values are distributions or lists.
     stopping_condition : callable, optional
         ``f(datum, i) -> bool`` controlling secondary generation.
-    darknews_model : dict, optional
-        DarkNews model keyword arguments.  When provided, interactions
-        and secondary processes are configured automatically.
-    darknews_table_dir : str, optional
-        Directory for DarkNews cross-section tables.  Auto-constructed
-        if not provided.
     mass : float, optional
         Primary particle mass in GeV (default: 0 for neutrinos).
+    **process_kwargs
+        Additional keyword arguments forwarded to ``load_processes``
+        when ``interactions`` is a string.  This allows model-specific
+        parameters (e.g. DarkNews kwargs) to flow through without
+        the Simulation class knowing about them.
     """
 
     def __init__(
@@ -109,7 +120,7 @@ class Simulation:
         n_events,
         detector,
         primary,
-        interactions=None,
+        interactions,
         # Shared distributions (used for both injection and physical)
         energy=None,
         direction=None,
@@ -130,11 +141,10 @@ class Simulation:
         secondary_interactions=None,
         secondary_position=None,
         stopping_condition=None,
-        # DarkNews integration
-        darknews_model=None,
-        darknews_table_dir=None,
         # Particle mass
         mass=None,
+        # Forward to load_processes
+        **process_kwargs,
     ):
         # ---- Resolve particle types ----
         self._primary_type = _particles.resolve(primary)
@@ -156,18 +166,7 @@ class Simulation:
 
         # ---- Resolve interactions ----
         self._secondary_processes = {}
-        self._darknews_primary_keys = []
-        self._darknews_secondary_keys = []
-
-        if darknews_model is not None:
-            self._init_darknews(darknews_model, darknews_table_dir)
-        elif interactions is not None:
-            self._init_interactions(interactions, process, isoscalar)
-        else:
-            raise ValueError(
-                "Must provide either 'interactions' (model name or list) "
-                "or 'darknews_model' (dict of BSM parameters)."
-            )
+        self._init_interactions(interactions, process, isoscalar, process_kwargs)
 
         # ---- Resolve secondary interactions ----
         if secondary_interactions is not None:
@@ -207,7 +206,7 @@ class Simulation:
     #  Interaction resolution                                              #
     # ------------------------------------------------------------------ #
 
-    def _init_interactions(self, interactions, process, isoscalar):
+    def _init_interactions(self, interactions, process, isoscalar, extra_kwargs):
         """Resolve interactions from a model name string or explicit list."""
         if isinstance(interactions, str):
             load_kwargs = dict(
@@ -219,24 +218,22 @@ class Simulation:
                 load_kwargs["target_types"] = self._target_types
             if process is not None:
                 load_kwargs["process_types"] = [process]
+            load_kwargs.update(extra_kwargs)
 
             result = _utilities.load_processes(interactions, **load_kwargs)
 
             # load_processes returns different shapes depending on model.
-            # Normalize to (primary_dict, secondary_dict).
+            # Normalize: we always need (primary_dict, secondary_dict).
+            # Extra return values are model-specific metadata that we
+            # store opaquely.
             if isinstance(result, tuple):
-                if len(result) == 2:
-                    primary_procs, secondary_procs = result
-                elif len(result) == 4:
-                    primary_procs, secondary_procs = result[0], result[1]
-                    self._darknews_primary_keys = result[2]
-                    self._darknews_secondary_keys = result[3]
-                else:
-                    primary_procs = result[0]
-                    secondary_procs = result[1] if len(result) > 1 else {}
+                primary_procs = result[0]
+                secondary_procs = result[1] if len(result) > 1 else {}
+                self._process_metadata = result[2:] if len(result) > 2 else ()
             else:
                 primary_procs = result
                 secondary_procs = {}
+                self._process_metadata = ()
 
             if self._primary_type not in primary_procs:
                 available = list(primary_procs.keys())
@@ -250,49 +247,12 @@ class Simulation:
                 self._secondary_processes.update(secondary_procs)
         elif isinstance(interactions, list):
             self._primary_interactions = interactions
+            self._process_metadata = ()
         else:
             raise TypeError(
                 f"'interactions' must be a model name string or a list of "
                 f"CrossSection/Decay objects, got {type(interactions).__name__}"
             )
-
-    def _init_darknews(self, model_kwargs, table_dir):
-        """Configure interactions from a DarkNews model specification."""
-        import os
-
-        if table_dir is None:
-            from ._util import get_processes_model_path
-            dn_version = _utilities.darknews_version()
-            table_name = f"DarkNewsTables-v{dn_version}/"
-            m4 = model_kwargs.get("m4", 0)
-            mu = model_kwargs.get("mu_tr_mu4", 0)
-            table_name += "Dipole_M%2.2e_mu%2.2e" % (m4, mu)
-            table_dir = os.path.join(
-                get_processes_model_path("DarkNewsTables"), table_name
-            )
-        os.makedirs(table_dir, exist_ok=True)
-        self._darknews_table_dir = table_dir
-
-        result = _utilities.load_processes(
-            "DarkNewsTables",
-            primary_type=self._primary_type,
-            detector_model=self._detector_model,
-            table_name=os.path.basename(os.path.dirname(table_dir + "/"))
-            if not table_dir.endswith("/")
-            else os.path.basename(table_dir[:-1]),
-            **model_kwargs,
-        )
-
-        if isinstance(result, tuple) and len(result) == 4:
-            primary_procs, secondary_procs = result[0], result[1]
-            self._darknews_primary_keys = result[2]
-            self._darknews_secondary_keys = result[3]
-        else:
-            primary_procs = result[0] if isinstance(result, tuple) else result
-            secondary_procs = result[1] if isinstance(result, tuple) and len(result) > 1 else {}
-
-        self._primary_interactions = primary_procs[self._primary_type]
-        self._secondary_processes = secondary_procs
 
     # ------------------------------------------------------------------ #
     #  Distribution resolution                                             #
@@ -344,11 +304,6 @@ class Simulation:
                 # energy + flux: energy is injection, flux is physical
                 inj_energy = energy
             else:
-                if phys_energy is not None:
-                    raise ValueError(
-                        "Cannot specify both 'energy' and 'physical_energy'. "
-                        "Use 'energy' for both, or the split form."
-                    )
                 inj_energy = energy
                 phys_energy = energy
 
@@ -388,8 +343,7 @@ class Simulation:
         if position is None:
             raise ValueError(
                 "No position distribution specified. Provide 'position' "
-                "(e.g. ColumnDepthPositionDistribution, "
-                "CylinderVolumePositionDistribution)."
+                "(any subclass of VertexPositionDistribution)."
             )
 
         # ---- Mass (injection only, auto-inferred) ----
@@ -409,7 +363,6 @@ class Simulation:
                     v if isinstance(v, list) else [v]
                 )
         else:
-            # Single distribution applied to all secondary types
             for sec_type in self._secondary_processes.keys():
                 self._secondary_injection_distributions[sec_type] = [
                     secondary_position
@@ -447,6 +400,10 @@ class Simulation:
     def _build_weighter(self, injector):
         """Construct and return a Weighter from stored config."""
         validate_physical_distributions(self._physical_distributions)
+        validate_reweighting_compatibility(
+            self._injection_distributions,
+            self._physical_distributions,
+        )
 
         weighter = _injection.Weighter()
         weighter.injectors = [injector]
@@ -507,6 +464,16 @@ class Simulation:
     def physical_distributions(self):
         """List of physical distributions (read-only)."""
         return list(self._physical_distributions)
+
+    @property
+    def process_metadata(self):
+        """Extra values returned by load_processes beyond (primary, secondary).
+
+        Model-specific loaders may return additional metadata (e.g. keys
+        for DarkNews table saving).  This property provides access without
+        the Simulation class needing to know what the metadata means.
+        """
+        return self._process_metadata
 
     def __repr__(self):
         parts = [

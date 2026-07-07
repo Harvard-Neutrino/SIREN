@@ -2,6 +2,7 @@
 #ifndef SIREN_CylinderVolumePositionDistribution_H
 #define SIREN_CylinderVolumePositionDistribution_H
 
+#include <set>
 #include <tuple>
 #include <memory>
 #include <string>
