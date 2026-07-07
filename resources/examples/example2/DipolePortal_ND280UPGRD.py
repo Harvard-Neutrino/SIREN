@@ -28,6 +28,14 @@ bundle = siren.load_processes(
     **model_kwargs,
 )
 
+def _total_decay_width(decay):
+    # TotalDecayWidth(record) only returns a nonzero width when the record's
+    # signature matches the decay's own signature; a default-constructed
+    # InteractionRecord has an "unknown" signature and always yields zero.
+    record = siren.dataclasses.InteractionRecord()
+    record.signature = decay.GetPossibleSignatures()[0]
+    return decay.TotalDecayWidth(record)
+
 flux_file = get_tabulated_flux_file("T2K_NEAR", "PLUS_numu")
 
 sim = siren.Simulation(
@@ -46,7 +54,7 @@ sim = siren.Simulation(
         5.0, 9.0,
         siren.dist.DecayRange(
             model_kwargs["m4"],
-            min(d.TotalDecayWidth(siren.dataclasses.InteractionRecord())
+            min(_total_decay_width(d)
                 for d in bundle.secondary[siren.particles.N4]),
             3, 240,
         ),

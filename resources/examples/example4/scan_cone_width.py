@@ -87,6 +87,8 @@ for cone_deg in [180, 45, None]:
                 for d in ev.tree if int(d.record.signature.primary_type) == 5917)
 
     weights = []
+    n_failed = 0
+    first_failure_type = None
     if n_sig > 0:
         try:
             w = siren.injection.Weighter(
@@ -104,8 +106,14 @@ for cone_deg in [180, 45, None]:
                     wt = w.event_weight(ev)
                     if np.isfinite(wt) and wt > 0:
                         weights.append(wt)
-                except:
-                    pass
+                except Exception as e:
+                    if first_failure_type is None:
+                        first_failure_type = type(e)
+                    elif type(e) is not first_failure_type:
+                        # A different exception type than the first weighting
+                        # failure indicates a bug, not a per-event edge case.
+                        raise
+                    n_failed += 1
         except Exception as e:
             print(f"  Weighter error: {e}")
 
@@ -120,3 +128,6 @@ for cone_deg in [180, 45, None]:
     line = (f"{label:>8s} {n_sig:>6d} {eff:>6.3f} {len(weights):>5d}"
             f" {sw:>13.5e} {mw:>13.5e} {rel:>7.2f} {dt:>6.1f}s")
     print(line, flush=True)
+    if n_failed > 0:
+        print(f"  weighting failures: {n_failed}/{len(events)} "
+              f"(exception type: {first_failure_type.__name__})", flush=True)

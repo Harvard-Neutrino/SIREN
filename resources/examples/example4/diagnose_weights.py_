@@ -1,0 +1,244 @@
+"""Diagnostic: compare chain completion rate with and without primary biasing."""
+import os, sys, math, time
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from DuttaKim_SBND_full_chain import (
+    build_offshell_models, build_offshell_phase_spaces,
+    build_geometric_targets, offshell_stopping_condition,
+    load_dk2nu_pions, default_pion_bias, _mc,
+    M_PION, M_V1, M_MUON, PION, GAMMA_PION_SM,
+)
+
+import numpy as np
+import siren
+from siren import dataclasses, distributions, injection
+from siren.Injector import Injector
+from siren.Weighter import Weighter
+
+dk2nu_dir = os.environ.get(
+    "DK2NU_DIR", "/Users/aschneider/workspaces/g4bnb/sources/G4BNB")
+
+N_ATTEMPTS = 5000
+
+print("Loading detector...")
+detector_model = siren.utilities.load_detector("SBN", detector="SBND")
+
+fiducial = siren.geometry.Box(
+    (4.5 + 2.022) * 2, 4.074645 * 2, 5.010 * 2)
+targets = build_geometric_targets(detector_model, fiducial)
+
+chain = build_offshell_models()
+pion_decay = chain["pion_decay"]
+secondary_interactions = chain["secondary_interactions"]
+
+br_bsm = pion_decay._total_width / GAMMA_PION_SM
+print(f"BSM BR: {br_bsm:.4e}")
+
+pion_dist, pot = load_dk2nu_pions(dk2nu_dir, detector_model,
+                                   sampling_bias=default_pion_bias)
+
+br_dist = distributions.NormalizationConstant(br_bsm)
+primary_mode = injection.VertexWeightingMode.Fixed()
+
+sv = distributions.SecondaryPhysicalVertexDistribution()
+sec_dists = {pt: [sv] for pt in secondary_interactions}
+
+
+def build_primary_phase_space(targets, pion_decay):
+    """Build multi-channel biasing for primary pi -> mu nu V1."""
+    sig = pion_decay.GetPossibleSignatures()[0]
+    geo_list = list(targets.values())
+    # Physical + detector-directed channels
+    channels = [injection.PhysicalDecayChannel(pion_decay, sig)]
+    for target in geo_list:
+        channels.append(
+            injection.DetectorDirected3BodyChannel(
+                target,
+                spectator_index=0,    # mu+ (spectator)
+                pair_first_index=1,   # nu
+                pair_second_index=2,  # V1
+                directed_pair_index=2,  # direct V1 toward target
+                mass_mode=injection.InvariantMassMode.Uniform,
+                topology=injection.PhaseSpaceTopology.Decay3Body))
+    n = len(channels)
+    weights = [0.02] + [(1.0 - 0.02) / (n - 1)] * (n - 1)
+    return {sig: _mc(channels, weights)}
+
+
+def run_test(label, use_primary_biasing):
+    """Generate events and measure completion rate."""
+    phase_spaces = build_offshell_phase_spaces(targets, chain)
+
+    primary_ps = {}
+    if use_primary_biasing:
+        primary_ps = build_primary_phase_space(targets, pion_decay)
+
+    injector = Injector(
+        number_of_events=N_ATTEMPTS,
+        detector_model=detector_model,
+        seed=42,
+        primary_type=PION,
+        primary_interactions=[pion_decay],
+        primary_injection_distributions=[pion_dist],
+        primary_weighting_mode=primary_mode,
+        secondary_interactions=secondary_interactions,
+        secondary_injection_distributions=sec_dists,
+        secondary_phase_spaces=phase_spaces,
+        primary_phase_spaces=primary_ps,
+        stopping_condition=offshell_stopping_condition,
+    )
+
+    # Force init
+    for ev in injector:
+        break
+    injector._Injector__injector.ResetInjectedEvents(N_ATTEMPTS)
+
+    weighter = Weighter(
+        injectors=[injector],
+        detector_model=detector_model,
+        primary_type=PION,
+        primary_interactions=[pion_decay],
+        primary_physical_distributions=[pion_dist, br_dist],
+        secondary_interactions=secondary_interactions,
+    )
+
+    events = []
+    t0 = time.time()
+    for event in injector:
+        if event.tree:
+            events.append(event)
+    elapsed = time.time() - t0
+
+    n = len(events)
+    rate = 100.0 * n / N_ATTEMPTS if N_ATTEMPTS > 0 else 0
+    print(f"\n{label}:")
+    print(f"  {n} / {N_ATTEMPTS} complete events ({rate:.2f}%), {elapsed:.1f}s")
+
+    if n == 0:
+        return
+
+    from siren.math import Vector3D
+    fiducial_geo = list(targets.values())[0]
+    n_fid = 0
+    weights_raw = []
+    for event in events:
+        w = weighter(event)
+        weights_raw.append(w)
+        for datum in event.tree:
+            r = datum.record
+            if int(r.signature.primary_type) == 5923:
+                vtx = Vector3D(r.interaction_vertex[0],
+                               r.interaction_vertex[1],
+                               r.interaction_vertex[2])
+                if fiducial_geo.IsInside(vtx):
+                    n_fid += 1
+
+    weights_raw = np.array(weights_raw)
+    valid = weights_raw[np.isfinite(weights_raw) & (weights_raw > 0)]
+    print(f"  Fiducial pass: {n_fid} / {n} ({100*n_fid/n:.1f}%)")
+    print(f"  Finite positive weights: {len(valid)} / {n}")
+    if len(valid) > 0:
+        print(f"  Weight range: [{valid.min():.3e}, {valid.max():.3e}]")
+        print(f"  Weight mean:  {valid.mean():.3e}")
+
+    # Print breakdown for first few events
+    PDG_NAMES = {211: "pi+", 5922: "V1_prod", 5917: "chi", 5918: "chi'",
+                 5923: "V1_sig", 11: "e-", -11: "e+", -13: "mu+", 14: "nu_mu",
+                 1000180400: "Ar40"}
+    for ei in range(min(3, len(events))):
+        bd = weighter.breakdown(events[ei])
+        print(f"  Event {ei} breakdown (w={bd.weight:.3e}):")
+        for v in bd.vertices:
+            pname = PDG_NAMES.get(v.primary_type, str(v.primary_type))
+            snames = [PDG_NAMES.get(s, str(s)) for s in v.secondary_types]
+            ok = "OK" if v.is_ok else "BAD"
+            print(f"    d={v.depth} {pname}->{','.join(snames)}: "
+                  f"phys={v.physical_probability:.3e} "
+                  f"gen={v.generation_probability:.3e} "
+                  f"vw={v.vertex_weight:.3e} [{ok}]")
+
+    # Detailed primary vertex diagnosis for first event
+    if use_primary_biasing and events:
+        print(f"\n  --- Primary vertex diagnosis (event 0) ---")
+        rec = None
+        for datum in events[0].tree:
+            if datum.depth() == 0:
+                rec = datum.record
+                break
+        if rec is not None:
+            sig = pion_decay.GetPossibleSignatures()[0]
+            print(f"    primary_mass = {rec.primary_mass}")
+            print(f"    secondary_masses = {list(rec.secondary_masses)}")
+            print(f"    secondary_momenta sizes = {[len(p) for p in rec.secondary_momenta]}")
+            print(f"    n_secondaries = {len(rec.signature.secondary_types)}")
+            print(f"    secondary_types = {[int(s) for s in rec.signature.secondary_types]}")
+            print(f"    interaction_vertex = {list(rec.interaction_vertex)}")
+            pp = rec.primary_momentum
+            pp_m2 = pp[0]**2 - pp[1]**2 - pp[2]**2 - pp[3]**2
+            print(f"    primary: E={pp[0]:.6f} p=({pp[1]:.6f},{pp[2]:.6f},{pp[3]:.6f}) "
+                  f"m^2={pp_m2:.6e}")
+            sum_E = sum_px = sum_py = sum_pz = 0
+            for si in range(len(rec.secondary_momenta)):
+                p = rec.secondary_momenta[si]
+                m2 = p[0]**2 - p[1]**2 - p[2]**2 - p[3]**2
+                print(f"    sec[{si}] pid={int(rec.signature.secondary_types[si])}: "
+                      f"E={p[0]:.6f} p=({p[1]:.6f},{p[2]:.6f},{p[3]:.6f}) "
+                      f"m^2={m2:.6e} stored_mass={rec.secondary_masses[si] if si < len(rec.secondary_masses) else 'MISSING'}")
+                sum_E += p[0]; sum_px += p[1]; sum_py += p[2]; sum_pz += p[3]
+            print(f"    sum_sec: E={sum_E:.6f} p=({sum_px:.6f},{sum_py:.6f},{sum_pz:.6f})")
+            print(f"    delta:   dE={pp[0]-sum_E:.6e} dpx={pp[1]-sum_px:.6e} "
+                  f"dpy={pp[2]-sum_py:.6e} dpz={pp[3]-sum_pz:.6e}")
+            fsp = pion_decay.FinalStateProbability(rec)
+            print(f"    FinalStateProbability = {fsp:.6e}")
+            cpp_inj = injector._Injector__injector
+            primary_proc = cpp_inj.GetPrimaryProcess()
+            if primary_proc.HasPhaseSpace(rec.signature):
+                mc = primary_proc.GetPhaseSpace(rec.signature)
+                print(f"    MC combined Density = {mc.Density(detector_model, rec):.6e}")
+                for ci, ch in enumerate(mc.channels):
+                    d = ch.Density(detector_model, rec)
+                    print(f"      ch[{ci}] {ch.Name()}: {d:.6e} (w={mc.weights[ci]:.4f})")
+
+
+print(f"\n{'='*60}")
+print(f"Comparing with {N_ATTEMPTS} primary attempts each")
+print(f"{'='*60}")
+
+run_test("WITHOUT primary biasing", use_primary_biasing=False)
+run_test("WITH primary biasing", use_primary_biasing=True)
+
+PDG_NAMES = {211: "pi+", 5922: "V1_prod", 5917: "chi", 5918: "chi'",
+             5923: "V1_sig", 11: "e-", -11: "e+", -13: "mu+", 14: "nu_mu",
+             1000180400: "Ar40"}
+
+fiducial_geo = list(targets.values())[0]
+from siren.math import Vector3D
+
+for i, event in enumerate(events):
+    # Check fiducial pass
+    for datum in event.tree:
+        r = datum.record
+        if int(r.signature.primary_type) == 5923:
+            vtx = Vector3D(r.interaction_vertex[0],
+                           r.interaction_vertex[1],
+                           r.interaction_vertex[2])
+            inside = fiducial_geo.IsInside(vtx)
+            print(f"  V1_signal vertex: ({r.interaction_vertex[0]:.1f}, "
+                  f"{r.interaction_vertex[1]:.1f}, {r.interaction_vertex[2]:.1f}) "
+                  f"inside_fiducial={inside}")
+    w = weighter(event)
+    bd = weighter.breakdown(event)
+    print(f"{'='*70}")
+    print(f"Event {i}: weight = {w:.6e}")
+    print(f"{'='*70}")
+    for v in bd.vertices:
+        pname = PDG_NAMES.get(v.primary_type, str(v.primary_type))
+        snames = [PDG_NAMES.get(s, str(s)) for s in v.secondary_types]
+        print(f"  depth={v.depth}  {pname} -> {', '.join(snames)}")
+        print(f"    interaction_prob = {v.interaction_probability:.6e}")
+        print(f"    position_prob   = {v.position_probability:.6e}")
+        print(f"    physical_prob   = {v.physical_probability:.6e}")
+        print(f"    generation_prob = {v.generation_probability:.6e}")
+        vw = v.vertex_weight
+        print(f"    vertex_weight   = {vw:.6e}  {'OK' if v.is_ok else '!! BAD'}")
+        print()

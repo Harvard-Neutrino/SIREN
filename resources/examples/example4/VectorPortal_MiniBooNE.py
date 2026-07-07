@@ -17,6 +17,7 @@ import siren
 from siren import utilities
 from siren._util import get_processes_model_path
 from siren import _util as _siren_util
+from siren.math import Vector3D
 
 _dt_base = os.path.join(
     _siren_util.resource_package_dir(), "processes", "DarkNewsTables",
@@ -49,6 +50,8 @@ PDGID_V1        = 5922
 M_MESON  = 0.13957   # GeV (pion)
 M_LEPTON = 0.10566   # GeV (muon)
 FLUX_TAG = "pion_numu"
+
+BASELINE_M = 541.0    # m, BNB target-to-MiniBooNE-detector distance
 
 events_to_inject = 10_000
 experiment = "MiniBooNE"
@@ -88,19 +91,46 @@ print(f"Secondary decays: chi' ({len(secondary_processes.get(chi_prime_type, [])
 # ---------------------------------------------------------------------------
 fiducial_volume = utilities.get_fiducial_volume(experiment)
 
-primary_injection_distributions = [chi_flux]
-primary_physical_distributions  = [chi_flux]
+# chi_flux only covers energy; chi is injected on the BNB axis (mass,
+# direction, and vertex position still need their own distributions).
+mass_dist      = siren.distributions.PrimaryMass(M_CHI)
+direction_dist = siren.distributions.FixedDirection(Vector3D(0, 0, 1.0))
 
-secondary_injection_distributions = {}
+# chi is stable on collider scales, so its range is set by a vanishingly
+# small decay width -- the position is effectively uniform along the beam
+# up to the baseline, matching VectorPortal_SBND_chi_injection.py.
+decay_range = siren.distributions.DecayRangeFunction(
+    M_CHI, 1e-30, 3, BASELINE_M
+)
+position_dist = siren.distributions.RangePositionDistribution(
+    6.2, 6.2, decay_range,  # MiniBooNE spherical detector radius, meters
+    set(detector_model.GetAvailableTargets(
+        siren.detector.DetectorPosition(Vector3D(0, 0, 0))
+    ))
+)
+
+primary_injection_distributions = [mass_dist, chi_flux, direction_dist, position_dist]
+primary_physical_distributions  = [chi_flux, direction_dist]
+
+# chi' and V1 are both short-lived secondaries decaying at their production
+# point; SecondaryPhysicalVertexDistribution samples that decay vertex from
+# the physical decay length (see VectorPortal_SBND_dk2nu.py).
+secondary_injection_distributions = {
+    chi_prime_type: [siren.distributions.SecondaryPhysicalVertexDistribution()],
+    v1_type:        [siren.distributions.SecondaryPhysicalVertexDistribution()],
+}
 secondary_physical_distributions  = {}
 
 def stop(tree, datum, i):
-    sec_type = cycler[i] if i < len(cycler) else None
-    if sec_type == siren.dataclasses.Particle.ParticleType.EMinus:
-        return True
-    if sec_type == siren.dataclasses.Particle.ParticleType.EPlus:
-        return True
-    return i >= 3
+    # Continue simulating chi' (de-excitation) and V1 (visible decay); stop
+    # everything else (the recoiling nucleus from upscattering, and the
+    # outgoing chi and e+/e- final-state particles from later decays).
+    sec_type = datum.record.signature.secondary_types[i]
+    if sec_type == chi_prime_type:
+        return False
+    if sec_type == v1_type:
+        return False
+    return True
 
 # ---------------------------------------------------------------------------
 # Injector
@@ -113,6 +143,7 @@ injector.primary_interactions              = primary_processes[chi_type]
 injector.primary_injection_distributions   = primary_injection_distributions
 injector.secondary_interactions            = secondary_processes
 injector.secondary_injection_distributions = secondary_injection_distributions
+injector.stopping_condition                = stop
 
 print(f"Generating {events_to_inject} events ...")
 events = injector.generate(events_to_inject)

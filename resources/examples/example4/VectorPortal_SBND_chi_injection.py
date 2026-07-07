@@ -226,7 +226,7 @@ print(f"Generated {n_total} events in {total_time:.1f} s")
 
 # Count signal events
 n_scatter = sum(1 for ev in events for d in ev.tree
-                if int(d.record.signature.primary_type) == PDGID_CHI and d.depth() == 0)
+                if int(d.record.signature.primary_type) == PDGID_CHI and d.depth(ev) == 0)
 n_v1_decay = sum(1 for ev in events for d in ev.tree
                  if int(d.record.signature.primary_type) == PDGID_V1)
 

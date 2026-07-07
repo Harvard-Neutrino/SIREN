@@ -27,6 +27,14 @@ bundle = siren.load_processes(
     **model_kwargs,
 )
 
+def _total_decay_width(decay):
+    # TotalDecayWidth(record) only returns a nonzero width when the record's
+    # signature matches the decay's own signature; a default-constructed
+    # InteractionRecord has an "unknown" signature and always yields zero.
+    record = siren.dataclasses.InteractionRecord()
+    record.signature = decay.GetPossibleSignatures()[0]
+    return decay.TotalDecayWidth(record)
+
 sim = siren.Simulation(
     events=100000,
     detector=detector_model,
@@ -45,7 +53,7 @@ sim = siren.Simulation(
         6.2, 6.2,
         siren.dist.DecayRange(
             model_kwargs["m4"],
-            min(d.TotalDecayWidth(siren.dataclasses.InteractionRecord())
+            min(_total_decay_width(d)
                 for d in bundle.secondary[siren.particles.N4]),
             3, 541,
         ),
