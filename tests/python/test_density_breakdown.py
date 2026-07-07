@@ -144,11 +144,12 @@ def _build_chain(detector_model, n_inject, seed):
     return inj, weighter, keepalive
 
 
-def test_vertex_channel_densities_is_a_dict_and_finite_when_populated():
-    """VertexWeightFactors.channel_densities is a dict on every vertex; for the
-    data-free DummyCrossSection assembly (no MultiChannelPhaseSpace-backed
-    vertex) it is observed empty, and this test pins that no vertex ever
-    reports a non-finite or inconsistent value if it is ever populated."""
+def test_vertex_channel_densities_is_an_empty_dict_for_this_assembly():
+    """VertexWeightFactors.channel_densities is a dict on every vertex and stays
+    empty for the DummyCrossSection assembly, which has no
+    MultiChannelPhaseSpace-backed vertex. The finiteness check and the final
+    assertion form a tripwire: if a future change starts populating the map,
+    this test fails so the check can be tightened to the populated values."""
     _skip_unless_ccm_data()
     detector_model = _load_ccm_detector()
     inj, weighter, _keepalive = _build_chain(detector_model, 2000, 2468)

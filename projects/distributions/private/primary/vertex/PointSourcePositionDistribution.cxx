@@ -76,7 +76,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PointSourcePositionDist
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoTargetsOnPath, "No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoTargetsOnPath, "No interaction targets along path!"));
     }
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
