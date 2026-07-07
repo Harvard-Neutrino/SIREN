@@ -89,7 +89,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDist
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoColumnDepthSolution, "No available interactions along path!"));
     }
 
     double traversed_interaction_depth;

@@ -37,6 +37,8 @@
 #include "SIREN/interactions/HNLDipoleDecay.h"
 #include "SIREN/interactions/Decay.h"
 
+#include "CCM_HNL_Fixture.h"
+
 using namespace siren::math;
 using namespace siren::geometry;
 using namespace siren::detector;
@@ -344,6 +346,25 @@ TEST(Injector, Generation)
         double weight = lower_weighter->EventWeight(tree);
         //std::cout << "Weight: " << weight << std::endl;
         ++i;
+    }
+}
+
+// EventWeightWithBreakdown().total must equal EventWeight() for every
+// generated tree, across the full upper-injector CCM dipole-HNL chain.
+TEST(Injector, BreakdownInvariant)
+{
+    siren::injection::test::CCMHNLFixture fixture = siren::injection::test::MakeCCMHNLFixture();
+
+    unsigned int checked = 0;
+    while(*fixture.injector && checked < 10) {
+        InteractionTree tree = fixture.injector->GenerateEvent();
+        if(tree.tree.empty()) continue;
+
+        double weight = fixture.weighter->EventWeight(tree);
+        EventWeightBreakdown breakdown = fixture.weighter->EventWeightWithBreakdown(tree);
+
+        EXPECT_NEAR(breakdown.total, weight, 1e-12 * std::max(1.0, std::abs(weight)));
+        ++checked;
     }
 }
 

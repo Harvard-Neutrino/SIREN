@@ -75,7 +75,7 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::ut
 
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoTargetsOnPath, "No available interactions along path!"));
     }
 
     double traversed_interaction_depth;
