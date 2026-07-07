@@ -1367,6 +1367,65 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 #  Flux construction
 # ===================================================================
 
+def _chi_box_edges(E_V_lab, m_V1, m_chi):
+    """Lab-frame energy interval spanned by chi from an isotropic V1 -> chi chi'.
+
+    The chi has fixed rest-frame energy E_chi_rf = (m_V1**2 + m_chi**2)/(2 m_V1)
+    and momentum p_chi_rf; boosting to the lab with the V1 factors gives
+    E_chi_lab = gamma_V1 (E_chi_rf + beta_V1 p_chi_rf cos_theta_rf).  For an
+    isotropic decay cos_theta_rf is uniform on [-1, 1], so E_chi_lab is uniform
+    over [gamma(E_rf - beta p_rf), gamma(E_rf + beta p_rf)] (the relativistic
+    box spectrum).  Returns (E_minus, E_plus).
+    """
+    if m_V1 <= 0.0:
+        return m_chi, m_chi
+    E_chi_rf = (m_V1**2 + m_chi**2) / (2.0 * m_V1)
+    p_chi_rf = math.sqrt(max(E_chi_rf**2 - m_chi**2, 0.0))
+    gamma_V1 = E_V_lab / m_V1
+    beta_V1 = math.sqrt(max(1.0 - 1.0 / gamma_V1**2, 0.0)) if gamma_V1 > 0 else 0.0
+    center = gamma_V1 * E_chi_rf
+    half_width = gamma_V1 * beta_V1 * p_chi_rf
+    return center - half_width, center + half_width
+
+
+def _deposit_box_into_hist(edges, hist, E_minus, E_plus, weight):
+    """Spread weight uniformly over [E_minus, E_plus] into a histogram in place.
+
+    The chi lab-energy density is flat across the box, so each bin receives
+    weight in proportion to the length of its overlap with the box, conserving
+    the total to machine precision.  A degenerate box (beta -> 0 or p_rf -> 0)
+    deposits the full weight into the single bin containing its center, matching
+    a point deposit at gamma_V1 E_chi_rf.
+    """
+    n = len(edges) - 1
+    if n < 1:
+        return
+    lo = E_minus if E_minus <= E_plus else E_plus
+    hi = E_plus if E_plus >= E_minus else E_minus
+    width = hi - lo
+    if width <= 0.0:
+        center = 0.5 * (lo + hi)
+        if center < edges[0] or center > edges[-1]:
+            return
+        idx = int(np.searchsorted(edges, center, side="right")) - 1
+        idx = min(max(idx, 0), n - 1)
+        hist[idx] += weight
+        return
+    overlap_lo = max(lo, edges[0])
+    overlap_hi = min(hi, edges[-1])
+    if overlap_hi <= overlap_lo:
+        return
+    i_start = int(np.searchsorted(edges, overlap_lo, side="right")) - 1
+    i_stop = int(np.searchsorted(edges, overlap_hi, side="left"))
+    i_start = min(max(i_start, 0), n - 1)
+    i_stop = min(max(i_stop, 1), n)
+    for i in range(i_start, i_stop):
+        a = max(edges[i], lo)
+        b = min(edges[i + 1], hi)
+        if b > a:
+            hist[i] += weight * (b - a) / width
+
+
 def compute_chi_flux(
     m_meson,
     m_lepton,
@@ -1418,12 +1477,20 @@ def compute_chi_flux(
         g_ps = num / den if den > 0 else 0.0
         br_ratio = 2.0 * (alpha_D / _ALPHA_EM) * epsilon**2 * g_ps
 
-    E_chi_rf = (m_V1**2 + m_chi**2) / (2.0 * m_V1) if m_V1 > 0 else 0.0
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
     nu_energies = list(raw_flux.GetEnergyNodes())
-    chi_energies = []
-    chi_flux_vals = []
+
+    # Each V1 of a given lab energy produces an isotropic V1 -> chi chi' decay,
+    # so a neutrino-energy node maps to a flat chi energy box rather than a
+    # single chi energy.  Accumulate every node's weight over its box on a
+    # uniform output grid; the reported flux is the accumulated weight per unit
+    # energy so that the trapezoidal integral of the resulting spectrum equals
+    # the summed node weight.
+    n_bins = max(len(nu_energies), 2)
+    E_edges = np.linspace(min_energy, max_energy, n_bins + 1)
+    dE = E_edges[1] - E_edges[0]
+    hist = np.zeros(n_bins)
 
     for E_nu in nu_energies:
         E_meson = E_nu * nu_to_meson
@@ -1433,21 +1500,24 @@ def compute_chi_flux(
         gamma_meson = E_meson / m_meson
         E_V_lab = gamma_meson * E_V_rest
 
-        gamma_V1 = E_V_lab / m_V1 if m_V1 > 0 else 1.0
-        E_chi = gamma_V1 * E_chi_rf
-
-        if E_chi < min_energy or E_chi > max_energy:
+        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi)
+        if E_plus < min_energy or E_minus > max_energy:
             continue
 
         nu_flux_at_E = raw_flux.SamplePDF(E_nu)
         chi_flux_at_E = nu_flux_at_E * br_ratio * 0.5
 
-        chi_energies.append(E_chi)
-        chi_flux_vals.append(chi_flux_at_E)
+        _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, chi_flux_at_E)
 
-    if not chi_energies:
+    E_centers = 0.5 * (E_edges[:-1] + E_edges[1:])
+    chi_flux_vals = hist / dE
+
+    if not np.any(hist > 0.0):
         chi_energies = [min_energy, max_energy]
         chi_flux_vals = [0.0, 0.0]
+    else:
+        chi_energies = list(E_centers)
+        chi_flux_vals = list(chi_flux_vals)
 
     return siren.distributions.TabulatedFluxDistribution(
         min_energy, max_energy, chi_energies, chi_flux_vals, physically_normalized
@@ -1521,20 +1591,24 @@ def compute_chi_flux_from_dk2nu(
         g_ps = num / den if den > 0 else 0.0
         br_ratio = 2.0 * (alpha_D / _ALPHA_EM) * epsilon**2 * g_ps
 
-    E_chi_rf = (m_V1**2 + m_chi**2) / (2.0 * m_V1) if m_V1 > 0 else 0.0
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
     gamma_mesons = E_meson / m_meson
     E_V_lab = gamma_mesons * E_V_rest
-    gamma_V1 = E_V_lab / m_V1 if m_V1 > 0 else np.ones_like(E_V_lab)
-    E_chi = gamma_V1 * E_chi_rf
 
     chi_weights = weights * br_ratio * 0.5
 
     E_edges = np.linspace(min_energy, max_energy, n_bins + 1)
-    hist, _ = np.histogram(E_chi, bins=E_edges, weights=chi_weights)
     dE = E_edges[1] - E_edges[0]
     E_centers = 0.5 * (E_edges[:-1] + E_edges[1:])
+
+    # Each meson yields an isotropic V1 -> chi chi' decay, so its chi lab energy
+    # is spread uniformly over the boost box rather than deposited at a single
+    # energy; accumulate every meson's weight over its box, conserving the total.
+    hist = np.zeros(n_bins)
+    for E_V_i, w_i in zip(E_V_lab, chi_weights):
+        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi)
+        _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, float(w_i))
 
     pot = dk2nu_data.get("pot", 0.0)
     if pot > 0:
