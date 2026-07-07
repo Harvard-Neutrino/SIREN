@@ -88,7 +88,7 @@ def test_save_load_preserves_counters_and_weighting_mode(tmp_path):
     assert reloaded.InjectionAttempts() == (
         reloaded.InjectedEvents() + reloaded.FailedEvents())
 
-    # The Fixed weighting mode is no longer silently reset to Propagated.
+    # The archive round-trip preserves the Fixed weighting mode.
     assert reloaded.GetPrimaryProcess().GetWeightingMode() == fixed
     assert reloaded.GetPrimaryProcess().GetWeightingMode() != (
         injection.VertexWeightingMode.Propagated())

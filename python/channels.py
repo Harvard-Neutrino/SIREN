@@ -201,6 +201,8 @@ class Mixture:
         scaled._scale = self._scale * float(scalar)
         return scaled
 
+    __mul__ = __rmul__
+
     def describe(self) -> str:
         parts = ["{:.2f} * {}".format(w, ch.describe()) for w, ch in self._entries]
         return " + ".join(parts)

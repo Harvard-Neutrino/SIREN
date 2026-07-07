@@ -327,6 +327,24 @@ def test_save_secondary_trampoline_raises_not_serializable(tmp_path):
     assert any("secondary" in o for o in exc.value.offenders)
 
 
+def test_save_stopping_condition_raises_not_serializable(tmp_path):
+    """save() refuses an injector with a stopping condition (not archived)."""
+    dm = detector.DetectorModel()
+    inj = injection.Injector(
+        detector=dm,
+        number_of_events=2,
+        seed=1,
+        primary_type=_NuMu,
+        primary_interactions=[interactions.DummyCrossSection()],
+        primary_injection_distributions=_distributions(0.0),
+        stopping_condition=lambda datum, i: True,
+    )
+    inj._build()
+    with pytest.raises(siren.errors.NotSerializableError) as exc:
+        inj.save(str(tmp_path / "inj"))
+    assert any("stopping condition" in o for o in exc.value.offenders)
+
+
 # ------------------------------------------------------------------ #
 #  Duplicate secondary Vertex particle type                           #
 # ------------------------------------------------------------------ #

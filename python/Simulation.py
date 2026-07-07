@@ -758,8 +758,8 @@ class Simulation:
                     interactions_list = self._secondary_processes.get(sec_type)
                     if interactions_list is None:
                         raise ConfigurationError(
-                            "bias_targets: particle type {} is not a configured "
-                            "secondary process".format(str(sec_type)))
+                            "bias_targets: key {!r} is not a configured "
+                            "secondary particle type".format(sec_type))
                     self._bias_type_toward(
                         interactions_list, v, daughter_type, spectator_type,
                         fraction)
@@ -1117,7 +1117,9 @@ class Simulation:
     def injector(self):
         """The Layer-2 :class:`siren.Injector` wrapper, built on first access.
 
-        The same object :meth:`run` uses. Exposes ``report()``,
+        After :meth:`run` returns this is the injector that run built and
+        used; run() always builds fresh and replaces any cached instance, so
+        a pre-run access does not configure the run. Exposes ``report()``,
         ``export_tuning()``, ``apply_tuning()``, and ``engine``.
         """
         if self._injector is None:
@@ -1128,8 +1130,9 @@ class Simulation:
     def weighter(self):
         """The Layer-2 :class:`siren.Weighter` wrapper, built on first access.
 
-        Built against :attr:`injector`. Exposes ``explain(tree)`` and
-        ``engine``.
+        Built against :attr:`injector`; after :meth:`run` returns this is the
+        weighter that run built and used (run() replaces any cached
+        instance). Exposes ``explain(tree)`` and ``engine``.
         """
         if self._weighter is None:
             self._weighter = self._build_weighter(self.injector)

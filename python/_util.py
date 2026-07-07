@@ -1246,6 +1246,12 @@ def SaveEvents(events,
                output_filename=None,
                pot=None):
 
+    # pot is recorded only as an HDF5 attribute; accepting it while HDF5
+    # output is disabled would drop it silently.
+    if pot is not None and not save_hdf5:
+        raise ValueError(
+            "pot is recorded in the HDF5 output; pass save_hdf5=True or omit pot")
+
     # An omitted gen_times must not crash the per-event loop below (which
     # unconditionally indexes it) after files have already been written;
     # default to one zero per event, matching the shape SIREN_Controller

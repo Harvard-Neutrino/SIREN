@@ -114,7 +114,7 @@ primary_physical_distributions  = [chi_flux, direction_dist]
 
 # chi' and V1 are both short-lived secondaries decaying at their production
 # point; SecondaryPhysicalVertexDistribution samples that decay vertex from
-# the physical decay length (see VectorPortal_SBND_dk2nu.py).
+# the physical decay length (see DuttaKim_SBND_full_chain.py).
 secondary_injection_distributions = {
     chi_prime_type: [siren.distributions.SecondaryPhysicalVertexDistribution()],
     v1_type:        [siren.distributions.SecondaryPhysicalVertexDistribution()],

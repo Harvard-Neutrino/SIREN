@@ -57,7 +57,7 @@ Closure report: PASS
   normalization (absolute) E[f/g_ref] = 1.0000 +/- 0.0000 (expect 1.0)
   flatness (shape only) = 1.0000 +/- 0.0224 (self-normalized bin ratios; blind to a uniform scale error)
   moment z-scores:
-    cost: z=0.00
+    costheta_secondary0_rest: z=-1.70
   worst region: costheta_secondary0_rest in [-0.40, -0.30): ratio 1.19 (z=1.7)
 True
 ```

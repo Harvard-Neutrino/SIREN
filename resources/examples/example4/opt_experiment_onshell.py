@@ -35,12 +35,11 @@ from siren.Injector import Injector
 from siren.Weighter import Weighter
 from siren.tune import optimize_chain_weights
 
-# DuttaKim_SBND_full_chain.py was rewritten to a spec-form (Vertex/channels)
-# module; it still exports the on-shell model factory and the particle-type
-# constants (V1_SIGNAL was renamed V1_SIG), but no longer exports the
-# geometric-target/phase-space/stopping-condition helpers this experiment
-# script needs to build its own toggleable per-config biasing -- those are
-# reproduced locally below from the pre-rewrite implementation.
+# DuttaKim_SBND_full_chain.py is a spec-form (Vertex/channels) module; it
+# exports the on-shell model factory and the particle-type constants (V1_SIG),
+# not the geometric-target/phase-space/stopping-condition helpers this
+# experiment script needs for its toggleable per-config biasing -- those
+# helpers are defined locally below.
 from DuttaKim_SBND_full_chain import (
     build_onshell_models, build_sX_cdf,
     PION, CHI, CHI_PRIME, V1_PROD, V1_SIG as V1_SIGNAL,
@@ -187,7 +186,8 @@ def build_primary_phase_spaces(targets, pion_decay):
     for target in geo_list:
         channels.append(
             injection.DetectorDirected3BodyChannel(
-                target,
+                factorization=injection.ThreeBodyMode.Direct,
+                target=target,
                 directed_index=2,
                 mass_mode=injection.InvariantMassMode.Tabulated,
                 topology=injection.PhaseSpaceTopology.Decay3Body,

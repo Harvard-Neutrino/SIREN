@@ -539,6 +539,10 @@ class Injector:
                 offenders.append(
                     "process {} carries a phase space map (not archived)"
                     .format(process.primary_type))
+        if self.__stopping_condition is not None:
+            offenders.append(
+                "a stopping condition is set (not archived; use pickle, which "
+                "preserves it)")
         for interaction in self.__primary_interactions:
             if _is_trampoline(interaction):
                 offenders.append(

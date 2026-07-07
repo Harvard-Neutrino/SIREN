@@ -326,3 +326,15 @@ def test_save_without_pot_writes_no_pot_attr(tmp_path):
 
     with h5py.File(out + ".hdf5", "r") as f:
         assert "pot" not in f["Events"].attrs
+
+
+def test_save_pot_without_hdf5_raises(tmp_path):
+    """pot with HDF5 output disabled raises instead of dropping silently."""
+    inj = _FakeInjector(attempts=1, requested=1, injected=1)
+    tree = _one_record_tree()
+    r = Results([tree], [1.0], [0.0], None, inj)
+
+    out = str(tmp_path / "events_pot_nohdf5")
+    with pytest.raises(ValueError, match="pot is recorded"):
+        r.save(out, pot=5e20, save_hdf5=False, save_parquet=False,
+               save_siren_events=False)

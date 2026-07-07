@@ -289,7 +289,7 @@ double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::I
         // injector still rate-selects the channel, so charge the
         // channel-selection probability on top of the direct final-state
         // density. The helper returns exactly 1.0 for single-channel
-        // processes, matching the old behavior there.
+        // processes.
         if (inj_process->HasPhaseSpace(datum.record.signature)) {
             gen_probability = inj_process->GetPhaseSpace(datum.record.signature)->Density(
                 detector_model, datum.record);

@@ -100,7 +100,9 @@ for cone_deg in [180, 45, None]:
                 secondary_interactions={
                     v1p: [v1chi_phys], v1s: [v1ee], chi_t: [offshell]},
                 secondary_physical_distributions={})
-
+        except Exception as e:
+            print(f"  Weighter error: {e}")
+        else:
             for ev in events:
                 try:
                     wt = w.event_weight(ev)
@@ -114,8 +116,6 @@ for cone_deg in [180, 45, None]:
                         # failure indicates a bug, not a per-event edge case.
                         raise
                     n_failed += 1
-        except Exception as e:
-            print(f"  Weighter error: {e}")
 
     dt = time.time() - t0
     wa = np.array(weights) if weights else np.array([0.0])
