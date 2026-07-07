@@ -173,9 +173,12 @@ def test_breakdown_vertices_cover_the_tree_with_no_flags():
 
     for ev in events:
         bd = weighter.EventWeightWithBreakdown(ev)
+        # One injector: the flat vertices list carries exactly the tree data,
+        # all tagged with injector_index 0.
         assert len(bd.vertices) == len(ev.tree)
         assert len(bd.vertices) >= 2, "one secondary generation must yield >=2 vertices"
         for v in bd.vertices:
+            assert v.injector_index == 0
             assert math.isfinite(v.generation)
             assert math.isfinite(v.physical)
             assert v.generation > 0.0

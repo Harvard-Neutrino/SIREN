@@ -17,6 +17,7 @@
 #include <vector>
 #include <array>
 #include <sstream>
+#include <fstream>
 
 #include "SIREN/utilities/Random.h"
 #include "SIREN/dataclasses/Particle.h"
@@ -58,7 +59,7 @@ static const double ccm_hnl_dipole_coupling = 1.0e-6; // in GeV^-1; the effectiv
 static const std::string ccm_hnl_mHNL = "0.01375";
 
 // Events to inject
-static const unsigned int ccm_hnl_events_to_inject = 1e2;
+static const unsigned int ccm_hnl_events_to_inject = 100u;
 static const siren::dataclasses::ParticleType ccm_hnl_primary_type = siren::dataclasses::ParticleType::NuMu;
 
 inline std::vector<double> CCMHNLDipoleCouplingVec() {
@@ -153,6 +154,19 @@ inline std::vector<std::string> CCMHNLTotXsHcFiles(std::string mHNL) {
         res.push_back(CCMHNLTotXsPath(za[0], za[1], mHNL) + "_hc.dat");
     }
     return res;
+}
+
+// True only when every hardcoded input MakeCCMHNLFixture() loads is present:
+// the material/detector files and a representative differential/total
+// cross-section table.  A test gates on this to GTEST_SKIP() rather than abort
+// on environments without the private data.
+inline bool CCMHNLDataPresent() {
+    std::vector<std::string> const diff = CCMHNLDiffXsHfFiles(ccm_hnl_mHNL);
+    std::vector<std::string> const tot = CCMHNLTotXsHfFiles(ccm_hnl_mHNL);
+    return std::ifstream(ccm_hnl_material_file).good()
+        && std::ifstream(ccm_hnl_detector_file).good()
+        && !diff.empty() && std::ifstream(diff.front()).good()
+        && !tot.empty() && std::ifstream(tot.front()).good();
 }
 
 // Bundles the pieces a BreakdownInvariant-style test needs: the upper

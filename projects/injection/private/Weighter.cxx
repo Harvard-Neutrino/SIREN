@@ -119,26 +119,33 @@ void Weighter::Initialize() {
 // Computes one tree datum's physical and generation factors for injector idx,
 // via the same ProcessWeighter calls EventWeight consumes. depth is left at
 // its default for non-root data; the caller fills it in from the owning tree.
+// with_diagnostics adds the observation-only interaction_prob/position_prob.
 VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
-        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const {
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
+        bool with_diagnostics) const {
     VertexWeightFactors factors;
-    factors.primary_pdg = static_cast<int>(datum->record.signature.primary_type);
+    factors.injector_index = static_cast<int>(idx);
+    factors.vertex_pdg = static_cast<int>(datum->record.signature.primary_type);
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
     if(datum->is_root()) {
         factors.depth = 0;
         bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
         factors.physical = primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
         factors.generation = primary_process_weighters[idx]->GenerationProbability(*datum);
-        factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
-        factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+        if(with_diagnostics) {
+            factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
+            factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+        }
     } else {
         try {
             bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
             auto const & w = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type);
             factors.physical = w->PhysicalProbability(bounds, datum->record);
             factors.generation = w->GenerationProbability(*datum);
-            factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
-            factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+            if(with_diagnostics) {
+                factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
+                factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+            }
         } catch(const std::out_of_range& oor) {
             std::ostringstream oss;
             oss << "Weighter::ComputeVertexFactors: no secondary process weighter for secondary type "
@@ -230,7 +237,7 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
             generation_probability = injectors[idx]->EventsToInject();
         }
         for(auto const & datum : tree.tree) {
-            VertexWeightFactors factors = ComputeVertexFactors(idx, datum);
+            VertexWeightFactors factors = ComputeVertexFactors(idx, datum, true);
             if(!datum->is_root()) {
                 factors.depth = static_cast<int>(datum->depth(tree));
             }
