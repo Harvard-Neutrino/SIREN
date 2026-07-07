@@ -317,6 +317,21 @@ class Injector:
     save.__name__ = "save"
     save.__doc__ = _Injector.SaveInjector.__doc__.replace("SaveInjector", "save")
 
+    def __iter__(self):
+        """Iterate over generated events.
+
+        Yields one ``InteractionTree`` per event, up to
+        ``number_of_events``.
+        """
+        if self.__injector is None:
+            self.__initialize_injector()
+        for _ in range(self.number_of_events):
+            yield self.__injector.GenerateEvent()
+
+    def __len__(self):
+        """Return the number of events to generate."""
+        return self.number_of_events
+
     @wraps(_Injector.LoadInjector)
     def load(self, filename):
         self.__injector.LoadInjector(filename)
