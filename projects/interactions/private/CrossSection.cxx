@@ -117,9 +117,10 @@ siren::dataclasses::PhaseSpaceConvention CrossSection::Convention() const {
         result = C::BjorkenXY;
     } else if (has_q2) {
         result = C::MandelstamST;
-    } else if (has_bjorken_y) {
-        result = C::BjorkenXY;
     }
+    // A lone Bjorken y (without Bjorken x) is 1-DOF and does not define the
+    // 2-DOF BjorkenXY parameterization; leaving it Custom makes ConvertDensity
+    // raise on any attempted conversion instead of applying a wrong 2-DOF Jacobian.
 
     // Warn at most once per process that this base fallback is being used.
     static std::atomic<bool> warned{false};

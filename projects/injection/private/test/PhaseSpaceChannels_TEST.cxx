@@ -366,16 +366,28 @@ TEST(PhaseSpaceChannels, ScatteringPropagatorModeSampleEqualsDensity) {
         DetectorDirectedScatteringChannel::Q2Mode::Propagator,
         m_V2);
 
-    // Closure: E_g[1] = 1 when sampling from g and weighting by 1/g over
-    // the marginal Q^2 measure.  Equivalently, with a self-consistent
-    // Sample==Density the running mean of (analytic physical density)/g
-    // is stable.  Here we check the simplest invariant: every sampled
-    // event conserves 4-momentum, stays on shell, and has Density>0 at
-    // exactly the sampled point, with Q^2 inside the kinematic range.
+    // Analytic Q^2 limits for 1 + 2(rest) -> 3 + 4, derived here independently
+    // of the channel: Q^2 = -(p1 - p3)^2 runs between the CM forward
+    // (cos* = +1) and backward (cos* = -1) endpoints.
+    double E1_lab = 0.5;
+    double s_ana = m_chi * m_chi + M_Ar * M_Ar + 2.0 * M_Ar * E1_lab;
+    double root_s = std::sqrt(s_ana);
+    double E1cm = (s_ana + m_chi * m_chi - M_Ar * M_Ar) / (2.0 * root_s);
+    double E3cm = (s_ana + m_chi_prime * m_chi_prime - M_Ar * M_Ar) / (2.0 * root_s);
+    double p1cm = std::sqrt(E1cm * E1cm - m_chi * m_chi);
+    double p3cm = std::sqrt(E3cm * E3cm - m_chi_prime * m_chi_prime);
+    double base = m_chi * m_chi + m_chi_prime * m_chi_prime - 2.0 * E1cm * E3cm;
+    double q2_min_ana = -(base + 2.0 * p1cm * p3cm);   // cos* = +1
+    double q2_max_ana = -(base - 2.0 * p1cm * p3cm);   // cos* = -1
+    ASSERT_GT(q2_max_ana, q2_min_ana);
+
+    // The marginal Q^2 density g integrates to 1 over the analytic support, so
+    // sampling from g and averaging 1/g estimates int dQ^2 = q2_max - q2_min.
+    // A mis-normalized dP/dQ^2 (wrong Jacobian) would break this equality even
+    // while Sample and Density stayed mutually consistent.
     int n = 4000;
     int n_ok = 0;
-    double sum_inv_g = 0.0;   // E_g[1/g] should approach the Q^2 range width
-    double q2_lo = 1e30, q2_hi = -1e30;
+    double sum_inv_g = 0.0;   // E_g[1/g] -> (q2_max_ana - q2_min_ana)
     for (int i = 0; i < n; ++i) {
         InteractionRecord r = make_record();
         channel.Sample(random, nullptr, r);
@@ -398,28 +410,26 @@ TEST(PhaseSpaceChannels, ScatteringPropagatorModeSampleEqualsDensity) {
         EXPECT_GT(g, 0.0);
         if (g > 0.0) { sum_inv_g += 1.0 / g; ++n_ok; }
 
+        // The sampler must stay within the analytic Q^2 support.
         double Q2 = r.interaction_parameters["Q2"];
-        q2_lo = std::min(q2_lo, Q2);
-        q2_hi = std::max(q2_hi, Q2);
+        EXPECT_GE(Q2, q2_min_ana - 1e-9);
+        EXPECT_LE(Q2, q2_max_ana + 1e-9);
     }
     ASSERT_GT(n_ok, n / 2);
 
-    // E_g[1/g] estimates the integral of dQ^2 over the support = (q2max - q2min).
-    // The sampled spread [q2_lo, q2_hi] should bracket a positive width and
-    // E_g[1/g] should be within ~10% of that width (Monte-Carlo tolerance).
+    // E_g[1/g] normalizes to the analytic width (Monte-Carlo tolerance).
     double mean_inv_g = sum_inv_g / n_ok;
-    double width = q2_hi - q2_lo;
-    EXPECT_GT(width, 0.0);
-    EXPECT_GT(mean_inv_g, 0.0);
+    double width = q2_max_ana - q2_min_ana;
     EXPECT_NEAR(mean_inv_g / width, 1.0, 0.15);
 
-    // Propagator peaking: most samples land in the lowest 20% of the Q^2 span.
+    // Propagator peaking: most samples land in the lowest 20% of the analytic
+    // Q^2 span.
     int n_low = 0;
     for (int i = 0; i < n; ++i) {
         InteractionRecord r = make_record();
         channel.Sample(random, nullptr, r);
         double Q2 = r.interaction_parameters["Q2"];
-        if (Q2 < q2_lo + 0.2 * width) ++n_low;
+        if (Q2 < q2_min_ana + 0.2 * width) ++n_low;
     }
     EXPECT_GT(n_low, n / 2);
 }
@@ -1697,37 +1707,47 @@ TEST(AutoConversion, CrossFactorizationRecursive2Body) {
     double p_pair = TwoBodyRestMomentum(sqrt_s12, m1, m2);
     double p_spectator = TwoBodyRestMomentum(M, m0, sqrt_s12);
 
-    // Build daughter momenta in parent rest frame.
-    // Spectator along +z, pair system along -z.
-    double cos_sub = 0.3;
-    double sin_sub = std::sqrt(1.0 - cos_sub * cos_sub);
-
+    // Build the three daughter momenta in the parent rest frame for a given
+    // helicity angle cos(theta_1) of particle 1 in the (1,2) pair rest frame.
+    // Spectator (0) along +z, pair system along -z; boost the pair daughters
+    // out along -z (E' = gamma(E - beta pz), pz' = gamma(pz - beta E)).
     double E_pair = std::sqrt(p_spectator * p_spectator + s12);
     double E0 = std::sqrt(p_spectator * p_spectator + m0 * m0);
-
-    std::array<double, 4> p0 = {E0, 0.0, 0.0, p_spectator};
-
-    // Boost daughters from pair rest frame to parent rest frame.
-    // The pair moves along -z with speed beta_pair = p_spectator / E_pair.
-    // Boost formula for direction -z:
-    //   E' = gamma * (E - beta * pz)
-    //   pz' = gamma * (pz - beta * E)
     double beta_pair = p_spectator / E_pair;
     double gamma_pair = E_pair / sqrt_s12;
-
     double E1_prf = std::sqrt(p_pair * p_pair + m1 * m1);
     double E2_prf = std::sqrt(p_pair * p_pair + m2 * m2);
 
-    double p1x_prf = p_pair * sin_sub;
-    double p1z_prf = p_pair * cos_sub;
+    auto momenta_at = [&](double cos_sub) {
+        double sin_sub = std::sqrt(1.0 - cos_sub * cos_sub);
+        double p1x_prf = p_pair * sin_sub;
+        double p1z_prf = p_pair * cos_sub;
+        double E1_lab = gamma_pair * (E1_prf - beta_pair * p1z_prf);
+        double p1z_lab = gamma_pair * (p1z_prf - beta_pair * E1_prf);
+        double E2_lab = gamma_pair * (E2_prf - beta_pair * (-p1z_prf));
+        double p2z_lab = gamma_pair * ((-p1z_prf) - beta_pair * E2_prf);
+        std::array<std::array<double, 4>, 3> out = {{
+            {E0, 0.0, 0.0, p_spectator},
+            {E1_lab, p1x_prf, 0.0, p1z_lab},
+            {E2_lab, -p1x_prf, 0.0, p2z_lab}}};
+        return out;
+    };
 
-    double E1_lab = gamma_pair * (E1_prf - beta_pair * p1z_prf);
-    double p1z_lab = gamma_pair * (p1z_prf - beta_pair * E1_prf);
-    double E2_lab = gamma_pair * (E2_prf - beta_pair * (-p1z_prf));
-    double p2z_lab = gamma_pair * ((-p1z_prf) - beta_pair * E2_prf);
+    // Invariant s_{01} = (p0 + p1)^2 at a given helicity angle.
+    auto s01_at = [&](double cos_sub) {
+        auto m = momenta_at(cos_sub);
+        double e = m[0][0] + m[1][0];
+        double px = m[0][1] + m[1][1];
+        double py = m[0][2] + m[1][2];
+        double pz = m[0][3] + m[1][3];
+        return e * e - px * px - py * py - pz * pz;
+    };
 
-    std::array<double, 4> p1 = {E1_lab, p1x_prf, 0.0, p1z_lab};
-    std::array<double, 4> p2 = {E2_lab, -p1x_prf, 0.0, p2z_lab};
+    double cos_sub = 0.3;
+    auto base = momenta_at(cos_sub);
+    std::array<double, 4> p0 = base[0];
+    std::array<double, 4> p1 = base[1];
+    std::array<double, 4> p2 = base[2];
 
     // Verify 4-momentum conservation
     for (int i = 0; i < 4; ++i) {
@@ -1744,11 +1764,22 @@ TEST(AutoConversion, CrossFactorizationRecursive2Body) {
     record.secondary_masses = {m0, m1, m2};
     record.secondary_momenta = {p0, p1, p2};
 
-    // Compute the Jacobian for each factorization at this point
+    // Factorization A (spectator=0, pair=(1,2)) Jacobian |d s_{01} / d cos_1|.
     double jac_A = J::Recursive2BodyToDalitzAbsJacobian(M, m0, m1, m2, s12);
 
+    // Independent reference: the Dalitz slope is d s_{01} / d cos(theta_1),
+    // measured by finite difference of the reconstructed momenta rather than
+    // reusing the library's closed form.  A wrong Jacobian fails here.
+    double h = 1e-6;
+    double jac_A_fd = std::abs((s01_at(cos_sub + h) - s01_at(cos_sub - h)) / (2.0 * h));
+    EXPECT_GT(jac_A_fd, 0.0);
+    EXPECT_NEAR(jac_A, jac_A_fd, 1e-6 * jac_A_fd)
+        << "Recursive2Body->Dalitz Jacobian disagrees with the measured "
+        << "d s_{01}/d cos(theta_1) slope: closed form " << jac_A
+        << " vs finite difference " << jac_A_fd;
+
     // For factorization B: spectator=2, pair=(0,1).
-    // Compute s_01 from the momenta.
+    // Compute s_01 from the base-point momenta.
     double E01 = p0[0] + p1[0];
     double px01 = p0[1] + p1[1];
     double py01 = p0[2] + p1[2];
@@ -1759,9 +1790,11 @@ TEST(AutoConversion, CrossFactorizationRecursive2Body) {
 
     // The conversion factor from A to B is jac_A / jac_B:
     // density_B = density_A * (jac_A^{-1}) * jac_B = density_A * jac_B / jac_A
-    // (because Recursive->Dalitz divides by jac, and Dalitz->Recursive multiplies by jac)
+    // (Recursive->Dalitz divides by jac, Dalitz->Recursive multiplies by jac).
+    // Anchor the A-side factor on the independently measured slope so the
+    // round-trip below is checked against a value the library did not supply.
     double density_A = 1.0;
-    double expected_B = density_A / jac_A * jac_B;
+    double expected_B = density_A / jac_A_fd * jac_B;
 
     EXPECT_GT(jac_A, 0.0);
     EXPECT_GT(jac_B, 0.0);
@@ -1793,7 +1826,8 @@ TEST(AutoConversion, CrossFactorizationRecursive2Body) {
     double converted_B = J::DalitzDensityToRecursive2BodyDensity(
         dalitz_d, M, m2, m0, m1, s01);
 
-    EXPECT_NEAR(converted_B, expected_B, 1e-10)
+    // Tolerance reflects the finite-difference precision of the A-side anchor.
+    EXPECT_NEAR(converted_B, expected_B, 1e-5 * expected_B)
         << "Cross-factorization conversion: got " << converted_B
         << ", expected " << expected_B
         << " (ratio jac_B/jac_A = " << ratio_direct << ")";

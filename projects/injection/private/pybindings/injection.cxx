@@ -70,7 +70,9 @@ PYBIND11_MODULE(injection,m) {
   enum_<VWM::BoundSource>(m, "BoundSource")
     .value("Geometry", VWM::BoundSource::Geometry)
     .value("Distribution", VWM::BoundSource::Distribution)
-    .value("None", VWM::BoundSource::None);
+    // Exposed as "Unbounded": the C++ enumerator is None, but None is a Python
+    // keyword and unreachable through attribute access.
+    .value("Unbounded", VWM::BoundSource::None);
 
   class_<VWM>(m, "VertexWeightingMode")
     .def(init<>())
@@ -138,10 +140,18 @@ PYBIND11_MODULE(injection,m) {
     .def("__eq__", &PhaseSpaceMeasure::operator==)
     .def("__ne__", &PhaseSpaceMeasure::operator!=)
     .def("__hash__", [](PhaseSpaceMeasure const & m) {
+        // Mirror operator==: the factorization indices only participate in
+        // equality (and therefore in the hash) for the index-relevant types.
         size_t h = std::hash<int>()(static_cast<int>(m.type));
-        h ^= std::hash<int>()(m.spectator) + 0x9e3779b9 + (h << 6) + (h >> 2);
-        h ^= std::hash<int>()(m.pair_first) + 0x9e3779b9 + (h << 6) + (h >> 2);
-        h ^= std::hash<int>()(m.pair_second) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        bool indices_relevant =
+            m.type == PhaseSpaceMeasure::Type::Recursive2Body ||
+            m.type == PhaseSpaceMeasure::Type::DalitzPair ||
+            m.type == PhaseSpaceMeasure::Type::HelicityAngles;
+        if (indices_relevant) {
+            h ^= std::hash<int>()(m.spectator) + 0x9e3779b9 + (h << 6) + (h >> 2);
+            h ^= std::hash<int>()(m.pair_first) + 0x9e3779b9 + (h << 6) + (h >> 2);
+            h ^= std::hash<int>()(m.pair_second) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        }
         return h;
     })
     .def_static("SolidAngleRest", &PhaseSpaceMeasure::SolidAngleRest,

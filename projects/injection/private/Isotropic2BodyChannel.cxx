@@ -53,7 +53,7 @@ void Isotropic2BodyChannel::Sample(
     double p_parent = std::sqrt(px_parent * px_parent + py_parent * py_parent + pz_parent * pz_parent);
 
     if (p_parent < 1e-15) {
-        // Parent at rest — rest frame IS lab frame
+        // Parent at rest -- rest frame IS lab frame
         record.secondary_momenta[daughter_index_] = {E_A_rest, px_rest, py_rest, pz_rest};
         record.secondary_momenta[1 - daughter_index_] = {E_B_rest, -px_rest, -py_rest, -pz_rest};
         return;

@@ -309,6 +309,9 @@ PhaseSpaceMeasure DetectorDirectedScatteringChannel::Measure() const {
     if (variable_ == Variable::Q2) {
         return PhaseSpaceMeasure::MandelstamQ2();
     }
+    // BjorkenY and RecoilY share the BjorkenXY measure: at fixed E_in they are
+    // affine in the energy-loss y with unit |slope|, so their densities and
+    // dQ2/dy Jacobians coincide.
     return PhaseSpaceMeasure::BjorkenXY();
 }
 

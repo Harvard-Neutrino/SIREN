@@ -244,7 +244,7 @@ double DetectorDirected2BodyChannel::SolidAngleDensity(
 // detail::SampleDirectedStep, detail::DensityDirectedStep).
 
 // ================================================================ //
-//  Sample and Density — thin adapters over shared step functions    //
+//  Sample and Density -- thin adapters over shared step functions  //
 // ================================================================ //
 
 void DetectorDirected2BodyChannel::Sample(

@@ -14,22 +14,22 @@ correctly, without modifying the physics model classes.
 ## Architecture: Decorator Pattern on Decay
 
 ```
-                       ┌───────────────────┐
-                       │   DirectionBias    │
-                       │ (detector geometry)│
-                       └────────┬──────────┘
-                                │
-┌──────────────┐    ┌───────────┴───────────┐
-│ ThreeBodyDecay│    │     BiasedDecay       │
-│ (physics)    │───>│ implements Decay iface │
-│              │    │ wraps a physical Decay │
-└──────────────┘    └───────────────────────┘
-                       │
+                       +--------------------+
+                       |    DirectionBias   |
+                       | (detector geometry)|
+                       +---------+----------+
+                                 |
++---------------+    +-----------+-----------+
+| ThreeBodyDecay|    |     BiasedDecay       |
+| (physics)     |--->| implements Decay iface|
+|               |    | wraps a physical Decay|
++---------------+    +-----------------------+
+                                 |
                same Decay interface:
                SampleFinalState()
                FinalStateProbability()
-               TotalDecayWidth()  ← delegates
-               TotalDecayLength() ← delegates
+               TotalDecayWidth()  <- delegates
+               TotalDecayLength() <- delegates
 ```
 
 - **Injection process** uses `BiasedDecay` (biased sampling + biased
