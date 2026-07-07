@@ -106,8 +106,11 @@ or slice it, and call `results.summary()` for a weight-quality report.
 
 Use the `Simulation` facade for standard runs. Drop to the Layer-2
 `Injector`/`Weighter` objects (`sim.injector`, `sim.weighter`) only when you
-need to customize distributions or phase-space channels directly -- both are
-built lazily and are the same objects `sim.run()` uses internally.
+need to inspect or drive generation directly -- each `run()` call builds its
+own `Injector`/`Weighter` from the `Simulation`'s stored configuration, so
+`sim.injector`/`sim.weighter` only reflect the objects a call to `run()` used
+once that call has returned; accessing them beforehand does not let you
+customize the objects `run()` will build.
 
 ## Next steps
 

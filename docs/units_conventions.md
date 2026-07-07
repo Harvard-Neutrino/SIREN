@@ -28,12 +28,13 @@ GDML's `<box>` (some GDML solids, like `<trd>`/`<trap>`, are natively defined
 in terms of half lengths, and SIREN's GDML parser halves those on read -- see
 the parser's per-solid handling, not this page, for the authoritative list).
 
-The positional form `Box(x, y, z)` is deprecated: it places the box at the
-ORIGIN, silently dropping any intended center. It still constructs (with a
-`DeprecationWarning`), but always prefer the explicit form:
+The positional form `Box(x, y, z)` would place the box at the ORIGIN,
+silently dropping any intended center, so it is rejected: it unconditionally
+raises `ConfigurationError`, naming the `widths=`/`center=` fix-it in its
+message. Always use the explicit form:
 
 ```python
-# Deprecated: places the box at (0, 0, 0), ignores any intended offset.
+# Raises ConfigurationError: use widths=/center= instead.
 box = siren.geometry.Box(1.0, 2.0, 3.0)
 
 # Correct: explicit widths and center.
@@ -75,10 +76,11 @@ version implies an identical event stream.
 
 `SIREN_STRICT=1` is the only supported environment toggle. Setting it
 escalates SIREN's `DeprecationWarning`s (emitted for deprecated aliases like
-positional `Box(x, y, z)` or `Simulation(n_events=...)`) to hard errors,
-which is useful for finding remaining legacy call sites in a codebase before
-a deprecated form is removed. This is implemented in `siren`'s package
-`__init__`.
+`Simulation(n_events=...)`) to hard errors, which is useful for finding
+remaining legacy call sites in a codebase before a deprecated form is
+removed. This is implemented in `siren`'s package `__init__`. Positional
+`Box(x, y, z)` is not a warning case: it raises `ConfigurationError`
+unconditionally.
 
 `SIREN_QUIET` is not a supported toggle: nothing in the library reads it.
 Setting it has no effect; do not rely on it to suppress warnings or errors.
