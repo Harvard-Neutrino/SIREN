@@ -77,8 +77,10 @@ typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryPr
 // physical are the exact per-datum factors the event weight consumes; the other
 // fields are observation-only and never fed back into the weight.
 struct VertexWeightFactors {
+    int injector_index = 0;
     int depth = 0;
-    int primary_pdg = 0;
+    // pdg of the particle at this vertex, not the event's primary.
+    int vertex_pdg = 0;
     double generation = 1.0;
     double physical = 1.0;
     double interaction_prob = 1.0;
@@ -89,8 +91,9 @@ struct VertexWeightFactors {
 };
 
 // Per-vertex decomposition of an event weight. total equals
-// Weighter::EventWeight(tree) for a tree with no flagged vertices; a flagged
-// vertex marks a zero-generation error path or a zero-physical (weight 0) case.
+// Weighter::EventWeight(tree): a zero-generation vertex (the path EventWeight
+// throws on) is flagged and yields a NaN total, while a zero-physical vertex is
+// flagged and yields a 0.0 total, matching EventWeight's zero-weight case.
 struct EventWeightBreakdown {
     double total = 0.0;
     std::vector<VertexWeightFactors> vertices;
@@ -116,8 +119,12 @@ private:
     > secondary_process_weighter_maps;
 
     void Initialize();
+    // with_diagnostics fills the observation-only interaction_prob/position_prob
+    // fields; EventWeight leaves it false so it computes only the physical and
+    // generation factors it consumes.
     VertexWeightFactors ComputeVertexFactors(unsigned int idx,
-        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const;
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
+        bool with_diagnostics = false) const;
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
     EventWeightBreakdown EventWeightWithBreakdown(siren::dataclasses::InteractionTree const & tree) const;
