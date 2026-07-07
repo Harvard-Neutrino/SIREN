@@ -505,6 +505,12 @@ class Simulation:
         """
         self._injection_distributions = list(vertex.distributions)
 
+        if flux is not None and physical_energy is not None:
+            raise ValueError(
+                "Cannot specify both 'flux' and 'physical_energy'. "
+                "'flux' is an alias for 'physical_energy'."
+            )
+
         if getattr(vertex, "physical", None):
             self._physical_distributions = list(vertex.physical)
             return
@@ -727,8 +733,9 @@ class Simulation:
         ----------
         bias_targets : Geometry or dict
             If a Geometry, biases all secondary signatures toward it.
-            If a dict, maps ``{InteractionSignature: MultiChannelPhaseSpace}``
-            for full control.
+            If a dict, maps ``{ParticleType: Geometry}`` to direct that type's
+            daughters toward its geometry, or
+            ``{InteractionSignature: MultiChannelPhaseSpace}`` for full control.
         daughter_type : ParticleType
             Which daughter to direct toward the target.
         spectator_type : ParticleType or None
@@ -740,52 +747,56 @@ class Simulation:
         if isinstance(bias_targets, dict):
             for k, v in bias_targets.items():
                 if isinstance(v, _injection.MultiChannelPhaseSpace):
+                    # {InteractionSignature: MultiChannelPhaseSpace}: registered
+                    # verbatim under the signature key.
                     self._secondary_phase_spaces[k] = v
-                # else: v is a Geometry, k is a signature
-                # (not yet supported, could add)
+                else:
+                    # {ParticleType: Geometry}: direct that type's daughters
+                    # toward the geometry, per signature that type's models can
+                    # produce.
+                    sec_type = _particles.resolve(k) if isinstance(k, str) else k
+                    interactions_list = self._secondary_processes.get(sec_type)
+                    if interactions_list is None:
+                        raise ConfigurationError(
+                            "bias_targets: particle type {} is not a configured "
+                            "secondary process".format(str(sec_type)))
+                    self._bias_type_toward(
+                        interactions_list, v, daughter_type, spectator_type,
+                        fraction)
             return
 
         # Single geometry: build per-signature for all secondaries
         target = bias_targets
         for sec_type, interactions_list in self._secondary_processes.items():
-            decays = [x for x in interactions_list
-                      if isinstance(x, _interactions.Decay)]
-            cross_sections = [x for x in interactions_list
-                              if isinstance(x, _interactions.CrossSection)]
+            self._bias_type_toward(
+                interactions_list, target, daughter_type, spectator_type,
+                fraction)
 
-            for decay in decays:
-                for sig in decay.GetPossibleSignatures():
-                    try:
-                        mc = self._build_phase_space_for_signature(
-                            target, sig, decay,
-                            daughter_type, spectator_type, fraction,
-                        )
-                        self._secondary_phase_spaces[sig] = mc
-                    except ValueError:
-                        import warnings
-                        warnings.warn(
-                            f"Skipping biasing for signature {sig}: "
-                            f"bias_daughter {daughter_type} not found "
-                            f"or ambiguous in this channel.",
-                            stacklevel=3,
-                        )
+    def _bias_type_toward(self, interactions_list, target, daughter_type,
+                          spectator_type, fraction):
+        """Register directed phase spaces for one secondary type's signatures.
 
-            for xs in cross_sections:
-                for sig in xs.GetPossibleSignatures():
-                    try:
-                        mc = self._build_phase_space_for_signature(
-                            target, sig, xs,
-                            daughter_type, spectator_type, fraction,
-                        )
-                        self._secondary_phase_spaces[sig] = mc
-                    except ValueError:
-                        import warnings
-                        warnings.warn(
-                            f"Skipping biasing for signature {sig}: "
-                            f"bias_daughter {daughter_type} not found "
-                            f"or ambiguous in this channel.",
-                            stacklevel=3,
-                        )
+        Builds one MultiChannelPhaseSpace per signature every model in
+        ``interactions_list`` can produce, directing ``daughter_type`` toward
+        ``target``. A signature in which the daughter is absent or ambiguous is
+        skipped with a warning rather than aborting the whole configuration.
+        """
+        for interaction in interactions_list:
+            for sig in interaction.GetPossibleSignatures():
+                try:
+                    mc = self._build_phase_space_for_signature(
+                        target, sig, interaction,
+                        daughter_type, spectator_type, fraction,
+                    )
+                    self._secondary_phase_spaces[sig] = mc
+                except ValueError:
+                    import warnings
+                    warnings.warn(
+                        f"Skipping biasing for signature {sig}: "
+                        f"bias_daughter {daughter_type} not found "
+                        f"or ambiguous in this channel.",
+                        stacklevel=3,
+                    )
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""

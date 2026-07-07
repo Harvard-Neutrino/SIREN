@@ -151,6 +151,24 @@ class TestVertexCompileParity:
         proc = v.compile(is_primary=True)
         assert not proc.HasAnyPhaseSpace()
 
+    def test_colliding_signature_models_raise(self):
+        """Two models producing the same signature is loud, not a silent drop.
+
+        With kinematics set, each model registers its own phase space under the
+        shared signature; the second would silently replace the first even
+        though InteractionCollection still selects both.
+        """
+        xs_a = _dummy_xs()
+        xs_b = _dummy_xs()
+        # Both DummyCrossSection instances produce the identical signature.
+        assert xs_a.GetPossibleSignatures()[0] == xs_b.GetPossibleSignatures()[0]
+        v = Vertex(xs_a.GetPossibleSignatures()[0].primary_type,
+                   [xs_a, xs_b], distributions=[],
+                   kinematics=channels.isotropic(0))
+        with pytest.raises(siren.utilities.ConfigurationError,
+                           match="produce signature"):
+            v.compile(is_primary=True)
+
     def test_position_appended_to_distributions(self):
         """position= is appended to the distributions list, not silently dropped."""
         xs = _dummy_xs()

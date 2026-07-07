@@ -1243,7 +1243,8 @@ def SaveEvents(events,
                hepmc3_gzip=False,
                fid_vol=None,
                injector=None,
-               output_filename=None):
+               output_filename=None,
+               pot=None):
 
     # An omitted gen_times must not crash the per-event loop below (which
     # unconditionally indexes it) after files have already been written;
@@ -1366,9 +1367,13 @@ def SaveEvents(events,
         form, length, container = ak.to_buffers(ak.to_packed(ak_array), container=group)
         group.attrs["form"] = form.to_json()
         group.attrs["length"] = length
+        # Protons-on-target normalization as run metadata, so a saved dataset
+        # records the exposure it represents.
+        if pot is not None:
+            group.attrs["pot"] = float(pot)
         fout.close()
     if save_parquet:
-        ak.to_parquet(ak_array,output_filename+".parquet")
+        ak.to_parquet(ak_array, output_filename+".parquet")
 
 # Load events from the custom SIREN event format
 def LoadEvents(filename):

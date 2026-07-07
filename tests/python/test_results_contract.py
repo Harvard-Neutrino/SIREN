@@ -275,20 +275,54 @@ def test_variance_report_empty_when_no_mixtures():
 # save(pot=) forwarding                                                         #
 # --------------------------------------------------------------------------- #
 
-def test_save_forwards_pot(monkeypatch):
-    import sys
-    results_module = sys.modules[Results.__module__]
+def _one_record_tree():
+    """A minimal single-record InteractionTree for the real save path."""
+    dc = siren.dataclasses
+    PT = dc.ParticleType
+    record = dc.InteractionRecord()
+    sig = record.signature
+    sig.primary_type = PT.NuMu
+    sig.secondary_types = [PT.MuMinus, PT.PPlus]
+    record.signature = sig
+    record.primary_momentum = [10.0, 0.0, 0.0, 10.0]
+    record.primary_id = dc.ParticleID(1, 1)
+    record.secondary_momenta = [[5.0, 0.0, 0.0, 5.0], [5.0, 0.0, 0.0, 5.0]]
+    record.secondary_ids = [dc.ParticleID(1, 2), dc.ParticleID(1, 3)]
+    tree = dc.InteractionTree()
+    tree.add_entry(record, None)
+    return tree
 
-    captured = {}
 
-    def _fake_save(events, weighter, gen_times, output_filename=None, pot=None,
-                   **kwargs):
-        captured["output_filename"] = output_filename
-        captured["pot"] = pot
+def test_save_pot_written_to_hdf5(tmp_path):
+    """Results.save(pot=...) records POT in the real HDF5 output.
 
-    monkeypatch.setattr(results_module, "_SaveEvents", _fake_save)
+    Exercises the real ``siren._util.SaveEvents`` (no monkeypatch) and reads the
+    ``pot`` attribute back off the saved ``Events`` group.
+    """
+    h5py = pytest.importorskip("h5py")
+
     inj = _FakeInjector(attempts=1, requested=1, injected=1)
-    r = _results([1.0], inj)
-    r.save("some/path", pot=1e20)
-    assert captured["output_filename"] == "some/path"
-    assert captured["pot"] == 1e20
+    tree = _one_record_tree()
+    r = Results([tree], [1.0], [0.0], None, inj)
+
+    out = str(tmp_path / "events_pot")
+    r.save(out, pot=5e20, save_hdf5=True, save_parquet=False,
+           save_siren_events=False)
+
+    with h5py.File(out + ".hdf5", "r") as f:
+        assert f["Events"].attrs["pot"] == pytest.approx(5e20)
+
+
+def test_save_without_pot_writes_no_pot_attr(tmp_path):
+    """With no pot given, the HDF5 output carries no pot attribute."""
+    h5py = pytest.importorskip("h5py")
+
+    inj = _FakeInjector(attempts=1, requested=1, injected=1)
+    tree = _one_record_tree()
+    r = Results([tree], [1.0], [0.0], None, inj)
+
+    out = str(tmp_path / "events_nopot")
+    r.save(out, save_hdf5=True, save_parquet=False, save_siren_events=False)
+
+    with h5py.File(out + ".hdf5", "r") as f:
+        assert "pot" not in f["Events"].attrs

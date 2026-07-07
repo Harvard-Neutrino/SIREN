@@ -309,8 +309,16 @@ def grid_cells(box, n) -> List:
         raise TypeError("grid_cells requires a siren.geometry.Box region")
     q = box.placement.Quaternion
     q = q() if callable(q) else q
-    # Identity-rotation check via the quaternion's action on a basis vector.
-    # (Detector fiducial boxes are axis-aligned in detector coords.)
+    # Sub-cells are emitted axis-aligned in world coordinates, so a rotated box
+    # would neither partition nor cover its true (rotated) volume. Require the
+    # placement rotation to be the identity: (x, y, z) == 0 and |w| == 1.
+    if not (abs(q.X) < 1e-9 and abs(q.Y) < 1e-9 and abs(q.Z) < 1e-9
+            and abs(abs(q.W) - 1.0) < 1e-9):
+        from siren.utilities import ConfigurationError
+        raise ConfigurationError(
+            "grid_cells requires an axis-aligned Box; the region carries a "
+            "non-identity placement rotation (quaternion x={:.3g} y={:.3g} "
+            "z={:.3g} w={:.3g})".format(q.X, q.Y, q.Z, q.W))
     nx, ny, nz = (n, n, n) if isinstance(n, int) else n
     cx, cy, cz = _center(box)
     wx, wy, wz = box.X, box.Y, box.Z

@@ -107,6 +107,20 @@ class TestNormalization:
         assert len(weights) == 3
         assert math.isclose(sum(weights), 1.0)
 
+    def test_nested_rescale_composes_scale(self):
+        """`p * (q * mixture)` composes to p*q, not a flat replacement by p.
+
+        The carried composition scale must multiply through nested `*`, matching
+        _MixtureNode's Channel/Tiling behavior; otherwise a double-rescaled
+        mixture silently drops its inner factor.
+        """
+        inner = 0.5 * (channels.isotropic() + channels.isotropic("Gamma"))
+        assert math.isclose(inner._scale, 0.5)
+        outer = 0.6 * inner
+        # The inner 0.5 must survive: 0.6 * 0.5 = 0.3, not 0.6.
+        assert math.isclose(outer._scale, 0.3)
+        assert math.isclose(sum(w for w, _ in outer._scaled_entries()), 0.3)
+
     def test_empty_mixture_rejected(self):
         with pytest.raises(siren.utilities.ConfigurationError):
             channels.Mixture([])
@@ -292,6 +306,24 @@ class TestTiling:
         with pytest.raises(siren.utilities.ConfigurationError):
             channels.tile(box, 2, method="not-a-method")
 
+    def test_grid_cells_rejects_rotated_box(self):
+        """A rotated Box cannot be tiled with axis-aligned sub-cells: loud.
+
+        The sub-cells are emitted axis-aligned in world coordinates, so a
+        non-identity placement rotation would neither partition nor cover the
+        true (rotated) volume.
+        """
+        from siren import directed_tiling
+        # 90 degrees about z: quaternion (0, 0, sin(pi/4), cos(pi/4)).
+        q = siren.math.Quaternion(0.0, 0.0, math.sin(math.pi / 4),
+                                  math.cos(math.pi / 4))
+        rotated = siren.geometry.Box(
+            siren.geometry.Placement(siren.math.Vector3D(0.0, 0.0, 50.0), q),
+            2.0, 2.0, 2.0)
+        with pytest.raises(siren.utilities.ConfigurationError,
+                           match="axis-aligned"):
+            directed_tiling.grid_cells(rotated, 2)
+
 
 # ------------------------------------------------------------------ #
 #  Mixture.validate()                                                  #
@@ -365,16 +397,40 @@ class TestValidate:
         mcps = mix.compile(sig)
         topology = mcps.CommonTopology()
         common_measure = mcps.CommonMeasure()
-        record = _scatter_record()
+        y = 0.3
+        m_target = 14.9
+        E = 1.0
+        record = _scatter_record(bjorken_y=y, E=E, m_target=m_target)
+        MType = siren.injection.PhaseSpaceMeasureType
+
+        # Q2 = 2*M*E*x*y at fixed x, so |dQ2/dy| = 2*M*E*x with x folded into the
+        # density; the absolute (x, y) <-> (Q2, y) Jacobian is |2*M*E*y|. A unit
+        # density in Bjorken (x, y) therefore converts to 1/(2*M*E*y) in (Q2, y),
+        # and a unit (Q2, y) density converts to 2*M*E*y in Bjorken (x, y).
+        abs_jac = 2.0 * m_target * E * y  # = 8.94 for these kinematics
+        checked = 0
         for ch in mcps.channels:
             measure = ch.Measure()
             if measure == common_measure:
                 continue
-            # Must not raise: this is exactly the conversion validate()'s
-            # probe performs, given a record with the required
-            # 'bjorken_y' interaction parameter.
-            siren.injection.ConvertDensity(
+            # This is exactly the conversion validate()'s probe performs, given
+            # a record with the required 'bjorken_y' interaction parameter.
+            result = siren.injection.ConvertDensity(
                 1.0, measure, common_measure, topology, record)
+            assert math.isfinite(result) and result > 0.0
+            if (measure.type == MType.BjorkenXY
+                    and common_measure.type == MType.MandelstamQ2):
+                expected = 1.0 / abs_jac
+            elif (measure.type == MType.MandelstamQ2
+                    and common_measure.type == MType.BjorkenXY):
+                expected = abs_jac
+            else:
+                raise AssertionError(
+                    "unexpected measure pair {} -> {}".format(
+                        measure.type, common_measure.type))
+            assert result == pytest.approx(expected, rel=1e-12)
+            checked += 1
+        assert checked >= 1
 
     def test_validate_returns_compiled_mixture(self):
         box = _box_at(50.0)

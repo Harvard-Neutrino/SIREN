@@ -8,10 +8,8 @@ from . import distributions as _distributions
 from . import injection as _injection
 from . import Injector as _Injector_module
 
-from dataclasses import dataclass, field
 from typing import Tuple, List, Dict, Optional, Union, Callable
 from typing import TYPE_CHECKING
-import math
 import warnings
 
 import numpy as np
@@ -29,57 +27,6 @@ CrossSection = _interactions.CrossSection
 Decay = _interactions.Decay
 DetectorModel = _detector.DetectorModel
 InteractionTree = _dataclasses.InteractionTree
-
-@dataclass
-class VertexWeight:
-    """Per-vertex weight components."""
-    depth: int = 0
-    primary_type: int = 0
-    secondary_types: List[int] = field(default_factory=list)
-    interaction_probability: float = float('nan')
-    position_probability: float = float('nan')
-    physical_probability: float = float('nan')
-    generation_probability: float = float('nan')
-
-    @property
-    def vertex_weight(self) -> float:
-        if self.generation_probability == 0:
-            return float('inf')
-        return self.physical_probability / self.generation_probability
-
-    @property
-    def is_ok(self) -> bool:
-        return (math.isfinite(self.physical_probability)
-                and self.physical_probability > 0
-                and math.isfinite(self.generation_probability)
-                and self.generation_probability > 0)
-
-    def __repr__(self):
-        flag = "" if self.is_ok else " !!!"
-        return (
-            f"VertexWeight(d={self.depth} {self.primary_type}"
-            f"->{self.secondary_types} "
-            f"phys={self.physical_probability:.3e} "
-            f"gen={self.generation_probability:.3e} "
-            f"w={self.vertex_weight:.3e}{flag})"
-        )
-
-
-@dataclass
-class EventWeightBreakdown:
-    """Decomposition of an event weight into per-vertex factors."""
-    vertices: List[VertexWeight] = field(default_factory=list)
-    weight: float = float('nan')
-
-    @property
-    def is_ok(self) -> bool:
-        return math.isfinite(self.weight) and self.weight > 0
-
-    def __repr__(self):
-        lines = [f"EventWeightBreakdown(weight={self.weight:.6e})"]
-        for v in self.vertices:
-            lines.append(f"  {v!r}")
-        return "\n".join(lines)
 
 
 class Weighter:

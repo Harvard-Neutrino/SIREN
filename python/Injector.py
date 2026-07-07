@@ -240,6 +240,15 @@ class Injector:
         for sv in self.__secondary_vertices:
             self.__keepalive.append(sv)
             ptype = sv._resolved_particle
+            # Two secondary vertices resolving to the same particle type would
+            # each overwrite the other's interactions/distributions/process in
+            # the by-type maps below; require a single vertex per type.
+            if ptype in self.__secondary_interactions:
+                from . import errors as _errors
+                raise _errors.ConfigurationError(
+                    "two secondary vertices resolve to the same particle type "
+                    "{!r}; a chain admits one vertex per secondary type".format(
+                        str(ptype)))
             self.__secondary_interactions[ptype] = list(sv.interactions)
             self.__secondary_injection_distributions[ptype] = list(sv.distributions)
             specs.append(sv.as_vertex_spec())
@@ -297,13 +306,15 @@ class Injector:
                             secondary_processes, validation_random):
         """Run the detector-dependent ValidateChannelDensities probe.
 
-        Only mixtures actually registered on a process are probed. A measure
-        incompatibility is a real configuration error and propagates; a probe
-        that simply cannot run on the synthetic template (unsolvable kinematics,
-        missing target mass) is skipped -- the config-time Mixture.validate()
-        already screened measures without a detector.
+        Only mixtures actually registered on a process are probed. A typed
+        SIREN error (a measure incompatibility, a configuration error, a weight
+        calculation error, and every other error in ``errors.py``) is a real
+        fault and propagates; a probe that simply cannot run on the synthetic
+        template (unsolvable kinematics, missing target mass) surfaces as a bare
+        ValueError/TypeError/RuntimeError and is skipped -- the config-time
+        Mixture.validate() already screened measures without a detector.
         """
-        measure_error = _utilities.MeasureCompatibilityError
+        typed_errors = _typed_siren_errors()
         processes = [primary_process] + list(secondary_processes)
         for process in processes:
             ps_map = process.GetPhaseSpaceMap()
@@ -311,7 +322,7 @@ class Injector:
                 try:
                     _validation.probe_channel_densities(
                         mcps, sig, self.__detector_model, validation_random)
-                except measure_error:
+                except typed_errors:
                     raise
                 except (ValueError, TypeError, RuntimeError):
                     continue
@@ -538,6 +549,20 @@ class Injector:
                 offenders.append(
                     "primary distribution {!r} is a Python subclass (not "
                     "serializable)".format(type(dist).__name__))
+        for stype, interactions in self.__secondary_interactions.items():
+            for interaction in interactions:
+                if _is_trampoline(interaction):
+                    offenders.append(
+                        "secondary interaction {!r} for type {} is a Python "
+                        "subclass (not serializable)".format(
+                            type(interaction).__name__, str(stype)))
+        for stype, dists in self.__secondary_injection_distributions.items():
+            for dist in dists:
+                if _is_trampoline(dist):
+                    offenders.append(
+                        "secondary distribution {!r} for type {} is a Python "
+                        "subclass (not serializable)".format(
+                            type(dist).__name__, str(stype)))
         if offenders:
             raise _errors.NotSerializableError(
                 "this injector cannot be saved without silently changing "
@@ -799,6 +824,23 @@ class Injector:
 
     def __len__(self):
         return self.number_of_events
+
+
+def _typed_siren_errors():
+    """The tuple of typed SIREN exception classes exported by ``errors.py``.
+
+    Every name in ``errors.py`` derives from ``RuntimeError``; a probe raising
+    any of them signals a real fault that must propagate rather than be treated
+    as probe-inapplicability.
+    """
+    from . import errors as _errors
+    classes = []
+    for name in dir(_errors):
+        obj = getattr(_errors, name)
+        if isinstance(obj, type) and issubclass(obj, BaseException) \
+                and issubclass(obj, RuntimeError):
+            classes.append(obj)
+    return tuple(classes)
 
 
 def _is_trampoline(obj):

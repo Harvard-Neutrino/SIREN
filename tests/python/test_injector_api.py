@@ -250,3 +250,180 @@ def test_report_is_rendered_after_failures():
     assert "InjectionReport" in text
     assert report.dominant() is not None
     assert report.dominant().reason_name == "NoTargetsOnPath"
+
+
+# ------------------------------------------------------------------ #
+#  Secondary trampoline serialization guard                           #
+# ------------------------------------------------------------------ #
+
+class _PySecondaryCrossSection(interactions.CrossSection):
+    """Data-free Python-subclassed CrossSection (a non-serializable trampoline)."""
+
+    def __init__(self):
+        interactions.CrossSection.__init__(self)
+
+    def TotalCrossSection(self, *args, **kwargs):
+        return 1.0
+
+    def DifferentialCrossSection(self, *args):
+        return 1.0
+
+    def InteractionThreshold(self, *args):
+        return 0.0
+
+    def SampleFinalState(self, *args):
+        pass
+
+    def GetPossibleTargets(self):
+        return [siren.particles.Nucleon]
+
+    def GetPossibleTargetsFromPrimary(self, primary_type):
+        return [siren.particles.Nucleon]
+
+    def GetPossiblePrimaries(self):
+        return [_NuMu]
+
+    def GetPossibleSignatures(self):
+        sig = dc.InteractionSignature()
+        sig.primary_type = _NuMu
+        sig.target_type = siren.particles.Nucleon
+        sig.secondary_types = [_NuMu, siren.particles.Nucleon]
+        return [sig]
+
+    def GetPossibleSignaturesFromParents(self, primary_type, target_type):
+        return self.GetPossibleSignatures()
+
+    def FinalStateProbability(self, *args):
+        return 1.0
+
+    def DensityVariables(self):
+        return []
+
+    def equal(self, other):
+        return isinstance(other, _PySecondaryCrossSection)
+
+
+def test_save_secondary_trampoline_raises_not_serializable(tmp_path):
+    """save() refuses a Python-subclassed SECONDARY interaction (not just primary).
+
+    A bare detector suffices: the guard reads the Python-side secondary
+    interaction dict before the engine's own archiving is reached.
+    """
+    dm = detector.DetectorModel()
+    inj = injection.Injector(
+        detector=dm,
+        number_of_events=2,
+        seed=1,
+        primary_type=_NuMu,
+        primary_interactions=[interactions.DummyCrossSection()],
+        primary_injection_distributions=_distributions(0.0),
+        secondary_interactions={_NuMu: [_PySecondaryCrossSection()]},
+        secondary_injection_distributions={
+            _NuMu: [distributions.SecondaryPhysicalVertexDistribution()]},
+    )
+    inj._build()
+    with pytest.raises(siren.errors.NotSerializableError) as exc:
+        inj.save(str(tmp_path / "inj"))
+    assert any("secondary" in o for o in exc.value.offenders)
+
+
+# ------------------------------------------------------------------ #
+#  Duplicate secondary Vertex particle type                           #
+# ------------------------------------------------------------------ #
+
+def test_duplicate_secondary_vertex_type_raises():
+    """Two secondary vertices resolving to the same particle type is loud.
+
+    Both would otherwise silently overwrite each other's interactions and
+    distributions in the by-type maps.
+    """
+    from siren.vertex import Vertex
+
+    pxs = interactions.DummyCrossSection()
+    psig = pxs.GetPossibleSignatures()[0]
+    primary = Vertex(psig.primary_type, pxs,
+                     distributions=_distributions(0.0))
+
+    def _sec(label):
+        xs = interactions.DummyCrossSection()
+        sig = xs.GetPossibleSignatures()[0]
+        return Vertex(
+            sig.primary_type, xs,
+            distributions=[distributions.SecondaryPhysicalVertexDistribution()],
+            label=label)
+
+    va, vb = _sec("a"), _sec("b")
+    # Both resolve to DummyCrossSection's signature primary type.
+    assert va._resolved_particle == vb._resolved_particle
+
+    inj = injection.Injector(
+        detector=detector.DetectorModel(),
+        primary=primary,
+        secondaries=(va, vb),
+        events=2,
+        seed=1,
+    )
+    with pytest.raises(siren.errors.ConfigurationError, match="same particle type"):
+        inj._build()
+
+
+# ------------------------------------------------------------------ #
+#  Phase-space probe propagates typed SIREN errors                    #
+# ------------------------------------------------------------------ #
+
+def _process_with_phase_space():
+    xs = interactions.DummyCrossSection()
+    sig = xs.GetPossibleSignatures()[0]
+    ic = interactions.InteractionCollection(sig.primary_type, [xs])
+    proc = injection.PrimaryInjectionProcess(sig.primary_type, ic)
+    mc = injection.MultiChannelPhaseSpace()
+    mc.channels = [injection.Isotropic2BodyChannel(0)]
+    mc.weights = [1.0]
+    proc.SetPhaseSpace(sig, mc)
+    return proc
+
+
+class _RaisingValidation:
+    """Stub whose probe_channel_densities raises a chosen exception."""
+
+    def __init__(self, exc):
+        self._exc = exc
+
+    def probe_channel_densities(self, mcps, sig, detector_model, rng):
+        raise self._exc
+
+
+def test_probe_reraises_typed_configuration_error():
+    """A ConfigurationError from the probe propagates (it is a real fault)."""
+    inj = injection.Injector(
+        detector=detector.DetectorModel(),
+        number_of_events=1,
+        primary_type=_NuMu,
+        primary_interactions=[interactions.DummyCrossSection()],
+        primary_injection_distributions=_distributions(0.0),
+    )
+    proc = _process_with_phase_space()
+    stub = _RaisingValidation(
+        siren.errors.ConfigurationError("bad model configuration"))
+    rng = utilities.SIREN_random(1)
+    with pytest.raises(siren.errors.ConfigurationError, match="bad model"):
+        inj._probe_phase_spaces(stub, proc, [], rng)
+
+
+def test_probe_swallows_plain_probe_inapplicability():
+    """A bare ValueError/RuntimeError means the probe could not run: swallowed."""
+    inj = injection.Injector(
+        detector=detector.DetectorModel(),
+        number_of_events=1,
+        primary_type=_NuMu,
+        primary_interactions=[interactions.DummyCrossSection()],
+        primary_injection_distributions=_distributions(0.0),
+    )
+    proc = _process_with_phase_space()
+    rng = utilities.SIREN_random(1)
+    # A plain ValueError (synthetic template unsolvable) is skipped, not raised.
+    inj._probe_phase_spaces(
+        _RaisingValidation(ValueError("unsolvable template")), proc, [], rng)
+    # A plain RuntimeError that is not a typed SIREN error is likewise skipped.
+    inj._probe_phase_spaces(
+        _RaisingValidation(RuntimeError("engine hiccup")), proc, [], rng)

@@ -136,18 +136,21 @@ def define(name, pdg, mass):
         existing = _name_to_type[name]
         existing_pdg = _name_to_pdg.get(name, int(existing))
         if name in _name_to_mass:
-            # A define()-registered name carries pdg and mass: both must match
-            # for the re-registration to be an idempotent no-op.
+            # A name carrying both pdg and mass: both must match for the
+            # re-registration to be an idempotent no-op.
             same = existing_pdg == pdg and _name_to_mass[name] == mass
         else:
-            # A built-in enum member carries no mass; matching its pdg (the
-            # bare enum value) is an idempotent no-op.
+            # A built-in enum member's own name collides here on its first
+            # define(): its pdg (the bare enum value) must match. The supplied
+            # mass is recorded so a later mismatched mass is rejected.
             same = existing_pdg == pdg
         if not same:
             raise ConfigurationError(
                 f"particle name {name!r} is already registered with "
                 f"pdg={existing_pdg}, mass={_name_to_mass.get(name)} "
                 f"(requested pdg={pdg}, mass={mass})")
+        if name not in _name_to_mass:
+            _name_to_mass[name] = mass
         return existing
 
     # A pdg code already in use -- under a different define()d name or a

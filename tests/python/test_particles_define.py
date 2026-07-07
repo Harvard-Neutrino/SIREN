@@ -49,3 +49,16 @@ def test_define_new_name_reusing_builtin_pdg_raises():
     numu_pdg = int(siren.dataclasses.ParticleType.NuMu)
     with pytest.raises(ConfigurationError):
         particles.define("MyNuMuAlias", numu_pdg, 0.0)
+
+
+def test_define_builtin_name_records_mass_and_rejects_mismatch():
+    """A built-in name's first define() records its mass; a later different
+    mass with the same pdg is rejected, not silently dropped."""
+    gamma_pdg = int(siren.dataclasses.ParticleType.Gamma)
+    result = particles.define("Gamma", gamma_pdg, 0.0)
+    assert result == siren.dataclasses.ParticleType.Gamma
+    # The supplied mass is now on record for the built-in name.
+    assert particles._name_to_mass.get("Gamma") == 0.0
+    # Re-registering the same pdg with a different mass is a collision.
+    with pytest.raises(ConfigurationError):
+        particles.define("Gamma", gamma_pdg, 5.0)

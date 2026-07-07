@@ -195,10 +195,10 @@ class Mixture:
     def __rmul__(self, scalar):
         if not isinstance(scalar, (int, float)):
             return NotImplemented
-        # Carry the scale for composition without disturbing the normalized
-        # entries, so `p * mix_a + q * mix_b` splits p and q across the mixtures.
+        # Compose the scale multiplicatively so nested rescaling accumulates:
+        # `p * (q * mixture)` carries p*q, matching _MixtureNode.__rmul__.
         scaled = Mixture(list(self._entries))
-        scaled._scale = float(scalar)
+        scaled._scale = self._scale * float(scalar)
         return scaled
 
     def describe(self) -> str:

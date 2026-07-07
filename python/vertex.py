@@ -230,7 +230,21 @@ class Vertex:
 
         if self.kinematics is not None:
             compilable = _as_compilable(self.kinematics)
+            seen_signatures = {}
             for model, sig in self._all_signatures():
+                # Two models sharing a signature would each register their own
+                # phase space under it, the second silently replacing the
+                # first even though InteractionCollection still selects both.
+                if sig in seen_signatures:
+                    raise ConfigurationError(
+                        "Vertex(particle={!r}): models {!r} and {!r} both "
+                        "produce signature {}; combine colliding-signature "
+                        "models into a single channels.Mixture per "
+                        "signature".format(
+                            self.particle,
+                            type(seen_signatures[sig]).__name__,
+                            type(model).__name__, sig))
+                seen_signatures[sig] = model
                 mcps = compilable.compile(
                     sig, detector=detector, models=[model])
                 process.SetPhaseSpace(sig, mcps)

@@ -8,7 +8,6 @@ when the injector is reused for a later run.
 """
 
 import math
-import inspect
 
 import numpy as np
 
@@ -170,20 +169,18 @@ class Results:
         path : str
             Output path (without extension).
         pot : float, optional
-            Protons-on-target normalization. Forwarded to
-            :func:`siren._util.SaveEvents` only when that function accepts a
-            ``pot`` argument; ignored otherwise.
+            Protons-on-target normalization, recorded as run metadata in the
+            saved HDF5 output (the ``pot`` attribute of its ``Events`` group).
         **kwargs
             Additional keyword arguments forwarded to
             :func:`siren._util.SaveEvents`.
         """
-        if pot is not None and "pot" in inspect.signature(_SaveEvents).parameters:
-            kwargs["pot"] = pot
         _SaveEvents(
             self.events,
             self._weighter,
             self.gen_times,
             output_filename=path,
+            pot=pot,
             **kwargs,
         )
 

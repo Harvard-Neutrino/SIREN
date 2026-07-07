@@ -789,6 +789,77 @@ class TestSecondaryBiasing:
                    for c in mc.channels[1:])
 
 
+class TestVertexFluxAliasCollision:
+    """flux/physical_energy alias collision is loud on the Vertex path too."""
+
+    def _primary_vertex(self, siren):
+        from siren.vertex import Vertex
+        xs = siren.interactions.DummyCrossSection()
+        sig = xs.GetPossibleSignatures()[0]
+        dists = [
+            siren.distributions.PrimaryMass(0),
+            siren.distributions.PowerLaw(2.0, 0.5, 5.0),
+            siren.distributions.IsotropicDirection(),
+            siren.distributions.PointSourcePositionDistribution(
+                siren.math.Vector3D(0, 0, 0), 5.0),
+        ]
+        return Vertex(sig.primary_type, xs, distributions=dists)
+
+    def test_vertex_path_flux_and_physical_energy_raises(self):
+        """A Vertex-primary Simulation given both flux and physical_energy
+        raises, matching the plain-particle path."""
+        import siren
+        with pytest.raises(ValueError, match="Cannot specify both.*flux"):
+            siren.Simulation(
+                events=1,
+                detector=siren.detector.DetectorModel(),
+                primary=self._primary_vertex(siren),
+                physical_energy=siren.dist.Monoenergetic(1000),
+                flux=siren.dist.PowerLaw(2, 1e3, 1e6),
+            )
+
+
+class TestBiasTargetsDictForm:
+    """bias_targets={ParticleType: Geometry} builds per-type phase spaces."""
+
+    def _sim_shell(self, siren):
+        # A Simulation carrying only the fields _resolve_bias_targets reads, so
+        # the dict-form handling is exercised without a full generation config.
+        sim = object.__new__(siren.Simulation)
+        xs = siren.interactions.DummyCrossSection()
+        sec_type = xs.GetPossibleSignatures()[0].primary_type
+        sim._secondary_processes = {sec_type: [xs]}
+        sim._secondary_phase_spaces = {}
+        return sim, xs, sec_type
+
+    def test_particle_geometry_dict_builds_phase_space(self):
+        """A {ParticleType: Geometry} entry registers that type's directed
+        phase space instead of silently no-oping."""
+        import siren
+        sim, xs, sec_type = self._sim_shell(siren)
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        daughter = xs.GetPossibleSignatures()[0].secondary_types[0]
+
+        sim._resolve_bias_targets({sec_type: box}, daughter, None)
+
+        target_sig = xs.GetPossibleSignatures()[0]
+        assert target_sig in sim._secondary_phase_spaces
+        mc = sim._secondary_phase_spaces[target_sig]
+        assert any(
+            isinstance(c, siren.injection.DetectorDirected2BodyChannel)
+            for c in mc.channels)
+
+    def test_particle_geometry_dict_unknown_type_raises(self):
+        """A dict key that is not a configured secondary type is loud."""
+        import siren
+        sim, xs, sec_type = self._sim_shell(siren)
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        from siren.errors import ConfigurationError
+        with pytest.raises(ConfigurationError, match="not a configured secondary"):
+            sim._resolve_bias_targets(
+                {siren.particles.MuMinus: box}, siren.particles.MuMinus, None)
+
+
 class TestWeighterBatch:
     """Weighter.weight_all should batch-weight events."""
 

@@ -1,8 +1,8 @@
 """Directed: sugar over channels.py for the common directed+fallback mix.
 
 Directed(...) describes "point this daughter at a target volume, with a
-physical/isotropic fallback so events that miss the target are not lost
-from the estimator." It never introduces a new engine primitive: every
+physical() fallback so events that miss the target are not lost from the
+estimator." It never introduces a new engine primitive: every
 Directed compiles to exactly the channels.Mixture the channels algebra
 would build by hand. Directed.by_signature({signature: Directed|Mixture})
 covers the case where different signatures of the same vertex need
@@ -26,14 +26,14 @@ def _siren():
 
 
 def _fallback(daughter):
-    """physical() fallback, falling back further to isotropic() on failure.
+    """The physical() fallback channel for a Directed mixture.
 
     physical() late-binds a PhysicalDecayChannel/PhysicalCrossSectionChannel
-    against the vertex's own interaction model at compile time; Directed
-    prefers it as the fallback (it samples the real physical distribution
-    rather than an isotropic proxy) but does not require a model be
-    supplied -- Mixture.compile()/validate() will raise ConfigurationError
-    from inside physical()'s factory if none is available at compile time.
+    against the vertex's own interaction model at compile time; it samples the
+    real physical distribution rather than an isotropic proxy. It is the sole
+    fallback -- a missing model is a hard configuration error:
+    Mixture.compile()/validate() raises ConfigurationError from inside
+    physical()'s factory if none is available at compile time.
     """
     return _channels.physical()
 
