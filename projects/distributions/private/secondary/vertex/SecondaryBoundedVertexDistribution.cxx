@@ -95,7 +95,7 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
 
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoPathThroughVolume, "No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoPathThroughVolume, "No path through the injection volume!"));
     }
 
     double traversed_interaction_depth;

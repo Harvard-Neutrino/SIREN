@@ -153,6 +153,86 @@ def test_offaxis_partial_overlap_closure():
     assert abs(m["wt_hit"] - m["iso"]) <= 0.5 * m["iso"] + 0.005
 
 
+def _four_point_cap(theta_kin, theta_bound, axis_sep, kin_axis, bound_axis):
+    """Center and half-angle of the four-point/1.2x-margin cap over the lens.
+
+    This cap can undersize the cone-intersection lens; the test uses it as a
+    fixed reference and asserts the sampler reaches lens directions beyond it.
+    """
+    sk, ck = math.sin(theta_kin), math.cos(theta_kin)
+    ss, cs = math.sin(axis_sep), math.cos(axis_sep)
+    cos_phi = (math.cos(theta_bound) - ck * cs) / (sk * ss)
+    sin_phi = math.sqrt(1.0 - cos_phi * cos_phi)
+    in_plane = bound_axis - kin_axis * cs
+    in_plane = in_plane / np.linalg.norm(in_plane)
+    out_plane = np.cross(kin_axis, in_plane)
+    out_plane = out_plane / np.linalg.norm(out_plane)
+    m_kin = kin_axis * ck + in_plane * (sk * cos_phi)
+    m_kin = m_kin / np.linalg.norm(m_kin)
+    theta_d = axis_sep - theta_bound
+    if theta_d > 1e-15:
+        deepest = kin_axis * math.cos(theta_d) + in_plane * math.sin(theta_d)
+    else:
+        deepest = kin_axis
+    center = m_kin + deepest
+    center = center / np.linalg.norm(center)
+    p1 = kin_axis * ck + in_plane * (sk * cos_phi) + out_plane * (sk * sin_phi)
+    p2 = kin_axis * ck + in_plane * (sk * cos_phi) - out_plane * (sk * sin_phi)
+    cos_min = min(center @ p1, center @ p2, center @ m_kin, center @ deepest)
+    half = min(math.acos(max(-1.0, min(1.0, cos_min))) * 1.2, math.pi)
+    return center, half
+
+
+def test_overlap_wide_bound_covers_full_lens():
+    """Overlap with a bounding cone WIDER than the kinematic cone: the sampler
+    must reach the whole cone-intersection lens its density claims.
+
+    Inputs place theta_kin=15.4 deg, theta_bound=20.7 deg, axis_sep=5.52 deg -- a
+    genuine Overlap where the lens extends ~22.7 deg from the four-point cap's
+    ~10.6 deg center, so a sampler confined to that cap reaches at most ~10.6 deg
+    from it while a correct sampler reaches out past ~15 deg. Every sampled
+    direction must also lie inside the lens (both cone half-spaces), i.e. on the
+    support the density reports."""
+    m_chi, E_V1 = 0.00581, 0.07041
+    box = _box_at(0.7695, 0.0, 7.9629, 3.2653)
+    directed = siren.injection.DetectorDirected2BodyChannel(box, 0)
+
+    kin_axis = np.array([0.0, 0.0, 1.0])
+    bound_axis = np.array([0.7695, 0.0, 7.9629])
+    bound_axis = bound_axis / np.linalg.norm(bound_axis)
+    theta_kin = math.radians(15.40)
+    theta_bound = math.asin(0.5 * math.sqrt(3) * 3.2653 / np.linalg.norm([0.7695, 0.0, 7.9629]))
+    axis_sep = math.acos(float(kin_axis @ bound_axis))
+    cos_critical, cos_bound = math.cos(theta_kin), math.cos(theta_bound)
+    cap_center, cap_half = _four_point_cap(
+        theta_kin, theta_bound, axis_sep, kin_axis, bound_axis)
+
+    rng = siren.utilities.SIREN_random(101)
+    max_ang = 0.0
+    n = 0
+    for _ in range(20000):
+        r = _make_record(m_chi, E_V1)
+        directed.Sample(rng, None, r)
+        mom = r.secondary_momenta[0]
+        p = math.sqrt(mom[1] ** 2 + mom[2] ** 2 + mom[3] ** 2)
+        if p < 1e-30:
+            continue
+        d = np.array([mom[1] / p, mom[2] / p, mom[3] / p])
+        # Every sample lies inside the lens the density reports (both cones);
+        # the tolerance absorbs the boost round-trip's kinematic-edge numerics.
+        assert d @ kin_axis >= cos_critical - 1e-4
+        assert d @ bound_axis >= cos_bound - 1e-9
+        max_ang = max(max_ang, math.degrees(math.acos(max(-1.0, min(1.0, d @ cap_center)))))
+        n += 1
+
+    assert n > 0
+    # The four-point cap spans only cap_half (~10.6 deg) about cap_center; a
+    # sampler confined to it cannot exceed that radius, but the lens reaches
+    # ~22.7 deg, so the sampler must cover directions well past the cap.
+    assert math.degrees(cap_half) < 12.0
+    assert max_ang > 15.0, f"sampler reached only {max_ang:.2f} deg from cap center"
+
+
 def test_disjoint_unreachable_target_graceful():
     """Off-axis target fully beyond the kinematic cone (unreachable): both
     channels give zero hits, the directed channel falls back gracefully
