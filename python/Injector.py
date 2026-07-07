@@ -329,7 +329,6 @@ class Injector:
             yield self.__injector.GenerateEvent()
 
     def __len__(self):
-        """Return the number of events to generate."""
         return self.number_of_events
 
     @wraps(_Injector.LoadInjector)

@@ -1,6 +1,7 @@
 #include "SIREN/distributions/primary/area/pyPrimaryAreaDistribution.h"
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <vector>                                 // for vector
 
@@ -64,6 +65,26 @@ std::vector<std::string> pyPrimaryAreaDistribution::DensityVariables() const {
         std::vector<std::string>,
         DensityVariables,
         "DensityVariables"
+    )
+}
+
+std::set<DistributionVariable> pyPrimaryAreaDistribution::SetVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryAreaDistribution,
+        std::set<DistributionVariable>,
+        SetVariables,
+        "SetVariables"
+    )
+}
+
+std::set<DistributionVariable> pyPrimaryAreaDistribution::RequiredVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryAreaDistribution,
+        std::set<DistributionVariable>,
+        RequiredVariables,
+        "RequiredVariables"
     )
 }
 

@@ -2,11 +2,14 @@
 #ifndef SIREN_Distributions_H
 #define SIREN_Distributions_H
 
+#include <set>                                           // for set
 #include <string>                                        // for string
 #include <memory>                                        // for shared_ptr
 #include <cstdint>                                       // for uint32_t
 #include <stdexcept>                                     // for runtime_error
 #include <vector>                                        // for vector
+
+#include "SIREN/distributions/DistributionVariable.h"
 
 #include <cereal/access.hpp>
 #include <cereal/types/polymorphic.hpp>
@@ -142,6 +145,8 @@ public:
     virtual ~PrimaryInjectionDistribution() {};
     virtual void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const = 0;
+    virtual std::set<DistributionVariable> SetVariables() const = 0;
+    virtual std::set<DistributionVariable> RequiredVariables() const;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

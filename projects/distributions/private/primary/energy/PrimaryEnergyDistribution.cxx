@@ -1,6 +1,7 @@
 #include "SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
 
 #include <array>                                           // for array
+#include <set>                                             // for set
 #include <string>                                          // for basic_string
 
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
@@ -23,6 +24,10 @@ void PrimaryEnergyDistribution::Sample(
 
 std::vector<std::string> PrimaryEnergyDistribution::DensityVariables() const {
     return std::vector<std::string>{"PrimaryEnergy"};
+}
+
+std::set<DistributionVariable> PrimaryEnergyDistribution::SetVariables() const {
+    return {DistributionVariable::PrimaryEnergy};
 }
 
 } // namespace distributions

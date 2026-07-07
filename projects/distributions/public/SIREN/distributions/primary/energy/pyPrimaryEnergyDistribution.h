@@ -2,7 +2,8 @@
 #ifndef SIREN_pyPrimaryEnergyDistribution_H
 #define SIREN_pyPrimaryEnergyDistribution_H
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <vector>                                 // for vector
 #include <cstdint>                                // for uint32_t
@@ -39,6 +40,8 @@ public:
     bool IsNormalizationSet() const override;
     double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     std::vector<std::string> DensityVariables() const override;
+    std::set<DistributionVariable> SetVariables() const override;
+    std::set<DistributionVariable> RequiredVariables() const override;
     std::string Name() const override;
     std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     bool AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const override;
