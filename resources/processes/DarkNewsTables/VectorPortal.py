@@ -1367,11 +1367,12 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 #  Flux construction
 # ===================================================================
 
-def _chi_box_edges(E_V_lab, m_V1, m_chi):
+def _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime):
     """Lab-frame energy interval spanned by chi from an isotropic V1 -> chi chi'.
 
-    The chi has fixed rest-frame energy E_chi_rf = (m_V1**2 + m_chi**2)/(2 m_V1)
-    and momentum p_chi_rf; boosting to the lab with the V1 factors gives
+    Two-body kinematics fix the chi rest-frame energy at
+    E_chi_rf = (m_V1**2 + m_chi**2 - m_chi_prime**2)/(2 m_V1) with momentum
+    p_chi_rf; boosting to the lab with the V1 factors gives
     E_chi_lab = gamma_V1 (E_chi_rf + beta_V1 p_chi_rf cos_theta_rf).  For an
     isotropic decay cos_theta_rf is uniform on [-1, 1], so E_chi_lab is uniform
     over [gamma(E_rf - beta p_rf), gamma(E_rf + beta p_rf)] (the relativistic
@@ -1379,7 +1380,7 @@ def _chi_box_edges(E_V_lab, m_V1, m_chi):
     """
     if m_V1 <= 0.0:
         return m_chi, m_chi
-    E_chi_rf = (m_V1**2 + m_chi**2) / (2.0 * m_V1)
+    E_chi_rf = (m_V1**2 + m_chi**2 - m_chi_prime**2) / (2.0 * m_V1)
     p_chi_rf = math.sqrt(max(E_chi_rf**2 - m_chi**2, 0.0))
     gamma_V1 = E_V_lab / m_V1
     beta_V1 = math.sqrt(max(1.0 - 1.0 / gamma_V1**2, 0.0)) if gamma_V1 > 0 else 0.0
@@ -1492,7 +1493,7 @@ def compute_chi_flux(
     dE = E_edges[1] - E_edges[0]
     hist = np.zeros(n_bins)
 
-    for E_nu in nu_energies:
+    for i, E_nu in enumerate(nu_energies):
         E_meson = E_nu * nu_to_meson
         if E_meson < m_meson:
             continue
@@ -1500,12 +1501,21 @@ def compute_chi_flux(
         gamma_meson = E_meson / m_meson
         E_V_lab = gamma_meson * E_V_rest
 
-        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi)
+        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime)
         if E_plus < min_energy or E_minus > max_energy:
             continue
 
+        # SamplePDF is a per-GeV density at the node; convert to a countable
+        # weight over the node's own energy interval (midpoint spacing) so the
+        # deposited histogram divided by the output bin width is again per GeV.
+        lo = nu_energies[i - 1] if i > 0 else E_nu
+        hi = nu_energies[i + 1] if i + 1 < len(nu_energies) else E_nu
+        dE_node = 0.5 * (hi - lo)
+        if dE_node <= 0.0:
+            continue
+
         nu_flux_at_E = raw_flux.SamplePDF(E_nu)
-        chi_flux_at_E = nu_flux_at_E * br_ratio * 0.5
+        chi_flux_at_E = nu_flux_at_E * br_ratio * 0.5 * dE_node
 
         _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, chi_flux_at_E)
 
@@ -1607,7 +1617,7 @@ def compute_chi_flux_from_dk2nu(
     # energy; accumulate every meson's weight over its box, conserving the total.
     hist = np.zeros(n_bins)
     for E_V_i, w_i in zip(E_V_lab, chi_weights):
-        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi)
+        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi, m_chi_prime)
         _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, float(w_i))
 
     pot = dk2nu_data.get("pot", 0.0)

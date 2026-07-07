@@ -911,6 +911,12 @@ class BiasedMesonThreeBodyDecay(_Decay):
     dOmega_pair factor, so restricting it to a cone of solid angle
     Omega_cone scales the physical density by the constant 4 pi / Omega_cone,
     and the per-event importance weight is Omega_cone / (4 pi).
+
+    siren.check_closure certifies fixed-cone configurations. With
+    cone_half_angle=None the cone varies with the drawn energy, correlating
+    direction with energy, so the gauge's single-coordinate marginal is
+    outside its jurisdiction there; the certified invariant is the per-event
+    identity FinalStateProbability = physical density * 4 pi / Omega(event).
     """
 
     def __init__(

@@ -846,3 +846,79 @@ def test_check_closure_family_coverage(vector_portal, meson_production_module):
         offshell, primary_energy=1.0, samples=4000, seed=0)
     assert any("not applicable" in n for n in report.notes), report.notes
     assert any("kinematically pinned" in n for n in report.notes), report.notes
+
+
+def test_chi_box_edges_match_two_body_kinematics(vector_portal):
+    """_chi_box_edges reproduces the analytic two-body box for equal daughters."""
+    vp = vector_portal
+    m_V1, m_chi, E_V = 0.017, 0.008, 5.0
+    E_rf = m_V1 / 2.0
+    p_rf = math.sqrt(E_rf**2 - m_chi**2)
+    gamma = E_V / m_V1
+    beta = math.sqrt(1.0 - 1.0 / gamma**2)
+    lo, hi = vp._chi_box_edges(E_V, m_V1, m_chi, m_chi)
+    assert lo == pytest.approx(gamma * (E_rf - beta * p_rf), rel=1e-12)
+    assert hi == pytest.approx(gamma * (E_rf + beta * p_rf), rel=1e-12)
+
+
+def test_chi_flux_integral_pin(vector_portal):
+    """compute_chi_flux absolute normalization pin on the PionKaon table."""
+    import numpy as np
+
+    vp = vector_portal
+    flux = vp.compute_chi_flux(
+        0.13957, 0.10566, 0.017, 0.008, 0.008, 1.0, 1.0e-4,
+        "pion_numu", 0.05, 3.0, physically_normalized=False)
+    nodes = np.array(flux.GetEnergyNodes())
+    vals = np.array([flux.SampleUnnormedPDF(float(e)) for e in nodes])
+    integral = float(np.trapezoid(vals, nodes))
+    assert integral == pytest.approx(3.020870e-07, rel=1e-5)
+
+
+def test_coherent_total_cross_section_magnitude_pin(vector_portal):
+    """Coherent upscattering absolute magnitude on argon (carries Z^2 = 324)."""
+    xs = vector_portal.VectorPortalUpscatteringXS(
+        m_chi=0.008, m_chi_prime=0.050, m_V2=0.200, g_D=1.0, epsilon=1.0e-4)
+    signature = xs.GetPossibleSignatures()[0]
+    record = _record(signature, 0.008, 1.0)
+    record.target_mass = xs._ups.MA
+    assert xs.TotalCrossSection(record) == pytest.approx(
+        3.974139640967e-34, rel=1e-9)
+
+
+def test_biased_meson_adaptive_cone_pointwise_closure(meson_production_module):
+    """Adaptive-cone biased decay: FinalStateProbability equals the physical
+    density times 4pi/Omega(event), the invariant the single-coordinate gauge
+    cannot certify when the cone varies with energy."""
+    mp = meson_production_module
+    biased = mp.BiasedMesonThreeBodyDecay(
+        m_mediator=0.017, g_mu=1.0e-3,
+        detector_position=(3.0, 1.0, 100.0), detector_radius=1.0)
+    physical = mp.MesonThreeBodySIRENDecay(m_mediator=0.017, g_mu=1.0e-3)
+    signature = biased.GetPossibleSignatures()[0]
+
+    E_pi = 0.5
+    m_pi = biased.m_meson
+    random = siren.utilities.SIREN_random(7)
+    channel = siren.injection.PhysicalDecayChannel(biased, signature)
+
+    checked = 0
+    for _ in range(200):
+        record = _decay_record(
+            signature,
+            parent_mass=m_pi,
+            parent_momentum=[E_pi, 0.0, 0.0, math.sqrt(E_pi**2 - m_pi**2)],
+            secondary_masses=list(biased.SecondaryMasses(signature.secondary_types)),
+        )
+        channel.Sample(random, None, record)
+        fb = biased.FinalStateProbability(record)
+        fp = physical.FinalStateProbability(record)
+        assert fb > 0.0
+        E_phi_rf = biased._rest_frame_mediator_energy(record)
+        gamma = E_pi / m_pi
+        _, half_angle = biased._get_cone_params(
+            record.interaction_vertex, gamma * E_phi_rf)
+        omega = biased._cone_solid_angle(half_angle)
+        assert fb == pytest.approx(fp * 4.0 * math.pi / omega, rel=1e-9)
+        checked += 1
+    assert checked == 200
