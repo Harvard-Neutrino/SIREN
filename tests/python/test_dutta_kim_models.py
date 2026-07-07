@@ -806,6 +806,9 @@ def _model_family(vector_portal, meson_production_module):
             0.017, 0.008, 1.0,
             detector_position=(0.0, 0.0, 10.0), detector_radius=1.0),
         mp.MesonSimpleDecay(),
+        mp.BiasedMesonThreeBodyDecay(
+            m_mediator=0.017, g_mu=1.0e-3,
+            detector_position=(0.0, 0.0, 10.0), detector_radius=1.0),
     ]
 
 

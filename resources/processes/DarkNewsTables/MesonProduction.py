@@ -98,6 +98,34 @@ def _boost_to_lab(P_parent, p_cm, cos_theta, phi, m_daughter):
     return np.array([E_lab, *(p_par_lab * beta_hat + p_perp)])
 
 
+def _boost_four_vector(P_parent, P_rest, M_parent):
+    """Lorentz-boost a full four-vector P_rest from the parent rest frame to the
+    frame where the parent has four-momentum P_parent, preserving its direction.
+
+    Unlike _boost_to_lab, this takes the complete rest-frame four-vector rather
+    than a magnitude and polar/azimuthal angles, so summing the boosted
+    daughters reproduces the parent four-momentum exactly.
+    """
+    E_parent = P_parent[0]
+    p_parent = P_parent[1:]
+    p_mag = np.linalg.norm(p_parent)
+    if p_mag < 1e-12 or M_parent < 1e-12:
+        return np.array(P_rest, dtype=float)
+
+    beta = p_mag / E_parent
+    gamma = E_parent / M_parent
+    beta_hat = p_parent / p_mag
+
+    E_rest = P_rest[0]
+    p_rest = np.array(P_rest[1:])
+    p_par = float(np.dot(p_rest, beta_hat))
+    p_perp = p_rest - p_par * beta_hat
+
+    E_lab = gamma * (E_rest + beta * p_par)
+    p_par_lab = gamma * (p_par + beta * E_rest)
+    return np.array([E_lab, *(p_par_lab * beta_hat + p_perp)])
+
+
 # ---------------------------------------------------------------------------
 # Meson decay constants and CKM elements
 # ---------------------------------------------------------------------------
@@ -476,6 +504,89 @@ def _dGamma_dEV_dcosV(E_V_lab, cos_theta_V_lab, E_pi, p_pi, decay_obj):
     return max(prefactor_rf * val / max(jacobian, 1e-30), 0.0)
 
 
+def _recursive2body_final_state_probability(
+    decay_obj, total_width, pdgid_neutrino, pdgid_mediator, record):
+    """Physical M -> l nu V1 density in the Recursive2Body measure.
+
+    Returns dGamma / (ds_pair dOmega_pair dOmega_sub Gamma_total) with the
+    factorization M -> l(spectator) + (nu V1)(pair). For an unpolarized meson the
+    pair direction is isotropic, so the density is 1/(4 pi) in dOmega_pair and
+    depends on (s_pair, cos_theta_sub) through the matrix element. Rest-frame
+    energies are recovered from the record by inverse boost. Shared by the
+    physical and biased three-body decays so their densities agree pointwise.
+    """
+    if total_width <= 0:
+        return 0.0
+
+    d = decay_obj
+    m_M = d.m_M
+    m_l = d.m_l
+    m_phi = d.m_phi
+
+    P_parent = np.array(record.primary_momentum)
+    E_parent = P_parent[0]
+    p_parent = np.linalg.norm(P_parent[1:])
+    parent_mass_sq = max(E_parent**2 - p_parent**2, 0.0)
+    parent_mass = math.sqrt(parent_mass_sq) if parent_mass_sq > 0 else m_M
+
+    idx_nu = idx_phi = -1
+    for idx, stype in enumerate(record.signature.secondary_types):
+        pid = int(stype)
+        if pid == pdgid_neutrino:
+            idx_nu = idx
+        elif pid == pdgid_mediator:
+            idx_phi = idx
+    if idx_nu < 0 or idx_phi < 0:
+        return 0.0
+
+    P_nu = np.array(record.secondary_momenta[idx_nu])
+    P_phi = np.array(record.secondary_momenta[idx_phi])
+
+    if p_parent < 1e-12:
+        E_nu_rf = P_nu[0]
+        E_phi_rf = P_phi[0]
+    else:
+        beta = p_parent / E_parent
+        gamma = E_parent / parent_mass
+        beta_hat = P_parent[1:] / p_parent
+
+        p_nu_par = float(np.dot(P_nu[1:], beta_hat))
+        E_nu_rf = gamma * (P_nu[0] - beta * p_nu_par)
+
+        p_phi_par = float(np.dot(P_phi[1:], beta_hat))
+        E_phi_rf = gamma * (P_phi[0] - beta * p_phi_par)
+
+    if E_nu_rf < 0 or E_phi_rf < m_phi:
+        return 0.0
+
+    matel_sq = d._matel_sq(E_nu_rf, E_phi_rf)
+    if matel_sq <= 0:
+        return 0.0
+
+    # Pair invariant mass: s_pair = (p_nu + p_V)^2
+    E_mu_rf = m_M - E_nu_rf - E_phi_rf
+    s_pair = m_M**2 + m_l**2 - 2.0 * m_M * E_mu_rf
+    if s_pair <= 0:
+        return 0.0
+    sqrt_s = math.sqrt(s_pair)
+
+    # Recursive2Body-to-Dalitz Jacobian |ds13/dcos_sub|
+    # = 2 * p_spectator_in_pair_frame * p_sub_in_pair_frame
+    lam_parent = (m_M**2 - (m_l + sqrt_s)**2) * (m_M**2 - (m_l - sqrt_s)**2)
+    lam_pair = (s_pair - m_phi**2) * (s_pair - m_phi**2)
+    if lam_parent <= 0 or lam_pair <= 0:
+        return 0.0
+    p_spec_pair = math.sqrt(lam_parent) / (2.0 * sqrt_s)
+    p_sub_pair = math.sqrt(lam_pair) / (2.0 * sqrt_s)
+    jacobian = 2.0 * p_spec_pair * p_sub_pair
+
+    # Dalitz density: |M|^2 / (256 pi^3 M^3)
+    # R2B density: dalitz * jacobian / (4*pi [pair dir] * 2*pi [sub azimuth])
+    prefactor = jacobian / (2048.0 * math.pi**5 * m_M**3)
+
+    return matel_sq * prefactor / total_width
+
+
 def _sample_rest_frame(decay_obj, max_weight, random):
     """Rejection-sample (E_nu, E_phi) from |M|^2 on the Dalitz region.
 
@@ -720,79 +831,9 @@ class MesonThreeBodySIRENDecay(_Decay):
         the density is 1/(4*pi) in dOmega_pair and depends on
         (s_pair, cos_theta_sub) through the matrix element.
         """
-        if self._total_width <= 0:
-            return 0.0
-
-        d = self._decay
-        m_M = d.m_M
-        m_l = d.m_l
-        m_phi = d.m_phi
-
-        # Extract rest-frame energies from the secondary momenta.
-        # Boost secondaries back to parent rest frame if needed.
-        P_parent = np.array(record.primary_momentum)
-        E_parent = P_parent[0]
-        p_parent = np.linalg.norm(P_parent[1:])
-        parent_mass_sq = max(E_parent**2 - p_parent**2, 0.0)
-        parent_mass = math.sqrt(parent_mass_sq) if parent_mass_sq > 0 else m_M
-
-        # Find neutrino and mediator indices
-        idx_nu = idx_phi = -1
-        for idx, stype in enumerate(record.signature.secondary_types):
-            pid = int(stype)
-            if pid == self.pdgid_neutrino:
-                idx_nu = idx
-            elif pid == self.pdgid_mediator:
-                idx_phi = idx
-        if idx_nu < 0 or idx_phi < 0:
-            return 0.0
-
-        P_nu = np.array(record.secondary_momenta[idx_nu])
-        P_phi = np.array(record.secondary_momenta[idx_phi])
-
-        if p_parent < 1e-12:
-            E_nu_rf = P_nu[0]
-            E_phi_rf = P_phi[0]
-        else:
-            beta = p_parent / E_parent
-            gamma = E_parent / parent_mass
-            beta_hat = P_parent[1:] / p_parent
-
-            p_nu_par = float(np.dot(P_nu[1:], beta_hat))
-            E_nu_rf = gamma * (P_nu[0] - beta * p_nu_par)
-
-            p_phi_par = float(np.dot(P_phi[1:], beta_hat))
-            E_phi_rf = gamma * (P_phi[0] - beta * p_phi_par)
-
-        if E_nu_rf < 0 or E_phi_rf < m_phi:
-            return 0.0
-
-        matel_sq = d._matel_sq(E_nu_rf, E_phi_rf)
-        if matel_sq <= 0:
-            return 0.0
-
-        # Pair invariant mass: s_pair = (p_nu + p_V)^2
-        E_mu_rf = m_M - E_nu_rf - E_phi_rf
-        s_pair = m_M**2 + m_l**2 - 2.0 * m_M * E_mu_rf
-        if s_pair <= 0:
-            return 0.0
-        sqrt_s = math.sqrt(s_pair)
-
-        # Recursive2Body-to-Dalitz Jacobian |ds13/dcos_sub|
-        # = 2 * p_spectator_in_pair_frame * p_sub_in_pair_frame
-        lam_parent = (m_M**2 - (m_l + sqrt_s)**2) * (m_M**2 - (m_l - sqrt_s)**2)
-        lam_pair = (s_pair - m_phi**2) * (s_pair - m_phi**2)
-        if lam_parent <= 0 or lam_pair <= 0:
-            return 0.0
-        p_spec_pair = math.sqrt(lam_parent) / (2.0 * sqrt_s)
-        p_sub_pair = math.sqrt(lam_pair) / (2.0 * sqrt_s)
-        jacobian = 2.0 * p_spec_pair * p_sub_pair
-
-        # Dalitz density: |M|^2 / (256 pi^3 M^3)
-        # R2B density: dalitz * jacobian / (4*pi [pair dir] * 2*pi [sub azimuth])
-        prefactor = jacobian / (2048.0 * math.pi**5 * m_M**3)
-
-        return matel_sq * prefactor / self._total_width
+        return _recursive2body_final_state_probability(
+            self._decay, self._total_width,
+            self.pdgid_neutrino, self.pdgid_mediator, record)
 
     def DensityVariables(self):
         return ["s_pair", "cos_theta_sub"]
@@ -850,19 +891,26 @@ class BiasedMesonThreeBodyDecay(_Decay):
     """
     Biased three-body meson decay M -> l nu V1 for SIREN injection.
 
-    The V1 direction is sampled from an energy-dependent cone pointed
-    at the detector center.  The cone opening angle adapts to the
-    V1 lab energy: for a given V1 energy, the cone covers the maximum
-    angular spread of chi particles from the subsequent V1 -> chi chi
-    decay (determined by m_chi and the V1 boost).
+    The generation process is the physical decay with the (nu V1) pair
+    direction in the meson rest frame drawn uniformly inside a cone toward
+    the detector rather than isotropically. The pair carries the V1, so this
+    directs V1 toward the detector while every other degree of freedom (the
+    |M|^2-distributed Dalitz energies, the sub-decay polar angle fixed by
+    those energies, the free sub-decay azimuth) matches the physical decay
+    exactly. The assembled record is therefore a valid, four-momentum-
+    conserving final state.
 
-    This ensures that no chi-reachable phase space is cut regardless
-    of the V1 energy, while maintaining high injection efficiency for
-    boosted V1.
+    The cone opening angle adapts to the V1 lab energy: for a given V1
+    energy the cone covers the maximum angular spread of chi particles from
+    the subsequent V1 -> chi chi decay (determined by m_chi and the V1
+    boost), so no chi-reachable phase space is cut, while keeping high
+    injection efficiency for boosted V1.
 
-    DifferentialDecayWidth returns the same physical rate as the
-    unbiased version.  FinalStateProbability returns the biased
-    generation density in the same lab-frame variables.
+    FinalStateProbability and the Recursive2Body measure match the physical
+    MesonThreeBodySIRENDecay: the pair direction is the isotropic 1/(4 pi)
+    dOmega_pair factor, so restricting it to a cone of solid angle
+    Omega_cone scales the physical density by the constant 4 pi / Omega_cone,
+    and the per-event importance weight is Omega_cone / (4 pi).
     """
 
     def __init__(
@@ -916,6 +964,13 @@ class BiasedMesonThreeBodyDecay(_Decay):
         self._p_cm_chi = _two_body_p_cm(m_mediator, m_chi, m_chi)
         self._E_chi_rf = math.sqrt(self._p_cm_chi**2 + m_chi**2) if m_mediator >= 2 * m_chi else 0.0
         self._beta_chi = self._p_cm_chi / self._E_chi_rf if self._E_chi_rf > 0 else 0.0
+
+        # Recursive2Body factorization: pi -> lepton(spectator) + (nu V1)(pair),
+        # identical to the physical MesonThreeBodySIRENDecay so the biased and
+        # physical densities share a measure and cancel in the weight ratio.
+        self._spectator_index = 0
+        self._pair_first_index = 1
+        self._pair_second_index = 2
 
     def _find_max_matel(self, n_samples=10000):
         # Bounds |M|^2 * band(E_nu), the acceptance weight used by
@@ -1021,66 +1076,100 @@ class BiasedMesonThreeBodyDecay(_Decay):
         E_V, cos_V, _ = _extract_V_lab_angles(P_parent, P_V, self.m_meson)
         return _dGamma_dEV_dcosV(E_V, cos_V, E_pi, p_pi, self._decay)
 
+    def _physical_final_state_probability(self, record):
+        """Physical (unbiased) Recursive2Body density at this record."""
+        return _recursive2body_final_state_probability(
+            self._decay, self._total_width,
+            self.pdgid_neutrino, self.pdgid_mediator, record)
+
+    def _rest_frame_mediator_energy(self, record):
+        """V1 energy in the meson rest frame, by inverse boost of its momentum.
+
+        Returns None when the record lacks the mediator or the recovered energy
+        is outside the physical range.
+        """
+        P_parent = np.array(record.primary_momentum)
+        E_parent = P_parent[0]
+        p_parent = np.linalg.norm(P_parent[1:])
+        parent_mass_sq = max(E_parent**2 - p_parent**2, 0.0)
+        parent_mass = math.sqrt(parent_mass_sq) if parent_mass_sq > 0 else self.m_meson
+
+        idx_phi = -1
+        for idx, stype in enumerate(record.signature.secondary_types):
+            if int(stype) == self.pdgid_mediator:
+                idx_phi = idx
+                break
+        if idx_phi < 0:
+            return None
+
+        P_phi = np.array(record.secondary_momenta[idx_phi])
+        if p_parent < 1e-12:
+            E_phi_rf = P_phi[0]
+        else:
+            beta = p_parent / E_parent
+            gamma = E_parent / parent_mass
+            beta_hat = P_parent[1:] / p_parent
+            E_phi_rf = gamma * (P_phi[0] - beta * float(np.dot(P_phi[1:], beta_hat)))
+
+        if E_phi_rf < self.m_mediator or E_phi_rf > self._decay.E_phi_max:
+            return None
+        return E_phi_rf
+
     def FinalStateProbability(self, record):
-        """Biased generation density.
+        """Biased generation density in the physical Recursive2Body measure.
 
-        Direction: uniform within the cone = 1 / Omega_cone.
-        Energy: proportional to the physical marginal dGamma/dE_V
-                (we rejection-sample E_phi_rf from the physical distribution).
+        The generation process is the physical three-body decay with one change:
+        the (nu V1) pair direction in the meson rest frame is drawn uniformly
+        inside a cone toward the detector rather than isotropically. The pair
+        direction is the isotropic (dOmega_pair, density 1/(4 pi)) factor of the
+        physical Recursive2Body density, so restricting it to a cone of solid
+        angle Omega_cone scales that density by the constant 4 pi / Omega_cone:
 
-        The combined density in (E_V, cos_theta_V) is:
-            p_gen = p(E_V) * (1 / Omega_cone)
-        where p(E_V) = (1/Gamma_total) * integral_cosV dGamma/(dE_V dcosV) dcosV
-        evaluated by integrating over all cos_theta_V (the physical marginal in E_V).
+            g(record) = FinalStateProbability_physical(record) * (4 pi / Omega_cone)
+
+        Everything else (the |M|^2-distributed Dalitz energies, the fixed
+        sub-decay polar angle, the free sub-decay azimuth) is identical to the
+        physical decay, so it cancels between the physical and generation
+        densities. The per-event weight is therefore Omega_cone / (4 pi),
+        constant at fixed cone. The cone half-angle is sized from the same
+        rest-frame V1 energy the sampler uses, recovered here by inverse boost.
         """
         if self._total_width <= 0:
             return 0.0
 
+        phys = self._physical_final_state_probability(record)
+        if phys <= 0.0:
+            return 0.0
+
+        E_phi_rf = self._rest_frame_mediator_energy(record)
+        if E_phi_rf is None:
+            return 0.0
+
         P_parent = np.array(record.primary_momentum)
         E_pi = P_parent[0]
-        p_pi = math.sqrt(max(E_pi**2 - self.m_meson**2, 0.0))
-
-        for idx, stype in enumerate(record.signature.secondary_types):
-            if int(stype) == self.pdgid_mediator:
-                P_V = np.array(record.secondary_momenta[idx])
-                break
-        else:
-            return 0.0
-
-        E_V, cos_V, _ = _extract_V_lab_angles(P_parent, P_V, self.m_meson)
-
-        _, half_angle = self._get_cone_params(record.interaction_vertex, E_V)
+        gamma = E_pi / self.m_meson if self.m_meson > 0 else 1.0
+        _, half_angle = self._get_cone_params(record.interaction_vertex, gamma * E_phi_rf)
         omega = self._cone_solid_angle(half_angle)
-
-        E_phi_rf = _rest_frame_E_phi(E_V, cos_V, E_pi, p_pi, self.m_meson, self.m_mediator)
-
-        d = self._decay
-        if E_phi_rf < d.m_phi or E_phi_rf > d.E_phi_max:
+        if omega <= 0.0:
             return 0.0
 
-        dGamma_dEphi = d.differential_decay_rate(np.array([E_phi_rf]))[0]
-        p_E = dGamma_dEphi / self._total_width if self._total_width > 0 else 0.0
-
-        gamma = E_pi / self.m_meson
-        beta = p_pi / E_pi if E_pi > 0 else 0.0
-        p_V_lab = math.sqrt(max(E_V**2 - self.m_mediator**2, 0.0))
-        jacobian = gamma * abs(1.0 - beta * E_V / max(p_V_lab, 1e-30) * cos_V) if p_V_lab > 0 else 1.0
-
-        p_EV = p_E / max(jacobian, 1e-30)
-
-        return p_EV / omega
+        return phys * (4.0 * math.pi / omega)
 
     def DensityVariables(self):
-        return ["lab_E_V", "lab_cos_theta_V"]
+        return ["s_pair", "cos_theta_sub"]
 
     def Convention(self):
-        return _PhaseSpaceConvention.Custom
+        return _PhaseSpaceConvention.Recursive2Body
 
     def Topology(self):
         return _Topology.Decay3Body
 
     def Measure(self):
-        return _Measure.Unspecified()
+        return _Measure.Recursive2Body(
+            spectator=self._spectator_index,
+            pair_first=self._pair_first_index,
+            pair_second=self._pair_second_index,
+        )
 
     def SecondaryMasses(self, secondary_types):
         return [self.m_lepton, self.m_nu, self.m_mediator]
@@ -1095,72 +1184,110 @@ class BiasedMesonThreeBodyDecay(_Decay):
         return self is other
 
     def SampleFinalState(self, record, random):
-        """Sample V1 direction from cone toward detector, energy from physical distribution."""
+        """Sample the physical M -> l nu V1 decay with the (nu V1) pair direction
+        biased into a cone toward the detector.
+
+        The construction is the physical Recursive2Body decay
+        (pi -> lepton(spectator) + (nu V1)(pair)) with a single change: the pair
+        direction in the meson rest frame is drawn uniformly inside a cone toward
+        the detector rather than isotropically. The Dalitz energies (drawn from
+        |M|^2), the sub-decay polar angle (fixed by the drawn V1 rest-frame
+        energy) and the free sub-decay azimuth are identical to the physical
+        decay, so the assembled record is a valid, four-momentum-conserving
+        final state and its density equals the physical density times a constant
+        4 pi / Omega_cone.
+        """
+        m_M = self.m_meson
+        m_l = self.m_lepton
+        m_phi = self.m_mediator
+
         P_parent = np.array(record.primary_momentum)
         E_pi = P_parent[0]
-        p_pi = math.sqrt(max(E_pi**2 - self.m_meson**2, 0.0))
-        gamma = E_pi / self.m_meson
-        beta = p_pi / E_pi if E_pi > 0 else 0.0
-
+        gamma = E_pi / m_M if m_M > 0 else 1.0
         decay_vertex = np.array(record.interaction_vertex)
 
+        # 1. Dalitz energies in the meson rest frame (proportional to |M|^2).
         E_nu_rf, E_phi_rf = _sample_rest_frame(self._decay, self._max_matel, random)
+        E_l = m_M - E_nu_rf - E_phi_rf
+        p_l = math.sqrt(max(E_l**2 - m_l**2, 0.0))
 
-        p_phi_rf = math.sqrt(max(E_phi_rf**2 - self.m_mediator**2, 0.0))
-        E_V_lab_fwd = gamma * (E_phi_rf + beta * p_phi_rf)
-        E_V_lab_bwd = gamma * (E_phi_rf - beta * p_phi_rf)
-        E_V_lab_avg = (E_V_lab_fwd + E_V_lab_bwd) / 2
-        p_V_lab = math.sqrt(max(E_V_lab_avg**2 - self.m_mediator**2, 0.0))
+        # 2. Pair (nu V1) four-vector in the meson rest frame. The spectator
+        #    lepton recoils against the pair, so the pair momentum magnitude
+        #    equals the lepton momentum and the pair energy is m_M - E_l.
+        E_pair = m_M - E_l
+        p_pair = p_l
+        s_pair = max(E_pair**2 - p_pair**2, 0.0)
+        sqrt_s = math.sqrt(s_pair)
+        if sqrt_s <= 0.0:
+            self._assemble(record, P_parent,
+                           np.array([E_nu_rf, 0, 0, E_nu_rf]),
+                           np.array([E_l, 0, 0, -p_l]),
+                           np.array([E_phi_rf, 0, 0, 0]))
+            return
 
-        # Energy-dependent cone: adapts to the chi opening angle at this V1 energy
-        cone_axis, half_angle = self._get_cone_params(decay_vertex, E_V_lab_avg)
-
+        # 3. Pair direction from a cone toward the detector (physical: isotropic).
+        cone_axis, half_angle = self._get_cone_params(decay_vertex, gamma * E_phi_rf)
         cos_cone = random.Uniform(math.cos(half_angle), 1.0)
         phi_cone = random.Uniform(0.0, 2.0 * math.pi)
         sin_cone = math.sqrt(max(1.0 - cos_cone**2, 0.0))
-
         arb = np.array([0, 1, 0]) if abs(cone_axis[1]) < 0.9 else np.array([1, 0, 0])
         perp1 = np.cross(cone_axis, arb)
         perp1 /= np.linalg.norm(perp1)
         perp2 = np.cross(cone_axis, perp1)
+        n_pair = (cos_cone * cone_axis
+                  + sin_cone * math.cos(phi_cone) * perp1
+                  + sin_cone * math.sin(phi_cone) * perp2)
 
-        V_dir = (cos_cone * cone_axis
-                 + sin_cone * math.cos(phi_cone) * perp1
-                 + sin_cone * math.sin(phi_cone) * perp2)
+        # 4. Lepton (spectator) recoils opposite the pair.
+        P_l_rf = np.array([E_l, *(-p_pair * n_pair)])
 
-        cos_theta_V_pion = np.dot(V_dir, P_parent[1:] / max(p_pi, 1e-12))
-        E_V_lab = gamma * (E_phi_rf + beta * p_phi_rf * cos_theta_V_pion)
-        p_V_lab = math.sqrt(max(E_V_lab**2 - self.m_mediator**2, 0.0))
+        # 5. V1 in the pair rest frame. The pair-frame polar angle relative to
+        #    the pair boost is fixed by the drawn rest-frame V1 energy:
+        #    E_phi_rf = gamma_pair (E_V_pair + beta_pair p_V_pair cos_sub).
+        E_V_pair = (s_pair + m_phi**2) / (2.0 * sqrt_s)
+        p_V_pair = math.sqrt(max(E_V_pair**2 - m_phi**2, 0.0))
+        gamma_pair = E_pair / sqrt_s
+        beta_pair = p_pair / E_pair if E_pair > 0 else 0.0
+        if beta_pair * p_V_pair > 0.0:
+            cos_sub = (E_phi_rf / gamma_pair - E_V_pair) / (beta_pair * p_V_pair)
+            cos_sub = max(-1.0, min(1.0, cos_sub))
+        else:
+            cos_sub = 0.0
+        sin_sub = math.sqrt(max(1.0 - cos_sub**2, 0.0))
+        azimuth_sub = random.Uniform(0.0, 2.0 * math.pi)
+        u_arb = np.array([0, 1, 0]) if abs(n_pair[1]) < 0.9 else np.array([1, 0, 0])
+        u1 = np.cross(n_pair, u_arb)
+        u1 /= np.linalg.norm(u1)
+        u2 = np.cross(n_pair, u1)
+        V_dir_pair = (cos_sub * n_pair
+                      + sin_sub * math.cos(azimuth_sub) * u1
+                      + sin_sub * math.sin(azimuth_sub) * u2)
+        P_V_pair = np.array([E_V_pair, *(p_V_pair * V_dir_pair)])
+        P_nu_pair = np.array([sqrt_s - E_V_pair, *(-p_V_pair * V_dir_pair)])
 
-        P_V_lab = np.array([E_V_lab, *(p_V_lab * V_dir)])
+        # 6. Boost (nu, V1) from the pair rest frame into the meson rest frame,
+        #    then assemble all daughters and boost to the lab.
+        P_pair_rf = np.array([E_pair, *(p_pair * n_pair)])
+        P_V_rf = _boost_four_vector(P_pair_rf, P_V_pair, sqrt_s)
+        P_nu_rf = _boost_four_vector(P_pair_rf, P_nu_pair, sqrt_s)
+        self._assemble(record, P_parent, P_nu_rf, P_l_rf, P_V_rf)
 
-        P_parent_4 = np.array([E_pi, 0, 0, p_pi])
-        P_V_rf = np.array([E_phi_rf, *(p_phi_rf * np.array([0, 0, 1]))])
-        P_nu_rf = np.array([E_nu_rf, 0, 0, -E_nu_rf])
-
-        E_l = self.m_meson - E_nu_rf - E_phi_rf
-        p_l = math.sqrt(max(E_l**2 - self.m_lepton**2, 0.0))
-        P_l_rf_3 = -P_nu_rf[1:] - P_V_rf[1:]
-        p_l_mag = np.linalg.norm(P_l_rf_3)
-        if p_l_mag > 0:
-            P_l_rf_3 = P_l_rf_3 / p_l_mag * p_l
-
-        P_nu_lab = _boost_to_lab(P_parent, E_nu_rf, 0.0, 0.0, 0.0)
-        P_l_lab = _boost_to_lab(P_parent, p_l,
-                                float(P_l_rf_3[2] / max(np.linalg.norm(P_l_rf_3), 1e-12)),
-                                math.atan2(float(P_l_rf_3[1]), float(P_l_rf_3[0])),
-                                self.m_lepton)
-
+    def _assemble(self, record, P_parent, P_nu_rf, P_l_rf, P_V_rf):
+        """Boost rest-frame daughter momenta to the lab and store them."""
+        m_M = self.m_meson
+        P_nu = _boost_four_vector(P_parent, P_nu_rf, m_M)
+        P_l = _boost_four_vector(P_parent, P_l_rf, m_M)
+        P_V = _boost_four_vector(P_parent, P_V_rf, m_M)
         for sec in record.get_secondary_particle_records():
             pid = int(sec.type)
             if pid == self.pdgid_lepton:
-                sec.four_momentum = P_l_lab
+                sec.four_momentum = P_l
                 sec.mass = self.m_lepton
             elif pid == self.pdgid_neutrino:
-                sec.four_momentum = P_nu_lab
+                sec.four_momentum = P_nu
                 sec.mass = 0.0
             elif pid == self.pdgid_mediator:
-                sec.four_momentum = P_V_lab
+                sec.four_momentum = P_V
                 sec.mass = self.m_mediator
         return
 
@@ -1232,7 +1359,8 @@ def build_phi_flux(
         if E_meson < m_meson:
             continue
 
-        meson_flux = raw_flux.EvaluatePDF(E_nu)
+        # SampleUnnormedPDF returns the tabulated absolute flux at E_nu.
+        meson_flux = raw_flux.SampleUnnormedPDF(E_nu)
         if meson_flux <= 0.0:
             continue
 
