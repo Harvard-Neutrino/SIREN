@@ -11,11 +11,11 @@ Usage::
     import siren
 
     sim = siren.Simulation(
-        n_events=100_000,
+        events=100_000,
         detector="IceCube",
         primary="NuMu",
         interactions="CSMSDISSplines",
-        target="Nucleon",
+        targets="Nucleon",
         process="CC",
         energy=siren.dist.PowerLaw(2, 1e3, 1e6),
         direction=siren.dist.IsotropicDirection(),
@@ -38,6 +38,7 @@ from ._validation import (
     validate_injection_distributions,
     validate_physical_distributions,
     validate_reweighting_compatibility,
+    collect_set_variables,
 )
 
 
@@ -55,8 +56,9 @@ class Simulation:
 
     Parameters
     ----------
-    n_events : int
-        Number of events to generate.
+    events : int
+        Number of successful events to generate.  The deprecated alias
+        ``n_events`` is still accepted but emits a ``DeprecationWarning``.
     detector : str or DetectorModel
         Detector name (e.g. ``"IceCube"``) or a pre-loaded DetectorModel.
     primary : str or ParticleType
@@ -83,6 +85,19 @@ class Simulation:
         Direction distribution for injection only.
     physical_direction : distribution, optional
         Direction distribution for weighting only.
+    injection_distributions : list, optional
+        Explicit list of primary injection distributions, appended to the
+        list built from the named slots.  Supplies an arbitrary set of
+        primary distributions -- for example a custom
+        VertexPositionDistribution -- directly, without the named slots or
+        the Vertex API.  The named slots become optional as long as the
+        combined list covers energy, direction, and a vertex role; ordering
+        and completeness are validated the same way either route is used.
+    physical_distributions : list, optional
+        Explicit list of primary physical (weighting) distributions,
+        appended to those built from the physical named slots.  Kept
+        separate from ``injection_distributions``: a distribution placed in
+        the injection list is not automatically reused for weighting.
     flux : distribution, optional
         Alias for ``physical_energy``.  When set alongside ``energy``,
         ``energy`` becomes the injection energy and ``flux`` the physical
@@ -117,7 +132,7 @@ class Simulation:
     def __init__(
         self,
         *,
-        n_events,
+        events=None,
         detector,
         primary,
         interactions,
@@ -130,6 +145,9 @@ class Simulation:
         physical_energy=None,
         injection_direction=None,
         physical_direction=None,
+        # Explicit distribution lists (arbitrary primary distributions)
+        injection_distributions=None,
+        physical_distributions=None,
         # Flux convenience
         flux=None,
         # Process loading helpers
@@ -146,6 +164,28 @@ class Simulation:
         # Forward to load_processes
         **process_kwargs,
     ):
+        # ---- Resolve the events count (n_events is a deprecated alias) ----
+        if "n_events" in process_kwargs:
+            n_events = process_kwargs.pop("n_events")
+            if events is not None:
+                raise TypeError(
+                    "Simulation() got both 'events' and 'n_events'. "
+                    "'n_events' is a deprecated alias for 'events'; pass "
+                    "only 'events'."
+                )
+            import warnings
+            warnings.warn(
+                "Simulation(n_events=...) is deprecated; use "
+                "Simulation(events=...) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            events = n_events
+        if events is None:
+            raise TypeError(
+                "Simulation() missing required keyword-only argument: 'events'"
+            )
+
         # ---- Resolve particle types ----
         self._primary_type = _particles.resolve(primary)
         if targets is None:
@@ -186,15 +226,24 @@ class Simulation:
             physical_direction=physical_direction,
             flux=flux,
             mass=mass,
+            injection_distributions=injection_distributions,
+            physical_distributions=physical_distributions,
         )
 
         # ---- Resolve secondary position ----
         self._secondary_injection_distributions = {}
         if secondary_position is not None:
             self._resolve_secondary_position(secondary_position)
+        elif self._secondary_processes:
+            raise ValueError(
+                "Secondary interaction processes were configured "
+                f"(for {list(self._secondary_processes.keys())}), but no "
+                "'secondary_position' distribution was provided. Each secondary "
+                "process needs a secondary vertex distribution; pass "
+                "secondary_position= to Simulation().")
 
         # ---- Store remaining config ----
-        self._n_events = n_events
+        self._events = events
         self._seed = seed
         self._stopping_condition = stopping_condition
 
@@ -220,31 +269,19 @@ class Simulation:
                 load_kwargs["process_types"] = [process]
             load_kwargs.update(extra_kwargs)
 
-            result = _utilities.load_processes(interactions, **load_kwargs)
+            bundle = _utilities.load_processes(interactions, **load_kwargs)
 
-            # load_processes returns different shapes depending on model.
-            # Normalize: we always need (primary_dict, secondary_dict).
-            # Extra return values are model-specific metadata that we
-            # store opaquely.
-            if isinstance(result, tuple):
-                primary_procs = result[0]
-                secondary_procs = result[1] if len(result) > 1 else {}
-                self._process_metadata = result[2:] if len(result) > 2 else ()
-            else:
-                primary_procs = result
-                secondary_procs = {}
-                self._process_metadata = ()
-
-            if self._primary_type not in primary_procs:
-                available = list(primary_procs.keys())
+            if self._primary_type not in bundle.primary:
+                available = list(bundle.primary.keys())
                 raise ValueError(
                     f"Interaction model {interactions!r} did not produce "
                     f"processes for {self._primary_type}. "
                     f"Available: {available}"
                 )
-            self._primary_interactions = primary_procs[self._primary_type]
-            if secondary_procs:
-                self._secondary_processes.update(secondary_procs)
+            self._primary_interactions = bundle.primary[self._primary_type]
+            self._process_metadata = bundle.metadata
+            if bundle.secondary:
+                self._secondary_processes.update(bundle.secondary)
         elif isinstance(interactions, list):
             self._primary_interactions = interactions
             self._process_metadata = ()
@@ -269,10 +306,24 @@ class Simulation:
         physical_direction,
         flux,
         mass,
+        injection_distributions,
+        physical_distributions,
     ):
         """Resolve the injection and physical distribution lists.
 
-        Rules:
+        The named keyword slots (``energy``/``direction``/``position`` and
+        their ``injection_``/``physical_``/``flux`` variants) are a
+        convenience that builds a distribution list.  Distributions passed
+        explicitly through ``injection_distributions`` /
+        ``physical_distributions`` are appended to that list, so an
+        arbitrary set of primary distributions -- for example a custom
+        VertexPositionDistribution -- can be supplied directly, without the
+        named slots or the Vertex API.  Completeness (energy, direction,
+        and a vertex role for injection) is checked against the combined
+        list, so each role may be satisfied by either a named slot or an
+        explicit distribution.
+
+        Named-slot rules:
         - ``energy`` sets both injection and physical energy.
         - ``injection_energy`` / ``physical_energy`` override individually.
         - ``flux`` is an alias for ``physical_energy``.  When combined with
@@ -280,8 +331,20 @@ class Simulation:
         - ``direction`` sets both.  ``injection_direction`` /
           ``physical_direction`` override individually.
         - ``position`` is injection-only (never in physical).
-        - ``mass`` is injection-only (auto-inferred as 0 if omitted).
+        - ``mass`` is injection-only (auto-inferred as 0 when omitted and no
+          mass distribution is supplied explicitly).
+
+        The explicit ``injection_distributions`` and
+        ``physical_distributions`` are kept separate: an energy
+        distribution placed in ``injection_distributions`` is used for
+        injection only and does not populate the physical side (pass it in
+        ``physical_distributions``, or use the named ``energy``/``flux``
+        slots, for that).
         """
+        DV = _distributions.DistributionVariable
+        extra_injection = list(injection_distributions or [])
+        extra_physical = list(physical_distributions or [])
+
         # ---- Energy ----
         inj_energy = injection_energy
         phys_energy = physical_energy
@@ -300,19 +363,11 @@ class Simulation:
                     "Cannot specify both 'energy' and 'injection_energy'. "
                     "Use 'energy' for both, or the split form."
                 )
-            if phys_energy is not None:
-                # energy + flux: energy is injection, flux is physical
-                inj_energy = energy
-            else:
-                inj_energy = energy
+            inj_energy = energy
+            if phys_energy is None:
+                # energy alone sets both; energy + flux keeps flux physical.
                 phys_energy = energy
-
-        if inj_energy is None:
-            raise ValueError(
-                "No energy distribution specified. Provide 'energy', "
-                "or 'injection_energy' + 'physical_energy'."
-            )
-        if phys_energy is None:
+        if phys_energy is None and inj_energy is not None:
             phys_energy = inj_energy
 
         # ---- Direction ----
@@ -330,29 +385,60 @@ class Simulation:
                 )
             inj_dir = direction
             phys_dir = direction
-
-        if inj_dir is None:
-            raise ValueError(
-                "No direction distribution specified. Provide 'direction', "
-                "or 'injection_direction' + 'physical_direction'."
-            )
-        if phys_dir is None:
+        if phys_dir is None and inj_dir is not None:
             phys_dir = inj_dir
 
-        # ---- Position (injection only) ----
-        if position is None:
+        # ---- Assemble injection list: named slots, then explicit extras ----
+        injection = []
+        if inj_energy is not None:
+            injection.append(inj_energy)
+        if inj_dir is not None:
+            injection.append(inj_dir)
+        if position is not None:
+            injection.append(position)
+        injection += extra_injection
+
+        # ---- Completeness (a role may come from a slot OR an explicit dist) ----
+        covered = collect_set_variables(injection)
+        if DV.PrimaryEnergy not in covered:
             raise ValueError(
-                "No position distribution specified. Provide 'position' "
-                "(any subclass of VertexPositionDistribution)."
+                "No energy distribution specified. Provide 'energy', "
+                "'injection_energy' + 'physical_energy', or include a "
+                "PrimaryEnergyDistribution in 'injection_distributions'."
+            )
+        if DV.PrimaryDirection not in covered:
+            raise ValueError(
+                "No direction distribution specified. Provide 'direction', "
+                "'injection_direction' + 'physical_direction', or include a "
+                "PrimaryDirectionDistribution in 'injection_distributions'."
+            )
+        if not (covered & {DV.InitialPosition, DV.InteractionVertex}):
+            raise ValueError(
+                "No position distribution specified. Provide 'position', or "
+                "include a VertexPositionDistribution in "
+                "'injection_distributions'."
             )
 
-        # ---- Mass (injection only, auto-inferred) ----
-        mass_val = mass if mass is not None else 0.0
-        mass_dist = _distributions.PrimaryMass(mass_val)
+        # ---- Mass (injection only, auto-inferred unless supplied) ----
+        if DV.PrimaryMass not in covered:
+            mass_val = mass if mass is not None else 0.0
+            injection.insert(0, _distributions.PrimaryMass(mass_val))
+        elif mass is not None:
+            raise ValueError(
+                "Cannot specify both 'mass' and a mass distribution supplied "
+                "through 'injection_distributions'."
+            )
 
-        # ---- Assemble lists ----
-        self._injection_distributions = [mass_dist, inj_energy, inj_dir, position]
-        self._physical_distributions = [phys_energy, phys_dir]
+        # ---- Assemble physical list: named slots, then explicit extras ----
+        physical = []
+        if phys_energy is not None:
+            physical.append(phys_energy)
+        if phys_dir is not None:
+            physical.append(phys_dir)
+        physical += extra_physical
+
+        self._injection_distributions = injection
+        self._physical_distributions = physical
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
@@ -377,7 +463,7 @@ class Simulation:
         validate_injection_distributions(self._injection_distributions)
 
         injector = _injection.Injector()
-        injector.number_of_events = self._n_events
+        injector.number_of_events = self._events
         injector.detector_model = self._detector_model
         injector.primary_type = self._primary_type
         injector.primary_interactions = self._primary_interactions
@@ -438,8 +524,146 @@ class Simulation:
 
         self._injector = injector
         self._weighter = weighter
+        self._last_events = events
+        self._last_gen_times = gen_times
 
         return Results(events, weights, gen_times, weighter, injector)
+
+    # ------------------------------------------------------------------ #
+    #  Reweight                                                            #
+    # ------------------------------------------------------------------ #
+
+    def reweight(
+        self,
+        *,
+        physical_energy=None,
+        physical_direction=None,
+        physical_distributions=None,
+        interactions=None,
+        secondary_interactions=None,
+    ):
+        """Reweight existing events with new physical parameters.
+
+        Builds a new Weighter with the specified changes and applies it
+        to the events from the last :meth:`run` call.  Does not
+        re-generate events.  Weighter construction is cheap (pointer
+        copies only), so this can be called many times for parameter
+        scans.
+
+        Any parameter not specified is kept from the original simulation.
+
+        Parameters
+        ----------
+        physical_energy : distribution, optional
+            New physical energy distribution.
+        physical_direction : distribution, optional
+            New physical direction distribution.
+        physical_distributions : list, optional
+            Explicit replacement for the entire physical distribution list.
+            Mutually exclusive with ``physical_energy``/``physical_direction``
+            (which patch individual roles instead).
+        interactions : list, optional
+            New primary interaction list (CrossSection/Decay objects).
+        secondary_interactions : dict, optional
+            New secondary interactions ``{ParticleType: [CrossSection/Decay]}``.
+
+        Returns
+        -------
+        Results
+            A new :class:`Results` with the same events but new weights.
+
+        Raises
+        ------
+        RuntimeError
+            If :meth:`run` has not been called yet.
+
+        Examples
+        --------
+        Flux reweighting::
+
+            results = sim.run()
+            new_results = sim.reweight(
+                physical_energy=siren.load_flux("BNB", tag="FHC_numu",
+                                                physically_normalized=True),
+            )
+
+        Coupling scan::
+
+            results = sim.run()
+            for mu in [1e-6, 1e-7, 1e-8]:
+                bundle = siren.load_processes("DarkNewsTables",
+                                              mu_tr_mu4=mu, ...)
+                new_results = sim.reweight(
+                    interactions=bundle.primary[siren.particles.NuMu],
+                    secondary_interactions=bundle.secondary,
+                )
+        """
+        if self._injector is None:
+            raise RuntimeError(
+                "Must call run() before reweight(). "
+                "No events have been generated yet."
+            )
+
+        # Build new physical distribution list.  An explicit
+        # physical_distributions list replaces the whole set; otherwise the
+        # named slots patch the individual energy/direction roles.
+        if physical_distributions is not None:
+            if physical_energy is not None or physical_direction is not None:
+                raise ValueError(
+                    "Cannot combine 'physical_distributions' with "
+                    "'physical_energy'/'physical_direction'. The explicit "
+                    "list replaces the entire physical distribution set."
+                )
+            phys_dists = list(physical_distributions)
+        else:
+            phys_dists = list(self._physical_distributions)
+            if physical_energy is not None:
+                phys_dists = [
+                    d for d in phys_dists
+                    if not isinstance(d, _distributions.PrimaryEnergyDistribution)
+                ]
+                phys_dists.append(physical_energy)
+            if physical_direction is not None:
+                phys_dists = [
+                    d for d in phys_dists
+                    if not isinstance(d, _distributions.PrimaryDirectionDistribution)
+                ]
+                phys_dists.append(physical_direction)
+
+        validate_physical_distributions(phys_dists)
+        validate_reweighting_compatibility(
+            self._injection_distributions,
+            phys_dists,
+        )
+
+        # Resolve interactions
+        primary_interactions = (
+            interactions if interactions is not None
+            else self._primary_interactions
+        )
+        secondary = (
+            secondary_interactions if secondary_interactions is not None
+            else self._secondary_processes
+        )
+
+        # Build a new Weighter (cheap -- just pointer copies)
+        weighter = _injection.Weighter()
+        weighter.injectors = [self._injector]
+        weighter.detector_model = self._detector_model
+        weighter.primary_type = self._primary_type
+        weighter.primary_interactions = primary_interactions
+        weighter.primary_physical_distributions = phys_dists
+
+        if secondary:
+            weighter.secondary_interactions = secondary
+            weighter.secondary_physical_distributions = {}
+
+        weights = [weighter(event) for event in self._last_events]
+
+        return Results(
+            self._last_events, weights, self._last_gen_times,
+            weighter, self._injector,
+        )
 
     # ------------------------------------------------------------------ #
     #  Properties for inspection                                           #
@@ -477,7 +701,7 @@ class Simulation:
 
     def __repr__(self):
         parts = [
-            f"n_events={self._n_events}",
+            f"events={self._events}",
             f"primary={self._primary_type}",
             f"detector={'<loaded>' if self._detector_name is None else self._detector_name!r}",
         ]

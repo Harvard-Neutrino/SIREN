@@ -41,7 +41,7 @@ def _load_darknews_resources(model_kwargs, experiment="CCM"):
     table_dir = os.path.join(get_processes_model_path("DarkNewsTables"), table_name)
     os.makedirs(table_dir, exist_ok=True)
 
-    primary_processes, secondary_processes, _, _ = utilities.load_processes(
+    primary_processes, secondary_processes = utilities.load_processes(
         "DarkNewsTables", primary_type=primary_type,
         detector_model=detector_model, table_name=table_name, **model_kwargs)
 
