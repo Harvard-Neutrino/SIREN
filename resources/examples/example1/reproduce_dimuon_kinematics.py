@@ -49,7 +49,13 @@ def _angle_deg(a, b):
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else "siren_dimuon.npz"
     N = int(sys.argv[2]) if len(sys.argv) > 2 else 2500
-    sigma_spline = os.environ["SIREN_PYTHIA_WIDE_SIGMA"]
+    sigma_spline = os.environ.get("SIREN_PYTHIA_WIDE_SIGMA")
+    if sigma_spline is None:
+        raise RuntimeError(
+            "SIREN_PYTHIA_WIDE_SIGMA is not set. Point it at the total charm "
+            "spline produced by generate_charm_pythia_splines.py (see "
+            "README_charm.md) before running this example."
+        )
     pdf = os.environ.get("SIREN_PYTHIA_PDF", "LHAPDF6:CT18NLO")
     pythia_data = os.environ.get("PYTHIA8DATA", "")
 
