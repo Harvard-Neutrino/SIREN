@@ -764,7 +764,8 @@ PYBIND11_MODULE(injection,m) {
     .def("FailedEvents",&Injector::FailedEvents)
     .def("GetLastFailureReason",&Injector::GetLastFailureReason)
     .def("GetLastFailedTree",&Injector::GetLastFailedTree, pybind11::return_value_policy::reference_internal)
-    .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
+    .def("ResetInjectedEvents",overload_cast<unsigned int>(&Injector::ResetInjectedEvents))
+    .def("ResetInjectedEvents",overload_cast<>(&Injector::ResetInjectedEvents))
     .def("GetPhaseSpaces",&Injector::GetPhaseSpaces)
     .def("AccumulateEventToMixtures",&Injector::AccumulateEventToMixtures,
          arg("tree"), arg("weight"), arg("discount_fallback") = true,
