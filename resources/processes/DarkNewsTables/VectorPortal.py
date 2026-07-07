@@ -260,9 +260,16 @@ class VectorPortalUpsCase:
         propagator = 1.0 / (Q2 + mV**2)**2
         M2 = self.g_D**2 * 4.0 * math.pi * _ALPHA_EM * self.epsilon**2 * numerator * propagator
         F2 = _helm_F2(Q2, self.A)
-        Q_eff_sq = (self.Z * self.epsilon)**2 if self.scattering_regime == "coherent" else 1.0
+        # Coherent scattering off the whole nucleus adds the charges of all Z
+        # protons in phase, so the amplitude carries a factor Z and the cross
+        # section a factor Z^2.  The kinetic mixing enters as epsilon^2 exactly
+        # once, already inside M2; the Helm form factor F2 is normalized to
+        # F2(0)=1 and carries no Z dependence.  Incoherent scattering has no
+        # coherent enhancement (the Z^2 becomes a sum over Z single nucleons,
+        # here left as strength 1).
+        coherent_enhancement = self.Z**2 if self.scattering_regime == "coherent" else 1.0
 
-        dsig = M2 * F2 / (16.0 * math.pi * flux_sq)
+        dsig = M2 * F2 * coherent_enhancement / (16.0 * math.pi * flux_sq)
         return max(0.0, dsig) * _GEV2_TO_CM2
 
     def diff_xsec_Q2(self, E, Q2):
