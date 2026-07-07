@@ -1,5 +1,9 @@
 """
-Distribution shorthand aliases.
+Distribution shorthand aliases auto-generated from C++ bindings.
+
+All concrete distribution classes from ``siren.distributions`` are
+available here under their original names.  A small set of shorter
+aliases is provided for the most common ones.
 
 Usage::
 
@@ -8,63 +12,76 @@ Usage::
     siren.dist.IsotropicDirection()
     siren.dist.ColumnDepth(600, 600.0)
 
-The full names remain available at ``siren.distributions.*``.
+Adding a new distribution in C++ and binding it to Python will make
+it available here automatically.
 """
 
 from . import distributions as _d
-from . import math as _math
-from . import geometry as _geometry
 
-# ---- Energy distributions ----
-PowerLaw = _d.PowerLaw
-Monoenergetic = _d.Monoenergetic
-TabulatedFlux = _d.TabulatedFluxDistribution
+# ------------------------------------------------------------------ #
+#  Auto-export every class from siren.distributions                    #
+# ------------------------------------------------------------------ #
 
-# ---- Direction distributions ----
-IsotropicDirection = _d.IsotropicDirection
-Cone = _d.Cone
-NormalizationConstant = _d.NormalizationConstant
+# Base classes that we expose but are not "concrete" distributions
+_BASE_CLASSES = {
+    "PrimaryInjectionDistribution",
+    "SecondaryInjectionDistribution",
+    "WeightableDistribution",
+    "PrimaryEnergyDistribution",
+    "PrimaryDirectionDistribution",
+    "PrimaryEnergyDirectionDistribution",
+    "PrimaryAreaDistribution",
+    "VertexPositionDistribution",
+    "SecondaryVertexPositionDistribution",
+    "PhysicallyNormalizedDistribution",
+    "DepthFunction",
+    "RangeFunction",
+}
 
-# FixedDirection wrapper: accept list/tuple as well as Vector3D
-_OrigFixedDirection = _d.FixedDirection
+for _name in dir(_d):
+    if _name.startswith("_"):
+        continue
+    _obj = getattr(_d, _name)
+    if isinstance(_obj, type):
+        globals()[_name] = _obj
 
-def FixedDirection(direction):
-    """Create a fixed-direction distribution.
+# Clean up loop variables
+del _name, _obj
 
-    Parameters
-    ----------
-    direction : list, tuple, or Vector3D
-        The direction vector. Lists/tuples of length 3 are auto-converted.
-    """
-    if isinstance(direction, (list, tuple)):
-        direction = _math.Vector3D(*direction)
-    return _OrigFixedDirection(direction)
+# ------------------------------------------------------------------ #
+#  Short aliases for common distributions                              #
+# ------------------------------------------------------------------ #
 
-FixedDirection.__wrapped__ = _OrigFixedDirection
+_short_aliases = {
+    "ColumnDepth": "ColumnDepthPositionDistribution",
+    "CylinderVolume": "CylinderVolumePositionDistribution",
+    "SphereVolume": "SphereVolumePositionDistribution",
+    "PointSource": "PointSourcePositionDistribution",
+    "RangePosition": "RangePositionDistribution",
+    "DecayRangePosition": "DecayRangePositionDistribution",
+    "BoundedVertex": "SecondaryBoundedVertexDistribution",
+    "SecondaryVertex": "SecondaryVertexPositionDistribution",
+    "PhysicalVertex": "SecondaryPhysicalVertexDistribution",
+    "Mass": "PrimaryMass",
+    "Helicity": "PrimaryNeutrinoHelicityDistribution",
+    "DecayRange": "DecayRangeFunction",
+    "TabulatedFlux": "TabulatedFluxDistribution",
+    "Tabulated2DFlux": "Tabulated2DFluxDistribution",
+    "PiDARNuE": "PiDARNuEDistribution",
+    "FixedTargetPosition": "FixedTargetPositionDistribution",
+    "FixedTargetArea": "FixedTargetAreaDistribution",
+    "BoundedPrimaryVertex": "PrimaryBoundedVertexDistribution",
+    "PhysicalPrimaryVertex": "PrimaryPhysicalVertexDistribution",
+    "External": "PrimaryExternalDistribution",
+}
 
-# ---- Position distributions ----
-ColumnDepth = _d.ColumnDepthPositionDistribution
-CylinderVolume = _d.CylinderVolumePositionDistribution
-PointSource = _d.PointSourcePositionDistribution
-RangePosition = _d.RangePositionDistribution
+for _alias, _canonical in _short_aliases.items():
+    if hasattr(_d, _canonical):
+        globals()[_alias] = getattr(_d, _canonical)
 
-# ---- Depth / range functions ----
-LeptonDepthFunction = _d.LeptonDepthFunction
-DecayRange = _d.DecayRangeFunction
-DepthFunction = _d.DepthFunction
-RangeFunction = _d.RangeFunction
+del _alias, _canonical
 
-# ---- Secondary distributions ----
-BoundedVertex = _d.SecondaryBoundedVertexDistribution
-SecondaryVertex = _d.SecondaryVertexPositionDistribution
-PhysicalVertex = _d.SecondaryPhysicalVertexDistribution
 
-# ---- Mass / helicity ----
-Mass = _d.PrimaryMass
-Helicity = _d.PrimaryNeutrinoHelicityDistribution
-
-# ---- Base classes (for isinstance checks) ----
-PrimaryInjectionDistribution = _d.PrimaryInjectionDistribution
-SecondaryInjectionDistribution = _d.SecondaryInjectionDistribution
-WeightableDistribution = _d.WeightableDistribution
-PhysicallyNormalizedDistribution = _d.PhysicallyNormalizedDistribution
+# FixedDirection, Cone, and PointSourcePositionDistribution accept
+# list/tuple natively via pybind11 overloads (std::array<double,3>
+# constructors added in distributions.cxx).  No Python wrapper needed.

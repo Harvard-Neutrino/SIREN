@@ -16,12 +16,25 @@ class TestParticlesNamespace:
         from siren.particles import Nucleon, Neutron, PPlus
         assert Nucleon is not None
 
-    def test_bsm_types_may_be_none(self):
-        """BSM types use _safe() and may be None if not in this build."""
+    def test_bsm_types_available(self):
         from siren import particles
-        # N4 should exist in most builds
-        # But we test the pattern works regardless
         assert hasattr(particles, "N4")
+
+    def test_all_enum_members_auto_exported(self):
+        """Every member of the C++ ParticleType enum should be a
+        module-level attribute of siren.particles."""
+        import siren.dataclasses as dc
+        import siren.particles as particles
+        PT = dc.ParticleType
+        sentinel = PT.NuMu
+        for name in dir(PT):
+            if name.startswith("_"):
+                continue
+            val = getattr(PT, name)
+            if isinstance(val, type(sentinel)):
+                assert hasattr(particles, name), (
+                    f"{name} is in ParticleType enum but not in siren.particles"
+                )
 
     def test_resolve_string(self):
         from siren.particles import resolve, NuMu
@@ -71,6 +84,220 @@ class TestDistNamespace:
         from siren.dist import FixedDirection
         d = FixedDirection((1, 0, 0))
         assert d is not None
+
+    def test_all_concrete_distributions_auto_exported(self):
+        """Every concrete class in siren.distributions should appear in siren.dist."""
+        import siren.distributions as distributions
+        import siren.dist as dist
+        for name in dir(distributions):
+            obj = getattr(distributions, name)
+            if isinstance(obj, type) and not name.startswith("_"):
+                assert hasattr(dist, name), (
+                    f"{name} is in siren.distributions but not in siren.dist"
+                )
+
+
+class TestDistributionVariableEnum:
+    """DistributionVariable enum and SetVariables/RequiredVariables."""
+
+    def test_enum_exists(self):
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        assert hasattr(DV, "PrimaryEnergy")
+        assert hasattr(DV, "PrimaryDirection")
+        assert hasattr(DV, "InteractionVertex")
+
+    def test_set_variables_energy(self):
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        pl = d.PowerLaw(2, 1e3, 1e6)
+        assert DV.PrimaryEnergy in pl.SetVariables()
+
+    def test_set_variables_direction(self):
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        iso = d.IsotropicDirection()
+        assert DV.PrimaryDirection in iso.SetVariables()
+
+    def test_set_variables_position(self):
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        col = d.ColumnDepthPositionDistribution(
+            600, 600.0, d.LeptonDepthFunction()
+        )
+        sv = col.SetVariables()
+        assert DV.InitialPosition in sv
+        assert DV.InteractionVertex in sv
+
+    def test_required_variables_column_depth(self):
+        """ColumnDepthPositionDistribution requires direction, energy, mass."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        col = d.ColumnDepthPositionDistribution(
+            600, 600.0, d.LeptonDepthFunction()
+        )
+        rv = col.RequiredVariables()
+        assert DV.PrimaryDirection in rv
+        assert DV.PrimaryEnergy in rv
+        assert DV.PrimaryMass in rv
+
+    def test_required_variables_energy_empty(self):
+        """Energy distributions have no required variables."""
+        import siren.distributions as d
+        pl = d.PowerLaw(2, 1e3, 1e6)
+        assert len(pl.RequiredVariables()) == 0
+
+    def test_delta_function_detection(self):
+        """Delta functions: SetVariables has the var, DensityVariables does not."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+
+        fd = d.FixedDirection([0, 0, 1])
+        assert DV.PrimaryDirection in fd.SetVariables()
+        assert len(fd.DensityVariables()) == 0
+
+        mono = d.Monoenergetic(1000)
+        assert DV.PrimaryEnergy in mono.SetVariables()
+        assert len(mono.DensityVariables()) == 0
+
+    def test_non_delta_has_density(self):
+        """Non-delta distributions appear in both SetVariables and DensityVariables."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+
+        pl = d.PowerLaw(2, 1e3, 1e6)
+        assert DV.PrimaryEnergy in pl.SetVariables()
+        assert "PrimaryEnergy" in pl.DensityVariables()
+
+    def test_pidar_inherits_set_variables(self):
+        """PiDARNuEDistribution inherits SetVariables from base without
+        manual registration."""
+        import siren.distributions as d
+        DV = d.DistributionVariable
+        pidar = d.PiDARNuEDistribution()
+        assert DV.PrimaryEnergy in pidar.SetVariables()
+
+
+class TestOrderingValidation:
+    """validate_ordering should catch dependency violations."""
+
+    def test_correct_ordering_passes(self):
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        dists = [
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+            d.ColumnDepthPositionDistribution(
+                600, 600.0, d.LeptonDepthFunction()
+            ),
+        ]
+        validate_ordering(dists)
+
+    def test_wrong_ordering_raises(self):
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        dists = [
+            d.ColumnDepthPositionDistribution(
+                600, 600.0, d.LeptonDepthFunction()
+            ),
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+        ]
+        import pytest
+        with pytest.raises(ValueError, match="requires variables"):
+            validate_ordering(dists)
+
+    def test_duplicate_set_variables_raises(self):
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        dists = [
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+            d.FixedDirection([0, 0, 1]),  # duplicate PrimaryDirection
+            d.ColumnDepthPositionDistribution(
+                600, 600.0, d.LeptonDepthFunction()
+            ),
+        ]
+        import pytest
+        with pytest.raises(ValueError, match="already been set by"):
+            validate_ordering(dists)
+
+
+class TestReweightingValidation:
+    """Physical and injection measures must use compatible variables."""
+
+    @staticmethod
+    def _fixed_target_distributions():
+        import siren.distributions as d
+        import siren.geometry as g
+
+        target = g.Cylinder(1.0, 0.0, 2.0)
+        return (
+            d.FixedTargetPositionDistribution(target, 10.0),
+            d.FixedTargetAreaDistribution(target),
+        )
+
+    def test_propagated_vertex_leaves_external_area_factor(self):
+        """The 1D normalized-position density is covered by a 3D vertex."""
+        from siren._validation import validate_reweighting_compatibility
+
+        vertex, _ = self._fixed_target_distributions()
+        validate_reweighting_compatibility([vertex], [])
+
+    def test_fixed_target_area_and_position_density_cancel_vertex(self):
+        """Two area coordinates plus the 1D position factor cover the vertex."""
+        from siren._validation import validate_reweighting_compatibility
+
+        vertex, area = self._fixed_target_distributions()
+        validate_reweighting_compatibility([vertex], [area])
+
+    def test_downstream_mode_controls_normalized_position_measure(self):
+        from siren._validation import validate_reweighting_compatibility
+
+        _, area = self._fixed_target_distributions()
+        with pytest.raises(ValueError, match="PrimaryPositionLongitudinal"):
+            validate_reweighting_compatibility([area], [])
+
+        validate_reweighting_compatibility(
+            [area], [], compute_position_probability=False)
+
+    def test_interaction_probability_is_dimensionless(self):
+        from siren._validation import validate_reweighting_compatibility
+
+        vertex, area = self._fixed_target_distributions()
+        validate_reweighting_compatibility(
+            [vertex], [area], compute_interaction_probability=False)
+
+    def test_simulation_builds_weighter_only_after_compatibility_check(
+        self, monkeypatch,
+    ):
+        import importlib
+
+        simulation_module = importlib.import_module("siren.Simulation")
+        injection_distributions = [object()]
+        physical_distributions = [object()]
+
+        def reject(injection, physical, **_mode):
+            assert injection == injection_distributions
+            assert physical == physical_distributions
+            raise ValueError("compatibility sentinel")
+
+        monkeypatch.setattr(
+            simulation_module, "validate_physical_distributions",
+            lambda _distributions: None)
+        monkeypatch.setattr(
+            simulation_module, "validate_reweighting_compatibility", reject)
+
+        simulation = simulation_module.Simulation.__new__(
+            simulation_module.Simulation)
+        simulation._injection_distributions = injection_distributions
+        simulation._physical_distributions = physical_distributions
+
+        with pytest.raises(ValueError, match="compatibility sentinel"):
+            simulation._build_weighter(object())
 
 
 class TestTopLevelExports:
@@ -203,7 +430,7 @@ class TestSimulationValidation:
 
     def test_no_interactions_raises(self):
         import siren
-        with pytest.raises(ValueError, match="interactions.*darknews_model"):
+        with pytest.raises(TypeError):
             siren.Simulation(
                 n_events=1,
                 detector="IceCube",

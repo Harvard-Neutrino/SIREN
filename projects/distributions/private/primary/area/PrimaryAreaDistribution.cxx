@@ -19,6 +19,10 @@ void PrimaryAreaDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_ran
     record.SetPointOfClosestApproach((std::array<double, 3>)point_of_closest_approach);
 }
 
+std::set<DistributionVariable> PrimaryAreaDistribution::SetVariables() const {
+    return {DistributionVariable::PrimaryArea};
+}
+
 std::vector<std::string> PrimaryAreaDistribution::DensityVariables() const {
     return std::vector<std::string>{"PointOfClosestApproach"};
 }
