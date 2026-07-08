@@ -747,7 +747,11 @@ class Simulation:
         self._last_events = events
         self._last_gen_times = gen_times
 
-        return Results(events, weights, gen_times, weighter, injector)
+        # Snapshot the requested count explicitly: an injector's live
+        # number_of_events is not a reliable post-generate snapshot of the
+        # request.
+        return Results(events, weights, gen_times, weighter, injector,
+                       requested=self._events)
 
     # ------------------------------------------------------------------ #
     #  Reweight                                                            #
@@ -882,7 +886,7 @@ class Simulation:
 
         return Results(
             self._last_events, weights, self._last_gen_times,
-            weighter, self._injector,
+            weighter, self._injector, requested=self._events,
         )
 
     # ------------------------------------------------------------------ #
