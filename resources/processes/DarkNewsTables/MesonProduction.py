@@ -87,6 +87,21 @@ def _two_body_p_cm(M, m1, m2):
     return math.sqrt(arg) / (2.0 * M)
 
 
+def _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf):
+    """
+    Exact inversion of the on-axis forward two-body relation
+    E_nu(theta=0) = E_nu_rf (E_M + p_M)/m_M, giving E_M = 0.5 m_M (k + 1/k)
+    with k = E_nu/E_nu_rf.  The isotropic-mean inverse (gamma = E_nu/E_nu_rf)
+    understates the on-axis parent energy by up to a factor of two at high
+    boost; the collinear direction approximation itself is unchanged.  Returns
+    None when E_nu <= E_nu_rf (k <= 1 has no forward solution).
+    """
+    if E_nu <= E_nu_rf:
+        return None
+    k = E_nu / E_nu_rf
+    return 0.5 * m_meson * (k + 1.0 / k)
+
+
 # ---------------------------------------------------------------------------
 # Meson decay constants and CKM elements
 # ---------------------------------------------------------------------------
@@ -992,11 +1007,10 @@ def build_phi_flux(
     nu_energies = list(raw_flux.GetEnergyNodes())
 
     E_nu_rf_2body = (m_meson**2 - m_lepton**2) / (2.0 * m_meson)
-    nu_to_meson = m_meson / E_nu_rf_2body if E_nu_rf_2body > 0 else 1.0
 
     for E_nu in nu_energies:
-        E_meson = E_nu * nu_to_meson
-        if E_meson < m_meson:
+        E_meson = _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf_2body)
+        if E_meson is None:
             continue
 
         # SampleUnnormedPDF returns the tabulated absolute flux at E_nu.

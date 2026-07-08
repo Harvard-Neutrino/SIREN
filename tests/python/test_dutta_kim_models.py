@@ -1010,7 +1010,10 @@ def test_chi_flux_closed_channel_raises(vector_portal):
 
 
 def test_chi_flux_integral_pin(vector_portal):
-    """compute_chi_flux absolute normalization pinned end-to-end on the PionKaon table."""
+    """compute_chi_flux absolute normalization pinned end-to-end on the PionKaon table.
+
+    Re-derives against an independent from-scratch continuous fold (anchor 1.3606835e+06).
+    """
     import numpy as np
 
     vp = vector_portal
@@ -1020,7 +1023,35 @@ def test_chi_flux_integral_pin(vector_portal):
     nodes = np.array(flux.GetEnergyNodes())
     vals = np.array([flux.SampleUnnormedPDF(float(e)) for e in nodes])
     integral = float(np.trapezoid(vals, nodes))
-    assert integral == pytest.approx(1.9621526925224907e-13, rel=1e-5)
+    assert integral == pytest.approx(1360683.525557477, rel=1e-5)
+
+
+def test_chi_flux_absolute_scale_and_multiplicity(vector_portal):
+    """Locks the 2 x BR(V1 -> chi chi) multiplicity and the on-axis forward two-body parent-energy inversion in the chi-flux builder."""
+    import numpy as np
+
+    vp = vector_portal
+    f1 = vp.compute_chi_flux(
+        0.13957, 0.10566, 0.017, 0.008, 0.008, 1.0, 1.0e-4,
+        "pion_numu", 0.05, 3.0, physically_normalized=False)
+
+    # Both dark-matter daughters count; the width model gives BR(V1 -> chi chi) = 1 here.
+    assert vp._v1_to_chi_chi_branching(0.017, 0.008, 1.0, 1.0e-4) == \
+        pytest.approx(1.0, abs=1e-8)
+
+    nodes = np.array(f1.GetEnergyNodes())
+    vals = np.array([f1.SampleUnnormedPDF(float(e)) for e in nodes])
+    assert float(np.trapezoid(vals, nodes)) == pytest.approx(
+        1360683.525557477, rel=1e-5)
+
+    # Forward two-body inversion E_M = 0.5 m_M (k + 1/k); k <= 1 (E_nu <= E_nu_rf)
+    # has no forward solution.
+    m_pi = 0.13957039
+    E_nu_rf = (m_pi**2 - 0.10565837**2) / (2.0 * m_pi)
+    assert vp._meson_energy_from_forward_nu(E_nu_rf - 1e-6, m_pi, E_nu_rf) is None
+    k = 2.0 / E_nu_rf
+    assert vp._meson_energy_from_forward_nu(2.0, m_pi, E_nu_rf) == \
+        pytest.approx(0.5 * m_pi * (k + 1.0 / k))
 
 
 def test_coherent_total_cross_section_magnitude_pin(vector_portal):
