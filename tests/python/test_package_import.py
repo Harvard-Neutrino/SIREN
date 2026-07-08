@@ -54,3 +54,22 @@ def test_three_body_mode_bound():
     import siren
     assert hasattr(siren.injection.ThreeBodyMode, "Direct")
     assert hasattr(siren.injection.ThreeBodyMode, "Recursive")
+
+
+def test_interaction_signature_eq_hash():
+    """InteractionSignature binds value == / hash consistently."""
+    import siren
+
+    def _sig(secs):
+        s = siren.dataclasses.InteractionSignature()
+        s.primary_type = siren.particles.N4
+        s.target_type = siren.dataclasses.ParticleType.Decay
+        s.secondary_types = secs
+        return s
+
+    a = _sig([siren.particles.NuLight, siren.particles.Gamma])
+    b = _sig([siren.particles.NuLight, siren.particles.Gamma])
+    c = _sig([siren.particles.NuLight, siren.particles.EMinus])
+    assert a == b
+    assert hash(a) == hash(b)
+    assert a != c
