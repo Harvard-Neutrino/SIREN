@@ -281,11 +281,24 @@ class VectorPortalUpsCase:
         q2max = _Q2max(E, self.m_chi, self.m_ups, self.MA)
         if q2max <= q2min:
             return 0.0
-        result, _ = _integrate.quad(
-            lambda q2: self._dsigma_dQ2(E, q2),
-            q2min, q2max,
-            limit=80, epsrel=1e-4,
-        )
+        # The V2 propagator confines most of the integral to within a few
+        # m_V^2 of q2min; over a wide Q2 range a single adaptive pass can
+        # step over that sliver and report convergence.  Integrate on
+        # segments anchored at q2min + {0.1, 1, 10, 100} m_V^2.
+        edges = [q2min]
+        for scale in (0.1, 1.0, 10.0, 100.0):
+            edge = q2min + scale * self.m_V**2
+            if edges[-1] < edge < q2max:
+                edges.append(edge)
+        edges.append(q2max)
+        result = 0.0
+        for lo, hi in zip(edges[:-1], edges[1:]):
+            piece, _ = _integrate.quad(
+                lambda q2: self._dsigma_dQ2(E, q2),
+                lo, hi,
+                limit=200, epsrel=1e-7,
+            )
+            result += piece
         return max(0.0, result)
 
 
