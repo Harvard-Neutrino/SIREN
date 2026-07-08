@@ -87,7 +87,12 @@ void ProcessWeighter<ProcessType>::Initialize() {
             gen_it != unique_gen_distributions.rend(); ++gen_it) {
         for(std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
                 phys_it != unique_phys_distributions.rend(); ++phys_it) {
-            if((*gen_it) == (*phys_it)) {
+            // Cancel by value equality (WeightableDistribution::operator==),
+            // not shared_ptr identity: an injection and a physical distribution
+            // that are equal by value cancel in the weight ratio even when they
+            // are distinct instances. Shared instances compare equal too, so the
+            // common (literally shared) case is unchanged.
+            if((*gen_it) && (*phys_it) && **gen_it == **phys_it) {
                 cancelled_distribution_names.push_back((*gen_it)->Name());
                 unique_gen_distributions.erase(std::next(gen_it).base());
                 unique_phys_distributions.erase(std::next(phys_it).base());

@@ -13,6 +13,7 @@
 
 - Event weights are normalized by the realized injected-event count instead of the configured target count (falls back to the configured count when weighting precedes generation).
 - ConvertDensity now rejects non-Decay2Body SolidAngleLab conversions as unconvertible (MeasureCompatibilityError) instead of silently applying the parent-rest-frame two-body boost Jacobian in the wrong frame; Decay2Body SolidAngleLab conversions are unchanged.
+- Distribution cancellation between an injection process and its physical process matches by value (WeightableDistribution::operator==) rather than shared-pointer identity, as the in-tree documentation everywhere already claimed. Weights change only for distributions that are value-equal but distinct instances, which previously evaluated on both sides of the ratio: that ratio was already 1 for them, except for the 0/0 edge pairs that previously threw WeightCalculationError and now cancel cleanly. Distributions that are literally shared (the common case) compare equal exactly as before, so their weights do not move. The documented Weighter.load()-with-live-injectors path, which binds deserialized physical distributions against live injection distributions, now cancels them as intended (deserialized and live instances are never pointer-equal, so identity matching could never fire).
 
 ### Fixed
 
