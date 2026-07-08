@@ -100,6 +100,7 @@ def _build_darknews_ccm(events_to_inject=2):
     injector.primary_injection_distributions = primary_injection_distributions
     injector.secondary_interactions = secondary_processes
     injector.secondary_injection_distributions = secondary_injection_distributions
+    injector.stopping_condition = lambda tree, datum, i: True
 
     events, gen_times = GenerateEvents(injector)
 
