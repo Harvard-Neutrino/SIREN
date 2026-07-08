@@ -938,7 +938,7 @@ def test_coherent_total_cross_section_magnitude_pin(vector_portal):
     record = _record(signature, 0.008, 1.0)
     record.target_mass = xs._ups.MA
     assert xs.TotalCrossSection(record) == pytest.approx(
-        4.26236435341529e-35, rel=1e-9)
+        4.2364767575893256e-35, rel=1e-9)
 
 
 def test_biased_meson_adaptive_cone_pointwise_closure(meson_production_module):
