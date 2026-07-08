@@ -152,38 +152,6 @@ def _primary_type(arg):
     return arg
 
 
-def _cos_theta_in_parent_rest(P_parent, P_child):
-    P_parent = np.asarray(P_parent, dtype=float)
-    P_child = np.asarray(P_child, dtype=float)
-    parent_p = P_parent[1:]
-    parent_p_mag = np.linalg.norm(parent_p)
-    child_p = P_child[1:]
-
-    if parent_p_mag < 1e-12:
-        child_p_mag = np.linalg.norm(child_p)
-        if child_p_mag < 1e-30:
-            return 1.0
-        return float(child_p[2] / child_p_mag)
-
-    parent_mass_sq = max(P_parent[0]**2 - parent_p_mag**2, 0.0)
-    parent_mass = math.sqrt(parent_mass_sq)
-    if parent_mass < 1e-12 or P_parent[0] <= 0.0:
-        return 1.0
-
-    beta = parent_p_mag / P_parent[0]
-    gamma = P_parent[0] / parent_mass
-    beta_hat = parent_p / parent_p_mag
-
-    child_p_parallel = float(np.dot(child_p, beta_hat))
-    child_p_perp = child_p - child_p_parallel * beta_hat
-    child_p_parallel_rest = gamma * (child_p_parallel - beta * P_child[0])
-    child_p_rest = child_p_perp + child_p_parallel_rest * beta_hat
-    child_p_rest_mag = np.linalg.norm(child_p_rest)
-    if child_p_rest_mag < 1e-30:
-        return 1.0
-    return float(np.dot(child_p_rest, beta_hat) / child_p_rest_mag)
-
-
 # ---------------------------------------------------------------------------
 # Helm nuclear form factor
 # ---------------------------------------------------------------------------
@@ -1039,13 +1007,13 @@ class DarkPhotonDecay(_DecayModel):
     """
     Two-body decay V1 -> e- e+.
     Width: Gamma = (alpha epsilon^2 m_V / 3) sqrt(1 - 4 m_e^2/m_V^2) (1 + 2 m_e^2/m_V^2)
-    Angular distribution: dGamma/d(cos theta) ~ 1 + beta^2 cos^2(theta)
 
-    Declared measure SolidAngleRest 2-body, but the rest-frame angular density
-    is 1 + beta^2 cos^2(theta), NOT isotropic. differential_width carries that
-    shape (the base forms FinalStateProbability = differential / total), and
-    sample() is overridden with the matching rejection sampler so Sample and
-    Density stay the same distribution.
+    Isotropic in the V1 rest frame (SolidAngleRest 2-body): nothing in the
+    chain produces or propagates a V1 polarization state, so the unpolarized
+    average applies. The authoring base derives the signature methods, the
+    width overload pair, the isotropic 1/(4 pi) FinalStateProbability,
+    Topology/Measure, and the closure-by-construction Isotropic2BodyChannel
+    sampler from total_width() / differential_width().
     """
 
     measure = _Measure.SolidAngleRest()
@@ -1082,24 +1050,7 @@ class DarkPhotonDecay(_DecayModel):
     def differential_width(self, record):
         if int(record.signature.primary_type) != self.pdgid_V1:
             return 0.0
-        if self._total_width <= 0.0:
-            return 0.0
-
-        for idx, stype in enumerate(record.signature.secondary_types):
-            if stype == Particle.ParticleType.EMinus:
-                cos_theta = _cos_theta_in_parent_rest(
-                    record.primary_momentum,
-                    record.secondary_momenta[idx],
-                )
-                break
-        else:
-            cos_theta = 0.0
-
-        p_cm = _two_body_p_cm(self.m_V1, _M_ELECTRON, _M_ELECTRON)
-        e_cm = math.sqrt(p_cm**2 + _M_ELECTRON**2)
-        beta_e = p_cm / e_cm if e_cm > 0.0 else 0.0
-        norm = 4.0 * math.pi * (1.0 + beta_e**2 / 3.0)
-        return self._total_width * (1.0 + beta_e**2 * cos_theta**2) / norm
+        return self._total_width / (4.0 * math.pi)
 
     def density_variables(self):
         return ["cos_theta"]
@@ -1115,32 +1066,6 @@ class DarkPhotonDecay(_DecayModel):
 
     def equal(self, other):
         return self is other
-
-    def sample(self, record, random):
-        me = _M_ELECTRON
-        p_cm = _two_body_p_cm(self.m_V1, me, me)
-        beta = p_cm / math.sqrt(p_cm**2 + me**2) if p_cm > 0 else 0.0
-
-        while True:
-            cos_theta = random.Uniform(-1.0, 1.0)
-            u = random.Uniform(0.0, 1.0 + beta**2)
-            if u <= 1.0 + beta**2 * cos_theta**2:
-                break
-
-        phi = random.Uniform(0.0, 2.0 * math.pi)
-
-        P_parent = np.array(record.primary_momentum)
-        P_eminus = _boost_to_lab(P_parent, p_cm, cos_theta, phi, me)
-        P_eplus = _boost_to_lab(P_parent, p_cm, -cos_theta, phi + math.pi, me)
-
-        for sec in record.get_secondary_particle_records():
-            if sec.type == Particle.ParticleType.EMinus:
-                sec.four_momentum = P_eminus
-                sec.mass = me
-            elif sec.type == Particle.ParticleType.EPlus:
-                sec.four_momentum = P_eplus
-                sec.mass = me
-        return
 
 
 # ===================================================================
