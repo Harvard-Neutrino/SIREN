@@ -101,6 +101,21 @@ def _two_body_p_cm(M, m1, m2):
     return math.sqrt(arg) / (2.0 * M)
 
 
+def _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf):
+    """
+    Exact inversion of the on-axis forward two-body relation
+    E_nu(theta=0) = E_nu_rf (E_M + p_M)/m_M, giving E_M = 0.5 m_M (k + 1/k)
+    with k = E_nu/E_nu_rf.  The isotropic-mean inverse (gamma = E_nu/E_nu_rf)
+    understates the on-axis parent energy by up to a factor of two at high
+    boost; the collinear direction approximation itself is unchanged.  Returns
+    None when E_nu <= E_nu_rf (k <= 1 has no forward solution).
+    """
+    if E_nu <= E_nu_rf:
+        return None
+    k = E_nu / E_nu_rf
+    return 0.5 * m_meson * (k + 1.0 / k)
+
+
 def _boost_to_lab(P_parent, p_cm, cos_theta, phi, m_daughter):
     E_parent = P_parent[0]
     p_parent = P_parent[1:]
@@ -217,6 +232,20 @@ def _chi_prime_to_chi_v1_width(m_chi_prime, m_chi, m_V1, g_sq):
     bracket = (w - 3.0 * m_chi * m_chi_prime
                + ((m_chi_prime**2 - m_chi**2)**2 - m_V1**4) / (2.0 * m_V1**2))
     return (g_sq * p_star / (4.0 * math.pi * m_chi_prime**2)) * bracket
+
+
+def _v1_to_chi_chi_branching(m_V1, m_chi, g_D, epsilon):
+    """
+    Branching ratio BR(V1 -> chi chi) in this module's own width model.  At the
+    benchmark masses the only open V1 channels are chi chi and e+ e- (m_V1 lies
+    below 2 m_mu), so the branching is Gamma_chichi/(Gamma_chichi + Gamma_ee).
+    """
+    gamma_chichi = _v1_to_fermion_pair_width(m_V1, m_chi, g_D**2)
+    if gamma_chichi <= 0.0:
+        return 0.0
+    gamma_ee = _v1_to_fermion_pair_width(
+        m_V1, _M_ELECTRON, 4.0 * math.pi * _ALPHA_EM * epsilon**2)
+    return gamma_chichi / (gamma_chichi + gamma_ee)
 
 
 # ===================================================================
@@ -1593,9 +1622,9 @@ def compute_chi_flux(
         )
 
     E_nu_rf = (m_meson**2 - m_lepton**2) / (2.0 * m_meson)
-    nu_to_meson = m_meson / E_nu_rf
 
     br_ratio = _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon)
+    br_v1 = _v1_to_chi_chi_branching(m_V1, m_chi, g_D, epsilon)
 
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
@@ -1613,8 +1642,8 @@ def compute_chi_flux(
     hist = np.zeros(n_bins)
 
     for i, E_nu in enumerate(nu_energies):
-        E_meson = E_nu * nu_to_meson
-        if E_meson < m_meson:
+        E_meson = _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf)
+        if E_meson is None:
             continue
 
         gamma_meson = E_meson / m_meson
@@ -1624,17 +1653,20 @@ def compute_chi_flux(
         if E_plus < min_energy or E_minus > max_energy:
             continue
 
-        # SamplePDF is a per-GeV density at the node; convert to a countable
-        # weight over the node's own energy interval (midpoint spacing) so the
-        # deposited histogram divided by the output bin width is again per GeV.
+        # SampleUnnormedPDF is the tabulated absolute flux per GeV at the node;
+        # convert to a countable weight over the node's own energy interval
+        # (midpoint spacing) so the deposited histogram divided by the output
+        # bin width is again per GeV.
         lo = nu_energies[i - 1] if i > 0 else E_nu
         hi = nu_energies[i + 1] if i + 1 < len(nu_energies) else E_nu
         dE_node = 0.5 * (hi - lo)
         if dE_node <= 0.0:
             continue
 
-        nu_flux_at_E = raw_flux.SamplePDF(E_nu)
-        chi_flux_at_E = nu_flux_at_E * br_ratio * 0.5 * dE_node
+        nu_flux_at_E = raw_flux.SampleUnnormedPDF(E_nu)
+        # each V1 -> chi chi decay deposits BOTH daughters (the paper's
+        # prefactor 2 x BR(V1 -> 2chi)).
+        chi_flux_at_E = nu_flux_at_E * br_ratio * br_v1 * 2.0 * dE_node
 
         _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, chi_flux_at_E)
 
@@ -1724,13 +1756,16 @@ def compute_chi_flux_from_dk2nu(
         )
 
     br_ratio = _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon)
+    br_v1 = _v1_to_chi_chi_branching(m_V1, m_chi, g_D, epsilon)
 
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
     gamma_mesons = E_meson / m_meson
     E_V_lab = gamma_mesons * E_V_rest
 
-    chi_weights = weights * br_ratio * 0.5
+    # each V1 -> chi chi decay deposits BOTH daughters (the paper's prefactor
+    # 2 x BR(V1 -> 2chi)).
+    chi_weights = weights * br_ratio * br_v1 * 2.0
 
     E_edges = np.linspace(min_energy, max_energy, n_bins + 1)
     dE = E_edges[1] - E_edges[0]
