@@ -81,6 +81,14 @@ from .vertex import Vertex
 from ._directed import Directed
 from .generate import generate
 
+# ---- Authoring bases + closure gauge ----
+from .models import (
+    DecayModel, CrossSectionModel,
+    decay_model_base, cross_section_model_base,
+    Measure, Topology,
+)
+from .closure import check_closure, ClosureReport
+
 # Weighting-mode presets re-exported at the top level.
 Propagated = injection.VertexWeightingMode.Propagated
 Fixed = injection.VertexWeightingMode.Fixed
