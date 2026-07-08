@@ -116,6 +116,29 @@ void Weighter::Initialize() {
     }
 }
 
+// Fills the observation-only channel_densities and cancelled fields. The
+// per-channel generation densities come from the injection process's mixture
+// for this signature (empty when the vertex has no phase space); cancelled
+// lists the shared distributions removed from both sides of the weight ratio.
+// Never consumed by the weight itself.
+template<typename ProcessPtr>
+static void RecordMixtureDiagnostics(VertexWeightFactors & factors,
+        ProcessPtr const & inj_process,
+        std::vector<std::string> const & cancelled_names,
+        siren::dataclasses::InteractionRecord const & record,
+        std::shared_ptr<siren::detector::DetectorModel> const & detector_model) {
+    factors.cancelled = cancelled_names;
+    if(inj_process && inj_process->HasPhaseSpace(record.signature)) {
+        auto ps = inj_process->GetPhaseSpace(record.signature);
+        factors.channel_density_topology = ps->CommonTopology();
+        factors.channel_density_measure = ps->CommonMeasure();
+        std::vector<double> contributions = ps->DensityBreakdown(detector_model, record);
+        for(std::size_t c = 0; c < contributions.size(); ++c) {
+            factors.channel_densities["channel[" + std::to_string(c) + "]"] = contributions[c];
+        }
+    }
+}
+
 // Computes one tree datum's physical and generation factors for injector idx,
 // via the same ProcessWeighter calls EventWeight consumes. depth is left at
 // its default for non-root data; the caller fills it in from the owning tree.
@@ -135,6 +158,10 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         if(with_diagnostics) {
             factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
             factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+            RecordMixtureDiagnostics(factors,
+                injectors[idx]->GetPrimaryProcess(),
+                primary_process_weighters[idx]->GetCancelledDistributionNames(),
+                datum->record, detector_model);
         }
     } else {
         try {
@@ -145,6 +172,10 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             if(with_diagnostics) {
                 factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
                 factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+                RecordMixtureDiagnostics(factors,
+                    injectors[idx]->GetSecondaryProcessMap().at(datum->record.signature.primary_type),
+                    w->GetCancelledDistributionNames(),
+                    datum->record, detector_model);
             }
         } catch(const std::out_of_range& oor) {
             std::ostringstream oss;
