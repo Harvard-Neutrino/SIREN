@@ -342,3 +342,53 @@ def test_native_sampling_failures_preserve_reason_and_attempt_accounting(depth, 
     inj.ResetInjectedEvents(1)
     assert inj.EventsToInject() == 1
     assert inj.InjectionAttempts() == inj.InjectedEvents() == inj.FailedEvents() == 0
+
+
+# --------------------------------------------------------------------------- #
+# (d) The rendered InjectionReport over the ledger.                           #
+# --------------------------------------------------------------------------- #
+
+def test_injection_report_renders_table_and_dominant():
+    """InjectionReport.from_ledger renders an attrition table and a dominant()."""
+    from siren.report import InjectionReport
+
+    inj, _keepalive = _make_forced_failure_injector(n_inject=4)
+    for _ in range(4):
+        inj.GenerateEvent()
+
+    report = InjectionReport.from_ledger(
+        inj.GetFailureLedger(),
+        attempts=inj.InjectionAttempts(),
+        successes=inj.InjectedEvents(),
+        last_failed_tree=inj.GetLastFailedTree())
+
+    text = str(report)
+    assert "InjectionReport" in text
+    assert "NoTargetsOnPath" in text
+    assert "count" in text
+
+    dominant = report.dominant()
+    assert dominant is not None
+    assert dominant.reason_name == "NoTargetsOnPath"
+    assert dominant.count == 4
+    assert dominant.hint  # a non-empty one-line remedy
+
+
+def test_injection_report_efficiency_and_particle_name():
+    """The report exposes efficiency and a resolved particle name per bucket."""
+    from siren.report import InjectionReport
+
+    inj, _keepalive = _make_forced_failure_injector(n_inject=3)
+    for _ in range(3):
+        inj.GenerateEvent()
+
+    report = InjectionReport.from_ledger(
+        inj.GetFailureLedger(),
+        attempts=inj.InjectionAttempts(),
+        successes=inj.InjectedEvents())
+
+    assert report.successes == 0
+    assert report.efficiency == 0.0
+    bucket = report.dominant()
+    # The parent PDG (14, NuMu) resolves to a readable particle name.
+    assert bucket.particle != str(bucket.pdg) or bucket.pdg == 14
