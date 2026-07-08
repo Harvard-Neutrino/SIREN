@@ -602,6 +602,39 @@ def test_meson_three_body_width_absolute_anchors(meson_production_module):
         assert br_per_g2 == pytest.approx(table_br[key], rel=0.12)
 
 
+def test_vector_meson_br_ratio_anchors(vector_portal):
+    """Pin the M -> l nu V1 production branching ratio Gamma3/Gamma2.
+
+    Two independent anchors fix it: the six-figure spinor-sum values (explicit
+    Dirac spinor sums agreeing with the Carlson-Rislow closed form), and the
+    Dutta-Kim PRL 129, 111803 Table 2 vector entries once the paper's stated
+    BR(V1 -> observed) = 50% is folded out (its ee rows equal its invisible-X
+    rows, fixing that reading).
+    """
+    vp = vector_portal
+    m_pi = 0.13957039
+    m_K = 0.49368
+    m_mu = 0.10565837
+    m_V1 = 0.017
+    epsilon = 7e-5
+
+    br3_pi = vp._meson_to_v1_branching_ratio(m_pi, m_mu, m_V1, epsilon)
+    br3_K = vp._meson_to_v1_branching_ratio(m_K, m_mu, m_V1, epsilon)
+    assert br3_pi == pytest.approx(3.80806e-13, rel=1e-4)
+    assert br3_K == pytest.approx(2.21940e-09, rel=1e-4)
+
+    # Absolute BR against 2x the Dutta-Kim Table 2 vector entries (the table
+    # folds BR(V1 -> 2chi) = 0.5).  BR2 are the PDG M -> mu nu branchings.
+    BR2_pi = 0.999877
+    BR2_K = 0.6356
+    assert br3_pi * BR2_pi == pytest.approx(2.0 * 0.17e-12, rel=0.20)
+    assert br3_K * BR2_K == pytest.approx(2.0 * 680e-12, rel=0.08)
+
+    # C_V^2 scales as epsilon^2, so the ratio scales as epsilon^2 exactly.
+    br3_pi_6 = vp._meson_to_v1_branching_ratio(m_pi, m_mu, m_V1, 6e-5)
+    assert br3_pi_6 == pytest.approx(br3_pi * (6.0 / 7.0)**2, rel=1e-9)
+
+
 # ------------------------------------------------------------------ #
 #  End-to-end chain test                                               #
 # ------------------------------------------------------------------ #
@@ -941,7 +974,7 @@ def test_chi_flux_closed_channel_raises(vector_portal):
 
 
 def test_chi_flux_integral_pin(vector_portal):
-    """compute_chi_flux absolute normalization pin on the PionKaon table."""
+    """compute_chi_flux absolute normalization pinned end-to-end on the PionKaon table."""
     import numpy as np
 
     vp = vector_portal
@@ -951,7 +984,7 @@ def test_chi_flux_integral_pin(vector_portal):
     nodes = np.array(flux.GetEnergyNodes())
     vals = np.array([flux.SampleUnnormedPDF(float(e)) for e in nodes])
     integral = float(np.trapezoid(vals, nodes))
-    assert integral == pytest.approx(3.020870e-07, rel=1e-5)
+    assert integral == pytest.approx(1.9621526925224907e-13, rel=1e-5)
 
 
 def test_coherent_total_cross_section_magnitude_pin(vector_portal):

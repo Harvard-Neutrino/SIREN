@@ -1428,6 +1428,108 @@ def _deposit_box_into_hist(edges, hist, E_minus, E_plus, weight):
             hist[i] += weight * (b - a) / width
 
 
+def _vector_meson_matel_sq_bare(E_nu, E_V, m_M, m_l, m_V):
+    """Spin-summed |M|^2 for M -> l nu V1 with (G_F f_M V C_V)^2 = 1.
+
+    Carlson-Rislow vector matrix element (Phys.Rev.D 86, 035013, 2012) for a
+    dark photon radiated off the charged-lepton leg with pure vector coupling.
+    Dalitz variables are the neutrino and V1 energies (E_nu, E_V) in the meson
+    rest frame; the lepton energy follows from E_l = m_M - E_nu - E_V.  Returns
+    2 B / D^2, clipped to 0 for D <= 0 or B < 0.  The longitudinal 1/m_V^2 term
+    carries the neutrino energy (- 2 m_M E_nu) in its leading factor, settled by
+    explicit Dirac spinor sums to 1e-15.
+    """
+    Q2 = m_M**2 - 2.0 * m_M * E_nu
+    D = Q2 - m_l**2
+    if D <= 0.0:
+        return 0.0
+    E_l = m_M - E_nu - E_V
+    L = Q2**2 - m_l**2 * m_M**2
+    B = (4.0 * m_l**2 * m_M**2 * E_l * E_nu
+         - 12.0 * m_l**2 * m_M * Q2 * E_nu
+         + L * (m_M**2 + m_V**2 - m_l**2 - 2.0 * m_M * E_V)
+         + (1.0 / m_V**2)
+         * (m_M**2 - m_V**2 - m_l**2 - 2.0 * m_M * E_nu)
+         * (4.0 * m_l**2 * m_M**2 * E_V * E_nu
+            + L * (m_M**2 - m_V**2 + m_l**2 - 2.0 * m_M * E_l)))
+    if B < 0.0:
+        return 0.0
+    return 2.0 * B / D**2
+
+
+def _vector_E_V_limits(E_nu, m_M, m_l, m_V):
+    """Kinematically allowed E_V range at fixed E_nu (meson rest frame).
+
+    Identical band structure to MesonProduction's _E_phi_limits.  Returns
+    (None, None) when the channel is closed at this E_nu.
+    """
+    E_nu_max = (m_M**2 - (m_l + m_V)**2) / (2.0 * m_M)
+    if E_nu < 0.0 or E_nu > E_nu_max:
+        return None, None
+    M2 = m_M**2 - 2.0 * m_M * E_nu
+    if M2 < (m_l + m_V)**2:
+        return None, None
+    sqrtM2 = math.sqrt(M2)
+    lam = (M2 - (m_l + m_V)**2) * (M2 - (m_l - m_V)**2)
+    if lam < 0.0:
+        return None, None
+    pstar = math.sqrt(lam) / (2.0 * sqrtM2)
+    Estar = (M2 - m_l**2 + m_V**2) / (2.0 * sqrtM2)
+    gamma = (m_M - E_nu) / sqrtM2
+    beta_gamma = E_nu / sqrtM2
+    E_hi = gamma * Estar + beta_gamma * pstar
+    E_lo = max(gamma * Estar - beta_gamma * pstar, m_V)
+    return E_lo, E_hi
+
+
+def _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon):
+    """Gamma(M -> l nu V1) / Gamma(M -> l nu) for a kinetically mixed dark photon.
+
+    The dark photon is radiated off the charged-lepton leg with pure vector
+    coupling C_V = e eps to the lepton (e = sqrt(4 pi alpha_EM), C_A = 0),
+    following Carlson & Rislow, Phys.Rev.D 86, 035013 (2012), who give the
+    K -> mu nu V closed form for exactly this coupling structure.  The vector
+    matrix element used here is verified against explicit Dirac spinor sums.
+
+    Gamma3 integrates |M|^2 = 2 (G_F f_M V C_V)^2 B / D^2 over the Dalitz region
+    with weight 1 / (64 pi^3 m_M); Gamma2 is the two-body width
+    G_F^2 f_M^2 V^2 m_M m_l^2 (1 - m_l^2/m_M^2)^2 / (8 pi).  The decay constant
+    f_M, the CKM element V_qq', and the Fermi constant G_F all cancel exactly in
+    the ratio, so they are carried as unit placeholders and only C_V survives.
+
+    Neutrino-flux bookkeeping: each tabulated neutrino corresponds to one
+    M -> l nu decay, so folding Gamma3/Gamma2 against the neutrino flux counts
+    three-body M -> l nu V1 decays per tabulated neutrino exactly -- including
+    for kaon tags, where the tabulated numu already carries BR(K -> mu nu) = 0.64.
+    """
+    C_V = epsilon * math.sqrt(4.0 * math.pi * _ALPHA_EM)
+    E_nu_max = (m_meson**2 - (m_lepton + m_V1)**2) / (2.0 * m_meson)
+    if E_nu_max <= 0.0:
+        return 0.0
+
+    def integrand(E_V, E_nu):
+        lims = _vector_E_V_limits(E_nu, m_meson, m_lepton, m_V1)
+        if lims[0] is None or E_V < lims[0] or E_V > lims[1]:
+            return 0.0
+        return _vector_meson_matel_sq_bare(E_nu, E_V, m_meson, m_lepton, m_V1)
+
+    integral, _ = _integrate.dblquad(
+        integrand,
+        0.0, E_nu_max,
+        lambda Enu: (_vector_E_V_limits(Enu, m_meson, m_lepton, m_V1)[0] or 0.0),
+        lambda Enu: (_vector_E_V_limits(Enu, m_meson, m_lepton, m_V1)[1] or 0.0),
+        epsabs=0.0, epsrel=1e-9,
+    )
+
+    # G_F = f_M = V_qq' = 1.0 placeholders; they cancel in Gamma3/Gamma2.
+    Gamma3 = C_V**2 * integral / (64.0 * math.pi**3 * m_meson)
+    Gamma2 = (m_meson * m_lepton**2
+              * (1.0 - m_lepton**2 / m_meson**2)**2 / (8.0 * math.pi))
+    if Gamma2 <= 0.0:
+        return 0.0
+    return Gamma3 / Gamma2
+
+
 def compute_chi_flux(
     m_meson,
     m_lepton,
@@ -1478,17 +1580,7 @@ def compute_chi_flux(
     E_nu_rf = (m_meson**2 - m_lepton**2) / (2.0 * m_meson)
     nu_to_meson = m_meson / E_nu_rf
 
-    alpha_D = g_D**2 / (4.0 * math.pi)
-    x = m_lepton / m_meson
-    y = m_V1 / m_meson
-
-    if (1.0 - x - y) <= 0:
-        br_ratio = 0.0
-    else:
-        num = (1.0 - y**2)**2 * (1.0 + 2.0 * y**2)
-        den = (1.0 - x**2)**2
-        g_ps = num / den if den > 0 else 0.0
-        br_ratio = 2.0 * (alpha_D / _ALPHA_EM) * epsilon**2 * g_ps
+    br_ratio = _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon)
 
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
@@ -1616,16 +1708,7 @@ def compute_chi_flux_from_dk2nu(
             min_energy, max_energy, energies, flux_arr, physically_normalized
         )
 
-    alpha_D = g_D**2 / (4.0 * math.pi)
-    x = m_lepton / m_meson
-    y = m_V1 / m_meson
-    if (1.0 - x - y) <= 0:
-        br_ratio = 0.0
-    else:
-        num = (1.0 - y**2)**2 * (1.0 + 2.0 * y**2)
-        den = (1.0 - x**2)**2
-        g_ps = num / den if den > 0 else 0.0
-        br_ratio = 2.0 * (alpha_D / _ALPHA_EM) * epsilon**2 * g_ps
+    br_ratio = _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon)
 
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
