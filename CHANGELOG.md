@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Weighter archives carry a magic+version header tied to the class version, load into a temporary so a failed parse cannot half-mutate the live weighter, name the file in load errors, and still read headerless version-0 archives.
 
 ### Added
 
