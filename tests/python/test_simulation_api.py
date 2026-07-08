@@ -242,7 +242,7 @@ class TestOrderingValidation:
         from siren._validation import validate_ordering
         DV = d.DistributionVariable
         bounded = d.PrimaryBoundedVertexDistribution(
-            siren.geometry.Box(2.0, 2.0, 2.0))
+            siren.geometry.Box(widths=(2.0, 2.0, 2.0)))
         assert DV.InitialPosition in bounded.RequiredVariables()
         assert DV.PrimaryDirection in bounded.RequiredVariables()
         assert DV.InteractionVertex in bounded.SetVariables()

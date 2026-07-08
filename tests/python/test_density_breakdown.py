@@ -65,15 +65,18 @@ def test_density_breakdown_sums_to_density():
 
 
 # --------------------------------------------------------------------------- #
-# VertexWeightFactors.channel_densities contract, as observed through a real  #
-# assembled Injector/Weighter pair (not the bare MultiChannelPhaseSpace above).#
+# VertexWeightFactors.channel_densities/cancelled contract, as observed        #
+# through a real assembled Injector/Weighter pair (not the bare                #
+# MultiChannelPhaseSpace above).                                              #
 #                                                                              #
-# ComputeVertexFactors (Weighter.cxx) never writes into channel_densities on   #
-# any current code path: the DummyCrossSection assembly below has no vertex   #
-# backed by a MultiChannelPhaseSpace, so the field stays at its default-       #
-# constructed empty map for every vertex.  This test pins that observed        #
-# current contract -- a dict on every vertex, empty here -- rather than        #
-# asserting non-empty population that this assembly never produces.           #
+# ComputeVertexFactors (Weighter.cxx) always writes channel_densities and      #
+# cancelled on the diagnostics path (EventWeightWithBreakdown): the former is  #
+# keyed from the injection process's MultiChannelPhaseSpace.DensityBreakdown  #
+# when one is attached for the vertex's signature, and the latter lists the   #
+# distribution Name()s shared by value between the injection and physical     #
+# distribution lists. The DummyCrossSection assembly below attaches no phase  #
+# space and shares no value-equal distributions, so both fields are wired but #
+# stay empty for every vertex in this assembly specifically.                  #
 # --------------------------------------------------------------------------- #
 
 def _skip_unless_ccm_data():
@@ -144,12 +147,8 @@ def _build_chain(detector_model, n_inject, seed):
     return inj, weighter, keepalive
 
 
-def test_vertex_channel_densities_is_an_empty_dict_for_this_assembly():
-    """VertexWeightFactors.channel_densities is a dict on every vertex and stays
-    empty for the DummyCrossSection assembly, which has no
-    MultiChannelPhaseSpace-backed vertex. The finiteness check and the final
-    assertion form a tripwire: if a future change starts populating the map,
-    this test fails so the check can be tightened to the populated values."""
+def test_vertex_channel_densities_and_cancelled_are_wired_but_empty_for_this_assembly():
+    """channel_densities/cancelled are wired but empty for a vertex with no attached mixture and no value-shared distributions."""
     _skip_unless_ccm_data()
     detector_model = _load_ccm_detector()
     inj, weighter, _keepalive = _build_chain(detector_model, 2000, 2468)
@@ -169,21 +168,83 @@ def test_vertex_channel_densities_is_an_empty_dict_for_this_assembly():
         events.append(ev)
     assert len(events) == 20
 
-    saw_nonempty = False
     for ev in events:
         bd = weighter.EventWeightWithBreakdown(ev)
         for v in bd.vertices:
             cd = v.channel_densities
+            cancelled = v.cancelled
             assert isinstance(cd, dict)
-            if cd:
-                saw_nonempty = True
-                values = list(cd.values())
-                assert all(math.isfinite(x) for x in values)
+            assert isinstance(cancelled, list)
+            assert all(math.isfinite(x) for x in cd.values())
+            # This assembly attaches no MultiChannelPhaseSpace and shares no
+            # value-equal distributions between injection and physical, so
+            # both fields stay empty for every vertex here.
+            assert cd == {}
+            assert cancelled == []
 
-    # Documents the current, observed contract for this assembly: the
-    # DummyCrossSection chain has no MultiChannelPhaseSpace-backed vertex, so
-    # ComputeVertexFactors never populates channel_densities.
-    assert saw_nonempty is False, (
-        "channel_densities was populated by this assembly; the "
-        "'observed empty' contract this test documents has changed and the "
-        "assertions above should be tightened to check the populated values.")
+
+def test_channel_densities_contract_matches_density_breakdown():
+    """channel_densities entries are the mixture's DensityBreakdown, keyed channel[i]."""
+    target = siren.geometry.Box(
+        siren.geometry.Placement(siren.math.Vector3D(0.0, 0.0, 2.0)),
+        1.0, 1.0, 1.0)
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    directed = siren.injection.DetectorDirected2BodyChannel(target, 0)
+    mc = siren.injection.MultiChannelPhaseSpace()
+    mc.channels = [iso, directed]
+    mc.weights = [0.3, 0.7]
+
+    rng = siren.utilities.SIREN_random(11)
+    r = _make_record()
+    mc.Sample(rng, None, r)
+
+    bd = mc.DensityBreakdown(None, r)
+    g = mc.Density(None, r)
+    assert len(bd) == 2
+    assert all(math.isfinite(x) for x in bd)
+    assert sum(bd) == g
+
+    channel_densities = {"channel[" + str(i) + "]": bd[i] for i in range(len(bd))}
+    assert list(channel_densities.keys()) == ["channel[0]", "channel[1]"]
+    assert all(math.isfinite(x) for x in channel_densities.values())
+    assert sum(channel_densities.values()) == g
+
+
+def test_vertex_channel_densities_report_their_common_convention():
+    """Every populated diagnostic density map identifies its common measure."""
+    _skip_unless_ccm_data()
+    detector_model = _load_ccm_detector()
+    inj, weighter, keepalive = _build_chain(detector_model, 2000, 97531)
+
+    event = None
+    for _ in range(2000):
+        try:
+            candidate = inj.GenerateEvent()
+        except RuntimeError as err:
+            if "maximum number of injection attempts" not in str(err):
+                raise
+            break
+        if len(candidate.tree) > 0:
+            event = candidate
+            break
+    assert event is not None
+
+    # Attach the diagnostic phase space after generation. This exercises the
+    # weighting/reporting path without asking the physical adapter to resample
+    # DummyCrossSection's synthetic Nucleon secondary (which has no mass-map
+    # entry).
+    xs, _, _, _, primary_inj, *_ = keepalive
+    signature = event.tree[0].record.signature
+    channel = injection.PhysicalCrossSectionChannel(xs, signature)
+    mixture = injection.MultiChannelPhaseSpace()
+    mixture.channels = [channel]
+    mixture.weights = [1.0]
+    primary_inj.SetPhaseSpace(signature, mixture)
+
+    breakdown = weighter.EventWeightWithBreakdown(event)
+    populated = [vertex for vertex in breakdown.vertices
+                 if vertex.channel_densities]
+    assert populated
+    for vertex in populated:
+        assert vertex.channel_density_topology == injection.PhaseSpaceTopology.Scatter2to2
+        assert vertex.channel_density_measure == injection.PhaseSpaceMeasure.BjorkenXY()
