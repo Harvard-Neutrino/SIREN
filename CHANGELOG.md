@@ -17,6 +17,7 @@
 ### Fixed
 
 - EventWeightWithBreakdown follows the scalar weight guards, reporting invalid vertex probabilities and arithmetic overflow with flags and a NaN total. Valid zero physical support still gives a zero total.
+- Weighter archives carry a magic+version header tied to the class version, load into a temporary so a failed parse cannot half-mutate the live weighter, name the file in load errors, and still read headerless version-0 archives.
 
 ### Added
 
