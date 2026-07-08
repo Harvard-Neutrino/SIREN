@@ -28,10 +28,13 @@ M_K  = 0.49368    # GeV
 M_MU = 0.10566    # GeV
 M_E  = 0.000511   # GeV
 GF   = 1.16638e-5 # GeV^-2
-FPI  = 0.1307     # GeV
-FK   = 0.1598     # GeV
-VUD  = 0.9737
-VUS  = 0.2245
+
+# f_M/V_Mq come from MesonProduction's own _meson_params rather than a
+# separately hand-copied constant, so this script's SM two-body
+# denominator can never drift out of sync with the value
+# MesonThreeBodyDecay uses internally.
+FPI, VUD = _meson_module._meson_params(M_PI)
+FK, VUS = _meson_module._meson_params(M_K)
 
 g_mu = 1.0  # reference coupling
 
@@ -50,23 +53,28 @@ configs = [
     ("K, pseudoscalar",  M_K,  M_MU, FK,  VUS, "pseudoscalar"),
 ]
 
-print(f"{'m_phi [MeV]':>12s}", end="")
-for label, *_ in configs:
-    print(f"  {label:>20s}", end="")
-print()
+def main():
+    print(f"{'m_phi [MeV]':>12s}", end="")
+    for label, *_ in configs:
+        print(f"  {label:>20s}", end="")
+    print()
 
-for m_phi in m_phi_vals:
-    line = f"{m_phi*1e3:12.3f}"
-    for label, m_M, m_l, f_M, V_Mq, mtype in configs:
-        if m_phi >= m_M - m_l:
-            line += f"  {'---':>20s}"
-            continue
-        try:
-            decay = MesonThreeBodyDecay(m_M, m_l, m_phi, g_mu, mtype)
-            w3 = decay.total_width()
-            w2 = sm_width_2body(m_M, m_l, f_M, V_Mq)
-            ratio = w3 / w2 if w2 > 0 else 0.0
-            line += f"  {ratio:20.6e}"
-        except ValueError:
-            line += f"  {'forbidden':>20s}"
-    print(line)
+    for m_phi in m_phi_vals:
+        line = f"{m_phi*1e3:12.3f}"
+        for label, m_M, m_l, f_M, V_Mq, mtype in configs:
+            if m_phi >= m_M - m_l:
+                line += f"  {'---':>20s}"
+                continue
+            try:
+                decay = MesonThreeBodyDecay(m_M, m_l, m_phi, g_mu, mtype)
+                w3 = decay.total_width()
+                w2 = sm_width_2body(m_M, m_l, f_M, V_Mq)
+                ratio = w3 / w2 if w2 > 0 else 0.0
+                line += f"  {ratio:20.6e}"
+            except ValueError:
+                line += f"  {'forbidden':>20s}"
+        print(line)
+
+
+if __name__ == "__main__":
+    main()
