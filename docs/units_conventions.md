@@ -72,14 +72,18 @@ produced by an `Injector` with the same seed. Fixing a seed makes a
 generation run reproducible: same seed, same configuration, same SIREN
 version implies an identical event stream.
 
-Serialization does NOT resume an RNG stream mid-sequence. Neither the C++
-archive (`save`/`load`) nor pickle carries the random engine, so a reloaded or
-unpickled injector begins a fresh generation stream. Pickle re-seeds that
-stream from the stored seed, so a fresh injector and an unpickled one produce
-the same stream from the start; `load` starts unseeded. Either way, an injector
-that had already generated some events continues differently after a round-trip
-than it would have run uninterrupted -- the round-trip restarts the stream, it
-does not resume it.
+Serialization RESUMES the generation stream mid-sequence. The C++ archive
+(`save`/`load`) and pickle both carry the random engine's full state (Injector
+archive version 2, `SIREN_random` version 1), so a reloaded or unpickled
+injector continues its generation stream exactly where the saved one left off:
+an injector that had already generated some events produces the same
+continuation it would have produced uninterrupted. The stored seed survives as
+a label (`injector.seed`), not as a restart point. Setting `injector.seed`
+explicitly, by contrast, installs a fresh engine and DOES restart the stream.
+Archives also carry each process's phase-space mixtures as of
+`PhysicalProcess` archive version 2; older archives load with none.
+Older archives (Injector version 0/1, `SIREN_random` version 0) predate the
+engine state and still load with a fresh, seed-restarted stream.
 
 ## Environment variables
 
