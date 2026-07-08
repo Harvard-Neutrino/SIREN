@@ -681,7 +681,9 @@ def load_vector_portal(
         m_lepton=m_lepton,
         m_V1=m_V1,
         m_chi=m_chi,
-        m_chi_prime=m_chi_prime,
+        # The physical V1 -> chi chi decay fixes the partner mass to m_chi
+        # (V1 -> chi chi' is kinematically forbidden in this model).
+        m_chi_partner=m_chi,
         g_D=g_D,
         epsilon=epsilon_1,
         flux_tag=flux_tag,

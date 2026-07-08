@@ -1362,11 +1362,11 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 #  Flux construction
 # ===================================================================
 
-def _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime):
-    """Lab-frame energy interval spanned by chi from an isotropic V1 -> chi chi'.
+def _chi_box_edges(E_V_lab, m_V1, m_chi, m_partner):
+    """Lab-frame energy interval spanned by chi from an isotropic V1 -> chi + partner.
 
     Two-body kinematics fix the chi rest-frame energy at
-    E_chi_rf = (m_V1**2 + m_chi**2 - m_chi_prime**2)/(2 m_V1) with momentum
+    E_chi_rf = (m_V1**2 + m_chi**2 - m_partner**2)/(2 m_V1) with momentum
     p_chi_rf; boosting to the lab with the V1 factors gives
     E_chi_lab = gamma_V1 (E_chi_rf + beta_V1 p_chi_rf cos_theta_rf).  For an
     isotropic decay cos_theta_rf is uniform on [-1, 1], so E_chi_lab is uniform
@@ -1375,7 +1375,13 @@ def _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime):
     """
     if m_V1 <= 0.0:
         return m_chi, m_chi
-    E_chi_rf = (m_V1**2 + m_chi**2 - m_chi_prime**2) / (2.0 * m_V1)
+    if m_V1 < m_chi + m_partner:
+        raise ValueError(
+            "V1 -> chi + partner is kinematically closed: "
+            "m_V1=%g GeV < m_chi + m_partner = %g GeV"
+            % (m_V1, m_chi + m_partner)
+        )
+    E_chi_rf = (m_V1**2 + m_chi**2 - m_partner**2) / (2.0 * m_V1)
     p_chi_rf = math.sqrt(max(E_chi_rf**2 - m_chi**2, 0.0))
     gamma_V1 = E_V_lab / m_V1
     beta_V1 = math.sqrt(max(1.0 - 1.0 / gamma_V1**2, 0.0)) if gamma_V1 > 0 else 0.0
@@ -1427,7 +1433,7 @@ def compute_chi_flux(
     m_lepton,
     m_V1,
     m_chi,
-    m_chi_prime,
+    m_chi_partner,
     g_D,
     epsilon,
     flux_tag,
@@ -1438,7 +1444,11 @@ def compute_chi_flux(
     """
     Construct the chi (dark matter) flux at the detector by folding:
         neutrino flux -> parent meson energy -> three-body BR(meson -> l nu V1)
-        -> V1 -> chi chi' kinematics -> chi energy spectrum.
+        -> V1 -> chi + partner kinematics -> chi energy spectrum.
+
+    m_chi_partner is the mass of the second daughter of the V1 decay.  The
+    physical decay V1 -> chi chi has m_chi_partner = m_chi; V1 -> chi chi' is
+    kinematically forbidden in this model (m_V1 < m_chi + m_chi').
 
     Returns a siren.distributions.TabulatedFluxDistribution.
     """
@@ -1456,6 +1466,13 @@ def compute_chi_flux(
             "Channel kinematically forbidden: "
             f"m_meson={m_meson*1e3:.1f} MeV, m_lepton={m_lepton*1e3:.1f} MeV, "
             f"m_V1={m_V1*1e3:.1f} MeV"
+        )
+    if m_V1 < m_chi + m_chi_partner:
+        raise siren.utilities.ConfigurationError(
+            "V1 -> chi + partner is kinematically closed: "
+            f"m_V1={m_V1*1e3:.1f} MeV < m_chi + m_chi_partner="
+            f"{(m_chi + m_chi_partner)*1e3:.1f} MeV; the physical decay "
+            "V1 -> chi chi takes m_chi_partner = m_chi"
         )
 
     E_nu_rf = (m_meson**2 - m_lepton**2) / (2.0 * m_meson)
@@ -1496,7 +1513,7 @@ def compute_chi_flux(
         gamma_meson = E_meson / m_meson
         E_V_lab = gamma_meson * E_V_rest
 
-        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime)
+        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_partner)
         if E_plus < min_energy or E_minus > max_energy:
             continue
 
@@ -1536,7 +1553,7 @@ def compute_chi_flux_from_dk2nu(
     m_lepton,
     m_V1,
     m_chi,
-    m_chi_prime,
+    m_chi_partner,
     g_D,
     epsilon,
     min_energy,
@@ -1558,8 +1575,9 @@ def compute_chi_flux_from_dk2nu(
         Output of siren.dk2nu.read_dk2nu().
     parent_pdg : int
         PDG code of parent meson (211 for pi+, 321 for K+, etc.)
-    m_meson, m_lepton, m_V1, m_chi, m_chi_prime : float
-        Masses in GeV.
+    m_meson, m_lepton, m_V1, m_chi, m_chi_partner : float
+        Masses in GeV.  m_chi_partner is the second daughter mass of the V1
+        decay; the physical V1 -> chi chi has m_chi_partner = m_chi.
     g_D, epsilon : float
         Dark coupling and kinetic mixing.
     min_energy, max_energy : float
@@ -1578,7 +1596,20 @@ def compute_chi_flux_from_dk2nu(
     weights = dk2nu_data["nimpwt"][mask]
 
     available = m_meson - m_lepton
-    if available <= m_V1 or len(E_meson) == 0:
+    if available <= m_V1:
+        raise RuntimeError(
+            "Channel kinematically forbidden: "
+            f"m_meson={m_meson*1e3:.1f} MeV, m_lepton={m_lepton*1e3:.1f} MeV, "
+            f"m_V1={m_V1*1e3:.1f} MeV"
+        )
+    if m_V1 < m_chi + m_chi_partner:
+        raise siren.utilities.ConfigurationError(
+            "V1 -> chi + partner is kinematically closed: "
+            f"m_V1={m_V1*1e3:.1f} MeV < m_chi + m_chi_partner="
+            f"{(m_chi + m_chi_partner)*1e3:.1f} MeV; the physical decay "
+            "V1 -> chi chi takes m_chi_partner = m_chi"
+        )
+    if len(E_meson) == 0:
         energies = [min_energy, max_energy]
         flux_arr = [0.0, 0.0]
         return siren.distributions.TabulatedFluxDistribution(
@@ -1612,7 +1643,7 @@ def compute_chi_flux_from_dk2nu(
     # energy; accumulate every meson's weight over its box, conserving the total.
     hist = np.zeros(n_bins)
     for E_V_i, w_i in zip(E_V_lab, chi_weights):
-        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi, m_chi_prime)
+        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi, m_chi_partner)
         _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, float(w_i))
 
     pot = dk2nu_data.get("pot", 0.0)
