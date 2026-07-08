@@ -765,6 +765,7 @@ PYBIND11_MODULE(injection,m) {
     .def("GetSecondaryProcessMap",&Injector::GetSecondaryProcessMap)
     .def("NewRecord",&Injector::NewRecord)
     .def("SetRandom",&Injector::SetRandom)
+    .def("GetRandom",&Injector::GetRandom)
     .def("GenerateEvent",&Injector::GenerateEvent, pybind11::return_value_policy::move)
     .def("DensityVariables",&Injector::DensityVariables)
     .def("Name",&Injector::Name)
