@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <sstream>
+#include <stdexcept>
 #include <cassert>
 #include <ostream>
 #include <unordered_map>
@@ -135,13 +136,24 @@ void InteractionTree::validate_indices() const {
 }
 
 void SaveInteractionTrees(std::vector<std::shared_ptr<InteractionTree>>& trees, std::string const & filename) {
-    std::ofstream os(filename+".siren_events", std::ios::binary);
+    std::string const path = filename + ".siren_events";
+    std::ofstream os(path, std::ios::binary);
+    if(!os.is_open()) {
+        throw std::runtime_error(
+            "Cannot open '" + path + "' for writing. Does the output "
+            "directory exist?");
+    }
     ::cereal::BinaryOutputArchive archive(os);
     archive(trees);
 }
 
 std::vector<std::shared_ptr<InteractionTree>> LoadInteractionTrees(std::string const & filename) {
-    std::ifstream is(filename+".siren_events", std::ios::binary);
+    std::string const path = filename + ".siren_events";
+    std::ifstream is(path, std::ios::binary);
+    if(!is.is_open()) {
+        throw std::runtime_error(
+            "Cannot open '" + path + "' for reading. Does the file exist?");
+    }
     ::cereal::BinaryInputArchive archive(is);
     std::vector<std::shared_ptr<InteractionTree>> trees;
     archive(trees);
