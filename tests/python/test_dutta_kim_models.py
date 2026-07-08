@@ -886,14 +886,16 @@ def test_chi_flux_integral_pin(vector_portal):
 
 
 def test_coherent_total_cross_section_magnitude_pin(vector_portal):
-    """Coherent upscattering absolute magnitude on argon (carries Z^2 = 324)."""
+    """Pins the coherent argon magnitude (Z^2 = 324) of the Dutta-Kim M_0,SF
+    amplitude with exact Kallen flux; anchored against the paper-formula
+    integral and the forward slope 4 pi alpha alpha_D eps^2 Z^2 / m_V^4."""
     xs = vector_portal.VectorPortalUpscatteringXS(
         m_chi=0.008, m_chi_prime=0.050, m_V2=0.200, g_D=1.0, epsilon=1.0e-4)
     signature = xs.GetPossibleSignatures()[0]
     record = _record(signature, 0.008, 1.0)
     record.target_mass = xs._ups.MA
     assert xs.TotalCrossSection(record) == pytest.approx(
-        3.974139640967e-34, rel=1e-9)
+        4.26236435341529e-35, rel=1e-9)
 
 
 def test_biased_meson_adaptive_cone_pointwise_closure(meson_production_module):

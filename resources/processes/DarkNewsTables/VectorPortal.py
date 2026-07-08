@@ -66,10 +66,10 @@ class _Stub:
 # Kinematic helpers (inlined from DarkNews phase_space)
 # ---------------------------------------------------------------------------
 
-def _Q2max(E, m_ups, M):
+def _Q2max(E, m1, m_ups, M):
     """Maximum Q2 for 2->2 scattering m1 + M -> m3 + M at lab energy E.
+    Exact unequal-mass 2->2 limit.
     Q2 = -(p1 - p3)^2 = 2*p1cm*p3cm*(1 + cos_theta_cm) at backward scattering."""
-    m1 = 0.0  # approximation: m_chi << everything else
     s = m1**2 + M**2 + 2.0 * M * E
     if s <= (m_ups + M)**2:
         return 0.0
@@ -81,9 +81,8 @@ def _Q2max(E, m_ups, M):
     return -t_min
 
 
-def _Q2min(E, m_ups, M):
-    """Minimum Q2 (forward scattering)."""
-    m1 = 0.0
+def _Q2min(E, m1, m_ups, M):
+    """Minimum Q2 (forward scattering). Exact unequal-mass 2->2 limit."""
     s = m1**2 + M**2 + 2.0 * M * E
     if s <= (m_ups + M)**2:
         return 0.0
@@ -247,17 +246,20 @@ class VectorPortalUpsCase:
         mV = self.m_V
 
         s = m1**2 + M**2 + 2.0 * M * E
-        flux_sq = (s - M**2)**2
-        if flux_sq <= 0.0:
+        lam = (s - (m1 + M)**2) * (s - (m1 - M)**2)
+        if lam <= 0.0:
             return 0.0
 
-        delta_m2 = m3**2 - m1**2
-        numerator = 2.0 * M**2 * (2.0 * E * M - Q2 - delta_m2)
-        if numerator <= 0.0:
+        # M_{0,SF} of Dutta-Kim PRL 129,111803 Appendix B (scalar nucleus x
+        # fermionic chi) with E' = E - Q^2/(2M) substituted, so that
+        # dsigma/dQ2 = Z^2 F^2 (e eps g_D)^2 M_{0,SF}
+        #              / (16 pi lambda(s, m1^2, M^2) (Q2 + m_V^2)^2).
+        N_SF = 4.0 * (2.0 * M * E + (m1**2 - m3**2 - Q2) / 2.0)**2 - (4.0 * M**2 + Q2) * ((m3 - m1)**2 + Q2)
+        if N_SF <= 0.0:
             return 0.0
 
         propagator = 1.0 / (Q2 + mV**2)**2
-        M2 = self.g_D**2 * 4.0 * math.pi * _ALPHA_EM * self.epsilon**2 * numerator * propagator
+        M2 = self.g_D**2 * 4.0 * math.pi * _ALPHA_EM * self.epsilon**2 * N_SF * propagator
         F2 = _helm_F2(Q2, self.A)
         # Coherent scattering off the whole nucleus adds the charges of all Z
         # protons in phase, so the amplitude carries a factor Z and the cross
@@ -268,15 +270,15 @@ class VectorPortalUpsCase:
         # here left as strength 1).
         coherent_enhancement = self.Z**2 if self.scattering_regime == "coherent" else 1.0
 
-        dsig = M2 * F2 * coherent_enhancement / (16.0 * math.pi * flux_sq)
+        dsig = M2 * F2 * coherent_enhancement / (16.0 * math.pi * lam)
         return max(0.0, dsig) * _GEV2_TO_CM2
 
     def diff_xsec_Q2(self, E, Q2):
         return np.array(self._dsigma_dQ2(E, Q2))
 
     def total_xsec(self, E):
-        q2min = _Q2min(E, self.m_ups, self.MA)
-        q2max = _Q2max(E, self.m_ups, self.MA)
+        q2min = _Q2min(E, self.m_chi, self.m_ups, self.MA)
+        q2max = _Q2max(E, self.m_chi, self.m_ups, self.MA)
         if q2max <= q2min:
             return 0.0
         result, _ = _integrate.quad(
@@ -423,10 +425,10 @@ class VectorPortalUpscatteringXS(_CrossSectionModel):
         return ["Q2"]
 
     def Q2Min(self, interaction):
-        return _Q2min(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2min(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def Q2Max(self, interaction):
-        return _Q2max(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2max(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def TargetMass(self, target_type):
         return self.m_target
@@ -451,8 +453,8 @@ class VectorPortalUpscatteringXS(_CrossSectionModel):
         physical phase-space channel contributes a weight ratio of 1,
         removing the dominant source of event-weight variance.
         """
-        q2min = _Q2min(E_chi, self.m_chi_prime, self.m_target)
-        q2max = _Q2max(E_chi, self.m_chi_prime, self.m_target)
+        q2min = _Q2min(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
+        q2max = _Q2max(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
         if q2max <= q2min:
             return None
         f_max = self._ups._dsigma_dQ2(E_chi, q2min) * 1.5
@@ -655,10 +657,10 @@ class VectorPortalOffShellXS(_CrossSection):
         return self._ups.Ethreshold
 
     def Q2Min(self, interaction):
-        return _Q2min(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2min(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def Q2Max(self, interaction):
-        return _Q2max(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2max(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def TargetMass(self, target_type):
         return self.m_target
@@ -761,8 +763,8 @@ class VectorPortalOffShellXS(_CrossSection):
         dsigma/dQ2 falls monotonically with Q2 (the V2 propagator dominates),
         so the envelope maximum sits at q2min.
         """
-        q2min = _Q2min(E_chi, self.m_chi_prime, self.m_target)
-        q2max = _Q2max(E_chi, self.m_chi_prime, self.m_target)
+        q2min = _Q2min(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
+        q2max = _Q2max(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
         if q2max <= q2min:
             return None
         f_max = self._ups._dsigma_dQ2(E_chi, q2min) * 1.5
