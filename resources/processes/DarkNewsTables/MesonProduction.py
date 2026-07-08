@@ -51,7 +51,7 @@ _final_state_probability = _beam._final_state_probability
 
 _GF = 1.16638e-5       # Fermi constant [GeV^-2]
 _FPI = 0.1307           # pion decay constant [GeV]
-_FK = 0.1598            # kaon decay constant [GeV]
+_FK = 0.1557            # kaon decay constant [GeV]
 _VUD = 0.9737           # CKM |V_ud|
 _VUS = 0.2245           # CKM |V_us|
 _ALPHA_EM = 1.0 / 137.036
@@ -174,7 +174,9 @@ class MesonThreeBodyDecay:
         f_M, V_Mq = _meson_params(m_meson)
         self.f_M = f_M
         self.V_Mq = V_Mq
-        self._C2 = (_GF * f_M * V_Mq * g_mu)**2 / 2.0
+        # C2 pairs the PDG-convention f_M (Gamma = G_F^2 f_M^2 V^2 m_M m_l^2 (1-r)^2/(8 pi))
+        # with Carlson-Rislow's T, written for f_CR = f_M/sqrt(2); hence (G_F f_M V g)^2/4.
+        self._C2 = (_GF * f_M * V_Mq * g_mu)**2 / 4.0
 
         if m_meson < m_lepton + m_mediator:
             raise ValueError(

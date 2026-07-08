@@ -559,6 +559,49 @@ def test_meson_three_body_check_closure_passes(processes_dir):
     assert fmean == pytest.approx(1.0, abs=0.1)
 
 
+def test_meson_three_body_width_absolute_anchors(meson_production_module):
+    """Pin the absolute three-body widths pi/K -> l nu phi in the PDG f_M
+    convention, anchored to the explicit Dirac-spinor |M|^2 and to the
+    Dutta-Kim PRL 129, 111803 Table 2 branching ratios per g^2."""
+    mp = meson_production_module
+
+    m_pi = 0.13957039
+    m_K = 0.49368
+    m_mu = 0.10565837
+
+    # total_width() in the PDG f_M convention (g_mu = 1.0).
+    expected_width = {
+        ("pi", "scalar"): 1.2247070252317424e-18,
+        ("pi", "pseudoscalar"): 2.773199175624213e-21,
+        ("K", "scalar"): 4.9727779507952735e-18,
+        ("K", "pseudoscalar"): 5.362959599511565e-19,
+    }
+
+    m_meson = {"pi": m_pi, "K": m_K}
+    widths = {}
+    for meson, m_M in m_meson.items():
+        for ptype in ("scalar", "pseudoscalar"):
+            decay = mp.MesonThreeBodyDecay(m_M, m_mu, 0.001, 1.0, ptype)
+            w = decay.total_width()
+            widths[(meson, ptype)] = w
+            assert w == pytest.approx(expected_width[(meson, ptype)], rel=1e-6)
+
+    # Dutta-Kim Table 2 sanity band: abs BR per g^2 = total_width / Gamma_tot
+    # / g^2 (g_mu = 1.0 above). Gamma_tot from the PDG mean lifetimes.
+    hbar = 6.582119569e-25  # GeV s
+    gamma_tot = {"pi": hbar / 2.6033e-8, "K": hbar / 1.2380e-8}
+    table_br = {
+        ("pi", "scalar"): 4.8e-2,
+        ("pi", "pseudoscalar"): 1.1e-4,
+        ("K", "scalar"): 9.2e-2,
+        ("K", "pseudoscalar"): 1.0e-2,
+    }
+    for key, w in widths.items():
+        meson, _ptype = key
+        br_per_g2 = w / gamma_tot[meson]
+        assert br_per_g2 == pytest.approx(table_br[key], rel=0.12)
+
+
 # ------------------------------------------------------------------ #
 #  End-to-end chain test                                               #
 # ------------------------------------------------------------------ #
