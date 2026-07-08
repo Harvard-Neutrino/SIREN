@@ -82,7 +82,10 @@ class Results:
     weights : numpy.ndarray
         Per-event physics weights, write-protected (immutable).
     gen_times : list[float]
-        Per-event generation wall-clock times.
+        Per-event generation times. :meth:`Simulation.run` fills these with
+        the uniform run-average -- the total generation wall-clock time
+        divided evenly across the events -- not individually measured
+        per-event times.
     attempts : int
         Injection attempts made during the generation run.
     requested : int
