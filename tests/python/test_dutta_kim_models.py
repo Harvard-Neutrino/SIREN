@@ -918,6 +918,7 @@ def _model_family(vector_portal, meson_production_module, beam_decays):
     vp, mp, beam = vector_portal, meson_production_module, beam_decays
     return [
         vp.DarkPhotonToChiDecay(m_V1=0.017, m_chi=0.008, g_D=1.0),
+        vp.DarkPhotonDecay(m_V1=0.017, epsilon=7.0e-5),
         vp.ChiPrimeDecay(m_chi_prime=0.050, m_chi=0.008, m_V1=0.017, g_D=1.0),
         vp.VectorPortalUpscatteringXS(
             m_chi=0.008, m_chi_prime=0.050, m_V2=0.200, g_D=1.0,
