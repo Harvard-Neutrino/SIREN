@@ -25,6 +25,7 @@
 - Python weighting rejects invalid final weights, including negative values that underflow during float conversion, subclass results, and custom generation-batch results. Valid zero weights remain usable in diagnostics.
 - Weighter save guards inspect fully initialized injectors, including compiled expansion callbacks and Python sampling models.
 - EventWeightWithBreakdown follows the scalar weight guards, reporting invalid vertex probabilities and arithmetic overflow with flags and a NaN total. Valid zero physical support still gives a zero total.
+- Weighter archives carry a magic+version header tied to the class version, load into a temporary so a failed parse cannot half-mutate the live weighter, name the file in load errors, and still read headerless version-0 archives.
 
 ### Added
 
