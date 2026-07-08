@@ -218,16 +218,13 @@ def test_typo_secondary_key_raises():
 
 
 # ------------------------------------------------------------------ #
-#  positional Box warns but still constructs                          #
+#  positional Box raises                                              #
 # ------------------------------------------------------------------ #
 
-def test_positional_box_warns_and_constructs():
-    """Box(x, y, z) emits a DeprecationWarning and still builds a box."""
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        box = siren.geometry.Box(1.0, 2.0, 3.0)
-    assert any(issubclass(x.category, DeprecationWarning) for x in w)
-    assert box.X == 1.0 and box.Y == 2.0 and box.Z == 3.0
+def test_positional_box_raises():
+    """Box(x, y, z) raises with the widths=/center= fix-it."""
+    with pytest.raises(siren.errors.ConfigurationError, match="widths="):
+        siren.geometry.Box(1.0, 2.0, 3.0)
 
 
 def test_widths_center_box_places_at_center():
