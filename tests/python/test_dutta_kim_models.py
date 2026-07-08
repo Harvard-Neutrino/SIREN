@@ -914,6 +914,32 @@ def test_chi_box_edges_match_two_body_kinematics(vector_portal):
     assert hi == pytest.approx(gamma * (E_rf + beta * p_rf), rel=1e-12)
 
 
+def test_chi_flux_closed_channel_raises(vector_portal):
+    """Pins the typed closed-channel guard at the paper-forbidden V1 -> chi chi' configuration."""
+    import numpy as np
+
+    vp = vector_portal
+
+    with pytest.raises(siren.utilities.ConfigurationError):
+        vp.compute_chi_flux(
+            0.13957, 0.10566, 0.017, 0.008, 0.050, 1.0, 7e-5,
+            "pion_numu", 0.05, 3.0, physically_normalized=False)
+
+    dk2nu_data = {
+        "ptype": np.array([211, 211, 211]),
+        "E": np.array([1.0, 1.5, 2.0]),
+        "nimpwt": np.ones(3),
+        "pot": 1.0,
+    }
+    with pytest.raises(siren.utilities.ConfigurationError):
+        vp.compute_chi_flux_from_dk2nu(
+            dk2nu_data, 211, 0.13957, 0.10566, 0.017, 0.008, 0.050,
+            1.0, 7e-5, 0.05, 3.0)
+
+    with pytest.raises(ValueError):
+        vp._chi_box_edges(1.0, 0.017, 0.008, 0.050)
+
+
 def test_chi_flux_integral_pin(vector_portal):
     """compute_chi_flux absolute normalization pin on the PionKaon table."""
     import numpy as np
