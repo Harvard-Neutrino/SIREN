@@ -187,6 +187,39 @@ def _helm_F2(Q2, A):
 
 
 # ===================================================================
+#  Dark-sector partial widths
+# ===================================================================
+
+def _v1_to_fermion_pair_width(m_V, m_f, coupling_sq):
+    """
+    Vector boson to a Dirac fermion pair, V -> f fbar.
+
+    coupling_sq is g^2 for V1 -> chi chi and (e eps)^2 for V1 -> e e; both
+    channels share this vector-coupling spin structure.
+    """
+    if m_V < 2.0 * m_f:
+        return 0.0
+    r = m_f / m_V
+    beta = math.sqrt(max(1.0 - 4.0 * r**2, 0.0))
+    return coupling_sq * m_V / (12.0 * math.pi) * beta * (1.0 + 2.0 * r**2)
+
+
+def _chi_prime_to_chi_v1_width(m_chi_prime, m_chi, m_V1, g_sq):
+    """
+    Fermion to a fermion plus a vector, chi' -> chi V1, via the coupling
+    g ubar(chi) gamma^mu u(chi') V_mu.  Reduces to the HNL N -> nu V limit
+    as m_chi -> 0.
+    """
+    if m_chi_prime < m_chi + m_V1:
+        return 0.0
+    p_star = _two_body_p_cm(m_chi_prime, m_chi, m_V1)
+    w = (m_chi_prime**2 + m_chi**2 - m_V1**2) / 2.0
+    bracket = (w - 3.0 * m_chi * m_chi_prime
+               + ((m_chi_prime**2 - m_chi**2)**2 - m_V1**4) / (2.0 * m_V1**2))
+    return (g_sq * p_star / (4.0 * math.pi * m_chi_prime**2)) * bracket
+
+
+# ===================================================================
 #  VectorPortalUpsCase  --  chi N -> chi' N  upscattering
 # ===================================================================
 
@@ -747,12 +780,8 @@ class VectorPortalOffShellXS(_CrossSection):
 
     def _chi_prime_width(self):
         """Total decay width of chi' -> chi + V1."""
-        m_cp = self.m_chi_prime
-        m_chi = self.m_chi
-        m_V1 = self.m_V1
-        g_D = self._ups.g_D
-        p_star = _two_body_p_cm(m_cp, m_chi, m_V1)
-        return g_D**2 * p_star**3 / (6.0 * math.pi * m_cp**2)
+        return _chi_prime_to_chi_v1_width(
+            self.m_chi_prime, self.m_chi, self.m_V1, self._ups.g_D**2)
 
     def DensityVariables(self):
         return ["s_pair", "cos_theta_sub"]
@@ -901,7 +930,9 @@ class VectorPortalOffShellXS(_CrossSection):
 class ChiPrimeDecay(_DecayModel):
     """
     Two-body decay chi' -> chi + V1.
-    Width: Gamma = (g_D^2 / 48 pi) m_chi' lambda^{3/2}(1, r_chi^2, r_V^2)
+    Width: Gamma = (g_D^2 p*/(4 pi m_chi'^2)) [w - 3 m_chi m_chi'
+    + ((m_chi'^2 - m_chi^2)^2 - m_V^4)/(2 m_V^2)], with
+    w = (m_chi'^2 + m_chi^2 - m_V^2)/2 and p* the chi momentum in the chi' rest frame.
 
     Isotropic in the chi' rest frame (SolidAngleRest 2-body): the authoring
     base derives the signature methods, the width overload pair, the isotropic
@@ -944,10 +975,8 @@ class ChiPrimeDecay(_DecayModel):
         self._total_width = self._compute_width()
 
     def _compute_width(self):
-        p = _two_body_p_cm(self.m_chi_prime, self.m_chi, self.m_V1)
-        if p <= 0.0:
-            return 0.0
-        return self.g_D**2 * p**3 / (6.0 * math.pi * self.m_chi_prime**2)
+        return _chi_prime_to_chi_v1_width(
+            self.m_chi_prime, self.m_chi, self.m_V1, self.g_D**2)
 
     def total_width(self):
         return self._total_width
@@ -1015,12 +1044,8 @@ class DarkPhotonDecay(_DecayModel):
         self._total_width = self._compute_width()
 
     def _compute_width(self):
-        mV = self.m_V1
-        me = _M_ELECTRON
-        if mV < 2.0 * me:
-            return 0.0
-        beta = math.sqrt(max(1.0 - (2.0 * me / mV)**2, 0.0))
-        return (_ALPHA_EM * self.epsilon**2 * mV / 3.0) * beta * (1.0 + 2.0 * me**2 / mV**2)
+        return _v1_to_fermion_pair_width(
+            self.m_V1, _M_ELECTRON, 4.0 * math.pi * _ALPHA_EM * self.epsilon**2)
 
     def total_width(self):
         return self._total_width
@@ -1097,8 +1122,8 @@ class DarkPhotonToChiDecay(_DecayModel):
     """
     Two-body decay V1 -> chi chi_bar (dark matter pair production).
 
-    Width: Gamma = (g_D^2 m_V / 12 pi) * beta^3
-    where beta = sqrt(1 - 4 m_chi^2 / m_V^2).
+    Width: Gamma = (g_D^2 m_V / 12 pi) * beta * (1 + 2 r^2)
+    where beta = sqrt(1 - 4 r^2) and r = m_chi / m_V.
 
     This is the dominant V1 decay when kinematically allowed
     (m_V > 2 m_chi).  The chi and chi_bar are both assigned
@@ -1141,12 +1166,7 @@ class DarkPhotonToChiDecay(_DecayModel):
         self._total_width = self._compute_width()
 
     def _compute_width(self):
-        mV = self.m_V1
-        mc = self.m_chi
-        if mV < 2.0 * mc:
-            return 0.0
-        beta = math.sqrt(max(1.0 - (2.0 * mc / mV)**2, 0.0))
-        return self.g_D**2 * mV / (12.0 * math.pi) * beta**3
+        return _v1_to_fermion_pair_width(self.m_V1, self.m_chi, self.g_D**2)
 
     def total_width(self):
         return self._total_width
@@ -1219,12 +1239,7 @@ class BiasedDarkPhotonToChiDecay(_Decay):
         self.table_dir = table_dir or "."
         os.makedirs(self.table_dir, exist_ok=True)
 
-        mV, mc = m_V1, m_chi
-        if mV < 2.0 * mc:
-            self._total_width = 0.0
-        else:
-            beta = math.sqrt(max(1.0 - (2.0 * mc / mV)**2, 0.0))
-            self._total_width = g_D**2 * mV / (12.0 * math.pi) * beta**3
+        self._total_width = _v1_to_fermion_pair_width(self.m_V1, self.m_chi, self.g_D**2)
 
         self._p_cm = _two_body_p_cm(m_V1, m_chi, m_chi)
         self._E_chi_rf = math.sqrt(self._p_cm**2 + m_chi**2)

@@ -635,6 +635,42 @@ def test_vector_meson_br_ratio_anchors(vector_portal):
     assert br3_pi_6 == pytest.approx(br3_pi * (6.0 / 7.0)**2, rel=1e-9)
 
 
+def test_dark_sector_width_anchors(vector_portal):
+    """Pin the dark-sector partial widths to explicit spinor-sum
+    values, the HNL limit, and the shared V1 -> ee Lorentz structure.
+    """
+    vp = vector_portal
+
+    # V1 -> chi chi vector-pair width (explicit Dirac spinor sum).
+    assert vp.DarkPhotonToChiDecay(0.017, 0.008, 1.0).total_width() == \
+        pytest.approx(2.19869e-04, rel=1e-4)
+
+    # chi' -> chi V1 fermion -> fermion + vector width.  Signature is
+    # ChiPrimeDecay(m_chi, m_chi_prime, m_V1, g_D).
+    assert vp.ChiPrimeDecay(0.008, 0.040, 0.017, 1.0).total_width() == \
+        pytest.approx(2.77278e-03, rel=1e-4)
+    assert vp.ChiPrimeDecay(0.008, 0.050, 0.017, 1.0).total_width() == \
+        pytest.approx(6.81945e-03, rel=1e-4)
+
+    # HNL N -> nu V limit: as m_chi -> 0 the width collapses to the closed
+    # form g^2 m'^3/(16 pi m_V^2) (1 - m_V^2/m'^2)^2 (1 + 2 m_V^2/m'^2).
+    mp, mv, g = 0.040, 0.017, 1.0
+    hnl_expected = (g**2 * mp**3 / (16.0 * math.pi * mv**2)
+                    * (1.0 - mv**2 / mp**2)**2 * (1.0 + 2.0 * mv**2 / mp**2))
+    assert vp._chi_prime_to_chi_v1_width(0.040, 1e-12, 0.017, 1.0) == \
+        pytest.approx(hnl_expected, rel=1e-6)
+
+    # V1 -> ee shares the vector-pair implementation with V1 -> chi chi;
+    # it reproduces the (alpha eps^2 m_V/3) beta (1 + 2 r^2) inline form
+    # bit-for-bit.
+    me, m_V1 = 0.000511, 0.017
+    beta_e = math.sqrt(1.0 - (2.0 * me / m_V1)**2)
+    ee_expected = ((1.0 / 137.036) * m_V1 / 3.0
+                   * beta_e * (1.0 + 2.0 * (me / m_V1)**2))
+    assert vp.DarkPhotonDecay(0.017, 1.0).total_width() == \
+        pytest.approx(ee_expected, rel=1e-9)
+
+
 # ------------------------------------------------------------------ #
 #  End-to-end chain test                                               #
 # ------------------------------------------------------------------ #
