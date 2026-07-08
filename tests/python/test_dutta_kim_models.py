@@ -1054,6 +1054,51 @@ def test_chi_flux_absolute_scale_and_multiplicity(vector_portal):
         pytest.approx(0.5 * m_pi * (k + 1.0 / k))
 
 
+def test_build_phi_flux_integral_pin(meson_production_module):
+    """build_phi_flux absolute normalization pinned against the independent from-scratch fold anchor 1.5283246e+09."""
+    import numpy as np
+
+    mp = meson_production_module
+    f = mp.build_phi_flux(
+        0.13957039, 0.10565837, 0.017, 1.0e-3, "scalar",
+        flux_tag="pion_numu", min_energy=0.0, max_energy=8.0,
+        n_bins=50, physically_normalized=False)
+    nodes = np.array(f.GetEnergyNodes())
+    vals = np.array([f.SampleUnnormedPDF(float(e)) for e in nodes])
+    integral = float(np.trapezoid(vals, nodes))
+    # Exact computed value of this fold; the independent from-scratch fold lands
+    # at 1.5283246e+09 (agreement better than 0.1%).
+    assert integral == pytest.approx(1528324638.4671445, rel=1e-5)
+    assert integral == pytest.approx(1.5283246e+09, rel=2e-3)
+
+
+def test_build_phi_flux_node_density_independent(meson_production_module):
+    """build_phi_flux total is output-binning independent: the deposited histogram is a per-GeV density, so its bin sum reproduces the same folded total regardless of the number of output bins."""
+    import numpy as np
+
+    mp = meson_production_module
+
+    def total_and_values(n_bins):
+        f = mp.build_phi_flux(
+            0.13957039, 0.10565837, 0.017, 1.0e-3, "scalar",
+            flux_tag="pion_numu", min_energy=0.0, max_energy=8.0,
+            n_bins=n_bins, physically_normalized=False)
+        nodes = np.array(f.GetEnergyNodes())
+        vals = np.array([f.SampleUnnormedPDF(float(e)) for e in nodes])
+        # Area under the per-GeV histogram (the conserved folded count); the
+        # trapezoid over centers under-integrates the low-energy phi spike at
+        # the min_energy boundary and is binning-sensitive, but the total is not.
+        total = float(np.sum(vals) * (nodes[1] - nodes[0]))
+        return total, vals
+
+    total_50, vals_50 = total_and_values(50)
+    total_100, vals_100 = total_and_values(100)
+    for vals in (vals_50, vals_100):
+        assert np.all(np.isfinite(vals))
+        assert np.all(vals >= 0.0)
+    assert total_50 == pytest.approx(total_100, rel=2e-2)
+
+
 def test_coherent_total_cross_section_magnitude_pin(vector_portal):
     """Pins the coherent argon magnitude (Z^2 = 324) of the Dutta-Kim M_0,SF
     amplitude with exact Kallen flux; anchored against the paper-formula
