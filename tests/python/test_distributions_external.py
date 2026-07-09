@@ -54,6 +54,13 @@ def csv_vertex(tmp_path):
                  "10.0,0.5,1.0,2.0,3.0,4.0,5.0,6.0\n")
     return str(p)
 
+@pytest.fixture
+def csv_with_time(tmp_path):
+    """CSV with an initial-time column."""
+    p = tmp_path / "time.csv"
+    p.write_text("E,t0\n10.0,16.678\n")
+    return str(p)
+
 
 @pytest.fixture
 def csv_custom_params(tmp_path):
@@ -161,6 +168,24 @@ class TestPrimaryExternalDistributionSampling:
         dist.Sample(rand, None, None, record)
         assert record.interaction_vertex == pytest.approx([1.0, 2.0, 3.0])
         assert record.initial_position == pytest.approx([1.0, 2.0, 3.0])
+
+    def test_sample_sets_initial_time(self, distributions, dataclasses,
+                                      utilities, csv_with_time):
+        dist = distributions.PrimaryExternalDistribution(csv_with_time)
+        rand = utilities.SIREN_random()
+        record = dataclasses.PrimaryDistributionRecord(
+            dataclasses.ParticleType.NuMu)
+        dist.Sample(rand, None, None, record)
+        assert record.initial_time == pytest.approx(16.678)
+
+    def test_no_time_column_leaves_default(self, distributions, dataclasses,
+                                           utilities, csv_basic):
+        dist = distributions.PrimaryExternalDistribution(csv_basic)
+        rand = utilities.SIREN_random()
+        record = dataclasses.PrimaryDistributionRecord(
+            dataclasses.ParticleType.NuMu)
+        dist.Sample(rand, None, None, record)
+        assert record.initial_time == 0.0
 
 # ---------------------------------------------------------------------------
 # GenerationProbability
