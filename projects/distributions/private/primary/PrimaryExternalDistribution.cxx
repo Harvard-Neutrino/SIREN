@@ -45,7 +45,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
     std::string key;
     bool has_x0 = false, has_y0 = false, has_z0 = false;
     bool has_x = false, has_y = false, has_z = false;
-    bool has_px = false, has_py = false, has_pz = false;
+    bool has_px = false, has_py = false, has_pz = false, has_t = false;
     while (std::getline(ss, key, ',')) {
         key = trim(key);
         keys.push_back(key);
@@ -58,6 +58,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
         else if (key == "px") has_px = true;
         else if (key == "py") has_py = true;
         else if (key == "pz") has_pz = true;
+        else if (key == "t") has_t = true;
     }
     init_pos_set = has_x0 && has_y0 && has_z0;
     vertex_set = has_x && has_y && has_z;
@@ -127,6 +128,7 @@ void PrimaryExternalDistribution::Sample(
     std::array<double, 3> _initial_position;
     std::array<double, 3> _vertex;
     std::array<double, 3> _momentum;
+    double _time = 0.0;
     for(size_t i_key = 0; i_key < keys.size(); ++i_key) {
         double value = input_data[i][i_key];
         if (keys[i_key] == "x0") {
@@ -156,6 +158,9 @@ void PrimaryExternalDistribution::Sample(
         else if (keys[i_key] == "pz") {
             _momentum[2] = value;
         }
+        else if (keys[i_key] == "t") {
+            _time = value;
+        }
         else if (keys[i_key] == "E") {
             record.SetEnergy(value);
         }
@@ -172,6 +177,7 @@ void PrimaryExternalDistribution::Sample(
         record.SetInteractionVertex(_vertex);
         if(!init_pos_set) record.SetInitialPosition(_vertex);
     }
+    record.SetInteractionParameter("t", _time);
 }
 
 std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {
