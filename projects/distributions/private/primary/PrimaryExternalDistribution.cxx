@@ -177,7 +177,7 @@ void PrimaryExternalDistribution::Sample(
         record.SetInteractionVertex(_vertex);
         if(!init_pos_set) record.SetInitialPosition(_vertex);
     }
-    record.SetInteractionParameter("t", _time);
+    record.SetInitialTime(_time);
 }
 
 std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {
