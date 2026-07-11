@@ -7,7 +7,10 @@
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/injection/GeometryVolume.h"
 #include "SIREN/injection/InvariantMassMapping.h"
+#include "SIREN/injection/Isotropic2BodyChannel.h"
+#include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/PhaseSpaceJacobian.h"
+#include "SIREN/injection/PhysicalChannelAdapters.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
@@ -29,6 +32,9 @@
 namespace {
 
 using siren::dataclasses::InteractionRecord;
+using siren::injection::PhaseSpaceChannel;
+using siren::injection::PhaseSpaceMeasure;
+using siren::injection::PhaseSpaceTopology;
 
 // Reconstruct a reference overlap cap to identify the part of a known lens
 // that a simple cone-intersection sampler would miss.
@@ -236,6 +242,64 @@ InteractionRecord AsymmetricThreeBodyDecayRecord() {
 }
 
 
+class ConstantChannel final : public PhaseSpaceChannel {
+public:
+    explicit ConstantChannel(
+        double density = 1.0,
+        PhaseSpaceTopology topology = PhaseSpaceTopology::Decay2Body,
+        PhaseSpaceMeasure measure = PhaseSpaceMeasure::SolidAngleRest())
+        : density_(density), topology_(topology), measure_(measure) {}
+
+    void Sample(
+        std::shared_ptr<siren::utilities::SIREN_random>,
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord &) const override {}
+
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord const &) const override
+    {
+        return density_;
+    }
+
+    std::string Name() const override { return "Constant"; }
+    PhaseSpaceTopology Topology() const override { return topology_; }
+    PhaseSpaceMeasure Measure() const override { return measure_; }
+
+private:
+    double density_;
+    PhaseSpaceTopology topology_;
+    PhaseSpaceMeasure measure_;
+};
+
+class CountingConventionChannel final : public PhaseSpaceChannel {
+public:
+    mutable int topology_calls = 0;
+    mutable int measure_calls = 0;
+
+    void Sample(
+        std::shared_ptr<siren::utilities::SIREN_random>,
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord &) const override {}
+
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const>,
+        InteractionRecord const &) const override
+    {
+        return 1.0;
+    }
+
+    std::string Name() const override { return "CountingConvention"; }
+    PhaseSpaceTopology Topology() const override {
+        ++topology_calls;
+        return PhaseSpaceTopology::Decay2Body;
+    }
+    PhaseSpaceMeasure Measure() const override {
+        ++measure_calls;
+        return PhaseSpaceMeasure::SolidAngleRest();
+    }
+};
+
 siren::dataclasses::InteractionSignature SignatureWithSecondaries(size_t count) {
     siren::dataclasses::InteractionSignature signature;
     signature.secondary_types.assign(
@@ -339,6 +403,45 @@ private:
 };
 
 
+TEST(PhysicalAdapterSignature, PinsDecayTopologyAndMeasure) {
+    auto decay = std::make_shared<MixedSignatureDecay>();
+    auto two_body = SignatureWithSecondaries(2);
+    auto three_body = SignatureWithSecondaries(3);
+
+    siren::injection::PhysicalDecayChannel unpinned(decay);
+    EXPECT_EQ(unpinned.Topology(), PhaseSpaceTopology::Unspecified);
+    EXPECT_EQ(unpinned.Measure(), PhaseSpaceMeasure::Unspecified());
+
+    siren::injection::PhysicalDecayChannel pinned_two(decay, two_body);
+    EXPECT_EQ(pinned_two.Topology(), PhaseSpaceTopology::Decay2Body);
+    EXPECT_EQ(pinned_two.Measure(), PhaseSpaceMeasure::SolidAngleRest());
+
+    siren::injection::PhysicalDecayChannel pinned_three(decay, three_body);
+    EXPECT_EQ(pinned_three.Topology(), PhaseSpaceTopology::Decay3Body);
+    EXPECT_EQ(pinned_three.Measure(), PhaseSpaceMeasure::HelicityAngles());
+}
+
+TEST(PhysicalAdapterSignature, PinsCrossSectionTopologyAndMeasure) {
+    auto cross_section = std::make_shared<MixedSignatureCrossSection>();
+    auto two_body = SignatureWithSecondaries(2);
+    auto three_body = SignatureWithSecondaries(3);
+
+    siren::injection::PhysicalCrossSectionChannel unpinned(cross_section);
+    EXPECT_EQ(unpinned.Topology(), PhaseSpaceTopology::Unspecified);
+    EXPECT_EQ(unpinned.Measure(), PhaseSpaceMeasure::Unspecified());
+
+    siren::injection::PhysicalCrossSectionChannel pinned_two(
+        cross_section, two_body);
+    EXPECT_EQ(pinned_two.Topology(), PhaseSpaceTopology::Scatter2to2);
+    EXPECT_EQ(pinned_two.Measure(), PhaseSpaceMeasure::MandelstamQ2());
+
+    siren::injection::PhysicalCrossSectionChannel pinned_three(
+        cross_section, three_body);
+    EXPECT_EQ(pinned_three.Topology(), PhaseSpaceTopology::Scatter2to3);
+    EXPECT_EQ(pinned_three.Measure(), PhaseSpaceMeasure::MandelstamQ2());
+}
+
+
 namespace {
 
 
@@ -398,6 +501,41 @@ TEST(PropagatorMapping, BelowPoleWindowRemainsNormalized) {
         sum += weight * map.Density(lo + i * h);
     }
     EXPECT_NEAR(sum * h / 3.0, 1.0, 1e-6);
+}
+
+
+TEST(KinematicInjectionFailure, IsotropicTwoBodyRejectsSubThresholdDecay) {
+    siren::injection::Isotropic2BodyChannel channel(0);
+    InteractionRecord record = TwoBodyDecayRecord();
+    record.primary_mass = 0.9;
+    record.primary_momentum = {0.9, 0.0, 0.0, 0.0};
+    record.secondary_masses = {0.5, 0.5};
+    auto momenta_before = record.secondary_momenta;
+    auto random = std::make_shared<siren::utilities::SIREN_random>(264575);
+
+    EXPECT_DOUBLE_EQ(channel.Density(nullptr, record), 0.0);
+    EXPECT_THROW(channel.Sample(random, nullptr, record),
+                 siren::utilities::InjectionFailure);
+    EXPECT_EQ(record.secondary_momenta, momenta_before);
+}
+
+TEST(KinematicInjectionFailure, IsotropicTwoBodyAcceptsExactThreshold) {
+    siren::injection::Isotropic2BodyChannel channel(1);
+    InteractionRecord record = TwoBodyDecayRecord();
+    record.primary_mass = 1.0;
+    record.primary_momentum = {1.0, 0.0, 0.0, 0.0};
+    record.secondary_masses = {0.4, 0.6};
+    auto random = std::make_shared<siren::utilities::SIREN_random>(271828);
+
+    EXPECT_NO_THROW(channel.Sample(random, nullptr, record));
+    EXPECT_NEAR(channel.Density(nullptr, record), 1.0 / (4.0 * M_PI), 1e-15);
+    for (size_t i = 0; i < 2; ++i) {
+        EXPECT_NEAR(record.secondary_momenta[i][0],
+                    record.secondary_masses[i], 1e-15);
+        EXPECT_DOUBLE_EQ(record.secondary_momenta[i][1], 0.0);
+        EXPECT_DOUBLE_EQ(record.secondary_momenta[i][2], 0.0);
+        EXPECT_DOUBLE_EQ(record.secondary_momenta[i][3], 0.0);
+    }
 }
 
 
