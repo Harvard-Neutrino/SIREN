@@ -317,11 +317,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
             ):
                 # total width calculation requires evaluating an integral
                 if self.decay_integrator is None or self.decay_norm is None:
-                    # We need to initialize a new VEGAS integrator in DarkNews
-                    self.total_width, dec_norm, dec_integrator = self.dec_case.total_width(
-                        return_norm=True, return_dec=True
-                    )
-                    self.SetIntegratorAndNorm(dec_norm, dec_integrator)
+                    # total_width() integrates internally and returns the width.
+                    self.total_width = self.dec_case.total_width()
                 else:
                     self.total_width = (
                         self.decay_integrator["diff_decay_rate_0"].mean
@@ -407,12 +404,11 @@ class PyDarkNewsDecay(DarkNewsDecay):
         if self.PS_samples is None or self.PS_weights is None:
             # We need to generate new PS samples
             if self.decay_integrator is None or self.decay_norm is None:
-                # We need to initialize a new VEGAS integrator in DarkNews
-                (self.PS_samples, PS_weights_dict), dec_norm, dec_integrator = self.dec_case.SamplePS(
-                    return_norm=True, return_dec=True
-                )
+                # SamplePS() builds its own VEGAS integrator and returns
+                # (samples, weights_dict); the sample pool cached on this
+                # instance is all later draws need.
+                self.PS_samples, PS_weights_dict = self.dec_case.SamplePS()
                 self.PS_weights = PS_weights_dict["diff_decay_rate_0"]
-                self.SetIntegratorAndNorm(dec_norm, dec_integrator)
             else:
                 # We already have an integrator, we just need new PS samples
                 self.PS_samples, PS_weights_dict = self.dec_case.SamplePS(
