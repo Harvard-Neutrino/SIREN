@@ -365,19 +365,21 @@ def ensure_zenodo_archive(record_id: str, filename: str, dest_dir: str,
     multiple loaders sharing the same archive only download once.
 
     If *prefix* is given (e.g. ``"processes/DipoleHNLDISSplines"``),
-    only zip entries under that prefix are extracted. A sentinel file
-    is written after successful extraction so subsequent calls skip
-    the download even when the directory already contains other files
-    (like loader scripts).
+    only zip entries under that prefix are extracted. If *prefix* is
+    empty, the entire zip is extracted.
 
-    If *prefix* is empty, the entire zip is extracted and extraction
-    is skipped when the sentinel exists.
+    A sentinel file written after successful extraction records every
+    extracted file. Subsequent calls skip the download only while all
+    recorded files are still present, so a sentinel left next to
+    missing data (an interrupted extraction, or an install that
+    replaced the data directory) triggers re-extraction -- from the
+    cached zip when one is present -- instead of a silent skip.
     """
     if prefix:
         sentinel = os.path.join(dest_dir, prefix, _EXTRACTED_SENTINEL)
     else:
         sentinel = os.path.join(dest_dir, _EXTRACTED_SENTINEL)
-    if os.path.isfile(sentinel):
+    if _extraction_complete(sentinel, dest_dir):
         return
 
     zip_path = _cached_zip(dest_dir, record_id, filename, token)
@@ -397,13 +399,36 @@ def ensure_zenodo_archive(record_id: str, filename: str, dest_dir: str,
             print(f"  Extracting {prefix} from {filename} "
                   f"({len(members)} entries) ...")
             _safe_extract(zf, dest_dir, members)
+            extracted = members
         else:
             print(f"  Extracting {filename} ...")
             _safe_extract(zf, dest_dir)
+            extracted = zf.namelist()
 
     os.makedirs(os.path.dirname(sentinel), exist_ok=True)
     with open(sentinel, "w") as f:
         f.write(f"zenodo:{record_id}/{filename}\n")
+        for name in extracted:
+            if not name.endswith("/"):
+                f.write(name + "\n")
+
+
+def _extraction_complete(sentinel: str, dest_dir: str) -> bool:
+    """True when the sentinel's file manifest is fully present on disk.
+
+    The manifest follows the provenance line, one file per line. A
+    sentinel without a manifest cannot be verified and does not count
+    as complete.
+    """
+    if not os.path.isfile(sentinel):
+        return False
+    with open(sentinel) as f:
+        lines = [line.strip() for line in f]
+    manifest = [line for line in lines[1:] if line]
+    if not manifest:
+        return False
+    return all(os.path.isfile(os.path.join(dest_dir, name))
+               for name in manifest)
 
 
 # ======================================================================
