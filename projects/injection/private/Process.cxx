@@ -1,5 +1,9 @@
 #include "SIREN/injection/Process.h"
 
+#include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/utilities/Errors.h"
+
 #include <tuple>
 
 namespace siren {
@@ -65,19 +69,23 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
 
 PhysicalProcess::PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions), phase_space_map_(other.phase_space_map_), weighting_mode_(other.weighting_mode_) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(std::move(other.physical_distributions)), phase_space_map_(std::move(other.phase_space_map_)), weighting_mode_(other.weighting_mode_) {};
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess const & other) {
     Process::operator=(other);
     physical_distributions = other.physical_distributions;
+    phase_space_map_ = other.phase_space_map_;
+    weighting_mode_ = other.weighting_mode_;
     return *this;
 };
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess && other) {
     Process::operator=(other);
-    physical_distributions = other.physical_distributions;
+    physical_distributions = std::move(other.physical_distributions);
+    phase_space_map_ = std::move(other.phase_space_map_);
+    weighting_mode_ = other.weighting_mode_;
     return *this;
 };
 
@@ -101,6 +109,79 @@ void PhysicalProcess::SetPhysicalDistributions(std::vector<std::shared_ptr<distr
         }
     }
     physical_distributions = distributions;
+}
+
+void PhysicalProcess::SetPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig,
+    std::shared_ptr<MultiChannelPhaseSpace> ps)
+{
+    if (ps) {
+        for (auto const & diagnostic : ps->ValidateChannelsDetailed()) {
+            if (diagnostic.severity ==
+                MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Fatal) {
+                throw siren::utilities::MeasureCompatibilityError(
+                    diagnostic.message);
+            }
+        }
+
+        auto process_interactions = GetInteractions();
+        if (process_interactions) {
+            siren::dataclasses::InteractionRecord record;
+            record.signature = sig;
+            PhaseSpaceConvention process_convention =
+                SelectedFinalStateConvention(process_interactions, record);
+            PhaseSpaceTopology mixture_topology = ps->CommonTopology();
+            PhaseSpaceMeasure mixture_measure = ps->CommonMeasure();
+            // The mixture replaces the model's final-state density, so
+            // registration rejects only a same-family measure the model
+            // cannot reach pointwise: an explicit-azimuth model density
+            // behind an azimuth-integrated mixture. An Unspecified measure
+            // on either side makes no claim, and a foreign topology or
+            // measure family means the mixture's chart replaces the model's
+            // convention wholesale; the propagated path weights through the
+            // mixture density alone.
+            bool same_family =
+                process_convention.topology == mixture_topology &&
+                MeasureConvertibilityGroup(
+                    process_convention.topology,
+                    process_convention.measure) ==
+                MeasureConvertibilityGroup(
+                    process_convention.topology, mixture_measure);
+            if (process_convention.measure.type !=
+                    PhaseSpaceMeasure::Type::Unspecified &&
+                mixture_measure.type !=
+                    PhaseSpaceMeasure::Type::Unspecified &&
+                same_family &&
+                !PhaseSpaceDensityConvertible(
+                    process_convention.topology,
+                    process_convention.measure, mixture_measure)) {
+                throw siren::utilities::MeasureCompatibilityError(
+                    "Phase space registered for a signature is not "
+                    "convertible from that interaction model's "
+                    "final-state convention "
+                    "[siren-docs: errors#measure-compat]");
+            }
+        }
+    }
+    phase_space_map_[sig] = ps;
+}
+
+std::shared_ptr<MultiChannelPhaseSpace> PhysicalProcess::GetPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig) const
+{
+    auto it = phase_space_map_.find(sig);
+    if (it != phase_space_map_.end()) return it->second;
+    return nullptr;
+}
+
+bool PhysicalProcess::HasPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig) const
+{
+    return phase_space_map_.find(sig) != phase_space_map_.end();
+}
+
+bool PhysicalProcess::HasAnyPhaseSpace() const {
+    return !phase_space_map_.empty();
 }
 
 PrimaryInjectionProcess::PrimaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
