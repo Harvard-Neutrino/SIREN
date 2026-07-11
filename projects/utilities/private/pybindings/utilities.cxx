@@ -3,6 +3,7 @@
 
 #include "../../public/SIREN/utilities/Random.h"
 #include "../../public/SIREN/utilities/Constants.h"
+#include "SIREN/utilities/Errors.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -16,6 +17,14 @@ using namespace pybind11;
 
 PYBIND11_MODULE(utilities,m) {
   using namespace siren::utilities;
+
+  pybind11::register_exception<AddProcessFailure>(m, "AddProcessFailure", PyExc_RuntimeError);
+  pybind11::register_exception<SecondaryProcessFailure>(m, "SecondaryProcessFailure", PyExc_RuntimeError);
+  pybind11::register_exception<InjectionFailure>(m, "InjectionFailure", PyExc_RuntimeError);
+  pybind11::register_exception<PythonImplementationError>(m, "PythonImplementationError", PyExc_RuntimeError);
+  pybind11::register_exception<ConfigurationError>(m, "ConfigurationError", PyExc_RuntimeError);
+  pybind11::register_exception<MeasureCompatibilityError>(m, "MeasureCompatibilityError", PyExc_RuntimeError);
+  pybind11::register_exception<WeightCalculationError>(m, "WeightCalculationError", PyExc_RuntimeError);
 
   auto constants_mod = m.def_submodule("Constants");
   // geometry
