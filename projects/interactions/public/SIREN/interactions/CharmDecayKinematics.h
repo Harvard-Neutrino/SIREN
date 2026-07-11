@@ -27,6 +27,7 @@
 #include <functional>
 
 #include "SIREN/dataclasses/Particle.h"
+#include "SIREN/math/Kinematics.h"
 #include "SIREN/utilities/Constants.h"
 #include "SIREN/utilities/Integration.h"
 
@@ -125,10 +126,8 @@ inline double integratePositivePartQuadratic(double a2, double a1, double a0,
 // numeric quadrature of the identical clamped weight.
 inline double VAWeightAngleAverage(double mD, double mK, double ml, double m23) {
     double mnu = 0.0;
-    double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
-                                 * (mD + mK - m23) * (mD - mK + m23)) / mD;
-    double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
-                                  * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+    double p1Abs = siren::math::TwoBodyRestMomentum(mD, mK, m23);
+    double p23Abs = siren::math::TwoBodyRestMomentum(m23, ml, mnu);
     if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
     double E23 = std::sqrt(p1Abs * p1Abs + m23 * m23);
     double bz = -p1Abs / E23;              // (l,nu)-system velocity along -kaon axis
@@ -162,19 +161,15 @@ inline double SampledQ2Density(double mD, double mK, double ml, double q2, bool 
   double m23Max = mD - mK;
   if (m23 <= ml || m23 >= m23Max) return 0.0;
   double mnu = 0.0;
-  double p1Abs = 0.5 * std::sqrt((mD - mK - m23) * (mD + mK + m23)
-                               * (mD + mK - m23) * (mD - mK + m23)) / mD;
-  double p23Abs = 0.5 * std::sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
-                                * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+  double p1Abs = siren::math::TwoBodyRestMomentum(mD, mK, m23);
+  double p23Abs = siren::math::TwoBodyRestMomentum(m23, ml, mnu);
   if (p1Abs <= 0.0 || p23Abs <= 0.0) return 0.0;
   // Phase-space weight WITH the sampler's rejection ceiling: where
   // p1Abs*p23Abs exceeds wtPSmax the sampler saturates (always accepts), so the
   // accepted density is flat at wtPSmax. Reproduce the clip for exact closure.
   double m23Min = ml + mnu;
-  double p1Max = 0.5 * std::sqrt((mD - mK - m23Min) * (mD + mK + m23Min)
-                               * (mD + mK - m23Min) * (mD - mK + m23Min)) / mD;
-  double p23Max = 0.5 * std::sqrt((m23Max - ml - mnu) * (m23Max + ml + mnu)
-                                * (m23Max + ml - mnu) * (m23Max - ml + mnu)) / m23Max;
+  double p1Max = siren::math::TwoBodyRestMomentum(mD, mK, m23Min);
+  double p23Max = siren::math::TwoBodyRestMomentum(m23Max, ml, mnu);
   double wtPSmax = 0.5 * p1Max * p23Max;
   double wtPS = p1Abs * p23Abs;
   if (wtPS > wtPSmax) wtPS = wtPSmax;

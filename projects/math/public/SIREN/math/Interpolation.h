@@ -31,6 +31,7 @@
 #include <cereal/types/utility.hpp>
 
 #include "delabella.h"
+#include "SIREN/math/InterpolationUtils.h"
 
 namespace siren {
 namespace math {
@@ -561,26 +562,15 @@ public:
     }
 
     std::tuple<int, int> operator()(T const & x) const override {
-        if(x <= low) {
-            return {0, 1};
-        } else if (x >= high) {
-            return {n_points - 2, n_points - 1};
+        auto indices = InterpolationBracket(data, x, false);
+        if (reversed) {
+            return {
+                static_cast<int>(n_points - 1 - indices.second),
+                static_cast<int>(n_points - 1 - indices.first)};
         }
-        // Lower bound returns pointer to element that is greater than or equal to x
-        // i.e. x \in (a,b] --> pointer to b, x \in (b,c] --> pointer to c
-        // begin is the first element
-        // distance(begin, pointer to y) --> y
-        // therefore this function returns the index of the lower bin edge
-        using ConstIterator = typename std::vector<T>::const_iterator;
-        ConstIterator it = std::lower_bound(data.begin(), data.end(), x);
-        unsigned int index = std::distance(data.begin(), it) - 1;
-        if(reversed)
-            index = (n_points - 1) - index;
-        if(index < 0)
-            index = 0;
-        else if(index >= n_points - 1)
-            index = n_points - 2;
-        return {index, index + 1};
+        return {
+            static_cast<int>(indices.first),
+            static_cast<int>(indices.second)};
     }
 };
 
