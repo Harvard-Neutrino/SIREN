@@ -117,3 +117,10 @@ def test_import_leaves_process_forkable():
         f"fork() after 'import siren' is unsafe: {result}. A multi-threaded "
         "process can inherit a held lock into the child, deadlocking "
         "multiprocessing Pools that use the 'fork' start method")
+
+
+def test_three_body_mode_bound():
+    """siren.injection.ThreeBodyMode exposes Direct and Recursive."""
+    import siren
+    assert hasattr(siren.injection.ThreeBodyMode, "Direct")
+    assert hasattr(siren.injection.ThreeBodyMode, "Recursive")
