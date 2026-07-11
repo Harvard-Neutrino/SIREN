@@ -26,6 +26,7 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/injection/Process.h"
 #include "SIREN/injection/WeightingUtils.h"
+#include "InteractionSelection.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Constants.h"
 #include "SIREN/utilities/Errors.h"
@@ -160,6 +161,21 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
 }
 
 void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record, std::shared_ptr<siren::interactions::InteractionCollection> interactions) const {
+    std::shared_ptr<siren::interactions::Interaction> selected =
+        SelectChannel(record, interactions);
+    SampleMatchingFinalState(record, selected);
+}
+
+std::shared_ptr<siren::interactions::Interaction> Injector::SelectChannel(
+    siren::dataclasses::InteractionRecord & record,
+    std::shared_ptr<siren::interactions::InteractionCollection> interactions) const
+{
+    if(!interactions) {
+        throw siren::utilities::ConfigurationError(
+            "Injector: the process has no InteractionCollection, so no "
+            "interaction channel can be selected "
+            "[siren-docs: errors#configuration]");
+    }
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
             std::isnan(record.interaction_vertex[1]) ||
@@ -167,118 +183,132 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         throw(siren::utilities::InjectionFailure("No particle interaction!"));
     }
 
-    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
-
-    siren::math::Vector3D interaction_vertex(
-            record.interaction_vertex[0],
-            record.interaction_vertex[1],
-            record.interaction_vertex[2]);
-
-    siren::math::Vector3D primary_direction(
-            record.primary_momentum[1],
-            record.primary_momentum[2],
-            record.primary_momentum[3]);
-    primary_direction.normalize();
-
-    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::set<siren::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
-
     double total_prob = 0.0;
-    double xsec_prob = 0.0;
-    std::vector<double> probs;
-    std::vector<siren::dataclasses::ParticleType> matching_targets;
-    std::vector<siren::dataclasses::InteractionSignature> matching_signatures;
-    std::vector<std::shared_ptr<siren::interactions::CrossSection>> matching_cross_sections;
-    std::vector<std::shared_ptr<siren::interactions::Decay>> matching_decays;
-    siren::dataclasses::InteractionRecord fake_record = record;
-    double fake_prob;
-    if (interactions->HasCrossSections()) {
-        for(auto const target : available_targets) {
-            if(possible_targets.find(target) != possible_targets.end()) {
-                // Get target density
-                double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
-                // Loop over cross sections that have this target
-                std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
-                for(auto const & cross_section : target_cross_sections) {
-                    // Loop over cross section signatures with the same target
-                    std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
-                    for(auto const & signature : signatures) {
-                        fake_record.signature = signature;
-                        fake_record.target_mass = detector_model->GetTargetMass(target);
-                        // Add total cross section times density to the total prob
-                        fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
-                        total_prob += fake_prob;
-                        xsec_prob += fake_prob;
-                        // Add total prob to probs
-                        probs.push_back(total_prob);
-                        // Add target and cross section pointer to the lists
-                        matching_targets.push_back(target);
-                        matching_cross_sections.push_back(cross_section);
-                        matching_signatures.push_back(signature);
-                    }
-                }
-            }
-        }
-    }
-    if (interactions->HasDecays()) {
-        for(auto const & decay : interactions->GetDecays() ) {
-            for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
-                fake_record.signature = signature;
-                // fake_prob has units of 1/cm to match cross section probabilities
-                fake_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
-                total_prob += fake_prob;
-                // Add total prob to probs
-                probs.push_back(total_prob);
-                // Add target and decay pointer to the lists
-                matching_targets.push_back(siren::dataclasses::ParticleType::Decay);
-                matching_decays.push_back(decay);
-                matching_signatures.push_back(signature);
-            }
-        }
+    std::vector<detail::InteractionCandidate> candidates =
+        detail::EnumerateInteractionCandidates(
+            detector_model, interactions, record);
+    std::vector<double> cumulative_rates;
+    cumulative_rates.reserve(candidates.size());
+    for (detail::InteractionCandidate const & candidate : candidates) {
+        total_prob += candidate.rate;
+        cumulative_rates.push_back(total_prob);
     }
 
     if(total_prob == 0)
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
-    // Throw a random number
+
     double r = random->Uniform(0, total_prob);
-    // Choose the target and cross section
-    unsigned int index = 0;
-    for(; (index+1 < probs.size()) and (r > probs[index]); ++index) {}
-    record.signature.target_type = matching_targets[index];
-    record.signature = matching_signatures[index];
-    double selected_prob = 0.0;
-    for(unsigned int i=0; i<probs.size(); ++i) {
-        if(matching_signatures[index] == matching_signatures[i]) {
-            selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
-        }
+    std::size_t index = 0;
+    for(; (index + 1 < cumulative_rates.size())
+            && (r > cumulative_rates[index]); ++index) {}
+    detail::InteractionCandidate const & selected = candidates[index];
+    record.signature = selected.signature;
+    record.target_mass = selected.target_mass;
+    return selected.interaction;
+}
+
+void Injector::SampleMatchingFinalState(
+    siren::dataclasses::InteractionRecord & record,
+    std::shared_ptr<siren::interactions::Interaction> selected_interaction) const
+{
+    if(!selected_interaction) {
+        throw siren::utilities::ConfigurationError(
+            "Injector: no selected interaction is available for final-state "
+            "sampling "
+            "[siren-docs: errors#configuration]");
     }
-    if(selected_prob == 0)
-        throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
-    record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
-    // Sample the final state, then give the selected interaction a chance to
-    // override the vertex time. The hook must run here, post-selection: which
-    // decay/cross section fires at a vertex is only chosen above (in this
-    // function), after the vertex-owning record's position has been frozen by
-    // its Finalize, so there is no reachable point before Finalize at which the
-    // concrete interaction is known. Overriding time here is coherent because
-    // the vertex position is fixed; only the interaction time shifts, and
-    // daughters inherit it through xsec_record.Finalize's back-sync.
-    double proposed_time;
-    if(r <= xsec_prob) {
-        std::shared_ptr<siren::interactions::CrossSection> const & selected = matching_cross_sections[index];
-        selected->SampleFinalState(xsec_record, random);
-        proposed_time = selected->SampleInteractionTime(xsec_record, random);
+    double proposed_time = xsec_record.GetInteractionTime();
+    if (auto decay = std::dynamic_pointer_cast<siren::interactions::Decay>(
+            selected_interaction)) {
+        decay->SampleFinalState(xsec_record, random);
+        proposed_time = decay->SampleDecayTime(xsec_record, random);
+    } else if (auto cross_section =
+            std::dynamic_pointer_cast<siren::interactions::CrossSection>(
+                selected_interaction)) {
+        cross_section->SampleFinalState(xsec_record, random);
+        proposed_time = cross_section->SampleInteractionTime(xsec_record, random);
     } else {
-        std::shared_ptr<siren::interactions::Decay> const & selected = matching_decays[index - matching_cross_sections.size()];
-        selected->SampleFinalState(xsec_record, random);
-        proposed_time = selected->SampleDecayTime(xsec_record, random);
+        throw siren::utilities::ConfigurationError(
+            "Injector: selected interaction is neither a CrossSection nor a "
+            "Decay [siren-docs: errors#configuration]");
     }
-    if(proposed_time != xsec_record.GetInteractionTime()) {
+    if (proposed_time != xsec_record.GetInteractionTime()) {
         xsec_record.SetInteractionTime(proposed_time);
     }
     xsec_record.Finalize(record);
 }
+
+namespace {
+
+void PreparePhaseSpaceFinalState(
+    siren::dataclasses::InteractionRecord & record,
+    std::shared_ptr<siren::interactions::Interaction> selected_interaction)
+{
+    std::vector<double> secondary_masses;
+    std::vector<double> secondary_helicities;
+    if (auto decay = std::dynamic_pointer_cast<siren::interactions::Decay>(
+            selected_interaction)) {
+        secondary_masses = decay->SecondaryMasses(
+            record.signature.secondary_types);
+        secondary_helicities = decay->SecondaryHelicities(record);
+    } else if (auto cross_section =
+            std::dynamic_pointer_cast<siren::interactions::CrossSection>(
+                selected_interaction)) {
+        secondary_masses = cross_section->SecondaryMasses(
+            record.signature.secondary_types);
+        secondary_helicities = cross_section->SecondaryHelicities(record);
+    } else {
+        throw siren::utilities::ConfigurationError(
+            "Injector: selected interaction is neither a CrossSection nor a "
+            "Decay [siren-docs: errors#configuration]");
+    }
+
+    size_t n_secondaries = record.signature.secondary_types.size();
+    if (secondary_masses.size() != n_secondaries) {
+        throw(siren::utilities::InjectionFailure("SecondaryMasses returned the wrong number of masses!"));
+    }
+    if (secondary_helicities.size() != n_secondaries) {
+        secondary_helicities.assign(n_secondaries, 0.0);
+    }
+
+    record.secondary_masses = secondary_masses;
+    record.secondary_helicities = secondary_helicities;
+    record.secondary_ids.resize(n_secondaries);
+    for (auto & id : record.secondary_ids) {
+        id = siren::dataclasses::ParticleID::GenerateID();
+    }
+    record.secondary_momenta.assign(n_secondaries, {0.0, 0.0, 0.0, 0.0});
+    record.secondary_times.assign(n_secondaries, record.interaction_time);
+}
+
+void ApplySelectedInteractionTime(
+    siren::dataclasses::InteractionRecord & record,
+    std::shared_ptr<siren::interactions::Interaction> selected_interaction,
+    std::shared_ptr<siren::utilities::SIREN_random> random)
+{
+    siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+    double proposed_time;
+    if (auto decay = std::dynamic_pointer_cast<siren::interactions::Decay>(
+            selected_interaction)) {
+        proposed_time = decay->SampleDecayTime(xsec_record, random);
+    } else if (auto cross_section =
+            std::dynamic_pointer_cast<siren::interactions::CrossSection>(
+                selected_interaction)) {
+        proposed_time = cross_section->SampleInteractionTime(xsec_record, random);
+    } else {
+        throw siren::utilities::ConfigurationError(
+            "Injector: selected interaction is neither a CrossSection nor a "
+            "Decay [siren-docs: errors#configuration]");
+    }
+    if (proposed_time != record.interaction_time) {
+        record.interaction_time = proposed_time;
+    }
+    record.secondary_times.assign(
+        record.signature.secondary_types.size(), record.interaction_time);
+}
+
+} // anonymous namespace
 
 // Function to sample secondary processes
 //
@@ -293,7 +323,18 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     }
     siren::dataclasses::InteractionRecord record;
     secondary_record.Finalize(record);
-    SampleCrossSection(record, secondary_interactions);
+
+    // Select the concrete interaction and signature in one rate-weighted draw.
+    std::shared_ptr<siren::interactions::Interaction> selected_interaction =
+        SelectChannel(record, secondary_interactions);
+
+    if (secondary_process->HasPhaseSpace(record.signature)) {
+        PreparePhaseSpaceFinalState(record, selected_interaction);
+        secondary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
+        ApplySelectedInteractionTime(record, selected_interaction, random);
+    } else {
+        SampleMatchingFinalState(record, selected_interaction);
+    }
     return record;
 }
 
@@ -310,8 +351,21 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
             distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
         }
         primary_record.Finalize(record);
-        SampleCrossSection(record);
+
+        // Select the concrete interaction and signature in one rate-weighted draw.
+        std::shared_ptr<siren::interactions::Interaction> selected_interaction =
+            SelectChannel(record, primary_process->GetInteractions());
+
+        if (primary_process->HasPhaseSpace(record.signature)) {
+            PreparePhaseSpaceFinalState(record, selected_interaction);
+            primary_process->GetPhaseSpace(record.signature)->Sample(random, detector_model, record);
+            ApplySelectedInteractionTime(record, selected_interaction, random);
+        } else {
+            SampleMatchingFinalState(record, selected_interaction);
+        }
     } catch(siren::utilities::InjectionFailure const & e) {
+        failed_events += 1;
+        last_failure_reason_ = e.what();
         return siren::dataclasses::InteractionTree();
     }
     siren::dataclasses::InteractionTree tree;
@@ -344,24 +398,95 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                 std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
                 secondaries.erase(secondaries.begin() + i);
 
-                siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
-                // Daughter record is authoritative for its production time; keep the
-                // parent's secondary_times slot in sync (single write point, after the
-                // daughter override is finalized).
-                size_t sidx = secondary_dist->GetSecondaryIndex();
-                if(sidx < parent->record.secondary_times.size())
-                    parent->record.secondary_times[sidx] = secondary_record.primary_initial_time;
-                add_secondaries(secondary_datum);
+                int current_secondary_pdg = static_cast<int>(secondary_dist->type);
+                try {
+                    siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
+                    std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+                    // Daughter record is authoritative for its production time; keep the
+                    // parent's secondary_times slot in sync (single write point, after the
+                    // daughter override is finalized).
+                    size_t sidx = secondary_dist->GetSecondaryIndex();
+                    if(sidx < parent->record.secondary_times.size())
+                        parent->record.secondary_times[sidx] = secondary_record.primary_initial_time;
+                    add_secondaries(secondary_datum);
+                } catch(siren::utilities::InjectionFailure const & e) {
+                    failed_events += 1;
+                    last_failure_reason_ = e.what();
+                    last_failed_tree_ = std::move(tree);
+                    return siren::dataclasses::InteractionTree();
+                }
             }
         }
     } catch(siren::utilities::InjectionFailure const & e) {
+        failed_events += 1;
+        last_failure_reason_ = e.what();
         return siren::dataclasses::InteractionTree();
     }
     tree.header.event_number = injected_events;
     tree.header.provenance["generator"] = "SIREN";
     injected_events += 1;
     return tree;
+}
+
+std::shared_ptr<MultiChannelPhaseSpace> Injector::PhaseSpaceForDatum(
+    siren::dataclasses::InteractionTreeDatum const & datum) const {
+    siren::dataclasses::InteractionSignature const & sig = datum.record.signature;
+    if (datum.is_root()) {
+        if (primary_process && primary_process->HasPhaseSpace(sig))
+            return primary_process->GetPhaseSpace(sig);
+        return nullptr;
+    }
+    auto it = secondary_process_map.find(sig.primary_type);
+    if (it != secondary_process_map.end() && it->second &&
+        it->second->HasPhaseSpace(sig))
+        return it->second->GetPhaseSpace(sig);
+    return nullptr;
+}
+
+std::vector<std::shared_ptr<MultiChannelPhaseSpace>>
+Injector::GetPhaseSpaces() const {
+    std::vector<std::shared_ptr<MultiChannelPhaseSpace>> out;
+    std::set<MultiChannelPhaseSpace *> seen;
+    auto add = [&](auto const & proc) {
+        if (!proc) return;
+        for (auto const & kv : proc->GetPhaseSpaceMap()) {
+            std::shared_ptr<MultiChannelPhaseSpace> const & mc = kv.second;
+            if (mc && mc->channels.size() >= 2 && seen.insert(mc.get()).second)
+                out.push_back(mc);
+        }
+    };
+    add(primary_process);
+    for (auto const & kv : secondary_process_map) add(kv.second);
+    return out;
+}
+
+void Injector::AccumulateEventToMixtures(
+    siren::dataclasses::InteractionTree const & tree,
+    double weight, bool discount_fallback, bool recurse) const {
+    // Pass a null detector model -- matches the chain optimizer's existing
+    // mc.Density(None, record); these channels' densities are detector-independent.
+    std::shared_ptr<siren::detector::DetectorModel const> no_detector;
+    for (auto const & datum : tree.tree) {
+        if (!datum) continue;
+        std::shared_ptr<MultiChannelPhaseSpace> mc = PhaseSpaceForDatum(*datum);
+        if (mc && mc->channels.size() >= 2)
+            mc->Accumulate(no_detector, datum->record, weight,
+                           discount_fallback, recurse);
+    }
+}
+
+void Injector::AccumulateSelectionToMixtures(
+    siren::dataclasses::InteractionTree const & tree, bool failed) const {
+    std::shared_ptr<siren::detector::DetectorModel const> no_detector;
+    // At most one selection sample per tree per mixture (matches the `break`
+    // in the optimizer's per-tree selection loops).
+    std::set<MultiChannelPhaseSpace *> credited;
+    for (auto const & datum : tree.tree) {
+        if (!datum) continue;
+        std::shared_ptr<MultiChannelPhaseSpace> mc = PhaseSpaceForDatum(*datum);
+        if (mc && mc->channels.size() >= 2 && credited.insert(mc.get()).second)
+            mc->AccumulateSelection(no_detector, datum->record, failed);
+    }
 }
 
 double Injector::SecondaryGenerationProbability(std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const {
@@ -375,7 +500,16 @@ double Injector::SecondaryGenerationProbability(std::shared_ptr<siren::dataclass
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    double prob = siren::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
+    double prob;
+    auto phase_space = process->GetPhaseSpace(datum->record.signature);
+    if(phase_space) {
+        prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+            detector_model, process->GetInteractions(), datum->record,
+            *phase_space);
+    } else {
+        prob = siren::injection::CrossSectionProbability(
+            detector_model, process->GetInteractions(), datum->record);
+    }
     probability *= prob;
     return probability;
 }
@@ -403,7 +537,16 @@ double Injector::GenerationProbability(std::shared_ptr<siren::dataclasses::Inter
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    double prob = siren::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
+    double prob;
+    auto phase_space = process->GetPhaseSpace(datum->record.signature);
+    if(phase_space) {
+        prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+            detector_model, process->GetInteractions(), datum->record,
+            *phase_space);
+    } else {
+        prob = siren::injection::CrossSectionProbability(
+            detector_model, process->GetInteractions(), datum->record);
+    }
     probability *= prob;
     return probability;
 }
@@ -490,8 +633,25 @@ unsigned int Injector::EventsToInject() const {
     return events_to_inject;
 }
 
-void Injector::ResetInjectedEvents() {
+unsigned int Injector::FailedEvents() const {
+    return failed_events;
+}
+
+std::string Injector::GetLastFailureReason() const {
+    return last_failure_reason_;
+}
+
+siren::dataclasses::InteractionTree const & Injector::GetLastFailedTree() const {
+    return last_failed_tree_;
+}
+
+void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
+    this->events_to_inject = events_to_inject;
     injected_events = 0;
+    injection_attempts = 0;
+    failed_events = 0;
+    last_failure_reason_.clear();
+    last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
 
 Injector::operator bool() const {
@@ -512,4 +672,3 @@ void Injector::LoadInjector(std::string const & filename) {
 
 } // namespace injection
 } // namespace siren
-

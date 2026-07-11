@@ -3,6 +3,7 @@
 LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Process.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Injector.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/InteractionSelection.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/TwoBodyKinematics.cxx
