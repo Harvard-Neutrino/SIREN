@@ -14,6 +14,7 @@
 #include "SIREN/dataclasses/ParticleMasses.h"
 
 #include "SIREN/math/Vector3D.h"
+#include "SIREN/math/Kinematics.h"
 
 #include "SIREN/utilities/Errors.h"
 #include "SIREN/utilities/Random.h"
@@ -29,7 +30,7 @@
 ///////////////////
 
 double lambda(double a, double b, double c){
-  return a*a + b*b + c*c - 2*a*b - 2*a*c - 2*b*c;
+  return siren::math::Kallen(a, b, c);
 }
 
 // Functions to get three body decay widths
@@ -1297,4 +1298,3 @@ std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m
 
 } // namespace interactions
 } // namespace siren
-
