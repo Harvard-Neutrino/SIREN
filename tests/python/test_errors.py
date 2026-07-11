@@ -48,6 +48,90 @@ def test_exception_is_runtimeerror_subclass(name):
 
 
 # ------------------------------------------------------------------ #
+#  A C++ raise crosses pybind as the typed exception AND is caught by  #
+#  pytest.raises(RuntimeError) (backward-compat pin).                  #
+# ------------------------------------------------------------------ #
+
+def _incompatible_mixture():
+    """A topology-mismatched mixture: Isotropic2BodyChannel (Decay2Body) mixed
+    with a Scatter2to2 scattering channel.  Passed to the validating
+    MultiChannelPhaseSpace constructor this is a fatal incompatibility ->
+    MeasureCompatibilityError.
+    """
+    placement = siren.geometry.Placement(siren.math.Vector3D(0, 0, 100))
+    box = siren.geometry.Box(placement, 1.0, 1.0, 1.0)
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    sc = siren.injection.DetectorDirectedScatteringChannel(
+        box, 0, siren.injection.ScatteringVariable.Q2)
+    return [iso, sc]
+
+
+def test_measure_compatibility_error_typed():
+    """The validating MCPS constructor raises the typed
+    MeasureCompatibilityError on a fatal (topology-mismatch) incompatibility.
+    """
+    channels = _incompatible_mixture()
+    with pytest.raises(siren.utilities.MeasureCompatibilityError):
+        siren.injection.MultiChannelPhaseSpace(channels, [0.5, 0.5])
+
+
+def test_measure_compatibility_error_is_runtimeerror():
+    """Backward-compat pin: the same raise is caught by RuntimeError."""
+    channels = _incompatible_mixture()
+    with pytest.raises(RuntimeError):
+        siren.injection.MultiChannelPhaseSpace(channels, [0.5, 0.5])
+
+
+def test_measure_compatibility_allow_incompatible_optout():
+    """allow_incompatible=True opts out of the fatal-compatibility check, so
+    construction succeeds (no throw)."""
+    channels = _incompatible_mixture()
+    # Must not raise.
+    siren.injection.MultiChannelPhaseSpace(channels, [0.5, 0.5], True)
+
+
+def test_measure_compatibility_allow_incompatible_density_still_typed():
+    """allow_incompatible=True defers the compatibility check: evaluating the
+    mixture density raises the typed error the validating constructor would
+    have raised at construction."""
+    channels = _incompatible_mixture()
+    mixture = siren.injection.MultiChannelPhaseSpace(channels, [0.5, 0.5], True)
+    record = siren.dataclasses.InteractionRecord()
+    with pytest.raises(siren.utilities.MeasureCompatibilityError):
+        mixture.Density(None, record)
+    with pytest.raises(siren.utilities.MeasureCompatibilityError):
+        mixture.DensityBreakdown(None, record)
+
+
+def test_configuration_error_typed_from_length_mismatch():
+    """A channels/weights length mismatch raises the typed ConfigurationError."""
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    with pytest.raises(siren.utilities.ConfigurationError):
+        siren.injection.MultiChannelPhaseSpace([iso, iso], [1.0])
+
+
+def test_configuration_error_is_runtimeerror():
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    with pytest.raises(RuntimeError):
+        siren.injection.MultiChannelPhaseSpace([iso, iso], [1.0])
+
+
+def test_error_message_carries_doc_anchor():
+    """New error messages carry a doc-anchor token so users can find the fix-it
+    guidance.  Pinned loosely (the token family, not an exact string).
+    """
+    iso = siren.injection.Isotropic2BodyChannel(0)
+    try:
+        siren.injection.MultiChannelPhaseSpace([iso, iso], [1.0])
+    except RuntimeError as exc:
+        assert "siren-docs" in str(exc), (
+            "ConfigurationError message should carry a [siren-docs: ...] anchor; "
+            "got: {!r}".format(str(exc)))
+    else:
+        pytest.fail("expected a ConfigurationError")
+
+
+# ------------------------------------------------------------------ #
 #  Cross-module registration: a fresh interpreter that imports the raw #
 #  compiled sibling modules (geometry, utilities, injection) directly  #
 #  -- NOT through the siren package __init__ -- must still translate    #

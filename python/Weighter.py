@@ -7,9 +7,12 @@ from . import interactions as _interactions
 from . import distributions as _distributions
 from . import injection as _injection
 from . import Injector as _Injector_module
+from ._validation import validate_reweighting_compatibility
 
+from dataclasses import dataclass, field
 from typing import Tuple, List, Dict, Optional, Union, Callable
 from typing import TYPE_CHECKING
+import math
 
 if TYPE_CHECKING:
     import siren
@@ -24,6 +27,58 @@ CrossSection = _interactions.CrossSection
 Decay = _interactions.Decay
 DetectorModel = _detector.DetectorModel
 InteractionTree = _dataclasses.InteractionTree
+
+@dataclass
+class VertexWeight:
+    """Per-vertex weight components."""
+    depth: int = 0
+    primary_type: int = 0
+    secondary_types: List[int] = field(default_factory=list)
+    interaction_probability: float = float('nan')
+    position_probability: float = float('nan')
+    physical_probability: float = float('nan')
+    generation_probability: float = float('nan')
+
+    @property
+    def vertex_weight(self) -> float:
+        if self.generation_probability == 0:
+            return float('inf')
+        return self.physical_probability / self.generation_probability
+
+    @property
+    def is_ok(self) -> bool:
+        return (math.isfinite(self.physical_probability)
+                and self.physical_probability > 0
+                and math.isfinite(self.generation_probability)
+                and self.generation_probability > 0)
+
+    def __repr__(self):
+        flag = "" if self.is_ok else " !!!"
+        return (
+            f"VertexWeight(d={self.depth} {self.primary_type}"
+            f"->{self.secondary_types} "
+            f"phys={self.physical_probability:.3e} "
+            f"gen={self.generation_probability:.3e} "
+            f"w={self.vertex_weight:.3e}{flag})"
+        )
+
+
+@dataclass
+class EventWeightBreakdown:
+    """Decomposition of an event weight into per-vertex factors."""
+    vertices: List[VertexWeight] = field(default_factory=list)
+    weight: float = float('nan')
+
+    @property
+    def is_ok(self) -> bool:
+        return math.isfinite(self.weight) and self.weight > 0
+
+    def __repr__(self):
+        lines = [f"EventWeightBreakdown(weight={self.weight:.6e})"]
+        for v in self.vertices:
+            lines.append(f"  {v!r}")
+        return "\n".join(lines)
+
 
 class Weighter:
     """
@@ -92,63 +147,6 @@ class Weighter:
             self.__secondary_interactions = secondary_interactions
         if secondary_physical_distributions is not None:
             self.__secondary_physical_distributions = secondary_physical_distributions
-
-    def __initialize_weighter(self):
-        """
-        Initialize the internal C++ Weighter object.
-
-        This method creates the C++ Weighter object using the configured parameters.
-        It is called automatically when needed and should not be called directly.
-
-        Raises:
-            ValueError: If any required attributes are not set.
-        """
-
-        if self.__injectors is None:
-            raise ValueError("Injectors have not been set.")
-        if self.__detector_model is None:
-            raise ValueError("Detector model has not been set.")
-        if self.__primary_type is None:
-            raise ValueError("Primary type has not been set.")
-        if len(self.__primary_interactions) == 0:
-            raise ValueError("Primary interactions have not been set.")
-        if len(self.__primary_physical_distributions) == 0:
-            raise ValueError("Primary physical distributions have not been set.")
-    
-        injectors = [injector._Injector__injector if isinstance(injector, _PyInjector) else injector for injector in self.__injectors]
-
-        primary_type = self.primary_type
-        primary_interaction_collection = _interactions.InteractionCollection(
-            primary_type, self.primary_interactions
-        )
-        primary_process = _injection.PhysicalProcess(
-            primary_type, primary_interaction_collection
-        )
-        primary_process.distributions = self.primary_physical_distributions
-
-        secondary_interactions = self.secondary_interactions
-        secondary_physical_distributions = self.secondary_physical_distributions
-
-        secondary_processes = []
-        for secondary_type, secondary_interactions in secondary_interactions.items():
-            secondary_interaction_collection = _interactions.InteractionCollection(
-                secondary_type, secondary_interactions
-            )
-            secondary_process = _injection.PhysicalProcess(
-                secondary_type, secondary_interaction_collection
-            )
-            if secondary_type in secondary_physical_distributions:
-                secondary_process.distributions = secondary_physical_distributions[secondary_type]
-            else:
-                secondary_process.distributions = []
-            secondary_processes.append(secondary_process)
-
-        self.__weighter = _Weighter(
-            injectors,
-            self.detector_model,
-            primary_process,
-            secondary_processes,
-        )
 
     @property
     def injectors(self) -> List[_Injector]:
@@ -418,3 +416,163 @@ class Weighter:
             list[float]: The calculated event weights.
         """
         return [self(event) for event in events]
+
+    def breakdown(self, interaction_tree: InteractionTree) -> "EventWeightBreakdown":
+        """Per-vertex decomposition of the event weight.
+
+        Returns an ``EventWeightBreakdown`` that stores each vertex's
+        interaction probability, position density, physical probability,
+        and generation probability.  Useful for diagnosing inf/0/NaN
+        weights.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+
+        injector_idx = 0
+        cpp_inj = self.__injectors[injector_idx]
+        if isinstance(cpp_inj, _PyInjector):
+            cpp_inj = cpp_inj._Injector__injector
+
+        sec_map = cpp_inj.GetSecondaryProcessMap()
+
+        primary_phys = self.__weighter_primary_phys
+        secondary_phys = self.__weighter_secondary_phys
+        ppw = _injection.PrimaryProcessWeighter(
+            primary_phys, cpp_inj.GetPrimaryProcess(),
+            self.__detector_model)
+
+        vertices = []
+        for datum in interaction_tree.tree:
+            rec = datum.record
+            pid = rec.signature.primary_type
+            depth = datum.depth(interaction_tree)
+            secs = list(rec.signature.secondary_types)
+
+            if depth == 0:
+                bounds = cpp_inj.PrimaryInjectionBounds(rec)
+                pw = ppw
+            else:
+                bounds = cpp_inj.SecondaryInjectionBounds(rec)
+                if pid not in secondary_phys:
+                    vertices.append(VertexWeight(
+                        depth=depth, primary_type=int(pid),
+                        secondary_types=[int(s) for s in secs]))
+                    continue
+                pw = _injection.SecondaryProcessWeighter(
+                    secondary_phys[pid], sec_map[pid],
+                    self.__detector_model)
+
+            int_prob = pw.InteractionProbability(bounds, rec)
+            pos_prob = pw.NormalizedPositionProbability(bounds, rec)
+            phys_prob = pw.PhysicalProbability(bounds, rec)
+            gen_prob = pw.GenerationProbability(datum)
+
+            vertices.append(VertexWeight(
+                depth=depth,
+                primary_type=int(pid),
+                secondary_types=[int(s) for s in secs],
+                interaction_probability=int_prob,
+                position_probability=pos_prob,
+                physical_probability=phys_prob,
+                generation_probability=gen_prob,
+            ))
+
+        return EventWeightBreakdown(
+            vertices=vertices,
+            weight=self(interaction_tree),
+        )
+
+    def __initialize_weighter(self):
+        # Thin wrapper kept separate so breakdown() can call the initialization directly.
+        return self.__do_initialize_weighter()
+
+    def __do_initialize_weighter(self):
+        if self.__injectors is None:
+            raise ValueError("Injectors have not been set.")
+        if self.__detector_model is None:
+            raise ValueError("Detector model has not been set.")
+        if self.__primary_type is None:
+            raise ValueError("Primary type has not been set.")
+        if len(self.__primary_interactions) == 0:
+            raise ValueError("Primary interactions have not been set.")
+        if len(self.__primary_physical_distributions) == 0:
+            raise ValueError("Primary physical distributions have not been set.")
+
+        injectors = [
+            injector._Injector__injector
+            if isinstance(injector, _PyInjector) else injector
+            for injector in self.__injectors
+        ]
+
+        primary_type = self.primary_type
+        primary_interaction_collection = _interactions.InteractionCollection(
+            primary_type, self.primary_interactions
+        )
+        primary_process = _injection.PhysicalProcess(
+            primary_type, primary_interaction_collection
+        )
+        primary_process.distributions = self.primary_physical_distributions
+
+        # Copy weighting mode from the injector's primary process
+        inj0 = injectors[0]
+        if isinstance(inj0, _PyInjector):
+            inj0_cpp = inj0._Injector__injector
+        else:
+            inj0_cpp = inj0
+        if inj0_cpp is not None:
+            primary_process.weighting_mode = inj0_cpp.GetPrimaryProcess().GetWeightingMode()
+
+        # The downstream mode contributes implicit physical factors (most
+        # importantly the normalized position density), so compatibility can
+        # only be decided here, after the mode has been copied from the
+        # injector.  Every injector in a pooled weighter must cover the shared
+        # physical measure.
+        for injector in injectors:
+            validate_reweighting_compatibility(
+                injector.GetPrimaryProcess().distributions,
+                self.primary_physical_distributions,
+                compute_interaction_probability=(
+                    primary_process.weighting_mode
+                    .compute_interaction_probability
+                ),
+                compute_position_probability=(
+                    primary_process.weighting_mode
+                    .compute_position_probability
+                ),
+            )
+
+        self.__weighter_primary_phys = primary_process
+
+        secondary_interactions = self.secondary_interactions
+        secondary_physical_distributions = self.secondary_physical_distributions
+
+        # Copy weighting modes from injector's secondary processes
+        sec_modes = {}
+        if inj0_cpp is not None:
+            for ptype, proc in inj0_cpp.GetSecondaryProcessMap().items():
+                sec_modes[ptype] = proc.GetWeightingMode()
+
+        secondary_processes = []
+        self.__weighter_secondary_phys = {}
+        for secondary_type, sec_ints in secondary_interactions.items():
+            secondary_interaction_collection = _interactions.InteractionCollection(
+                secondary_type, sec_ints
+            )
+            secondary_process = _injection.PhysicalProcess(
+                secondary_type, secondary_interaction_collection
+            )
+            if secondary_type in secondary_physical_distributions:
+                secondary_process.distributions = secondary_physical_distributions[secondary_type]
+            else:
+                secondary_process.distributions = []
+            if secondary_type in sec_modes:
+                secondary_process.weighting_mode = sec_modes[secondary_type]
+            secondary_processes.append(secondary_process)
+            self.__weighter_secondary_phys[secondary_type] = secondary_process
+
+        self.__weighter = _Weighter(
+            injectors,
+            self.detector_model,
+            primary_process,
+            secondary_processes,
+        )
