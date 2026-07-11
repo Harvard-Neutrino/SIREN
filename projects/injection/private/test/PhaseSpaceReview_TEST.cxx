@@ -6,6 +6,8 @@
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/injection/GeometryVolume.h"
+#include "SIREN/injection/InvariantMassMapping.h"
+#include "SIREN/injection/PhaseSpaceJacobian.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
@@ -343,6 +345,62 @@ namespace {
 } // anonymous namespace
 
 
+TEST(ScatteringMeasureConversion, UsesIncomingAndOutgoingCmMomenta) {
+    namespace J = siren::injection::phase_space_jacobian;
+    constexpr double s = 25.0;
+    constexpr double m_beam = 0.5;
+    constexpr double m_target = 1.0;
+    constexpr double m_outgoing = 2.0;
+    constexpr double m_recoil = 0.75;
+
+    double p_in_sq = siren::injection::Kallen(
+        s, m_beam * m_beam, m_target * m_target) / (4.0 * s);
+    double p_out_sq = siren::injection::Kallen(
+        s, m_outgoing * m_outgoing, m_recoil * m_recoil) / (4.0 * s);
+    double expected = 2.0 * std::sqrt(p_in_sq * p_out_sq);
+
+    EXPECT_DOUBLE_EQ(J::SolidAngleRestToMandelstamQ2AbsJacobian(
+        s, m_beam, m_target, m_outgoing, m_recoil), expected);
+    EXPECT_NE(J::SolidAngleRestToMandelstamQ2AbsJacobian(
+        s, m_beam, m_target), expected);
+}
+
+
+TEST(PropagatorMapping, RejectsWindowContainingThePole) {
+    constexpr double m_med2 = 0.0025;
+    EXPECT_THROW(
+        siren::injection::PropagatorMapping(m_med2, -0.007, 0.01),
+        std::invalid_argument);
+    EXPECT_THROW(
+        siren::injection::PropagatorMapping(m_med2, -m_med2, 0.01),
+        std::invalid_argument);
+    EXPECT_NO_THROW(
+        siren::injection::PropagatorMapping(m_med2, -0.002, 0.01));
+    EXPECT_NO_THROW(
+        siren::injection::PropagatorMapping(m_med2, -0.01, -0.004));
+}
+
+TEST(PropagatorMapping, BelowPoleWindowRemainsNormalized) {
+    siren::injection::PropagatorMapping map(0.0025, -0.01, -0.004);
+    for (double r : {0.0, 0.25, 0.5, 0.75, 1.0}) {
+        double x = map.Forward(r);
+        EXPECT_GE(x, -0.01 - 1e-15);
+        EXPECT_LE(x, -0.004 + 1e-15);
+        EXPECT_NEAR(map.Inverse(x), r, 1e-9);
+    }
+    constexpr int n = 2000;
+    constexpr double lo = -0.01;
+    constexpr double hi = -0.004;
+    constexpr double h = (hi - lo) / n;
+    double sum = 0.0;
+    for (int i = 0; i <= n; ++i) {
+        double weight = (i == 0 || i == n) ? 1.0 : ((i % 2 == 1) ? 4.0 : 2.0);
+        sum += weight * map.Density(lo + i * h);
+    }
+    EXPECT_NEAR(sum * h / 3.0, 1.0, 1e-6);
+}
+
+
 TEST(SharedInteractionRecordUtils, ReadWriteAndValidationUseOneLayout) {
     InteractionRecord record = TwoBodyDecayRecord();
     record.primary_momentum = {5.0, 1.0, 2.0, 3.0};
@@ -373,6 +431,69 @@ TEST(SharedInteractionRecordUtils, ReadWriteAndValidationUseOneLayout) {
         siren::injection::detail::RequireSecondaryStorage(
             record, 2, "test"),
         std::runtime_error);
+}
+
+
+TEST(TabulatedMappingSupport, ZeroOverlapWindowHasZeroDensity) {
+    siren::injection::TabulatedMapping map(
+        {1e-4, 1.0}, {0.0, 1.0}, 0.0, 5e-5);
+
+    EXPECT_FALSE(map.HasSupport());
+    EXPECT_DOUBLE_EQ(map.Density(2.5e-5), 0.0);
+    EXPECT_DOUBLE_EQ(map.Inverse(2.5e-5), 0.0);
+    EXPECT_THROW(map.Forward(0.5), std::runtime_error);
+}
+
+TEST(TabulatedMappingSupport, ImmutableTableIsSharedAcrossEventWindows) {
+    std::shared_ptr<siren::injection::TabulatedMappingTable const> table =
+        std::make_shared<siren::injection::TabulatedMappingTable>(
+            std::vector<double>{0.0, 1.0, 2.0, 3.0},
+            std::vector<double>{0.0, 0.2, 0.7, 1.0});
+    ASSERT_EQ(table.use_count(), 1);
+
+    siren::injection::TabulatedMapping low_window(table, 0.0, 2.0);
+    siren::injection::TabulatedMapping high_window(table, 1.0, 3.0);
+    EXPECT_EQ(table.use_count(), 3);
+    EXPECT_EQ(low_window.table.get(), table.get());
+    EXPECT_EQ(high_window.table.get(), table.get());
+    EXPECT_GT(low_window.Density(0.5), 0.0);
+    EXPECT_GT(high_window.Density(2.5), 0.0);
+    EXPECT_DOUBLE_EQ(low_window.Density(2.5), 0.0);
+    EXPECT_DOUBLE_EQ(high_window.Density(0.5), 0.0);
+}
+
+TEST(TabulatedMappingSupport, RejectsUnsortedAndDuplicateNodes) {
+    EXPECT_THROW(
+        (void)siren::injection::TabulatedMapping(
+            {0.0, 2.0, 1.0}, {0.0, 0.5, 1.0}, 0.0, 2.0),
+        std::runtime_error);
+    EXPECT_THROW(
+        (void)siren::injection::TabulatedMapping(
+            {0.0, 1.0, 1.0}, {0.0, 0.5, 1.0}, 0.0, 1.0),
+        std::runtime_error);
+    EXPECT_THROW(
+        (void)siren::injection::TabulatedMapping(
+            {0.0, std::numeric_limits<double>::quiet_NaN(), 2.0},
+            {0.0, 0.5, 1.0}, 0.0, 2.0),
+        std::runtime_error);
+}
+
+TEST(TabulatedMappingSupport, ValidatesCdfWithoutRejectingPlateaus) {
+    EXPECT_THROW(
+        (void)siren::injection::TabulatedMapping(
+            {0.0, 1.0, 2.0}, {0.0, 1.0, 0.5}, 0.0, 2.0),
+        std::runtime_error);
+    EXPECT_THROW(
+        (void)siren::injection::TabulatedMapping(
+            {0.0, 1.0, 2.0},
+            {0.0, std::numeric_limits<double>::infinity(), 1.0},
+            0.0, 2.0),
+        std::runtime_error);
+
+    siren::injection::TabulatedMapping plateau(
+        {0.0, 1.0, 2.0}, {0.0, 0.5, 0.5}, 0.0, 2.0);
+    EXPECT_TRUE(plateau.HasSupport());
+    EXPECT_DOUBLE_EQ(plateau.Density(1.5), 0.0);
 }
 
 
@@ -463,6 +584,107 @@ TEST(SharedKinematics, StableBreakupMomentumBacksInjectionWrapper) {
         siren::math::TwoBodyRestMomentum(
             mass_a + mass_b, mass_a, mass_b),
         0.0);
+}
+
+TEST(SharedInterpolation, BracketUsesRightBinAtInteriorNodes) {
+    std::vector<double> grid{0.0, 1.0, 3.0, 10.0};
+    EXPECT_EQ(
+        siren::math::InterpolationBracket(grid, -1.0),
+        (std::pair<std::size_t, std::size_t>{0, 1}));
+    EXPECT_EQ(
+        siren::math::InterpolationBracket(grid, 1.0),
+        (std::pair<std::size_t, std::size_t>{1, 2}));
+    EXPECT_EQ(
+        siren::math::InterpolationBracket(grid, 2.0),
+        (std::pair<std::size_t, std::size_t>{1, 2}));
+    EXPECT_EQ(
+        siren::math::InterpolationBracket(grid, 20.0),
+        (std::pair<std::size_t, std::size_t>{2, 3}));
+}
+
+
+TEST(PowerLawMapping, NuOneUsesNormalizedLogarithmicForm) {
+    constexpr double offset = 2.0;
+    constexpr double x_min = 1.0;
+    constexpr double x_max = 100.0;
+    siren::injection::PowerLawMapping map(
+        1.0, offset, offset + x_min, offset + x_max);
+
+    for (double r : {0.0, 0.1, 0.5, 0.9, 1.0}) {
+        double s = map.Forward(r);
+        EXPECT_TRUE(std::isfinite(s));
+        EXPECT_NEAR(map.Inverse(s), r, 2e-14);
+        EXPECT_TRUE(std::isfinite(map.Density(s)));
+        EXPECT_GT(map.Density(s), 0.0);
+    }
+    EXPECT_NEAR(map.Forward(0.5), offset + 10.0, 2e-14);
+    EXPECT_NEAR(map.Density(offset + 10.0),
+                1.0 / (10.0 * std::log(x_max / x_min)), 1e-15);
+    EXPECT_DOUBLE_EQ(map.Density(offset + 0.5), 0.0);
+    EXPECT_DOUBLE_EQ(map.Density(offset + 101.0), 0.0);
+
+    // Integrate in logarithmically spaced bins, matching the logarithmic
+    // shape of the nu=1 branch's density.
+    double integral = 0.0;
+    constexpr int bins = 1000;
+    double log_range = std::log(x_max / x_min);
+    for (int i = 0; i < bins; ++i) {
+        double x_lo = x_min * std::exp(log_range * i / bins);
+        double x_hi = x_min * std::exp(log_range * (i + 1) / bins);
+        double x_mid = std::sqrt(x_lo * x_hi);
+        integral += map.Density(offset + x_mid) * (x_hi - x_lo);
+    }
+    EXPECT_NEAR(integral, 1.0, 1e-6);
+}
+
+TEST(PowerLawMapping, RejectsInvalidAndNonNormalizableRanges) {
+    EXPECT_THROW(
+        (void)siren::injection::PowerLawMapping(0.8, 0.1, 0.0, 1.0),
+        std::runtime_error);
+    EXPECT_THROW(
+        (void)siren::injection::PowerLawMapping(1.0, 0.0, 0.0, 1.0),
+        std::runtime_error);
+    EXPECT_THROW(
+        (void)siren::injection::PowerLawMapping(1.2, 0.0, 0.0, 1.0),
+        std::runtime_error);
+}
+
+TEST(AnalyticMappingSupport, DensityIsZeroOutsideDeclaredInterval) {
+    auto expect_bounded_support = [](
+        siren::injection::Mapping1D const & mapping,
+        double lower,
+        double upper)
+    {
+        EXPECT_GT(mapping.Density(lower), 0.0);
+        EXPECT_GT(mapping.Density(upper), 0.0);
+        EXPECT_DOUBLE_EQ(
+            mapping.Density(std::nextafter(
+                lower, -std::numeric_limits<double>::infinity())),
+            0.0);
+        EXPECT_DOUBLE_EQ(
+            mapping.Density(std::nextafter(
+                upper, std::numeric_limits<double>::infinity())),
+            0.0);
+        EXPECT_DOUBLE_EQ(
+            mapping.Density(std::numeric_limits<double>::quiet_NaN()),
+            0.0);
+    };
+
+    siren::injection::BreitWignerMapping breit_wigner(2.0, 0.2, 1.0, 9.0);
+    siren::injection::PowerLawMapping power_law(0.8, 0.0, 1.0, 4.0);
+    siren::injection::PropagatorMapping propagator(0.5, 0.0, 4.0);
+    siren::injection::UniformMapping uniform(0.0, 4.0);
+    siren::injection::LogMapping logarithmic(1.0, 4.0);
+    siren::injection::ExponentialMapping exponential(2.0, 0.0, 4.0);
+    siren::injection::GaussianMapping gaussian(0.0, 1.0, -2.0, 2.0);
+
+    expect_bounded_support(breit_wigner, 1.0, 9.0);
+    expect_bounded_support(power_law, 1.0, 4.0);
+    expect_bounded_support(propagator, 0.0, 4.0);
+    expect_bounded_support(uniform, 0.0, 4.0);
+    expect_bounded_support(logarithmic, 1.0, 4.0);
+    expect_bounded_support(exponential, 0.0, 4.0);
+    expect_bounded_support(gaussian, -2.0, 2.0);
 }
 
 
