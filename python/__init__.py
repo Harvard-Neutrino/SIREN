@@ -71,6 +71,7 @@ utilities.darknews_version = darknews_version
 # ---- Sub-namespaces (for tab completion) ----
 from . import particles
 from . import dist
+from . import tune
 
 # ---- Model base classes + sampling closure ----
 from .Simulation import Simulation
