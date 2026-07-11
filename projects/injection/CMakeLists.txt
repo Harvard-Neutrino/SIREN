@@ -53,6 +53,14 @@ package_add_test(UnitTest_Weighter ${PROJECT_SOURCE_DIR}/projects/injection/priv
 package_add_test(UnitTest_PhaseSpaceReview ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceReview_TEST.cxx)
 if(NOT CIBUILDWHEEL)
     target_link_libraries(UnitTest_PhaseSpaceReview pybind11::headers)
+    add_test(
+        NAME UnitTest_DirectedTiling
+        COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/python/test_directed_tiling.py
+    )
+    set_tests_properties(UnitTest_DirectedTiling PROPERTIES
+        ENVIRONMENT
+            "PYTHONPATH=${CMAKE_INSTALL_PREFIX}/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
+    )
 endif()
 # Skip under cibuildwheel: package_add_test is a no-op there, so the following
 # target_link_libraries would reference a target that was never created.
