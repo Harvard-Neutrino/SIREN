@@ -123,6 +123,313 @@ public:
     }
 };
 
+// Convert a sampling density from one phase-space measure to another within a
+// given topology, applying the analytic Jacobian.  A from == to (or zero-density)
+// input is returned unchanged; an unimplemented pair or missing required record
+// inputs throws (rather than silently returning the input density).  Exposed so
+// the same conversion the mixture uses internally is callable directly.
+double ConvertDensity(
+    double density,
+    PhaseSpaceMeasure const & from,
+    PhaseSpaceMeasure const & to,
+    PhaseSpaceTopology topology,
+    siren::dataclasses::InteractionRecord const & record);
+
+// A set of PhaseSpaceChannels combined with weights for
+// multi-channel sampling.
+//
+// When sampling: pick channel i with probability alpha_i,
+// then call channel_i.Sample().
+//
+// The combined generation density at any point is:
+//   g(x) = sum_i alpha_i * g_i(x)
+//
+// All channels must share the same Topology.  If channels report
+// different Measures within the same convertibility group, Density()
+// auto-converts via analytic Jacobians.
+struct MultiChannelPhaseSpace {
+    std::vector<std::shared_ptr<PhaseSpaceChannel>> channels;
+    std::vector<double> weights;  // alpha_i, must sum to 1
+
+    // Transient (never serialized): when set, the fatal-severity compatibility
+    // check in ThrowOnIncompatibility() is skipped, permitting a mixture whose
+    // channels are not mutually convertible.  Off by default.
+    bool allow_incompatible_ = false;
+
+    // Default construction leaves channels/weights empty for the assign-then-use
+    // pattern (populate the public members, then Normalize()).  Kept for pybind
+    // def_readwrite compatibility and existing C++ call sites.
+    MultiChannelPhaseSpace() = default;
+
+    // Validating constructor.  Empty `weights` -> uniform 1/N.  A length mismatch
+    // between channels and weights, or a non-positive weight sum, throws
+    // ConfigurationError.  Otherwise the weights are normalized to sum 1 and,
+    // unless `allow_incompatible` is set, the fatal-severity compatibility check
+    // runs (throwing MeasureCompatibilityError on any Fatal diagnostic).
+    explicit MultiChannelPhaseSpace(
+        std::vector<std::shared_ptr<PhaseSpaceChannel>> channels,
+        std::vector<double> weights = {},
+        bool allow_incompatible = false);
+
+    // Normalize weights in place to sum 1.  Empty weights -> uniform 1/N.
+    // Throws ConfigurationError on channels/weights length mismatch or a
+    // non-positive weight sum.
+    void Normalize();
+
+    // Severity-tagged compatibility diagnostic.  Fatal entries block a mixture
+    // (measures not convertible); Info entries report a supported auto-conversion.
+    struct ChannelDiagnostic {
+        enum class Severity { Info, Fatal };
+        Severity severity;
+        std::string message;
+    };
+
+    // Kleiss-Pittau weight-tuning accumulators.  These are transient runtime
+    // state -- the mixture owns its own per-channel variance statistics, fed by
+    // Accumulate() and consumed by UpdateWeights() -- and are intentionally NOT
+    // serialized.  kp_accumulator_[i] is the running sum of the bare per-channel
+    // contribution w^2 * g_i^conv / g; kp_count_ is the number of accumulated
+    // points.
+    std::vector<double> kp_accumulator_;
+    long kp_count_ = 0;
+
+    // Per-channel selection-probability sums (p_i = alpha_i*g_i/g) over
+    // successful and failed trees, used by the chain optimizer's failure penalty
+    // to inflate W_i for channels that disproportionately feed failed events.
+    // Also transient runtime state, not serialized.
+    std::vector<double> kp_succ_select_;
+    std::vector<double> kp_fail_select_;
+
+    // Sample from the multi-channel mixture.
+    // Returns the index of the channel that was used.
+    int Sample(
+        std::shared_ptr<siren::utilities::SIREN_random> random,
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord & record
+    ) const;
+
+    // Evaluate the combined density g(x) = sum_i alpha_i * g_i(x),
+    // auto-converting measures where needed. A channel with an Unspecified
+    // measure cannot be mixed with specified-measure channels because its
+    // density has no safe conversion into the elected common measure.
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record
+    ) const;
+
+    // Evaluate the combined density in an explicitly requested measure. The
+    // mixture is first formed in CommonMeasure(), then converted as one density.
+    // This is primarily used by the weighter to put physical and generation
+    // probabilities in the same convention. Unsafe pointwise marginalizations
+    // (for example explicit nonuniform azimuth -> integrated azimuth) throw.
+    double DensityIn(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        PhaseSpaceMeasure const & measure
+    ) const;
+
+    // DensityIn with the full convention: additionally checks that the
+    // mixture's topology matches, throwing MeasureCompatibilityError when it
+    // does not.
+    double DensityIn(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        PhaseSpaceConvention const & convention
+    ) const;
+
+    // Per-channel breakdown of Density(): element i is channel i's
+    // alpha-weighted contribution in the common measure, i.e.
+    //   weights[i] * ConvertDensity(channels[i]->Density(...), ...).
+    // The elements sum to Density().  Surfacing them lets an optimizer form
+    // the Kleiss-Pittau per-channel statistic without re-evaluating each
+    // channel from Python, and without the measure mismatch that
+    // re-evaluating the unconverted g_i against the common-measure g would
+    // introduce.
+    std::vector<double> DensityBreakdown(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record
+    ) const;
+
+    // --- Kleiss-Pittau weight tuning (the mixture owns its statistics) ---
+
+    // Fold one sampled point into the per-channel accumulators.  `weight` is the
+    // importance weight w = f/g (single vertex) or the total event weight
+    // (chain); channel i is credited w^2 * g_i^conv / g, where g is THIS
+    // mixture's density, unless discount_fallback is set and channel i reports
+    // DirectingActive(record) == false (its isotropic fallback), in which case it
+    // is skipped so a pure-fallback director is driven down.  With `recurse`, a
+    // NestedMixtureChannel's inner channels are credited too, after converting
+    // their bare densities into this mixture's common measure and against this
+    // same outer g. Points with g <= 0 or non-finite g are ignored (not counted).
+    void Accumulate(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        double weight,
+        bool discount_fallback = true,
+        bool recurse = true);
+
+    // Apply one Kleiss-Pittau update from the accumulated statistics, then reset
+    // them.  W_i = kp_accumulator_[i] / kp_count_; the candidate is sqrt(W_i)
+    // ("sqrt_W", memoryless) or weights[i]*sqrt(W_i) ("alpha_sqrt_W", canonical),
+    // normalized, floored at min_weight and renormalized, then blended with the
+    // current weights as damping*candidate + (1-damping)*old.  A degenerate batch
+    // (no positive contributions, or no points) leaves the weights unchanged.
+    // With `recurse`, nested mixtures are updated too.
+    // failure_mode controls the chain failure handling (only active when
+    // AccumulateSelection data is present): "throughput" (default) down-weights
+    // lossy channels (W_i *= 1-f_i; tracks the successful contribution, converges
+    // fastest, batch-insensitive), "ignore" leaves W untouched (same fixed point,
+    // slower), "coverage" up-weights lossy channels (W_i /= 1-f_i); tends to
+    // retain them.
+    void UpdateWeights(
+        std::string const & update_rule,
+        double damping,
+        double min_weight,
+        bool recurse = true,
+        std::string const & failure_mode = "throughput");
+
+    // Zero the accumulators (optionally recursing into nested mixtures).
+    void ResetAccumulators(bool recurse = true);
+
+    // Fold one tree's per-channel selection probability p_i = alpha_i*g_i/g into
+    // the success (failed == false) or failure (failed == true) accumulator.
+    // The chain optimizer's UpdateWeights then inflates W_i by 1/(1 - f_i), with
+    // f_i the channel's failed-selection fraction, so a channel that mostly feeds
+    // failed events is penalized.  Outer-channel only (the penalty is not applied
+    // to nested groups).
+    void AccumulateSelection(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        bool failed);
+
+    // Return the common topology. Throws if channels disagree.
+    PhaseSpaceTopology CommonTopology() const;
+
+    // Return the elected common measure. A candidate is viable when every
+    // channel's density converts into it pointwise, so one explicit-azimuth
+    // channel forces an explicit common measure; among viable candidates the
+    // majority wins with a priority tie-break. Unspecified channels do not
+    // vote; an all-unspecified mixture returns Unspecified, while Density
+    // rejects a mixture containing both specified and unspecified measures.
+    PhaseSpaceMeasure CommonMeasure() const;
+
+    // CommonTopology() and CommonMeasure() as one convention.
+    PhaseSpaceConvention CommonConvention() const;
+
+    // Validate topology and measure compatibility, returning every diagnostic
+    // (Fatal and Info) with a severity tag.  Empty if all checks pass.
+    std::vector<ChannelDiagnostic> ValidateChannelsDetailed() const;
+
+    // Validate topology and measure compatibility.
+    // Returns diagnostic messages (empty if all checks pass); a binding-compatible
+    // view over ValidateChannelsDetailed() that flattens away the severity.
+    std::vector<std::string> ValidateChannels() const;
+
+    // Structural validation: sample from each channel and verify
+    // that every OTHER channel returns a finite, non-negative
+    // density at that point.
+    //
+    // Returns a list of diagnostic strings (empty if all checks pass).
+    std::vector<std::string> ValidateChannelDensities(
+        std::shared_ptr<siren::utilities::SIREN_random> random,
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord template_record,
+        int samples_per_channel = 100
+    ) const;
+
+private:
+    mutable bool convention_cache_valid_ = false;
+    mutable std::size_t convention_fingerprint_ = 0;
+    mutable PhaseSpaceTopology cached_common_topology_ =
+        PhaseSpaceTopology::Unspecified;
+    mutable PhaseSpaceMeasure cached_common_measure_ =
+        PhaseSpaceMeasure::Unspecified();
+    mutable std::vector<PhaseSpaceMeasure> cached_channel_measures_;
+    mutable std::string cached_topology_error_;
+    mutable std::vector<ChannelDiagnostic> cached_compatibility_diagnostics_;
+
+    std::size_t ConventionFingerprint() const;
+    void EnsureConventionCache() const;
+
+    // Consult the cached diagnostics; if any Fatal diagnostic is present and
+    // allow_incompatible_ is not set, throw MeasureCompatibilityError joining the
+    // fatal messages.  Info diagnostics (supported auto-conversions) are silently
+    // permitted.
+    void ThrowOnIncompatibility() const;
+
+    // Single code path behind Density() and DensityBreakdown(): loops the
+    // channels once, converting each g_i to the common measure.  Returns the
+    // summed density g.  When `weighted` is non-null it is filled with the
+    // alpha-weighted contributions weights[i]*g_i^conv (which sum to g); when
+    // `bare` is non-null it is filled with the un-weighted converted densities
+    // g_i^conv (consumed directly by the KP accumulator, no divide-by-alpha).
+    double ComputeContributions(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        std::vector<double> * weighted,
+        std::vector<double> * bare,
+        std::vector<bool> * directing_active = nullptr
+    ) const;
+
+    // Recursive primitive behind Accumulate(): credit each channel's bare
+    // density, converted into the supplied denominator measure, against the
+    // outer g_denom. Nested levels share that outer g and measure, and count the
+    // point once per mixture level.
+    void CreditAgainst(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record,
+        double w2,
+        double g_denom,
+        PhaseSpaceTopology denominator_topology,
+        PhaseSpaceMeasure denominator_measure,
+        bool discount_fallback,
+        bool recurse,
+        std::vector<double> const * precomputed_bare = nullptr,
+        std::vector<bool> const * precomputed_activity = nullptr);
+};
+
+// A PhaseSpaceChannel that wraps a MultiChannelPhaseSpace, so an entire
+// sub-mixture can be used as ONE channel inside an outer mixture.  Sampling
+// and density delegate to the inner mixture; its weights stay reachable (via
+// `mixture`) so an optimizer can tune them as a nested level.  Topology and
+// Measure are the inner mixture's common values, so an outer mixture treats
+// the nested channel exactly like any other channel of that topology/measure.
+//
+// This lets the geometric sub-structure (which target volumes, with what
+// coefficients) be encapsulated and optimized separately from the outer,
+// physics-level blend (physical / isotropic / detector-directed).
+class NestedMixtureChannel : public PhaseSpaceChannel {
+public:
+    std::shared_ptr<MultiChannelPhaseSpace> mixture;
+    std::string label = "NestedMixture";
+
+    NestedMixtureChannel() = default;
+    explicit NestedMixtureChannel(
+        std::shared_ptr<MultiChannelPhaseSpace> mixture_)
+        : mixture(mixture_) {}
+
+    void Sample(
+        std::shared_ptr<siren::utilities::SIREN_random> random,
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord & record
+    ) const override;
+
+    double Density(
+        std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+        siren::dataclasses::InteractionRecord const & record
+    ) const override;
+
+    std::string Name() const override;
+    PhaseSpaceTopology Topology() const override;
+    PhaseSpaceMeasure Measure() const override;
+
+    // The group genuinely directs if ANY member does, so a group of directed
+    // channels that are all in their isotropic fallback reports inactive and the
+    // optimizer can drive the whole group down with one weight.
+    bool DirectingActive(
+        siren::dataclasses::InteractionRecord const & record) const override;
+};
+
 } // namespace injection
 } // namespace siren
 

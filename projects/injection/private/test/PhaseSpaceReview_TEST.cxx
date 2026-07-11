@@ -32,6 +32,7 @@
 namespace {
 
 using siren::dataclasses::InteractionRecord;
+using siren::injection::MultiChannelPhaseSpace;
 using siren::injection::PhaseSpaceChannel;
 using siren::injection::PhaseSpaceMeasure;
 using siren::injection::PhaseSpaceTopology;
@@ -402,6 +403,151 @@ private:
     std::vector<siren::dataclasses::InteractionSignature> signatures_;
 };
 
+MultiChannelPhaseSpace TwoChannelMixture(std::vector<double> weights) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(),
+        std::make_shared<ConstantChannel>()};
+    mixture.weights = std::move(weights);
+    return mixture;
+}
+
+TEST(MultiChannelWeights, RejectsSizeMismatch) {
+    auto mixture = TwoChannelMixture({1.0});
+    auto random = std::make_shared<siren::utilities::SIREN_random>(1);
+    InteractionRecord record;
+
+    EXPECT_THROW(mixture.Sample(random, nullptr, record),
+                 siren::utilities::ConfigurationError);
+    EXPECT_THROW(mixture.Density(nullptr, record),
+                 siren::utilities::ConfigurationError);
+}
+
+TEST(MultiChannelWeights, RejectsUnnormalizedWeights) {
+    auto mixture = TwoChannelMixture({0.2, 0.2});
+    auto random = std::make_shared<siren::utilities::SIREN_random>(1);
+    InteractionRecord record;
+
+    EXPECT_THROW(mixture.Sample(random, nullptr, record),
+                 siren::utilities::ConfigurationError);
+    EXPECT_THROW(mixture.Density(nullptr, record),
+                 siren::utilities::ConfigurationError);
+}
+
+TEST(MultiChannelWeights, RejectsNegativeAndNonFiniteWeights) {
+    InteractionRecord record;
+
+    EXPECT_THROW(TwoChannelMixture({-0.1, 1.1}).Density(nullptr, record),
+                 siren::utilities::ConfigurationError);
+    EXPECT_THROW(TwoChannelMixture({
+        std::numeric_limits<double>::quiet_NaN(), 1.0}).Density(nullptr, record),
+        siren::utilities::ConfigurationError);
+    EXPECT_THROW(TwoChannelMixture({
+        std::numeric_limits<double>::infinity(), 0.0}).Density(nullptr, record),
+        siren::utilities::ConfigurationError);
+}
+
+TEST(MultiChannelWeights, AcceptsNormalizedWeights) {
+    auto mixture = TwoChannelMixture({0.25, 0.75});
+    auto random = std::make_shared<siren::utilities::SIREN_random>(1);
+    InteractionRecord record;
+
+    EXPECT_NO_THROW(mixture.Sample(random, nullptr, record));
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 1.0);
+}
+
+TEST(MultiChannelConventions, CompatibleMixtureCachesSuccessfulValidation) {
+    auto first = std::make_shared<CountingConventionChannel>();
+    auto second = std::make_shared<CountingConventionChannel>();
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {first, second};
+    mixture.weights = {0.5, 0.5};
+    InteractionRecord record;
+
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 1.0);
+    int first_topology_calls = first->topology_calls;
+    int first_measure_calls = first->measure_calls;
+    int second_topology_calls = second->topology_calls;
+    int second_measure_calls = second->measure_calls;
+
+    // The change-detection fingerprint reads each channel's conventions by
+    // value (pointer identity alone can collide when a freed channel's
+    // address is reused), so every evaluation costs exactly one Topology and
+    // one Measure probe per channel. A cached validation adds no second
+    // probe; only a rebuild does.
+    for (int i = 0; i < 100; ++i) {
+        EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 1.0);
+    }
+    EXPECT_EQ(first->topology_calls, first_topology_calls + 100);
+    EXPECT_EQ(first->measure_calls, first_measure_calls + 100);
+    EXPECT_EQ(second->topology_calls, second_topology_calls + 100);
+    EXPECT_EQ(second->measure_calls, second_measure_calls + 100);
+
+    // Public channel replacement changes the fingerprint and rebuilds the
+    // cached conventions on the next evaluation: the fingerprint probe plus
+    // the rebuild probe, and nothing more.
+    auto replacement = std::make_shared<CountingConventionChannel>();
+    mixture.channels[1] = replacement;
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 1.0);
+    EXPECT_EQ(first->topology_calls, first_topology_calls + 102);
+    EXPECT_EQ(first->measure_calls, first_measure_calls + 102);
+    EXPECT_EQ(replacement->topology_calls, 2);
+    EXPECT_EQ(replacement->measure_calls, 2);
+}
+
+TEST(MultiChannelConventions, ClearedAndReallocatedChannelRebuildsCache) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {std::make_shared<ConstantChannel>(
+        2.0, PhaseSpaceTopology::Scatter2to2,
+        PhaseSpaceMeasure::MandelstamQ2())};
+    mixture.weights = {1.0};
+    InteractionRecord record;
+
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 2.0);
+    EXPECT_EQ(mixture.CommonMeasure(), PhaseSpaceMeasure::MandelstamQ2());
+
+    // Destroy-then-reallocate channel swap: the replacement may be allocated
+    // at the freed channel's address, so a pointer-only fingerprint can
+    // serve the stale measures. The value-folded fingerprint must rebuild
+    // regardless of where the allocator places the new channel.
+    mixture.channels.clear();
+    mixture.channels.push_back(std::make_shared<ConstantChannel>(
+        4.0, PhaseSpaceTopology::Scatter2to2,
+        PhaseSpaceMeasure::FixedMassY()));
+
+    EXPECT_EQ(mixture.CommonMeasure(), PhaseSpaceMeasure::FixedMassY());
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 4.0);
+}
+
+TEST(MultiChannelConventions, ScatteringLabAngleMixtureIsFatalNotConvertible) {
+    // ConvertDensity implements the rest<->lab boost only for Decay2Body, so
+    // a Scatter2to2 mixture containing a SolidAngleLab channel must be
+    // reported as a fatal incompatibility by validation, not promised as an
+    // auto-conversion that then throws at evaluation time.
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            1.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::MandelstamQ2()),
+        std::make_shared<ConstantChannel>(
+            1.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::SolidAngleLab())};
+    mixture.weights = {0.5, 0.5};
+
+    auto diagnostics = mixture.ValidateChannelsDetailed();
+    ASSERT_EQ(diagnostics.size(), 1u);
+    EXPECT_EQ(diagnostics[0].severity,
+              MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Fatal);
+    EXPECT_NE(diagnostics[0].message.find("not convertible"),
+              std::string::npos);
+
+    InteractionRecord record = ScatteringRecord(10.0, 1.0, 0.1, 1.0);
+    auto random = std::make_shared<siren::utilities::SIREN_random>(8675309);
+    EXPECT_THROW(mixture.Density(nullptr, record),
+                 siren::utilities::MeasureCompatibilityError);
+    EXPECT_THROW(mixture.Sample(random, nullptr, record),
+                 siren::utilities::MeasureCompatibilityError);
+}
 
 TEST(PhysicalAdapterSignature, PinsDecayTopologyAndMeasure) {
     auto decay = std::make_shared<MixedSignatureDecay>();
@@ -441,12 +587,274 @@ TEST(PhysicalAdapterSignature, PinsCrossSectionTopologyAndMeasure) {
     EXPECT_EQ(pinned_three.Measure(), PhaseSpaceMeasure::MandelstamQ2());
 }
 
+TEST(CommonMeasure, UnspecifiedMajorityCannotOutvoteSpecifiedChannel) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            2.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::Unspecified()),
+        std::make_shared<ConstantChannel>(
+            4.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::Unspecified()),
+        std::make_shared<ConstantChannel>(
+            8.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::SolidAngleRest())};
+    mixture.weights = {0.25, 0.25, 0.5};
+
+    InteractionRecord record;
+    EXPECT_EQ(mixture.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest());
+    EXPECT_THROW(mixture.Density(nullptr, record), std::runtime_error);
+    EXPECT_THROW(mixture.DensityBreakdown(nullptr, record), std::runtime_error);
+}
+
+TEST(CommonMeasure, ZeroUnspecifiedDensityCannotBypassMixedMeasureRejection) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            8.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConstantChannel>(
+            0.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::Unspecified())};
+    mixture.weights = {0.5, 0.5};
+
+    InteractionRecord record;
+    EXPECT_EQ(mixture.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest());
+    EXPECT_THROW(mixture.Density(nullptr, record), std::runtime_error);
+}
+
+TEST(CommonMeasure, AllUnspecifiedChannelsRemainUnspecified) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            2.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::Unspecified()),
+        std::make_shared<ConstantChannel>(
+            4.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::Unspecified())};
+    mixture.weights = {0.25, 0.75};
+
+    InteractionRecord record;
+    EXPECT_EQ(mixture.CommonMeasure(), PhaseSpaceMeasure::Unspecified());
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 3.5);
+}
+
+TEST(DecayMeasureConversion, UsesLabMeasureDaughterIndexInBothDirections) {
+    InteractionRecord record = BoostedAsymmetricTwoBodyDecayRecord();
+    PhaseSpaceMeasure lab_0 = PhaseSpaceMeasure::SolidAngleLab(0);
+    PhaseSpaceMeasure lab_1 = PhaseSpaceMeasure::SolidAngleLab(1);
+    EXPECT_NE(lab_0, lab_1);
+
+    double jacobian_0 = DecayLabJacobian(record, 0, -0.35);
+    double jacobian_1 = DecayLabJacobian(record, 1, 0.35);
+    ASSERT_GT(jacobian_0, 0.0);
+    ASSERT_GT(jacobian_1, 0.0);
+    ASSERT_GT(std::abs(jacobian_1 - jacobian_0), 1e-3);
+
+    MultiChannelPhaseSpace lab_to_rest;
+    lab_to_rest.channels = {
+        std::make_shared<ConstantChannel>(
+            3.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConstantChannel>(
+            5.0, PhaseSpaceTopology::Decay2Body, lab_1)};
+    lab_to_rest.weights = {0.5, 0.5};
+    EXPECT_EQ(
+        lab_to_rest.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest());
+    EXPECT_NEAR(
+        lab_to_rest.Density(nullptr, record),
+        0.5 * 3.0 + 0.5 * 5.0 * jacobian_1, 1e-13);
+
+    MultiChannelPhaseSpace rest_to_lab;
+    rest_to_lab.channels = {
+        std::make_shared<ConstantChannel>(
+            4.0, PhaseSpaceTopology::Decay2Body, lab_1),
+        std::make_shared<ConstantChannel>(
+            6.0, PhaseSpaceTopology::Decay2Body, lab_1),
+        std::make_shared<ConstantChannel>(
+            3.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::SolidAngleRest())};
+    rest_to_lab.weights = {0.25, 0.25, 0.5};
+    EXPECT_EQ(rest_to_lab.CommonMeasure(), lab_1);
+    EXPECT_NEAR(
+        rest_to_lab.Density(nullptr, record),
+        0.25 * 4.0 + 0.25 * 6.0 + 0.5 * 3.0 / jacobian_1,
+        1e-13);
+
+    MultiChannelPhaseSpace lab_daughter_conversion;
+    lab_daughter_conversion.channels = {
+        std::make_shared<ConstantChannel>(
+            7.0, PhaseSpaceTopology::Decay2Body, lab_0),
+        std::make_shared<ConstantChannel>(
+            5.0, PhaseSpaceTopology::Decay2Body, lab_1)};
+    lab_daughter_conversion.weights = {0.5, 0.5};
+    EXPECT_EQ(lab_daughter_conversion.CommonMeasure(), lab_0);
+    EXPECT_NEAR(
+        lab_daughter_conversion.Density(nullptr, record),
+        0.5 * 7.0 + 0.5 * 5.0 * jacobian_1 / jacobian_0,
+        1e-13);
+}
+
+TEST(DecayMeasureConversion, RejectsMissingMomentaAndInvalidDaughterIndex) {
+    auto make_mixture = [](PhaseSpaceMeasure lab_measure) {
+        MultiChannelPhaseSpace mixture;
+        mixture.channels = {
+            std::make_shared<ConstantChannel>(
+                3.0, PhaseSpaceTopology::Decay2Body,
+                PhaseSpaceMeasure::SolidAngleRest()),
+            std::make_shared<ConstantChannel>(
+                5.0, PhaseSpaceTopology::Decay2Body, lab_measure)};
+        mixture.weights = {0.5, 0.5};
+        return mixture;
+    };
+
+    InteractionRecord missing_momentum =
+        BoostedAsymmetricTwoBodyDecayRecord();
+    missing_momentum.secondary_momenta.resize(1);
+    EXPECT_THROW(
+        make_mixture(PhaseSpaceMeasure::SolidAngleLab(1)).Density(
+            nullptr, missing_momentum),
+        std::runtime_error);
+
+    InteractionRecord missing_mass = BoostedAsymmetricTwoBodyDecayRecord();
+    missing_mass.secondary_masses.resize(1);
+    EXPECT_THROW(
+        make_mixture(PhaseSpaceMeasure::SolidAngleLab(1)).Density(
+            nullptr, missing_mass),
+        std::runtime_error);
+
+    InteractionRecord complete = BoostedAsymmetricTwoBodyDecayRecord();
+    EXPECT_THROW(
+        make_mixture(PhaseSpaceMeasure::SolidAngleLab(2)).Density(
+            nullptr, complete),
+        std::runtime_error);
+}
 
 namespace {
 
+MultiChannelPhaseSpace RestPlusLabMixture(PhaseSpaceMeasure lab_measure) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            3.0, PhaseSpaceTopology::Decay2Body,
+            PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConstantChannel>(
+            5.0, PhaseSpaceTopology::Decay2Body, lab_measure)};
+    mixture.weights = {0.5, 0.5};
+    return mixture;
+}
 
 } // anonymous namespace
 
+TEST(DecayMeasureConversion, ThrowsWhenLabAngleOutsideAllowedCone) {
+    // Heavy daughters on a fast parent are confined to a narrow forward
+    // cone; a backward daughter direction is kinematically impossible
+    // for these masses, and the conversion must fail loudly.
+    constexpr double parent_mass = 1.0;
+    constexpr double daughter_mass = 0.45;
+    constexpr double beta = 0.9;
+    const double gamma = 1.0 / std::sqrt(1.0 - beta * beta);
+    constexpr double p_backward = 0.3;
+    const double E_backward = std::sqrt(
+        p_backward * p_backward + daughter_mass * daughter_mass);
+
+    InteractionRecord record;
+    record.signature.secondary_types = {
+        siren::dataclasses::ParticleType::unknown,
+        siren::dataclasses::ParticleType::unknown};
+    record.primary_mass = parent_mass;
+    record.primary_momentum = {
+        gamma * parent_mass, 0.0, 0.0, gamma * beta * parent_mass};
+    record.secondary_masses = {daughter_mass, daughter_mass};
+    record.secondary_momenta = {
+        {E_backward, 0.0, 0.0, -p_backward},
+        {0.0, 0.0, 0.0, 0.0}};
+
+    EXPECT_THROW(
+        RestPlusLabMixture(PhaseSpaceMeasure::SolidAngleLab(0)).Density(
+            nullptr, record),
+        std::runtime_error);
+}
+
+TEST(DecayMeasureConversion, ThrowsOnDegenerateDaughterMomentum) {
+    InteractionRecord record = BoostedAsymmetricTwoBodyDecayRecord();
+    record.secondary_momenta[1] = {record.secondary_masses[1], 0.0, 0.0, 0.0};
+    EXPECT_THROW(
+        RestPlusLabMixture(PhaseSpaceMeasure::SolidAngleLab(1)).Density(
+            nullptr, record),
+        std::runtime_error);
+}
+
+TEST(DecayMeasureConversion, ThrowsOnSubThresholdRecordMasses) {
+    InteractionRecord record = BoostedAsymmetricTwoBodyDecayRecord();
+    record.primary_mass = 0.99 * (record.secondary_masses[0] +
+                                  record.secondary_masses[1]);
+    EXPECT_THROW(
+        RestPlusLabMixture(PhaseSpaceMeasure::SolidAngleLab(1)).Density(
+            nullptr, record),
+        std::runtime_error);
+}
+
+TEST(DecayMeasureConversion, ParentAtRestConvertsAsIdentity) {
+    InteractionRecord record = BoostedAsymmetricTwoBodyDecayRecord();
+    record.primary_momentum = {record.primary_mass, 0.0, 0.0, 0.0};
+    EXPECT_DOUBLE_EQ(
+        RestPlusLabMixture(PhaseSpaceMeasure::SolidAngleLab(1)).Density(
+            nullptr, record),
+        0.5 * 3.0 + 0.5 * 5.0);
+}
+
+TEST(ThreeBodyMeasureConversion, DalitzCrossFactorizationHasUnitJacobian) {
+    namespace J = siren::injection::phase_space_jacobian;
+    InteractionRecord record = AsymmetricThreeBodyDecayRecord();
+    PhaseSpaceMeasure common = PhaseSpaceMeasure::DalitzPair(0, 1, 2);
+    PhaseSpaceMeasure alternate = PhaseSpaceMeasure::DalitzPair(1, 0, 2);
+    ASSERT_NE(common, alternate);
+
+    auto pair_mass_squared = [&record](int first, int second) {
+        auto const & p1 = record.secondary_momenta[first];
+        auto const & p2 = record.secondary_momenta[second];
+        double E = p1[0] + p2[0];
+        double px = p1[1] + p2[1];
+        double py = p1[2] + p2[2];
+        double pz = p1[3] + p2[3];
+        return E * E - px * px - py * py - pz * pz;
+    };
+
+    constexpr double alternate_density = 7.0;
+    double old_intermediate = J::Recursive2BodyDensityToDalitzDensity(
+        alternate_density, record.primary_mass,
+        record.secondary_masses[alternate.spectator],
+        record.secondary_masses[alternate.pair_first],
+        record.secondary_masses[alternate.pair_second],
+        pair_mass_squared(alternate.pair_first, alternate.pair_second));
+    double old_converted = J::DalitzDensityToRecursive2BodyDensity(
+        old_intermediate, record.primary_mass,
+        record.secondary_masses[common.spectator],
+        record.secondary_masses[common.pair_first],
+        record.secondary_masses[common.pair_second],
+        pair_mass_squared(common.pair_first, common.pair_second));
+    ASSERT_GT(std::abs(old_converted - alternate_density), 1e-3);
+
+    for (PhaseSpaceTopology topology : {
+             PhaseSpaceTopology::Decay3Body,
+             PhaseSpaceTopology::Scatter2to3}) {
+        SCOPED_TRACE(siren::dataclasses::PhaseSpaceTopologyName(topology));
+        MultiChannelPhaseSpace mixture;
+        mixture.channels = {
+            std::make_shared<ConstantChannel>(2.0, topology, common),
+            std::make_shared<ConstantChannel>(
+                alternate_density, topology, alternate)};
+        mixture.weights = {0.25, 0.75};
+
+        EXPECT_EQ(mixture.CommonMeasure(), common);
+        EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), 5.75);
+        auto contributions = mixture.DensityBreakdown(nullptr, record);
+        ASSERT_EQ(contributions.size(), 2u);
+        EXPECT_DOUBLE_EQ(contributions[0], 0.5);
+        EXPECT_DOUBLE_EQ(contributions[1], 5.25);
+    }
+}
 
 TEST(ScatteringMeasureConversion, UsesIncomingAndOutgoingCmMomenta) {
     namespace J = siren::injection::phase_space_jacobian;
@@ -466,6 +874,139 @@ TEST(ScatteringMeasureConversion, UsesIncomingAndOutgoingCmMomenta) {
         s, m_beam, m_target, m_outgoing, m_recoil), expected);
     EXPECT_NE(J::SolidAngleRestToMandelstamQ2AbsJacobian(
         s, m_beam, m_target), expected);
+}
+
+TEST(ScatteringMeasureConversion, MultiChannelUsesInelasticJacobian) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            3.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConstantChannel>(
+            5.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::MandelstamQ2())};
+    mixture.weights = {0.5, 0.5};
+
+    InteractionRecord record;
+    record.primary_mass = 0.5;
+    record.target_mass = 1.0;
+    record.primary_momentum = {12.0, 0.0, 0.0, 0.0};
+    record.secondary_masses = {2.0, 0.75};
+    double s = record.primary_mass * record.primary_mass
+             + record.target_mass * record.target_mass
+             + 2.0 * record.target_mass * record.primary_momentum[0];
+    double jacobian = siren::injection::phase_space_jacobian::
+        SolidAngleRestToMandelstamQ2AbsJacobian(
+            s, record.primary_mass, record.target_mass,
+            record.secondary_masses[0], record.secondary_masses[1]);
+
+    double expected = 0.5 * 3.0 + 0.5 * 5.0 * jacobian / (2.0 * M_PI);
+    EXPECT_NEAR(mixture.Density(nullptr, record), expected, 1e-14);
+}
+
+
+TEST(ScatteringMeasureConversion, MixedFixedMassYAndQ2HasNoInverseYInflation) {
+    constexpr double target_mass = 0.020;
+    constexpr double incident_energy = 0.300;
+    constexpr double y_density = 3.0;
+    constexpr double q2_density = 5.0;
+    double jacobian = 2.0 * target_mass * incident_energy;
+
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            y_density, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::FixedMassY()),
+        std::make_shared<ConstantChannel>(
+            q2_density, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::MandelstamQ2())};
+    mixture.weights = {0.5, 0.5};
+
+    InteractionRecord record;
+    record.target_mass = target_mass;
+    record.primary_momentum = {incident_energy, 0.0, 0.0, incident_energy};
+    double expected = 0.5 * y_density / jacobian + 0.5 * q2_density;
+
+    record.interaction_parameters["bjorken_y"] = 0.2;
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), expected);
+    record.interaction_parameters["bjorken_y"] = 0.8;
+    EXPECT_DOUBLE_EQ(mixture.Density(nullptr, record), expected);
+}
+
+TEST(ScatteringMeasureConversion, RejectsDecayStyleLabBoost) {
+    MultiChannelPhaseSpace mixture;
+    mixture.channels = {
+        std::make_shared<ConstantChannel>(
+            1.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConstantChannel>(
+            1.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::SolidAngleLab())};
+    mixture.weights = {0.5, 0.5};
+
+    InteractionRecord record;
+    EXPECT_THROW(mixture.Density(nullptr, record), std::runtime_error);
+}
+
+TEST(NestedKleissPittau, ConvertsInnerCreditsToOuterMeasure) {
+    namespace J = siren::injection::phase_space_jacobian;
+    auto inner = std::make_shared<MultiChannelPhaseSpace>();
+    inner->channels = {
+        std::make_shared<ConstantChannel>(
+            2.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::MandelstamQ2()),
+        std::make_shared<ConstantChannel>(
+            8.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::MandelstamQ2())};
+    inner->weights = {0.5, 0.5};
+
+    MultiChannelPhaseSpace outer;
+    outer.channels = {
+        std::make_shared<siren::injection::NestedMixtureChannel>(inner),
+        std::make_shared<ConstantChannel>(
+            3.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::SolidAngleRest()),
+        std::make_shared<ConstantChannel>(
+            7.0, PhaseSpaceTopology::Scatter2to2,
+            PhaseSpaceMeasure::SolidAngleRest())};
+    outer.weights = {0.4, 0.3, 0.3};
+
+    InteractionRecord record;
+    record.primary_mass = 0.5;
+    record.target_mass = 1.0;
+    record.primary_momentum = {12.0, 0.0, 0.0, 0.0};
+    record.secondary_masses = {2.0, 0.75};
+    double s = record.primary_mass * record.primary_mass
+             + record.target_mass * record.target_mass
+             + 2.0 * record.target_mass * record.primary_momentum[0];
+    double q2_to_rest = J::MandelstamQ2PhiDensityToSolidAngleRestDensity(
+        1.0 / (2.0 * M_PI), s, record.primary_mass, record.target_mass,
+        record.secondary_masses[0], record.secondary_masses[1]);
+    ASSERT_GT(std::abs(q2_to_rest - 1.0), 0.1);
+
+    double g_outer = 0.4 * (5.0 * q2_to_rest) + 0.3 * 3.0 + 0.3 * 7.0;
+    EXPECT_NEAR(outer.Density(nullptr, record), g_outer, 1e-14);
+
+    constexpr double event_weight = 1.5;
+    constexpr double w2 = event_weight * event_weight;
+    outer.Accumulate(nullptr, record, event_weight, false, true);
+
+    ASSERT_EQ(outer.kp_count_, 1);
+    ASSERT_EQ(outer.kp_accumulator_.size(), 3u);
+    EXPECT_NEAR(
+        outer.kp_accumulator_[0], w2 * 5.0 * q2_to_rest / g_outer,
+        1e-14);
+    EXPECT_NEAR(outer.kp_accumulator_[1], w2 * 3.0 / g_outer, 1e-14);
+    EXPECT_NEAR(outer.kp_accumulator_[2], w2 * 7.0 / g_outer, 1e-14);
+
+    ASSERT_EQ(inner->kp_count_, 1);
+    ASSERT_EQ(inner->kp_accumulator_.size(), 2u);
+    EXPECT_NEAR(
+        inner->kp_accumulator_[0], w2 * 2.0 * q2_to_rest / g_outer,
+        1e-14);
+    EXPECT_NEAR(
+        inner->kp_accumulator_[1], w2 * 8.0 * q2_to_rest / g_outer,
+        1e-14);
 }
 
 
