@@ -1367,8 +1367,10 @@ def SaveEvents(events,
                                                                datum.record.secondary_momenta)):
                 datasets["secondary_types"][-1][-1].append(int(sec_type))
                 datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
-            datasets["num_secondaries"][-1].append(isec+1)
-        datasets["num_interactions"].append(id+1)
+            # Counted from the built lists; an empty tree leaves the loop
+            # variables stale.
+            datasets["num_secondaries"][-1].append(len(datasets["secondary_types"][-1][-1]))
+        datasets["num_interactions"].append(len(datasets["vertex"][-1]))
     progress.finish(len(events))
 
     # save events
