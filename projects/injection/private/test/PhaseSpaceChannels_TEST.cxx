@@ -4,6 +4,8 @@
 #include "SIREN/dataclasses/ParticleType.h"
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Sphere.h"
+#include "SIREN/injection/DetectorDirected3BodyChannel.h"
+#include "SIREN/injection/DetectorDirectedScatteringChannel.h"
 #include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/Isotropic2BodyChannel.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
@@ -25,6 +27,9 @@ using siren::dataclasses::InteractionRecord;
 using siren::dataclasses::ParticleType;
 using siren::geometry::Placement;
 using siren::geometry::Sphere;
+using siren::injection::DetectorDirected2BodyChannel;
+using siren::injection::DetectorDirected3BodyChannel;
+using siren::injection::DetectorDirectedScatteringChannel;
 using siren::injection::Isotropic2BodyChannel;
 using siren::injection::MultiChannelPhaseSpace;
 using siren::injection::PhaseSpaceTopology;
@@ -185,6 +190,105 @@ void ExpectConserved(InteractionRecord const & record, double tol) {
 
 } // namespace
 
+TEST(PhaseSpaceChannels, DetectorDirected3BodySamplesConservedPointingEvent) {
+    auto target = Sphere(Placement(Vector3D(0, 0, 100000)), 1.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(12345);
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {
+        ParticleType::NuLight,
+        ParticleType::MuMinus,
+        ParticleType::MuPlus
+    };
+    record.primary_mass = 1.0;
+    double E = 20.0;
+    double pz = std::sqrt(E * E - record.primary_mass * record.primary_mass);
+    record.primary_momentum = {E, 0.0, 0.0, pz};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {
+        0.0,
+        siren::utilities::Constants::muonMass,
+        siren::utilities::Constants::muonMass
+    };
+    record.secondary_momenta.resize(3);
+
+    DetectorDirected3BodyChannel channel(
+        target,
+        0,
+        1,
+        2,
+        1,
+        DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
+        0.0,
+        0.0,
+        0.8,
+        0.0,
+        DetectorDirected2BodyChannel::Mode::Volume);
+
+    channel.Sample(random, nullptr, record);
+
+    ExpectConserved(record, 1e-8);
+    for (size_t i = 0; i < record.secondary_momenta.size(); ++i) {
+        EXPECT_NEAR(MassSquared(record.secondary_momenta[i]),
+                    record.secondary_masses[i] * record.secondary_masses[i],
+                    1e-8);
+    }
+    EXPECT_TRUE(RayHits(target, record.interaction_vertex, record.secondary_momenta[1]));
+    EXPECT_GT(channel.Density(nullptr, record), 0.0);
+    EXPECT_EQ(channel.Measure().type, PhaseSpaceMeasure::Type::Recursive2Body);
+}
+
+TEST(PhaseSpaceChannels, DetectorDirectedScatteringSamplesConservedPointingEvent) {
+    auto target = Sphere(Placement(Vector3D(0, 0, 100000)), 1.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(67890);
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::NuMu;
+    record.signature.target_type = ParticleType::PPlus;
+    record.signature.secondary_types = {
+        ParticleType::N4,
+        ParticleType::PPlus
+    };
+    record.primary_mass = 0.0;
+    double E = 20.0;
+    record.primary_momentum = {E, 0.0, 0.0, E};
+    record.target_mass = siren::utilities::Constants::protonMass;
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {0.05, record.target_mass};
+    record.secondary_momenta.resize(2);
+
+    DetectorDirectedScatteringChannel channel(
+        target,
+        0,
+        DetectorDirectedScatteringChannel::Variable::Q2,
+        DetectorDirected2BodyChannel::Mode::Volume);
+
+    channel.Sample(random, nullptr, record);
+
+    std::array<double, 4> initial = {
+        record.primary_momentum[0] + record.target_mass,
+        record.primary_momentum[1],
+        record.primary_momentum[2],
+        record.primary_momentum[3]
+    };
+    std::array<double, 4> final = {0, 0, 0, 0};
+    for (auto const & p : record.secondary_momenta) {
+        for (int i = 0; i < 4; ++i) final[i] += p[i];
+    }
+    for (int i = 0; i < 4; ++i) EXPECT_NEAR(final[i], initial[i], 1e-8);
+
+    for (size_t i = 0; i < record.secondary_momenta.size(); ++i) {
+        EXPECT_NEAR(MassSquared(record.secondary_momenta[i]),
+                    record.secondary_masses[i] * record.secondary_masses[i],
+                    1e-8);
+    }
+    EXPECT_TRUE(RayHits(target, record.interaction_vertex, record.secondary_momenta[0]));
+    EXPECT_TRUE(record.interaction_parameters.count("Q2"));
+    EXPECT_TRUE(record.interaction_parameters.count("bjorken_y"));
+    EXPECT_GT(channel.Density(nullptr, record), 0.0);
+    EXPECT_EQ(channel.Measure().type, PhaseSpaceMeasure::Type::MandelstamQ2Phi);
+}
 
 // ---- PropagatorMapping (t-channel 1/(Q^2 + m^2)^2 importance map) ----
 
@@ -231,6 +335,147 @@ TEST(InvariantMassMapping, PropagatorRoundTripAndDensity) {
 
 // ---- DetectorDirectedScatteringChannel in Propagator Q^2 mode ----
 
+TEST(PhaseSpaceChannels, ScatteringPropagatorModeSampleEqualsDensity) {
+    // chi (m1) + Ar(rest) -> chi'(m3) + Ar(m4), t-channel mediator m_V2.
+    auto target = Sphere(Placement(Vector3D(0, 0, 5.0)), 2.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(2024);
+
+    double m_chi = 0.008, m_chi_prime = 0.050, M_Ar = 37.215, m_V2 = 0.200;
+
+    auto make_record = [&]() {
+        InteractionRecord r;
+        r.signature.primary_type = ParticleType::N4;     // stand-in for chi
+        r.signature.target_type = ParticleType::PPlus;
+        r.signature.secondary_types = {ParticleType::N4, ParticleType::PPlus};
+        r.primary_mass = m_chi;
+        double E = 0.5;
+        double p = std::sqrt(E * E - m_chi * m_chi);
+        r.primary_momentum = {E, 0.0, 0.0, p};
+        r.target_mass = M_Ar;
+        r.interaction_vertex = {0.0, 0.0, 0.0};
+        r.secondary_masses = {m_chi_prime, M_Ar};
+        r.secondary_momenta.resize(2);
+        return r;
+    };
+
+    DetectorDirectedScatteringChannel channel(
+        target, 0,
+        DetectorDirectedScatteringChannel::Variable::Q2,
+        DetectorDirected2BodyChannel::Mode::Volume,
+        DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+        m_V2);
+
+    // Analytic Q^2 limits for 1 + 2(rest) -> 3 + 4, derived here independently
+    // of the channel: Q^2 = -(p1 - p3)^2 runs between the CM forward
+    // (cos* = +1) and backward (cos* = -1) endpoints.
+    double E1_lab = 0.5;
+    double s_ana = m_chi * m_chi + M_Ar * M_Ar + 2.0 * M_Ar * E1_lab;
+    double root_s = std::sqrt(s_ana);
+    double E1cm = (s_ana + m_chi * m_chi - M_Ar * M_Ar) / (2.0 * root_s);
+    double E3cm = (s_ana + m_chi_prime * m_chi_prime - M_Ar * M_Ar) / (2.0 * root_s);
+    double p1cm = std::sqrt(E1cm * E1cm - m_chi * m_chi);
+    double p3cm = std::sqrt(E3cm * E3cm - m_chi_prime * m_chi_prime);
+    double base = m_chi * m_chi + m_chi_prime * m_chi_prime - 2.0 * E1cm * E3cm;
+    double q2_min_ana = -(base + 2.0 * p1cm * p3cm);   // cos* = +1
+    double q2_max_ana = -(base - 2.0 * p1cm * p3cm);   // cos* = -1
+    ASSERT_GT(q2_max_ana, q2_min_ana);
+
+    // The joint Q^2,phi density g integrates to 1 over the analytic support,
+    // so sampling from g and averaging 1/g estimates
+    // int dQ^2 dphi = 2*pi*(q2_max - q2_min). A mis-normalized density would
+    // break this equality even while Sample and Density stayed mutually
+    // consistent.
+    int n = 4000;
+    int n_ok = 0;
+    double sum_inv_g = 0.0;
+    for (int i = 0; i < n; ++i) {
+        InteractionRecord r = make_record();
+        channel.Sample(random, nullptr, r);
+
+        // 4-momentum conservation
+        std::array<double, 4> initial = {
+            r.primary_momentum[0] + r.target_mass,
+            r.primary_momentum[1], r.primary_momentum[2], r.primary_momentum[3]};
+        std::array<double, 4> final = {0, 0, 0, 0};
+        for (auto const & p : r.secondary_momenta)
+            for (int k = 0; k < 4; ++k) final[k] += p[k];
+        for (int k = 0; k < 4; ++k)
+            EXPECT_NEAR(final[k], initial[k], 1e-6);
+
+        // on-shell secondaries
+        EXPECT_NEAR(MassSquared(r.secondary_momenta[0]), m_chi_prime * m_chi_prime, 1e-6);
+        EXPECT_NEAR(MassSquared(r.secondary_momenta[1]), M_Ar * M_Ar, 1e-4);
+
+        double g = channel.Density(nullptr, r);
+        EXPECT_GT(g, 0.0);
+        if (g > 0.0) { sum_inv_g += 1.0 / g; ++n_ok; }
+
+        // The sampler must stay within the analytic Q^2 support.
+        double Q2 = r.interaction_parameters["Q2"];
+        EXPECT_GE(Q2, q2_min_ana - 1e-9);
+        EXPECT_LE(Q2, q2_max_ana + 1e-9);
+    }
+    ASSERT_GT(n_ok, n / 2);
+
+    // E_g[1/g] normalizes to the analytic width (Monte-Carlo tolerance).
+    double mean_inv_g = sum_inv_g / n_ok;
+    double width = q2_max_ana - q2_min_ana;
+    EXPECT_NEAR(mean_inv_g / (2.0 * M_PI * width), 1.0, 0.15);
+
+    // Propagator peaking: most samples land in the lowest 20% of the analytic
+    // Q^2 span.
+    int n_low = 0;
+    for (int i = 0; i < n; ++i) {
+        InteractionRecord r = make_record();
+        channel.Sample(random, nullptr, r);
+        double Q2 = r.interaction_parameters["Q2"];
+        if (Q2 < q2_min_ana + 0.2 * width) ++n_low;
+    }
+    EXPECT_GT(n_low, n / 2);
+}
+
+TEST(PhaseSpaceChannels, ScatteringPropagatorModeRejectsBadConfig) {
+    auto target = Sphere(Placement(Vector3D(0, 0, 5.0)), 2.0, 0.0).create();
+    // Propagator mode with non-positive mediator mass must throw.
+    EXPECT_THROW(
+        DetectorDirectedScatteringChannel(
+            target, 0,
+            DetectorDirectedScatteringChannel::Variable::Q2,
+            DetectorDirected2BodyChannel::Mode::Volume,
+            DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+            0.0),
+        std::runtime_error);
+    // Propagator/Tabulated mode requires Variable::Q2.
+    EXPECT_THROW(
+        DetectorDirectedScatteringChannel(
+            target, 0,
+            DetectorDirectedScatteringChannel::Variable::RecoilY,
+            DetectorDirected2BodyChannel::Mode::Volume,
+            DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+            0.2),
+        std::runtime_error);
+}
+
+TEST(PhaseSpaceChannels, TopologyMismatchDetected) {
+    auto target = Sphere(Placement(Vector3D(0, 0, 100000)), 1.0, 0.0).create();
+
+    MultiChannelPhaseSpace mc;
+    mc.channels = {
+        std::make_shared<Isotropic2BodyChannel>(0),
+        std::make_shared<DetectorDirectedScatteringChannel>(
+            target,
+            0,
+            DetectorDirectedScatteringChannel::Variable::RecoilY,
+            DetectorDirected2BodyChannel::Mode::Volume)
+    };
+    mc.weights = {0.5, 0.5};
+
+    // Mixing Decay2Body with Scatter2to2 is a topology mismatch
+    EXPECT_THROW(mc.CommonTopology(), std::runtime_error);
+    auto diagnostics = mc.ValidateChannels();
+    ASSERT_FALSE(diagnostics.empty());
+    EXPECT_NE(diagnostics.front().find("Topology"), std::string::npos);
+}
 
 TEST(PhaseSpaceChannels, UnspecifiedTopologyMismatchDetected) {
     MultiChannelPhaseSpace mc;
@@ -280,6 +525,48 @@ TEST(ConvertDensity, SameMeasureMixtureDoesNotConvertOrThrow) {
     EXPECT_NEAR(d, 1.0, 1e-12);
 }
 
+TEST(MultiChannelDensity, DensityBreakdownSumsToDensity) {
+    // Breakdown[i] is channel i's alpha-weighted, common-measure contribution;
+    // the elements must sum exactly to Density().  With a shared measure (no
+    // conversion) each element equals weights[i] * channels[i]->Density().
+    auto target = Sphere(Placement(Vector3D(0.0, 0.0, 0.0)), 10.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(7);
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = 1.0;
+    double E = 20.0;
+    double pz = std::sqrt(E * E - record.primary_mass * record.primary_mass);
+    record.primary_momentum = {E, 0.0, 0.0, pz};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {0.0, 0.0};
+    record.secondary_momenta.resize(2);
+
+    MultiChannelPhaseSpace mc;
+    mc.channels = {
+        std::make_shared<Isotropic2BodyChannel>(0),
+        std::make_shared<DetectorDirected2BodyChannel>(
+            target, 0, DetectorDirected2BodyChannel::Mode::Volume)
+    };
+    mc.weights = {0.3, 0.7};
+
+    for (int s = 0; s < 200; ++s) {
+        mc.Sample(random, nullptr, record);
+        auto breakdown = mc.DensityBreakdown(nullptr, record);
+        ASSERT_EQ(breakdown.size(), mc.channels.size());
+
+        double g = mc.Density(nullptr, record);
+        double sum = std::accumulate(breakdown.begin(), breakdown.end(), 0.0);
+        EXPECT_NEAR(sum, g, 1e-12 * std::max(1.0, std::abs(g)));
+
+        for (size_t i = 0; i < mc.channels.size(); ++i) {
+            double gi = mc.channels[i]->Density(nullptr, record);
+            EXPECT_NEAR(breakdown[i], mc.weights[i] * gi,
+                        1e-12 * std::max(1.0, std::abs(breakdown[i])));
+        }
+    }
+}
 
 TEST(PhaseSpaceChannels, PhysicalDecayMeasureFromModel) {
     auto decay = std::make_shared<MixedArityDecay>();
@@ -299,9 +586,6 @@ TEST(PhaseSpaceChannels, PhysicalDecayMeasureFromModel) {
               decay->MeasureForSignature(MixedArityDecay::ThreeBodySignature()));
     EXPECT_NE(three_body.Measure().type, PhaseSpaceMeasure::Type::Unspecified);
 
-    // The explicit-measure constructor always honors the user's choice.
-    PhysicalDecayChannel explicit_rest(decay, PhaseSpaceMeasure::SolidAngleRest());
-    EXPECT_EQ(explicit_rest.Measure().type, PhaseSpaceMeasure::Type::SolidAngleRest);
 }
 
 TEST(PhaseSpaceJacobians, RestFrameAndLabSolidAngleIntegralsAgree) {
@@ -387,6 +671,68 @@ TEST(PhaseSpaceJacobians, BjorkenAndQ2YIntegralsAgree) {
     EXPECT_NEAR(integral, 1.0, 1e-10);
 }
 
+TEST(PhaseSpaceChannels, SolidAngleDensityWhenInsideVolume) {
+    auto target = Sphere(Placement(Vector3D(0.0, 0.0, 0.0)), 10.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(42);
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = 1.0;
+    double E = 20.0;
+    double pz = std::sqrt(E * E - record.primary_mass * record.primary_mass);
+    record.primary_momentum = {E, 0.0, 0.0, pz};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {0.0, 0.0};
+    record.secondary_momenta.resize(2);
+
+    DetectorDirected2BodyChannel channel(target, 0, DetectorDirected2BodyChannel::Mode::Volume);
+
+    double sphere_volume = (4.0 / 3.0) * M_PI * 1000.0;
+    channel.SetVolume(sphere_volume);
+
+    channel.Sample(random, nullptr, record);
+
+    double density = channel.Density(nullptr, record);
+    EXPECT_GT(density, 0.0);
+}
+
+TEST(PhaseSpaceChannels, SampleVolumeWhenInsideVolume) {
+    auto target = Sphere(Placement(Vector3D(0.0, 0.0, 0.0)), 10.0, 0.0).create();
+    auto random = std::make_shared<siren::utilities::SIREN_random>(42);
+
+    InteractionRecord record;
+    record.signature.primary_type = ParticleType::N4;
+    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
+    record.primary_mass = 1.0;
+    double E = 20.0;
+    double pz = std::sqrt(E * E - record.primary_mass * record.primary_mass);
+    record.primary_momentum = {E, 0.0, 0.0, pz};
+    record.interaction_vertex = {0.0, 0.0, 0.0};
+    record.secondary_masses = {0.0, 0.0};
+    record.secondary_momenta.resize(2);
+
+    DetectorDirected2BodyChannel channel(target, 0, DetectorDirected2BodyChannel::Mode::Volume);
+
+    channel.Sample(random, nullptr, record);
+
+    ExpectConserved(record, 1e-8);
+    EXPECT_GT(channel.Density(nullptr, record), 0.0);
+}
+
+TEST(PhaseSpaceChannels, ThrowsEarlyOnExtremelySmallVolumeRatio) {
+    // Extremely hollow sphere: R = 10.0, r = 9.9999
+    auto target = Sphere(Placement(Vector3D(0.0, 0.0, 0.0)), 10.0, 9.9999).create();
+
+    EXPECT_THROW(
+        DetectorDirected2BodyChannel(target, 0, DetectorDirected2BodyChannel::Mode::Volume),
+        std::runtime_error
+    );
+
+    EXPECT_NO_THROW(
+        DetectorDirected2BodyChannel(target, 0, DetectorDirected2BodyChannel::Mode::Cone)
+    );
+}
 
 // ================================================================== //
 //  Category 1: Jacobian invertibility                                 //
@@ -550,7 +896,7 @@ TEST(JacobianInvertibility, SolidAngleMandelstamJacobianProductIsUnity) {
 //  Category 2: Normalization integrals                                //
 // ================================================================== //
 
-TEST(JacobianIntegrals, SolidAngleRestToMandelstamQ2IntegralAgreement) {
+TEST(JacobianIntegrals, SolidAngleRestToMandelstamQ2PhiIntegralAgreement) {
     // 2->2 scattering: m_beam=0.008, m_target=37.215, E_beam=1.0
     // In the lab frame the target is at rest.
     double m_beam = 0.008;
@@ -565,20 +911,18 @@ TEST(JacobianIntegrals, SolidAngleRestToMandelstamQ2IntegralAgreement) {
     // Isotropic density in solid angle: rho_Omega = 1/(4*pi)
     // Integral of rho_Omega dOmega over full sphere = 1.
     //
-    // Converting to Q2 (azimuth-integrated):
-    //   rho(Q2) = rho_Omega * 2*pi / (2*p_CM^2) = 1/(4*pi) * 2*pi / (2*p_CM^2)
-    //           = 1 / (4*p_CM^2)
+    // Converting to Q2 with azimuth retained:
+    //   rho(Q2,phi) = rho_Omega / (2*p_CM^2)
     //
-    // Integral of rho(Q2) dQ2 from 0 to Q2_max:
-    //   = (1 / (4*p_CM^2)) * 4*p_CM^2 = 1
+    // Integral of rho(Q2,phi) dQ2 dphi over the full azimuth is 1.
     double rho_omega = 1.0 / (4.0 * M_PI);
 
     // The converted density is constant (does not depend on Q2), so
-    // the integral is simply rho_Q2 * Q2_max.
-    double rho_Q2 =
-        siren::injection::phase_space_jacobian::SolidAngleRestDensityToMandelstamQ2Density(
+    // the integral is simply rho_Q2_phi * Q2_max * 2*pi.
+    double rho_Q2_phi =
+        siren::injection::phase_space_jacobian::SolidAngleRestDensityToMandelstamQ2PhiDensity(
             rho_omega, s, m_beam, m_target);
-    double integral = rho_Q2 * Q2_max;
+    double integral = rho_Q2_phi * Q2_max * 2.0 * M_PI;
 
     EXPECT_NEAR(integral, 1.0, 5e-3)
         << "SolidAngle->MandelstamQ2 integral = " << integral;
@@ -833,7 +1177,19 @@ TEST(ConvertibilityGroups, ExhaustiveTable) {
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
               PhaseSpaceMeasure::MandelstamQ2()), 0);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
-              PhaseSpaceMeasure::BjorkenXY()), 0);
+              PhaseSpaceMeasure::MandelstamQ2Phi()), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::FixedMassY()), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::FixedMassYPhi()), 0);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::BjorkenXY()), 1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::BjorkenXYPhi()), 1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::MandelstamQ2Y()), 1);
+    EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
+              PhaseSpaceMeasure::MandelstamQ2YPhi()), 1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
               PhaseSpaceMeasure::Recursive2Body()), -1);
     EXPECT_EQ(MeasureConvertibilityGroup(PhaseSpaceTopology::Scatter2to2,
@@ -880,45 +1236,31 @@ TEST(ConvertibilityGroups, ExhaustiveTable) {
               PhaseSpaceMeasure::Unspecified()), -1);
 }
 
-TEST(ConvertibilityGroups, CompatibilityIsSymmetric) {
+TEST(ConvertibilityGroups, DensityConversionIsDirectional) {
     using siren::dataclasses::PhaseSpaceTopology;
     using siren::dataclasses::PhaseSpaceMeasure;
-    using siren::dataclasses::PhaseSpaceCompatible;
+    using siren::dataclasses::PhaseSpaceDensityConvertible;
 
-    // Enumerate all topology-measure pairs
-    PhaseSpaceTopology topologies[] = {
-        PhaseSpaceTopology::Decay2Body,
-        PhaseSpaceTopology::Decay3Body,
-        PhaseSpaceTopology::DecayNBody,
+    EXPECT_TRUE(PhaseSpaceDensityConvertible(
         PhaseSpaceTopology::Scatter2to2,
-        PhaseSpaceTopology::Scatter2to3,
+        PhaseSpaceMeasure::FixedMassY(),
+        PhaseSpaceMeasure::FixedMassYPhi()));
+    EXPECT_FALSE(PhaseSpaceDensityConvertible(
+        PhaseSpaceTopology::Scatter2to2,
+        PhaseSpaceMeasure::FixedMassYPhi(),
+        PhaseSpaceMeasure::FixedMassY()));
+    EXPECT_TRUE(PhaseSpaceDensityConvertible(
+        PhaseSpaceTopology::Scatter2to2,
+        PhaseSpaceMeasure::FixedMassYPhi(),
+        PhaseSpaceMeasure::MandelstamQ2Phi()));
+    EXPECT_FALSE(PhaseSpaceDensityConvertible(
+        PhaseSpaceTopology::Scatter2to2,
+        PhaseSpaceMeasure::FixedMassY(),
+        PhaseSpaceMeasure::BjorkenXYPhi()));
+    EXPECT_TRUE(PhaseSpaceDensityConvertible(
         PhaseSpaceTopology::Unspecified,
-    };
-    PhaseSpaceMeasure measures[] = {
-        PhaseSpaceMeasure::SolidAngleRest(),
-        PhaseSpaceMeasure::SolidAngleLab(),
-        PhaseSpaceMeasure::Recursive2Body(),
-        PhaseSpaceMeasure::DalitzPair(),
-        PhaseSpaceMeasure::HelicityAngles(),
-        PhaseSpaceMeasure::MandelstamQ2(),
-        PhaseSpaceMeasure::BjorkenXY(),
         PhaseSpaceMeasure::Unspecified(),
-    };
-
-    // For every pair (T, Ma) x (T, Mb), verify symmetry
-    for (auto topo : topologies) {
-        for (auto ma : measures) {
-            for (auto mb : measures) {
-                bool ab = PhaseSpaceCompatible(topo, ma, topo, mb);
-                bool ba = PhaseSpaceCompatible(topo, mb, topo, ma);
-                EXPECT_EQ(ab, ba)
-                    << "Asymmetric compatibility for topology="
-                    << static_cast<int>(topo)
-                    << " ma=" << static_cast<int>(ma.type)
-                    << " mb=" << static_cast<int>(mb.type);
-            }
-        }
-    }
+        PhaseSpaceMeasure::Unspecified()));
 }
 
 // ================================================================== //
@@ -990,8 +1332,8 @@ TEST(JacobianIntegrals, NonTrivialAngularDistributionIntegralAgreement) {
     // (3/4) * 2*pi * integral_{-1}^{1} (1+cos^2) d(cos) = (3/4)*2*pi*(8/3) = 4*pi
     // So f_Omega = (3/16*pi) * (1 + cos^2(theta)) is a normalized density.
     //
-    // Convert to Q2 via the Jacobian and numerically integrate:
-    //   f(Q2) = f_Omega * 2*pi / (2*p_CM^2)
+    // Convert to Q2 and phi via the pointwise Jacobian and numerically
+    // integrate Q2; the final 2*pi below integrates the retained azimuth.
     // where cos_theta = 1 - Q2/(2*p_CM^2)
     //
     // The integral of f(Q2) dQ2 from 0 to Q2_max should equal 1.
@@ -1018,10 +1360,10 @@ TEST(JacobianIntegrals, NonTrivialAngularDistributionIntegralAgreement) {
 
         // Convert to Q2 density using the Jacobian
         double f_Q2 = siren::injection::phase_space_jacobian::
-            SolidAngleRestDensityToMandelstamQ2Density(
+            SolidAngleRestDensityToMandelstamQ2PhiDensity(
                 f_omega, s, m_beam, m_target);
 
-        integral += f_Q2 * dQ2;
+        integral += f_Q2 * dQ2 * 2.0 * M_PI;
     }
 
     EXPECT_NEAR(integral, 1.0, 1e-3)
@@ -1271,8 +1613,8 @@ TEST(AutoConversion, Scatter2to2Q2PlusSolidAngleClosure) {
     // We test this by computing the conversion manually and checking
     // it matches:
     namespace J = siren::injection::phase_space_jacobian;
-    double converted_back = J::MandelstamQ2DensityToSolidAngleRestDensity(
-        density_Q2, s, m_beam, m_target);
+    double converted_back = J::MandelstamQ2PhiDensityToSolidAngleRestDensity(
+        density_Q2 / (2.0 * M_PI), s, m_beam, m_target);
 
     EXPECT_NEAR(converted_back, density_rest, 1e-10)
         << "Manual Q2->rest conversion: got " << converted_back
@@ -1407,9 +1749,8 @@ TEST(AutoConversion, CrossFactorizationRecursive2Body) {
     PhaseSpaceMeasure meas_B = PhaseSpaceMeasure::Recursive2Body(2, 0, 1);
 
     EXPECT_NE(meas_A, meas_B);
-    EXPECT_TRUE(PhaseSpaceCompatible(
-        PhaseSpaceTopology::Decay3Body, meas_A,
-        PhaseSpaceTopology::Decay3Body, meas_B));
+    EXPECT_TRUE(PhaseSpaceDensityConvertible(
+        PhaseSpaceTopology::Decay3Body, meas_A, meas_B));
 
     // Build a MultiChannelPhaseSpace with two mock channels
     // that report the same density but different measures.
@@ -1710,9 +2051,9 @@ TEST(MultiChannelCompat, ConvertibleMixedMeasureSamplesWithoutThrowing) {
 //  Kinematics (documented so the expected value is reproducible):
 //    s        = m_beam^2 + m_target^2 + 2 m_target E_beam
 //    p_CM^2   = Kallen(s, m_beam^2, m_target^2) / (4 s)
-//    rho(Q^2) = rho(Omega_rest) * 2*pi / (2 p_CM^2)
+//    rho(Q^2,phi) = rho(Omega_rest) / (2 p_CM^2)
 // --------------------------------------------------------------------- //
-TEST(ConvertDensityTopology, SolidAngleRestToMandelstamQ2HonorsScatterTopology) {
+TEST(ConvertDensityTopology, SolidAngleRestToMandelstamQ2PhiHonorsScatterTopology) {
     using siren::injection::ConvertDensity;
     namespace J = siren::injection::phase_space_jacobian;
 
@@ -1739,21 +2080,21 @@ TEST(ConvertDensityTopology, SolidAngleRestToMandelstamQ2HonorsScatterTopology) 
     double density_rest = 1.0 / (4.0 * M_PI);      // isotropic per dOmega_rest
 
     // Expected Scatter2to2 conversion value, computed from the kinematics.
-    double expected_Q2 = J::SolidAngleRestDensityToMandelstamQ2Density(
+    double expected_Q2 = J::SolidAngleRestDensityToMandelstamQ2PhiDensity(
         density_rest, s, m_beam, m_target);
-    double closed_form = density_rest * 2.0 * M_PI / (2.0 * p_cm_sq);
+    double closed_form = density_rest / (2.0 * p_cm_sq);
     ASSERT_NEAR(expected_Q2, closed_form, 1e-12);
 
     // Under Scatter2to2 the conversion is defined and matches the analytic value.
     double got_scatter = ConvertDensity(
         density_rest,
         PhaseSpaceMeasure::SolidAngleRest(),
-        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceMeasure::MandelstamQ2Phi(),
         PhaseSpaceTopology::Scatter2to2,
         record);
     EXPECT_TRUE(std::isfinite(got_scatter));
     EXPECT_NEAR(got_scatter, expected_Q2, 1e-9)
-        << "Scatter2to2 SolidAngleRest->MandelstamQ2 must equal "
+        << "Scatter2to2 SolidAngleRest->MandelstamQ2Phi must equal "
         << expected_Q2 << " but got " << got_scatter;
 
     // Under Decay2Body the SAME measure pair is unconvertible -- proving the
@@ -1762,15 +2103,15 @@ TEST(ConvertDensityTopology, SolidAngleRestToMandelstamQ2HonorsScatterTopology) 
         ConvertDensity(
             density_rest,
             PhaseSpaceMeasure::SolidAngleRest(),
-            PhaseSpaceMeasure::MandelstamQ2(),
+            PhaseSpaceMeasure::MandelstamQ2Phi(),
             PhaseSpaceTopology::Decay2Body,
             record),
         std::runtime_error);
 }
 
-// Companion pin: the reverse direction (MandelstamQ2 -> SolidAngleRest) is the
+// Companion pin: the reverse direction (MandelstamQ2Phi -> SolidAngleRest) is the
 // exact inverse under Scatter2to2, and round-trips to the input.
-TEST(ConvertDensityTopology, MandelstamQ2RoundTripUnderScatterTopology) {
+TEST(ConvertDensityTopology, MandelstamQ2PhiRoundTripUnderScatterTopology) {
     using siren::injection::ConvertDensity;
 
     double m_beam = 0.1, m_target = 1.0, E_beam = 2.0;
@@ -1790,11 +2131,11 @@ TEST(ConvertDensityTopology, MandelstamQ2RoundTripUnderScatterTopology) {
     double to_q2 = ConvertDensity(
         density_rest,
         PhaseSpaceMeasure::SolidAngleRest(),
-        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceMeasure::MandelstamQ2Phi(),
         PhaseSpaceTopology::Scatter2to2, record);
     double back = ConvertDensity(
         to_q2,
-        PhaseSpaceMeasure::MandelstamQ2(),
+        PhaseSpaceMeasure::MandelstamQ2Phi(),
         PhaseSpaceMeasure::SolidAngleRest(),
         PhaseSpaceTopology::Scatter2to2, record);
 
