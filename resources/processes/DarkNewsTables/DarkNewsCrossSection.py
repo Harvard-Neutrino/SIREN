@@ -228,15 +228,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
             if interpolator is None or inputs[0] > interp_table[-1, 0]:
                 logger.info(
-                    "Requested interpolation at %2.2f GeV. Either this is above the table boundary or the interpolator doesn't yet exist. Filling %s table"
-                    % (inputs[0], mode)
+                    "Extending %s cross-section interpolation table up to %.2f GeV"
+                    % (mode, inputs[0])
                 )
                 n = self.FillInterpolationTables(
                     total=(mode == "total"),
                     diff=(mode == "differential"),
                     Emax=(1 + self.interp_tolerance) * inputs[0],
                 )
-                logger.info("Added %d points" % n)
+                logger.info("Added %d point(s) to the %s table" % (n, mode))
                 if mode == "total":
                     interpolator = self.total_cross_section_interpolator
                 elif mode == "differential":
@@ -244,9 +244,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 if interpolator is None:
                     return -1
             elif inputs[0] < interp_table[0, 0]:
-                logger.info(
-                    "Requested interpolation at %2.2f GeV below table boundary. Requiring calculation"
-                    % inputs[0]
+                logger.debug(
+                    "Energy %.2f GeV is below the %s interpolation range; cross section is 0"
+                    % (inputs[0], mode)
                 )
                 return 0
             val = interpolator(inputs)
