@@ -20,7 +20,7 @@ _NuMu = dc.Particle.ParticleType.NuMu
 
 
 # ------------------------------------------------------------------ #
-#  (b) FixedVertexChannelSelectionProbability                         #
+#  FixedVertexChannelSelectionProbability                         #
 # ------------------------------------------------------------------ #
 
 class _ConstWidthDecay(siren.interactions.Decay):
