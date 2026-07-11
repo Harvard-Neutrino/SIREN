@@ -50,8 +50,8 @@ public:
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
     virtual double TargetMass(dataclasses::ParticleType const &) const;
-    virtual std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const &) const;
-    virtual std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const &) const;
+    virtual std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const &) const override;
+    virtual std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const &) const override;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
 
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation

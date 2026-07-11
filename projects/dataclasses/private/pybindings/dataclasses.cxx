@@ -142,7 +142,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def("finalize", &SecondaryParticleRecord::Finalize)
         ;
 
-    py::class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
+    py::class_<CrossSectionDistributionRecord>(m, "CrossSectionDistributionRecord")
         .def(py::init<InteractionRecord const &>())
         .def("__str__", [](CrossSectionDistributionRecord const & cdr) { return to_str(cdr); })
         .def("__repr__", [](CrossSectionDistributionRecord const & cdr) { return to_repr(cdr); })
