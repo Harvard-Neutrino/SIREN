@@ -180,4 +180,4 @@ bool SecondaryPhysicalVertexDistribution::less(WeightableDistribution const & ot
 }
 
 } // namespace distributions
-} // namespace sirenREN
+} // namespace siren

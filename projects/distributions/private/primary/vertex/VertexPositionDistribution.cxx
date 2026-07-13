@@ -24,7 +24,7 @@ void VertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_
 }
 
 std::set<DistributionVariable> VertexPositionDistribution::SetVariables() const {
-    return {DistributionVariable::InitialPosition, DistributionVariable::InteractionVertex};
+    return {DistributionVariable::InteractionVertex};
 }
 
 std::set<DistributionVariable> VertexPositionDistribution::RequiredVariables() const {

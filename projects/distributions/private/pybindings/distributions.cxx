@@ -105,32 +105,10 @@ PYBIND11_MODULE(distributions,m) {
     .def("clone",&PrimaryInjectionDistribution::clone)
     TrampolinePickleMethods(pyPrimaryInjectionDistribution);
 
-  // External distribution
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution",
-    "Primary distribution driven by an external CSV file.\n\n"
-    "The first line is a comma-separated header naming each column and\n"
-    "each subsequent line is one candidate event. Recognized columns:\n"
-    "  x0, y0, z0  initial position of the primary\n"
-    "  x, y, z     interaction vertex (also used as the initial position\n"
-    "              when x0, y0, z0 are absent)\n"
-    "  px, py, pz  primary momentum\n"
-    "  E           primary energy; rows with E below emin are dropped\n"
-    "  m           primary mass\n"
-    "  t0          primary initial time, in SIREN time units where one\n"
-    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
-    "              propagated to the vertex by time of flight\n"
-    "Any other column is stored as a named interaction parameter. Each of\n"
-    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
-    "omitted entirely.")
-    .def(init<std::string>())
-    .def(init<std::string, double>())
-    .def("Sample",&PrimaryExternalDistribution::Sample)
-    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
-    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
-    .def("Name",&PrimaryExternalDistribution::Name);
+  // NOTE: PrimaryExternalDistribution is defined after VertexPositionDistribution
+  // because it inherits from VertexPositionDistribution.
 
-  // Direciton distributions
+  // Direction distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, pyPrimaryDirectionDistribution, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution",
     "Base class for primary direction distributions. Subclass in python and\n"
@@ -380,6 +358,37 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&FixedTargetPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
     .def("Name",&FixedTargetPositionDistribution::Name);
+
+  // External distribution (inherits VertexPositionDistribution, must come after it)
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution>(m,"PrimaryExternalDistribution",
+    "Primary distribution driven by an external CSV file.\n\n"
+    "The first line is a comma-separated header naming each column and\n"
+    "each subsequent line is one candidate event. Recognized columns:\n"
+    "  x0, y0, z0  initial position of the primary\n"
+    "  x, y, z     interaction vertex (also used as the initial position\n"
+    "              when x0, y0, z0 are absent)\n"
+    "  px, py, pz  primary momentum\n"
+    "  E           primary energy; rows with E below emin are dropped\n"
+    "  m           primary mass\n"
+    "  t0          primary initial time, in SIREN time units where one\n"
+    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
+    "              propagated to the vertex by time of flight\n"
+    "Any other column is stored as a named interaction parameter. Each of\n"
+    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
+    "omitted entirely.")
+    .def(init<std::string>())
+    .def(init<std::string, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>>(),
+         arg("keys"), arg("data"), arg("sampling_weights"))
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>, double>(),
+         arg("keys"), arg("data"), arg("sampling_weights"), arg("emin"))
+    .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
+    .def("Name",&PrimaryExternalDistribution::Name);
 
   class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, pyPrimaryAreaDistribution, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution",
     "Base class for primary area distributions. Subclass in python and\n"
