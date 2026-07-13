@@ -232,17 +232,25 @@ bool SecondaryBoundedVertexDistribution::equal(WeightableDistribution const & ot
 
     if(!x)
         return false;
-    else
-        return (max_length == x->max_length);
+    bool same_fid = (!fiducial_volume && !x->fiducial_volume)
+        || (fiducial_volume && x->fiducial_volume && *fiducial_volume == *(x->fiducial_volume));
+    return max_length == x->max_length && same_fid;
 }
 
 bool SecondaryBoundedVertexDistribution::less(WeightableDistribution const & other) const {
     const SecondaryBoundedVertexDistribution* x = dynamic_cast<const SecondaryBoundedVertexDistribution*>(&other);
-    return
-        std::tie(max_length)
-        <
-        std::tie(x->max_length);
+    if(!x)
+        return false;
+    if(max_length != x->max_length)
+        return max_length < x->max_length;
+    bool has_fid = (fiducial_volume != nullptr);
+    bool other_has_fid = (x->fiducial_volume != nullptr);
+    if(has_fid != other_has_fid)
+        return has_fid < other_has_fid;
+    if(has_fid && other_has_fid)
+        return *fiducial_volume < *(x->fiducial_volume);
+    return false;
 }
 
 } // namespace distributions
-} // namespace sirenREN
+} // namespace siren
