@@ -212,6 +212,34 @@ class TestPrimaryExternalDistributionProbability:
         record.primary_momentum = [5.0, 0.0, 0.0, 0.0]
         assert dist.GenerationProbability(None, None, record) == 1.0
 
+    def test_unweighted_instance_ignores_weighted_cache(self, distributions,
+                                                        dataclasses):
+        """An unweighted instance reports its own flat density even on a record
+        that a weighted generator cached its biased density into.
+
+        The cache key "PrimaryExternalDistribution_gen_prob" is written only by
+        a weighted (sampling_weights) instance's Sample. Only a weighted
+        instance may read it back; an unweighted instance (e.g. a physical-side
+        copy) must ignore it and report 1, so the de-biasing factor survives the
+        weight ratio.
+        """
+        keys = ["E"]
+        data = [[10.0], [20.0], [30.0]]
+        weights = [1.0, 2.0, 3.0]
+        weighted = distributions.PrimaryExternalDistribution(
+            keys, data, weights)
+        unweighted = distributions.PrimaryExternalDistribution(keys, data)
+
+        record = dataclasses.InteractionRecord()
+        record.primary_momentum = [20.0, 0.0, 0.0, 0.0]
+        record.interaction_parameters = {
+            "PrimaryExternalDistribution_gen_prob": 0.75}
+
+        # The unweighted instance ignores the cache and reports its flat density.
+        assert unweighted.GenerationProbability(None, None, record) == 1.0
+        # The weighted instance (which owns the cache) reads the biased density.
+        assert weighted.GenerationProbability(None, None, record) == 0.75
+
 
 # ---------------------------------------------------------------------------
 # Vertex distributions: construction and metadata

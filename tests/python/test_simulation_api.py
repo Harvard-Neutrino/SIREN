@@ -224,6 +224,41 @@ class TestOrderingValidation:
         with pytest.raises(ValueError, match="already been set by"):
             validate_ordering(dists)
 
+    def test_bounded_vertex_requires_initial_position(self):
+        """PrimaryBoundedVertexDistribution consumes the primary's initial
+        position (record.GetInitialPosition() in SamplePosition), so it must
+        declare InitialPosition required and must not declare it set; a chain
+        that never sets an initial position upstream fails ordering validation.
+
+        Regression guard: the base VertexPositionDistribution sets only
+        InteractionVertex, so RequiredVariables = {InitialPosition,
+        PrimaryDirection} does not overlap SetVariables and ordering is
+        satisfiable given an upstream position source. Dropping InitialPosition
+        from RequiredVariables to "resolve" a non-existent overlap silently
+        removes a real dependency, which this test forbids.
+        """
+        import siren
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        DV = d.DistributionVariable
+        bounded = d.PrimaryBoundedVertexDistribution(
+            siren.geometry.Box(widths=(2.0, 2.0, 2.0)))
+        assert DV.InitialPosition in bounded.RequiredVariables()
+        assert DV.PrimaryDirection in bounded.RequiredVariables()
+        assert DV.InteractionVertex in bounded.SetVariables()
+        assert DV.InitialPosition not in bounded.SetVariables()
+        # Mass, energy, and direction are set, but nothing sets InitialPosition,
+        # so the bounded vertex's requirement is unmet and ordering must fail.
+        dists = [
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+            bounded,
+        ]
+        import pytest
+        with pytest.raises(ValueError, match="InitialPosition"):
+            validate_ordering(dists)
+
 
 class TestReweightingValidation:
     """Physical and injection measures must use compatible variables."""
