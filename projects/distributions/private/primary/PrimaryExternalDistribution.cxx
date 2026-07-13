@@ -156,6 +156,9 @@ void PrimaryExternalDistribution::Sample(
         else if (keys[i_key] == "pz") {
             _momentum[2] = value;
         }
+        else if (keys[i_key] == "t0") {
+            record.SetInitialTime(value);
+        }
         else if (keys[i_key] == "E") {
             record.SetEnergy(value);
         }

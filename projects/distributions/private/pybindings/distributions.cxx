@@ -71,7 +71,22 @@ PYBIND11_MODULE(distributions,m) {
     ;
 
   // External distribution
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution")
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution",
+    "Primary distribution driven by an external CSV file.\n\n"
+    "The first line is a comma-separated header naming each column and\n"
+    "each subsequent line is one candidate event. Recognized columns:\n"
+    "  x0, y0, z0  initial position of the primary\n"
+    "  x, y, z     interaction vertex (also used as the initial position\n"
+    "              when x0, y0, z0 are absent)\n"
+    "  px, py, pz  primary momentum\n"
+    "  E           primary energy; rows with E below emin are dropped\n"
+    "  m           primary mass\n"
+    "  t0          primary initial time, in SIREN time units where one\n"
+    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
+    "              propagated to the vertex by time of flight\n"
+    "Any other column is stored as a named interaction parameter. Each of\n"
+    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
+    "omitted entirely.")
     .def(init<std::string>())
     .def(init<std::string, double>())
     .def("Sample",&PrimaryExternalDistribution::Sample)
