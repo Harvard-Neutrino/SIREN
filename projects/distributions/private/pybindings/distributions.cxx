@@ -3,21 +3,28 @@
 #include <string>
 
 #include "../../public/SIREN/distributions/Distributions.h"
+#include "../../public/SIREN/distributions/pyWeightableDistribution.h"
+#include "../../public/SIREN/distributions/pyPrimaryInjectionDistribution.h"
+#include "../../public/SIREN/distributions/pySecondaryInjectionDistribution.h"
 #include "../../public/SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "../../public/SIREN/distributions/primary/direction/PrimaryDirectionDistribution.h"
+#include "../../public/SIREN/distributions/primary/direction/pyPrimaryDirectionDistribution.h"
 #include "../../public/SIREN/distributions/primary/direction/Cone.h"
 #include "../../public/SIREN/distributions/primary/direction/FixedDirection.h"
 #include "../../public/SIREN/distributions/primary/direction/IsotropicDirection.h"
 #include "../../public/SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
+#include "../../public/SIREN/distributions/primary/energy/pyPrimaryEnergyDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy/Monoenergetic.h"
 #include "../../public/SIREN/distributions/primary/energy/PowerLaw.h"
 #include "../../public/SIREN/distributions/primary/energy/PiDARNuEDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy_direction/PrimaryEnergyDirectionDistribution.h"
+#include "../../public/SIREN/distributions/primary/energy_direction/pyPrimaryEnergyDirectionDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy_direction/Tabulated2DFluxDistribution.h"
 #include "../../public/SIREN/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "../../public/SIREN/distributions/primary/mass/PrimaryMass.h"
 #include "../../public/SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/pyVertexPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/SphereVolumePositionDistribution.h"
@@ -32,7 +39,9 @@
 #include "../../public/SIREN/distributions/primary/vertex/PrimaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/PrimaryBoundedVertexDistribution.h"
 #include "../../public/SIREN/distributions/primary/area/PrimaryAreaDistribution.h"
+#include "../../public/SIREN/distributions/primary/area/pyPrimaryAreaDistribution.h"
 #include "../../public/SIREN/distributions/primary/area/FixedTargetAreaDistribution.h"
+#include "../../public/SIREN/distributions/secondary/vertex/pySecondaryVertexPositionDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
 
@@ -57,18 +66,31 @@ PYBIND11_MODULE(distributions,m) {
     .def_property("normalization",&PhysicallyNormalizedDistribution::GetNormalization,&PhysicallyNormalizedDistribution::SetNormalization)
     .def("IsNormalizationSet",&PhysicallyNormalizedDistribution::IsNormalizationSet);
 
-  class_<WeightableDistribution, std::shared_ptr<WeightableDistribution>>(m, "WeightableDistribution")
+  class_<WeightableDistribution, std::shared_ptr<WeightableDistribution>, pyWeightableDistribution>(m, "WeightableDistribution",
+    "Base class for weight-only distributions. Subclass in python and\n"
+    "implement GenerationProbability(detector_model, interactions, record);\n"
+    "optionally override Name, DensityVariables, equal, and less.")
+    .def(init<>())
+    .def("__eq__", [](const WeightableDistribution &self, const WeightableDistribution &other){ return self == other; })
+    .def("GenerationProbability",&WeightableDistribution::GenerationProbability)
     .def("DensityVariables",&WeightableDistribution::DensityVariables)
-    .def("AreEquivalent",&WeightableDistribution::AreEquivalent);
+    .def("Name",&WeightableDistribution::Name)
+    .def("AreEquivalent",&WeightableDistribution::AreEquivalent)
+    TrampolinePickleMethods(pyWeightableDistribution);
 
   class_<NormalizationConstant, std::shared_ptr<NormalizationConstant>, WeightableDistribution, PhysicallyNormalizedDistribution>(m, "NormalizationConstant")
     .def(init<double>())
     .def("GenerationProbability",&NormalizationConstant::GenerationProbability)
     .def("Name",&NormalizationConstant::Name);
 
-  class_<PrimaryInjectionDistribution, std::shared_ptr<PrimaryInjectionDistribution>, WeightableDistribution>(m, "PrimaryInjectionDistribution")
+  class_<PrimaryInjectionDistribution, std::shared_ptr<PrimaryInjectionDistribution>, pyPrimaryInjectionDistribution, WeightableDistribution>(m, "PrimaryInjectionDistribution",
+    "Base class for primary injection distributions. Subclass in python and\n"
+    "implement Sample(rand, detector_model, interactions, record) and\n"
+    "GenerationProbability(detector_model, interactions, record).")
+    .def(init<>())
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
-    ;
+    .def("clone",&PrimaryInjectionDistribution::clone)
+    TrampolinePickleMethods(pyPrimaryInjectionDistribution);
 
   // External distribution
   class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution",
@@ -97,10 +119,15 @@ PYBIND11_MODULE(distributions,m) {
 
   // Direciton distributions
 
-  class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution")
+  class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, pyPrimaryDirectionDistribution, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution",
+    "Base class for primary direction distributions. Subclass in python and\n"
+    "implement SampleDirection(rand, detector_model, interactions, record)\n"
+    "returning a Vector3D, plus GenerationProbability.")
+    .def(init<>())
     .def("Sample",&PrimaryDirectionDistribution::Sample)
     .def("DensityVariables",&PrimaryDirectionDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability);
+    .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability)
+    TrampolinePickleMethods(pyPrimaryDirectionDistribution);
 
   class_<Cone, std::shared_ptr<Cone>, PrimaryDirectionDistribution>(m, "Cone")
     .def(init<siren::math::Vector3D, double>());
@@ -116,8 +143,13 @@ PYBIND11_MODULE(distributions,m) {
 
   // Energy distributions
 
-  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, PrimaryInjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDistribution")
-    .def("Sample",&PrimaryEnergyDistribution::Sample);
+  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, pyPrimaryEnergyDistribution, PrimaryInjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDistribution",
+    "Base class for primary energy distributions. Subclass in python and\n"
+    "implement SampleEnergy(rand, detector_model, interactions, record)\n"
+    "returning the sampled energy, plus GenerationProbability.")
+    .def(init<>())
+    .def("Sample",&PrimaryEnergyDistribution::Sample)
+    TrampolinePickleMethods(pyPrimaryEnergyDistribution);
 
   class_<Monoenergetic, std::shared_ptr<Monoenergetic>, PrimaryEnergyDistribution>(m, "Monoenergetic")
     .def(init<double>())
@@ -163,8 +195,15 @@ PYBIND11_MODULE(distributions,m) {
 
   // Energy Direction distributions
 
-  class_<PrimaryEnergyDirectionDistribution, std::shared_ptr<PrimaryEnergyDirectionDistribution>, PrimaryInjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDirectionDistribution")
-    .def("Sample",&PrimaryEnergyDirectionDistribution::Sample);
+  class_<PrimaryEnergyDirectionDistribution, std::shared_ptr<PrimaryEnergyDirectionDistribution>, pyPrimaryEnergyDirectionDistribution, PrimaryInjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDirectionDistribution",
+    "Base class for joint energy-direction distributions. Subclass in python\n"
+    "and implement SampleEnergyAndDirection(rand, detector_model,\n"
+    "interactions, record) returning (energy, Vector3D), plus\n"
+    "GenerationProbability.")
+    .def(init<>())
+    .def("Sample",&PrimaryEnergyDirectionDistribution::Sample)
+    .def("SampleEnergyAndDirection",&PrimaryEnergyDirectionDistribution::SampleEnergyAndDirection)
+    TrampolinePickleMethods(pyPrimaryEnergyDirectionDistribution);
 
   class_<Tabulated2DFluxDistribution, std::shared_ptr<Tabulated2DFluxDistribution>, PrimaryEnergyDirectionDistribution>(m, "Tabulated2DFluxDistribution")
     .def(init<std::string, bool>(), arg("fluxTableFilename"), arg("has_physical_normalization")=false)
@@ -205,10 +244,18 @@ PYBIND11_MODULE(distributions,m) {
 
   // Vertex distributions
 
-  class_<VertexPositionDistribution, std::shared_ptr<VertexPositionDistribution>, PrimaryInjectionDistribution>(m, "VertexPositionDistribution")
+  class_<VertexPositionDistribution, std::shared_ptr<VertexPositionDistribution>, pyVertexPositionDistribution, PrimaryInjectionDistribution>(m, "VertexPositionDistribution",
+    "Base class for vertex position distributions. Subclass in python and\n"
+    "implement SamplePosition(rand, detector_model, interactions, record)\n"
+    "returning (initial_position, interaction_vertex) as Vector3D objects,\n"
+    "InjectionBounds(detector_model, interactions, record) returning the\n"
+    "(start, end) bounds used for interaction probabilities, and\n"
+    "GenerationProbability.")
+    .def(init<>())
     .def("DensityVariables",&VertexPositionDistribution::DensityVariables)
-    //.def("InjectionBounds",&VertexPositionDistribution::InjectionBounds)
-    .def("AreEquivalent",&VertexPositionDistribution::AreEquivalent);
+    .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&VertexPositionDistribution::InjectionBounds, const_))
+    .def("AreEquivalent",&VertexPositionDistribution::AreEquivalent)
+    TrampolinePickleMethods(pyVertexPositionDistribution);
 
   // First, some range and depth functions
 
@@ -315,9 +362,14 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
     .def("Name",&FixedTargetPositionDistribution::Name);
 
-  class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution")
+  class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, pyPrimaryAreaDistribution, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution",
+    "Base class for primary area distributions. Subclass in python and\n"
+    "implement SamplePointOfClosestApproach(rand, detector_model,\n"
+    "interactions, record) returning a Vector3D, plus GenerationProbability.")
+    .def(init<>())
     .def("DensityVariables",&PrimaryAreaDistribution::DensityVariables)
-    .def("AreEquivalent",&PrimaryAreaDistribution::AreEquivalent);
+    .def("AreEquivalent",&PrimaryAreaDistribution::AreEquivalent)
+    TrampolinePickleMethods(pyPrimaryAreaDistribution);
 
   class_<FixedTargetAreaDistribution, std::shared_ptr<FixedTargetAreaDistribution>, PrimaryAreaDistribution>(m, "FixedTargetAreaDistribution")
     .def(init<>())
@@ -325,13 +377,27 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&FixedTargetAreaDistribution::GenerationProbability)
     .def("Name",&FixedTargetAreaDistribution::Name);
 
-  class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, WeightableDistribution>(m, "SecondaryInjectionDistribution")
-    .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryInjectionDistribution::Sample, const_));
+  class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, pySecondaryInjectionDistribution, WeightableDistribution>(m, "SecondaryInjectionDistribution",
+    "Base class for secondary injection distributions. Subclass in python\n"
+    "and implement Sample(rand, detector_model, interactions, record) and\n"
+    "GenerationProbability(detector_model, interactions, record).")
+    .def(init<>())
+    .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryInjectionDistribution::Sample, const_))
+    .def("clone",&SecondaryInjectionDistribution::clone)
+    TrampolinePickleMethods(pySecondaryInjectionDistribution);
 
-  class_<SecondaryVertexPositionDistribution, std::shared_ptr<SecondaryVertexPositionDistribution>, SecondaryInjectionDistribution>(m, "SecondaryVertexPositionDistribution")
+  class_<SecondaryVertexPositionDistribution, std::shared_ptr<SecondaryVertexPositionDistribution>, pySecondaryVertexPositionDistribution, SecondaryInjectionDistribution>(m, "SecondaryVertexPositionDistribution",
+    "Base class for secondary vertex position distributions. Subclass in\n"
+    "python and implement SampleVertex(rand, detector_model, interactions,\n"
+    "record), InjectionBounds(detector_model, interactions, record), and\n"
+    "GenerationProbability.")
+    .def(init<>())
     .def("DensityVariables",&SecondaryVertexPositionDistribution::DensityVariables)
     .def("AreEquivalent",&SecondaryVertexPositionDistribution::AreEquivalent)
-    .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryVertexPositionDistribution::Sample, const_));
+    .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryVertexPositionDistribution::Sample, const_))
+    .def("SampleVertex",&SecondaryVertexPositionDistribution::SampleVertex)
+    .def("InjectionBounds",&SecondaryVertexPositionDistribution::InjectionBounds)
+    TrampolinePickleMethods(pySecondaryVertexPositionDistribution);
 
   class_<SecondaryPhysicalVertexDistribution, std::shared_ptr<SecondaryPhysicalVertexDistribution>, SecondaryVertexPositionDistribution>(m, "SecondaryPhysicalVertexDistribution")
     .def(init<>())

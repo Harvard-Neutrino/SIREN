@@ -1,15 +1,20 @@
 #core files
 LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/Distributions.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pyWeightableDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pyPrimaryInjectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pySecondaryInjectionDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/PrimaryExternalDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/PrimaryDirectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/pyPrimaryDirectionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/IsotropicDirection.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/FixedDirection.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/Cone.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PrimaryEnergyDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/pyPrimaryEnergyDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PowerLaw.cxx
@@ -17,6 +22,7 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PiDARNuEDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/PrimaryEnergyDirectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/pyPrimaryEnergyDirectionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/Tabulated2DFluxDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
@@ -28,6 +34,7 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/DepthFunction.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/LeptonDepthFunction.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/VertexPositionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/pyVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/PointSourcePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangePositionDistribution.cxx
@@ -40,9 +47,11 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/FixedTargetPositionDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/PrimaryAreaDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/pyPrimaryAreaDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/FixedTargetAreaDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/pySecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
 )
