@@ -1,17 +1,25 @@
 """
-Read parent meson kinematics from dk2nu ROOT files.
+Read beam-parent kinematics from dk2nu ROOT files (siren.dk2nu).
 
 dk2nu is a standardized format for neutrino flux simulation output
 (see https://github.com/NuSoftHEP/dk2nu).  Each entry describes a
-neutrino produced in a meson decay, recording the parent meson's
-identity, momentum, decay vertex, and importance weight.
+neutrino produced in a particle decay, recording the parent's identity,
+momentum, decay vertex, and importance weight, plus the ancestor chain
+and the parent-of-parent kinematics.
 
-This module extracts the parent meson information and provides it
-in forms suitable for SIREN flux construction:
+This module extracts that information and provides it in forms suitable
+for SIREN injection:
 
-    - As numpy arrays for direct use in flux calculations
-    - As a TabulatedFluxDistribution for the SIREN injector
-    - As energy spectra binned by parent species
+    - As numpy arrays for direct use in flux calculations, including the
+      neutrino production time from the ancestor chain and the muon spin
+      axis in the bsim::calcEnuWgt convention
+    - As a PrimaryExternalDistribution that injects the recorded parents
+      at their decay vertices, times, and momenta
+    - As a TabulatedFluxDistribution or energy spectra binned by parent
+      species
+
+Reading the ROOT files requires uproot, imported when read_dk2nu is
+called; the rest of the module has no optional dependencies.
 """
 
 import math
@@ -41,7 +49,11 @@ _PARENT_NAMES = {
     -13: "mu+",
 }
 
-# dk2nu branch paths (nested under dk2nu/ in NuMI files, flat in BNB)
+# dk2nu branch paths (nested under dk2nu/ in NuMI files, flat in BNB).
+# The muon production kinematics (ppdxdz, ppdydz, pppz with ppenergy) and
+# the parent-of-muon momentum (muparpx/y/z, mupare) are part of the
+# standard bsim::Decay block; they carry the information for the muon
+# polarization axis.
 _BRANCH_SETS = [
     {
         "ptype": "dk2nu/decay/decay.ptype",
@@ -49,11 +61,19 @@ _BRANCH_SETS = [
         "pdpy": "dk2nu/decay/decay.pdpy",
         "pdpz": "dk2nu/decay/decay.pdpz",
         "ppenergy": "dk2nu/decay/decay.ppenergy",
+        "ppdxdz": "dk2nu/decay/decay.ppdxdz",
+        "ppdydz": "dk2nu/decay/decay.ppdydz",
+        "pppz": "dk2nu/decay/decay.pppz",
+        "mupare": "dk2nu/decay/decay.mupare",
+        "muparpx": "dk2nu/decay/decay.muparpx",
+        "muparpy": "dk2nu/decay/decay.muparpy",
+        "muparpz": "dk2nu/decay/decay.muparpz",
         "vx": "dk2nu/decay/decay.vx",
         "vy": "dk2nu/decay/decay.vy",
         "vz": "dk2nu/decay/decay.vz",
         "nimpwt": "dk2nu/decay/decay.nimpwt",
         "ntype": "dk2nu/decay/decay.ntype",
+        "ndecay": "dk2nu/decay/decay.ndecay",
     },
     {
         "ptype": "decay.ptype",
@@ -61,12 +81,88 @@ _BRANCH_SETS = [
         "pdpy": "decay.pdpy",
         "pdpz": "decay.pdpz",
         "ppenergy": "decay.ppenergy",
+        "ppdxdz": "decay.ppdxdz",
+        "ppdydz": "decay.ppdydz",
+        "pppz": "decay.pppz",
+        "mupare": "decay.mupare",
+        "muparpx": "decay.muparpx",
+        "muparpy": "decay.muparpy",
+        "muparpz": "decay.muparpz",
         "vx": "decay.vx",
         "vy": "decay.vy",
         "vz": "decay.vz",
         "nimpwt": "decay.nimpwt",
         "ntype": "decay.ntype",
+        "ndecay": "decay.ndecay",
     },
+]
+
+# Decay-mode codes for muon decay in flight (bsim::dkproc_t).
+_NDECAY_MUPLUS = 11
+_NDECAY_MUMINUS = 12
+
+# The muon mass value used by bsim::calcEnuWgt, reproduced here so the
+# polarization axis matches the dk2nu reference computation exactly.
+_MUON_MASS = 0.1056583715
+
+
+def _muon_polarization(data, branches):
+    """Muon spin axis in the muon rest frame, following bsim::calcEnuWgt.
+
+    A muon from meson two-body decay is fully polarized: in the meson rest
+    frame its spin points opposite its momentum for mu+ and along it for
+    mu-. Boosted to the muon rest frame, that axis is the direction of the
+    meson momentum there, with the same orientation convention for both
+    charges (+spin for mu+, -spin for mu-), which is why calcEnuWgt can
+    measure all decay angles from the parent direction. This reproduces
+    that computation: boost the parent-of-muon momentum (muparpx/y/z,
+    mupare) into the muon rest frame using the muon production kinematics
+    (ppdxdz, ppdydz, pppz, ppenergy), and return the unit vector in beam
+    coordinates. Rows that are not muon decays in flight, or that carry no
+    parent-of-muon information, get a zero vector, which downstream models
+    read as unpolarized.
+    """
+    ptype = data[branches["ptype"]].astype(int)
+    ndecay = data[branches["ndecay"]].astype(int)
+    pp_energy = np.asarray(data[branches["ppenergy"]], dtype=float)
+    pppz = np.asarray(data[branches["pppz"]], dtype=float)
+    beta = np.stack([
+        np.asarray(data[branches["ppdxdz"]], dtype=float) * pppz,
+        np.asarray(data[branches["ppdydz"]], dtype=float) * pppz,
+        pppz,
+    ], axis=1)
+    mupar = np.stack([
+        np.asarray(data[branches["muparpx"]], dtype=float),
+        np.asarray(data[branches["muparpy"]], dtype=float),
+        np.asarray(data[branches["muparpz"]], dtype=float),
+    ], axis=1)
+    mupare = np.asarray(data[branches["mupare"]], dtype=float)
+
+    axis = np.zeros_like(beta)
+    rows = ((np.abs(ptype) == 13)
+            & np.isin(ndecay, (_NDECAY_MUPLUS, _NDECAY_MUMINUS))
+            & (pp_energy > _MUON_MASS)
+            & (mupare > 0))
+    if np.any(rows):
+        gamma = pp_energy[rows] / _MUON_MASS
+        b = beta[rows] / pp_energy[rows, None]
+        partial = gamma * np.einsum("ij,ij->i", b, mupar[rows])
+        partial = mupare[rows] - partial / (gamma + 1.0)
+        p_pcm = mupar[rows] - b * (gamma * partial)[:, None]
+        norm = np.linalg.norm(p_pcm, axis=1)
+        unit = np.zeros_like(p_pcm)
+        good = norm > 1e-12
+        unit[good] = p_pcm[good] / norm[good, None]
+        axis[rows] = unit
+    return {"pol_x": axis[:, 0], "pol_y": axis[:, 1], "pol_z": axis[:, 2]}
+
+# Ancestor branch paths, used for the neutrino production time. The last
+# entry of the ancestor chain is the neutrino itself; its start time is the
+# parent decay time in nanoseconds relative to the primary proton.
+_ANCESTOR_SETS = [
+    {"pdg": "dk2nu/ancestor/ancestor.pdg",
+     "startt": "dk2nu/ancestor/ancestor.startt"},
+    {"pdg": "ancestor.pdg", "startt": "ancestor.startt"},
 ]
 
 
@@ -85,6 +181,10 @@ def _detect_branches(tree):
 def read_dk2nu(
     filenames,
     parent_pdg=None,
+    decay_modes=None,
+    nu_pdg=None,
+    read_time=True,
+    read_polarization=True,
     entry_start=None,
     entry_stop=None,
 ):
@@ -94,9 +194,29 @@ def read_dk2nu(
     Parameters
     ----------
     filenames : str or list of str
-        Path(s) to dk2nu ROOT files.
+        Path(s) to dk2nu ROOT files.  Files without a dk2nuTree (for
+        example a truncated write) are skipped.
     parent_pdg : int or list of int, optional
         Filter to specific parent PDG code(s).  Default: all parents.
+    decay_modes : int or list of int, optional
+        Filter to specific dk2nu decay-mode code(s) (the ndecay branch),
+        e.g. 13 for pi+ -> mu+ nu_mu or 5 for K+ -> mu+ nu_mu.  Use this
+        when injecting parents whose SIREN decay model implements one
+        channel, so every row belongs to that channel.
+    nu_pdg : int or list of int, optional
+        Filter on the recorded neutrino PDG code (the ntype branch).  A
+        muon decay writes one row per neutrino; selecting one flavor keeps
+        one row per decay.
+    read_time : bool
+        Read the neutrino production time from the ancestor chain into a
+        "t0" key [ns relative to the primary proton].  Rows whose last
+        ancestor is not the recorded neutrino are dropped.  Files without
+        ancestor branches leave "t0" absent (with a notice).
+    read_polarization : bool
+        Compute the muon spin axis for muon-decay rows into pol_x, pol_y,
+        pol_z keys (unit vector in beam coordinates, muon rest frame; see
+        _muon_polarization).  Non-muon rows get a zero vector, read
+        downstream as unpolarized.
     entry_start, entry_stop : int, optional
         Limit the number of entries read (per file).
 
@@ -109,6 +229,11 @@ def read_dk2nu(
         vx, vy, vz : float arrays, decay vertex [cm]
         nimpwt     : float array, importance weight
         ntype      : int array, neutrino PDG code
+        ndecay     : int array, dk2nu decay-mode code
+        t0         : float array, production time [ns] (when read_time and
+                     the files carry ancestor branches)
+        pol_x, pol_y, pol_z : float arrays, muon spin axis (when
+                     read_polarization)
         pot        : float, total simulated POT across all files
     """
     try:
@@ -120,12 +245,24 @@ def read_dk2nu(
 
     if isinstance(filenames, str):
         filenames = [filenames]
-    if parent_pdg is not None and not hasattr(parent_pdg, "__iter__"):
-        parent_pdg = [parent_pdg]
 
-    all_data = {k: [] for k in [
-        "ptype", "E", "px", "py", "pz", "vx", "vy", "vz", "nimpwt", "ntype"
-    ]}
+    def _as_list(value):
+        if value is None:
+            return None
+        if not hasattr(value, "__iter__"):
+            return [value]
+        return list(value)
+
+    parent_pdg = _as_list(parent_pdg)
+    decay_modes = _as_list(decay_modes)
+    nu_pdg = _as_list(nu_pdg)
+
+    keys = ["ptype", "E", "px", "py", "pz", "vx", "vy", "vz",
+            "nimpwt", "ntype", "ndecay"]
+    if read_polarization:
+        keys += ["pol_x", "pol_y", "pol_z"]
+    all_data = {k: [] for k in keys + ["t0"]}
+    have_time = read_time
     total_pot = 0.0
 
     for fname in filenames:
@@ -147,45 +284,54 @@ def read_dk2nu(
             **kw,
         )
 
-        ptype = data[branches["ptype"]].astype(int)
-        E = data[branches["ppenergy"]]
-        px = data[branches["pdpx"]]
-        py = data[branches["pdpy"]]
-        pz = data[branches["pdpz"]]
-        vx = data[branches["vx"]]
-        vy = data[branches["vy"]]
-        vz = data[branches["vz"]]
-        nimpwt = data[branches["nimpwt"]]
-        ntype = data[branches["ntype"]].astype(int)
+        columns = {
+            "ptype": data[branches["ptype"]].astype(int),
+            "E": data[branches["ppenergy"]],
+            "px": data[branches["pdpx"]],
+            "py": data[branches["pdpy"]],
+            "pz": data[branches["pdpz"]],
+            "vx": data[branches["vx"]],
+            "vy": data[branches["vy"]],
+            "vz": data[branches["vz"]],
+            "nimpwt": data[branches["nimpwt"]],
+            "ntype": data[branches["ntype"]].astype(int),
+            "ndecay": data[branches["ndecay"]].astype(int),
+        }
+        if read_polarization:
+            columns.update(_muon_polarization(data, branches))
 
+        mask = np.ones(len(columns["ptype"]), dtype=bool)
         if parent_pdg is not None:
-            mask = np.isin(ptype, parent_pdg)
-            ptype = ptype[mask]
-            E = E[mask]
-            px = px[mask]
-            py = py[mask]
-            pz = pz[mask]
-            vx = vx[mask]
-            vy = vy[mask]
-            vz = vz[mask]
-            nimpwt = nimpwt[mask]
-            ntype = ntype[mask]
+            mask &= np.isin(columns["ptype"], parent_pdg)
+        if decay_modes is not None:
+            mask &= np.isin(columns["ndecay"], decay_modes)
+        if nu_pdg is not None:
+            mask &= np.isin(columns["ntype"], nu_pdg)
 
-        all_data["ptype"].append(ptype)
-        all_data["E"].append(E)
-        all_data["px"].append(px)
-        all_data["py"].append(py)
-        all_data["pz"].append(pz)
-        all_data["vx"].append(vx)
-        all_data["vy"].append(vy)
-        all_data["vz"].append(vz)
-        all_data["nimpwt"].append(nimpwt)
-        all_data["ntype"].append(ntype)
+        if have_time:
+            anc = None
+            tree_keys = set(tree.keys())
+            for aset in _ANCESTOR_SETS:
+                if all(v in tree_keys for v in aset.values()):
+                    anc = aset
+                    break
+            if anc is None:
+                print("  %s carries no ancestor branches; production "
+                      "times unavailable" % fname)
+                have_time = False
+            else:
+                arr = tree.arrays(list(anc.values()), library="ak", **kw)
+                last_pdg = np.asarray(arr[anc["pdg"]][:, -1], dtype=int)
+                last_t = np.asarray(arr[anc["startt"]][:, -1], dtype=float)
+                mask &= last_pdg == columns["ntype"]
+                columns["t0"] = last_t
+
+        for k, v in columns.items():
+            all_data[k].append(v[mask])
 
         # uproot method to get total POT from dkmetaTree (if available)
         if "dkmetaTree" in f:
             meta_tree = f["dkmetaTree"]
-            print(list(meta_tree.keys()))
             if "dkmeta/pots" in meta_tree.keys():
                 pots = meta_tree["dkmeta/pots"].array(library="np")
                 if len(pots) > 0:
@@ -194,7 +340,10 @@ def read_dk2nu(
                     pots = 0.0
                 total_pot += pots
 
-    result = {k: np.concatenate(v) for k, v in all_data.items()}
+    if not have_time:
+        all_data.pop("t0", None)
+    result = {k: np.concatenate(v) if v else np.array([])
+              for k, v in all_data.items()}
     result["pot"] = total_pot
     return result
 
@@ -347,6 +496,18 @@ def dk2nu_to_primary_distribution(
     vz = dk2nu_data["vz"][mask]
     nimpwt = dk2nu_data["nimpwt"][mask]
     pt = ptype[mask]
+    t0 = dk2nu_data["t0"][mask] if "t0" in dk2nu_data else None
+
+    # Muon spin axes ride along as pol_x/y/z columns (and from there into
+    # each record's interaction parameters) when any selected row carries
+    # one; a table of meson rows stays free of them.
+    pol = None
+    if all(k in dk2nu_data for k in ("pol_x", "pol_y", "pol_z")):
+        pol = np.stack([dk2nu_data["pol_x"][mask],
+                        dk2nu_data["pol_y"][mask],
+                        dk2nu_data["pol_z"][mask]], axis=1)
+        if not np.any(np.abs(pol) > 0):
+            pol = None
 
     weight = nimpwt / simulated_pot
 
@@ -357,7 +518,14 @@ def dk2nu_to_primary_distribution(
         13: 0.10566,     -13: 0.10566,
     }
 
+    # The decay time from the ancestor chain becomes the primary's initial
+    # time (the t0 column of PrimaryExternalDistribution), so interaction
+    # times downstream are physical.
     keys = ["E", "px", "py", "pz", "x", "y", "z", "m", "weight"]
+    if t0 is not None:
+        keys.append("t0")
+    if pol is not None:
+        keys += ["pol_x", "pol_y", "pol_z"]
     data = []
     for i in range(len(E)):
         # Convert position from geometry (BNB) to detector coordinates
@@ -385,11 +553,27 @@ def dk2nu_to_primary_distribution(
         # at production (ppenergy). Compute on-shell energy from the
         # decay-point momentum and known mass.
         E_decay = math.sqrt(p_mag * p_mag + m * m)
-        data.append([
+        row = [
             E_decay, px_det, py_det, pz_det,
             det_pos.GetX(), det_pos.GetY(), det_pos.GetZ(),
             m, float(weight[i]),
-        ])
+        ]
+        if t0 is not None:
+            row.append(float(t0[i]))
+        if pol is not None:
+            # The spin axis is a rest-frame direction expressed in beam
+            # coordinates; rotate it into detector coordinates like the
+            # momentum (both frames are reached by pure boosts, so their
+            # spatial bases are related by the same rotation).
+            norm = float(np.linalg.norm(pol[i]))
+            if norm > 0:
+                geo_ax = GeometryDirection(Vector3D(*(pol[i] / norm)))
+                det_ax = detector_model.GeoDirectionToDetDirection(geo_ax).get()
+                row += [det_ax.GetX() * norm, det_ax.GetY() * norm,
+                        det_ax.GetZ() * norm]
+            else:
+                row += [0.0, 0.0, 0.0]
+        data.append(row)
 
     if sampling_bias is not None:
         sw = np.asarray(
