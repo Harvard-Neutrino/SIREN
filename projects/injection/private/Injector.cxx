@@ -93,11 +93,39 @@ Injector::Injector(
 
 
 std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimaryVertexDistribution(std::shared_ptr<siren::injection::PrimaryInjectionProcess> process) {
+    // The vertex distribution is identified by what it declares to set,
+    // not by its C++ type: whichever distribution sets the interaction
+    // vertex owns the injection bounds that weighting integrates over. A
+    // distribution that only seeds the initial position (for example a
+    // PrimaryExternalDistribution with x0/y0/z0 columns) or only the
+    // transverse coordinates (PrimaryArea) does not qualify. When several
+    // declare the vertex the last one wins, because distributions sample
+    // in list order and the last to set the vertex finalizes it.
+    std::shared_ptr<distributions::VertexPositionDistribution> vertex_distribution;
+    std::shared_ptr<distributions::VertexPositionDistribution> initial_position_only;
     for(auto distribution : process->GetPrimaryInjectionDistributions()) {
-        distributions::VertexPositionDistribution * raw_ptr = dynamic_cast<distributions::VertexPositionDistribution*>(distribution.get());
-        if(raw_ptr)
-            return std::dynamic_pointer_cast<distributions::VertexPositionDistribution>(distribution);
+        std::set<distributions::DistributionVariable> variables = distribution->SetVariables();
+        std::shared_ptr<distributions::VertexPositionDistribution> position_distribution =
+            std::dynamic_pointer_cast<distributions::VertexPositionDistribution>(distribution);
+        if(variables.count(distributions::DistributionVariable::InteractionVertex)) {
+            if(!position_distribution) {
+                throw(siren::utilities::AddProcessFailure(
+                    "Distribution \"" + distribution->Name() + "\" declares the "
+                    "interaction vertex but is not a VertexPositionDistribution, "
+                    "so it cannot provide injection bounds!"));
+            }
+            vertex_distribution = position_distribution;
+        } else if(position_distribution && variables.count(distributions::DistributionVariable::InitialPosition)) {
+            // An external distribution carrying only the initial position
+            // doubles as a fixed-vertex distribution when nothing downstream
+            // places the vertex.
+            initial_position_only = position_distribution;
+        }
     }
+    if(vertex_distribution)
+        return vertex_distribution;
+    if(initial_position_only)
+        return initial_position_only;
     throw(siren::utilities::AddProcessFailure("No primary vertex distribution specified!"));
 }
 
