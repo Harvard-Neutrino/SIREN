@@ -18,6 +18,16 @@ for SIREN injection:
     - As a TabulatedFluxDistribution or energy spectra binned by parent
       species
 
+Coordinate systems: a dk2nu file is written in its beam simulation's own
+frame (G4BNB files in BNB coordinates, g4numi files in NuMI coordinates,
+and so on), which is not in general the frame of the detector model the
+events are injected into. dk2nu_to_primary_distribution accepts a
+FrameTransform that maps the file's coordinates into the detector
+model's geometry (or directly detector) coordinates; the default assumes
+the file frame and the model's geometry frame coincide. Detector
+resources that know their beamline surveys can hand any object carrying
+a rotation and a translation straight to that argument.
+
 Reading the ROOT files requires uproot, imported when read_dk2nu is
 called; the rest of the module has no optional dependencies.
 """
@@ -176,6 +186,127 @@ def _detect_branches(tree):
         "Could not find dk2nu decay branches. "
         f"Available branches: {sorted(keys)[:20]}..."
     )
+
+
+class FrameTransform:
+    """Rigid map from a dk2nu file's coordinate system into a detector
+    model's frames.
+
+    Positions transform as r_out = rotation @ r_file + translation and
+    directions (momenta, spin axes) as d_out = rotation @ d_file, all in
+    meters and applied after the file's centimeters are converted. The
+    ``target`` names the frame the transform lands in: ``"geometry"``
+    (default) for the detector model's geometry coordinates, after which
+    the model's geometry-to-detector conversion runs as usual, or
+    ``"detector"`` for detector-local coordinates directly, in which case
+    the detector model is not consulted at all.
+
+    The rotation must be a proper rotation (orthonormal, determinant +1);
+    a reflection would silently flip the geometry's handedness, so it is
+    rejected. Beam-frame conventions published as GNuMIFlux beamdir and
+    beampos elements, site survey matrices, or a detector resource's
+    frame-graph transforms all provide exactly this (rotation,
+    translation) pair.
+    """
+
+    def __init__(self, rotation=None, translation=None, target="geometry"):
+        if target not in ("geometry", "detector"):
+            raise ConfigurationError(
+                "FrameTransform target must be 'geometry' or 'detector', "
+                "got %r" % (target,))
+        self.target = target
+        if rotation is None:
+            self.rotation = np.eye(3)
+        else:
+            try:
+                self.rotation = np.array(rotation, dtype=float)
+            except (TypeError, ValueError) as exc:
+                raise ConfigurationError(
+                    "FrameTransform rotation is not numeric: %s" % exc)
+            if self.rotation.shape != (3, 3):
+                raise ConfigurationError(
+                    "FrameTransform rotation must be a 3x3 matrix, got "
+                    "shape %r" % (self.rotation.shape,))
+            if not np.allclose(self.rotation @ self.rotation.T, np.eye(3),
+                               atol=1e-8):
+                raise ConfigurationError(
+                    "FrameTransform rotation is not orthonormal")
+            if np.linalg.det(self.rotation) < 0:
+                raise ConfigurationError(
+                    "FrameTransform rotation is a reflection (determinant "
+                    "-1); coordinate frames must keep their handedness")
+        if translation is None:
+            self.translation = np.zeros(3)
+        else:
+            try:
+                self.translation = np.array(translation, dtype=float)
+            except (TypeError, ValueError) as exc:
+                raise ConfigurationError(
+                    "FrameTransform translation is not numeric: %s" % exc)
+            if self.translation.shape != (3,):
+                raise ConfigurationError(
+                    "FrameTransform translation must be a 3-vector, got "
+                    "shape %r" % (self.translation.shape,))
+
+    def position(self, r):
+        """Transform a position [m] from the file frame."""
+        return self.rotation @ np.asarray(r, dtype=float) + self.translation
+
+    def direction(self, d):
+        """Transform a direction or momentum from the file frame."""
+        return self.rotation @ np.asarray(d, dtype=float)
+
+    def __repr__(self):
+        return ("FrameTransform(rotation=%s, translation=%s, target=%r)"
+                % (self.rotation.tolist(), self.translation.tolist(),
+                   self.target))
+
+
+def _as_frame_transform(frame):
+    """Normalize the ``frame`` argument of dk2nu_to_primary_distribution.
+
+    Accepts None or "geometry" (the file frame is the detector model's
+    geometry frame), "detector" (the file frame is the detector-local
+    frame), a FrameTransform, a (rotation, translation) pair, or any
+    object carrying the pair as ``rotation``/``translation`` or ``R``/
+    ``t`` attributes -- the shape a detector resource's frame-graph
+    transform naturally has. Duck-typed objects always target the
+    geometry frame; wrap in a FrameTransform to target the detector
+    frame explicitly.
+    """
+    if frame is None or (isinstance(frame, str) and frame == "geometry"):
+        return FrameTransform()
+    if isinstance(frame, str):
+        if frame == "detector":
+            return FrameTransform(target="detector")
+        raise ConfigurationError(
+            "Unknown frame %r; expected 'geometry', 'detector', a "
+            "FrameTransform, a (rotation, translation) pair, or an object "
+            "with rotation/translation (or R/t) attributes" % (frame,))
+    if isinstance(frame, FrameTransform):
+        return frame
+    if isinstance(frame, (tuple, list)) and len(frame) == 2:
+        return FrameTransform(frame[0], frame[1])
+
+    def _attribute_pair(rotation_name, translation_name):
+        # An attribute pair only counts when it is data: a class may carry
+        # a method of the same name (a constructor helper, say), which is
+        # not a transform component.
+        rotation = getattr(frame, rotation_name, None)
+        translation = getattr(frame, translation_name, None)
+        if callable(rotation) or callable(translation):
+            return None, None
+        return rotation, translation
+
+    rotation, translation = _attribute_pair("rotation", "translation")
+    if rotation is None and translation is None:
+        rotation, translation = _attribute_pair("R", "t")
+    if rotation is not None or translation is not None:
+        return FrameTransform(rotation, translation)
+    raise ConfigurationError(
+        "Cannot interpret frame %r; expected 'geometry', 'detector', a "
+        "FrameTransform, a (rotation, translation) pair, or an object "
+        "with rotation/translation (or R/t) attributes" % (frame,))
 
 
 def read_dk2nu(
@@ -439,13 +570,17 @@ def dk2nu_to_primary_distribution(
     detector_model,
     parent_pdg=None,
     sampling_bias=None,
+    frame=None,
 ):
     """
     Build a PrimaryExternalDistribution directly from dk2nu data.
 
-    Converts positions from BNB (geometry) coordinates to detector-local
-    coordinates using the detector model's ToDet transform, and from cm
-    to meters.  No intermediate CSV file is needed.
+    Converts positions from the file's coordinate system to detector-local
+    coordinates and from centimeters to meters.  No intermediate CSV file
+    is needed.  By default the file's frame is taken to be the detector
+    model's geometry frame (true for G4BNB files with the SBN model, whose
+    geometry frame is the BNB beam frame); files written in any other
+    beamline's coordinates supply the rigid map through ``frame``.
 
     Parameters
     ----------
@@ -453,21 +588,41 @@ def dk2nu_to_primary_distribution(
         Output of read_dk2nu().
     detector_model : siren.detector.DetectorModel
         Detector model (provides the geometry-to-detector transform).
+        May be None when ``frame`` targets detector coordinates directly.
     parent_pdg : int or list of int, optional
         Filter to specific parent PDG code(s).
     sampling_bias : callable, optional
         Function f(E, px, py, pz, vx, vy, vz) -> weight that computes
-        per-entry sampling weights from the pion kinematics (in geometry
-        coordinates, before the detector transform).  Entries are selected
-        with probability proportional to these weights.  The generation
-        probability accounts for the bias so event weights remain correct.
-        Arguments are numpy arrays; the return value should broadcast to
-        the same length.  When None (default), uniform selection is used.
+        per-entry sampling weights from the parent kinematics in the
+        file's own coordinate system (before any frame transform).
+        Entries are selected with probability proportional to these
+        weights.  The generation probability accounts for the bias so
+        event weights remain correct.  Arguments are numpy arrays; the
+        return value should broadcast to the same length.  When None
+        (default), uniform selection is used.
+    frame : optional
+        Coordinate system of the dk2nu file.  None or "geometry": the
+        file frame is the detector model's geometry frame.  "detector":
+        the file frame is the detector-local frame (the model is not
+        consulted).  A FrameTransform, a (rotation, translation) pair, or
+        any object with rotation/translation (or R/t) attributes: the
+        rigid map from the file frame into the geometry frame, in meters
+        (a FrameTransform may instead target the detector frame).  For
+        transforms that are not rigid, transform the arrays in
+        ``dk2nu_data`` before calling.
 
     Returns
     -------
     siren.distributions.PrimaryExternalDistribution
     """
+    xform = _as_frame_transform(frame)
+    if xform.target == "geometry" and detector_model is None:
+        raise ConfigurationError(
+            "detector_model is required to convert geometry coordinates "
+            "into detector coordinates. Pass the model, or a frame that "
+            "targets 'detector' if the file coordinates are already "
+            "detector-local.")
+
     ptype = dk2nu_data["ptype"]
     if parent_pdg is not None:
         if not hasattr(parent_pdg, "__iter__"):
@@ -518,6 +673,18 @@ def dk2nu_to_primary_distribution(
         13: 0.10566,     -13: 0.10566,
     }
 
+    # Map the file's coordinates into the frame the transform targets:
+    # positions (after cm -> m) pick up the rotation and translation,
+    # momenta and spin axes the rotation alone. The default transform is
+    # the identity into the geometry frame.
+    pos_m = np.stack([vx, vy, vz], axis=1) * 0.01
+    mom = np.stack([px, py, pz], axis=1)
+    pos_m = pos_m @ xform.rotation.T + xform.translation
+    mom = mom @ xform.rotation.T
+    if pol is not None:
+        pol = pol @ xform.rotation.T
+    to_detector = xform.target == "detector"
+
     # The decay time from the ancestor chain becomes the primary's initial
     # time (the t0 column of PrimaryExternalDistribution), so interaction
     # times downstream are physical.
@@ -528,25 +695,32 @@ def dk2nu_to_primary_distribution(
         keys += ["pol_x", "pol_y", "pol_z"]
     data = []
     for i in range(len(E)):
-        # Convert position from geometry (BNB) to detector coordinates
-        geo_pos = GeometryPosition(Vector3D(
-            vx[i] * 0.01, vy[i] * 0.01, vz[i] * 0.01
-        ))
-        det_pos = detector_model.GeoPositionToDetPosition(geo_pos).get()
+        # Convert position from geometry to detector coordinates, unless
+        # the frame transform already landed in detector coordinates.
+        if to_detector:
+            x_det = (float(pos_m[i][0]), float(pos_m[i][1]),
+                     float(pos_m[i][2]))
+        else:
+            geo_pos = GeometryPosition(Vector3D(*pos_m[i]))
+            det_pos = detector_model.GeoPositionToDetPosition(geo_pos).get()
+            x_det = (det_pos.GetX(), det_pos.GetY(), det_pos.GetZ())
 
         # Convert momentum direction from geometry to detector coordinates.
         # Energy is a scalar and is unchanged; the 3-momentum direction
         # must be rotated if the detector axes differ from geometry axes.
-        p_mag = math.sqrt(float(px[i])**2 + float(py[i])**2 + float(pz[i])**2)
-        if p_mag > 0:
+        p_mag = math.sqrt(float(mom[i][0])**2 + float(mom[i][1])**2
+                          + float(mom[i][2])**2)
+        if to_detector or p_mag == 0.0:
+            px_det, py_det, pz_det = (float(mom[i][0]), float(mom[i][1]),
+                                      float(mom[i][2]))
+        else:
             geo_dir = GeometryDirection(Vector3D(
-                float(px[i]) / p_mag, float(py[i]) / p_mag, float(pz[i]) / p_mag))
+                float(mom[i][0]) / p_mag, float(mom[i][1]) / p_mag,
+                float(mom[i][2]) / p_mag))
             det_dir = detector_model.GeoDirectionToDetDirection(geo_dir).get()
             px_det = det_dir.GetX() * p_mag
             py_det = det_dir.GetY() * p_mag
             pz_det = det_dir.GetZ() * p_mag
-        else:
-            px_det = py_det = pz_det = 0.0
 
         m = mass_map.get(int(pt[i]), 0.13957)
         # dk2nu stores momentum at decay (pdpx/pdpy/pdpz) but energy
@@ -555,24 +729,24 @@ def dk2nu_to_primary_distribution(
         E_decay = math.sqrt(p_mag * p_mag + m * m)
         row = [
             E_decay, px_det, py_det, pz_det,
-            det_pos.GetX(), det_pos.GetY(), det_pos.GetZ(),
+            x_det[0], x_det[1], x_det[2],
             m, float(weight[i]),
         ]
         if t0 is not None:
             row.append(float(t0[i]))
         if pol is not None:
-            # The spin axis is a rest-frame direction expressed in beam
-            # coordinates; rotate it into detector coordinates like the
-            # momentum (both frames are reached by pure boosts, so their
-            # spatial bases are related by the same rotation).
+            # The spin axis is a rest-frame direction expressed in the
+            # file's spatial basis; rotate it like the momentum (all these
+            # frames are related by rotations and pure boosts, which share
+            # their spatial bases).
             norm = float(np.linalg.norm(pol[i]))
-            if norm > 0:
+            if to_detector or norm == 0.0:
+                row += [float(pol[i][0]), float(pol[i][1]), float(pol[i][2])]
+            else:
                 geo_ax = GeometryDirection(Vector3D(*(pol[i] / norm)))
                 det_ax = detector_model.GeoDirectionToDetDirection(geo_ax).get()
                 row += [det_ax.GetX() * norm, det_ax.GetY() * norm,
                         det_ax.GetZ() * norm]
-            else:
-                row += [0.0, 0.0, 0.0]
         data.append(row)
 
     if sampling_bias is not None:
