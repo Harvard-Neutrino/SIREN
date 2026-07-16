@@ -76,6 +76,7 @@ from . import particles
 from . import dist
 from . import tune
 from . import metrics
+from . import dk2nu
 
 # ---- Spec vocabulary ----
 from . import errors
