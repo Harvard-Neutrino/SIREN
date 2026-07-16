@@ -954,7 +954,11 @@ CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord
     target_id((record.target_id) ? (record.target_id) : (ParticleID::GenerateID())),
     target_type(record.signature.target_type),
     target_mass(record.target_mass),
-    target_helicity(record.target_helicity) {
+    target_helicity(record.target_helicity),
+    // Models may condition sampling on distribution-set parameters, so
+    // SampleFinalState and FinalStateProbability must see the same record;
+    // Finalize merges these back key by key.
+    interaction_parameters(record.interaction_parameters) {
 
     secondary_particles.reserve(record.signature.secondary_types.size());
     for(size_t i = 0; i < record.signature.secondary_types.size(); ++i) {
