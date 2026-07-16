@@ -47,33 +47,38 @@ PYBIND11_MODULE(injection,m) {
 
   // Process
 
+  // The keep_alive policies below tie python-defined distributions, cross
+  // sections, and decays to the process, injector, or weighter consuming
+  // them; a python-defined object held only by C++ shared_ptrs loses its
+  // python half to garbage collection and virtual calls then fail.
+
   class_<Process, std::shared_ptr<Process>>(m, "Process")
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
+    .def_property("interactions", &Process::GetInteractions, cpp_function(&Process::SetInteractions, keep_alive<1, 2>()))
     ;
 
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
-    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
+    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>(), keep_alive<1, 3>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
-    .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
+    .def_property("interactions", &Process::GetInteractions, cpp_function(&Process::SetInteractions, keep_alive<1, 2>()))
+    .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, cpp_function(&PhysicalProcess::SetPhysicalDistributions, keep_alive<1, 2>()))
     ;
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
     .def(init<>())
-    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
+    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>(), keep_alive<1, 3>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
-    .def_property("distributions", &PrimaryInjectionProcess::GetPrimaryInjectionDistributions, &PrimaryInjectionProcess::SetPrimaryInjectionDistributions)
+    .def_property("interactions", &Process::GetInteractions, cpp_function(&Process::SetInteractions, keep_alive<1, 2>()))
+    .def_property("distributions", &PrimaryInjectionProcess::GetPrimaryInjectionDistributions, cpp_function(&PrimaryInjectionProcess::SetPrimaryInjectionDistributions, keep_alive<1, 2>()))
     ;
 
   class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, Process>(m, "SecondaryInjectionProcess")
     .def(init<>())
-    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
+    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>(), keep_alive<1, 3>())
     .def_property("secondary_type", &SecondaryInjectionProcess::GetSecondaryType, &SecondaryInjectionProcess::SetSecondaryType)
-    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
-    .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, &SecondaryInjectionProcess::SetSecondaryInjectionDistributions)
+    .def_property("interactions", &Process::GetInteractions, cpp_function(&Process::SetInteractions, keep_alive<1, 2>()))
+    .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, cpp_function(&SecondaryInjectionProcess::SetSecondaryInjectionDistributions, keep_alive<1, 2>()))
     ;
 
   // Injection
@@ -81,12 +86,12 @@ PYBIND11_MODULE(injection,m) {
   class_<Injector, std::shared_ptr<Injector>>(m, "Injector")
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::utilities::SIREN_random>>())
     .def(init<unsigned int, std::string, std::shared_ptr<siren::utilities::SIREN_random>>())
-    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::SIREN_random>>())
-    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>>())
+    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::SIREN_random>>(), keep_alive<1, 4>())
+    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>>(), keep_alive<1, 4>(), keep_alive<1, 5>())
     .def("SetStoppingCondition",&Injector::SetStoppingCondition)
     .def("GetStoppingCondition",&Injector::GetStoppingCondition)
-    .def("SetPrimaryProcess",&Injector::SetPrimaryProcess)
-    .def("AddSecondaryProcess",&Injector::AddSecondaryProcess)
+    .def("SetPrimaryProcess",&Injector::SetPrimaryProcess, keep_alive<1, 2>())
+    .def("AddSecondaryProcess",&Injector::AddSecondaryProcess, keep_alive<1, 2>())
     .def("GetPrimaryProcess",&Injector::GetPrimaryProcess)
     .def("GetSecondaryProcesses",&Injector::GetSecondaryProcesses)
     .def("GetSecondaryProcessMap",&Injector::GetSecondaryProcessMap)
@@ -150,9 +155,9 @@ PYBIND11_MODULE(injection,m) {
     ;
 
   class_<Weighter, std::shared_ptr<Weighter>>(m, "Weighter")
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::string>())
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>(), keep_alive<1, 2>(), keep_alive<1, 4>(), keep_alive<1, 5>())
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>(), keep_alive<1, 2>(), keep_alive<1, 4>())
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::string>(), keep_alive<1, 2>())
     .def("EventWeight",&Weighter::EventWeight)
     .def("GetInjectors",&Weighter::GetInjectors)
     .def("GetDetectorModel",&Weighter::GetDetectorModel)
