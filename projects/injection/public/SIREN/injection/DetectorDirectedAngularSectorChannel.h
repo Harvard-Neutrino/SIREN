@@ -2,12 +2,21 @@
 #ifndef SIREN_DetectorDirectedAngularSectorChannel_H
 #define SIREN_DetectorDirectedAngularSectorChannel_H
 
+#include "SIREN/geometry/Geometry.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 
+#include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
-namespace siren { namespace geometry { class Geometry; } }
+#include <cereal/access.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/polymorphic.hpp>
 
 namespace siren {
 namespace injection {
@@ -70,15 +79,59 @@ public:
         siren::dataclasses::InteractionRecord const & record) const override;
 
 private:
+    friend class cereal::access;
+
+    DetectorDirectedAngularSectorChannel() = default;
+
     std::shared_ptr<siren::geometry::Geometry const> target_;
     double u_lo_;
     double u_hi_;
     double phi_lo_;
     double phi_hi_;
     int daughter_index_;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Target", target_));
+            archive(::cereal::make_nvp("ULower", u_lo_));
+            archive(::cereal::make_nvp("UUpper", u_hi_));
+            archive(::cereal::make_nvp("PhiLower", phi_lo_));
+            archive(::cereal::make_nvp("PhiUpper", phi_hi_));
+            archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
+            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
+        } else {
+            throw std::runtime_error(
+                "DetectorDirectedAngularSectorChannel only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Target", target_));
+            archive(::cereal::make_nvp("ULower", u_lo_));
+            archive(::cereal::make_nvp("UUpper", u_hi_));
+            archive(::cereal::make_nvp("PhiLower", phi_lo_));
+            archive(::cereal::make_nvp("PhiUpper", phi_hi_));
+            archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
+            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
+        } else {
+            throw std::runtime_error(
+                "DetectorDirectedAngularSectorChannel only supports version <= 0!");
+        }
+    }
 };
 
 } // namespace injection
 } // namespace siren
+
+CEREAL_CLASS_VERSION(
+    siren::injection::DetectorDirectedAngularSectorChannel, 0);
+CEREAL_REGISTER_TYPE(
+    siren::injection::DetectorDirectedAngularSectorChannel);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(
+    siren::injection::PhaseSpaceChannel,
+    siren::injection::DetectorDirectedAngularSectorChannel);
 
 #endif // SIREN_DetectorDirectedAngularSectorChannel_H

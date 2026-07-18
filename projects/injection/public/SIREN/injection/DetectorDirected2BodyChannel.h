@@ -2,12 +2,21 @@
 #ifndef SIREN_DetectorDirected2BodyChannel_H
 #define SIREN_DetectorDirected2BodyChannel_H
 
+#include "SIREN/geometry/Geometry.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 
+#include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
-namespace siren { namespace geometry { class Geometry; } }
+#include <cereal/access.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/polymorphic.hpp>
 
 namespace siren {
 namespace injection {
@@ -87,13 +96,60 @@ public:
         siren::dataclasses::InteractionRecord const & record) const override;
 
 private:
+    friend class cereal::access;
+
+    DetectorDirected2BodyChannel() = default;
+
     std::shared_ptr<siren::geometry::Geometry const> target_;
     int daughter_index_;
     Mode mode_;
     double target_volume_;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            int mode = static_cast<int>(mode_);
+            archive(::cereal::make_nvp("Target", target_));
+            archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
+            archive(::cereal::make_nvp("Mode", mode));
+            archive(::cereal::make_nvp("TargetVolume", target_volume_));
+            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
+        } else {
+            throw std::runtime_error(
+                "DetectorDirected2BodyChannel only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            int mode;
+            archive(::cereal::make_nvp("Target", target_));
+            archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
+            archive(::cereal::make_nvp("Mode", mode));
+            archive(::cereal::make_nvp("TargetVolume", target_volume_));
+            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
+            if(mode != static_cast<int>(Mode::Cone)
+               && mode != static_cast<int>(Mode::Volume)) {
+                throw std::runtime_error(
+                    "DetectorDirected2BodyChannel: invalid Mode value "
+                    + std::to_string(mode) + " in archive");
+            }
+            mode_ = static_cast<Mode>(mode);
+        } else {
+            throw std::runtime_error(
+                "DetectorDirected2BodyChannel only supports version <= 0!");
+        }
+    }
 };
 
 } // namespace injection
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirected2BodyChannel, 0);
+CEREAL_REGISTER_TYPE(siren::injection::DetectorDirected2BodyChannel);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(
+    siren::injection::PhaseSpaceChannel,
+    siren::injection::DetectorDirected2BodyChannel);
 
 #endif // SIREN_DetectorDirected2BodyChannel_H

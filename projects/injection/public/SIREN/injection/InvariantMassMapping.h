@@ -5,11 +5,16 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
+#include <cereal/access.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/vector.hpp>
 
 #include "SIREN/math/InterpolationUtils.h"
 
@@ -212,21 +217,34 @@ struct TabulatedMappingTable {
         std::vector<double> cdf_nodes)
         : s(std::move(s_nodes)), cdf(std::move(cdf_nodes))
     {
-        if (s.size() < 2 || s.size() != cdf.size()) {
+        Validate();
+    }
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if (version == 0) {
+            archive(::cereal::make_nvp("S", s));
+            archive(::cereal::make_nvp("CDF", cdf));
+        } else {
             throw std::runtime_error(
-                "TabulatedMapping requires matching s/cdf arrays of length >= 2");
+                "TabulatedMappingTable only supports version <= 0!");
         }
-        for (std::size_t i = 0; i < s.size(); ++i) {
-            if (!std::isfinite(s[i]) ||
-                (i > 0 && !(s[i] > s[i - 1]))) {
-                throw std::runtime_error(
-                    "TabulatedMapping s nodes must be finite and strictly increasing");
-            }
-            if (!std::isfinite(cdf[i]) ||
-                (i > 0 && cdf[i] < cdf[i - 1])) {
-                throw std::runtime_error(
-                    "TabulatedMapping CDF nodes must be finite and nondecreasing");
-            }
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if (version == 0) {
+            std::vector<double> loaded_s;
+            std::vector<double> loaded_cdf;
+            archive(::cereal::make_nvp("S", loaded_s));
+            archive(::cereal::make_nvp("CDF", loaded_cdf));
+            TabulatedMappingTable validated(
+                std::move(loaded_s), std::move(loaded_cdf));
+            s.swap(validated.s);
+            cdf.swap(validated.cdf);
+        } else {
+            throw std::runtime_error(
+                "TabulatedMappingTable only supports version <= 0!");
         }
     }
 
@@ -245,6 +263,29 @@ struct TabulatedMappingTable {
         double ds = s[hi] - s[lo];
         if (ds <= 0.0) return 0.0;
         return (cdf[hi] - cdf[lo]) / ds;
+    }
+
+private:
+    friend class ::cereal::access;
+    TabulatedMappingTable() = default;
+
+    void Validate() const {
+        if (s.size() < 2 || s.size() != cdf.size()) {
+            throw std::runtime_error(
+                "TabulatedMapping requires matching s/cdf arrays of length >= 2");
+        }
+        for (std::size_t i = 0; i < s.size(); ++i) {
+            if (!std::isfinite(s[i]) ||
+                (i > 0 && !(s[i] > s[i - 1]))) {
+                throw std::runtime_error(
+                    "TabulatedMapping s nodes must be finite and strictly increasing");
+            }
+            if (!std::isfinite(cdf[i]) ||
+                (i > 0 && cdf[i] < cdf[i - 1])) {
+                throw std::runtime_error(
+                    "TabulatedMapping CDF nodes must be finite and nondecreasing");
+            }
+        }
     }
 };
 
@@ -706,5 +747,7 @@ struct AdaptiveMapping : public Mapping1D {
 
 } // namespace injection
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::injection::TabulatedMappingTable, 0);
 
 #endif // SIREN_InvariantMassMapping_H
