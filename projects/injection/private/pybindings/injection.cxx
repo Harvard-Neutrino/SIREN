@@ -34,6 +34,7 @@
 #include "../../../utilities/public/SIREN/utilities/Errors.h"
 #include "../../../detector/public/SIREN/detector/DetectorModel.h"
 #include "../../../interactions/public/SIREN/interactions/InteractionCollection.h"
+#include "../../../interactions/public/SIREN/interactions/CharmMesonDecay.h"
 
 #include "../../../interactions/public/SIREN/interactions/pyDarkNewsCrossSection.h"
 #include "../../../interactions/public/SIREN/interactions/pyDarkNewsDecay.h"
@@ -328,6 +329,10 @@ PYBIND11_MODULE(injection,m) {
     .def("ValidateChannelDensities", &MultiChannelPhaseSpace::ValidateChannelDensities,
          arg("random"), arg("detector_model"), arg("template_record"),
          arg("samples_per_channel") = 100)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<MultiChannelPhaseSpace>),
+        &(siren::serialization::pickle_load<MultiChannelPhaseSpace>)
+    ))
     ;
 
   // A sub-mixture wrapped as one channel: encapsulates a set of (e.g.
@@ -337,6 +342,10 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("mixture", &NestedMixtureChannel::mixture)
     .def_readwrite("label", &NestedMixtureChannel::label)
     .def("DirectingActive", &NestedMixtureChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<NestedMixtureChannel>),
+        &(siren::serialization::pickle_load<NestedMixtureChannel>)
+    ))
     ;
 
   class_<Isotropic2BodyChannel, std::shared_ptr<Isotropic2BodyChannel>, PhaseSpaceChannel>(m, "Isotropic2BodyChannel",
@@ -344,6 +353,10 @@ PYBIND11_MODULE(injection,m) {
       "detector direction bias. Topology Decay2Body, Measure SolidAngleRest. Use as "
       "the physical/fallback channel for a 2-body decay with no directing bias.")
     .def(init<int>(), arg("daughter_index") = 0)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<Isotropic2BodyChannel>),
+        &(siren::serialization::pickle_load<Isotropic2BodyChannel>)
+    ))
     ;
 
   enum_<DetectorDirected2BodyChannel::Mode>(m, "DirectedMode")
@@ -368,6 +381,10 @@ PYBIND11_MODULE(injection,m) {
          "volume: fixed solid angle for Cone mode; -1 to derive it from geometry.")
     .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
     .def("DirectingActive", &DetectorDirected2BodyChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirected2BodyChannel>),
+        &(siren::serialization::pickle_load<DetectorDirected2BodyChannel>)
+    ))
     ;
 
   class_<DetectorDirectedAngularSectorChannel, std::shared_ptr<DetectorDirectedAngularSectorChannel>, PhaseSpaceChannel>(m, "DetectorDirectedAngularSectorChannel",
@@ -382,6 +399,10 @@ PYBIND11_MODULE(injection,m) {
          "phi_lo, phi_hi: azimuthal bounds for this sector.\n"
          "daughter_index: which of the two final-state particles is directed.")
     .def("DirectingActive", &DetectorDirectedAngularSectorChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirectedAngularSectorChannel>),
+        &(siren::serialization::pickle_load<DetectorDirectedAngularSectorChannel>)
+    ))
     ;
 
   // 1-D importance maps: one object provides BOTH the draw (Forward) and
@@ -554,6 +575,10 @@ PYBIND11_MODULE(injection,m) {
         "volume: exact target volume override (skips the viability estimate).")
     .def("SetVolume", &DetectorDirected3BodyChannel::SetVolume)
     .def("DirectingActive", &DetectorDirected3BodyChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirected3BodyChannel>),
+        &(siren::serialization::pickle_load<DetectorDirected3BodyChannel>)
+    ))
     ;
 
   enum_<DetectorDirectedScatteringChannel::Variable>(m, "ScatteringVariable")
@@ -599,6 +624,10 @@ PYBIND11_MODULE(injection,m) {
          "q2_cdf_nodes, q2_cdf_values: used when q2_mode is Tabulated.\n"
          "volume: exact target volume override (skips the viability estimate).")
     .def("SetVolume", &DetectorDirectedScatteringChannel::SetVolume)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirectedScatteringChannel>),
+        &(siren::serialization::pickle_load<DetectorDirectedScatteringChannel>)
+    ))
     ;
 
   // Physical channel adapters
@@ -616,6 +645,10 @@ PYBIND11_MODULE(injection,m) {
               PhaseSpaceConvention const &>(),
          arg("decay"), arg("signature"), arg("convention"))
     .def("GetDecay", &PhysicalDecayChannel::GetDecay)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<PhysicalDecayChannel>),
+        &(siren::serialization::pickle_load<PhysicalDecayChannel>)
+    ))
     ;
 
   class_<PhysicalCrossSectionChannel, std::shared_ptr<PhysicalCrossSectionChannel>, PhaseSpaceChannel>(m, "PhysicalCrossSectionChannel",
@@ -631,6 +664,10 @@ PYBIND11_MODULE(injection,m) {
               PhaseSpaceConvention const &>(),
          arg("cross_section"), arg("signature"), arg("convention"))
     .def("GetCrossSection", &PhysicalCrossSectionChannel::GetCrossSection)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<PhysicalCrossSectionChannel>),
+        &(siren::serialization::pickle_load<PhysicalCrossSectionChannel>)
+    ))
     ;
 
   // Two-body kinematics utilities
