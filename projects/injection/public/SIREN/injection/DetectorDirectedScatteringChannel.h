@@ -2,19 +2,27 @@
 #ifndef SIREN_DetectorDirectedScatteringChannel_H
 #define SIREN_DetectorDirectedScatteringChannel_H
 
+#include "SIREN/geometry/Geometry.h"
 #include "SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 
+#include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
-namespace siren { namespace geometry { class Geometry; } }
+#include <cereal/access.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/polymorphic.hpp>
 
 namespace siren {
 namespace injection {
-
-struct TabulatedMappingTable;
 
 // Detector-directed 2 -> 2 scattering channel for target-at-rest models.
 //
@@ -82,6 +90,10 @@ public:
     void SetVolume(double volume);
 
 private:
+    friend cereal::access;
+
+    DetectorDirectedScatteringChannel() = default;
+
     std::shared_ptr<siren::geometry::Geometry const> target_;
     int directed_index_;
     Variable variable_;
@@ -91,6 +103,84 @@ private:
     Q2Mode q2_mode_;
     double mediator_mass_;                  // for Q2Mode::Propagator
     std::shared_ptr<TabulatedMappingTable const> q2_cdf_table_;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if (version != 0) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel only supports version <= 0!");
+        }
+
+        archive(::cereal::make_nvp("Target", target_));
+        archive(::cereal::make_nvp("DirectedIndex", directed_index_));
+        archive(::cereal::make_nvp("Variable", static_cast<int>(variable_)));
+        archive(::cereal::make_nvp("Mode", static_cast<int>(mode_)));
+        archive(::cereal::make_nvp("TargetVolume", target_volume_));
+        archive(::cereal::make_nvp("Q2Mode", static_cast<int>(q2_mode_)));
+        archive(::cereal::make_nvp("MediatorMass", mediator_mass_));
+        archive(::cereal::make_nvp("Q2CdfTable", q2_cdf_table_));
+        archive(cereal::virtual_base_class<PhaseSpaceChannel>(this));
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if (version != 0) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel only supports version <= 0!");
+        }
+
+        int variable_int;
+        int mode_int;
+        int q2_mode_int;
+        archive(::cereal::make_nvp("Target", target_));
+        archive(::cereal::make_nvp("DirectedIndex", directed_index_));
+        archive(::cereal::make_nvp("Variable", variable_int));
+        archive(::cereal::make_nvp("Mode", mode_int));
+        archive(::cereal::make_nvp("TargetVolume", target_volume_));
+        archive(::cereal::make_nvp("Q2Mode", q2_mode_int));
+        archive(::cereal::make_nvp("MediatorMass", mediator_mass_));
+        archive(::cereal::make_nvp("Q2CdfTable", q2_cdf_table_));
+        archive(cereal::virtual_base_class<PhaseSpaceChannel>(this));
+
+        if (variable_int != static_cast<int>(Variable::Q2) &&
+            variable_int != static_cast<int>(Variable::BjorkenY) &&
+            variable_int != static_cast<int>(Variable::RecoilY)) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: invalid Variable value " +
+                std::to_string(variable_int) + " in archive");
+        }
+        if (mode_int != static_cast<int>(DetectorDirected2BodyChannel::Mode::Cone) &&
+            mode_int != static_cast<int>(DetectorDirected2BodyChannel::Mode::Volume)) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: invalid Mode value " +
+                std::to_string(mode_int) + " in archive");
+        }
+        if (q2_mode_int != static_cast<int>(Q2Mode::Geometry) &&
+            q2_mode_int != static_cast<int>(Q2Mode::Propagator) &&
+            q2_mode_int != static_cast<int>(Q2Mode::Tabulated)) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: invalid Q2Mode value " +
+                std::to_string(q2_mode_int) + " in archive");
+        }
+
+        variable_ = static_cast<Variable>(variable_int);
+        mode_ = static_cast<DetectorDirected2BodyChannel::Mode>(mode_int);
+        q2_mode_ = static_cast<Q2Mode>(q2_mode_int);
+        // Tabulated mode owns exactly one immutable table.
+        if ((q2_mode_ == Q2Mode::Tabulated) !=
+            static_cast<bool>(q2_cdf_table_)) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: invalid tabulated table state");
+        }
+        if (q2_mode_ != Q2Mode::Geometry && variable_ != Variable::Q2) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: Q2 mapping requires Variable::Q2");
+        }
+        if (q2_mode_ == Q2Mode::Propagator && mediator_mass_ <= 0.0) {
+            throw std::runtime_error(
+                "DetectorDirectedScatteringChannel: invalid propagator mediator mass");
+        }
+    }
 
     // Sample / evaluate Q2 directly from the configured 1-D mapping
     // (Propagator or Tabulated), bypassing geometric direction sampling.
@@ -104,5 +194,11 @@ private:
 
 } // namespace injection
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirectedScatteringChannel, 0);
+CEREAL_REGISTER_TYPE(siren::injection::DetectorDirectedScatteringChannel);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(
+    siren::injection::PhaseSpaceChannel,
+    siren::injection::DetectorDirectedScatteringChannel);
 
 #endif // SIREN_DetectorDirectedScatteringChannel_H

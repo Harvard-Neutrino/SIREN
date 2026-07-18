@@ -2,9 +2,22 @@
 #ifndef SIREN_PhaseSpaceChannel_H
 #define SIREN_PhaseSpaceChannel_H
 
+#include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <stdexcept>
+#include <utility>
 #include <vector>
+
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/string.hpp>
+#include <cereal/types/vector.hpp>
 
 #include "SIREN/dataclasses/PhaseSpaceConvention.h"
 
@@ -68,6 +81,22 @@ struct PhaseSpaceChannelEvaluation {
 class PhaseSpaceChannel {
 public:
     virtual ~PhaseSpaceChannel() = default;
+
+    template<class Archive>
+    void save(Archive &, std::uint32_t const version) const {
+        if (version != 0) {
+            throw std::runtime_error(
+                "PhaseSpaceChannel only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    void load(Archive &, std::uint32_t const version) {
+        if (version != 0) {
+            throw std::runtime_error(
+                "PhaseSpaceChannel only supports version <= 0!");
+        }
+    }
 
     // Sample final-state kinematics.
     //
@@ -151,9 +180,7 @@ struct MultiChannelPhaseSpace {
     std::vector<std::shared_ptr<PhaseSpaceChannel>> channels;
     std::vector<double> weights;  // alpha_i, must sum to 1
 
-    // Transient (never serialized): when set, the fatal-severity compatibility
-    // check in ThrowOnIncompatibility() is skipped, permitting a mixture whose
-    // channels are not mutually convertible.  Off by default.
+    // Archived configuration. When set, fatal compatibility checks are skipped.
     bool allow_incompatible_ = false;
 
     // Default construction leaves channels/weights empty for the assign-then-use
@@ -184,21 +211,114 @@ struct MultiChannelPhaseSpace {
         std::string message;
     };
 
-    // Kleiss-Pittau weight-tuning accumulators.  These are transient runtime
-    // state -- the mixture owns its own per-channel variance statistics, fed by
-    // Accumulate() and consumed by UpdateWeights() -- and are intentionally NOT
-    // serialized.  kp_accumulator_[i] is the running sum of the bare per-channel
-    // contribution w^2 * g_i^conv / g; kp_count_ is the number of accumulated
-    // points.
+    // Kleiss-Pittau state is archived so optimizer statistics resume on load.
+    // kp_accumulator_[i] is the running sum of the bare per-channel contribution
+    // w^2 * g_i^conv / g; kp_count_ is the number of accumulated points.
     std::vector<double> kp_accumulator_;
     long kp_count_ = 0;
 
     // Per-channel selection-probability sums (p_i = alpha_i*g_i/g) over
     // successful and failed trees, used by the chain optimizer's failure penalty
     // to inflate W_i for channels that disproportionately feed failed events.
-    // Also transient runtime state, not serialized.
     std::vector<double> kp_succ_select_;
     std::vector<double> kp_fail_select_;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if (version == 0) {
+            archive(::cereal::make_nvp("Channels", channels));
+            archive(::cereal::make_nvp("Weights", weights));
+            archive(::cereal::make_nvp(
+                "AllowIncompatible", allow_incompatible_));
+            archive(::cereal::make_nvp("KPAccumulator", kp_accumulator_));
+            archive(::cereal::make_nvp("KPCount", kp_count_));
+            archive(::cereal::make_nvp(
+                "KPSuccessSelection", kp_succ_select_));
+            archive(::cereal::make_nvp(
+                "KPFailureSelection", kp_fail_select_));
+        } else {
+            throw std::runtime_error(
+                "MultiChannelPhaseSpace only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if (version != 0) {
+            throw std::runtime_error(
+                "MultiChannelPhaseSpace only supports version <= 0!");
+        }
+
+        std::vector<std::shared_ptr<PhaseSpaceChannel>> loaded_channels;
+        std::vector<double> loaded_weights;
+        bool loaded_allow_incompatible = false;
+        std::vector<double> loaded_kp_accumulator;
+        long loaded_kp_count = 0;
+        std::vector<double> loaded_kp_succ_select;
+        std::vector<double> loaded_kp_fail_select;
+        archive(::cereal::make_nvp("Channels", loaded_channels));
+        archive(::cereal::make_nvp("Weights", loaded_weights));
+        archive(::cereal::make_nvp(
+            "AllowIncompatible", loaded_allow_incompatible));
+        archive(::cereal::make_nvp(
+            "KPAccumulator", loaded_kp_accumulator));
+        archive(::cereal::make_nvp("KPCount", loaded_kp_count));
+        archive(::cereal::make_nvp(
+            "KPSuccessSelection", loaded_kp_succ_select));
+        archive(::cereal::make_nvp(
+            "KPFailureSelection", loaded_kp_fail_select));
+
+        if (loaded_channels.size() != loaded_weights.size()) {
+            throw std::runtime_error(
+                "MultiChannelPhaseSpace: channel/weight size mismatch in archive");
+        }
+        double weight_sum = 0.0;
+        for (double weight : loaded_weights) {
+            if (!std::isfinite(weight) || weight < 0.0) {
+                throw std::runtime_error(
+                    "MultiChannelPhaseSpace: invalid weight in archive");
+            }
+            weight_sum += weight;
+        }
+        if (!std::isfinite(weight_sum) || !(weight_sum > 0.0)) {
+            throw std::runtime_error(
+                "MultiChannelPhaseSpace: weight sum must be positive in archive");
+        }
+        auto validate_accumulator_size = [channel_count = loaded_channels.size()](
+            std::vector<double> const & accumulator, char const * name) {
+            if (!accumulator.empty() && accumulator.size() != channel_count) {
+                throw std::runtime_error(
+                    std::string("MultiChannelPhaseSpace: ") + name
+                    + " size mismatch in archive");
+            }
+        };
+        validate_accumulator_size(loaded_kp_accumulator, "KPAccumulator");
+        validate_accumulator_size(
+            loaded_kp_succ_select, "KPSuccessSelection");
+        validate_accumulator_size(
+            loaded_kp_fail_select, "KPFailureSelection");
+        if (loaded_kp_count < 0) {
+            throw std::runtime_error(
+                "MultiChannelPhaseSpace: negative KPCount in archive");
+        }
+
+        channels = std::move(loaded_channels);
+        weights = std::move(loaded_weights);
+        allow_incompatible_ = loaded_allow_incompatible;
+        kp_accumulator_ = std::move(loaded_kp_accumulator);
+        kp_count_ = loaded_kp_count;
+        kp_succ_select_ = std::move(loaded_kp_succ_select);
+        kp_fail_select_ = std::move(loaded_kp_fail_select);
+
+        // Lazy convention caches are transient.
+        convention_cache_valid_ = false;
+        convention_fingerprint_ = 0;
+        cached_common_topology_ = PhaseSpaceTopology::Unspecified;
+        cached_common_measure_ = PhaseSpaceMeasure::Unspecified();
+        cached_channel_measures_.clear();
+        cached_topology_error_.clear();
+        cached_compatibility_diagnostics_.clear();
+    }
 
     // Sample from the multi-channel mixture.
     // Returns the index of the channel that was used.
@@ -408,6 +528,34 @@ public:
         std::shared_ptr<MultiChannelPhaseSpace> mixture_)
         : mixture(mixture_) {}
 
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if (version == 0) {
+            archive(::cereal::make_nvp(
+                "PhaseSpaceChannel",
+                ::cereal::virtual_base_class<PhaseSpaceChannel>(this)));
+            archive(::cereal::make_nvp("Mixture", mixture));
+            archive(::cereal::make_nvp("Label", label));
+        } else {
+            throw std::runtime_error(
+                "NestedMixtureChannel only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if (version == 0) {
+            archive(::cereal::make_nvp(
+                "PhaseSpaceChannel",
+                ::cereal::virtual_base_class<PhaseSpaceChannel>(this)));
+            archive(::cereal::make_nvp("Mixture", mixture));
+            archive(::cereal::make_nvp("Label", label));
+        } else {
+            throw std::runtime_error(
+                "NestedMixtureChannel only supports version <= 0!");
+        }
+    }
+
     void Sample(
         std::shared_ptr<siren::utilities::SIREN_random> random,
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
@@ -432,5 +580,13 @@ public:
 
 } // namespace injection
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::injection::PhaseSpaceChannel, 0);
+CEREAL_CLASS_VERSION(siren::injection::MultiChannelPhaseSpace, 0);
+CEREAL_CLASS_VERSION(siren::injection::NestedMixtureChannel, 0);
+CEREAL_REGISTER_TYPE(siren::injection::NestedMixtureChannel);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(
+    siren::injection::PhaseSpaceChannel,
+    siren::injection::NestedMixtureChannel);
 
 #endif // SIREN_PhaseSpaceChannel_H

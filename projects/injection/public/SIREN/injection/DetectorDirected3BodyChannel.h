@@ -2,19 +2,27 @@
 #ifndef SIREN_DetectorDirected3BodyChannel_H
 #define SIREN_DetectorDirected3BodyChannel_H
 
+#include "SIREN/geometry/Geometry.h"
 #include "SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 
+#include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
-namespace siren { namespace geometry { class Geometry; } }
+#include <cereal/access.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/cereal.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/polymorphic.hpp>
 
 namespace siren {
 namespace injection {
-
-struct TabulatedMappingTable;
 
 // Detector-directed 3-body phase-space channel.
 //
@@ -106,6 +114,10 @@ public:
         siren::dataclasses::InteractionRecord const & record) const override;
 
 private:
+    friend cereal::access;
+
+    DetectorDirected3BodyChannel() = default;
+
     struct RoleIndices {
         int outer;
         int pair_first;
@@ -144,6 +156,128 @@ private:
     PhaseSpaceTopology topology_;
     double target_volume_;
 
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if (version != 0) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel only supports version <= 0!");
+        }
+
+        // Archive the installed factorization, never method pointers.
+        Factorization factorization;
+        if (sample_implementation_ == &DetectorDirected3BodyChannel::SampleDirect &&
+            density_implementation_ == &DetectorDirected3BodyChannel::DensityDirect &&
+            active_implementation_ == &DetectorDirected3BodyChannel::DirectingActiveDirect) {
+            factorization = Factorization::Direct;
+        } else if (
+            sample_implementation_ == &DetectorDirected3BodyChannel::SampleRecursive &&
+            density_implementation_ == &DetectorDirected3BodyChannel::DensityRecursive &&
+            active_implementation_ == &DetectorDirected3BodyChannel::DirectingActiveRecursive) {
+            factorization = Factorization::Recursive;
+        } else {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel has inconsistent implementations");
+        }
+
+        archive(::cereal::make_nvp("Target", target_));
+        archive(::cereal::make_nvp("OuterIndex", roles_.outer));
+        archive(::cereal::make_nvp("PairFirstIndex", roles_.pair_first));
+        archive(::cereal::make_nvp("PairSecondIndex", roles_.pair_second));
+        archive(::cereal::make_nvp("DirectedIndex", roles_.directed));
+        archive(::cereal::make_nvp("Factorization", static_cast<int>(factorization)));
+        archive(::cereal::make_nvp("InvariantMassMode", static_cast<int>(mass_mode_)));
+        archive(::cereal::make_nvp("ResonanceMass", resonance_mass_));
+        archive(::cereal::make_nvp("ResonanceWidth", resonance_width_));
+        archive(::cereal::make_nvp("PowerLawNu", power_law_nu_));
+        archive(::cereal::make_nvp("PowerLawOffset", power_law_offset_));
+        archive(::cereal::make_nvp("MassCdfTable", mass_cdf_table_));
+        archive(::cereal::make_nvp("Mode", static_cast<int>(mode_)));
+        archive(::cereal::make_nvp("Topology", static_cast<int>(topology_)));
+        archive(::cereal::make_nvp("TargetVolume", target_volume_));
+        archive(cereal::virtual_base_class<PhaseSpaceChannel>(this));
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if (version != 0) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel only supports version <= 0!");
+        }
+
+        int factorization_int;
+        int mass_mode_int;
+        int mode_int;
+        int topology_int;
+        archive(::cereal::make_nvp("Target", target_));
+        archive(::cereal::make_nvp("OuterIndex", roles_.outer));
+        archive(::cereal::make_nvp("PairFirstIndex", roles_.pair_first));
+        archive(::cereal::make_nvp("PairSecondIndex", roles_.pair_second));
+        archive(::cereal::make_nvp("DirectedIndex", roles_.directed));
+        archive(::cereal::make_nvp("Factorization", factorization_int));
+        archive(::cereal::make_nvp("InvariantMassMode", mass_mode_int));
+        archive(::cereal::make_nvp("ResonanceMass", resonance_mass_));
+        archive(::cereal::make_nvp("ResonanceWidth", resonance_width_));
+        archive(::cereal::make_nvp("PowerLawNu", power_law_nu_));
+        archive(::cereal::make_nvp("PowerLawOffset", power_law_offset_));
+        archive(::cereal::make_nvp("MassCdfTable", mass_cdf_table_));
+        archive(::cereal::make_nvp("Mode", mode_int));
+        archive(::cereal::make_nvp("Topology", topology_int));
+        archive(::cereal::make_nvp("TargetVolume", target_volume_));
+        archive(cereal::virtual_base_class<PhaseSpaceChannel>(this));
+
+        if (factorization_int != static_cast<int>(Factorization::Direct) &&
+            factorization_int != static_cast<int>(Factorization::Recursive)) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel: invalid Factorization value " +
+                std::to_string(factorization_int) + " in archive");
+        }
+        if (mass_mode_int != static_cast<int>(InvariantMassMode::Uniform) &&
+            mass_mode_int != static_cast<int>(InvariantMassMode::BreitWigner) &&
+            mass_mode_int != static_cast<int>(InvariantMassMode::PowerLaw) &&
+            mass_mode_int != static_cast<int>(InvariantMassMode::Tabulated)) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel: invalid InvariantMassMode value " +
+                std::to_string(mass_mode_int) + " in archive");
+        }
+        if (mode_int != static_cast<int>(DetectorDirected2BodyChannel::Mode::Cone) &&
+            mode_int != static_cast<int>(DetectorDirected2BodyChannel::Mode::Volume)) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel: invalid Mode value " +
+                std::to_string(mode_int) + " in archive");
+        }
+        if (topology_int != static_cast<int>(PhaseSpaceTopology::Decay2Body) &&
+            topology_int != static_cast<int>(PhaseSpaceTopology::Decay3Body) &&
+            topology_int != static_cast<int>(PhaseSpaceTopology::DecayNBody) &&
+            topology_int != static_cast<int>(PhaseSpaceTopology::Scatter2to2) &&
+            topology_int != static_cast<int>(PhaseSpaceTopology::Scatter2to3) &&
+            topology_int != static_cast<int>(PhaseSpaceTopology::Unspecified)) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel: invalid PhaseSpaceTopology value " +
+                std::to_string(topology_int) + " in archive");
+        }
+
+        mass_mode_ = static_cast<InvariantMassMode>(mass_mode_int);
+        mode_ = static_cast<DetectorDirected2BodyChannel::Mode>(mode_int);
+        topology_ = static_cast<PhaseSpaceTopology>(topology_int);
+        // Tabulated mode owns exactly one immutable table.
+        if ((mass_mode_ == InvariantMassMode::Tabulated) !=
+            static_cast<bool>(mass_cdf_table_)) {
+            throw std::runtime_error(
+                "DetectorDirected3BodyChannel: invalid tabulated table state");
+        }
+
+        Factorization factorization = static_cast<Factorization>(factorization_int);
+        if (factorization == Factorization::Direct) {
+            sample_implementation_ = &DetectorDirected3BodyChannel::SampleDirect;
+            density_implementation_ = &DetectorDirected3BodyChannel::DensityDirect;
+            active_implementation_ = &DetectorDirected3BodyChannel::DirectingActiveDirect;
+        } else {
+            sample_implementation_ = &DetectorDirected3BodyChannel::SampleRecursive;
+            density_implementation_ = &DetectorDirected3BodyChannel::DensityRecursive;
+            active_implementation_ = &DetectorDirected3BodyChannel::DirectingActiveRecursive;
+        }
+    }
+
     void SampleDirect(
         std::shared_ptr<siren::utilities::SIREN_random> random,
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
@@ -178,5 +312,11 @@ private:
 
 } // namespace injection
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirected3BodyChannel, 0);
+CEREAL_REGISTER_TYPE(siren::injection::DetectorDirected3BodyChannel);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(
+    siren::injection::PhaseSpaceChannel,
+    siren::injection::DetectorDirected3BodyChannel);
 
 #endif // SIREN_DetectorDirected3BodyChannel_H
