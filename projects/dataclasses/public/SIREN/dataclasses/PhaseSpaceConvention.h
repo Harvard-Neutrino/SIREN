@@ -2,7 +2,11 @@
 #ifndef SIREN_PhaseSpaceConvention_H
 #define SIREN_PhaseSpaceConvention_H
 
+#include <cstdint>
+#include <stdexcept>
 #include <string>
+
+#include <cereal/cereal.hpp>
 
 namespace siren {
 namespace dataclasses {
@@ -68,6 +72,63 @@ struct PhaseSpaceMeasure {
 
     bool operator==(PhaseSpaceMeasure const & o) const;
     bool operator!=(PhaseSpaceMeasure const & o) const { return !(*this == o); }
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if (version == 0) {
+            archive(::cereal::make_nvp("Type", static_cast<int>(type)));
+            archive(::cereal::make_nvp("Spectator", spectator));
+            archive(::cereal::make_nvp("PairFirst", pair_first));
+            archive(::cereal::make_nvp("PairSecond", pair_second));
+        } else {
+            throw std::runtime_error(
+                "PhaseSpaceMeasure only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if (version == 0) {
+            int type_int;
+            int loaded_spectator;
+            int loaded_pair_first;
+            int loaded_pair_second;
+            archive(::cereal::make_nvp("Type", type_int));
+            archive(::cereal::make_nvp("Spectator", loaded_spectator));
+            archive(::cereal::make_nvp("PairFirst", loaded_pair_first));
+            archive(::cereal::make_nvp("PairSecond", loaded_pair_second));
+
+            switch (static_cast<Type>(type_int)) {
+                case Type::SolidAngleRest:
+                case Type::SolidAngleLab:
+                case Type::Recursive2Body:
+                case Type::DalitzPair:
+                case Type::HelicityAngles:
+                case Type::MandelstamQ2:
+                case Type::MandelstamQ2Phi:
+                case Type::FixedMassY:
+                case Type::FixedMassYPhi:
+                case Type::BjorkenXY:
+                case Type::BjorkenXYPhi:
+                case Type::MandelstamQ2Y:
+                case Type::MandelstamQ2YPhi:
+                case Type::Unspecified:
+                    break;
+                default:
+                    throw std::runtime_error(
+                        "PhaseSpaceMeasure: invalid Type value "
+                        + std::to_string(type_int) + " in archive");
+            }
+
+            type = static_cast<Type>(type_int);
+            spectator = loaded_spectator;
+            pair_first = loaded_pair_first;
+            pair_second = loaded_pair_second;
+        } else {
+            throw std::runtime_error(
+                "PhaseSpaceMeasure only supports version <= 0!");
+        }
+    }
 
     // Convenience factories
     static PhaseSpaceMeasure SolidAngleRest();
@@ -147,5 +208,7 @@ bool PhaseSpaceDensityConvertible(PhaseSpaceTopology topology,
 
 } // namespace dataclasses
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::dataclasses::PhaseSpaceMeasure, 0);
 
 #endif // SIREN_PhaseSpaceConvention_H
