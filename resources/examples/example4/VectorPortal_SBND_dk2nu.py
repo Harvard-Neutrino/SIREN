@@ -24,6 +24,10 @@ Reference: Dutta et al., PRL 129, 111803 (2022) [arXiv:2110.11944]
 Requires dk2nu beam-simulation ROOT files (not shipped with SIREN); set
 DK2NU_DIR to their directory.
 
+For an SBND/ICARUS version that extracts the propagated event times and writes
+timing plots, see VectorPortal_SBN_dk2nu_timing.py and README_beam_timing.md.
+The same guide links a dk2nu -> BeamDecay -> DarkNews HNL timing example.
+
 Usage:
     python VectorPortal_SBND_dk2nu.py [--events N] [--seed S]
         [--dk2nu-dir DIR]

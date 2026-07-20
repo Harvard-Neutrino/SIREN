@@ -369,9 +369,11 @@ PYBIND11_MODULE(distributions,m) {
 
   // External distribution (inherits VertexPositionDistribution, must come after it)
   class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution, PhysicallyNormalizedDistribution>(m,"PrimaryExternalDistribution",
-    "Primary distribution driven by an external CSV file.\n\n"
-    "The first line is a comma-separated header naming each column and\n"
-    "each subsequent line is one candidate event. Recognized columns:\n"
+    "Primary distribution driven by an external table.\n\n"
+    "Construct it from a CSV filename or directly from (keys, data), with\n"
+    "an optional sampling_weights vector. For a CSV, the first line is a\n"
+    "comma-separated header and each later line is one candidate event.\n"
+    "Recognized columns:\n"
     "  x0, y0, z0  initial position of the primary\n"
     "  x, y, z     interaction vertex (also used as the initial position\n"
     "              when x0, y0, z0 are absent)\n"
