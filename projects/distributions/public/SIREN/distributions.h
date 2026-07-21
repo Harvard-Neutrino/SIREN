@@ -32,6 +32,7 @@
 
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
 #include "SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
+#include "SIREN/distributions/secondary/vertex/SecondaryDecayRangePositionDistribution.h"
 #include "SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 
 #endif // SIREN_distributions_distributions_H

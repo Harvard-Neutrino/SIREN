@@ -22,6 +22,7 @@ from siren import utilities
 from siren import _util
 
 NuMu = dc.Particle.ParticleType.NuMu
+N4 = dc.Particle.ParticleType.N4
 
 TIME_CONST = 41.25
 BOX_HALF_WIDTH = 0.5
@@ -46,6 +47,22 @@ def detector_model():
 
 def _interaction_collection():
     return interactions.InteractionCollection(NuMu, [interactions.DummyCrossSection()])
+
+
+def test_secondary_decay_range_distribution_binding_and_alias():
+    placement = siren.geometry.Placement(smath.Vector3D(0.0, 0.0, 2.0))
+    fiducial = siren.geometry.Box(placement, 2.0, 2.0, 2.0)
+    daughter = interactions.InteractionCollection(
+        N4, [interactions.DummyCrossSection()])
+    distribution = distributions.SecondaryDecayRangePositionDistribution(
+        fiducial, daughter, 0.1,
+        daughter_energy_fraction=0.9,
+        max_length=20.0)
+    alias = siren.dist.DecayRangeVertex(
+        fiducial, daughter, 0.1, max_length=20.0)
+
+    assert distribution.Name() == "SecondaryDecayRangePositionDistribution"
+    assert isinstance(alias, distributions.SecondaryDecayRangePositionDistribution)
 
 
 class UniformEnergy(distributions.PrimaryEnergyDistribution):
