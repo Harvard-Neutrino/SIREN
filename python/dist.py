@@ -59,6 +59,7 @@ _short_aliases = {
     "PointSource": "PointSourcePositionDistribution",
     "RangePosition": "RangePositionDistribution",
     "DecayRangePosition": "DecayRangePositionDistribution",
+    "DecayRangeVertex": "SecondaryDecayRangePositionDistribution",
     "BoundedVertex": "SecondaryBoundedVertexDistribution",
     "SecondaryVertex": "SecondaryVertexPositionDistribution",
     "PhysicalVertex": "SecondaryPhysicalVertexDistribution",
