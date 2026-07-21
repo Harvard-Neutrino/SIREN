@@ -1490,9 +1490,82 @@ TEST(GetSectorByName, ClearSectorsAllowsReuse) {
     EXPECT_NO_THROW(A.AddSector(s2));
 }
 
+TEST(InteractionDepthInverse, MixedInteractionAndDecayCrossesMultipleSectors) {
+    DetectorModel model;
+    int material_id = model.GetMaterials().GetMaterialId("VACUUM");
+
+    DetectorSector first;
+    first.name = "FirstTransportSector";
+    first.material_id = material_id;
+    first.level = 0;
+    first.geo = Sphere(Vector3D(0.0, 0.0, 0.0), 2.0, 0.0).create();
+    first.density = DensityDistribution1D<
+        CartesianAxis1D, ConstantDistribution1D>(1.0).create();
+    model.AddSector(first);
+
+    DetectorSector second;
+    second.name = "SecondTransportSector";
+    second.material_id = material_id;
+    second.level = 1;
+    second.geo = Sphere(Vector3D(5.0, 0.0, 0.0), 2.0, 0.0).create();
+    second.density = DensityDistribution1D<
+        CartesianAxis1D, ConstantDistribution1D>(2.0).create();
+    model.AddSector(second);
+
+    Vector3D start(-1.0, 0.0, 0.0);
+    Vector3D direction(1.0, 0.0, 0.0);
+    constexpr double expected_distance = 5.0;
+    Vector3D endpoint = start + expected_distance * direction;
+    std::vector<ParticleType> targets{ParticleType::Nucleon};
+    std::vector<double> total_cross_sections{1.0e-27};
+    constexpr double decay_length = 2.0;
+
+    double requested_depth = model.GetInteractionDepthInCGS(
+        DetectorPosition(start), DetectorPosition(endpoint),
+        targets, total_cross_sections, decay_length);
+    double recovered_distance = model.DistanceForInteractionDepthFromPoint(
+        DetectorPosition(start), DetectorDirection(direction), requested_depth,
+        targets, total_cross_sections, decay_length);
+
+    EXPECT_NEAR(recovered_distance, expected_distance, 1.0e-10);
+    double recovered_depth = model.GetInteractionDepthInCGS(
+        DetectorPosition(start),
+        DetectorPosition(start + recovered_distance * direction),
+        targets, total_cross_sections, decay_length);
+    EXPECT_NEAR(recovered_depth, requested_depth, 1.0e-10);
+}
+
+TEST(InteractionDepthInverse, FiniteDecayWorksWithZeroTargetComposition) {
+    DetectorModel model;
+    int material_id = model.GetMaterials().GetMaterialId("VACUUM");
+    ASSERT_DOUBLE_EQ(
+        model.GetMaterials().GetTargetParticleFraction(
+            material_id, ParticleType::N4),
+        0.0);
+
+    Vector3D start(0.0, 0.0, 0.0);
+    Vector3D direction(1.0, 0.0, 0.0);
+    std::vector<ParticleType> targets{ParticleType::N4};
+    std::vector<double> total_cross_sections{1.0e-20};
+    constexpr double decay_length = 4.0;
+    constexpr double requested_depth = 1.75;
+    constexpr double expected_distance = requested_depth * decay_length;
+
+    double recovered_distance = model.DistanceForInteractionDepthFromPoint(
+        DetectorPosition(start), DetectorDirection(direction), requested_depth,
+        targets, total_cross_sections, decay_length);
+
+    ASSERT_TRUE(std::isfinite(recovered_distance));
+    EXPECT_NEAR(recovered_distance, expected_distance, 1.0e-12);
+    double recovered_depth = model.GetInteractionDepthInCGS(
+        DetectorPosition(start),
+        DetectorPosition(start + recovered_distance * direction),
+        targets, total_cross_sections, decay_length);
+    EXPECT_NEAR(recovered_depth, requested_depth, 1.0e-12);
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
-
