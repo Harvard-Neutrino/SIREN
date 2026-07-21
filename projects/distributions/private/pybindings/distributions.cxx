@@ -1,5 +1,6 @@
 
 #include <set>
+#include <limits>
 #include <vector>
 #include <string>
 
@@ -45,6 +46,7 @@
 #include "../../public/SIREN/distributions/secondary/vertex/pySecondaryVertexPositionDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
+#include "../../public/SIREN/distributions/secondary/vertex/SecondaryDecayRangePositionDistribution.h"
 
 #include "../../../utilities/public/SIREN/utilities/Random.h"
 #include "../../../detector/public/SIREN/detector/DetectorModel.h"
@@ -443,6 +445,21 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::GenerationProbability, const_))
     .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryBoundedVertexDistribution::Name);
+
+  class_<SecondaryDecayRangePositionDistribution, std::shared_ptr<SecondaryDecayRangePositionDistribution>, SecondaryVertexPositionDistribution>(m, "SecondaryDecayRangePositionDistribution",
+    "Bias a secondary interaction vertex by the probability that a collinear\n"
+    "proxy daughter subsequently interacts or decays inside a fiducial volume.\n"
+    "The current and daughter legs are evaluated in detector interaction depth,\n"
+    "including arbitrary material density profiles and decay lengths.")
+    .def(init<std::shared_ptr<siren::geometry::Geometry>,
+              std::shared_ptr<siren::interactions::InteractionCollection>,
+              double, double, double>(),
+         arg("fiducial_volume"), arg("daughter_interactions"),
+         arg("daughter_mass"), arg("daughter_energy_fraction") = 1.0,
+         arg("max_length") = std::numeric_limits<double>::infinity(),
+         keep_alive<1, 2>(), keep_alive<1, 3>())
+    .def("SampleVertex",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryDecayRangePositionDistribution::SampleVertex, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryDecayRangePositionDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryDecayRangePositionDistribution::InjectionBounds, const_))
+    .def("Name",&SecondaryDecayRangePositionDistribution::Name);
 }
-
-
