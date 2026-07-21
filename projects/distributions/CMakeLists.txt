@@ -54,6 +54,7 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/pySecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryDecayRangePositionDistribution.cxx
 )
 add_library(SIREN_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET SIREN_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -93,6 +94,7 @@ package_add_test(UnitTest_WeightableDistribution ${PROJECT_SOURCE_DIR}/projects/
 package_add_test(UnitTest_SphereVolumePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/SphereVolumePositionDistribution_TEST.cxx)
 package_add_test(UnitTest_CylinderVolumePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/CylinderVolumePositionDistribution_TEST.cxx)
 package_add_test(UnitTest_Tabulated2DFluxDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/Tabulated2DFluxDistribution_TEST.cxx)
+package_add_test(UnitTest_SecondaryDecayRangePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/SecondaryDecayRangePositionDistribution_TEST.cxx)
 
 pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
 target_link_libraries(distributions PRIVATE SIREN)
