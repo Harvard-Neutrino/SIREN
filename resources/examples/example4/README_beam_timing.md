@@ -70,6 +70,29 @@ python resources/examples/example4/VectorPortal_SBN_dk2nu_timing.py \
     --output output/icarus_numi_vector_portal_timing.png
 ```
 
+Productions that split decay-in-flight and decay-at-rest into separate file
+sets are supported by both timing examples. The standard g4numi
+configuration kills every particle other than a neutrino once its kinetic
+energy drops below 0.05 GeV, so those files contain no decays from slower
+parents; a dedicated decay-at-rest production tracks everything to rest and
+records decays at all parent energies, with its own protons-on-target. Pass
+the decay-at-rest files through `--dar-files` and the merging helper beside
+the examples (`_beam_samples.py`, analysis-level code, not part of the
+`siren.dk2nu` reader) keeps each sample on its side of the kinetic-energy
+boundary (`--dar-ke-cut`, default 0.05 GeV, the g4numi kill threshold) and
+rescales the decay-at-rest weights by the ratio of the two samples'
+protons-on-target, so the merged sample is normalized consistently:
+
+```bash
+python resources/examples/example4/VectorPortal_SBN_dk2nu_timing.py \
+    '/path/to/g4numi/g4numi_*_fhc_1*.root' \
+    --dar-files '/path/to/g4numi/g4numi_*_fhc_dar_*.root' \
+    --beam-frame NuMI \
+    --detector ICARUS \
+    --events 500 \
+    --output output/icarus_numi_vector_portal_timing.png
+```
+
 For the DarkNews HNL example:
 
 ```bash
@@ -103,6 +126,26 @@ upscattering density is confined to argon-containing sectors. Loading every
 material found in the complete detector-building GDML would construct many
 irrelevant processes. Add the nuclei from selected upstream sectors when the
 study should include HNL production before the active liquid argon.
+
+The HNL example samples dk2nu rows through a threshold bias: a row whose
+forward Doppler bound (the largest neutrino energy its parent can produce)
+does not exceed the N4 mass gets zero sampling weight, since it cannot
+drive the upscatter and its physical contribution is exactly zero. This
+matters mostly with `--dar-files`: stopped pions make 30 MeV neutrinos,
+far below the default N4 threshold, and would otherwise dominate the
+sampling with rows that can never produce an event. The generation
+probability accounts for the bias, so event weights are unchanged.
+
+The HNL example also fills the DarkNews interpolation tables before injection
+begins, up to the forward Doppler bound of the loaded dk2nu rows (the largest
+neutrino energy any surviving row can produce), and then saves the filled
+tables next to the DarkNewsTables resource. The first run therefore pays the
+DarkNews evaluation cost up front instead of stalling inside the injection
+loop, and every later run with the same model parameters loads the tables
+from disk. `--table-emax` overrides the fill range in GeV, and
+`--no-precompute-tables` builds the tables lazily during injection. The
+vector-portal examples need no such step: their Dutta-Kim models are
+analytic and compute their widths at construction.
 
 The quoted glob lets the script expand the files itself. `--entry-stop 10000`
 is useful for a quick first test. The script writes both the PNG and a CSV with
