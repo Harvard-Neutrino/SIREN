@@ -486,7 +486,7 @@ def load_processes(
                 "WARNING: Cannot fill cross section tables without specifying a maximum energy"
             )
         else:
-            for cross_section in cross_sections:
+            for cross_section in cross_sections.values():
                 cross_section.FillInterpolationTables(Emax=Emax)
 
     primary_processes = collections.defaultdict(list)
