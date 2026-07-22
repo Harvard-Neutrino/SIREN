@@ -45,6 +45,7 @@ from siren.Injector import Injector
 from siren.Weighter import Weighter
 
 from VectorPortal_SBND_dk2nu import build_models, build_vertices
+from _beam_samples import read_dif_dar
 
 
 # Detector-coordinate boxes. SBND uses the two active TPC drift volumes from
@@ -254,6 +255,17 @@ def main(argv=None):
     parser.add_argument("--output",
                         help=("PNG path (default: output/<detector>_<beam>_"
                               "vector_portal_timing.png)"))
+    parser.add_argument(
+        "--dar-files", nargs="+",
+        help=("decay-at-rest dk2nu ROOT files or quoted glob(s), merged "
+              "with the (decay-in-flight) positional files: each sample "
+              "keeps its side of the kinetic-energy cut and is normalized "
+              "by its own POT"))
+    parser.add_argument(
+        "--dar-ke-cut", type=float, default=0.05,
+        help=("parent kinetic energy boundary in GeV between the "
+              "decay-in-flight and decay-at-rest samples (default: 0.05, "
+              "the g4numi kill threshold)"))
     args = parser.parse_args(argv)
 
     files = _expand_input_paths(args.dk2nu_files)
@@ -263,14 +275,23 @@ def main(argv=None):
     # This MesonThreeBodySIRENDecay models pi+ -> mu+ nu_mu V1. Filtering the
     # dk2nu rows to the matching ordinary decay avoids silently mixing parent
     # rows generated for a different channel.
-    data = dk2nu.read_dk2nu(
-        files,
+    read_kwargs = dict(
         parent_pdg=dk2nu.PTYPE_PIPLUS,
         decay_modes=13,
         nu_pdg=14,
         read_time=True,
         entry_stop=args.entry_stop,
     )
+    if args.dar_files:
+        dar_files = _expand_input_paths(args.dar_files)
+        if not dar_files:
+            parser.error("none of the --dar-files paths/globs matched a file")
+        data = read_dif_dar(
+            files, dar_files,
+            kinetic_energy_cut=args.dar_ke_cut,
+            **read_kwargs)
+    else:
+        data = dk2nu.read_dk2nu(files, **read_kwargs)
     dk2nu.print_summary(data)
     if "t0" not in data:
         raise RuntimeError(

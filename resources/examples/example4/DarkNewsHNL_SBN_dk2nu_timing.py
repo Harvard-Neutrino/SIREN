@@ -20,6 +20,14 @@ therefore use the default ``--beam-frame BNB``. For G4NuMI input, pass
 ``--beam-frame NuMI`` to apply the surveyed NuMI-to-BNB transform carried by
 the SBN geometry resource.
 
+By default the DarkNews interpolation tables are filled before injection,
+up to the forward Doppler bound of the loaded dk2nu rows, and saved next to
+the DarkNewsTables resource. No DarkNews cross-section evaluation then
+happens inside the injection loop, and later runs load the tables from disk
+instead of recomputing them. Use ``--table-emax`` to override the fill
+range, or ``--no-precompute-tables`` to build the tables lazily during
+injection.
+
 Example::
 
     python DarkNewsHNL_SBN_dk2nu_timing.py \
@@ -40,7 +48,7 @@ import os
 import numpy as np
 
 import siren
-from siren import channels, dk2nu, expand
+from siren import _util, channels, dk2nu, expand
 from siren.Injector import Injector
 from siren.Weighter import Weighter
 
@@ -86,7 +94,49 @@ def _load_beam_decay_model():
     return module.MesonTwoBodyLeptonicDecay(211)
 
 
-def _darknews_bundle(detector_model, m4, mu_tr_mu4):
+def _load_beam_samples():
+    """Load the sibling decay-in-flight / decay-at-rest merging helper."""
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "_beam_samples.py")
+    return _util.load_module("example4_beam_samples", path)
+
+
+def _max_neutrino_energy(data):
+    """Forward Doppler bound on the decay neutrino energy over all rows."""
+    decay = _load_beam_decay_model()
+    m_meson = decay.m_meson
+    e_cm = (m_meson ** 2 - decay.m_lepton ** 2) / (2.0 * m_meson)
+    energy = np.asarray(data["E"], dtype=float)
+    momentum = np.sqrt(np.maximum(energy ** 2 - m_meson ** 2, 0.0))
+    return float(np.max((energy + momentum) / m_meson) * e_cm)
+
+
+def _make_threshold_bias(m4):
+    """Sampling bias that skips rows unable to reach the N4 threshold.
+
+    The forward Doppler bound (E + p) / m * E_cm is the largest neutrino
+    energy a recorded parent can produce.  A row whose bound does not
+    exceed the N4 mass can never drive the upscatter, so it gets zero
+    sampling weight: its physical contribution is exactly zero, and the
+    generation probability accounts for the remaining bias.  Without
+    this, a merged decay-at-rest sample dominates the sampling with
+    stopped pions whose 30 MeV neutrinos are far below threshold.
+    """
+    decay = _load_beam_decay_model()
+    m_meson = decay.m_meson
+    e_cm = (m_meson ** 2 - decay.m_lepton ** 2) / (2.0 * m_meson)
+
+    def bias(E, px, py, pz, vx, vy, vz):
+        energy = np.asarray(E, dtype=float)
+        momentum = np.sqrt(np.maximum(energy ** 2 - m_meson ** 2, 0.0))
+        bound = (energy + momentum) / m_meson * e_cm
+        return (bound > m4).astype(float)
+
+    return bias
+
+
+def _darknews_bundle(detector_model, m4, mu_tr_mu4,
+                     table_emax=None, save_tables=True):
     model_kwargs = {
         "m4": m4,
         "mu_tr_mu4": mu_tr_mu4,
@@ -100,7 +150,7 @@ def _darknews_bundle(detector_model, m4, mu_tr_mu4):
     }
     table_name = "DarkNewsTables-v%s/" % siren.utilities.darknews_version()
     table_name += "Dipole_M%2.2e_mu%2.2e" % (m4, mu_tr_mu4)
-    return siren.load_processes(
+    bundle = siren.load_processes(
         "DarkNewsTables",
         primary_type=siren.particles.NuMu,
         detector_model=detector_model,
@@ -109,14 +159,38 @@ def _darknews_bundle(detector_model, m4, mu_tr_mu4):
         # liquid argon is part of the study.
         nuclear_targets=["Ar40"],
         table_name=table_name,
+        # Fill the interpolation tables over the full beam energy range up
+        # front, so no DarkNews cross-section evaluation happens mid-injection.
+        fill_tables_at_start=table_emax is not None,
+        Emax=table_emax,
         **model_kwargs,
     )
+    # The N4 total width is computed lazily on first use; trigger it here so
+    # the width integral is also paid before injection starts.
+    for particle_type, decays in bundle.secondary.items():
+        for decay in decays:
+            decay.TotalDecayWidthAllFinalStates(particle_type)
+    if table_emax is not None and save_tables:
+        # Persist the filled tables next to the resource; later runs with
+        # the same model parameters load them from disk.
+        darknews_tables = siren.resources.processes.DarkNewsTables
+        table_dir = os.path.join(
+            _util.resource_package_dir(), "processes", "DarkNewsTables",
+            table_name)
+        primary_ups_keys, secondary_dec_keys = bundle.metadata
+        darknews_tables.SaveDarkNewsProcesses(
+            table_dir,
+            bundle.primary, primary_ups_keys,
+            bundle.secondary, secondary_dec_keys)
+    return bundle
 
 
-def build_vertices(detector_model, external, fiducial, m4, mu_tr_mu4):
+def build_vertices(detector_model, external, fiducial, m4, mu_tr_mu4,
+                   table_emax=None, save_tables=True):
     """Build pi -> nu, nu -> N4, and N4 -> nu gamma vertices."""
     pion_decay = _load_beam_decay_model()
-    bundle = _darknews_bundle(detector_model, m4, mu_tr_mu4)
+    bundle = _darknews_bundle(detector_model, m4, mu_tr_mu4,
+                              table_emax=table_emax, save_tables=save_tables)
     hnl_models = bundle.secondary[siren.particles.N4]
     hnl_interactions = siren.interactions.InteractionCollection(
         siren.particles.N4, hnl_models)
@@ -330,20 +404,49 @@ def main(argv=None):
     parser.add_argument("--output",
                         help=("PNG path (default: output/<detector>_<beam>_"
                               "darknews_hnl_timing.png)"))
+    parser.add_argument(
+        "--table-emax", type=float,
+        help=("fill the DarkNews interpolation tables up to this neutrino "
+              "energy in GeV before injecting (default: the forward Doppler "
+              "bound of the loaded dk2nu rows)"))
+    parser.add_argument(
+        "--no-precompute-tables", action="store_true",
+        help=("skip the up-front table fill and save; build the DarkNews "
+              "tables lazily during injection"))
+    parser.add_argument(
+        "--dar-files", nargs="+",
+        help=("decay-at-rest dk2nu ROOT files or quoted glob(s), merged "
+              "with the (decay-in-flight) positional files: each sample "
+              "keeps its side of the kinetic-energy cut and is normalized "
+              "by its own POT"))
+    parser.add_argument(
+        "--dar-ke-cut", type=float, default=0.05,
+        help=("parent kinetic energy boundary in GeV between the "
+              "decay-in-flight and decay-at-rest samples (default: 0.05, "
+              "the g4numi kill threshold)"))
     args = parser.parse_args(argv)
 
     files = _expand_input_paths(args.dk2nu_files)
     if not files:
         parser.error("none of the dk2nu paths/globs matched a file")
 
-    data = dk2nu.read_dk2nu(
-        files,
+    read_kwargs = dict(
         parent_pdg=dk2nu.PTYPE_PIPLUS,
         decay_modes=13,
         nu_pdg=14,
         read_time=True,
         entry_stop=args.entry_stop,
     )
+    if args.dar_files:
+        dar_files = _expand_input_paths(args.dar_files)
+        if not dar_files:
+            parser.error("none of the --dar-files paths/globs matched a file")
+        data = _load_beam_samples().read_dif_dar(
+            files, dar_files,
+            kinetic_energy_cut=args.dar_ke_cut,
+            **read_kwargs)
+    else:
+        data = dk2nu.read_dk2nu(files, **read_kwargs)
     dk2nu.print_summary(data)
     if "t0" not in data:
         raise RuntimeError(
@@ -354,14 +457,30 @@ def main(argv=None):
 
     detector_model = siren.load_detector("SBN", detector=args.detector)
     frame = siren.resources.detectors.SBN.geo.transform(args.beam_frame, "BNB")
+    bias = _make_threshold_bias(args.m4)
+    open_rows = bias(data["E"], data["px"], data["py"], data["pz"],
+                     data["vx"], data["vy"], data["vz"])
+    n_open = int(np.count_nonzero(open_rows))
+    if n_open == 0:
+        raise RuntimeError(
+            "No dk2nu row can reach the N4 threshold for m4 = %g GeV"
+            % args.m4)
+    print("Threshold bias keeps %d of %d rows for sampling"
+          % (n_open, len(open_rows)))
     external = dk2nu.dk2nu_to_primary_distribution(
-        data, detector_model, frame=frame)
+        data, detector_model, frame=frame, sampling_bias=bias)
     prompt_origin = _prompt_origin_geometry(args.beam_frame, frame)
     spec = _FIDUCIALS[args.detector]
     fiducial = siren.geometry.Box(
         widths=spec["widths"], center=spec["center"])
+    if args.no_precompute_tables:
+        table_emax = None
+    else:
+        table_emax = args.table_emax or _max_neutrino_energy(data)
+        print("Precomputing DarkNews tables up to %.3f GeV" % table_emax)
     primary, secondaries = build_vertices(
-        detector_model, external, fiducial, args.m4, args.mu_tr_mu4)
+        detector_model, external, fiducial, args.m4, args.mu_tr_mu4,
+        table_emax=table_emax)
 
     injector = Injector(
         detector=detector_model,
