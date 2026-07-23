@@ -126,7 +126,6 @@ class TestDistributionVariableEnum:
             600, 600.0, d.LeptonDepthFunction()
         )
         sv = col.SetVariables()
-        assert DV.InitialPosition in sv
         assert DV.InteractionVertex in sv
 
     def test_required_variables_column_depth(self):
@@ -223,6 +222,41 @@ class TestOrderingValidation:
         ]
         import pytest
         with pytest.raises(ValueError, match="already been set by"):
+            validate_ordering(dists)
+
+    def test_bounded_vertex_requires_initial_position(self):
+        """PrimaryBoundedVertexDistribution consumes the primary's initial
+        position (record.GetInitialPosition() in SamplePosition), so it must
+        declare InitialPosition required and must not declare it set; a chain
+        that never sets an initial position upstream fails ordering validation.
+
+        Regression guard: the base VertexPositionDistribution sets only
+        InteractionVertex, so RequiredVariables = {InitialPosition,
+        PrimaryDirection} does not overlap SetVariables and ordering is
+        satisfiable given an upstream position source. Dropping InitialPosition
+        from RequiredVariables to "resolve" a non-existent overlap silently
+        removes a real dependency, which this test forbids.
+        """
+        import siren
+        import siren.distributions as d
+        from siren._validation import validate_ordering
+        DV = d.DistributionVariable
+        bounded = d.PrimaryBoundedVertexDistribution(
+            siren.geometry.Box(widths=(2.0, 2.0, 2.0)))
+        assert DV.InitialPosition in bounded.RequiredVariables()
+        assert DV.PrimaryDirection in bounded.RequiredVariables()
+        assert DV.InteractionVertex in bounded.SetVariables()
+        assert DV.InitialPosition not in bounded.SetVariables()
+        # Mass, energy, and direction are set, but nothing sets InitialPosition,
+        # so the bounded vertex's requirement is unmet and ordering must fail.
+        dists = [
+            d.PrimaryMass(0),
+            d.PowerLaw(2, 1e3, 1e6),
+            d.IsotropicDirection(),
+            bounded,
+        ]
+        import pytest
+        with pytest.raises(ValueError, match="InitialPosition"):
             validate_ordering(dists)
 
 
@@ -680,6 +714,155 @@ class TestInjectorIterator:
         assert len(injector) == 7
 
 
+class TestSecondaryBiasing:
+    """Phase space channel configuration for secondary biasing."""
+
+    def test_isotropic_channel_construction(self):
+        import siren
+        ch = siren.injection.Isotropic2BodyChannel(0)
+        assert ch.Name() == "Isotropic2Body"
+        assert ch.Measure().type == siren.injection.PhaseSpaceMeasureType.SolidAngleRest
+
+    def test_isotropic_channel_topology_measure(self):
+        import siren
+        ch = siren.injection.Isotropic2BodyChannel(0)
+        assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
+
+    def test_detector_directed_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+        assert ch.Name() == "DetectorDirected2Body"
+        assert ch.Measure().type == siren.injection.PhaseSpaceMeasureType.SolidAngleRest
+
+    def test_detector_directed_channel_topology_measure(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+        assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
+
+    def test_detector_directed_3body_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected3BodyChannel(
+            factorization=siren.injection.ThreeBodyMode.Recursive,
+            target=fid,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_index=1,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+        )
+        assert ch.Name() == "DetectorDirected3Body"
+        assert ch.Measure().type == siren.injection.PhaseSpaceMeasureType.Recursive2Body
+
+    def test_3body_channel_topology_measure(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirected3BodyChannel(
+            factorization=siren.injection.ThreeBodyMode.Direct,
+            target=fid, directed_index=2)
+        assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay3Body
+        assert ch.Measure() == siren.injection.PhaseSpaceMeasure.Recursive2Body(2, 0, 1)
+
+    def test_detector_directed_scattering_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch = siren.injection.DetectorDirectedScatteringChannel(
+            fid,
+            directed_index=0,
+            variable=siren.injection.ScatteringVariable.Q2,
+        )
+        assert ch.Name() == "DetectorDirectedScattering"
+        assert ch.Measure().type == siren.injection.PhaseSpaceMeasureType.MandelstamQ2Phi
+
+    def test_scattering_channel_topology_measure(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        ch_q2 = siren.injection.DetectorDirectedScatteringChannel(
+            fid, variable=siren.injection.ScatteringVariable.Q2)
+        ch_by = siren.injection.DetectorDirectedScatteringChannel(
+            fid, variable=siren.injection.ScatteringVariable.BjorkenY)
+        assert ch_q2.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert ch_q2.Measure() == siren.injection.PhaseSpaceMeasure.MandelstamQ2Phi()
+        assert ch_by.Topology() == siren.injection.PhaseSpaceTopology.Scatter2to2
+        assert ch_by.Measure() == siren.injection.PhaseSpaceMeasure.FixedMassYPhi()
+
+    def test_multi_channel_construction(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(fid, 0),
+        ]
+        mc.weights = [0.01, 0.99]
+        assert len(mc.channels) == 2
+        assert mc.CommonTopology() == siren.injection.PhaseSpaceTopology.Decay2Body
+        assert mc.CommonMeasure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
+        assert mc.CommonMeasure().type == siren.injection.PhaseSpaceMeasureType.SolidAngleRest
+
+    def test_topology_mismatch_raises(self):
+        """Mixing Decay2Body with Scatter2to2 should throw."""
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirectedScatteringChannel(fid),
+        ]
+        mc.weights = [0.5, 0.5]
+        with pytest.raises(RuntimeError, match="[Tt]opology"):
+            mc.CommonTopology()
+
+    def test_secondary_process_phase_space(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        sip = siren.injection.SecondaryInjectionProcess()
+        assert not sip.HasAnyPhaseSpace()
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(fid, 0),
+        ]
+        mc.weights = [0.01, 0.99]
+
+        # SetPhaseSpace requires a signature
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.NuMu
+        sig.target_type = siren.particles.Nucleon
+        sig.secondary_types = [siren.particles.MuMinus, siren.particles.PPlus]
+        sip.SetPhaseSpace(sig, mc)
+        assert sip.HasPhaseSpace(sig)
+        assert sip.HasAnyPhaseSpace()
+
+    def test_injector_primary_phase_space(self):
+        import siren
+        fid = siren.get_fiducial_volume("IceCube")
+        injector = siren.injection.Injector()
+
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.NuMu
+        sig.target_type = siren.particles.Nucleon
+        sig.secondary_types = [siren.particles.MuMinus, siren.particles.PPlus]
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [siren.injection.DetectorDirected2BodyChannel(fid, 0)]
+        mc.weights = [1.0]
+
+        injector.primary_phase_spaces = {sig: mc}
+        assert injector.primary_phase_spaces[sig] is mc
+
+    def test_kinematics_utilities(self):
+        import siren
+        assert abs(siren.injection.Kallen(1.0, 0.0, 0.0) - 1.0) < 1e-14
+        p = siren.injection.TwoBodyRestMomentum(0.3, 0.106, 0.140)
+        assert p > 0
+
+
 class TestWeighterBatch:
     """Weighter.weight_all should batch-weight events."""
 
@@ -887,3 +1070,276 @@ class TestEventsAlias:
         import siren
         with pytest.raises(TypeError, match="both 'events' and 'n_events'"):
             siren.Simulation(events=7, n_events=7, **self._kwargs(siren))
+
+
+# ==================================================================== #
+#  Measure consistency: structural and closure tests                    #
+# ==================================================================== #
+
+class TestMeasureConsistency:
+    """Verify that multi-channel phase space densities are consistent
+    across channel types."""
+
+    def _make_2body_record(self):
+        """Create a template InteractionRecord for a 2-body decay."""
+        import siren
+        record = siren.dataclasses.InteractionRecord()
+        record.signature.primary_type = siren.particles.NuMu
+        record.signature.target_type = siren.dataclasses.Particle.ParticleType.Decay
+        record.signature.secondary_types = [
+            siren.particles.EMinus, siren.particles.PiPlus
+        ]
+        # Parent: 300 MeV mass, 1 GeV energy, moving along z
+        M = 0.300
+        E = 1.0
+        p = (E * E - M * M) ** 0.5
+        record.primary_mass = M
+        record.primary_momentum = [E, 0, 0, p]
+        record.secondary_masses = [0.000511, 0.13957]
+        record.secondary_momenta = [[0, 0, 0, 0], [0, 0, 0, 0]]
+        # Decay position far outside the target volume so the
+        # directed channel has meaningful solid angle coverage
+        record.interaction_vertex = [0, 0, -3000]
+        return record
+
+    def test_isotropic_self_consistency(self):
+        """Isotropic channel: sample then evaluate own density.
+        Should always return 1/(4*pi)."""
+        import copy
+        import siren
+        import math
+
+        record = self._make_2body_record()
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        rng = siren.utilities.SIREN_random(42)
+
+        for _ in range(20):
+            r = copy.deepcopy(record)
+            iso.Sample(rng, None, r)
+            d = iso.Density(None, r)
+            assert abs(d - 1.0 / (4 * math.pi)) < 1e-10
+
+    def test_directed_density_positive_for_isotropic_samples(self):
+        """Events from isotropic channel should get non-negative
+        density from the directed channel (may be 0 if they miss
+        the target, but never negative or NaN)."""
+        import copy
+        import siren
+        import math
+
+        record = self._make_2body_record()
+        fid = siren.get_fiducial_volume("IceCube")
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+        rng = siren.utilities.SIREN_random(42)
+
+        for _ in range(50):
+            r = copy.deepcopy(record)
+            iso.Sample(rng, None, r)
+            d = directed.Density(None, r)
+            assert d >= 0
+            assert math.isfinite(d)
+
+    def test_closure_isotropic_vs_multichannel(self):
+        """Closure test: generate from multi-channel (isotropic + directed),
+        weight by isotropic_density / multi_channel_density, and check
+        the mean is consistent with 1.0.
+
+        This is the gold standard test for measure consistency."""
+        import copy
+        import siren
+        import math
+
+        record = self._make_2body_record()
+        fid = siren.get_fiducial_volume("IceCube")
+
+        iso = siren.injection.Isotropic2BodyChannel(0)
+        directed = siren.injection.DetectorDirected2BodyChannel(fid, 0)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [iso, directed]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(123)
+        N = 500
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(record)
+            mc.Sample(rng, None, r)
+            d_iso = iso.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_iso / d_mc)
+
+        assert len(weights) > N * 0.5, (
+            f"Too few valid weights: {len(weights)}/{N}"
+        )
+
+        mean_w = sum(weights) / len(weights)
+        # Should be 1.0 within statistical uncertainty.
+        # With N=500, typical std(w)/sqrt(N) ~ 0.05
+        assert 0.8 < mean_w < 1.2, (
+            f"Closure test failed: mean weight = {mean_w:.4f} "
+            f"(expected ~1.0)"
+        )
+
+    def test_validate_channels_no_diagnostics(self):
+        """ValidateChannels should return no diagnostics for a
+        well-formed multi-channel with compatible measures."""
+        import siren
+
+        record = self._make_2body_record()
+        fid = siren.get_fiducial_volume("IceCube")
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [
+            siren.injection.Isotropic2BodyChannel(0),
+            siren.injection.DetectorDirected2BodyChannel(fid, 0),
+        ]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(99)
+        diagnostics = mc.ValidateChannelDensities(rng, None, record, 50)
+
+        nan_or_neg = [d for d in diagnostics
+                      if "NaN" in d or "negative" in d]
+        assert len(nan_or_neg) == 0, (
+            f"Unexpected diagnostics: {nan_or_neg}"
+        )
+
+    # ---- 3-body channel tests ----
+
+    @staticmethod
+    def _make_3body_record():
+        import siren
+        import math
+
+        record = siren.dataclasses.InteractionRecord()
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.dataclasses.ParticleType(211)
+        sig.secondary_types = [
+            siren.dataclasses.ParticleType(-13),
+            siren.dataclasses.ParticleType(14),
+            siren.dataclasses.ParticleType(5922),
+        ]
+        record.signature = sig
+        M = 1.0
+        E = 2.0
+        record.primary_mass = M
+        record.primary_momentum = [E, 0, 0, math.sqrt(E * E - M * M)]
+        record.secondary_masses = [0.1, 0.3, 0.2]
+        record.secondary_momenta = [[0, 0, 0, 0]] * 3
+        record.secondary_helicities = [0, 0, 0]
+        record.interaction_vertex = [0, 0, 0]
+        record.primary_initial_position = [0, 0, 0]
+        return record
+
+    def test_3body_closure(self):
+        """Closure test for DetectorDirected3BodyChannel.
+
+        Mix a flat (isotropic) 3-body channel with the directed one
+        via MultiChannelPhaseSpace. The importance weights
+        flat_density / mixture_density must average to 1.0."""
+        import copy
+        import math
+        import siren
+
+        Cone = siren.injection.DirectedMode.Cone
+        huge = siren.geometry.Box(
+            siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
+            1e6, 1e6, 1e6)
+        placement = siren.geometry.Placement(
+            siren.math.Vector3D(0, 0, 10))
+        target = siren.geometry.Box(placement, 2.0, 2.0, 2.0)
+
+        kw = dict(
+            factorization=siren.injection.ThreeBodyMode.Recursive,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+            mode=Cone,
+        )
+        flat = siren.injection.DetectorDirected3BodyChannel(target=huge, **kw)
+        directed = siren.injection.DetectorDirected3BodyChannel(
+            target=target, **kw)
+
+        mc = siren.injection.MultiChannelPhaseSpace()
+        mc.channels = [flat, directed]
+        mc.weights = [0.5, 0.5]
+
+        rng = siren.utilities.SIREN_random(999)
+        N = 5000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(self._make_3body_record())
+            mc.Sample(rng, None, r)
+            d_flat = flat.Density(None, r)
+            d_mc = mc.Density(None, r)
+            if d_mc > 0:
+                weights.append(d_flat / d_mc)
+
+        assert len(weights) > N * 0.5, (
+            f"Too few valid weights: {len(weights)}/{N}"
+        )
+
+        mean_w = sum(weights) / len(weights)
+        assert 0.85 < mean_w < 1.15, (
+            f"3-body closure test failed: mean weight = {mean_w:.4f} "
+            f"(expected ~1.0)"
+        )
+
+    def test_3body_density_normalization(self):
+        """Check that the directed 3-body density integrates to 1.
+
+        Sample from a flat (isotropic) reference and compute the mean
+        of directed_density / flat_density. This estimates the integral
+        of the directed density over the phase space."""
+        import copy
+        import math
+        import siren
+
+        Cone = siren.injection.DirectedMode.Cone
+        huge = siren.geometry.Box(
+            siren.geometry.Placement(siren.math.Vector3D(0, 0, 0)),
+            1e6, 1e6, 1e6)
+        placement = siren.geometry.Placement(
+            siren.math.Vector3D(0, 0, 10))
+        target = siren.geometry.Box(placement, 2.0, 2.0, 2.0)
+
+        kw = dict(
+            factorization=siren.injection.ThreeBodyMode.Recursive,
+            spectator_index=0,
+            pair_first_index=1,
+            pair_second_index=2,
+            directed_index=2,
+            mass_mode=siren.injection.InvariantMassMode.Uniform,
+            mode=Cone,
+        )
+        flat = siren.injection.DetectorDirected3BodyChannel(target=huge, **kw)
+        directed = siren.injection.DetectorDirected3BodyChannel(
+            target=target, **kw)
+
+        rng = siren.utilities.SIREN_random(777)
+        N = 50000
+        weights = []
+
+        for _ in range(N):
+            r = copy.deepcopy(self._make_3body_record())
+            flat.Sample(rng, None, r)
+            d_flat = flat.Density(None, r)
+            d_dir = directed.Density(None, r)
+            if d_flat > 0:
+                weights.append(d_dir / d_flat)
+
+        assert len(weights) > N * 0.5
+        mean_w = sum(weights) / len(weights)
+        se = (sum((w - mean_w) ** 2 for w in weights)
+              / len(weights)) ** 0.5 / len(weights) ** 0.5
+        assert abs(mean_w - 1.0) < max(5 * se, 0.15), (
+            f"Density normalization failed: mean = {mean_w:.4f} "
+            f"+/- {se:.4f} (expected 1.0)"
+        )

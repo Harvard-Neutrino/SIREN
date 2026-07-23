@@ -21,6 +21,7 @@
 
 #include "SIREN/dataclasses/InteractionTree.h"  // for InteractionT...
 #include "SIREN/dataclasses/Particle.h"         // for Particle
+#include "SIREN/dataclasses/PhaseSpaceConvention.h"
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
@@ -47,6 +48,15 @@ private:
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> const & GetInjectionDistributions();
     void Initialize();
+    siren::dataclasses::PhaseSpaceConvention WeightingConvention(
+        siren::dataclasses::InteractionRecord const & record) const;
+    double PhysicalProbability(
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionRecord const & record,
+        siren::dataclasses::PhaseSpaceConvention const & convention) const;
+    double GenerationProbability(
+        siren::dataclasses::InteractionTreeDatum const & datum,
+        siren::dataclasses::PhaseSpaceConvention const & convention) const;
     double normalization;
 public:
     double InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;

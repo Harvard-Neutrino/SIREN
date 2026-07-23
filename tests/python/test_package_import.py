@@ -47,3 +47,10 @@ def test_resources_public_helpers():
         assert callable(getattr(resources, name)), f"siren.resources.{name} not callable"
     for name in ("fluxes", "detectors", "processes"):
         assert hasattr(resources, name), f"siren.resources missing {name}"
+
+
+def test_three_body_mode_bound():
+    """siren.injection.ThreeBodyMode exposes Direct and Recursive."""
+    import siren
+    assert hasattr(siren.injection.ThreeBodyMode, "Direct")
+    assert hasattr(siren.injection.ThreeBodyMode, "Recursive")
