@@ -23,4 +23,5 @@ def generate(injector, weighter, *, events, on_shortfall="warn",
         min_efficiency=min_efficiency)
     weights = weighter.weight_all(trees)
     gen_times = [0.0] * len(trees)
-    return Results(list(trees), list(weights), gen_times, weighter, injector)
+    return Results(list(trees), list(weights), gen_times, weighter, injector,
+                   requested=events)

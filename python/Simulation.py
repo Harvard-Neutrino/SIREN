@@ -32,14 +32,39 @@ from . import injection as _injection
 from . import utilities as _utilities
 from . import detector as _detector
 from . import math as _math
-from ._util import GenerateEvents as _GenerateEvents
 from .Results import Results
 from ._validation import (
-    validate_injection_distributions,
     validate_physical_distributions,
     validate_reweighting_compatibility,
     collect_set_variables,
 )
+from ._validation import validate_physical_distributions
+from .errors import ConfigurationError, MeasureCompatibilityError
+
+
+def _is_vertex(obj):
+    """Whether `obj` is a Vertex spec (duck-typed).
+
+    A Vertex carries a resolved particle plus interaction and distribution
+    lists; a plain particle name or ParticleType does not. Detection is by
+    attribute presence so the check does not import the Vertex class.
+    """
+    return (
+        not isinstance(obj, str)
+        and hasattr(obj, "_resolved_particle")
+        and hasattr(obj, "interactions")
+        and hasattr(obj, "distributions")
+    )
+
+
+def _is_biasing_object(obj):
+    """Whether `obj` is a channel-algebra biasing spec.
+
+    Directed, channels.Mixture, and Directed.by_signature() results all
+    expose ``to_mixture`` and ``compile``; the dict / Geometry forms handled
+    by ``bias_targets`` do not.
+    """
+    return hasattr(obj, "to_mixture") or hasattr(obj, "compile")
 
 
 class Simulation:
@@ -67,7 +92,7 @@ class Simulation:
     interactions : str or list
         Interaction model name (e.g. ``"CSMSDISSplines"``) or a list of
         CrossSection/Decay objects.  When a string is provided, additional
-        kwargs (``target``, ``process``, ``isoscalar``, and any extra
+        kwargs (``targets``, ``process``, ``isoscalar``, and any extra
         ``**process_kwargs``) are forwarded to ``load_processes``.
     energy : distribution, optional
         Energy distribution, used for both injection and weighting.
@@ -153,7 +178,7 @@ class Simulation:
         events=None,
         detector,
         primary,
-        interactions,
+        interactions=None,
         # Shared distributions (used for both injection and physical)
         energy=None,
         direction=None,
@@ -183,6 +208,10 @@ class Simulation:
         bias_spectator=None,
         # Particle mass
         mass=None,
+        # Spec-form entry points (compile to the same internal structures)
+        weighting=None,
+        biasing=None,
+        secondaries=(),
         # Forward to load_processes
         **process_kwargs,
     ):
@@ -208,15 +237,8 @@ class Simulation:
                 "Simulation() missing required keyword-only argument: 'events'"
             )
 
-        # ---- Resolve particle types ----
-        self._primary_type = _particles.resolve(primary)
-        if targets is None:
-            self._target_types = None
-        else:
-            try:
-                self._target_types = [_particles.resolve(targets)]
-            except TypeError:
-                self._target_types = [_particles.resolve(t) if t is not None else None for t in targets]
+        # ---- Store the per-vertex weighting mode (applied at build time) ----
+        self._weighting_mode = weighting
 
         # ---- Resolve detector ----
         if isinstance(detector, str):
@@ -226,9 +248,40 @@ class Simulation:
             self._detector_model = detector
             self._detector_name = None
 
+        # ---- Resolve the primary vertex ----
+        # `primary` may be a full Vertex spec (carrying its own interactions
+        # and distributions) or a plain particle name / ParticleType. A Vertex
+        # is duck-typed by the fields Vertex exposes.
+        primary_vertex = primary if _is_vertex(primary) else None
+        if primary_vertex is not None:
+            self._primary_type = primary_vertex._resolved_particle
+        else:
+            self._primary_type = _particles.resolve(primary)
+        if targets is None:
+            self._target_types = None
+        else:
+            try:
+                self._target_types = [_particles.resolve(targets)]
+            except TypeError:
+                self._target_types = [_particles.resolve(t) if t is not None else None for t in targets]
+
         # ---- Resolve interactions ----
         self._secondary_processes = {}
-        self._init_interactions(interactions, process, isoscalar, process_kwargs)
+        if primary_vertex is not None:
+            if interactions is not None:
+                raise TypeError(
+                    "Simulation() got both a Vertex 'primary' and "
+                    "'interactions'. A Vertex carries its own interactions; "
+                    "pass one or the other.")
+            self._primary_interactions = list(primary_vertex.interactions)
+            self._process_metadata = ()
+        else:
+            if interactions is None:
+                raise TypeError(
+                    "Simulation() missing required keyword-only argument: "
+                    "'interactions'")
+            self._init_interactions(
+                interactions, process, isoscalar, process_kwargs)
 
         # ---- Resolve secondary interactions ----
         if secondary_interactions is not None:
@@ -238,25 +291,55 @@ class Simulation:
             self._secondary_processes = resolved
 
         # ---- Resolve distributions ----
-        self._resolve_distributions(
-            energy=energy,
-            direction=direction,
-            position=position,
-            injection_energy=injection_energy,
-            physical_energy=physical_energy,
-            injection_direction=injection_direction,
-            physical_direction=physical_direction,
-            flux=flux,
-            mass=mass,
-            injection_distributions=injection_distributions,
-            physical_distributions=physical_distributions,
-        )
+        # A Vertex primary supplies its own injection distributions; the
+        # explicit energy/direction/position kwargs otherwise drive the
+        # injection and physical lists.
+        if primary_vertex is not None and primary_vertex.distributions:
+            self._resolve_distributions_from_vertex(
+                primary_vertex,
+                energy=energy,
+                direction=direction,
+                physical_energy=physical_energy,
+                physical_direction=physical_direction,
+                flux=flux,
+                injection_distributions=injection_distributions,
+                physical_distributions=physical_distributions,
+            )
+        else:
+            self._resolve_distributions(
+                energy=energy,
+                direction=direction,
+                position=position,
+                injection_energy=injection_energy,
+                physical_energy=physical_energy,
+                injection_direction=injection_direction,
+                physical_direction=physical_direction,
+                flux=flux,
+                mass=mass,
+                injection_distributions=injection_distributions,
+                physical_distributions=physical_distributions,
+            )
+
+        # ---- Resolve secondary interaction vertices (spec form) ----
+        # A non-empty `secondaries` tuple of Vertex specs populates the
+        # secondary processes, their injection distributions, and their
+        # phase spaces; it is an alternative to the
+        # secondary_interactions/secondary_position kwargs.
+        self._secondary_injection_distributions = {}
+        self._secondary_phase_spaces = {}  # {InteractionSignature: MultiChannelPhaseSpace}
+        secondary_specs = list(secondaries) if secondaries else []
+        if secondary_specs:
+            if secondary_interactions is not None:
+                raise ValueError(
+                    "Simulation() got both 'secondaries' Vertex specs and "
+                    "'secondary_interactions'. Use one secondary-configuration "
+                    "surface only.")
+            self._resolve_secondaries_from_specs(secondary_specs)
 
         # ---- Resolve secondary position ----
-        self._secondary_injection_distributions = {}
         if secondary_position is not None:
             self._resolve_secondary_position(secondary_position)
-        elif self._secondary_processes:
+        elif self._secondary_processes and not self._secondary_injection_distributions:
             raise ValueError(
                 "Secondary interaction processes were configured "
                 f"(for {list(self._secondary_processes.keys())}), but no "
@@ -265,8 +348,17 @@ class Simulation:
                 "secondary_position= to Simulation().")
 
         # ---- Resolve secondary biasing ----
-        self._secondary_phase_spaces = {}  # {InteractionSignature: MultiChannelPhaseSpace}
-        if bias_targets is not None:
+        # `biasing` (a Directed / Mixture / Directed.by_signature object) and
+        # the bias_targets/bias_daughter kwargs are mutually exclusive routes
+        # to the same per-signature phase-space map.
+        if biasing is not None and bias_targets is not None:
+            raise ConfigurationError(
+                "Simulation() got both 'biasing' and 'bias_targets'. These "
+                "configure the same per-signature phase-space biasing; pass "
+                "one or the other.")
+        if biasing is not None:
+            self._resolve_biasing_object(biasing)
+        elif bias_targets is not None:
             if bias_daughter is None:
                 raise ValueError(
                     "'bias_daughter' is required when 'bias_targets' is set. "
@@ -479,6 +571,130 @@ class Simulation:
         self._injection_distributions = injection
         self._physical_distributions = physical
 
+    def _resolve_distributions_from_vertex(
+        self, vertex, energy, direction, physical_energy, physical_direction,
+        flux, injection_distributions, physical_distributions,
+    ):
+        """Resolve distributions when the primary is a Vertex spec.
+
+        The Vertex's own distribution list is the injection list (it already
+        carries mass/energy/direction/position samplers); any explicit
+        ``injection_distributions`` are appended to it, matching how the named
+        keyword path composes them. The physical list is taken from the
+        Vertex's ``physical`` field when present, else built from the explicit
+        ``physical_energy``/``flux`` and ``physical_direction`` (falling back to
+        the shared ``energy``/``direction`` kwargs, then to the energy- and
+        direction-carrying members of the injection list). Explicit
+        ``physical_distributions`` are appended to whichever physical list
+        results.
+        """
+        self._injection_distributions = (
+            list(vertex.distributions) + list(injection_distributions or []))
+
+        if flux is not None and physical_energy is not None:
+            raise ValueError(
+                "Cannot specify both 'flux' and 'physical_energy'. "
+                "'flux' is an alias for 'physical_energy'."
+            )
+
+        if getattr(vertex, "physical", None):
+            self._physical_distributions = (
+                list(vertex.physical) + list(physical_distributions or []))
+            return
+
+        phys_energy = physical_energy if physical_energy is not None else flux
+        if phys_energy is None:
+            phys_energy = energy
+        phys_dir = physical_direction
+        if phys_dir is None:
+            phys_dir = direction
+
+        phys = []
+        if phys_energy is not None:
+            phys.append(phys_energy)
+        else:
+            phys.extend(
+                d for d in self._injection_distributions
+                if isinstance(d, _distributions.PrimaryEnergyDistribution))
+        if phys_dir is not None:
+            phys.append(phys_dir)
+        else:
+            phys.extend(
+                d for d in self._injection_distributions
+                if isinstance(d, _distributions.PrimaryDirectionDistribution))
+        phys.extend(physical_distributions or [])
+        self._physical_distributions = phys
+
+    def _resolve_secondaries_from_specs(self, secondaries):
+        """Populate secondary structures from a list of Vertex specs.
+
+        Each Vertex maps to one secondary type: its interaction list becomes
+        the secondary process, its distribution list becomes the secondary
+        injection distributions, and its ``kinematics`` (a Directed / Mixture)
+        compiles to a per-signature phase space for every signature the
+        vertex's models can produce.
+        """
+        for vertex in secondaries:
+            if not _is_vertex(vertex):
+                raise ConfigurationError(
+                    "Simulation(secondaries=...): each entry must be a Vertex "
+                    "spec, got {!r}".format(type(vertex).__name__))
+            sec_type = vertex._resolved_particle
+            self._secondary_processes[sec_type] = list(vertex.interactions)
+            self._secondary_injection_distributions[sec_type] = list(
+                vertex.distributions)
+            if vertex.kinematics is not None:
+                self._compile_biasing_for_models(
+                    vertex.kinematics, vertex.interactions)
+
+    def _resolve_biasing_object(self, biasing):
+        """Build per-signature phase spaces from a channel-algebra spec.
+
+        `biasing` is a Directed, a channels.Mixture, or a
+        Directed.by_signature() result. It is compiled once per signature
+        against the interaction model that owns that signature: the secondary
+        models when secondaries are configured, else the primary models.
+        """
+        if not _is_biasing_object(biasing):
+            raise ConfigurationError(
+                "Simulation(biasing=...): expected a Directed, a "
+                "channels.Mixture, or a Directed.by_signature() result, got "
+                "{!r}".format(type(biasing).__name__))
+        if self._secondary_processes:
+            for models in self._secondary_processes.values():
+                self._compile_biasing_for_models(biasing, models)
+        else:
+            self._compile_biasing_for_models(
+                biasing, self._primary_interactions)
+
+    def _compile_biasing_for_models(self, biasing, models):
+        """Compile `biasing` for every signature of every model in `models`.
+
+        Registers each compiled MultiChannelPhaseSpace under its signature in
+        ``self._secondary_phase_spaces``. A Directed / Directed.by_signature()
+        object exposes ``to_mixture(sig)``; a bare channels.Mixture is compiled
+        directly. A per-signature compilation that raises a measure/
+        configuration error is warned and skipped, matching the geometry-based
+        bias path.
+        """
+        import warnings
+        for model in models:
+            for sig in model.GetPossibleSignatures():
+                try:
+                    if hasattr(biasing, "to_mixture"):
+                        compilable = biasing.to_mixture(sig)
+                    else:
+                        compilable = biasing
+                    mcps = compilable.compile(
+                        sig, detector=self._detector_model, models=[model])
+                except (MeasureCompatibilityError, ConfigurationError) as exc:
+                    warnings.warn(
+                        f"Skipping biasing for signature {sig}: {exc}",
+                        stacklevel=3,
+                    )
+                    continue
+                self._secondary_phase_spaces[sig] = mcps
+
     @staticmethod
     def _find_daughter_index(signature, daughter_type):
         """Find the index of a daughter type in a signature.
@@ -505,9 +721,17 @@ class Simulation:
 
     @staticmethod
     def _build_phase_space_for_signature(
-        target, sig, interaction, daughter_type, spectator_type=None
+        target, sig, interaction, daughter_type, spectator_type=None,
+        fraction=0.99,
     ):
         """Build a MultiChannelPhaseSpace for one signature.
+
+        The physical fallback channel is appended FIRST at weight
+        ``1 - fraction``; the directed channel is appended SECOND at weight
+        ``fraction``. Channel selection walks cumulative weights in stored
+        order, so this order is part of the mixture's identity: at
+        ``fraction=0.99`` the compiled mixture is ``[physical@0.01,
+        directed@0.99]``.
 
         Parameters
         ----------
@@ -521,6 +745,9 @@ class Simulation:
             Which daughter to bias toward the target.
         spectator_type : ParticleType, optional
             For 3-body: which daughter is the spectator.
+        fraction : float
+            Weight assigned to the directed channel; ``1 - fraction`` goes
+            to the physical fallback.
 
         Returns
         -------
@@ -532,19 +759,20 @@ class Simulation:
         channels = []
         weights = []
 
-        # Physical channel (fallback for events that miss the target)
+        # Physical channel (fallback for events that miss the target),
+        # appended first so it occupies index 0 of the stored mixture.
         if isinstance(interaction, _interactions.Decay):
             channels.append(_injection.PhysicalDecayChannel(interaction, sig))
         else:
             channels.append(
                 _injection.PhysicalCrossSectionChannel(interaction, sig))
-        weights.append(0.01)
+        weights.append(1.0 - fraction)
 
         if n_sec == 2:
             channels.append(
                 _injection.DetectorDirected2BodyChannel(
                     target, daughter_idx))
-            weights.append(0.99)
+            weights.append(fraction)
 
         elif n_sec >= 3:
             # Determine spectator and pair indices
@@ -574,7 +802,7 @@ class Simulation:
                     pair_second_index=pair_indices[1],
                     directed_index=directed_pair_idx,
                 ))
-            weights.append(0.99)
+            weights.append(fraction)
 
         # Normalize
         total = sum(weights)
@@ -586,69 +814,77 @@ class Simulation:
         return mc
 
     def _resolve_bias_targets(self, bias_targets, daughter_type,
-                              spectator_type):
+                              spectator_type, fraction=0.99):
         """Build per-signature phase spaces for direction biasing.
 
         Parameters
         ----------
         bias_targets : Geometry or dict
             If a Geometry, biases all secondary signatures toward it.
-            If a dict, maps ``{InteractionSignature: MultiChannelPhaseSpace}``
-            for full control.
+            If a dict, maps ``{ParticleType: Geometry}`` to direct that type's
+            daughters toward its geometry, or
+            ``{InteractionSignature: MultiChannelPhaseSpace}`` for full control.
         daughter_type : ParticleType
             Which daughter to direct toward the target.
         spectator_type : ParticleType or None
             For 3-body: which daughter is the spectator.
+        fraction : float
+            Weight assigned to the directed channel in each built mixture;
+            ``1 - fraction`` goes to the physical fallback.
         """
         if isinstance(bias_targets, dict):
             for k, v in bias_targets.items():
                 if isinstance(v, _injection.MultiChannelPhaseSpace):
+                    # {InteractionSignature: MultiChannelPhaseSpace}: registered
+                    # verbatim under the signature key.
                     self._secondary_phase_spaces[k] = v
-                # else: v is a Geometry, k is a signature
-                # (unsupported; falls through without adding a phase space)
+                else:
+                    # {ParticleType: Geometry}: direct that type's daughters
+                    # toward the geometry, per signature that type's models can
+                    # produce.
+                    sec_type = _particles.resolve(k) if isinstance(k, str) else k
+                    interactions_list = self._secondary_processes.get(sec_type)
+                    if interactions_list is None:
+                        raise ConfigurationError(
+                            "bias_targets: key {!r} is not a configured "
+                            "secondary particle type".format(sec_type))
+                    self._bias_type_toward(
+                        interactions_list, v, daughter_type, spectator_type,
+                        fraction)
             return
 
         # Single geometry: build per-signature for all secondaries
         target = bias_targets
         for sec_type, interactions_list in self._secondary_processes.items():
-            decays = [x for x in interactions_list
-                      if isinstance(x, _interactions.Decay)]
-            cross_sections = [x for x in interactions_list
-                              if isinstance(x, _interactions.CrossSection)]
+            self._bias_type_toward(
+                interactions_list, target, daughter_type, spectator_type,
+                fraction)
 
-            for decay in decays:
-                for sig in decay.GetPossibleSignatures():
-                    try:
-                        mc = self._build_phase_space_for_signature(
-                            target, sig, decay,
-                            daughter_type, spectator_type,
-                        )
-                        self._secondary_phase_spaces[sig] = mc
-                    except ValueError:
-                        import warnings
-                        warnings.warn(
-                            f"Skipping biasing for signature {sig}: "
-                            f"bias_daughter {daughter_type} not found "
-                            f"or ambiguous in this channel.",
-                            stacklevel=3,
-                        )
+    def _bias_type_toward(self, interactions_list, target, daughter_type,
+                          spectator_type, fraction):
+        """Register directed phase spaces for one secondary type's signatures.
 
-            for xs in cross_sections:
-                for sig in xs.GetPossibleSignatures():
-                    try:
-                        mc = self._build_phase_space_for_signature(
-                            target, sig, xs,
-                            daughter_type, spectator_type,
-                        )
-                        self._secondary_phase_spaces[sig] = mc
-                    except ValueError:
-                        import warnings
-                        warnings.warn(
-                            f"Skipping biasing for signature {sig}: "
-                            f"bias_daughter {daughter_type} not found "
-                            f"or ambiguous in this channel.",
-                            stacklevel=3,
-                        )
+        Builds one MultiChannelPhaseSpace per signature every model in
+        ``interactions_list`` can produce, directing ``daughter_type`` toward
+        ``target``. A signature in which the daughter is absent or ambiguous is
+        skipped with a warning rather than aborting the whole configuration.
+        """
+        for interaction in interactions_list:
+            for sig in interaction.GetPossibleSignatures():
+                try:
+                    mc = self._build_phase_space_for_signature(
+                        target, sig, interaction,
+                        daughter_type, spectator_type, fraction,
+                    )
+                    self._secondary_phase_spaces[sig] = mc
+                except ValueError:
+                    import warnings
+                    warnings.warn(
+                        f"Skipping biasing for signature {sig}: "
+                        f"bias_daughter {daughter_type} not found "
+                        f"or ambiguous in this channel.",
+                        stacklevel=3,
+                    )
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
@@ -669,10 +905,17 @@ class Simulation:
     # ------------------------------------------------------------------ #
 
     def _build_injector(self):
-        """Construct and return an Injector from stored config."""
-        validate_injection_distributions(self._injection_distributions)
+        """Construct and return an Injector from stored config.
 
-        injector = _injection.Injector()
+        The Layer-2 Injector wrapper validates the injection distributions in
+        its own ``_build``, so the Simulation does not re-run
+        ``validate_injection_distributions`` here.
+        """
+        # The per-vertex weighting mode is a constructor-only field on the
+        # wrapper; when None (the default) it leaves the process at
+        # Propagated(), so the engine configuration is unchanged.
+        injector = _injection.Injector(
+            primary_weighting_mode=self._weighting_mode)
         injector.number_of_events = self._events
         injector.detector_model = self._detector_model
         injector.primary_type = self._primary_type
@@ -728,18 +971,52 @@ class Simulation:
     #  Run                                                                 #
     # ------------------------------------------------------------------ #
 
-    def run(self):
+    def run(self, *, optimize=False, on_shortfall="warn"):
         """Generate events and compute weights.
+
+        Parameters
+        ----------
+        optimize : bool or Plan, optional
+            When truthy, tune the injection chain's multi-channel phase-space
+            weights before generating the real events. ``True`` uses
+            ``tune()``'s defaults; a :class:`siren.tune.Plan` supplies its
+            keyword arguments. Tuning warms up the channel weights; the
+            injector's counters are reset afterward so the tuning batch does
+            not count against the requested event total.
+        on_shortfall : str, optional
+            Policy when fewer than ``events`` successful trees are generated:
+            ``'warn'`` (default), ``'raise'``, or ``'ignore'``.
 
         Returns
         -------
         Results
-            A :class:`Results` object containing events, weights,
-            and generation times.
+            A :class:`Results` object containing events, weights, and
+            per-event generation times. The generation times are the uniform
+            run-average (total generation wall-clock time divided evenly
+            across the events), not individually measured per-event times.
         """
+        import time
+
         injector = self._build_injector()
-        events, gen_times = _GenerateEvents(injector)
         weighter = self._build_weighter(injector)
+
+        if optimize:
+            self._optimize(injector, weighter, optimize)
+            # Clear the tuning batch's injected/attempt counters so the real
+            # generation starts from a full budget.
+            injector.reset()
+
+        # Forward generation to the Layer-2 injector, which counts successes,
+        # retries failed attempts, and applies the shortfall policy itself.
+        t0 = time.time()
+        events = injector.generate(self._events, on_shortfall=on_shortfall)
+        elapsed = time.time() - t0
+        # Generation is timed for the whole run, not per event, so record the
+        # uniform run-average (total wall-clock time split evenly across the
+        # events) rather than a measured per-event time.
+        per_event = (elapsed / len(events)) if events else 0.0
+        gen_times = [per_event] * len(events)
+
         weights = [weighter(event) for event in events]
 
         self._injector = injector
@@ -747,7 +1024,34 @@ class Simulation:
         self._last_events = events
         self._last_gen_times = gen_times
 
-        return Results(events, weights, gen_times, weighter, injector)
+        # Snapshot the requested count explicitly: generate() raises the
+        # injector's engine attempt quota to events * 1000, so its live
+        # number_of_events no longer reports the request.
+        return Results(events, weights, gen_times, weighter, injector,
+                       requested=self._events)
+
+    def _optimize(self, injector, weighter, optimize):
+        """Tune the injection chain's channel weights in place.
+
+        ``optimize`` is either ``True`` (tune with defaults) or a
+        :class:`siren.tune.Plan` carrying the ``tune()`` keyword arguments.
+        """
+        from .tune import tune as _tune, Plan as _Plan
+        if isinstance(optimize, _Plan):
+            plan = optimize
+            _tune(
+                injector, weighter,
+                events=plan.events,
+                rounds=plan.rounds,
+                rule=plan.rule,
+                metric=plan.metric,
+                damping=plan.damping,
+                min_weight=plan.min_weight,
+                failure_mode=plan.failure_mode,
+                group_directed=plan.group_directed,
+            )
+        else:
+            _tune(injector, weighter)
 
     # ------------------------------------------------------------------ #
     #  Reweight                                                            #
@@ -882,7 +1186,7 @@ class Simulation:
 
         return Results(
             self._last_events, weights, self._last_gen_times,
-            weighter, self._injector,
+            weighter, self._injector, requested=self._events,
         )
 
     # ------------------------------------------------------------------ #
@@ -929,6 +1233,77 @@ class Simulation:
         the Simulation class needing to know what the metadata means.
         """
         return self._process_metadata
+
+    @property
+    def injector(self):
+        """The Layer-2 :class:`siren.Injector` wrapper, built on first access.
+
+        After :meth:`run` returns this is the injector that run built and
+        used; run() always builds fresh and replaces any cached instance, so
+        a pre-run access does not configure the run. Exposes ``report()``,
+        ``export_tuning()``, ``apply_tuning()``, and ``engine``.
+        """
+        if self._injector is None:
+            self._injector = self._build_injector()
+        return self._injector
+
+    @property
+    def weighter(self):
+        """The Layer-2 :class:`siren.Weighter` wrapper, built on first access.
+
+        Built against :attr:`injector`; after :meth:`run` returns this is the
+        weighter that run built and used (run() replaces any cached
+        instance). Exposes ``explain(tree)`` and ``engine``.
+        """
+        if self._weighter is None:
+            self._weighter = self._build_weighter(self.injector)
+        return self._weighter
+
+    def describe(self):
+        """Return a human-readable multi-line summary of the pipeline.
+
+        Reports the requested event count, primary type, detector, interaction
+        and distribution kinds, any secondary processes, the per-signature
+        biasing count with its directed fraction, and the seed.
+        """
+        lines = ["Simulation:"]
+        lines.append("  events requested: {}".format(self._events))
+        lines.append("  primary type:     {}".format(self._primary_type))
+        detector = ("<loaded>" if self._detector_name is None
+                    else self._detector_name)
+        lines.append("  detector:         {}".format(detector))
+
+        n_primary = len(self._primary_interactions)
+        lines.append("  primary interactions: {} model(s)".format(n_primary))
+
+        inj_kinds = ", ".join(
+            sorted(type(d).__name__ for d in self._injection_distributions))
+        phys_kinds = ", ".join(
+            sorted(type(d).__name__ for d in self._physical_distributions))
+        lines.append("  injection distributions: {}".format(inj_kinds or "none"))
+        lines.append("  physical distributions:  {}".format(phys_kinds or "none"))
+
+        if self._secondary_processes:
+            lines.append("  secondary processes:")
+            for sec_type, models in self._secondary_processes.items():
+                lines.append("    {}: {} model(s)".format(
+                    sec_type, len(models)))
+        else:
+            lines.append("  secondary processes: none")
+
+        n_biased = len(self._secondary_phase_spaces)
+        if n_biased:
+            lines.append(
+                "  biasing: {} signature(s) with directed channels".format(
+                    n_biased))
+        else:
+            lines.append("  biasing: none")
+
+        if self._weighting_mode is not None:
+            lines.append("  weighting mode:   {}".format(self._weighting_mode))
+        lines.append("  seed:             {}".format(
+            self._seed if self._seed is not None else "<auto>"))
+        return "\n".join(lines)
 
     def __repr__(self):
         parts = [
