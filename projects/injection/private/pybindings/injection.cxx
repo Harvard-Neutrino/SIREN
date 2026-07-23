@@ -827,6 +827,8 @@ PYBIND11_MODULE(injection,m) {
     .def_readonly("physical", &VertexWeightFactors::physical)
     .def_readonly("interaction_prob", &VertexWeightFactors::interaction_prob)
     .def_readonly("position_prob", &VertexWeightFactors::position_prob)
+    .def_readonly("channel_density_topology", &VertexWeightFactors::channel_density_topology)
+    .def_readonly("channel_density_measure", &VertexWeightFactors::channel_density_measure)
     .def_readonly("channel_densities", &VertexWeightFactors::channel_densities)
     .def_readonly("cancelled", &VertexWeightFactors::cancelled)
     .def_readonly("flags", &VertexWeightFactors::flags);
