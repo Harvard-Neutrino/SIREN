@@ -8,6 +8,7 @@
 
 #include "SIREN/detector/DensityDistribution.h"
 #include "SIREN/detector/DensityDistribution1D.h"
+#include "SIREN/detector/CartesianAxisDensityDistribution.h"
 #include "SIREN/detector/Distribution1D.h"
 #include "SIREN/detector/Axis1D.h"
 #include "SIREN/detector/RadialAxis1D.h"
@@ -1372,14 +1373,49 @@ TEST(InverseIntegral, Axis_to_Distribution_connection)
                 F_res = -1;
             }
 
-            EXPECT_NEAR(A.InverseIntegral(p0, direction, A_int, R), A_res, std::abs(A_res)*1e-8);
-            EXPECT_NEAR(B.InverseIntegral(p0, direction, B_int, R), B_res, std::abs(B_res)*1e-7);
-            EXPECT_NEAR(C.InverseIntegral(p0, direction, C_int, R), C_res, std::abs(C_res)*1e-8);
-            EXPECT_NEAR(D.InverseIntegral(p0, direction, D_int, R), D_res, std::abs(D_res)*1e-8);
-            EXPECT_NEAR(E.InverseIntegral(p0, direction, E_int, R), E_res, std::abs(E_res)*1e-8);
-            EXPECT_NEAR(F.InverseIntegral(p0, direction, F_int, R), F_res, std::abs(F_res)*1e-8);
+            // Both sides are iterative solves: the library inverts with
+            // NewtonRaphson (xacc = 1e-6) over rombergIntegrate (tol =
+            // 1e-6), the reference roots qtrap (eps = 1e-8) with the same
+            // NewtonRaphson. Their disagreement scales like the integrator
+            // tolerance over the local density and reaches the 1e-5 scale
+            // in the tails, still far below the order-one errors of a real
+            // inversion bug.
+            EXPECT_NEAR(A.InverseIntegral(p0, direction, A_int, R), A_res, std::abs(A_res)*1e-4 + 1e-5);
+            EXPECT_NEAR(B.InverseIntegral(p0, direction, B_int, R), B_res, std::abs(B_res)*1e-4 + 1e-5);
+            EXPECT_NEAR(C.InverseIntegral(p0, direction, C_int, R), C_res, std::abs(C_res)*1e-4 + 1e-5);
+            EXPECT_NEAR(D.InverseIntegral(p0, direction, D_int, R), D_res, std::abs(D_res)*1e-4 + 1e-5);
+            EXPECT_NEAR(E.InverseIntegral(p0, direction, E_int, R), E_res, std::abs(E_res)*1e-4 + 1e-5);
+            EXPECT_NEAR(F.InverseIntegral(p0, direction, F_int, R), F_res, std::abs(F_res)*1e-4 + 1e-5);
         }
     }
+}
+
+// Keep this test below Axis_to_Distribution_connection: gtest runs suites in
+// first-registration order, and the random-input tests all draw from the
+// shared global rng_, so registering the InverseIntegral suite at the top of
+// the file would reshuffle the inputs every other test sees.
+TEST(InverseIntegral, CartesianDensityWithConstantUsesLocalDistance) {
+    CartesianAxis1D axis(
+        Vector3D(1.0, 0.0, 0.0), Vector3D(0.0, 0.0, 0.0));
+    PolynomialDistribution1D polynomial({2.0, 0.25});
+    DensityDistribution1D<CartesianAxis1D, PolynomialDistribution1D> density(
+        axis, polynomial);
+    // The segment starts away from the axis origin on purpose: the constant
+    // term must contribute per unit of distance traveled from the start, not
+    // per unit of absolute axis coordinate, and only a nonzero start
+    // coordinate distinguishes the two.
+    Vector3D start(3.0, 0.0, 0.0);
+    Vector3D direction(1.0, 0.0, 0.0);
+    constexpr double constant = 0.7;
+    constexpr double expected_distance = 1.25;
+    double integral = density.Integral(
+        start, direction, expected_distance)
+        + constant * expected_distance;
+
+    EXPECT_NEAR(
+        density.InverseIntegral(
+            start, direction, constant, integral, 5.0),
+        expected_distance, 1.0e-12);
 }
 
 int main(int argc, char** argv)
@@ -1387,4 +1423,3 @@ int main(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
-
