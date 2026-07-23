@@ -215,8 +215,10 @@ class TestEnsureZenodoArchive:
         dest = tmp / "skip_dest"
         alpha_dir = dest / "data" / "alpha"
         alpha_dir.mkdir(parents=True)
-        # Write the sentinel that ensure_zenodo_archive looks for
-        (alpha_dir / dl._EXTRACTED_SENTINEL).write_text("already done")
+        # A sentinel whose manifest is fully present on disk
+        (alpha_dir / "file1.txt").write_text("alpha-1")
+        (alpha_dir / dl._EXTRACTED_SENTINEL).write_text(
+            "zenodo:99999/test_archive.zip\ndata/alpha/file1.txt\n")
 
         called = []
         real_zenodo_file_url = dl.zenodo_file_url
@@ -228,6 +230,49 @@ class TestEnsureZenodoArchive:
         dl.ensure_zenodo_archive("99999", "test_archive.zip", str(dest),
                                  prefix="data/alpha")
         assert not called, "should have skipped download entirely"
+
+    def test_reextracts_when_manifest_file_missing(self, local_server, sample_zip, tmp, monkeypatch):
+        """A sentinel next to missing data triggers re-extraction, offline
+        when the zip is cached."""
+        srv, served = self._serve_zip(local_server, sample_zip)
+        dest = tmp / "heal_dest"
+        dest.mkdir()
+
+        called = []
+        monkeypatch.setattr(dl, "zenodo_file_url",
+                            lambda *a, **kw: (called.append(1),
+                                              f"{srv.url}/test_archive.zip")[1])
+
+        dl.ensure_zenodo_archive("99999", "test_archive.zip", str(dest),
+                                 prefix="data/alpha")
+        n_downloads = len(called)
+        data_file = dest / "data" / "alpha" / "file1.txt"
+        assert data_file.exists()
+
+        data_file.unlink()
+        dl.ensure_zenodo_archive("99999", "test_archive.zip", str(dest),
+                                 prefix="data/alpha")
+        assert data_file.read_text() == "alpha-1"
+        assert len(called) == n_downloads, "re-extraction should use the cached zip"
+
+    def test_legacy_sentinel_without_manifest_reextracts(self, local_server, sample_zip, tmp, monkeypatch):
+        """A sentinel with no file manifest cannot be verified, so the
+        data is extracted."""
+        srv, served = self._serve_zip(local_server, sample_zip)
+        dest = tmp / "legacy_dest"
+        alpha_dir = dest / "data" / "alpha"
+        alpha_dir.mkdir(parents=True)
+        (alpha_dir / dl._EXTRACTED_SENTINEL).write_text(
+            "zenodo:99999/test_archive.zip\n")
+
+        monkeypatch.setattr(dl, "zenodo_file_url",
+                            lambda *a, **kw: f"{srv.url}/test_archive.zip")
+
+        dl.ensure_zenodo_archive("99999", "test_archive.zip", str(dest),
+                                 prefix="data/alpha")
+        assert (alpha_dir / "file1.txt").read_text() == "alpha-1"
+        sentinel_text = (alpha_dir / dl._EXTRACTED_SENTINEL).read_text()
+        assert "data/alpha/file1.txt" in sentinel_text
 
     def test_does_not_skip_when_dir_has_only_py_files(self, local_server, sample_zip, tmp, monkeypatch):
         """Regression: directories with .py loaders but no data should NOT be skipped."""

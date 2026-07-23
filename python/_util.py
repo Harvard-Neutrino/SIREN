@@ -784,8 +784,65 @@ def load_detector(model_name, *args, **kwargs):
     return _detector_file_loader(model_name)
 
 
+class ProcessBundle:
+    """Normalized return type from ``load_processes``.
+
+    Behaves like a 2-tuple ``(primary, secondary)`` for unpacking::
+
+        primary, secondary = siren.load_processes("CSMSDISSplines", ...)
+
+    Any extra return values from the process loader are available as
+    the ``metadata`` attribute (a tuple of additional return values).
+    """
+
+    def __init__(self, primary, secondary, *extra):
+        self.primary = primary
+        self.secondary = secondary
+        self.metadata = extra
+
+    def __iter__(self):
+        yield self.primary
+        yield self.secondary
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, idx):
+        return (self.primary, self.secondary)[idx]
+
+    def __repr__(self):
+        n_primary = sum(len(v) for v in self.primary.values())
+        n_secondary = sum(len(v) for v in self.secondary.values())
+        extra = f", +{len(self.metadata)} metadata" if self.metadata else ""
+        return f"ProcessBundle({n_primary} primary, {n_secondary} secondary{extra})"
+
+
 def load_processes(model_name, *args, **kwargs):
-    return load_resource("processes", model_name, *args, **kwargs)
+    result = load_resource("processes", model_name, *args, **kwargs)
+    if result is None:
+        raise ValueError(
+            f"No process loader found for model '{model_name}'. "
+            "Check the model name and that its resource directory is installed.")
+    if isinstance(result, tuple):
+        if len(result) >= 2:
+            return ProcessBundle(result[0], result[1], *result[2:])
+        return ProcessBundle(result[0], {})
+    return ProcessBundle(result, {})
+
+
+def get_detector_model_targets(detector_model):
+    """Return the set of target ParticleTypes (nuclei) present in *detector_model*.
+
+    These are the material targets used by depth/range-based vertex
+    distributions (e.g. RangePositionDistribution), not the primary
+    projectile types.
+    """
+    targets = set()
+    count = 0
+    while detector_model.Materials.HasMaterial(count):
+        targets.update(detector_model.Materials.GetMaterialTargets(count))
+        count += 1
+    return targets
 
 def get_fiducial_volume(experiment):
     """
@@ -808,6 +865,62 @@ def get_fiducial_volume(experiment):
         from . import detector as _detector
         return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
     return None
+
+def get_volume_position_distribution_from_sector(detector_model, sector_name):
+    """Create a position distribution from a named detector sector.
+
+    Extracts the geometry from the sector, converts coordinates from
+    geometry frame to detector frame, and returns the appropriate
+    volume position distribution (Cylinder or Sphere).
+
+    Parameters
+    ----------
+    detector_model : DetectorModel
+        The loaded detector model.
+    sector_name : str
+        Name of the sector to use (e.g. "tilecal", "fiducial").
+
+    Returns
+    -------
+    CylinderVolumePositionDistribution or SphereVolumePositionDistribution
+    """
+    from . import detector as _detector
+    from . import geometry as _geometry
+    from . import distributions as _distributions
+
+    geo = None
+    for sector in detector_model.Sectors:
+        if sector.name == sector_name:
+            geo = sector.geo
+            break
+    if geo is None:
+        available = [s.name for s in detector_model.Sectors]
+        raise ValueError(
+            f"Sector {sector_name!r} not found. Available: {available}"
+        )
+
+    det_position = detector_model.GeoPositionToDetPosition(
+        _detector.GeometryPosition(geo.placement.Position)
+    )
+    det_rotation = geo.placement.Quaternion
+    det_placement = _geometry.Placement(det_position.get(), det_rotation)
+
+    if isinstance(geo, _geometry.Cylinder):
+        cylinder = _geometry.Cylinder(
+            det_placement, geo.Radius, geo.InnerRadius, geo.Z
+        )
+        return _distributions.CylinderVolumePositionDistribution(cylinder)
+    elif isinstance(geo, _geometry.Sphere):
+        sphere = _geometry.Sphere(
+            det_placement, geo.Radius, geo.InnerRadius
+        )
+        return _distributions.SphereVolumePositionDistribution(sphere)
+    else:
+        raise TypeError(
+            f"Sector geometry type {type(geo).__name__} not supported "
+            f"for position distribution"
+        )
+
 
 def list_fluxes():
     return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "fluxes"), _model_regex))
@@ -915,6 +1028,44 @@ def _get_detector_loader(detector_name):
 
 ###### Injector helper functions #######
 
+
+class _Progress:
+    """Progress indicator for the event loops."""
+
+    def __init__(self, total, label, stream=None, width=30):
+        self.total = int(total) if total else 0
+        self.label = label
+        self.stream = stream if stream is not None else sys.stdout
+        self.width = width
+        isatty = getattr(self.stream, "isatty", None)
+        self.tty = bool(isatty()) if callable(isatty) else False
+        self._finished = False
+
+    def _draw(self, count):
+        frac = count / self.total if self.total > 0 else 1.0
+        frac = max(0.0, min(1.0, frac))
+        filled = int(round(self.width * frac))
+        bar = "#" * filled + "-" * (self.width - filled)
+        self.stream.write("\r%s [%s] %d/%d" % (self.label, bar, count, self.total))
+        self.stream.flush()
+
+    def update(self, count):
+        if self.tty:
+            self._draw(count)
+
+    def finish(self, count=None):
+        if self._finished:
+            return
+        self._finished = True
+        n = self.total if count is None else count
+        if self.tty:
+            self._draw(n)
+            self.stream.write("\n")
+        else:
+            self.stream.write("%s %d/%d\n" % (self.label, n, self.total))
+        self.stream.flush()
+
+
 # Generate events using an injector object
 # Optionally save events to hdf5, parquet, and/or custom SIREN filetypes
 # If the weighter exists, calculate the event weight too
@@ -925,14 +1076,16 @@ def GenerateEvents(injector, N=None):
     gen_times = []
     prev_time = time.time()
     events = []
+    progress = _Progress(N, "Injecting events")
     while (injector.injected_events < injector.number_of_events) and (count < N):
-        print("Injecting Event %d/%d  " % (count, N), end="\r")
+        progress.update(count)
         event = injector.generate_event()
         events.append(event)
         t = time.time()
         gen_times.append(t-prev_time)
         prev_time = t
         count += 1
+    progress.finish(count)
     return events,gen_times
 
 def get_parent_indices(tree):
@@ -1097,6 +1250,12 @@ def SaveEvents(events,
                injector=None,
                output_filename=None):
 
+    # Ensure the output directory exists before any writer runs
+    if output_filename:
+        _out_dir = os.path.dirname(output_filename)
+        if _out_dir:
+            os.makedirs(_out_dir, exist_ok=True)
+
     # An omitted gen_times must not crash the per-event loop below (which
     # unconditionally indexes it) after files have already been written;
     # default to one zero per event, matching the shape SIREN_Controller
@@ -1150,8 +1309,9 @@ def SaveEvents(events,
         "secondary_momenta":[], # secondary momentum of each interaction
         "parent_idx":[], # index of the parent interaction
     }
+    progress = _Progress(len(events), "Saving events")
     for ie, event in enumerate(events):
-        print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
+        progress.update(ie + 1)
         t0 = time.time()
         if hepmc3_cv is not None:
             datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
@@ -1207,8 +1367,11 @@ def SaveEvents(events,
                                                                datum.record.secondary_momenta)):
                 datasets["secondary_types"][-1][-1].append(int(sec_type))
                 datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
-            datasets["num_secondaries"][-1].append(isec+1)
-        datasets["num_interactions"].append(id+1)
+            # Counted from the built lists; an empty tree leaves the loop
+            # variables stale.
+            datasets["num_secondaries"][-1].append(len(datasets["secondary_types"][-1][-1]))
+        datasets["num_interactions"].append(len(datasets["vertex"][-1]))
+    progress.finish(len(events))
 
     # save events
     ak_array = ak.Array(datasets)
