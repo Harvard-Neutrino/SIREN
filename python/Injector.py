@@ -600,24 +600,26 @@ class Injector:
     def load(cls, filename):
         """Construct an Injector from a saved archive.
 
-        The archive omits the random engine, so the reloaded injector is given
-        a FRESH, unseeded generation stream. RNG streams do not resume across
-        save/load: a saved seed is not restored, and generation begins anew.
-        (save() drops any stopping condition; pickle a chain that needs one.)
+        A version-2 archive carries the RNG engine state, so the reloaded
+        injector RESUMES its generation stream where the saved one left off.
+        Older (version 0/1) archives omit the engine; the reloaded injector then
+        starts a fresh unseeded stream. (save() drops any stopping condition;
+        pickle a chain that needs one.)
         """
         obj = cls()
         # Construct the engine through the archive-loading constructor rather
         # than loading into a __new__-allocated shell: __new__ allocates the
         # C++ storage without running any constructor, so the shell has no
         # vtable and the first virtual call (GetDetectorModel below) crashes.
-        # The constructor also takes the random engine the archive omits, so
-        # generate() does not dereference a null RNG; the event count is a
+        # The constructor takes a fresh engine that LoadInjector keeps only for
+        # archives that omit the RNG (version 0/1); a version-2 archive restores
+        # its own engine and this fallback is discarded. The event count is a
         # placeholder LoadInjector immediately overwrites from the archive.
-        # load() starts a fresh unseeded stream and records the drawn seed so
-        # obj.seed reflects the live stream.
         _random = _utilities.SIREN_random()
         obj.__injector = _Injector(1, filename, _random)
-        obj.__seed = _random.get_seed()
+        # Read the seed back from whichever engine is now installed (the
+        # restored one after a resume, or the fresh fallback otherwise).
+        obj.__seed = obj.__injector.GetRandom().get_seed()
         obj.__number_of_events = obj.__injector.EventsToInject()
         obj.__detector_model = obj.__injector.GetDetectorModel()
         primary_process = obj.__injector.GetPrimaryProcess()
@@ -644,11 +646,11 @@ class Injector:
 
     def __getstate__(self):
         from . import errors as _errors
-        # Build first: an unbuilt injector has no engine to pickle, and building
-        # resolves the generation seed so the state tuple carries a concrete
-        # seed (a fresh injector re-seeded from it reproduces this stream from
-        # the start). The guard then refuses exactly what save() refuses, minus
-        # the stopping condition -- the state tuple preserves that.
+        # Build first: an unbuilt injector has no engine to pickle. The pickled
+        # injector state carries the RNG engine state (version 2), so an
+        # unpickled injector RESUMES this stream where it left off; self.__seed
+        # rides along as a label. The guard then refuses exactly what save()
+        # refuses, minus the stopping condition -- the state tuple preserves that.
         if self.__injector is None:
             self._build()
         self._guard_serializable(_errors, for_pickle=True)
@@ -681,16 +683,10 @@ class Injector:
             self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
             self.__secondary_phase_spaces[secondary_type] = secondary_process.GetPhaseSpaceMap()
-        # The C++ archive omits the random engine, so install a fresh one:
-        # generate() skips _build once the engine exists and would otherwise
-        # dereference a null RNG. RNG streams do NOT resume across a pickle
-        # round-trip -- the stored seed re-seeds a fresh stream, so a fresh
-        # injector and this unpickled one produce the same stream from the
-        # start (the seed was resolved during __getstate__'s build).
-        if self.__seed is not None:
-            self.__injector.SetRandom(_utilities.SIREN_random(self.__seed))
-        else:
-            self.__injector.SetRandom(_utilities.SIREN_random())
+        # The version-2 archive carried the RNG engine state, so the C++
+        # __setstate__ above already restored it: generation RESUMES where the
+        # pickled injector left off, and no re-seed is needed. self.__seed (from
+        # the state tuple) still labels the originating seed.
         # The stopping condition rode along in the state tuple but must be
         # re-attached to the engine; otherwise the engine default prunes every
         # secondary and silently truncates chains.

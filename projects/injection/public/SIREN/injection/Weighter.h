@@ -116,6 +116,9 @@ struct EventWeightBreakdown {
 // Assumes there is a unique secondary physical process for each particle type
 class Weighter {
 private:
+    // Empty weighter for LoadWeighter's temp-and-swap; a failed parse never mutates the live weighter.
+    Weighter() = default;
+
     // Supplied by constructor
     std::vector<std::shared_ptr<Injector>> injectors;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
@@ -155,6 +158,18 @@ public:
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Injectors", injectors));
+            archive(::cereal::make_nvp("DetectorModel", detector_model));
+            archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
+            archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+        } else {
+            throw std::runtime_error("Weighter only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("Injectors", injectors));
             archive(::cereal::make_nvp("DetectorModel", detector_model));

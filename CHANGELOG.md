@@ -13,9 +13,12 @@
 
 - Event weights are normalized by the realized injected-event count instead of the configured target count (falls back to the configured count when weighting precedes generation).
 - ConvertDensity now rejects non-Decay2Body SolidAngleLab conversions as unconvertible (MeasureCompatibilityError) instead of silently applying the parent-rest-frame two-body boost Jacobian in the wrong frame; Decay2Body SolidAngleLab conversions are unchanged.
+- Distribution cancellation between an injection process and its physical process matches by value (WeightableDistribution::operator==) rather than shared-pointer identity, as the in-tree documentation everywhere already claimed. Weights change only for distributions that are value-equal but distinct instances, which previously evaluated on both sides of the ratio: that ratio was already 1 for them, except for the 0/0 edge pairs that previously threw WeightCalculationError and now cancel cleanly. Distributions that are literally shared (the common case) compare equal exactly as before, so their weights do not move. The documented Weighter.load()-with-live-injectors path, which binds deserialized physical distributions against live injection distributions, now cancels them as intended (deserialized and live instances are never pointer-equal, so identity matching could never fire).
 
 ### Fixed
 
+- Weighter archives carry a magic+version header tied to the class version, load into a temporary so a failed parse cannot half-mutate the live weighter, name the file in load errors, and still read headerless version-0 archives.
+- Injector archives load into a temporary and move-assign, so a failed parse cannot half-mutate the live injector, and the load errors name the file and which parse (headered or headerless) failed, matching the weighter. The archive header version is now tied to the class version on the save side of both the injector and the weighter, rather than a hand-tracked constant. Enum fields validate their range on load: VertexWeightingMode's bound source and the HNL decay/dipole channel enums (HNLDecay and HNLDipoleDecay ChiralNature, HNLDipoleFromTable HelicityChannel) throw a named runtime error on an out-of-range value instead of silently accepting a corrupt archive. DarkNewsDecay's load_and_construct is now static, the form cereal requires, so a concrete subclass would deserialize through it. The trampoline cereal load unpickles the Python state bytes once instead of twice, so a model's __setstate__ side effects no longer run twice on reload.
 
 ### Added
 

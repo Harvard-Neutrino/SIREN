@@ -4,6 +4,7 @@
 #include <array>                                                  // for array
 #include <cassert>                                                // for assert
 #include <cmath>                                                  // for exp, isfinite
+#include <cstdint>                                                // for uint32_t
 #include <initializer_list>                                       // for ini...
 #include <iostream>                                               // for ope...
 #include <limits>                                                 // for quiet_NaN
@@ -371,23 +372,85 @@ std::vector<double> Weighter::GetSurvivalProbabilities(siren::dataclasses::Inter
     return survival_probs;
 }
 
+namespace {
+// Header word marking a version-stamped weighter archive; headerless archives
+// begin directly with the Injectors payload.
+constexpr std::uint32_t kWeighterArchiveMagic = 0x53575447; // "SWGT"
+} // anonymous namespace
+
 void Weighter::SaveWeighter(std::string const & filename) const {
-    std::ofstream os(filename+".siren_weighter", std::ios::binary);
+    std::string const path = filename + ".siren_weighter";
+    std::ofstream os(path, std::ios::binary);
+    if(!os) {
+        throw std::runtime_error(
+            "Failed to open weighter archive '" + path + "' for writing");
+    }
     ::cereal::BinaryOutputArchive archive(os);
-    this->save(archive,0);
+    std::uint32_t magic = kWeighterArchiveMagic;
+    // ::cereal::detail::Version<Weighter> is what CEREAL_CLASS_VERSION registered,
+    // so the header version can never drift from the class version.
+    std::uint32_t version = ::cereal::detail::Version<Weighter>::version;
+    archive(magic, version);
+    this->save(archive, version);
 }
 
 void Weighter::LoadWeighter(std::string const & filename) {
-    std::ifstream is(filename+".siren_weighter", std::ios::binary);
-    ::cereal::BinaryInputArchive archive(is);
-    // Read members in the same order Weighter::save writes them; the polymorphic
-    // Injector / PhysicalProcess (and the cross sections and decays they hold)
-    // are reconstructed via their registered cereal load hooks. Then rebuild the
-    // per-process weighters.
-    archive(::cereal::make_nvp("Injectors", injectors));
-    archive(::cereal::make_nvp("DetectorModel", detector_model));
-    archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
-    archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+    std::string const path = filename + ".siren_weighter";
+    // A missing file otherwise surfaces as a cryptic cereal stream error; name it.
+    {
+        std::ifstream is(path, std::ios::binary);
+        if(!is) {
+            throw std::runtime_error(
+                "Failed to load weighter archive '" + path + "': cannot open file");
+        }
+    }
+    // Headered archive: magic word, then version, then the version-0 payload.
+    // Parse into a TEMPORARY and move-assign so a failed parse cannot leave
+    // *this half-mutated. The polymorphic Injector / PhysicalProcess (and the
+    // cross sections and decays they hold) are reconstructed via their
+    // registered cereal load hooks; Initialize() then rebuilds the per-process
+    // weighters.
+    {
+        std::ifstream is(path, std::ios::binary);
+        ::cereal::BinaryInputArchive archive(is);
+        std::uint32_t magic = 0;
+        try {
+            archive(magic);
+        } catch(...) {
+            // Too short to hold a magic word; fall through to the headerless path.
+            magic = 0;
+        }
+        if(magic == kWeighterArchiveMagic) {
+            try {
+                std::uint32_t version = 0;
+                archive(version);
+                Weighter temp;
+                temp.load(archive, version);
+                *this = std::move(temp);
+            } catch(std::exception const & e) {
+                throw std::runtime_error(
+                    "Failed to load weighter archive '" + path
+                    + "': the headered parse failed: " + e.what());
+            }
+            Initialize();
+            return;
+        }
+    }
+    // Headerless (legacy version-0) archive: the first word was the Injectors
+    // payload, not a magic word. Reparse the whole stream from the start as the
+    // version-0 schema, again into a temporary.
+    try {
+        std::ifstream is(path, std::ios::binary);
+        ::cereal::BinaryInputArchive archive(is);
+        Weighter temp;
+        temp.load(archive, 0);
+        *this = std::move(temp);
+    } catch(std::exception const & e) {
+        throw std::runtime_error(
+            "Failed to load weighter archive '" + path
+            + "': not a headered archive and the headerless version-0 parse "
+              "failed: " + e.what());
+    }
     Initialize();
 }
 
