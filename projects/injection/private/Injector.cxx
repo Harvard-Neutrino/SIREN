@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 
 #include <rk/rk.hh>
 
@@ -381,7 +382,21 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         }
     } catch(siren::utilities::InjectionFailure const & e) {
         failed_events += 1;
+        siren::utilities::FailureReason reason = e.reason();
+        if(reason == siren::utilities::FailureReason::Unspecified) {
+            reason = siren::utilities::FailureReason::PrimaryVertexFailure;
+        }
+        int primary_pdg = static_cast<int>(primary_process->GetPrimaryType());
+        failure_ledger_.Record(0, primary_pdg, reason, e.what());
         last_failure_reason_ = e.what();
+        // A vertex-distribution throw fires before Finalize sets the signature,
+        // so stamp the primary type to keep the partial tree readable.
+        if(record.signature.primary_type == siren::dataclasses::ParticleType::unknown) {
+            record.signature.primary_type = primary_process->GetPrimaryType();
+        }
+        siren::dataclasses::InteractionTree partial_tree;
+        partial_tree.add_entry(record);
+        last_failed_tree_ = std::move(partial_tree);
         return siren::dataclasses::InteractionTree();
     }
     siren::dataclasses::InteractionTree tree;
@@ -394,6 +409,12 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
             siren::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
             std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
+                // This secondary type has no registered follow-on process,
+                // so it is pruned from the tree while the parent event still
+                // succeeds. FailureLedger and failed_events are reserved for
+                // outcomes that discard the tree, so this case is counted
+                // separately instead.
+                unregistered_secondary_count_ += 1;
                 continue;
             }
             if(stopping_condition(tree, parent, i)) {
@@ -427,6 +448,12 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                     add_secondaries(secondary_datum);
                 } catch(siren::utilities::InjectionFailure const & e) {
                     failed_events += 1;
+                    int secondary_depth = static_cast<int>(parent->depth(tree)) + 1;
+                    int parent_pdg = static_cast<int>(parent->record.signature.primary_type);
+                    std::ostringstream oss;
+                    oss << e.what() << " (secondary pdg " << current_secondary_pdg << ")";
+                    failure_ledger_.Record(secondary_depth, parent_pdg,
+                        e.reason(), oss.str());
                     last_failure_reason_ = e.what();
                     last_failed_tree_ = std::move(tree);
                     return siren::dataclasses::InteractionTree();
@@ -435,7 +462,11 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         }
     } catch(siren::utilities::InjectionFailure const & e) {
         failed_events += 1;
+        int root_pdg = tree.tree.empty() ? 0
+            : static_cast<int>(tree.tree.front()->record.signature.primary_type);
+        failure_ledger_.Record(0, root_pdg, siren::utilities::FailureReason::TopLevelCatch, e.what());
         last_failure_reason_ = e.what();
+        last_failed_tree_ = std::move(tree);
         return siren::dataclasses::InteractionTree();
     }
     tree.header.event_number = injected_events;
@@ -653,6 +684,10 @@ unsigned int Injector::FailedEvents() const {
     return failed_events;
 }
 
+unsigned int Injector::UnregisteredSecondaryCount() const {
+    return unregistered_secondary_count_;
+}
+
 std::string Injector::GetLastFailureReason() const {
     return last_failure_reason_;
 }
@@ -661,11 +696,17 @@ siren::dataclasses::InteractionTree const & Injector::GetLastFailedTree() const 
     return last_failed_tree_;
 }
 
+FailureLedger const & Injector::GetFailureLedger() const {
+    return failure_ledger_;
+}
+
 void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     this->events_to_inject = events_to_inject;
     injected_events = 0;
     injection_attempts = 0;
     failed_events = 0;
+    unregistered_secondary_count_ = 0;
+    failure_ledger_.Clear();
     last_failure_reason_.clear();
     last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
@@ -674,6 +715,8 @@ void Injector::ResetInjectedEvents() {
     injected_events = 0;
     injection_attempts = 0;
     failed_events = 0;
+    unregistered_secondary_count_ = 0;
+    failure_ledger_.Clear();
     last_failure_reason_.clear();
     last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
