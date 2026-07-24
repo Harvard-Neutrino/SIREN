@@ -212,3 +212,37 @@ def test_mixture_path_returns_report():
     # returns a report noting the build-time probe rather than crashing.
     assert isinstance(report, siren.ClosureReport)
     assert report.notes
+
+
+# ------------------------------------------------------------------ #
+#  moment_z is keyed by the measured coordinate, not fanned out       #
+# ------------------------------------------------------------------ #
+
+class MultiVarIsoDecay(siren.DecayModel):
+    """A correct isotropic decay that declares SEVERAL DensityVariables. The
+    gauge measures a single angular coordinate, so moment_z must carry one entry
+    keyed by that coordinate -- never one entry per declared variable."""
+
+    parent = "N4"
+    daughters = ("NuLight", "Gamma")
+    measure = siren.Measure.SolidAngleRest()
+
+    def total_width(self):
+        return 1.0
+
+    def differential_width(self, record):
+        return 1.0 / (4.0 * math.pi)
+
+    def density_variables(self):
+        return ["s_pair", "cos_theta_sub"]
+
+
+def test_moment_z_keyed_by_coordinate_not_density_variables():
+    report = siren.check_closure(MultiVarIsoDecay(), samples=3000, seed=0)
+    # A single coordinate is measured, so a single moment entry is reported.
+    assert len(report.moment_z) == 1
+    (name,) = report.moment_z
+    # It is keyed by the coordinate actually sampled, not by a declared variable.
+    assert name.startswith("costheta_secondary")
+    assert "s_pair" not in report.moment_z
+    assert "cos_theta_sub" not in report.moment_z
