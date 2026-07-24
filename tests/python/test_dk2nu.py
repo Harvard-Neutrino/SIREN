@@ -180,3 +180,19 @@ def test_frame_graph_transform_flows_through():
     assert record.interaction_vertex == pytest.approx(survey.t)
     assert record.three_momentum == pytest.approx(
         np.asarray(survey.R) @ [0.1, 0.2, 1.5])
+
+
+def test_negative_nimpwt_rows_are_dropped_with_notice(capsys):
+    """EXP importance reweighting occasionally emits negative-nimpwt rows
+    (bookkeeping artifacts). The builder drops them with a notice instead of
+    handing the engine a negative physical row weight, and the surviving
+    weight total sets the distribution's normalization."""
+    data = {k: np.concatenate([v, v, v]) if isinstance(v, np.ndarray) else v
+            for k, v in _one_row_data().items()}
+    data["nimpwt"] = np.array([0.5, -0.125, 0.25])
+    dist = dk2nu.dk2nu_to_primary_distribution(
+        data, detector_model=None, frame="detector")
+    assert "dropping 1 row(s)" in capsys.readouterr().out
+    assert dist.GetPhysicalNumEvents() == 2
+    assert dist.IsNormalizationSet()
+    assert dist.normalization == pytest.approx((0.5 + 0.25) / data["pot"])
