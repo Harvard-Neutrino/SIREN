@@ -333,9 +333,8 @@ class TestVertex2_OffshellScatter:
                                sec_masses)
 
     def test_offshell_3body_conserves_momentum(
-            self, offshell_record, target, rng):
-        _P_STAR = injection.TwoBodyRestMomentum(M_CHI_PRIME, M_CHI, M_V1)
-        CHI_PRIME_WIDTH = G_D**2 * _P_STAR**3 / (6.0 * math.pi * M_CHI_PRIME**2)
+            self, offshell_xs, offshell_record, target, rng):
+        CHI_PRIME_WIDTH = offshell_xs._chi_prime_width()
         ch = injection.DetectorDirected3BodyChannel(
             factorization=injection.ThreeBodyMode.Recursive,
             target=target,
@@ -352,8 +351,7 @@ class TestVertex2_OffshellScatter:
 
     def test_offshell_3body_closure(
             self, offshell_xs, offshell_sig, offshell_record, target, rng):
-        _P_STAR = injection.TwoBodyRestMomentum(M_CHI_PRIME, M_CHI, M_V1)
-        CHI_PRIME_WIDTH = G_D**2 * _P_STAR**3 / (6.0 * math.pi * M_CHI_PRIME**2)
+        CHI_PRIME_WIDTH = offshell_xs._chi_prime_width()
         phys = injection.PhysicalCrossSectionChannel(offshell_xs, offshell_sig)
         directed = injection.DetectorDirected3BodyChannel(
             factorization=injection.ThreeBodyMode.Recursive,
@@ -506,11 +504,20 @@ class TestOnShellChain:
         events, weighter = _build_onshell_events(chain_module, n_events=10,
                                                  seed=99)
         assert len(events) > 0, "No events generated"
+        # A directed channel can propose kinematics outside the on-shell
+        # M_0,SF support (backward suppression), where the narrow-width
+        # physical density is exactly zero; such events carry weight 0 by
+        # design (wasted efficiency, not bias).
+        weights = []
         for ev in events:
             assert len(list(ev.tree)) >= 2
             w = weighter(ev)
             assert math.isfinite(w), f"Non-finite weight: {w}"
-            assert w > 0, f"Non-positive weight: {w}"
+            assert w >= 0, f"Negative weight: {w}"
+            weights.append(w)
+        positive = [w for w in weights if w > 0]
+        assert len(positive) >= max(1, len(weights) // 2), (
+            f"Too many zero-weight events: {weights}")
 
     def test_breakdown_sum_invariant(self, chain_module):
         """Product of per-vertex physical/generation factors equals the total
@@ -554,8 +561,8 @@ def _build_offshell_vertices(chain_module, vp, fiducial):
     visible_decay = models["models"]["visible_decay"]
 
     sx = channels.PairMass.tabulated(*chain_module.build_sX_cdf(pion_decay))
-    p_star = injection.TwoBodyRestMomentum(M_CHI_PRIME, M_CHI, M_V1)
-    chip_width = G_D ** 2 * p_star ** 3 / (6.0 * math.pi * M_CHI_PRIME ** 2)
+    # The biasing Breit-Wigner mirrors the physical chi' resonance width.
+    chip_width = offshell_xs._chi_prime_width()
     sv = distributions.SecondaryPhysicalVertexDistribution
 
     primary = siren.Vertex(
@@ -637,8 +644,17 @@ class TestOffShellChain:
         weighter = Weighter(injector, primary_physical=primary.physical)
 
         assert len(events) > 0, "No events generated"
+        # A directed channel can propose kinematics outside the on-shell
+        # M_0,SF support (backward suppression), where the narrow-width
+        # physical density is exactly zero; such events carry weight 0 by
+        # design (wasted efficiency, not bias).
+        weights = []
         for ev in events:
             assert len(list(ev.tree)) >= 2
             w = weighter(ev)
             assert math.isfinite(w), f"Non-finite weight: {w}"
-            assert w > 0, f"Non-positive weight: {w}"
+            assert w >= 0, f"Negative weight: {w}"
+            weights.append(w)
+        positive = [w for w in weights if w > 0]
+        assert len(positive) >= max(1, len(weights) // 2), (
+            f"Too many zero-weight events: {weights}")

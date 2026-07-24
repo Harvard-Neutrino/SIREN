@@ -66,10 +66,10 @@ class _Stub:
 # Kinematic helpers (inlined from DarkNews phase_space)
 # ---------------------------------------------------------------------------
 
-def _Q2max(E, m_ups, M):
+def _Q2max(E, m1, m_ups, M):
     """Maximum Q2 for 2->2 scattering m1 + M -> m3 + M at lab energy E.
+    Exact unequal-mass 2->2 limit.
     Q2 = -(p1 - p3)^2 = 2*p1cm*p3cm*(1 + cos_theta_cm) at backward scattering."""
-    m1 = 0.0  # approximation: m_chi << everything else
     s = m1**2 + M**2 + 2.0 * M * E
     if s <= (m_ups + M)**2:
         return 0.0
@@ -81,9 +81,8 @@ def _Q2max(E, m_ups, M):
     return -t_min
 
 
-def _Q2min(E, m_ups, M):
-    """Minimum Q2 (forward scattering)."""
-    m1 = 0.0
+def _Q2min(E, m1, m_ups, M):
+    """Minimum Q2 (forward scattering). Exact unequal-mass 2->2 limit."""
     s = m1**2 + M**2 + 2.0 * M * E
     if s <= (m_ups + M)**2:
         return 0.0
@@ -100,6 +99,21 @@ def _two_body_p_cm(M, m1, m2):
     if arg <= 0.0:
         return 0.0
     return math.sqrt(arg) / (2.0 * M)
+
+
+def _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf):
+    """
+    Exact inversion of the on-axis forward two-body relation
+    E_nu(theta=0) = E_nu_rf (E_M + p_M)/m_M, giving E_M = 0.5 m_M (k + 1/k)
+    with k = E_nu/E_nu_rf.  The isotropic-mean inverse (gamma = E_nu/E_nu_rf)
+    understates the on-axis parent energy by up to a factor of two at high
+    boost; the collinear direction approximation itself is unchanged.  Returns
+    None when E_nu <= E_nu_rf (k <= 1 has no forward solution).
+    """
+    if E_nu <= E_nu_rf:
+        return None
+    k = E_nu / E_nu_rf
+    return 0.5 * m_meson * (k + 1.0 / k)
 
 
 def _boost_to_lab(P_parent, p_cm, cos_theta, phi, m_daughter):
@@ -138,38 +152,6 @@ def _primary_type(arg):
     return arg
 
 
-def _cos_theta_in_parent_rest(P_parent, P_child):
-    P_parent = np.asarray(P_parent, dtype=float)
-    P_child = np.asarray(P_child, dtype=float)
-    parent_p = P_parent[1:]
-    parent_p_mag = np.linalg.norm(parent_p)
-    child_p = P_child[1:]
-
-    if parent_p_mag < 1e-12:
-        child_p_mag = np.linalg.norm(child_p)
-        if child_p_mag < 1e-30:
-            return 1.0
-        return float(child_p[2] / child_p_mag)
-
-    parent_mass_sq = max(P_parent[0]**2 - parent_p_mag**2, 0.0)
-    parent_mass = math.sqrt(parent_mass_sq)
-    if parent_mass < 1e-12 or P_parent[0] <= 0.0:
-        return 1.0
-
-    beta = parent_p_mag / P_parent[0]
-    gamma = P_parent[0] / parent_mass
-    beta_hat = parent_p / parent_p_mag
-
-    child_p_parallel = float(np.dot(child_p, beta_hat))
-    child_p_perp = child_p - child_p_parallel * beta_hat
-    child_p_parallel_rest = gamma * (child_p_parallel - beta * P_child[0])
-    child_p_rest = child_p_perp + child_p_parallel_rest * beta_hat
-    child_p_rest_mag = np.linalg.norm(child_p_rest)
-    if child_p_rest_mag < 1e-30:
-        return 1.0
-    return float(np.dot(child_p_rest, beta_hat) / child_p_rest_mag)
-
-
 # ---------------------------------------------------------------------------
 # Helm nuclear form factor
 # ---------------------------------------------------------------------------
@@ -185,6 +167,53 @@ def _helm_F2(Q2, A):
     else:
         j1_over_Qr = (math.sin(Qr) - Qr * math.cos(Qr)) / Qr**3
     return (3.0 * j1_over_Qr)**2 * math.exp(-(Qfm * s)**2)
+
+
+# ===================================================================
+#  Dark-sector partial widths
+# ===================================================================
+
+def _v1_to_fermion_pair_width(m_V, m_f, coupling_sq):
+    """
+    Vector boson to a Dirac fermion pair, V -> f fbar.
+
+    coupling_sq is g^2 for V1 -> chi chi and (e eps)^2 for V1 -> e e; both
+    channels share this vector-coupling spin structure.
+    """
+    if m_V < 2.0 * m_f:
+        return 0.0
+    r = m_f / m_V
+    beta = math.sqrt(max(1.0 - 4.0 * r**2, 0.0))
+    return coupling_sq * m_V / (12.0 * math.pi) * beta * (1.0 + 2.0 * r**2)
+
+
+def _chi_prime_to_chi_v1_width(m_chi_prime, m_chi, m_V1, g_sq):
+    """
+    Fermion to a fermion plus a vector, chi' -> chi V1, via the coupling
+    g ubar(chi) gamma^mu u(chi') V_mu.  Reduces to the HNL N -> nu V limit
+    as m_chi -> 0.
+    """
+    if m_chi_prime < m_chi + m_V1:
+        return 0.0
+    p_star = _two_body_p_cm(m_chi_prime, m_chi, m_V1)
+    w = (m_chi_prime**2 + m_chi**2 - m_V1**2) / 2.0
+    bracket = (w - 3.0 * m_chi * m_chi_prime
+               + ((m_chi_prime**2 - m_chi**2)**2 - m_V1**4) / (2.0 * m_V1**2))
+    return (g_sq * p_star / (4.0 * math.pi * m_chi_prime**2)) * bracket
+
+
+def _v1_to_chi_chi_branching(m_V1, m_chi, g_D, epsilon):
+    """
+    Branching ratio BR(V1 -> chi chi) in this module's own width model.  At the
+    benchmark masses the only open V1 channels are chi chi and e+ e- (m_V1 lies
+    below 2 m_mu), so the branching is Gamma_chichi/(Gamma_chichi + Gamma_ee).
+    """
+    gamma_chichi = _v1_to_fermion_pair_width(m_V1, m_chi, g_D**2)
+    if gamma_chichi <= 0.0:
+        return 0.0
+    gamma_ee = _v1_to_fermion_pair_width(
+        m_V1, _M_ELECTRON, 4.0 * math.pi * _ALPHA_EM * epsilon**2)
+    return gamma_chichi / (gamma_chichi + gamma_ee)
 
 
 # ===================================================================
@@ -247,17 +276,20 @@ class VectorPortalUpsCase:
         mV = self.m_V
 
         s = m1**2 + M**2 + 2.0 * M * E
-        flux_sq = (s - M**2)**2
-        if flux_sq <= 0.0:
+        lam = (s - (m1 + M)**2) * (s - (m1 - M)**2)
+        if lam <= 0.0:
             return 0.0
 
-        delta_m2 = m3**2 - m1**2
-        numerator = 2.0 * M**2 * (2.0 * E * M - Q2 - delta_m2)
-        if numerator <= 0.0:
+        # M_{0,SF} of Dutta-Kim PRL 129,111803 Appendix B (scalar nucleus x
+        # fermionic chi) with E' = E - Q^2/(2M) substituted, so that
+        # dsigma/dQ2 = Z^2 F^2 (e eps g_D)^2 M_{0,SF}
+        #              / (16 pi lambda(s, m1^2, M^2) (Q2 + m_V^2)^2).
+        N_SF = 4.0 * (2.0 * M * E + (m1**2 - m3**2 - Q2) / 2.0)**2 - (4.0 * M**2 + Q2) * ((m3 - m1)**2 + Q2)
+        if N_SF <= 0.0:
             return 0.0
 
         propagator = 1.0 / (Q2 + mV**2)**2
-        M2 = self.g_D**2 * 4.0 * math.pi * _ALPHA_EM * self.epsilon**2 * numerator * propagator
+        M2 = self.g_D**2 * 4.0 * math.pi * _ALPHA_EM * self.epsilon**2 * N_SF * propagator
         F2 = _helm_F2(Q2, self.A)
         # Coherent scattering off the whole nucleus adds the charges of all Z
         # protons in phase, so the amplitude carries a factor Z and the cross
@@ -268,22 +300,35 @@ class VectorPortalUpsCase:
         # here left as strength 1).
         coherent_enhancement = self.Z**2 if self.scattering_regime == "coherent" else 1.0
 
-        dsig = M2 * F2 * coherent_enhancement / (16.0 * math.pi * flux_sq)
+        dsig = M2 * F2 * coherent_enhancement / (16.0 * math.pi * lam)
         return max(0.0, dsig) * _GEV2_TO_CM2
 
     def diff_xsec_Q2(self, E, Q2):
         return np.array(self._dsigma_dQ2(E, Q2))
 
     def total_xsec(self, E):
-        q2min = _Q2min(E, self.m_ups, self.MA)
-        q2max = _Q2max(E, self.m_ups, self.MA)
+        q2min = _Q2min(E, self.m_chi, self.m_ups, self.MA)
+        q2max = _Q2max(E, self.m_chi, self.m_ups, self.MA)
         if q2max <= q2min:
             return 0.0
-        result, _ = _integrate.quad(
-            lambda q2: self._dsigma_dQ2(E, q2),
-            q2min, q2max,
-            limit=80, epsrel=1e-4,
-        )
+        # The V2 propagator confines most of the integral to within a few
+        # m_V^2 of q2min; over a wide Q2 range a single adaptive pass can
+        # step over that sliver and report convergence.  Integrate on
+        # segments anchored at q2min + {0.1, 1, 10, 100} m_V^2.
+        edges = [q2min]
+        for scale in (0.1, 1.0, 10.0, 100.0):
+            edge = q2min + scale * self.m_V**2
+            if edges[-1] < edge < q2max:
+                edges.append(edge)
+        edges.append(q2max)
+        result = 0.0
+        for lo, hi in zip(edges[:-1], edges[1:]):
+            piece, _ = _integrate.quad(
+                lambda q2: self._dsigma_dQ2(E, q2),
+                lo, hi,
+                limit=200, epsrel=1e-7,
+            )
+            result += piece
         return max(0.0, result)
 
 
@@ -423,10 +468,10 @@ class VectorPortalUpscatteringXS(_CrossSectionModel):
         return ["Q2"]
 
     def Q2Min(self, interaction):
-        return _Q2min(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2min(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def Q2Max(self, interaction):
-        return _Q2max(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2max(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def TargetMass(self, target_type):
         return self.m_target
@@ -451,8 +496,8 @@ class VectorPortalUpscatteringXS(_CrossSectionModel):
         physical phase-space channel contributes a weight ratio of 1,
         removing the dominant source of event-weight variance.
         """
-        q2min = _Q2min(E_chi, self.m_chi_prime, self.m_target)
-        q2max = _Q2max(E_chi, self.m_chi_prime, self.m_target)
+        q2min = _Q2min(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
+        q2max = _Q2max(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
         if q2max <= q2min:
             return None
         f_max = self._ups._dsigma_dQ2(E_chi, q2min) * 1.5
@@ -655,10 +700,10 @@ class VectorPortalOffShellXS(_CrossSection):
         return self._ups.Ethreshold
 
     def Q2Min(self, interaction):
-        return _Q2min(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2min(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def Q2Max(self, interaction):
-        return _Q2max(interaction.primary_momentum[0], self.m_chi_prime, self.m_target)
+        return _Q2max(interaction.primary_momentum[0], self.m_chi, self.m_chi_prime, self.m_target)
 
     def TargetMass(self, target_type):
         return self.m_target
@@ -732,12 +777,8 @@ class VectorPortalOffShellXS(_CrossSection):
 
     def _chi_prime_width(self):
         """Total decay width of chi' -> chi + V1."""
-        m_cp = self.m_chi_prime
-        m_chi = self.m_chi
-        m_V1 = self.m_V1
-        g_D = self._ups.g_D
-        p_star = _two_body_p_cm(m_cp, m_chi, m_V1)
-        return g_D**2 * p_star**3 / (6.0 * math.pi * m_cp**2)
+        return _chi_prime_to_chi_v1_width(
+            self.m_chi_prime, self.m_chi, self.m_V1, self._ups.g_D**2)
 
     def DensityVariables(self):
         return ["s_pair", "cos_theta_sub"]
@@ -761,8 +802,8 @@ class VectorPortalOffShellXS(_CrossSection):
         dsigma/dQ2 falls monotonically with Q2 (the V2 propagator dominates),
         so the envelope maximum sits at q2min.
         """
-        q2min = _Q2min(E_chi, self.m_chi_prime, self.m_target)
-        q2max = _Q2max(E_chi, self.m_chi_prime, self.m_target)
+        q2min = _Q2min(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
+        q2max = _Q2max(E_chi, self.m_chi, self.m_chi_prime, self.m_target)
         if q2max <= q2min:
             return None
         f_max = self._ups._dsigma_dQ2(E_chi, q2min) * 1.5
@@ -886,7 +927,9 @@ class VectorPortalOffShellXS(_CrossSection):
 class ChiPrimeDecay(_DecayModel):
     """
     Two-body decay chi' -> chi + V1.
-    Width: Gamma = (g_D^2 / 48 pi) m_chi' lambda^{3/2}(1, r_chi^2, r_V^2)
+    Width: Gamma = (g_D^2 p*/(4 pi m_chi'^2)) [w - 3 m_chi m_chi'
+    + ((m_chi'^2 - m_chi^2)^2 - m_V^4)/(2 m_V^2)], with
+    w = (m_chi'^2 + m_chi^2 - m_V^2)/2 and p* the chi momentum in the chi' rest frame.
 
     Isotropic in the chi' rest frame (SolidAngleRest 2-body): the authoring
     base derives the signature methods, the width overload pair, the isotropic
@@ -929,10 +972,8 @@ class ChiPrimeDecay(_DecayModel):
         self._total_width = self._compute_width()
 
     def _compute_width(self):
-        p = _two_body_p_cm(self.m_chi_prime, self.m_chi, self.m_V1)
-        if p <= 0.0:
-            return 0.0
-        return self.g_D**2 * p**3 / (6.0 * math.pi * self.m_chi_prime**2)
+        return _chi_prime_to_chi_v1_width(
+            self.m_chi_prime, self.m_chi, self.m_V1, self.g_D**2)
 
     def total_width(self):
         return self._total_width
@@ -966,13 +1007,13 @@ class DarkPhotonDecay(_DecayModel):
     """
     Two-body decay V1 -> e- e+.
     Width: Gamma = (alpha epsilon^2 m_V / 3) sqrt(1 - 4 m_e^2/m_V^2) (1 + 2 m_e^2/m_V^2)
-    Angular distribution: dGamma/d(cos theta) ~ 1 + beta^2 cos^2(theta)
 
-    Declared measure SolidAngleRest 2-body, but the rest-frame angular density
-    is 1 + beta^2 cos^2(theta), NOT isotropic. differential_width carries that
-    shape (the base forms FinalStateProbability = differential / total), and
-    sample() is overridden with the matching rejection sampler so Sample and
-    Density stay the same distribution.
+    Isotropic in the V1 rest frame (SolidAngleRest 2-body): nothing in the
+    chain produces or propagates a V1 polarization state, so the unpolarized
+    average applies. The authoring base derives the signature methods, the
+    width overload pair, the isotropic 1/(4 pi) FinalStateProbability,
+    Topology/Measure, and the closure-by-construction Isotropic2BodyChannel
+    sampler from total_width() / differential_width().
     """
 
     measure = _Measure.SolidAngleRest()
@@ -1000,12 +1041,8 @@ class DarkPhotonDecay(_DecayModel):
         self._total_width = self._compute_width()
 
     def _compute_width(self):
-        mV = self.m_V1
-        me = _M_ELECTRON
-        if mV < 2.0 * me:
-            return 0.0
-        beta = math.sqrt(max(1.0 - (2.0 * me / mV)**2, 0.0))
-        return (_ALPHA_EM * self.epsilon**2 * mV / 3.0) * beta * (1.0 + 2.0 * me**2 / mV**2)
+        return _v1_to_fermion_pair_width(
+            self.m_V1, _M_ELECTRON, 4.0 * math.pi * _ALPHA_EM * self.epsilon**2)
 
     def total_width(self):
         return self._total_width
@@ -1013,24 +1050,7 @@ class DarkPhotonDecay(_DecayModel):
     def differential_width(self, record):
         if int(record.signature.primary_type) != self.pdgid_V1:
             return 0.0
-        if self._total_width <= 0.0:
-            return 0.0
-
-        for idx, stype in enumerate(record.signature.secondary_types):
-            if stype == Particle.ParticleType.EMinus:
-                cos_theta = _cos_theta_in_parent_rest(
-                    record.primary_momentum,
-                    record.secondary_momenta[idx],
-                )
-                break
-        else:
-            cos_theta = 0.0
-
-        p_cm = _two_body_p_cm(self.m_V1, _M_ELECTRON, _M_ELECTRON)
-        e_cm = math.sqrt(p_cm**2 + _M_ELECTRON**2)
-        beta_e = p_cm / e_cm if e_cm > 0.0 else 0.0
-        norm = 4.0 * math.pi * (1.0 + beta_e**2 / 3.0)
-        return self._total_width * (1.0 + beta_e**2 * cos_theta**2) / norm
+        return self._total_width / (4.0 * math.pi)
 
     def density_variables(self):
         return ["cos_theta"]
@@ -1047,32 +1067,6 @@ class DarkPhotonDecay(_DecayModel):
     def equal(self, other):
         return self is other
 
-    def sample(self, record, random):
-        me = _M_ELECTRON
-        p_cm = _two_body_p_cm(self.m_V1, me, me)
-        beta = p_cm / math.sqrt(p_cm**2 + me**2) if p_cm > 0 else 0.0
-
-        while True:
-            cos_theta = random.Uniform(-1.0, 1.0)
-            u = random.Uniform(0.0, 1.0 + beta**2)
-            if u <= 1.0 + beta**2 * cos_theta**2:
-                break
-
-        phi = random.Uniform(0.0, 2.0 * math.pi)
-
-        P_parent = np.array(record.primary_momentum)
-        P_eminus = _boost_to_lab(P_parent, p_cm, cos_theta, phi, me)
-        P_eplus = _boost_to_lab(P_parent, p_cm, -cos_theta, phi + math.pi, me)
-
-        for sec in record.get_secondary_particle_records():
-            if sec.type == Particle.ParticleType.EMinus:
-                sec.four_momentum = P_eminus
-                sec.mass = me
-            elif sec.type == Particle.ParticleType.EPlus:
-                sec.four_momentum = P_eplus
-                sec.mass = me
-        return
-
 
 # ===================================================================
 #  DarkPhotonToChiDecay  --  V1 -> chi chi_bar
@@ -1082,8 +1076,8 @@ class DarkPhotonToChiDecay(_DecayModel):
     """
     Two-body decay V1 -> chi chi_bar (dark matter pair production).
 
-    Width: Gamma = (g_D^2 m_V / 12 pi) * beta^3
-    where beta = sqrt(1 - 4 m_chi^2 / m_V^2).
+    Width: Gamma = (g_D^2 m_V / 12 pi) * beta * (1 + 2 r^2)
+    where beta = sqrt(1 - 4 r^2) and r = m_chi / m_V.
 
     This is the dominant V1 decay when kinematically allowed
     (m_V > 2 m_chi).  The chi and chi_bar are both assigned
@@ -1126,12 +1120,7 @@ class DarkPhotonToChiDecay(_DecayModel):
         self._total_width = self._compute_width()
 
     def _compute_width(self):
-        mV = self.m_V1
-        mc = self.m_chi
-        if mV < 2.0 * mc:
-            return 0.0
-        beta = math.sqrt(max(1.0 - (2.0 * mc / mV)**2, 0.0))
-        return self.g_D**2 * mV / (12.0 * math.pi) * beta**3
+        return _v1_to_fermion_pair_width(self.m_V1, self.m_chi, self.g_D**2)
 
     def total_width(self):
         return self._total_width
@@ -1204,12 +1193,7 @@ class BiasedDarkPhotonToChiDecay(_Decay):
         self.table_dir = table_dir or "."
         os.makedirs(self.table_dir, exist_ok=True)
 
-        mV, mc = m_V1, m_chi
-        if mV < 2.0 * mc:
-            self._total_width = 0.0
-        else:
-            beta = math.sqrt(max(1.0 - (2.0 * mc / mV)**2, 0.0))
-            self._total_width = g_D**2 * mV / (12.0 * math.pi) * beta**3
+        self._total_width = _v1_to_fermion_pair_width(self.m_V1, self.m_chi, self.g_D**2)
 
         self._p_cm = _two_body_p_cm(m_V1, m_chi, m_chi)
         self._E_chi_rf = math.sqrt(self._p_cm**2 + m_chi**2)
@@ -1347,11 +1331,11 @@ class BiasedDarkPhotonToChiDecay(_Decay):
 #  Flux construction
 # ===================================================================
 
-def _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime):
-    """Lab-frame energy interval spanned by chi from an isotropic V1 -> chi chi'.
+def _chi_box_edges(E_V_lab, m_V1, m_chi, m_partner):
+    """Lab-frame energy interval spanned by chi from an isotropic V1 -> chi + partner.
 
     Two-body kinematics fix the chi rest-frame energy at
-    E_chi_rf = (m_V1**2 + m_chi**2 - m_chi_prime**2)/(2 m_V1) with momentum
+    E_chi_rf = (m_V1**2 + m_chi**2 - m_partner**2)/(2 m_V1) with momentum
     p_chi_rf; boosting to the lab with the V1 factors gives
     E_chi_lab = gamma_V1 (E_chi_rf + beta_V1 p_chi_rf cos_theta_rf).  For an
     isotropic decay cos_theta_rf is uniform on [-1, 1], so E_chi_lab is uniform
@@ -1360,7 +1344,13 @@ def _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime):
     """
     if m_V1 <= 0.0:
         return m_chi, m_chi
-    E_chi_rf = (m_V1**2 + m_chi**2 - m_chi_prime**2) / (2.0 * m_V1)
+    if m_V1 < m_chi + m_partner:
+        raise ValueError(
+            "V1 -> chi + partner is kinematically closed: "
+            "m_V1=%g GeV < m_chi + m_partner = %g GeV"
+            % (m_V1, m_chi + m_partner)
+        )
+    E_chi_rf = (m_V1**2 + m_chi**2 - m_partner**2) / (2.0 * m_V1)
     p_chi_rf = math.sqrt(max(E_chi_rf**2 - m_chi**2, 0.0))
     gamma_V1 = E_V_lab / m_V1
     beta_V1 = math.sqrt(max(1.0 - 1.0 / gamma_V1**2, 0.0)) if gamma_V1 > 0 else 0.0
@@ -1407,12 +1397,114 @@ def _deposit_box_into_hist(edges, hist, E_minus, E_plus, weight):
             hist[i] += weight * (b - a) / width
 
 
+def _vector_meson_matel_sq_bare(E_nu, E_V, m_M, m_l, m_V):
+    """Spin-summed |M|^2 for M -> l nu V1 with (G_F f_M V C_V)^2 = 1.
+
+    Carlson-Rislow vector matrix element (Phys.Rev.D 86, 035013, 2012) for a
+    dark photon radiated off the charged-lepton leg with pure vector coupling.
+    Dalitz variables are the neutrino and V1 energies (E_nu, E_V) in the meson
+    rest frame; the lepton energy follows from E_l = m_M - E_nu - E_V.  Returns
+    2 B / D^2, clipped to 0 for D <= 0 or B < 0.  The longitudinal 1/m_V^2 term
+    carries the neutrino energy (- 2 m_M E_nu) in its leading factor, settled by
+    explicit Dirac spinor sums to 1e-15.
+    """
+    Q2 = m_M**2 - 2.0 * m_M * E_nu
+    D = Q2 - m_l**2
+    if D <= 0.0:
+        return 0.0
+    E_l = m_M - E_nu - E_V
+    L = Q2**2 - m_l**2 * m_M**2
+    B = (4.0 * m_l**2 * m_M**2 * E_l * E_nu
+         - 12.0 * m_l**2 * m_M * Q2 * E_nu
+         + L * (m_M**2 + m_V**2 - m_l**2 - 2.0 * m_M * E_V)
+         + (1.0 / m_V**2)
+         * (m_M**2 - m_V**2 - m_l**2 - 2.0 * m_M * E_nu)
+         * (4.0 * m_l**2 * m_M**2 * E_V * E_nu
+            + L * (m_M**2 - m_V**2 + m_l**2 - 2.0 * m_M * E_l)))
+    if B < 0.0:
+        return 0.0
+    return 2.0 * B / D**2
+
+
+def _vector_E_V_limits(E_nu, m_M, m_l, m_V):
+    """Kinematically allowed E_V range at fixed E_nu (meson rest frame).
+
+    Identical band structure to MesonProduction's _E_phi_limits.  Returns
+    (None, None) when the channel is closed at this E_nu.
+    """
+    E_nu_max = (m_M**2 - (m_l + m_V)**2) / (2.0 * m_M)
+    if E_nu < 0.0 or E_nu > E_nu_max:
+        return None, None
+    M2 = m_M**2 - 2.0 * m_M * E_nu
+    if M2 < (m_l + m_V)**2:
+        return None, None
+    sqrtM2 = math.sqrt(M2)
+    lam = (M2 - (m_l + m_V)**2) * (M2 - (m_l - m_V)**2)
+    if lam < 0.0:
+        return None, None
+    pstar = math.sqrt(lam) / (2.0 * sqrtM2)
+    Estar = (M2 - m_l**2 + m_V**2) / (2.0 * sqrtM2)
+    gamma = (m_M - E_nu) / sqrtM2
+    beta_gamma = E_nu / sqrtM2
+    E_hi = gamma * Estar + beta_gamma * pstar
+    E_lo = max(gamma * Estar - beta_gamma * pstar, m_V)
+    return E_lo, E_hi
+
+
+def _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon):
+    """Gamma(M -> l nu V1) / Gamma(M -> l nu) for a kinetically mixed dark photon.
+
+    The dark photon is radiated off the charged-lepton leg with pure vector
+    coupling C_V = e eps to the lepton (e = sqrt(4 pi alpha_EM), C_A = 0),
+    following Carlson & Rislow, Phys.Rev.D 86, 035013 (2012), who give the
+    K -> mu nu V closed form for exactly this coupling structure.  The vector
+    matrix element used here is verified against explicit Dirac spinor sums.
+
+    Gamma3 integrates |M|^2 = 2 (G_F f_M V C_V)^2 B / D^2 over the Dalitz region
+    with weight 1 / (64 pi^3 m_M); Gamma2 is the two-body width
+    G_F^2 f_M^2 V^2 m_M m_l^2 (1 - m_l^2/m_M^2)^2 / (8 pi).  The decay constant
+    f_M, the CKM element V_qq', and the Fermi constant G_F all cancel exactly in
+    the ratio, so they are carried as unit placeholders and only C_V survives.
+
+    Neutrino-flux bookkeeping: each tabulated neutrino corresponds to one
+    M -> l nu decay, so folding Gamma3/Gamma2 against the neutrino flux counts
+    three-body M -> l nu V1 decays per tabulated neutrino exactly -- including
+    for kaon tags, where the tabulated numu already carries BR(K -> mu nu) = 0.64.
+    """
+    C_V = epsilon * math.sqrt(4.0 * math.pi * _ALPHA_EM)
+    E_nu_max = (m_meson**2 - (m_lepton + m_V1)**2) / (2.0 * m_meson)
+    if E_nu_max <= 0.0:
+        return 0.0
+
+    def integrand(E_V, E_nu):
+        lims = _vector_E_V_limits(E_nu, m_meson, m_lepton, m_V1)
+        if lims[0] is None or E_V < lims[0] or E_V > lims[1]:
+            return 0.0
+        return _vector_meson_matel_sq_bare(E_nu, E_V, m_meson, m_lepton, m_V1)
+
+    integral, _ = _integrate.dblquad(
+        integrand,
+        0.0, E_nu_max,
+        lambda Enu: (_vector_E_V_limits(Enu, m_meson, m_lepton, m_V1)[0] or 0.0),
+        lambda Enu: (_vector_E_V_limits(Enu, m_meson, m_lepton, m_V1)[1] or 0.0),
+        epsabs=0.0, epsrel=1e-9,
+    )
+
+    # G_F = f_M = V_qq' = 1.0 placeholders; they cancel in Gamma3/Gamma2.
+    Gamma3 = C_V**2 * integral / (64.0 * math.pi**3 * m_meson)
+    Gamma2 = (m_meson * m_lepton**2
+              * (1.0 - m_lepton**2 / m_meson**2)**2 / (8.0 * math.pi))
+    if Gamma2 <= 0.0:
+        return 0.0
+    return Gamma3 / Gamma2
+
+
 def compute_chi_flux(
     m_meson,
     m_lepton,
     m_V1,
     m_chi,
-    m_chi_prime,
+    m_chi_partner,
     g_D,
     epsilon,
     flux_tag,
@@ -1423,7 +1515,11 @@ def compute_chi_flux(
     """
     Construct the chi (dark matter) flux at the detector by folding:
         neutrino flux -> parent meson energy -> three-body BR(meson -> l nu V1)
-        -> V1 -> chi chi' kinematics -> chi energy spectrum.
+        -> V1 -> chi + partner kinematics -> chi energy spectrum.
+
+    m_chi_partner is the mass of the second daughter of the V1 decay.  The
+    physical decay V1 -> chi chi has m_chi_partner = m_chi; V1 -> chi chi' is
+    kinematically forbidden in this model (m_V1 < m_chi + m_chi').
 
     Returns a siren.distributions.TabulatedFluxDistribution.
     """
@@ -1442,21 +1538,18 @@ def compute_chi_flux(
             f"m_meson={m_meson*1e3:.1f} MeV, m_lepton={m_lepton*1e3:.1f} MeV, "
             f"m_V1={m_V1*1e3:.1f} MeV"
         )
+    if m_V1 < m_chi + m_chi_partner:
+        raise siren.utilities.ConfigurationError(
+            "V1 -> chi + partner is kinematically closed: "
+            f"m_V1={m_V1*1e3:.1f} MeV < m_chi + m_chi_partner="
+            f"{(m_chi + m_chi_partner)*1e3:.1f} MeV; the physical decay "
+            "V1 -> chi chi takes m_chi_partner = m_chi"
+        )
 
     E_nu_rf = (m_meson**2 - m_lepton**2) / (2.0 * m_meson)
-    nu_to_meson = m_meson / E_nu_rf
 
-    alpha_D = g_D**2 / (4.0 * math.pi)
-    x = m_lepton / m_meson
-    y = m_V1 / m_meson
-
-    if (1.0 - x - y) <= 0:
-        br_ratio = 0.0
-    else:
-        num = (1.0 - y**2)**2 * (1.0 + 2.0 * y**2)
-        den = (1.0 - x**2)**2
-        g_ps = num / den if den > 0 else 0.0
-        br_ratio = 2.0 * (alpha_D / _ALPHA_EM) * epsilon**2 * g_ps
+    br_ratio = _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon)
+    br_v1 = _v1_to_chi_chi_branching(m_V1, m_chi, g_D, epsilon)
 
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
@@ -1474,28 +1567,31 @@ def compute_chi_flux(
     hist = np.zeros(n_bins)
 
     for i, E_nu in enumerate(nu_energies):
-        E_meson = E_nu * nu_to_meson
-        if E_meson < m_meson:
+        E_meson = _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf)
+        if E_meson is None:
             continue
 
         gamma_meson = E_meson / m_meson
         E_V_lab = gamma_meson * E_V_rest
 
-        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_prime)
+        E_minus, E_plus = _chi_box_edges(E_V_lab, m_V1, m_chi, m_chi_partner)
         if E_plus < min_energy or E_minus > max_energy:
             continue
 
-        # SamplePDF is a per-GeV density at the node; convert to a countable
-        # weight over the node's own energy interval (midpoint spacing) so the
-        # deposited histogram divided by the output bin width is again per GeV.
+        # SampleUnnormedPDF is the tabulated absolute flux per GeV at the node;
+        # convert to a countable weight over the node's own energy interval
+        # (midpoint spacing) so the deposited histogram divided by the output
+        # bin width is again per GeV.
         lo = nu_energies[i - 1] if i > 0 else E_nu
         hi = nu_energies[i + 1] if i + 1 < len(nu_energies) else E_nu
         dE_node = 0.5 * (hi - lo)
         if dE_node <= 0.0:
             continue
 
-        nu_flux_at_E = raw_flux.SamplePDF(E_nu)
-        chi_flux_at_E = nu_flux_at_E * br_ratio * 0.5 * dE_node
+        nu_flux_at_E = raw_flux.SampleUnnormedPDF(E_nu)
+        # each V1 -> chi chi decay deposits BOTH daughters (the paper's
+        # prefactor 2 x BR(V1 -> 2chi)).
+        chi_flux_at_E = nu_flux_at_E * br_ratio * br_v1 * 2.0 * dE_node
 
         _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, chi_flux_at_E)
 
@@ -1521,7 +1617,7 @@ def compute_chi_flux_from_dk2nu(
     m_lepton,
     m_V1,
     m_chi,
-    m_chi_prime,
+    m_chi_partner,
     g_D,
     epsilon,
     min_energy,
@@ -1543,8 +1639,9 @@ def compute_chi_flux_from_dk2nu(
         Output of siren.dk2nu.read_dk2nu().
     parent_pdg : int
         PDG code of parent meson (211 for pi+, 321 for K+, etc.)
-    m_meson, m_lepton, m_V1, m_chi, m_chi_prime : float
-        Masses in GeV.
+    m_meson, m_lepton, m_V1, m_chi, m_chi_partner : float
+        Masses in GeV.  m_chi_partner is the second daughter mass of the V1
+        decay; the physical V1 -> chi chi has m_chi_partner = m_chi.
     g_D, epsilon : float
         Dark coupling and kinetic mixing.
     min_energy, max_energy : float
@@ -1563,30 +1660,37 @@ def compute_chi_flux_from_dk2nu(
     weights = dk2nu_data["nimpwt"][mask]
 
     available = m_meson - m_lepton
-    if available <= m_V1 or len(E_meson) == 0:
+    if available <= m_V1:
+        raise RuntimeError(
+            "Channel kinematically forbidden: "
+            f"m_meson={m_meson*1e3:.1f} MeV, m_lepton={m_lepton*1e3:.1f} MeV, "
+            f"m_V1={m_V1*1e3:.1f} MeV"
+        )
+    if m_V1 < m_chi + m_chi_partner:
+        raise siren.utilities.ConfigurationError(
+            "V1 -> chi + partner is kinematically closed: "
+            f"m_V1={m_V1*1e3:.1f} MeV < m_chi + m_chi_partner="
+            f"{(m_chi + m_chi_partner)*1e3:.1f} MeV; the physical decay "
+            "V1 -> chi chi takes m_chi_partner = m_chi"
+        )
+    if len(E_meson) == 0:
         energies = [min_energy, max_energy]
         flux_arr = [0.0, 0.0]
         return siren.distributions.TabulatedFluxDistribution(
             min_energy, max_energy, energies, flux_arr, physically_normalized
         )
 
-    alpha_D = g_D**2 / (4.0 * math.pi)
-    x = m_lepton / m_meson
-    y = m_V1 / m_meson
-    if (1.0 - x - y) <= 0:
-        br_ratio = 0.0
-    else:
-        num = (1.0 - y**2)**2 * (1.0 + 2.0 * y**2)
-        den = (1.0 - x**2)**2
-        g_ps = num / den if den > 0 else 0.0
-        br_ratio = 2.0 * (alpha_D / _ALPHA_EM) * epsilon**2 * g_ps
+    br_ratio = _meson_to_v1_branching_ratio(m_meson, m_lepton, m_V1, epsilon)
+    br_v1 = _v1_to_chi_chi_branching(m_V1, m_chi, g_D, epsilon)
 
     E_V_rest = (m_meson**2 + m_V1**2 - m_lepton**2) / (2.0 * m_meson)
 
     gamma_mesons = E_meson / m_meson
     E_V_lab = gamma_mesons * E_V_rest
 
-    chi_weights = weights * br_ratio * 0.5
+    # each V1 -> chi chi decay deposits BOTH daughters (the paper's prefactor
+    # 2 x BR(V1 -> 2chi)).
+    chi_weights = weights * br_ratio * br_v1 * 2.0
 
     E_edges = np.linspace(min_energy, max_energy, n_bins + 1)
     dE = E_edges[1] - E_edges[0]
@@ -1597,7 +1701,7 @@ def compute_chi_flux_from_dk2nu(
     # energy; accumulate every meson's weight over its box, conserving the total.
     hist = np.zeros(n_bins)
     for E_V_i, w_i in zip(E_V_lab, chi_weights):
-        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi, m_chi_prime)
+        E_minus, E_plus = _chi_box_edges(float(E_V_i), m_V1, m_chi, m_chi_partner)
         _deposit_box_into_hist(E_edges, hist, E_minus, E_plus, float(w_i))
 
     pot = dk2nu_data.get("pot", 0.0)

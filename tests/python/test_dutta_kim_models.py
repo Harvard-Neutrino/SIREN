@@ -559,6 +559,118 @@ def test_meson_three_body_check_closure_passes(processes_dir):
     assert fmean == pytest.approx(1.0, abs=0.1)
 
 
+def test_meson_three_body_width_absolute_anchors(meson_production_module):
+    """Pin the absolute three-body widths pi/K -> l nu phi in the PDG f_M
+    convention, anchored to the explicit Dirac-spinor |M|^2 and to the
+    Dutta-Kim PRL 129, 111803 Table 2 branching ratios per g^2."""
+    mp = meson_production_module
+
+    m_pi = 0.13957039
+    m_K = 0.49368
+    m_mu = 0.10565837
+
+    # total_width() in the PDG f_M convention (g_mu = 1.0).
+    expected_width = {
+        ("pi", "scalar"): 1.2247070252317424e-18,
+        ("pi", "pseudoscalar"): 2.773199175624213e-21,
+        ("K", "scalar"): 4.9727779507952735e-18,
+        ("K", "pseudoscalar"): 5.362959599511565e-19,
+    }
+
+    m_meson = {"pi": m_pi, "K": m_K}
+    widths = {}
+    for meson, m_M in m_meson.items():
+        for ptype in ("scalar", "pseudoscalar"):
+            decay = mp.MesonThreeBodyDecay(m_M, m_mu, 0.001, 1.0, ptype)
+            w = decay.total_width()
+            widths[(meson, ptype)] = w
+            assert w == pytest.approx(expected_width[(meson, ptype)], rel=1e-6)
+
+    # Dutta-Kim Table 2 sanity band: abs BR per g^2 = total_width / Gamma_tot
+    # / g^2 (g_mu = 1.0 above). Gamma_tot from the PDG mean lifetimes.
+    hbar = 6.582119569e-25  # GeV s
+    gamma_tot = {"pi": hbar / 2.6033e-8, "K": hbar / 1.2380e-8}
+    table_br = {
+        ("pi", "scalar"): 4.8e-2,
+        ("pi", "pseudoscalar"): 1.1e-4,
+        ("K", "scalar"): 9.2e-2,
+        ("K", "pseudoscalar"): 1.0e-2,
+    }
+    for key, w in widths.items():
+        meson, _ptype = key
+        br_per_g2 = w / gamma_tot[meson]
+        assert br_per_g2 == pytest.approx(table_br[key], rel=0.12)
+
+
+def test_vector_meson_br_ratio_anchors(vector_portal):
+    """Pin the M -> l nu V1 production branching ratio Gamma3/Gamma2.
+
+    Two independent anchors fix it: the six-figure spinor-sum values (explicit
+    Dirac spinor sums agreeing with the Carlson-Rislow closed form), and the
+    Dutta-Kim PRL 129, 111803 Table 2 vector entries once the paper's stated
+    BR(V1 -> observed) = 50% is folded out (its ee rows equal its invisible-X
+    rows, fixing that reading).
+    """
+    vp = vector_portal
+    m_pi = 0.13957039
+    m_K = 0.49368
+    m_mu = 0.10565837
+    m_V1 = 0.017
+    epsilon = 7e-5
+
+    br3_pi = vp._meson_to_v1_branching_ratio(m_pi, m_mu, m_V1, epsilon)
+    br3_K = vp._meson_to_v1_branching_ratio(m_K, m_mu, m_V1, epsilon)
+    assert br3_pi == pytest.approx(3.80806e-13, rel=1e-4)
+    assert br3_K == pytest.approx(2.21940e-09, rel=1e-4)
+
+    # Absolute BR against 2x the Dutta-Kim Table 2 vector entries (the table
+    # folds BR(V1 -> 2chi) = 0.5).  BR2 are the PDG M -> mu nu branchings.
+    BR2_pi = 0.999877
+    BR2_K = 0.6356
+    assert br3_pi * BR2_pi == pytest.approx(2.0 * 0.17e-12, rel=0.20)
+    assert br3_K * BR2_K == pytest.approx(2.0 * 680e-12, rel=0.08)
+
+    # C_V^2 scales as epsilon^2, so the ratio scales as epsilon^2 exactly.
+    br3_pi_6 = vp._meson_to_v1_branching_ratio(m_pi, m_mu, m_V1, 6e-5)
+    assert br3_pi_6 == pytest.approx(br3_pi * (6.0 / 7.0)**2, rel=1e-9)
+
+
+def test_dark_sector_width_anchors(vector_portal):
+    """Pin the dark-sector partial widths to explicit spinor-sum
+    values, the HNL limit, and the shared V1 -> ee Lorentz structure.
+    """
+    vp = vector_portal
+
+    # V1 -> chi chi vector-pair width (explicit Dirac spinor sum).
+    assert vp.DarkPhotonToChiDecay(0.017, 0.008, 1.0).total_width() == \
+        pytest.approx(2.19869e-04, rel=1e-4)
+
+    # chi' -> chi V1 fermion -> fermion + vector width.  Signature is
+    # ChiPrimeDecay(m_chi, m_chi_prime, m_V1, g_D).
+    assert vp.ChiPrimeDecay(0.008, 0.040, 0.017, 1.0).total_width() == \
+        pytest.approx(2.77278e-03, rel=1e-4)
+    assert vp.ChiPrimeDecay(0.008, 0.050, 0.017, 1.0).total_width() == \
+        pytest.approx(6.81945e-03, rel=1e-4)
+
+    # HNL N -> nu V limit: as m_chi -> 0 the width collapses to the closed
+    # form g^2 m'^3/(16 pi m_V^2) (1 - m_V^2/m'^2)^2 (1 + 2 m_V^2/m'^2).
+    mp, mv, g = 0.040, 0.017, 1.0
+    hnl_expected = (g**2 * mp**3 / (16.0 * math.pi * mv**2)
+                    * (1.0 - mv**2 / mp**2)**2 * (1.0 + 2.0 * mv**2 / mp**2))
+    assert vp._chi_prime_to_chi_v1_width(0.040, 1e-12, 0.017, 1.0) == \
+        pytest.approx(hnl_expected, rel=1e-6)
+
+    # V1 -> ee shares the vector-pair implementation with V1 -> chi chi;
+    # it reproduces the (alpha eps^2 m_V/3) beta (1 + 2 r^2) inline form
+    # bit-for-bit.
+    me, m_V1 = 0.000511, 0.017
+    beta_e = math.sqrt(1.0 - (2.0 * me / m_V1)**2)
+    ee_expected = ((1.0 / 137.036) * m_V1 / 3.0
+                   * beta_e * (1.0 + 2.0 * (me / m_V1)**2))
+    assert vp.DarkPhotonDecay(0.017, 1.0).total_width() == \
+        pytest.approx(ee_expected, rel=1e-9)
+
+
 # ------------------------------------------------------------------ #
 #  End-to-end chain test                                               #
 # ------------------------------------------------------------------ #
@@ -806,6 +918,7 @@ def _model_family(vector_portal, meson_production_module, beam_decays):
     vp, mp, beam = vector_portal, meson_production_module, beam_decays
     return [
         vp.DarkPhotonToChiDecay(m_V1=0.017, m_chi=0.008, g_D=1.0),
+        vp.DarkPhotonDecay(m_V1=0.017, epsilon=7.0e-5),
         vp.ChiPrimeDecay(m_chi_prime=0.050, m_chi=0.008, m_V1=0.017, g_D=1.0),
         vp.VectorPortalUpscatteringXS(
             m_chi=0.008, m_chi_prime=0.050, m_V2=0.200, g_D=1.0,
@@ -871,8 +984,37 @@ def test_chi_box_edges_match_two_body_kinematics(vector_portal):
     assert hi == pytest.approx(gamma * (E_rf + beta * p_rf), rel=1e-12)
 
 
+def test_chi_flux_closed_channel_raises(vector_portal):
+    """Pins the typed closed-channel guard at the paper-forbidden V1 -> chi chi' configuration."""
+    import numpy as np
+
+    vp = vector_portal
+
+    with pytest.raises(siren.utilities.ConfigurationError):
+        vp.compute_chi_flux(
+            0.13957, 0.10566, 0.017, 0.008, 0.050, 1.0, 7e-5,
+            "pion_numu", 0.05, 3.0, physically_normalized=False)
+
+    dk2nu_data = {
+        "ptype": np.array([211, 211, 211]),
+        "E": np.array([1.0, 1.5, 2.0]),
+        "nimpwt": np.ones(3),
+        "pot": 1.0,
+    }
+    with pytest.raises(siren.utilities.ConfigurationError):
+        vp.compute_chi_flux_from_dk2nu(
+            dk2nu_data, 211, 0.13957, 0.10566, 0.017, 0.008, 0.050,
+            1.0, 7e-5, 0.05, 3.0)
+
+    with pytest.raises(ValueError):
+        vp._chi_box_edges(1.0, 0.017, 0.008, 0.050)
+
+
 def test_chi_flux_integral_pin(vector_portal):
-    """compute_chi_flux absolute normalization pin on the PionKaon table."""
+    """compute_chi_flux absolute normalization pinned end-to-end on the PionKaon table.
+
+    Re-derives against an independent from-scratch continuous fold (anchor 1.3606835e+06).
+    """
     import numpy as np
 
     vp = vector_portal
@@ -882,18 +1024,93 @@ def test_chi_flux_integral_pin(vector_portal):
     nodes = np.array(flux.GetEnergyNodes())
     vals = np.array([flux.SampleUnnormedPDF(float(e)) for e in nodes])
     integral = float(np.trapezoid(vals, nodes))
-    assert integral == pytest.approx(3.020870e-07, rel=1e-5)
+    assert integral == pytest.approx(1360683.525557477, rel=1e-5)
+
+
+def test_chi_flux_absolute_scale_and_multiplicity(vector_portal):
+    """Locks the 2 x BR(V1 -> chi chi) multiplicity and the on-axis forward two-body parent-energy inversion in the chi-flux builder."""
+    import numpy as np
+
+    vp = vector_portal
+    f1 = vp.compute_chi_flux(
+        0.13957, 0.10566, 0.017, 0.008, 0.008, 1.0, 1.0e-4,
+        "pion_numu", 0.05, 3.0, physically_normalized=False)
+
+    # Both dark-matter daughters count; the width model gives BR(V1 -> chi chi) = 1 here.
+    assert vp._v1_to_chi_chi_branching(0.017, 0.008, 1.0, 1.0e-4) == \
+        pytest.approx(1.0, abs=1e-8)
+
+    nodes = np.array(f1.GetEnergyNodes())
+    vals = np.array([f1.SampleUnnormedPDF(float(e)) for e in nodes])
+    assert float(np.trapezoid(vals, nodes)) == pytest.approx(
+        1360683.525557477, rel=1e-5)
+
+    # Forward two-body inversion E_M = 0.5 m_M (k + 1/k); k <= 1 (E_nu <= E_nu_rf)
+    # has no forward solution.
+    m_pi = 0.13957039
+    E_nu_rf = (m_pi**2 - 0.10565837**2) / (2.0 * m_pi)
+    assert vp._meson_energy_from_forward_nu(E_nu_rf - 1e-6, m_pi, E_nu_rf) is None
+    k = 2.0 / E_nu_rf
+    assert vp._meson_energy_from_forward_nu(2.0, m_pi, E_nu_rf) == \
+        pytest.approx(0.5 * m_pi * (k + 1.0 / k))
+
+
+def test_build_phi_flux_integral_pin(meson_production_module):
+    """build_phi_flux absolute normalization pinned against the independent from-scratch fold anchor 1.5283246e+09."""
+    import numpy as np
+
+    mp = meson_production_module
+    f = mp.build_phi_flux(
+        0.13957039, 0.10565837, 0.017, 1.0e-3, "scalar",
+        flux_tag="pion_numu", min_energy=0.0, max_energy=8.0,
+        n_bins=50, physically_normalized=False)
+    nodes = np.array(f.GetEnergyNodes())
+    vals = np.array([f.SampleUnnormedPDF(float(e)) for e in nodes])
+    integral = float(np.trapezoid(vals, nodes))
+    # Exact computed value of this fold; the independent from-scratch fold lands
+    # at 1.5283246e+09 (agreement better than 0.1%).
+    assert integral == pytest.approx(1528324638.4671445, rel=1e-5)
+    assert integral == pytest.approx(1.5283246e+09, rel=2e-3)
+
+
+def test_build_phi_flux_node_density_independent(meson_production_module):
+    """build_phi_flux total is output-binning independent: the deposited histogram is a per-GeV density, so its bin sum reproduces the same folded total regardless of the number of output bins."""
+    import numpy as np
+
+    mp = meson_production_module
+
+    def total_and_values(n_bins):
+        f = mp.build_phi_flux(
+            0.13957039, 0.10565837, 0.017, 1.0e-3, "scalar",
+            flux_tag="pion_numu", min_energy=0.0, max_energy=8.0,
+            n_bins=n_bins, physically_normalized=False)
+        nodes = np.array(f.GetEnergyNodes())
+        vals = np.array([f.SampleUnnormedPDF(float(e)) for e in nodes])
+        # Area under the per-GeV histogram (the conserved folded count); the
+        # trapezoid over centers under-integrates the low-energy phi spike at
+        # the min_energy boundary and is binning-sensitive, but the total is not.
+        total = float(np.sum(vals) * (nodes[1] - nodes[0]))
+        return total, vals
+
+    total_50, vals_50 = total_and_values(50)
+    total_100, vals_100 = total_and_values(100)
+    for vals in (vals_50, vals_100):
+        assert np.all(np.isfinite(vals))
+        assert np.all(vals >= 0.0)
+    assert total_50 == pytest.approx(total_100, rel=2e-2)
 
 
 def test_coherent_total_cross_section_magnitude_pin(vector_portal):
-    """Coherent upscattering absolute magnitude on argon (carries Z^2 = 324)."""
+    """Pins the coherent argon magnitude (Z^2 = 324) of the Dutta-Kim M_0,SF
+    amplitude with exact Kallen flux; anchored against the paper-formula
+    integral and the forward slope 4 pi alpha alpha_D eps^2 Z^2 / m_V^4."""
     xs = vector_portal.VectorPortalUpscatteringXS(
         m_chi=0.008, m_chi_prime=0.050, m_V2=0.200, g_D=1.0, epsilon=1.0e-4)
     signature = xs.GetPossibleSignatures()[0]
     record = _record(signature, 0.008, 1.0)
     record.target_mass = xs._ups.MA
     assert xs.TotalCrossSection(record) == pytest.approx(
-        3.974139640967e-34, rel=1e-9)
+        4.2364767575893256e-35, rel=1e-9)
 
 
 def test_biased_meson_adaptive_cone_pointwise_closure(meson_production_module):
