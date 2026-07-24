@@ -86,6 +86,12 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<>())
     .def("__eq__", [](const WeightableDistribution &self, const WeightableDistribution &other){ return self == other; })
     .def("GenerationProbability",&WeightableDistribution::GenerationProbability)
+    .def("PhysicalDensity",&WeightableDistribution::PhysicalDensity,
+         "Density contributed on the physical side of the weight ratio;\n"
+         "defaults to GenerationProbability. Differs only for distributions\n"
+         "whose physical role is not their sampling role (an external table\n"
+         "with importance weights).")
+    .def("PhysicalDensityDiffers",&WeightableDistribution::PhysicalDensityDiffers)
     .def("DensityVariables",&WeightableDistribution::DensityVariables)
     .def("Name",&WeightableDistribution::Name)
     .def("AreEquivalent",&WeightableDistribution::AreEquivalent)
@@ -362,7 +368,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&FixedTargetPositionDistribution::Name);
 
   // External distribution (inherits VertexPositionDistribution, must come after it)
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution>(m,"PrimaryExternalDistribution",
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution, PhysicallyNormalizedDistribution>(m,"PrimaryExternalDistribution",
     "Primary distribution driven by an external CSV file.\n\n"
     "The first line is a comma-separated header naming each column and\n"
     "each subsequent line is one candidate event. Recognized columns:\n"
@@ -375,6 +381,16 @@ PYBIND11_MODULE(distributions,m) {
     "  t0          primary initial time, in SIREN time units where one\n"
     "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
     "              propagated to the vertex by time of flight\n"
+    "  weight      physical weight of the row (primaries per unit exposure,\n"
+    "              e.g. nimpwt/POT for dk2nu tables). Never affects how rows\n"
+    "              are sampled: the supplied list is the intended injection\n"
+    "              ensemble, drawn uniformly unless explicit sampling_weights\n"
+    "              bias the selection. The weights encode the return to the\n"
+    "              physical ensemble: PhysicalDensity reports the physical\n"
+    "              row density on the physical side of the weight ratio and\n"
+    "              the weight total is the distribution's physical\n"
+    "              normalization, so absolute rates are correct with one\n"
+    "              instance shared between the injection and physical sides.\n"
     "Any other column is stored as a named interaction parameter. Each of\n"
     "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
     "omitted entirely.")
