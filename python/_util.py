@@ -719,6 +719,10 @@ def get_resource_loader(resource_type, resource_name):
         return None
     loader_name = f"load_{resource_type}"
     if not hasattr(resource_module, loader_name):
+        # Module-only resources expose classes to instantiate directly
+        # instead of a load_<type> factory; the module itself is the loader.
+        if getattr(resource_module, "_SIREN_RESOURCE_MODULE_ONLY", False):
+            return resource_module
         logger.warning(f"from '{resource_module.__file__}' module '{resource_module.__name__}' has no attribute '{loader_name}'")
         raise AttributeError(f"from '{resource_module.__file__}' module '{resource_module.__name__}' has no attribute '{loader_name}'")
     loader = getattr(resource_module, loader_name)
@@ -751,6 +755,12 @@ def load_resource(resource_type, resource_name, *args, **kwargs):
     loader = get_resource_loader(resource_type, resource_name)
     if loader is None:
         return None
+    if getattr(loader, "_SIREN_RESOURCE_MODULE_ONLY", False):
+        raise TypeError(
+            f"'{resource_name}' is a module-only resource with no "
+            f"load_{resource_type} factory; use "
+            f"siren.resources.{resource_type}.{resource_name} and "
+            "instantiate its classes directly.")
     resource = loader(*args, **kwargs)
     return resource
 
@@ -1910,4 +1920,3 @@ def combine_and_export_hepmc3(sets, out_path, options=None):
             setattr(options, name, value)
 
     return out_path, pooled_weights
-

@@ -215,12 +215,16 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     double inv_weight = 0;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
         double physical_probability = 1.0;
-        // Seed with the number of events actually injected so the
-        // weight normalizes by the realized sample size.  Fall back to the
-        // requested count when weighting before/without generation (InjectedEvents
-        // still 0), which keeps the requested-count normalization for that case.
-        double generation_probability = injectors[idx]->InjectedEvents();
-        if(injectors[idx]->InjectedEvents() == 0) {
+        // Seed with the number of generation ATTEMPTS, not successes: an
+        // attempt that fails (a sampled ray missing the fiducial volume, a
+        // kinematically forbidden draw) is a legitimate zero-weight sample
+        // from the generation density, and dropping it from the
+        // normalization would inflate every surviving weight by
+        // 1/efficiency. Fall back to the requested count when weighting
+        // before/without generation (no attempts made yet), which keeps the
+        // requested-count normalization for that case.
+        double generation_probability = injectors[idx]->InjectionAttempts();
+        if(injectors[idx]->InjectionAttempts() == 0) {
             generation_probability = injectors[idx]->EventsToInject();
         }
         for(auto const & datum : tree.tree) {
@@ -264,8 +268,9 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
     bool usable = true;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
         double physical_probability = 1.0;
-        double generation_probability = injectors[idx]->InjectedEvents();
-        if(injectors[idx]->InjectedEvents() == 0) {
+        // Attempts, not successes; see EventWeight.
+        double generation_probability = injectors[idx]->InjectionAttempts();
+        if(injectors[idx]->InjectionAttempts() == 0) {
             generation_probability = injectors[idx]->EventsToInject();
         }
         for(auto const & datum : tree.tree) {
