@@ -91,8 +91,12 @@ void ProcessWeighter<ProcessType>::Initialize() {
             // not shared_ptr identity: an injection and a physical distribution
             // that are equal by value cancel in the weight ratio even when they
             // are distinct instances. Shared instances compare equal too, so the
-            // common (literally shared) case is unchanged.
-            if((*gen_it) && (*phys_it) && **gen_it == **phys_it) {
+            // common (literally shared) case is unchanged. A distribution whose
+            // physical-side density differs from its generation density (see
+            // WeightableDistribution::PhysicalDensity) never cancels: the two
+            // sides are different functions even on one shared instance.
+            if((*gen_it) && (*phys_it) && **gen_it == **phys_it
+                    && !(*phys_it)->PhysicalDensityDiffers()) {
                 cancelled_distribution_names.push_back((*gen_it)->Name());
                 unique_gen_distributions.erase(std::next(gen_it).base());
                 unique_phys_distributions.erase(std::next(phys_it).base());
@@ -297,7 +301,7 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
     }
 
     for(auto physical_dist : unique_phys_distributions) {
-        physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
+        physical_probability *= physical_dist->PhysicalDensity(detector_model, phys_process->GetInteractions(), record);
     }
 
     return normalization * physical_probability;

@@ -582,6 +582,21 @@ def dk2nu_to_primary_distribution(
     geometry frame is the BNB beam frame); files written in any other
     beamline's coordinates supply the rigid map through ``frame``.
 
+    Each row carries its physical weight nimpwt/POT in the table's
+    ``weight`` column.  The recorded parent list is treated as the
+    intended injection ensemble -- a production's importance reweighting
+    deliberately oversamples the phase space it cares about -- so rows
+    are sampled UNIFORMLY unless an explicit ``sampling_bias`` reshapes
+    the selection.  The importance weights encode how to return to the
+    physical distribution given that sampling: the distribution reports
+    the physical row density on the physical side of the weight ratio
+    and the weight total (the recorded parents per POT) as its physical
+    normalization, so event weights from the standard shared
+    injection/physical assembly come out in events per POT, with the
+    per-row nimpwt spread carried by the weights.  Importance-reweighted
+    files (nimpwt spanning orders of magnitude) and unweighted files
+    (nimpwt identically 1) then yield consistent rates and spectra.
+
     Parameters
     ----------
     dk2nu_data : dict
@@ -591,15 +606,22 @@ def dk2nu_to_primary_distribution(
         May be None when ``frame`` targets detector coordinates directly.
     parent_pdg : int or list of int, optional
         Filter to specific parent PDG code(s).
-    sampling_bias : callable, optional
-        Function f(E, px, py, pz, vx, vy, vz) -> weight that computes
-        per-entry sampling weights from the parent kinematics in the
-        file's own coordinate system (before any frame transform).
-        Entries are selected with probability proportional to these
-        weights.  The generation probability accounts for the bias so
-        event weights remain correct.  Arguments are numpy arrays; the
-        return value should broadcast to the same length.  When None
-        (default), uniform selection is used.
+    sampling_bias : callable or array-like, optional
+        Additional biasing of the ROW SELECTION, independent of the
+        importance weights.  A callable f(E, px, py, pz, vx, vy, vz)
+        computes per-row selection weights from the parent kinematics in
+        the file's own coordinate system (before any frame transform);
+        arguments are numpy arrays and the return value should broadcast
+        to the same length.  An array-like must align with the arrays in
+        ``dk2nu_data`` (full length; it is filtered alongside them), so
+        ``sampling_bias=dk2nu_data["nimpwt"]`` selects rows proportional
+        to their importance weights (the near-equal-event-weight
+        configuration).  Rows are selected with probability proportional
+        to the result; the generation density accounts for the bias while
+        the physical row density stays proportional to nimpwt, so event
+        weights remain correct even when one instance is shared between
+        the injection and physical sides.  When None (default), rows are
+        selected uniformly.
     frame : optional
         Coordinate system of the dk2nu file.  None or "geometry": the
         file frame is the detector model's geometry frame.  "detector":
@@ -641,6 +663,19 @@ def dk2nu_to_primary_distribution(
             "dk2nu_data['pot'] is %r; a positive simulated POT is required to "
             "compute per-POT weights. The input file(s) carried no POT metadata "
             "(no dkmetaTree/pots branch)." % (simulated_pot,))
+
+    # G4BNB EXP importance reweighting occasionally emits rows with a
+    # negative nimpwt (a bookkeeping artifact of the reweighting, not a
+    # physical parent count). The engine rejects negative physical row
+    # weights loudly, so drop such rows here with a notice; their weight
+    # total is negligible by construction.
+    all_nimpwt = dk2nu_data["nimpwt"]
+    bad = ~np.isfinite(all_nimpwt) | (all_nimpwt < 0)
+    if np.any(bad & mask):
+        print("  dropping %d row(s) with negative or non-finite nimpwt "
+              "(importance-reweighting bookkeeping artifacts)"
+              % int(np.sum(bad & mask)))
+        mask = mask & ~bad
 
     E = dk2nu_data["E"][mask]
     px = dk2nu_data["px"][mask]
@@ -750,10 +785,25 @@ def dk2nu_to_primary_distribution(
         data.append(row)
 
     if sampling_bias is not None:
-        sw = np.asarray(
-            sampling_bias(E, px, py, pz, vx, vy, vz),
-            dtype=float,
-        )
+        # The bias shapes the row selection only; the physical row weights
+        # (nimpwt/POT, already in the table) de-bias it through the
+        # distribution's physical density, so no composition happens here.
+        if callable(sampling_bias):
+            sw = np.asarray(
+                sampling_bias(E, px, py, pz, vx, vy, vz),
+                dtype=float,
+            )
+            if sw.shape != E.shape:
+                sw = np.broadcast_to(sw, E.shape).astype(float).copy()
+        else:
+            sw = np.asarray(sampling_bias, dtype=float)
+            if len(sw) != len(dk2nu_data["E"]):
+                raise ConfigurationError(
+                    "array-like sampling_bias must align with the arrays in "
+                    "dk2nu_data (%d entries), got %d"
+                    % (len(dk2nu_data["E"]), len(sw)))
+            sw = sw[mask]
+        sw = np.array(sw, dtype=float)
         np.maximum(sw, 0.0, out=sw)
         return _distributions.PrimaryExternalDistribution(
             keys, data, sw.tolist()
