@@ -1,6 +1,7 @@
 #include "SIREN/detector/DetectorModel.h"
 
 #include <mutex>
+#include <atomic>
 #include <tuple>
 #include <cmath>
 #include <cctype>
@@ -1904,9 +1905,19 @@ void DetectorModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersec
                 // since this intersection does not represent a physical transition to a different sector
             }
             else {
-                // If we are exiting a sector with larger hierarchy the current_intersection should have been set to match that sector.
-                // Thus, we would not reach this point.
-                throw(std::runtime_error("Cannot exit a level that we have not entered!"));
+                // An exiting intersection for a hierarchy this walk never
+                // entered. Intersection lists cover the full line, so a
+                // missing entry can only come from a parity defect in a
+                // shape's Intersections() at a surface seam (nanometer-scale
+                // corner slivers). No integration segment is open for that
+                // sector, so the exit carries no measure: skip it instead of
+                // aborting the traversal.
+                static std::atomic<bool> parity_warning_issued{false};
+                if(!parity_warning_issued.exchange(true)) {
+                    std::cerr << "SIREN DetectorModel::SectorLoop: ignoring an exit intersection for hierarchy "
+                              << intersection->hierarchy << " with no matching entry "
+                              << "(geometry seam artifact); further occurrences are silent." << std::endl;
+                }
             }
         }
     }

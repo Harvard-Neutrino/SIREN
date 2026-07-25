@@ -673,6 +673,79 @@ TEST(ShapeInvariants, TangentRays) {
 }
 
 // =========================================================================
+// Cylinder cap/barrel corner seam
+// A ray crossing the neighborhood of the cap/barrel corner circle must
+// never produce an unpaired hit. The per-surface window tests used before
+// the interval method could cull a crossing's partner at the seam (the
+// barrel z-window and the cap r-window disagreeing about a corner
+// crossing), which broke enter/exit alternation and made
+// DetectorModel::SectorLoop abort with "Cannot exit a level that we have
+// not entered!". The exact ray below is the BNB target-rod configuration
+// recovered from a crashing SBND K0L injection: the kaon was born on the
+// rod's downstream corner, so the line through its decay vertex along its
+// momentum grazes the corner to within ~1e-7 m.
+// =========================================================================
+TEST(ShapeInvariants, CylinderCapCornerSeamRays) {
+    // BNB TARG rod dimensions; the placement in the detector model is a
+    // pure translation by (0, -5.6e-17, 0.390525), applied here directly
+    // to the ray (the 1e-17 y-offset is far below every margin in play).
+    double const rod_radius = 0.0047624999;
+    double const rod_length = 0.71120002;
+    auto targ = Cylinder(rod_radius, 0.0, rod_length).create();
+    {
+        Vector3D pos(-0.059748840138354575, -0.82280090677850126,
+                     2.1007794332370793 - 0.390525);
+        Vector3D dir(-0.039581487553593614, -0.52038274145986718,
+                     0.85301530363397216);
+        auto isects = targ->Intersections(pos, dir);
+        ASSERT_EQ(isects.size() % 2, 0u)
+            << "unpaired hit at the cap corner seam: " << isects.size();
+        bool expect_entering = true;
+        double last = -std::numeric_limits<double>::infinity();
+        for(auto const & h : isects) {
+            EXPECT_EQ(h.entering, expect_entering);
+            EXPECT_GE(h.distance, last);
+            last = h.distance;
+            expect_entering = !expect_entering;
+        }
+    }
+
+    // Sweep rays through the corner-circle neighborhood, solid and hollow
+    // rods: parity, alternation, and ordering must hold for every ray.
+    std::mt19937 seam_rng(20260724);
+    std::uniform_real_distribution<double> jitter(-1e-6, 1e-6);
+    std::uniform_real_distribution<double> angle(0.0, 2.0 * M_PI);
+    std::vector<std::shared_ptr<Geometry>> rods = {
+        Cylinder(rod_radius, 0.0, rod_length).create(),
+        Cylinder(rod_radius, 0.002, rod_length).create(),
+    };
+    double const hz = 0.5 * rod_length;
+    for(auto const & rod : rods) {
+        for(int i = 0; i < 20000; ++i) {
+            double phi = angle(seam_rng);
+            Vector3D corner((rod_radius + jitter(seam_rng)) * std::cos(phi),
+                            (rod_radius + jitter(seam_rng)) * std::sin(phi),
+                            (i % 2 ? hz : -hz) + jitter(seam_rng));
+            Vector3D offset = RandomDirection();
+            Vector3D origin = corner + offset * 2.0;
+            Vector3D d = corner - origin;
+            d.normalize();
+            auto hits = rod->Intersections(origin, d);
+            ASSERT_EQ(hits.size() % 2, 0u)
+                << "unpaired hit, ray " << i << ": " << hits.size();
+            bool expect = true;
+            double lastd = -std::numeric_limits<double>::infinity();
+            for(auto const & h : hits) {
+                ASSERT_EQ(h.entering, expect) << "alternation broken, ray " << i;
+                ASSERT_GE(h.distance, lastd) << "ordering broken, ray " << i;
+                lastd = h.distance;
+                expect = !expect;
+            }
+        }
+    }
+}
+
+// =========================================================================
 // Fix 3: Horizontal rays at Polycone/Polyhedra section boundaries
 // A horizontal ray exactly at an internal z-boundary must be claimed by
 // exactly one section (half-open interval [z_lo, z_hi)). Such a ray DOES

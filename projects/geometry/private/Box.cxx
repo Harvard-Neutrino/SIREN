@@ -93,6 +93,12 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
     if(t_enter > 0 && t_enter < GEOMETRY_PRECISION) t_enter = 0;
     if(t_exit > 0 && t_exit < GEOMETRY_PRECISION) t_exit = 0;
 
+    // A pair collapsed to a single parameter (an exact corner graze, or a
+    // sub-precision sliver snapped to zero) has zero measure. Emitting it
+    // would let the model-level tie sort place the exit ahead of its entry
+    // and break enter/exit alternation downstream.
+    if(t_enter == t_exit) return {};
+
     Intersection hit_enter, hit_exit;
     hit_enter.distance = t_enter;
     hit_enter.hierarchy = 0;

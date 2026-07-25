@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <tuple>
+#include <limits>
 #include <string>
 #include <vector>
 #include <ostream>
@@ -75,6 +76,86 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
     double r2_outer = radius_ * radius_;
     double r2_inner = inner_radius_ * inner_radius_;
 
+    // Interval (slab) method. The closed solid is
+    //     (infinite outer cylinder INTERSECT z-slab) MINUS infinite inner cylinder,
+    // so the ray-parameter set inside it is one or two disjoint intervals.
+    // Emitting each nonempty interval as an (enter, exit) pair makes the
+    // hit list parity-consistent by construction. Testing each surface
+    // independently with tolerance windows (the previous approach) let a
+    // crossing near the cap/barrel corner pass one window and fail the
+    // other, emitting an unpaired hit that broke every consumer relying
+    // on enter/exit alternation (DetectorModel::SectorLoop in particular).
+
+    double const inf = std::numeric_limits<double>::infinity();
+
+    // Ray-parameter interval inside the z-slab |z| <= hz.
+    double tz_lo, tz_hi;
+    if(dz != 0) {
+        double inv = 1.0 / dz;
+        tz_lo = (-hz - pz) * inv;
+        tz_hi = ( hz - pz) * inv;
+        if(tz_lo > tz_hi) std::swap(tz_lo, tz_hi);
+    } else {
+        if(pz < -hz || pz > hz) return {};
+        tz_lo = -inf;
+        tz_hi = inf;
+    }
+
+    // Ray-parameter interval inside the infinite outer cylinder.
+    // det = C*r2 - (px*dy - py*dx)^2 avoids catastrophic cancellation at
+    // large distances.
+    double C = dx*dx + dy*dy;
+    double B_half = px*dx + py*dy;
+    double cross_z = px * dy - py * dx;
+    double to_lo, to_hi;
+    if(C != 0) {
+        double det = C * r2_outer - cross_z * cross_z;
+        if(det <= 0) return {}; // miss, or tangent line (zero measure)
+        double sq = std::sqrt(det);
+        double inv_C = 1.0 / C;
+        to_lo = (-B_half - sq) * inv_C;
+        to_hi = (-B_half + sq) * inv_C;
+    } else {
+        if(px*px + py*py > r2_outer) return {};
+        to_lo = -inf;
+        to_hi = inf;
+    }
+
+    double a = std::max(tz_lo, to_lo);
+    double b = std::min(tz_hi, to_hi);
+    if(!(a < b)) return {};
+
+    // Subtract the bore of a hollow cylinder: up to two pieces remain.
+    double pieces[2][2];
+    int n_pieces = 0;
+    bool have_bore = false;
+    double ti_lo = 0, ti_hi = 0;
+    if(inner_radius_ > 0) {
+        if(C != 0) {
+            double det_i = C * r2_inner - cross_z * cross_z;
+            if(det_i > 0) {
+                double sq_i = std::sqrt(det_i);
+                double inv_C = 1.0 / C;
+                ti_lo = (-B_half - sq_i) * inv_C;
+                ti_hi = (-B_half + sq_i) * inv_C;
+                have_bore = true;
+            }
+        } else if(px*px + py*py < r2_inner) {
+            return {}; // axis-parallel ray inside the bore
+        }
+    }
+    if(have_bore) {
+        double lo1 = a, hi1 = std::min(b, ti_lo);
+        double lo2 = std::max(a, ti_hi), hi2 = b;
+        if(lo1 < hi1) { pieces[n_pieces][0] = lo1; pieces[n_pieces][1] = hi1; ++n_pieces; }
+        if(lo2 < hi2) { pieces[n_pieces][0] = lo2; pieces[n_pieces][1] = hi2; ++n_pieces; }
+    } else {
+        pieces[0][0] = a;
+        pieces[0][1] = b;
+        n_pieces = 1;
+    }
+    if(n_pieces == 0) return {};
+
     struct TaggedHit {
         double distance;
         siren::math::Vector3D position;
@@ -82,75 +163,27 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
         int source; // 0 = surface, 1 = wedge
     };
 
-    TaggedHit all_hits[12]; // max: 2 barrel + 2 caps + 2 inner barrel + 2 inner caps + 2 wedge + spare
+    TaggedHit all_hits[8]; // max: 2 pieces x 2 endpoints + 2 wedge planes
     int n_all = 0;
 
-    auto add_surface_hit = [&](double t, double ix, double iy, double iz, bool entering) {
-        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
-        all_hits[n_all] = {t, siren::math::Vector3D(ix, iy, iz), entering, 0};
-        n_all++;
-    };
-
-    // Test barrel surface for a given radius squared; invert_entering flips
-    // the radial entering logic for inner surfaces
-    auto test_barrel = [&](double r2, bool invert_entering) {
-        if(dx == 0 && dy == 0) return;
-        double C = dx*dx + dy*dy;
-        double B_half = px*dx + py*dy;
-        // det = C*r2 - (px*dy - py*dx)^2
-        // avoids catastrophic cancellation at large distances
-        double cross_z = px * dy - py * dx;
-        double det = C * r2 - cross_z * cross_z;
-        if(det <= 0) return;
-        double sq = std::sqrt(det);
-        double inv_C = 1.0 / C;
-        double t1 = (-B_half - sq) * inv_C;
-        double t2 = (-B_half + sq) * inv_C;
-        for(int k = 0; k < 2; ++k) {
-            double t = (k == 0) ? t1 : t2;
-            double iz = pz + t * dz;
-            if(iz > -hz - GEOMETRY_PRECISION && iz < hz + GEOMETRY_PRECISION) {
-                double ix = px + t * dx;
-                double iy = py + t * dy;
-                bool radial_entering = (ix * dx + iy * dy) < 0;
-                add_surface_hit(t, ix, iy, iz, invert_entering ? !radial_entering : radial_entering);
-            }
-        }
-    };
-
-    // Test endcap at z_cap for a given annular ring [r2_lo, r2_hi]
-    auto test_cap = [&](double z_cap, double r2_lo, double r2_hi, bool enter) {
-        if(dz == 0) return;
-        double t = (z_cap - pz) / dz;
-        double ix = px + t * dx;
-        double iy = py + t * dy;
-        double r2_hit = ix*ix + iy*iy;
-        if(r2_hit <= r2_hi + GEOMETRY_PRECISION && r2_hit >= r2_lo - GEOMETRY_PRECISION) {
-            add_surface_hit(t, ix, iy, pz + t * dz, enter);
-        }
-    };
-
-    // Outer barrel
-    test_barrel(r2_outer, false);
-    // Endcaps (annular disk between inner and outer radius)
-    test_cap( hz, r2_inner, r2_outer, dz < 0);
-    test_cap(-hz, r2_inner, r2_outer, dz > 0);
-    // Inner barrel (if hollow)
-    if(inner_radius_ > 0) {
-        test_barrel(r2_inner, true);
+    // Emit interval endpoints, keeping the on-border convention that a
+    // boundary within GEOMETRY_PRECISION ahead of the ray origin counts as
+    // distance zero; a pair the snap collapses to zero measure is dropped.
+    for(int i = 0; i < n_pieces; ++i) {
+        double lo = pieces[i][0];
+        double hi = pieces[i][1];
+        if(lo > 0 && lo < GEOMETRY_PRECISION) lo = 0;
+        if(hi > 0 && hi < GEOMETRY_PRECISION) hi = 0;
+        if(!(lo < hi)) continue;
+        all_hits[n_all++] = {lo, siren::math::Vector3D(px + lo*dx, py + lo*dy, pz + lo*dz), true, 0};
+        all_hits[n_all++] = {hi, siren::math::Vector3D(px + hi*dx, py + hi*dy, pz + hi*dz), false, 0};
     }
+    if(n_all == 0) return {};
 
     if(!has_phi_cut_) {
-        if(n_all == 0) return {};
-        std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
-            return a.distance < b.distance;
-        });
         std::vector<Intersection> result;
         result.reserve(n_all);
         for(int i = 0; i < n_all; ++i) {
-            if(!result.empty() && std::fabs(all_hits[i].distance - result.back().distance) < GEOMETRY_PRECISION) {
-                continue;
-            }
             Intersection isect;
             isect.distance = all_hits[i].distance;
             isect.hierarchy = 0;
