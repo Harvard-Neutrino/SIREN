@@ -11,6 +11,9 @@ Public API
 writable_data_dir(module_dir)
     Return module_dir if writable, else a fallback under ~/.siren/.
 
+atomic_output_path(dest)
+    Context manager yielding a unique temp path renamed over dest on success.
+
 download_file(url, dest, sha256="")
     Download a single file with atomic write and optional SHA-256 check.
 
@@ -36,14 +39,22 @@ siren-download --fetch NAME        Pre-fetch data for one resource
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import json
 import os
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 import zipfile
 from typing import Any
+
+# Read once, at import, so the temp-file permission fix below does not have to
+# flip the process umask at write time (os.umask is process-global and would
+# itself be a race in a threaded program).
+_UMASK = os.umask(0)
+os.umask(_UMASK)
 
 
 def writable_data_dir(module_dir: str) -> str:
@@ -107,23 +118,57 @@ def resolve_data_path(install_dir: str, download_dir: str,
 DEFAULT_TIMEOUT = 30  # seconds
 
 
+@contextlib.contextmanager
+def atomic_output_path(dest: str):
+    """Yield a temporary path to write, renamed over *dest* on clean exit.
+
+    The temporary name is unique per call, which is what makes the rename
+    actually atomic when several processes build the same file at once.
+    Writing through a shared, predictable name (``dest + ".tmp"``) is not
+    atomic despite the ``os.replace``: every process opens and truncates the
+    same inode, so their writes interleave, and the first process to rename
+    pulls the file out from under the others -- which then either fail with
+    ``FileNotFoundError`` or, worse, keep writing through their still-open
+    descriptor into the file now published at *dest*. Concurrent cold starts
+    of a resource loader hit exactly this.
+
+    On any exception the temporary is removed and the exception propagates,
+    so *dest* is left untouched rather than half-written.
+    """
+    directory = os.path.dirname(dest) or "."
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=directory,
+                               prefix=os.path.basename(dest) + ".",
+                               suffix=".tmp")
+    os.close(fd)
+    try:
+        yield tmp
+        # mkstemp creates 0600; widen to what a plain open() would have given
+        # so a cache built by one user stays readable in a shared install.
+        with contextlib.suppress(OSError):
+            os.chmod(tmp, 0o666 & ~_UMASK)
+        os.replace(tmp, dest)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(tmp)
+        raise
+
+
 def download_file(url: str, dest: str, sha256: str = "",
                   label: str = "", show_progress: bool = True,
                   timeout: float = DEFAULT_TIMEOUT) -> None:
     """Download a file from *url* to *dest*.
 
-    - Atomic write: writes to a .tmp file, renames on success.
+    - Atomic write: writes to a per-call unique temp file, renames on
+      success, so concurrent downloads of the same file cannot collide.
     - Follows HTTP redirects (GitHub release assets, Zenodo CDN).
     - Optional SHA-256 verification.
     - Progress bar on stdout.
     """
-    os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
-    tmp = dest + ".tmp"
-
     if not label:
         label = os.path.basename(dest)
 
-    try:
+    with atomic_output_path(dest) as tmp:
         if show_progress:
             print(f"  Downloading {label} ...")
 
@@ -163,13 +208,6 @@ def download_file(url: str, dest: str, sha256: str = "",
                     f"SHA-256 mismatch for {label}:\n"
                     f"  expected: {sha256}\n"
                     f"  got:      {got}")
-
-        os.replace(tmp, dest)
-
-    except Exception:
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        raise
 
 
 def ensure_files(specs: list[dict[str, Any]]) -> None:

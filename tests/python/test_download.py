@@ -360,3 +360,80 @@ class TestResolveDataPath:
         download.mkdir()
         # Absent from install_dir -> returns the download_dir path (regardless of existence there)
         assert dl.resolve_data_path(str(install), str(download), "missing.dat") == str(download / "missing.dat")
+
+
+# ======================================================================
+# atomic_output_path
+# ======================================================================
+
+class TestAtomicOutputPath:
+    """Concurrent writers must not share a temp filename.
+
+    Regression guard for a real failure: several processes calling
+    siren.load_detector() against a cold cache each wrote the composite GDML
+    through a fixed '<dest>.tmp' name. The first to rename pulled the file out
+    from under the rest, and most of them died with FileNotFoundError.
+    """
+
+    def test_writes_and_renames(self, tmp):
+        dest = tmp / "out.dat"
+        with dl.atomic_output_path(str(dest)) as t:
+            Path(t).write_text("payload")
+            assert not dest.exists(), "must not publish before the rename"
+        assert dest.read_text() == "payload"
+
+    def test_creates_missing_parent_directory(self, tmp):
+        dest = tmp / "nested" / "deeper" / "out.dat"
+        with dl.atomic_output_path(str(dest)) as t:
+            Path(t).write_text("x")
+        assert dest.read_text() == "x"
+
+    def test_error_leaves_dest_untouched_and_cleans_up(self, tmp):
+        dest = tmp / "out.dat"
+        dest.write_text("original")
+        with pytest.raises(RuntimeError):
+            with dl.atomic_output_path(str(dest)) as t:
+                Path(t).write_text("half written")
+                raise RuntimeError("boom")
+        assert dest.read_text() == "original"
+        assert list(tmp.iterdir()) == [dest], "temp file must be cleaned up"
+
+    def test_temp_name_is_unique_per_call(self, tmp):
+        dest = tmp / "out.dat"
+        with dl.atomic_output_path(str(dest)) as a:
+            with dl.atomic_output_path(str(dest)) as b:
+                assert a != b, "overlapping writers must not share a temp name"
+                Path(a).write_text("a")
+                Path(b).write_text("b")
+        assert dest.exists()
+
+    def test_concurrent_writers_all_succeed(self, tmp):
+        """Every writer completes and the destination holds one intact payload."""
+        dest = tmp / "composite.gdml"
+        nwriters = 12
+        # Large enough that writers are still writing while others rename.
+        def payload(tag):
+            return "".join(f"{tag:03d}" + "x" * 80 + "\n" for _ in range(20000))
+
+        errors: list[BaseException] = []
+
+        def writer(tag):
+            try:
+                with dl.atomic_output_path(str(dest)) as t:
+                    Path(t).write_text(payload(tag))
+            except BaseException as e:  # noqa: BLE001 - recorded and re-raised below
+                errors.append(e)
+
+        threads = [threading.Thread(target=writer, args=(i,))
+                   for i in range(nwriters)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert not errors, f"writers failed: {errors[:3]}"
+        text = dest.read_text()
+        tags = {line[:3] for line in text.splitlines() if line}
+        assert len(tags) == 1, "destination interleaves several writers' output"
+        assert text == payload(int(tags.pop())), "destination is truncated"
+        assert [p.name for p in tmp.iterdir()] == [dest.name], "temp files left behind"
