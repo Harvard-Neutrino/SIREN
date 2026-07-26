@@ -12,7 +12,6 @@ from siren import dataclasses as _dataclasses
 from siren import math as _math
 from siren.interactions import DarkNewsCrossSection,DarkNewsDecay
 import numpy as np
-import awkward as ak
 import h5py
 import pickle
 import logging
@@ -63,10 +62,17 @@ def log_newline(n=1):
     for handler, formatter in zip(logger.handlers, formatters):
         handler.setFormatter(formatter)
 
-try:
-    from DarkNews.nuclear_tools import NuclearTarget
-except:
-    pass
+# NOTE: do not import DarkNews at module scope here. Importing it pulls in
+# DarkNews.MC -> pandas -> numexpr, and numexpr starts a pool of native worker
+# threads at import. That would make every process multi-threaded merely by
+# virtue of "import siren", before any user code runs, which is precisely the
+# state in which fork() is unsafe: fork duplicates only the calling thread but
+# inherits the whole memory image, so any lock another thread happened to hold
+# is inherited locked and unlockable. Users running injections across a
+# multiprocessing Pool with the "fork" start method pay for that with
+# intermittent, silent deadlocks. DarkNews is imported lazily by the modules
+# that actually need it (SIREN_DarkNews, DNModelContainer) and probed by
+# siren.utilities.darknews_version(). Nothing in this module uses it.
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -1211,6 +1217,11 @@ def SaveEvents(events,
         datasets["num_interactions"].append(id+1)
 
     # save events
+    # Imported here rather than at module scope: awkward starts native worker
+    # threads on import, and a multi-threaded process cannot safely fork().
+    # Only this function needs it. See the note next to THIS_DIR above.
+    import awkward as ak
+
     ak_array = ak.Array(datasets)
     if save_hdf5:
         fout = h5py.File(output_filename+".hdf5", "w")
