@@ -426,7 +426,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         # Find the four-momenta associated with this point
         # Expand dims required to call DarkNews function on signle sample
         four_momenta = get_decay_momenta_from_vegas_samples(
-            np.expand_dims(PS, 0),
+            np.expand_dims(PS, 0).T,
             _FakeMCInterface(random),
             self.dec_case,
             np.expand_dims(np.array(record.primary_momentum), 0),
