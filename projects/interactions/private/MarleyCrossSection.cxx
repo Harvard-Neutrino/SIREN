@@ -1,3 +1,5 @@
+#include <algorithm>   // for std::find
+#include <cstdlib>     // for std::getenv
 #include <filesystem>  // for path, create_directories
 
 #include "SIREN/interactions/MarleyCrossSection.h"
@@ -9,6 +11,7 @@
 #include "marley/Generator.hh"  // MARLEY generator
 #include "marley/JSON.hh"  // For handling MARLEY JSON configuration
 #include "marley/JSONConfig.hh"
+#include "marley/CoulombCorrector.hh"  // MARLEY v2: CoulombMode for Reaction::load_from_file
 
 namespace siren {
 namespace interactions {
@@ -61,6 +64,20 @@ MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::strin
     std::string search_path = tmp_dir_path.string();
     std::string react_file = (tmp_dir_path / std::filesystem::path(marley_react_file).filename()).string();
 
+    // MARLEY v2 loads additional standard data files at runtime (logger
+    // config, nuclear charge radii for the Coulomb correction, ...). Keep the
+    // tmp dir FIRST so the SIREN-provided files take precedence, then append
+    // the standard data directories under $MARLEY (v2 layout).
+    if(const char* marley_env = std::getenv("MARLEY")) {
+        std::string md(marley_env);
+        if(!md.empty()) {
+            search_path += ':' + md + "/data";
+            search_path += ':' + md + "/data/react";
+            search_path += ':' + md + "/data/structure";
+            search_path += ':' + md + "/data/optical_model";
+        }
+    }
+
     setenv("MARLEY", "", 0);
     setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
     marley::FileManager::Instance();
@@ -111,6 +128,20 @@ MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & 
     std::string search_path = tmp_dir_path.string();
     std::string react_file = (tmp_dir_path / react_basename).string();
 
+    // MARLEY v2 loads additional standard data files at runtime (logger
+    // config, nuclear charge radii for the Coulomb correction, ...). Keep the
+    // tmp dir FIRST so the SIREN-provided files take precedence, then append
+    // the standard data directories under $MARLEY (v2 layout).
+    if(const char* marley_env = std::getenv("MARLEY")) {
+        std::string md(marley_env);
+        if(!md.empty()) {
+            search_path += ':' + md + "/data";
+            search_path += ':' + md + "/data/react";
+            search_path += ':' + md + "/data/structure";
+            search_path += ':' + md + "/data/optical_model";
+        }
+    }
+
     setenv("MARLEY", "", 0);
     setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
     marley::FileManager::Instance();
@@ -120,7 +151,18 @@ MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & 
 
 void MarleyCrossSection::InitializeMarley(std::string const & marley_react_file) {
     structure_database_ = std::make_unique<marley::StructureDatabase>();
-    reactions_ = marley::Reaction::load_from_file(marley_react_file, *structure_database_);
+
+    // MARLEY v2: load_from_file requires a Coulomb correction mode and a form
+    // factor configuration. These values reproduce the v2 executable defaults
+    // (see marley::JSONConfig): Fermi/MEMA Coulomb treatment and finite-q form
+    // factors. Use ff_config = "allowed" instead to recover the v1 allowed
+    // (q->0) approximation.
+    marley::JSON ff_config;
+    ff_config["sachs_model"] = "bbba05";
+    ff_config["axial_model"] = "dipole";
+    ff_config["nuclear_model"] = "klein";
+    reactions_ = marley::Reaction::load_from_file(marley_react_file, *structure_database_,
+        marley::CoulombCorrector::CoulombMode::FERMI_AND_MEMA, ff_config);
 
     std::vector<std::unique_ptr<marley::Reaction>> const & reactions = reactions_;
 
@@ -132,13 +174,16 @@ void MarleyCrossSection::InitializeMarley(std::string const & marley_react_file)
     for(std::unique_ptr<marley::Reaction> const & reaction : reactions) {
         marley::Reaction::ProcessType process = reaction->process_type();
         switch (process) {
-            case marley::Reaction::ProcessType::NeutrinoCC:
+            case marley::Reaction::ProcessType::NeutrinoCC_Discrete:
+            case marley::Reaction::ProcessType::NeutrinoCC_Continuum:
                 has_nu_cc = true;
                 break;
-            case marley::Reaction::ProcessType::AntiNeutrinoCC:
+            case marley::Reaction::ProcessType::AntiNeutrinoCC_Discrete:
+            case marley::Reaction::ProcessType::AntiNeutrinoCC_Continuum:
                 has_nubar_cc = true;
                 break;
-            case marley::Reaction::ProcessType::NC:
+            case marley::Reaction::ProcessType::NC_Discrete:
+            case marley::Reaction::ProcessType::NC_Continuum:
                 has_nc = true;
                 break;
             case marley::Reaction::ProcessType::NuElectronElastic:
@@ -164,7 +209,10 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
     std::vector<std::unique_ptr<marley::Reaction>> const & reactions = reactions_;
     std::vector<marley::Reaction const *> the_reactions;
 
-    marley::Reaction::ProcessType desired_process_type;
+    // MARLEY v2 splits each nuclear process into Discrete and Continuum
+    // reactions; both contribute to the same physical final state, so the
+    // cross sections are summed over the accepted process types.
+    std::vector<marley::Reaction::ProcessType> desired_process_types;
 
     size_t lepton_index;
 
@@ -180,18 +228,21 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
         // NC or elastic
         siren::dataclasses::ParticleType target_type = record.signature.target_type;
         if(target_type == siren::dataclasses::ParticleType::EMinus) {
-            desired_process_type = marley::Reaction::ProcessType::NuElectronElastic;
+            desired_process_types = {marley::Reaction::ProcessType::NuElectronElastic};
         } else {
-            desired_process_type = marley::Reaction::ProcessType::NC;
+            desired_process_types = {marley::Reaction::ProcessType::NC_Discrete,
+                                     marley::Reaction::ProcessType::NC_Continuum};
         }
     } else {
         // CC
         siren::dataclasses::ParticleType primary_type = record.signature.primary_type;
         int32_t primary_pdg_code = static_cast<int32_t>(primary_type);
         if(primary_pdg_code > 0) {
-            desired_process_type = marley::Reaction::ProcessType::NeutrinoCC;
+            desired_process_types = {marley::Reaction::ProcessType::NeutrinoCC_Discrete,
+                                     marley::Reaction::ProcessType::NeutrinoCC_Continuum};
         } else {
-            desired_process_type = marley::Reaction::ProcessType::AntiNeutrinoCC;
+            desired_process_types = {marley::Reaction::ProcessType::AntiNeutrinoCC_Discrete,
+                                     marley::Reaction::ProcessType::AntiNeutrinoCC_Continuum};
         }
     }
 
@@ -204,7 +255,8 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
         if(pdg_a != reaction->pdg_a())
             continue;
         // Skip reactions which involve a different final state (determined by the process type)
-        if(process != desired_process_type)
+        if(std::find(desired_process_types.begin(), desired_process_types.end(), process)
+           == desired_process_types.end())
             continue;
         the_reactions.push_back(reaction.get());
     }
