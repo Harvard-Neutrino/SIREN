@@ -53,26 +53,45 @@ friend class siren::interactions::MarleyCrossSection;
 class MarleyCrossSection : public CrossSection {
 //friend cereal::access;
 private:
-    std::vector<char> marley_react_data_;
+    // MARLEY v2 hybrid model support: N react files plus arbitrary auxiliary
+    // data files (CRPA response tables, nuclear charge radii, ...). Every file
+    // is stored as raw bytes inside the object (self-contained serialization
+    // pattern): a deserialized object carries its nuclear data with it.
+    std::vector<std::vector<char>> marley_react_data_;
     std::vector<char> marley_nuclide_index_data_;
     std::vector<std::vector<char>> marley_nuclide_data_;
     std::vector<char> marley_masses_data_;
     std::vector<char> marley_gs_parity_data_;
-    std::string marley_react_fname_;
+    std::vector<std::vector<char>> marley_aux_data_;
+    std::vector<std::string> marley_react_fnames_;
     std::string marley_nuclide_index_fname_;
     std::vector<std::string> marley_nuclide_fnames_;
     std::string marley_masses_fname_;
     std::string marley_gs_parity_fname_;
+    // aux names may contain a relative subdirectory (e.g. "crpa/responses_....dat")
+    // reproduced inside the tmp dir so react-file manifests resolve them.
+    std::vector<std::string> marley_aux_fnames_;
     std::vector<std::unique_ptr<marley::Reaction>> reactions_;
     std::unique_ptr<marley::StructureDatabase> structure_database_;
-    void InitializeMarley(const std::string& marley_config);
+    // Writes the stored data files into a tmp dir, configures the MARLEY
+    // search path and loads all reactions (constructors delegate here).
+    void SetupMarley();
+    void InitializeMarley(std::vector<std::string> const & marley_react_files);
     bool has_nu_cc;
     bool has_nubar_cc;
     bool has_nc;
     bool has_elastic;
 
 public:
+    // MARLEY v2 hybrid: several react files + auxiliary data files.
+    // aux_names give the relative name each aux file must have on the MARLEY
+    // search path (usually the basename; "crpa/<table>.dat" for CRPA tables).
+    MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files = {}, std::vector<std::string> marley_aux_names = {});
+    // Single-react convenience overload (v1-era interface, unchanged)
     MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file);
+    // Reconstruction from serialized bytes (cereal version 1)
+    MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames);
+    // Reconstruction from serialized bytes (cereal version 0, single react)
     MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames);
     virtual ~MarleyCrossSection() {};
     virtual bool equal(CrossSection const & other) const override;
@@ -91,25 +110,28 @@ public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 0) {
+        if(version == 1) {
             archive(::cereal::make_nvp("MarleyReactData", marley_react_data_));
             archive(::cereal::make_nvp("MarleyNuclideIndexData", marley_nuclide_index_data_));
             archive(::cereal::make_nvp("MarleyNuclideData", marley_nuclide_data_));
             archive(::cereal::make_nvp("MarleyMassesData", marley_masses_data_));
             archive(::cereal::make_nvp("MarleyGSParityData", marley_gs_parity_data_));
-            archive(::cereal::make_nvp("MarleyReactFname", marley_react_fname_));
+            archive(::cereal::make_nvp("MarleyAuxData", marley_aux_data_));
+            archive(::cereal::make_nvp("MarleyReactFnames", marley_react_fnames_));
             archive(::cereal::make_nvp("MarleyNuclideIndexFname", marley_nuclide_index_fname_));
             archive(::cereal::make_nvp("MarleyNuclideFnames", marley_nuclide_fnames_));
             archive(::cereal::make_nvp("MarleyMassesFname", marley_masses_fname_));
             archive(::cereal::make_nvp("MarleyGSParityFname", marley_gs_parity_fname_));
+            archive(::cereal::make_nvp("MarleyAuxFnames", marley_aux_fnames_));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
-            throw std::runtime_error("MarleyCrossSection only supports version <= 0!");
+            throw std::runtime_error("MarleyCrossSection only supports version <= 1!");
         }
     }
     template<typename Archive>
     static void load_and_construct(Archive & archive, cereal::construct<MarleyCrossSection> & construct, std::uint32_t const version) {
         if(version == 0) {
+            // Legacy archives: single react file, no auxiliary data
             std::array<std::vector<char>, 4> data;
             std::array<std::string, 4> fnames;
             std::vector<std::string> nuclide_fnames;
@@ -126,8 +148,37 @@ public:
             archive(::cereal::make_nvp("MarleyGSParityFname", fnames[3]));
             construct(data, nuclide_data, fnames, nuclide_fnames);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
+        } else if(version == 1) {
+            std::vector<std::vector<char>> react_data;
+            std::vector<char> nuclide_index_data;
+            std::vector<std::vector<char>> nuclide_data;
+            std::vector<char> masses_data;
+            std::vector<char> gs_parity_data;
+            std::vector<std::vector<char>> aux_data;
+            std::vector<std::string> react_fnames;
+            std::string nuclide_index_fname;
+            std::vector<std::string> nuclide_fnames;
+            std::string masses_fname;
+            std::string gs_parity_fname;
+            std::vector<std::string> aux_fnames;
+            archive(::cereal::make_nvp("MarleyReactData", react_data));
+            archive(::cereal::make_nvp("MarleyNuclideIndexData", nuclide_index_data));
+            archive(::cereal::make_nvp("MarleyNuclideData", nuclide_data));
+            archive(::cereal::make_nvp("MarleyMassesData", masses_data));
+            archive(::cereal::make_nvp("MarleyGSParityData", gs_parity_data));
+            archive(::cereal::make_nvp("MarleyAuxData", aux_data));
+            archive(::cereal::make_nvp("MarleyReactFnames", react_fnames));
+            archive(::cereal::make_nvp("MarleyNuclideIndexFname", nuclide_index_fname));
+            archive(::cereal::make_nvp("MarleyNuclideFnames", nuclide_fnames));
+            archive(::cereal::make_nvp("MarleyMassesFname", masses_fname));
+            archive(::cereal::make_nvp("MarleyGSParityFname", gs_parity_fname));
+            archive(::cereal::make_nvp("MarleyAuxFnames", aux_fnames));
+            construct(react_data, nuclide_index_data, nuclide_data, masses_data,
+                gs_parity_data, aux_data, react_fnames, nuclide_index_fname,
+                nuclide_fnames, masses_fname, gs_parity_fname, aux_fnames);
+            archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
         } else {
-            throw std::runtime_error("MarleyCrossSection only supports version <= 0!");
+            throw std::runtime_error("MarleyCrossSection only supports version <= 1!");
         }
     }
 }; // class MarleyCrossSection
@@ -136,7 +187,7 @@ public:
 } // namespace siren
 
 
-CEREAL_CLASS_VERSION(siren::interactions::MarleyCrossSection, 0);
+CEREAL_CLASS_VERSION(siren::interactions::MarleyCrossSection, 1);
 CEREAL_REGISTER_TYPE(siren::interactions::MarleyCrossSection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::MarleyCrossSection);
 

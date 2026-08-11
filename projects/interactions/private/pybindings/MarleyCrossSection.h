@@ -24,6 +24,13 @@ void register_MarleyCrossSection(pybind11::module_ & m) {
     marleycrosssection
 
         .def(init<std::string, std::string, std::vector<std::string>, std::string, std::string>())
+        // MARLEY v2 hybrid: list of react files + auxiliary data files
+        // (CRPA tables, charge radii, ...) with their relative names
+        .def(init<std::vector<std::string>, std::string, std::vector<std::string>, std::string, std::string, std::vector<std::string>, std::vector<std::string>>(),
+            arg("react_files"), arg("nuclide_index_file"), arg("nuclide_files"),
+            arg("masses_file"), arg("gs_parity_file"),
+            arg("aux_files") = std::vector<std::string>(),
+            arg("aux_names") = std::vector<std::string>())
         .def(self == self)
         .def("TotalCrossSection",&MarleyCrossSection::TotalCrossSection)
         .def("TotalCrossSectionAllFinalStates",&MarleyCrossSection::TotalCrossSectionAllFinalStates)
