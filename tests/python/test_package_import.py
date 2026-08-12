@@ -63,7 +63,7 @@ def test_resources_public_helpers():
 # another thread happened to hold is inherited locked and can never be
 # released. That turns a multiprocessing Pool using the "fork" start method
 # into an intermittent, silent deadlock. numexpr (16 threads, via
-# DarkNews -> pandas) and awkward (2 threads) were both on the import path.
+# DarkNews -> pandas) and awkward (2 threads) can both cause this issue.
 _THREAD_STARTING_MODULES = ("numexpr", "pandas", "awkward")
 
 def _run_probe(body):
