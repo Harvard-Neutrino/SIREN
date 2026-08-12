@@ -246,6 +246,14 @@ std::vector<ShapeEntry> MakeShapes() {
     // Polycone with step-change
     shapes.push_back({"PolyconeStep", Polycone({-0.05, 0.05, 0.05, 0.15}, {0, 0, 0, 0}, {0.03, 0.03, 0.05, 0.05}).create(), -1, -1, 0});
 
+    // Horn-like hollow conductor: the BNB horn inner conductors (HWL1/HRN1
+    // in the SBN model) are Polycones with centimeter radii, a narrow
+    // throat, and slope reversals at the joints.
+    shapes.push_back({"PolyconeHornLike",
+        Polycone({0.0, 0.5, 1.0, 1.5, 2.2, 3.0},
+                 {0.05, 0.02, 0.02, 0.05, 0.11, 0.15},
+                 {0.08, 0.05, 0.05, 0.08, 0.14, 0.18}).create(), -1, -1, 0});
+
     // Reversed z-planes (constructor auto-reverses to ascending)
     shapes.push_back({"PolyconeReversed", Polycone({5, 0, -5}, {0, 0, 0}, {3, 5, 3}).create(), -1, -1, 0});
     shapes.push_back({"PolyhedraReversed", Polyhedra(6, 0, {5, -5}, {0, 0}, {4, 4}).create(), -1, -1, 0});
@@ -669,6 +677,370 @@ TEST(ShapeInvariants, TangentRays) {
         auto inside_isects = cyl->Intersections(inside_pos, tangent_dir);
         EXPECT_EQ(inside_isects.size(), 2u)
             << "Cylinder inside tangent: expected 2, got " << inside_isects.size();
+    }
+}
+
+// =========================================================================
+// Cylinder cap/barrel corner seam
+// A ray crossing the neighborhood of the cap/barrel corner circle must
+// never produce an unpaired hit. The per-surface window tests used before
+// the interval method could cull a crossing's partner at the seam (the
+// barrel z-window and the cap r-window disagreeing about a corner
+// crossing), which broke enter/exit alternation and made
+// DetectorModel::SectorLoop abort with "Cannot exit a level that we have
+// not entered!". The exact ray below is the BNB target-rod configuration
+// recovered from a crashing SBND K0L injection: the kaon was born on the
+// rod's downstream corner, so the line through its decay vertex along its
+// momentum grazes the corner to within ~1e-7 m.
+// =========================================================================
+TEST(ShapeInvariants, CylinderCapCornerSeamRays) {
+    // BNB TARG rod dimensions; the placement in the detector model is a
+    // pure translation by (0, -5.6e-17, 0.390525), applied here directly
+    // to the ray (the 1e-17 y-offset is far below every margin in play).
+    double const rod_radius = 0.0047624999;
+    double const rod_length = 0.71120002;
+    auto targ = Cylinder(rod_radius, 0.0, rod_length).create();
+    {
+        Vector3D pos(-0.059748840138354575, -0.82280090677850126,
+                     2.1007794332370793 - 0.390525);
+        Vector3D dir(-0.039581487553593614, -0.52038274145986718,
+                     0.85301530363397216);
+        auto isects = targ->Intersections(pos, dir);
+        ASSERT_EQ(isects.size() % 2, 0u)
+            << "unpaired hit at the cap corner seam: " << isects.size();
+        bool expect_entering = true;
+        double last = -std::numeric_limits<double>::infinity();
+        for(auto const & h : isects) {
+            EXPECT_EQ(h.entering, expect_entering);
+            EXPECT_GE(h.distance, last);
+            last = h.distance;
+            expect_entering = !expect_entering;
+        }
+    }
+
+    // Sweep rays through the corner-circle neighborhood, solid and hollow
+    // rods: parity, alternation, and ordering must hold for every ray.
+    std::mt19937 seam_rng(20260724);
+    std::uniform_real_distribution<double> jitter(-1e-6, 1e-6);
+    std::uniform_real_distribution<double> angle(0.0, 2.0 * M_PI);
+    std::vector<std::shared_ptr<Geometry>> rods = {
+        Cylinder(rod_radius, 0.0, rod_length).create(),
+        Cylinder(rod_radius, 0.002, rod_length).create(),
+    };
+    double const hz = 0.5 * rod_length;
+    for(auto const & rod : rods) {
+        for(int i = 0; i < 20000; ++i) {
+            double phi = angle(seam_rng);
+            Vector3D corner((rod_radius + jitter(seam_rng)) * std::cos(phi),
+                            (rod_radius + jitter(seam_rng)) * std::sin(phi),
+                            (i % 2 ? hz : -hz) + jitter(seam_rng));
+            Vector3D offset = RandomDirection();
+            Vector3D origin = corner + offset * 2.0;
+            Vector3D d = corner - origin;
+            d.normalize();
+            auto hits = rod->Intersections(origin, d);
+            ASSERT_EQ(hits.size() % 2, 0u)
+                << "unpaired hit, ray " << i << ": " << hits.size();
+            bool expect = true;
+            double lastd = -std::numeric_limits<double>::infinity();
+            for(auto const & h : hits) {
+                ASSERT_EQ(h.entering, expect) << "alternation broken, ray " << i;
+                ASSERT_GE(h.distance, lastd) << "ordering broken, ray " << i;
+                lastd = h.distance;
+                expect = !expect;
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Polycone joint and theta-cut sphere seam sweeps
+// Same invariant as CylinderCapCornerSeamRays, for the remaining shapes
+// whose bounding surfaces meet at seam circles: rays grazing a seam must
+// never produce an unpaired hit, whatever the per-surface arithmetic does
+// on either side of the seam.
+// =========================================================================
+namespace {
+
+// Parity, alternation, and ordering of one intersection list; the
+// invariant every consumer of model-level intersections relies on.
+void ExpectSeamInvariants(std::vector<Geometry::Intersection> const & hits,
+                          std::string const & label) {
+    ASSERT_EQ(hits.size() % 2, 0u)
+        << label << ": unpaired hit count " << hits.size();
+    bool expect_entering = true;
+    double last = -std::numeric_limits<double>::infinity();
+    for(auto const & h : hits) {
+        ASSERT_EQ(h.entering, expect_entering) << label << ": alternation broken";
+        ASSERT_GE(h.distance, last) << label << ": ordering broken";
+        last = h.distance;
+        expect_entering = !expect_entering;
+    }
+}
+
+} // anonymous namespace
+
+// Rays grazing the joint circles of a polycone: the circles where adjacent
+// frustum sections meet (slope reversals, step flanges, bore joints) and
+// the end-cap corner circles. Three ray families per seam circle: arbitrary
+// incidence through a jittered seam point, near-tangent chords between two
+// nearby seam points, and rays born exactly on the jittered seam (the
+// GEANT-style birth-on-surface case that triggered the cylinder crash).
+// The millimeter-scale hollow profile is horn-like because the BNB horn
+// inner conductors (HWL1/HRN1 in the SBN model) are Polycones sitting
+// exactly where K0L birth-surface-grazing rays pass.
+TEST(ShapeInvariants, PolyconeJointSeamRays) {
+    struct Profile {
+        std::string name;
+        std::vector<double> zs, rmin, rmax;
+    };
+    std::vector<Profile> profiles = {
+        // Slope reversal at every internal joint
+        {"solid", {-5, -2, 0, 3, 5}, {0, 0, 0, 0, 0}, {3, 5, 4, 6, 2}},
+        // Hollow: bore joints add inner seam circles
+        {"hollow", {-4, 0, 4}, {1, 2, 1}, {5, 6, 5}},
+        // Duplicate z-planes: step flange with annular joint faces
+        {"step_flange", {-5, -2, -2, 2, 2, 5}, {0, 0, 0, 0, 0, 0}, {3, 3, 5, 5, 3, 3}},
+        // Horn-like hollow conductor: centimeter radii, narrow throat,
+        // slope reversals
+        {"horn_like", {0.0, 0.5, 1.0, 1.5, 2.2, 3.0},
+                      {0.05, 0.02, 0.02, 0.05, 0.11, 0.15},
+                      {0.08, 0.05, 0.05, 0.08, 0.14, 0.18}},
+    };
+
+    std::mt19937 seam_rng(20260725);
+    std::uniform_real_distribution<double> unit(-1.0, 1.0);
+    std::uniform_real_distribution<double> angle(0.0, 2.0 * M_PI);
+    auto rand_dir = [&]() {
+        double ux, uy, uz, mag;
+        do {
+            ux = unit(seam_rng); uy = unit(seam_rng); uz = unit(seam_rng);
+            mag = std::sqrt(ux*ux + uy*uy + uz*uz);
+        } while(mag < 1e-12);
+        return Vector3D(ux/mag, uy/mag, uz/mag);
+    };
+
+    for(auto const & prof : profiles) {
+        auto geo = Polycone(prof.zs, prof.rmin, prof.rmax).create();
+
+        // Seam circles: every (z-plane, radius) pair of the profile,
+        // including end-cap corners, step-flange edges, and bore joints.
+        std::vector<std::pair<double, double>> circles; // (z, r)
+        for(size_t k = 0; k < prof.zs.size(); ++k) {
+            circles.emplace_back(prof.zs[k], prof.rmax[k]);
+            if(prof.rmin[k] > 0) circles.emplace_back(prof.zs[k], prof.rmin[k]);
+        }
+
+        double scale = 0.0;
+        for(double r : prof.rmax) scale = std::max(scale, r);
+        double extent = prof.zs.back() - prof.zs.front();
+        double jit = 1e-6 * std::max(1.0, scale);
+        double reach = 2.0 * std::max(1.0, extent + scale);
+
+        for(size_t c = 0; c < circles.size(); ++c) {
+            double z0 = circles[c].first;
+            double r0 = circles[c].second;
+            for(int i = 0; i < 6000; ++i) {
+                double phi = angle(seam_rng);
+                Vector3D target((r0 + jit * unit(seam_rng)) * std::cos(phi),
+                                (r0 + jit * unit(seam_rng)) * std::sin(phi),
+                                z0 + jit * unit(seam_rng));
+                Vector3D origin, dir;
+                int family = i % 3;
+                if(family == 0) {
+                    // Arbitrary incidence through the jittered seam point
+                    origin = target + rand_dir() * reach;
+                    dir = target - origin;
+                } else if(family == 1) {
+                    // Near-tangent chord between two nearby seam points
+                    double phi2 = phi + 0.3 * std::fabs(unit(seam_rng)) + 1e-4;
+                    Vector3D p2((r0 + jit * unit(seam_rng)) * std::cos(phi2),
+                                (r0 + jit * unit(seam_rng)) * std::sin(phi2),
+                                z0 + jit * unit(seam_rng));
+                    dir = p2 - target;
+                    double mag = std::sqrt(dir.GetX()*dir.GetX() + dir.GetY()*dir.GetY() + dir.GetZ()*dir.GetZ());
+                    if(mag < 1e-12) continue;
+                    origin = target - (dir * (1.0 / mag)) * reach;
+                } else {
+                    // Ray born exactly on the jittered seam
+                    origin = target;
+                    dir = rand_dir();
+                }
+                double mag = std::sqrt(dir.GetX()*dir.GetX() + dir.GetY()*dir.GetY() + dir.GetZ()*dir.GetZ());
+                if(mag < 1e-12) continue;
+                dir = dir * (1.0 / mag);
+                auto hits = geo->Intersections(origin, dir);
+                ASSERT_NO_FATAL_FAILURE(ExpectSeamInvariants(hits,
+                    prof.name + " circle " + std::to_string(c) + " ray " + std::to_string(i)));
+            }
+        }
+    }
+}
+
+// Independent containment classifier for a partial sphere, used to check
+// that the material segments claimed by the intersection list are real.
+// Returns +1 (decisively inside), -1 (decisively outside), or 0 (within
+// `margin` of some boundary, too close to call). Boundary distances for
+// the angular cuts are chordal (angle times radius), so `margin` is a
+// length everywhere.
+namespace {
+int ClassifyPartialSphere(Vector3D const & p, double r_out, double r_in,
+                          double start_phi, double delta_phi,
+                          double start_theta, double delta_theta,
+                          double margin) {
+    double x = p.GetX(), y = p.GetY(), z = p.GetZ();
+    double r = std::sqrt(x*x + y*y + z*z);
+    double worst = r_out - r; // signed clearance: positive means inside
+    if(r_in > 0) worst = std::min(worst, r - r_in);
+    if(r < 20.0 * margin) {
+        // Too close to the apex: every angular boundary passes nearby.
+        return worst < -margin ? -1 : 0;
+    }
+    double theta = std::acos(std::min(1.0, std::max(-1.0, z / r)));
+    if(start_theta > 1e-9)
+        worst = std::min(worst, (theta - start_theta) * r);
+    if(start_theta + delta_theta < M_PI - 1e-9)
+        worst = std::min(worst, (start_theta + delta_theta - theta) * r);
+    if(delta_phi < 2.0 * M_PI - 1e-9) {
+        double rho = std::sqrt(x*x + y*y);
+        double dphi = std::atan2(y, x) - start_phi;
+        dphi = dphi - 2.0 * M_PI * std::floor(dphi / (2.0 * M_PI)); // to [0, 2pi)
+        // Signed angular clearance into the wedge, negative outside.
+        double a = std::min(dphi, delta_phi - dphi);
+        if(dphi > delta_phi) a = -std::min(dphi - delta_phi, 2.0 * M_PI - dphi);
+        worst = std::min(worst, a * rho);
+    }
+    if(worst > margin) return 1;
+    if(worst < -margin) return -1;
+    return 0;
+}
+} // anonymous namespace
+
+// Rays grazing the seam circles of a theta-cut sphere: the edge circles
+// where the theta cone faces meet the outer (and inner) spherical surface,
+// the equator edge of the half-space face at theta = pi/2, the cone apex
+// at the origin, and (for phi cuts) the wedge-plane edges. Same three ray
+// families as the polycone sweep; the apex is included as a degenerate
+// seam circle of zero radius.
+//
+// Parity alone cannot catch this shape's historical failure mode: the
+// per-root theta-cone tests fed a state walk whose output always
+// alternates, but a culled or misflagged cone root left the walk's band
+// state wrong for the rest of the ray, silently claiming material on
+// segments outside the band (or dropping real ones). So in addition to
+// the seam invariants, every claimed material segment (and every gap)
+// long enough to have a decisively classifiable midpoint is checked
+// against an independent containment predicate.
+TEST(ShapeInvariants, SphereThetaSeamRays) {
+    struct PartialSphere {
+        std::string name;
+        double r_out, r_in, start_phi, delta_phi, start_theta, delta_theta;
+    };
+    std::vector<PartialSphere> cases = {
+        {"cone45",      5, 0, 0, 2.0 * M_PI, 0,          M_PI / 4},
+        {"hollow_band", 5, 2, 0, 2.0 * M_PI, M_PI / 4,   M_PI / 2},
+        {"hemisphere",  5, 0, 0, 2.0 * M_PI, 0,          M_PI / 2},
+        {"band_mid",    5, 0, 0, 2.0 * M_PI, M_PI / 3,   M_PI / 3},
+        {"phi_theta",   5, 0, 0, M_PI,       M_PI / 4,   M_PI / 2},
+    };
+
+    std::mt19937 seam_rng(20260726);
+    std::uniform_real_distribution<double> unit(-1.0, 1.0);
+    std::uniform_real_distribution<double> angle(0.0, 2.0 * M_PI);
+    auto rand_dir = [&]() {
+        double ux, uy, uz, mag;
+        do {
+            ux = unit(seam_rng); uy = unit(seam_rng); uz = unit(seam_rng);
+            mag = std::sqrt(ux*ux + uy*uy + uz*uz);
+        } while(mag < 1e-12);
+        return Vector3D(ux/mag, uy/mag, uz/mag);
+    };
+
+    for(auto const & sc : cases) {
+        auto geo = Sphere(sc.r_out, sc.r_in, sc.start_phi, sc.delta_phi,
+                          sc.start_theta, sc.delta_theta).create();
+
+        // Seam circles (rho, z): active theta faces crossed with the outer
+        // and inner radii, plus the apex as a zero-radius circle.
+        std::vector<std::pair<double, double>> circles; // (rho, z)
+        std::vector<double> faces;
+        if(sc.start_theta > 1e-9) faces.push_back(sc.start_theta);
+        if(sc.start_theta + sc.delta_theta < M_PI - 1e-9)
+            faces.push_back(sc.start_theta + sc.delta_theta);
+        for(double theta0 : faces) {
+            circles.emplace_back(sc.r_out * std::sin(theta0), sc.r_out * std::cos(theta0));
+            if(sc.r_in > 0)
+                circles.emplace_back(sc.r_in * std::sin(theta0), sc.r_in * std::cos(theta0));
+        }
+        circles.emplace_back(0.0, 0.0); // cone apex
+
+        bool phi_cut = sc.delta_phi < 2.0 * M_PI - 1e-9;
+        double jit = 1e-6;
+        double reach = 4.0 * sc.r_out;
+
+        for(size_t c = 0; c < circles.size(); ++c) {
+            double rho0 = circles[c].first;
+            double z0 = circles[c].second;
+            for(int i = 0; i < 6000; ++i) {
+                double phi = angle(seam_rng);
+                // For phi-cut spheres, aim half the rays at the wedge-plane
+                // edges of the seam circle instead of a uniform azimuth.
+                if(phi_cut && (i & 1)) {
+                    phi = ((i & 2) ? sc.start_phi : sc.start_phi + sc.delta_phi)
+                          + 1e-6 * unit(seam_rng);
+                }
+                Vector3D target((rho0 + jit * unit(seam_rng)) * std::cos(phi),
+                                (rho0 + jit * unit(seam_rng)) * std::sin(phi),
+                                z0 + jit * unit(seam_rng));
+                Vector3D origin, dir;
+                int family = i % 3;
+                if(family == 0) {
+                    origin = target + rand_dir() * reach;
+                    dir = target - origin;
+                } else if(family == 1) {
+                    double phi2 = phi + 0.3 * std::fabs(unit(seam_rng)) + 1e-4;
+                    Vector3D p2((rho0 + jit * unit(seam_rng)) * std::cos(phi2),
+                                (rho0 + jit * unit(seam_rng)) * std::sin(phi2),
+                                z0 + jit * unit(seam_rng));
+                    dir = p2 - target;
+                    double mag = std::sqrt(dir.GetX()*dir.GetX() + dir.GetY()*dir.GetY() + dir.GetZ()*dir.GetZ());
+                    if(mag < 1e-12) continue;
+                    origin = target - (dir * (1.0 / mag)) * reach;
+                } else {
+                    origin = target;
+                    dir = rand_dir();
+                }
+                double mag = std::sqrt(dir.GetX()*dir.GetX() + dir.GetY()*dir.GetY() + dir.GetZ()*dir.GetZ());
+                if(mag < 1e-12) continue;
+                dir = dir * (1.0 / mag);
+                auto hits = geo->Intersections(origin, dir);
+                std::string label = sc.name + " circle " + std::to_string(c)
+                                    + " ray " + std::to_string(i);
+                ASSERT_NO_FATAL_FAILURE(ExpectSeamInvariants(hits, label));
+
+                // Midpoints of claimed material segments must be inside,
+                // midpoints of gaps must be outside, whenever the midpoint
+                // is decisively classifiable.
+                double margin = 1e-5 * sc.r_out;
+                for(size_t k = 0; k + 1 < hits.size(); ++k) {
+                    double len = hits[k + 1].distance - hits[k].distance;
+                    if(len < 1e-3 * sc.r_out) continue;
+                    double tm = 0.5 * (hits[k].distance + hits[k + 1].distance);
+                    Vector3D mid = origin + dir * tm;
+                    int cls = ClassifyPartialSphere(mid, sc.r_out, sc.r_in,
+                        sc.start_phi, sc.delta_phi, sc.start_theta, sc.delta_theta,
+                        margin);
+                    bool claimed_inside = hits[k].entering;
+                    if(claimed_inside) {
+                        ASSERT_NE(cls, -1) << label << ": claimed material segment "
+                            << k << " has an outside midpoint at t=" << tm;
+                    } else {
+                        ASSERT_NE(cls, 1) << label << ": claimed gap " << k
+                            << " has an inside midpoint at t=" << tm;
+                    }
+                }
+            }
+        }
     }
 }
 

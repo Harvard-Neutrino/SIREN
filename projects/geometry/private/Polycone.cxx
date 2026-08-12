@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <tuple>
+#include <limits>
 #include <string>
 #include <vector>
 #include <ostream>
@@ -15,6 +16,7 @@
 #include "SIREN/geometry/Placement.h"
 #include "GeometryMacros.h"
 #include "PhiUtils.h"
+#include "RayIntervals.h"
 
 namespace siren {
 namespace geometry {
@@ -87,14 +89,28 @@ void Polycone::print(std::ostream& os) const {
 // ------------------------------------------------------------------------- //
 // ComputeIntersections
 //
-// The polycone is decomposed into N-1 conical frustum sections between
-// adjacent z-planes. For each section, we compute ray intersections with
-// the outer cone surface, inner cone surface (if hollow), and the end caps
-// (top/bottom annular disks only for the first and last z-plane, since
-// internal z-planes are shared boundaries, not real surfaces).
+// Interval (slab) method. The polycone is the union over sections of
+//     (z-slab) INTERSECT (outer cone) MINUS (inner cone),
+// one conical frustum section per pair of adjacent z-planes. Each
+// section's in-solid ray-parameter set is a short list of disjoint
+// intervals from exact quadratic sign conditions, and the joint plane
+// ray parameters are computed once per plane index, so adjacent
+// sections share their boundary parameter bit-exactly. The union over
+// sections therefore merges seamlessly where material continues across
+// a joint and splits exactly where it does not (step joints, end caps,
+// grazes), and emitting each connected piece as an (enter, exit) pair
+// makes the hit list parity-consistent by construction. End caps and
+// internal step annuli need no dedicated surface tests: they are
+// exactly the piece boundaries that land on joint plane parameters.
 //
-// All coordinates are in local frame. Distance can be negative (full-line
-// intersections, same as Cone.cxx).
+// Testing each surface independently with tolerance windows (the
+// previous approach) let a crossing near a joint or corner circle pass
+// one window and fail another, emitting unpaired hits that broke every
+// consumer relying on enter/exit alternation
+// (DetectorModel::SectorLoop in particular).
+//
+// All coordinates are in local frame. Distance can be negative
+// (full-line intersections, same as Cone.cxx).
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
 
@@ -109,348 +125,155 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
-    // Origin shift: move ray origin to closest approach to the coordinate
-    // origin. This keeps quadratic coefficients small for far-field rays,
-    // avoiding catastrophic cancellation in the discriminant B^2 - 4AC.
+    size_t n = z_planes_.size();
+
+    // Quick rejects against the z-range and the bounding cylinder keep
+    // the common miss path allocation-free.
+    if(dz == 0 && (pz < z_planes_.front() || pz >= z_planes_.back())) {
+        return {};
+    }
+    double C_xy = dx * dx + dy * dy;
+    double cross_z = px * dy - py * dx;
+    double max_r = *std::max_element(rmax_.begin(), rmax_.end());
+    if(C_xy != 0) {
+        // det = C*r^2 - (px*dy - py*dx)^2 avoids catastrophic cancellation
+        // at large distances.
+        if(C_xy * max_r * max_r - cross_z * cross_z <= 0) {
+            return {}; // miss, or tangent line (zero measure)
+        }
+    } else if(px * px + py * py > max_r * max_r) {
+        return {};
+    }
+
+    // Origin shift: quadratics are evaluated about the closest approach to
+    // the coordinate origin. This keeps their coefficients small for
+    // far-field rays, avoiding catastrophic cancellation in the
+    // discriminant B^2 - 4AC.
     double t_shift = -(px * dx + py * dy + pz * dz);
     double qx = px + t_shift * dx;
     double qy = py + t_shift * dy;
     double qz = pz + t_shift * dz;
 
-    static constexpr int STACK_CAP = 32;
-    Intersection stack_hits[STACK_CAP];
-    std::vector<Intersection> heap_hits;
-    bool using_heap = false;
-    int n_hits = 0;
+    // Ray parameter of the crossing with the z-plane of index k. Adjacent
+    // sections call this for the same k, giving bit-identical shared
+    // boundary parameters: that is what lets the piece union below merge
+    // exactly at continuous joints.
+    double inv_dz = (dz != 0) ? 1.0 / dz : 0.0;
+    auto plane_t = [&](size_t k) { return (z_planes_[k] - pz) * inv_dz; };
 
-    double intersection_x;
-    double intersection_y;
-    double intersection_z;
+    using ray_intervals::IntervalSet;
+    double const inf = std::numeric_limits<double>::infinity();
 
-    // Write a hit, promoting from stack to heap if the stack fills up.
-    auto emit = [&](double t, bool entering) {
-        Intersection isect;
-        isect.distance = t;
-        isect.hierarchy = 0;
-        isect.entering = entering;
-        isect.position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-        if(!using_heap) {
-            if(n_hits < STACK_CAP) {
-                stack_hits[n_hits++] = isect;
-            } else {
-                using_heap = true;
-                heap_hits.assign(stack_hits, stack_hits + STACK_CAP);
-                heap_hits.push_back(isect);
-                n_hits++;
-            }
-        } else {
-            heap_hits.push_back(isect);
-            n_hits++;
-        }
-    };
+    std::vector<std::pair<double, double>> pieces;
+    pieces.reserve(2 * (n - 1));
 
-    // Cone surface entering test using the gradient normal.
-    // For surface x^2 + y^2 = (a + b*z)^2, outward normal is (x, y, -b*(a+b*z)).
-    // Entering when normal . direction < 0.
-    auto entering_cone = [&](double a, double b) {
-        double r_val = a + b * intersection_z;
-        return (intersection_x * dx + intersection_y * dy - b * r_val * dz) < 0;
-    };
-
-    size_t n = z_planes_.size();
-
-    // Process each frustum section between adjacent z-planes
     for(size_t seg = 0; seg + 1 < n; ++seg) {
         double z_lo = z_planes_[seg];
         double z_hi = z_planes_[seg + 1];
 
-        // Skip degenerate zero-height sections
+        // Zero-height sections encode step joints; they carry no volume.
         if(z_hi <= z_lo) {
             continue;
         }
 
-        // Horizontal ray cannot hit barrel surfaces outside its z-range.
-        // Use half-open interval [z_lo, z_hi) so each boundary belongs to
-        // exactly one section and horizontal rays at internal z-planes are
-        // not skipped by both adjacent sections.
-        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz < z_lo || pz >= z_hi)) {
-            continue;
+        // Ray-parameter interval inside this section's z-slab.
+        IntervalSet slab;
+        if(dz != 0) {
+            double ta = plane_t(seg);
+            double tb = plane_t(seg + 1);
+            if(ta > tb) std::swap(ta, tb);
+            slab.Add(ta, tb);
+        } else {
+            // Half-open [z_lo, z_hi): a horizontal ray at an internal
+            // plane belongs to exactly one section.
+            if(pz < z_lo || pz >= z_hi) {
+                continue;
+            }
+            slab.Add(-inf, inf);
         }
 
         double dz_sec = z_hi - z_lo;
 
-        // --- Outer conical surface for this section ---
-        {
-            double rmax_lo = rmax_[seg];
-            double rmax_hi = rmax_[seg + 1];
+        // Outer cone r_outer(z) = a + b*z: the solid needs
+        // x^2 + y^2 <= (a + b*z)^2. r_outer is non-negative throughout the
+        // slab, so the mirror nappe of the squared form lies outside it.
+        double b_outer = (rmax_[seg + 1] - rmax_[seg]) / dz_sec;
+        double a_outer = rmax_[seg] - b_outer * z_lo;
+        double r_q_outer = a_outer + b_outer * qz;
+        IntervalSet sec = ray_intervals::QuadraticLEQ(
+            C_xy - b_outer * b_outer * dz * dz,
+            qx * dx + qy * dy - b_outer * dz * r_q_outer,
+            qx * qx + qy * qy - r_q_outer * r_q_outer);
+        sec.Shift(t_shift);
+        sec = ray_intervals::Intersect(slab, sec);
 
-            // r_outer(z) = rmax_lo + (rmax_hi - rmax_lo) * (z - z_lo) / dz_sec
-            //            = a + b * z   where:
-            //   a = rmax_lo - (rmax_hi - rmax_lo) * z_lo / dz_sec
-            //   b = (rmax_hi - rmax_lo) / dz_sec
-            double b_outer = (rmax_hi - rmax_lo) / dz_sec;
-            double a_outer = rmax_lo - b_outer * z_lo;
-
-            // Surface equation: x^2 + y^2 = (a + b*z)^2
-            // Substituting ray with shifted origin (q) gives: A*s^2 + B*s + C = 0
-            // where s = t - t_shift (roots are shifted back to absolute t).
-            double A = dx * dx + dy * dy - b_outer * b_outer * dz * dz;
-            double B = 2.0 * (qx * dx + qy * dy - b_outer * dz * (a_outer + b_outer * qz));
-            double C = qx * qx + qy * qy - (a_outer + b_outer * qz) * (a_outer + b_outer * qz);
-
-            if(!(dx == 0 && dy == 0 && b_outer == 0)) {
-                double determinant = B * B - 4.0 * A * C;
-
-                if(std::fabs(A) > GEOMETRY_PRECISION) {
-                    if(determinant > 0) {
-                        double sqrt_det = std::sqrt(determinant);
-                        double t1 = (-B + sqrt_det) / (2.0 * A) + t_shift;
-                        double t2 = (-B - sqrt_det) / (2.0 * A) + t_shift;
-
-                        if(t1 > 0 && t1 < GEOMETRY_PRECISION)
-                            t1 = 0;
-                        if(t2 > 0 && t2 < GEOMETRY_PRECISION)
-                            t2 = 0;
-
-                        intersection_z = pz + t1 * dz;
-                        if(intersection_z >= z_lo && intersection_z < z_hi) {
-                            intersection_x = px + t1 * dx;
-                            intersection_y = py + t1 * dy;
-                            double r_at_z = a_outer + b_outer * intersection_z;
-                            if(r_at_z >= 0) {
-                                bool entering = entering_cone(a_outer, b_outer);
-                                emit(t1, entering);
-                            }
-                        }
-
-                        intersection_z = pz + t2 * dz;
-                        if(intersection_z >= z_lo && intersection_z < z_hi) {
-                            intersection_x = px + t2 * dx;
-                            intersection_y = py + t2 * dy;
-                            double r_at_z = a_outer + b_outer * intersection_z;
-                            if(r_at_z >= 0) {
-                                bool entering = entering_cone(a_outer, b_outer);
-                                emit(t2, entering);
-                            }
-                        }
-                    }
-                } else if(std::fabs(B) > GEOMETRY_PRECISION) {
-                    // Linear case: ray parallel to cone surface
-                    double t1 = -C / B + t_shift;
-                    if(t1 > 0 && t1 < GEOMETRY_PRECISION)
-                        t1 = 0;
-
-                    intersection_z = pz + t1 * dz;
-                    if(intersection_z >= z_lo && intersection_z < z_hi) {
-                        intersection_x = px + t1 * dx;
-                        intersection_y = py + t1 * dy;
-                        double r_at_z = a_outer + b_outer * intersection_z;
-                        if(r_at_z >= 0) {
-                            bool entering = entering_cone(a_outer, b_outer);
-                            emit(t1, entering);
-                        }
-                    }
-                }
-            }
+        // Inner cone (hollow sections): subtract the bore.
+        if(sec.n > 0 && (rmin_[seg] > 0 || rmin_[seg + 1] > 0)) {
+            double b_inner = (rmin_[seg + 1] - rmin_[seg]) / dz_sec;
+            double a_inner = rmin_[seg] - b_inner * z_lo;
+            double r_q_inner = a_inner + b_inner * qz;
+            IntervalSet bore = ray_intervals::QuadraticLEQ(
+                C_xy - b_inner * b_inner * dz * dz,
+                qx * dx + qy * dy - b_inner * dz * r_q_inner,
+                qx * qx + qy * qy - r_q_inner * r_q_inner);
+            bore.Shift(t_shift);
+            sec = ray_intervals::Subtract(sec, bore);
         }
 
-        // --- Inner conical surface for this section (hollow) ---
-        if(rmin_[seg] > 0 || rmin_[seg + 1] > 0) {
-            double rmin_lo = rmin_[seg];
-            double rmin_hi = rmin_[seg + 1];
-
-            double b_inner = (rmin_hi - rmin_lo) / dz_sec;
-            double a_inner = rmin_lo - b_inner * z_lo;
-
-            double A = dx * dx + dy * dy - b_inner * b_inner * dz * dz;
-            double B = 2.0 * (qx * dx + qy * dy - b_inner * dz * (a_inner + b_inner * qz));
-            double C = qx * qx + qy * qy - (a_inner + b_inner * qz) * (a_inner + b_inner * qz);
-
-            if(!(dx == 0 && dy == 0 && b_inner == 0)) {
-                double determinant = B * B - 4.0 * A * C;
-
-                if(std::fabs(A) > GEOMETRY_PRECISION) {
-                    if(determinant > 0) {
-                        double sqrt_det = std::sqrt(determinant);
-                        double t1 = (-B + sqrt_det) / (2.0 * A) + t_shift;
-                        double t2 = (-B - sqrt_det) / (2.0 * A) + t_shift;
-
-                        if(t1 > 0 && t1 < GEOMETRY_PRECISION)
-                            t1 = 0;
-                        if(t2 > 0 && t2 < GEOMETRY_PRECISION)
-                            t2 = 0;
-
-                        intersection_z = pz + t1 * dz;
-                        if(intersection_z >= z_lo && intersection_z < z_hi) {
-                            intersection_x = px + t1 * dx;
-                            intersection_y = py + t1 * dy;
-                            double r_at_z = a_inner + b_inner * intersection_z;
-                            if(r_at_z >= 0) {
-                                bool entering = !entering_cone(a_inner, b_inner);
-                                emit(t1, entering);
-                            }
-                        }
-
-                        intersection_z = pz + t2 * dz;
-                        if(intersection_z >= z_lo && intersection_z < z_hi) {
-                            intersection_x = px + t2 * dx;
-                            intersection_y = py + t2 * dy;
-                            double r_at_z = a_inner + b_inner * intersection_z;
-                            if(r_at_z >= 0) {
-                                bool entering = !entering_cone(a_inner, b_inner);
-                                emit(t2, entering);
-                            }
-                        }
-                    }
-                } else if(std::fabs(B) > GEOMETRY_PRECISION) {
-                    double t1 = -C / B + t_shift;
-                    if(t1 > 0 && t1 < GEOMETRY_PRECISION)
-                        t1 = 0;
-
-                    intersection_z = pz + t1 * dz;
-                    if(intersection_z >= z_lo && intersection_z < z_hi) {
-                        intersection_x = px + t1 * dx;
-                        intersection_y = py + t1 * dy;
-                        double r_at_z = a_inner + b_inner * intersection_z;
-                        if(r_at_z >= 0) {
-                            bool entering = !entering_cone(a_inner, b_inner);
-                            emit(t1, entering);
-                        }
-                    }
-                }
-            }
+        for(int i = 0; i < sec.n; ++i) {
+            pieces.emplace_back(sec.lo[i], sec.hi[i]);
         }
     }
 
-    // --- End caps: bottom (z_planes_[0]) and top (z_planes_[n-1]) ---
-    if(std::fabs(dz) > GEOMETRY_PRECISION) {
-        // Bottom cap
-        {
-            double z_cap = z_planes_.front();
-            double t = (z_cap - pz) / dz;
-
-            if(t > 0 && t < GEOMETRY_PRECISION)
-                t = 0;
-
-            intersection_x = px + t * dx;
-            intersection_y = py + t * dy;
-
-            double r2_hit = intersection_x * intersection_x + intersection_y * intersection_y;
-            double rmax_cap = rmax_.front();
-            double rmin_cap = rmin_.front();
-            double rmax2 = rmax_cap * rmax_cap;
-            double rmin2 = rmin_cap * rmin_cap;
-            double r2_tol = GEOMETRY_PRECISION * std::fmax(1.0, rmax2);
-            if(r2_hit <= rmax2 + r2_tol && r2_hit >= rmin2 - r2_tol) {
-                intersection_z = pz + t * dz;
-                emit(t, dz > 0);
-            }
-        }
-
-        // Top cap
-        {
-            double z_cap = z_planes_.back();
-            double t = (z_cap - pz) / dz;
-
-            if(t > 0 && t < GEOMETRY_PRECISION)
-                t = 0;
-
-            intersection_x = px + t * dx;
-            intersection_y = py + t * dy;
-
-            double r2_hit = intersection_x * intersection_x + intersection_y * intersection_y;
-            double rmax_cap = rmax_.back();
-            double rmin_cap = rmin_.back();
-            double rmax2 = rmax_cap * rmax_cap;
-            double rmin2 = rmin_cap * rmin_cap;
-            double r2_tol = GEOMETRY_PRECISION * std::fmax(1.0, rmax2);
-            if(r2_hit <= rmax2 + r2_tol && r2_hit >= rmin2 - r2_tol) {
-                intersection_z = pz + t * dz;
-                emit(t, dz < 0);
-            }
-        }
+    if(pieces.empty()) {
+        return {};
     }
 
-    // --- Internal caps for step changes in radius ---
-    // These arise at z-planes where consecutive entries share the same z
-    // but have different radii (step discontinuity). We group consecutive
-    // z-planes at the same z-value and compare radii across the group.
-    if(std::fabs(dz) > GEOMETRY_PRECISION) {
-        size_t i = 1; // skip first z-plane (endcap handles it)
-        while(i + 1 < n) { // skip last z-plane
-            double z_here = z_planes_[i];
+    // Sections were visited in ascending z; for dz < 0 the ray traverses
+    // them in descending parameter order.
+    std::sort(pieces.begin(), pieces.end());
 
-            // Find the extent of z-planes at the same z
-            size_t j = i;
-            while(j + 1 < n - 1 && z_planes_[j + 1] == z_here) {
-                j++;
-            }
-
-            // Radii at the top of the section below this group = values at index i
-            // Radii at the bottom of the section above this group = values at index j
-            double rmin_below = rmin_[i];
-            double rmax_below = rmax_[i];
-            double rmin_above = rmin_[j];
-            double rmax_above = rmax_[j];
-
-            if(rmax_below == rmax_above && rmin_below == rmin_above) {
-                i = j + 1;
-                continue;
-            }
-
-            double t = (z_here - pz) / dz;
-
-            if(t > 0 && t < GEOMETRY_PRECISION)
-                t = 0;
-
-            intersection_x = px + t * dx;
-            intersection_y = py + t * dy;
-            intersection_z = pz + t * dz;
-
-            double r2_hit = intersection_x * intersection_x + intersection_y * intersection_y;
-
-            // Outer annulus: region where rmax changed
-            if(rmax_below != rmax_above) {
-                double rlo = std::min(rmax_below, rmax_above);
-                double rhi = std::max(rmax_below, rmax_above);
-                if(r2_hit >= rlo * rlo && r2_hit <= rhi * rhi) {
-                    // Material exists on the side with larger rmax
-                    // entering = moving into material
-                    bool entering = (rmax_above > rmax_below) ? (dz > 0) : (dz < 0);
-                    emit(t, entering);
-                }
-            }
-
-            // Inner annulus: region where rmin changed
-            if(rmin_below != rmin_above) {
-                double rlo = std::min(rmin_below, rmin_above);
-                double rhi = std::max(rmin_below, rmin_above);
-                if(r2_hit >= rlo * rlo && r2_hit <= rhi * rhi) {
-                    // Hole grows on the side with larger rmin,
-                    // so material exists on the side with smaller rmin
-                    bool entering = (rmin_above > rmin_below) ? (dz < 0) : (dz > 0);
-                    emit(t, entering);
-                }
-            }
-
-            i = j + 1;
+    // Snap piece boundaries within GEOMETRY_PRECISION ahead of the ray
+    // origin to distance zero (the on-border convention), drop pieces the
+    // snap collapses, and merge pieces that touch or overlap: continuous
+    // joints share their plane parameter bit-exactly and coalesce here,
+    // so only real material boundaries survive as (enter, exit) pairs.
+    std::vector<std::pair<double, double>> solid;
+    solid.reserve(pieces.size());
+    for(auto const & piece : pieces) {
+        double lo = piece.first;
+        double hi = piece.second;
+        if(lo > 0 && lo < GEOMETRY_PRECISION) lo = 0;
+        if(hi > 0 && hi < GEOMETRY_PRECISION) hi = 0;
+        if(!(lo < hi)) continue;
+        if(!solid.empty() && lo <= solid.back().second) {
+            if(hi > solid.back().second) solid.back().second = hi;
+            continue;
         }
+        solid.emplace_back(lo, hi);
+    }
+    if(solid.empty()) {
+        return {};
     }
 
-    if(n_hits == 0) return {};
-
-    auto cmp = [](Intersection const & a, Intersection const & b) {
-        return a.distance < b.distance;
+    auto make_hit = [&](double t, bool entering) {
+        Intersection isect;
+        isect.distance = t;
+        isect.hierarchy = 0;
+        isect.entering = entering;
+        isect.position = siren::math::Vector3D(px + t * dx, py + t * dy, pz + t * dz);
+        return isect;
     };
 
     if(!has_phi_cut_) {
-        // No phi cut: surface hits are the final result
-        if(using_heap) {
-            std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-            return heap_hits;
+        // No phi cut: the interval endpoints are the final result
+        std::vector<Intersection> result;
+        result.reserve(2 * solid.size());
+        for(auto const & piece : solid) {
+            result.push_back(make_hit(piece.first, true));
+            result.push_back(make_hit(piece.second, false));
         }
-        std::sort(stack_hits, stack_hits + n_hits, cmp);
-        return {stack_hits, stack_hits + n_hits};
+        return result;
     }
 
     // Phi cut: merge surface hits with infinite wedge hits and run CSG walk.
@@ -458,7 +281,6 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     // wedge (two half-planes from the z-axis). A sorted walk over both hit
     // lists produces the CSG intersection. This pattern is duplicated across
     // Polycone, GenericPolycone, Sphere, Torus, Cylinder, Cone, CutTube.
-    // Collect surface hits into a sorted vector of tagged hits.
     struct TaggedHit {
         double distance;
         siren::math::Vector3D position;
@@ -466,18 +288,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
         int source; // 0 = surface, 1 = wedge
     };
 
-    // Sort surface hits first
-    if(using_heap) {
-        std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-    } else {
-        std::sort(stack_hits, stack_hits + n_hits, cmp);
-    }
-
     std::vector<TaggedHit> all_hits;
-    all_hits.reserve(n_hits + 2);
-    for(int i = 0; i < n_hits; ++i) {
-        Intersection const & h = using_heap ? heap_hits[i] : stack_hits[i];
-        all_hits.push_back({h.distance, h.position, h.entering, 0});
+    all_hits.reserve(2 * solid.size() + 2);
+    for(auto const & piece : solid) {
+        for(int k = 0; k < 2; ++k) {
+            double t = (k == 0) ? piece.first : piece.second;
+            all_hits.push_back({t, siren::math::Vector3D(px + t * dx, py + t * dy, pz + t * dz), k == 0, 0});
+        }
     }
 
     // Compute infinite wedge intersections (two half-planes from z-axis)
