@@ -1207,12 +1207,11 @@ def SaveEvents(events,
             datasets["num_secondaries"][-1].append(isec+1)
         datasets["num_interactions"].append(id+1)
 
-    # save events
-    # Imported here rather than at module scope: awkward starts native worker
-    # threads on import, and a multi-threaded process cannot safely fork().
-    # Only this function needs it. See the note next to THIS_DIR above.
+    # awkward must be imported here rather than at module scope
+    # causes issues with multi-threading otherwise
     import awkward as ak
 
+    # save events
     ak_array = ak.Array(datasets)
     if save_hdf5:
         fout = h5py.File(output_filename+".hdf5", "w")
