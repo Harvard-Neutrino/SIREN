@@ -1905,13 +1905,9 @@ void DetectorModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersec
                 // since this intersection does not represent a physical transition to a different sector
             }
             else {
-                // An exiting intersection for a hierarchy this walk never
-                // entered. Intersection lists cover the full line, so a
-                // missing entry can only come from a parity defect in a
-                // shape's Intersections() at a surface seam (nanometer-scale
-                // corner slivers). No integration segment is open for that
-                // sector, so the exit carries no measure: skip it instead of
-                // aborting the traversal.
+                // We have exited a hierarchy we never entered!
+                // Skip this exit intersection and warn
+                // This is likely an issue with the geometry intersection calculation
                 static std::atomic<bool> parity_warning_issued{false};
                 if(!parity_warning_issued.exchange(true)) {
                     std::cerr << "SIREN DetectorModel::SectorLoop: ignoring an exit intersection for hierarchy "
