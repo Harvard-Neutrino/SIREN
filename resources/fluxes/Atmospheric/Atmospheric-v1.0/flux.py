@@ -1,6 +1,7 @@
 import os
 import numpy as np
-from siren.download import ensure_files, writable_data_dir, resolve_data_path
+from siren.download import (atomic_output_path, ensure_files,
+                            resolve_data_path, writable_data_dir)
 
 _INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -100,9 +101,8 @@ def load_flux(tag):
                 tot_flux += grid
 
     ee, cc = np.meshgrid(energy, cos_theta, indexing='ij')
-    tmp = output_flux_file + ".tmp"
-    np.savetxt(tmp,
-               np.column_stack([ee.ravel(), cc.ravel(), tot_flux.ravel()]))
-    os.replace(tmp, output_flux_file)
+    with atomic_output_path(output_flux_file) as tmp:
+        np.savetxt(tmp,
+                   np.column_stack([ee.ravel(), cc.ravel(), tot_flux.ravel()]))
 
     return output_flux_file

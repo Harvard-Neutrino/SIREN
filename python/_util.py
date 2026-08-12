@@ -12,7 +12,6 @@ from siren import dataclasses as _dataclasses
 from siren import math as _math
 from siren.interactions import DarkNewsCrossSection,DarkNewsDecay
 import numpy as np
-import awkward as ak
 import h5py
 import pickle
 import logging
@@ -63,10 +62,8 @@ def log_newline(n=1):
     for handler, formatter in zip(logger.handlers, formatters):
         handler.setFormatter(formatter)
 
-try:
-    from DarkNews.nuclear_tools import NuclearTarget
-except:
-    pass
+# NOTE: do not import DarkNews at module scope here
+# Importing DarNews.MC -> pandas -> numexpr breaks multi-threading
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -1209,6 +1206,10 @@ def SaveEvents(events,
                 datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
             datasets["num_secondaries"][-1].append(isec+1)
         datasets["num_interactions"].append(id+1)
+
+    # awkward must be imported here rather than at module scope
+    # causes issues with multi-threading otherwise
+    import awkward as ak
 
     # save events
     ak_array = ak.Array(datasets)

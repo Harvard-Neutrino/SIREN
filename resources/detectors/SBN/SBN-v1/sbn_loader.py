@@ -386,18 +386,13 @@ def ensure_miniboone_gdml(abs_dir: str,
     run before ``_ensure_gdml_files`` sees the MiniBooNE source spec.
     Returns the relative *filename* (matching the _DETECTOR_SPECS entry).
     """
+    from siren.download import atomic_output_path
+
     path = os.path.join(abs_dir, filename)
     if not os.path.isfile(path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        tmp = path + ".tmp"
-        try:
+        with atomic_output_path(path) as tmp:
             with open(tmp, "w", encoding="utf-8") as f:
                 f.write(_MINIBOONE_GDML)
-            os.replace(tmp, path)
-        except Exception:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-            raise
     return filename
 
 
@@ -417,6 +412,8 @@ def build_composite(
 
     Returns the path to the written stub GDML.
     """
+    from siren.download import atomic_output_path
+
     cache_path = os.path.join(abs_dir, cache_name)
 
     _ensure_gdml_files(abs_dir, sources)
@@ -518,14 +515,8 @@ def build_composite(
 </gdml>
 """
 
-    tmp_path = cache_path + ".tmp"
-    try:
+    with atomic_output_path(cache_path) as tmp_path:
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(stub)
-        os.replace(tmp_path, cache_path)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-        raise
 
     return cache_path
