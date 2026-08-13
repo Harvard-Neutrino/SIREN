@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import http.server
+import io
 import os
+import tarfile
 import threading
 import zipfile
 from pathlib import Path
@@ -46,6 +48,29 @@ def sample_zip(tmp):
         zf.writestr("data/beta/file1.txt", "beta-1")
         zf.writestr("data/beta/sub/deep.txt", "beta-deep")
     return zip_path
+
+
+@pytest.fixture()
+def sample_tar_xz(tmp):
+    """Create an xz-compressed tar archive with a nested data tree."""
+    source = tmp / "tar_source"
+    files = {
+        "data/alpha/file1.txt": "alpha-1",
+        "data/alpha/file2.txt": "alpha-2",
+        "data/beta/file1.txt": "beta-1",
+        "data/beta/sub/deep.txt": "beta-deep",
+    }
+    for rel_path, content in files.items():
+        path = source / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+
+    archive = tmp / "archive.tar.xz"
+    with tarfile.open(archive, "w:xz") as tf:
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                tf.add(path, arcname=path.relative_to(source))
+    return archive
 
 
 class _LocalServer:
@@ -167,6 +192,87 @@ class TestEnsureFiles:
         ])
         assert existing.read_text() == "old"
         assert (tmp / "new.txt").read_text() == "new"
+
+
+# ======================================================================
+# ensure_tar_archive
+# ======================================================================
+
+class TestEnsureTarArchive:
+
+    def test_downloads_verifies_and_extracts(self, local_server, sample_tar_xz,
+                                             tmp):
+        srv, _ = local_server
+        sha = hashlib.sha256(sample_tar_xz.read_bytes()).hexdigest()
+        dest = tmp / "generic_extract"
+
+        dl.ensure_tar_archive(
+            f"{srv.url}/{sample_tar_xz.name}", sample_tar_xz.name,
+            str(dest), sha)
+
+        assert (dest / "data" / "alpha" / "file1.txt").read_text() == "alpha-1"
+        cached = list((dest / ".download_cache").glob(f"{sha}.*"))
+        assert len(cached) == 1
+        sentinels = list(dest.glob(f".*{dl._ARCHIVE_EXTRACTED_SENTINEL}"))
+        assert len(sentinels) == 1
+        assert f"sha256:{sha}" in sentinels[0].read_text()
+
+    def test_sentinel_skips_second_download(self, local_server, sample_tar_xz,
+                                            tmp, monkeypatch):
+        srv, _ = local_server
+        sha = hashlib.sha256(sample_tar_xz.read_bytes()).hexdigest()
+        dest = tmp / "generic_cached"
+        url = f"{srv.url}/{sample_tar_xz.name}"
+
+        dl.ensure_tar_archive(url, sample_tar_xz.name, str(dest), sha)
+        monkeypatch.setattr(
+            dl, "download_file",
+            lambda *a, **kw: pytest.fail("archive was downloaded twice"))
+        dl.ensure_tar_archive(url, sample_tar_xz.name, str(dest), sha)
+
+    def test_bad_sha_does_not_extract(self, local_server, sample_tar_xz, tmp):
+        srv, _ = local_server
+        dest = tmp / "generic_bad_sha"
+
+        with pytest.raises(RuntimeError, match="SHA-256 mismatch"):
+            dl.ensure_tar_archive(
+                f"{srv.url}/{sample_tar_xz.name}", sample_tar_xz.name,
+                str(dest), "0" * 64)
+
+        assert not (dest / "data").exists()
+        assert not list(dest.glob(f".*{dl._ARCHIVE_EXTRACTED_SENTINEL}"))
+
+    def test_path_traversal_rejected_before_extract(self, local_server, tmp):
+        srv, serve_dir = local_server
+        archive = serve_dir / "generic_evil.tar.xz"
+        content = b"pwned"
+        with tarfile.open(archive, "w:xz") as tf:
+            member = tarfile.TarInfo("../../../escaped.txt")
+            member.size = len(content)
+            tf.addfile(member, io.BytesIO(content))
+        sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+        dest = tmp / "generic_tar_slip"
+
+        with pytest.raises(ValueError, match="outside"):
+            dl.ensure_tar_archive(
+                f"{srv.url}/{archive.name}", archive.name, str(dest), sha)
+
+        assert not (tmp.parent / "escaped.txt").exists()
+
+    def test_links_are_rejected(self, local_server, tmp):
+        srv, serve_dir = local_server
+        archive = serve_dir / "generic_link.tar.xz"
+        with tarfile.open(archive, "w:xz") as tf:
+            member = tarfile.TarInfo("link")
+            member.type = tarfile.SYMTYPE
+            member.linkname = "target"
+            tf.addfile(member)
+        sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+
+        with pytest.raises(ValueError, match="links are not allowed"):
+            dl.ensure_tar_archive(
+                f"{srv.url}/{archive.name}", archive.name,
+                str(tmp / "generic_link"), sha)
 
 
 # ======================================================================

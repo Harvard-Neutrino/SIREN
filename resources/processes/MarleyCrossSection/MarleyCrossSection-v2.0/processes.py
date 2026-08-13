@@ -3,23 +3,54 @@ import glob
 from typing import List, Optional
 import siren
 import collections
+from siren.download import ensure_tar_archive, writable_data_dir
 
 # MarleyCrossSection-v2.0: MARLEY v2 hybrid model resources.
 #
 # Differences with respect to v1.0:
-#  - Self-contained: every data file ships INSIDE this bundle (react files,
-#    CRPA response tables, nuclear charge radii, v2-format structure files
-#    with per-level half-lives, masses, parities). No dependency on $PREFIX
-#    or on an external MARLEY installation.
+#  - Self-contained after download: the complete, SHA-256-verified data bundle
+#    comes from SIREN-data (react files, CRPA response tables, nuclear charge
+#    radii, v2-format structure files with per-level half-lives, masses, and
+#    parities). No dependency on $PREFIX or an external MARLEY installation.
 #  - The CC process is the MARLEY v2 recommended hybrid: measured discrete
 #    levels (Bhattacharya 2009) + HF-CRPA continuum, loaded together as a
 #    single MarleyCrossSection object (multi-react constructor).
 basepath = os.path.dirname(os.path.abspath(__file__))
-default_marley_search_path = ':'.join([
-    basepath,
-    os.path.join(basepath, 'react'),
-    os.path.join(basepath, 'structure')
+
+_DATA_ARCHIVE = "MarleyCrossSection-v2.0.tar.xz"
+_DATA_URL = (
+    "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/main/"
+    "processes/MarleyCrossSection/MarleyCrossSection-v2.0/"
+    + _DATA_ARCHIVE
+)
+_DATA_SHA256 = "eb64ee2b330001205c96118d5dbdd2021c41d4f08b506363cef8a700433a6aa8"
+_DATA_DIR = None
+
+
+def _search_path(data_dir):
+    return ':'.join([
+        data_dir,
+        os.path.join(data_dir, 'react'),
+        os.path.join(data_dir, 'structure')
     ])
+
+
+def _get_data_dir():
+    global _DATA_DIR
+    if _DATA_DIR is None:
+        _DATA_DIR = writable_data_dir(basepath)
+    return _DATA_DIR
+
+
+def fetch_data():
+    """Download and extract the MARLEY v2 input bundle from SIREN-data."""
+    data_dir = _get_data_dir()
+    ensure_tar_archive(
+        _DATA_URL, _DATA_ARCHIVE, data_dir, sha256=_DATA_SHA256)
+    return data_dir
+
+
+default_marley_search_path = _search_path(_get_data_dir())
 
 #lists of neutrinos and antineutrinos
 neutrinos = [
@@ -42,15 +73,20 @@ reactions_by_process = {
     "ES": ["ES.react"],
 }
 
-#auxiliary data files needed by the v2 engine, with the relative name each
-#one must keep on the MARLEY search path (the HF-CRPA manifest references the
-#response tables as "crpa/<table>.dat")
+# Auxiliary data files needed by the v2 engine, with the relative name each
+# one must keep on the MARLEY search path (the HF-CRPA manifest references the
+# response tables as "crpa/<table>.dat"). Keep this list explicit because the
+# data files are not present until fetch_data() extracts the archive.
+_crpa_tables = [f"responses_ar40_crpa_J{j}_G3.dat" for j in range(6)]
+_logger_config = [("config/logger.js", "data/config/logger.js")]
 aux_by_process = {
-    "CC": [(os.path.join("react", "crpa", os.path.basename(f)), os.path.join("crpa", os.path.basename(f)))
-           for f in sorted(glob.glob(os.path.join(basepath, "react", "crpa", "*.dat")))]
-          + [("nuclear_charge_radii.js", "nuclear_charge_radii.js")],
-    "CEvNS": [("nuclear_charge_radii.js", "nuclear_charge_radii.js")],
-    "ES": [],
+    "CC": [(os.path.join("react", "crpa", f), os.path.join("crpa", f))
+           for f in _crpa_tables]
+          + [("nuclear_charge_radii.js", "nuclear_charge_radii.js")]
+          + _logger_config,
+    "CEvNS": [("nuclear_charge_radii.js", "nuclear_charge_radii.js")]
+             + _logger_config,
+    "ES": _logger_config,
 }
 
 #mapping of processes to primary particles
@@ -106,7 +142,7 @@ def load_processes(
     ):
 
     if marley_search_path is None:
-        marley_search_path = default_marley_search_path
+        marley_search_path = _search_path(fetch_data())
 
     primary_types = _get_primary_types(primary_types)
     process_types = _get_process_types(process_types)
@@ -119,12 +155,13 @@ def load_processes(
 
         nuclide_index_fname = _find_file(marley_search_path, "nuclide_index.txt")
         nuclide_path = os.path.dirname(nuclide_index_fname)
-        nuclide_fnames = glob.glob(os.path.join(nuclide_path, "*.dat"))
+        nuclide_fnames = sorted(glob.glob(os.path.join(nuclide_path, "*.dat")))
         masses_fname = _find_file(marley_search_path, "mass_table.js")
         gs_parity_fname = _find_file(marley_search_path, "gs_spin_parity_table.txt")
 
         #Auxiliary files: (path inside the bundle, relative name for MARLEY)
-        aux_files = [os.path.join(basepath, rel_src) for rel_src, _ in aux_by_process[process]]
+        aux_files = [_find_file(marley_search_path, rel_src)
+                     for rel_src, _ in aux_by_process[process]]
         aux_names = [name for _, name in aux_by_process[process]]
 
         xs = siren.interactions.MarleyCrossSection(

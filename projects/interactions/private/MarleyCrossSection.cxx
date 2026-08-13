@@ -130,22 +130,10 @@ void MarleyCrossSection::SetupMarley() {
 
     std::string search_path = tmp_dir_path.string();
 
-    // MARLEY v2 loads additional standard data files at runtime (logger
-    // config, ...). Keep the tmp dir FIRST so the SIREN-provided files take
-    // precedence, then append the standard data directories under $MARLEY
-    // (v2 layout).
-    if(const char* marley_env = std::getenv("MARLEY")) {
-        std::string md(marley_env);
-        if(!md.empty()) {
-            search_path += ':' + md + "/data";
-            search_path += ':' + md + "/data/react";
-            search_path += ':' + md + "/data/structure";
-            search_path += ':' + md + "/data/optical_model";
-        }
-    }
-
-    setenv("MARLEY", "", 0);
-    setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
+    // MARLEY's logger loads config/logger.js through $MARLEY/data rather than
+    // FileManager. Point $MARLEY at the reconstructed, self-contained bundle.
+    setenv("MARLEY", tmp_dir_path.c_str(), 1);
+    setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 1);
     marley::FileManager::Instance();
     siren::interactions::marley_::FileManager_::set_search_path(search_path);
 
