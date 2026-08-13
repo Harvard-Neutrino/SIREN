@@ -107,6 +107,15 @@ endfunction()
 #     Debug, every generator expression evaluates to an empty string, the
 #     COMMAND tokens are all empty, and CMake skips the rule.
 # Skips silently if CMAKE_STRIP is not available on the host toolchain.
+# rpath origin token: ELF $ORIGIN on Linux, @loader_path on macOS.
+# (an unescaped $ORIGIN reaches the shell via ninja and expands to an empty
+# string on macOS, silently corrupting the link -- see photospline.cmake)
+if(APPLE)
+    set(SIREN_RPATH_ORIGIN "@loader_path")
+else()
+    set(SIREN_RPATH_ORIGIN "\\\$ORIGIN")
+endif()
+
 function(siren_strip_module target)
     if(NOT CMAKE_STRIP)
         return()
@@ -263,7 +272,7 @@ endif()
 if(DEFINED SKBUILD_PLATLIB_DIR)
     set_target_properties(SIREN PROPERTIES
             BUILD_WITH_INSTALL_RPATH FALSE
-            LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN")
+            LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}")
     if(DEFINED CIBUILDWHEEL AND CIBUILDWHEEL)
         message(STATUS "Setting SIREN install lib dir to: ${CI_INSTALL_PREFIX}/lib")
         message(STATUS "Setting SIREN install include dir to: ${CI_INSTALL_PREFIX}/include")

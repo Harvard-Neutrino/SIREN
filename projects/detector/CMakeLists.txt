@@ -77,5 +77,5 @@ siren_strip_module(detector)
 if(DEFINED SKBUILD)
 set_target_properties(detector PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
+        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
 endif()

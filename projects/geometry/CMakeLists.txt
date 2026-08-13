@@ -68,5 +68,5 @@ siren_strip_module(geometry)
 if(DEFINED SKBUILD)
 set_target_properties(geometry PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
+        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
 endif()
