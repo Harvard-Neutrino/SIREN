@@ -35,14 +35,14 @@ if(DEFINED SKBUILD)
     else()
         set_target_properties(photospline PROPERTIES
                 BUILD_WITH_INSTALL_RPATH FALSE
-                LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+                LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}")
         install(TARGETS photospline
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endif()
     #set_target_properties(spglam PROPERTIES
     #        BUILD_WITH_INSTALL_RPATH FALSE
-    #        LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+    #        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}")
     #install(TARGETS spglam
     #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
     #    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
