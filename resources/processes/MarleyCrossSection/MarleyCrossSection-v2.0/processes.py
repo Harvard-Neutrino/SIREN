@@ -23,7 +23,7 @@ _DATA_URL = (
     "processes/MarleyCrossSection/MarleyCrossSection-v2.0/"
     + _DATA_ARCHIVE
 )
-_DATA_SHA256 = "eb64ee2b330001205c96118d5dbdd2021c41d4f08b506363cef8a700433a6aa8"
+_DATA_SHA256 = "10c05087774b409fc1908a0482fa65af0e030baddca41a296446558374d0b5bc"
 _DATA_DIR = None
 
 
