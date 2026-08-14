@@ -30,8 +30,9 @@ if(DEFINED ENV{MARLEY_ROOT} AND NOT "$ENV{MARLEY_ROOT}" STREQUAL "")
   set(MARLEY_PREFIX "$ENV{MARLEY_ROOT}")
   message(STATUS "Using MARLEY_ROOT from environment: ${MARLEY_PREFIX}")
 else()
+  # Generator.hh is present in both MARLEY v1 and v2
   find_path(MARLEY_PREFIX
-    NAMES include/marley/Particle.hh
+    NAMES include/marley/Generator.hh
     PATHS ${CMAKE_PREFIX_PATH} /usr /usr/local /opt/local /opt/homebrew
     DOC "Root directory for MARLEY installation"
   )
@@ -47,19 +48,24 @@ endif()
 # -----------------------------
 if(_marley_ok)
   find_path(MARLEY_CONFIG_DIR
-    NAMES marleyConfig.cmake
+    NAMES marleyConfig.cmake MARLEYConfig.cmake
     HINTS "${MARLEY_PREFIX}"
     PATH_SUFFIXES
       share/marley/cmake
       lib/cmake/marley
       lib64/cmake/marley
+      lib/cmake/MARLEY
+      lib64/cmake/MARLEY
       cmake
-    DOC "Directory containing marleyConfig.cmake"
+    DOC "Directory containing marleyConfig.cmake (v1) or MARLEYConfig.cmake (v2)"
   )
 
   if(MARLEY_CONFIG_DIR AND EXISTS "${MARLEY_CONFIG_DIR}/marleyConfig.cmake")
     message(STATUS "MARLEY configuration file found at: ${MARLEY_CONFIG_DIR}/marleyConfig.cmake")
     include("${MARLEY_CONFIG_DIR}/marleyConfig.cmake")
+  elseif(MARLEY_CONFIG_DIR AND EXISTS "${MARLEY_CONFIG_DIR}/MARLEYConfig.cmake")
+    message(STATUS "MARLEY v2 configuration file found at: ${MARLEY_CONFIG_DIR}/MARLEYConfig.cmake")
+    include("${MARLEY_CONFIG_DIR}/MARLEYConfig.cmake")
   else()
     # Not fatal: config might be absent even if lib/headers exist.
     message(STATUS "MARLEY config not found (looked for marleyConfig.cmake under ${MARLEY_PREFIX}); will try manual import.")
@@ -87,9 +93,9 @@ endif()
 # If you include as <marley/Particle.hh> (typical), the include dir should be "${prefix}/include".
 if(_marley_ok)
   set(MARLEY_INCLUDE_DIR "${MARLEY_PREFIX}/include")
-  if(NOT EXISTS "${MARLEY_INCLUDE_DIR}/marley/Particle.hh")
+  if(NOT EXISTS "${MARLEY_INCLUDE_DIR}/marley/Generator.hh")
     set(_marley_ok FALSE)
-    message(STATUS "MARLEY headers not found at: ${MARLEY_INCLUDE_DIR}/marley/Particle.hh")
+    message(STATUS "MARLEY headers not found at: ${MARLEY_INCLUDE_DIR}/marley/Generator.hh")
   endif()
 endif()
 
@@ -106,6 +112,18 @@ if(_marley_ok)
     IMPORTED_LOCATION "${MARLEY_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${MARLEY_INCLUDE_DIR}"
   )
+
+  # propagate MARLEY's bundled HepMC3 when present (v2 only)
+  find_library(MARLEY_HEPMC3_LIBRARY
+    NAMES HepMC3
+    PATHS "${MARLEY_PREFIX}/lib64" "${MARLEY_PREFIX}/lib"
+    NO_DEFAULT_PATH
+  )
+  if(MARLEY_HEPMC3_LIBRARY)
+    set_property(TARGET MARLEY APPEND PROPERTY
+      INTERFACE_LINK_LIBRARIES "${MARLEY_HEPMC3_LIBRARY}")
+    message(STATUS "MARLEY bundled HepMC3 found: ${MARLEY_HEPMC3_LIBRARY}")
+  endif()
 
   set(MARLEY_FOUND TRUE)
   message(STATUS "MARLEY enabled: prefix=${MARLEY_PREFIX}")

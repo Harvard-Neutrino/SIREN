@@ -20,6 +20,9 @@ download_file(url, dest, sha256="")
 ensure_files(specs)
     Download any missing files from a list of {path, url, sha256} specs.
 
+ensure_tar_archive(url, filename, dest_dir, sha256="")
+    Download, verify, cache, and safely extract a tar archive.
+
 ensure_zenodo_files(record_id, files, dest_dir, token="")
     Download individual files from a Zenodo record into dest_dir.
 
@@ -44,6 +47,7 @@ import hashlib
 import json
 import os
 import sys
+import tarfile
 import tempfile
 import urllib.error
 import urllib.request
@@ -240,6 +244,60 @@ def ensure_files(specs: list[dict[str, Any]]) -> None:
 
 
 # ======================================================================
+# Generic tar archive helper
+# ======================================================================
+
+_ARCHIVE_EXTRACTED_SENTINEL = ".archive_extracted"
+
+
+def _sha256_hex_file(path: str) -> str:
+    """Compute the lowercase hexadecimal SHA-256 digest of a file."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 16), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def ensure_tar_archive(url: str, filename: str, dest_dir: str,
+                       sha256: str = "") -> None:
+    """Download, verify, cache, and safely extract a tar archive.
+
+    The archive is cached under ``dest_dir/.download_cache`` and extracted
+    directly into *dest_dir*. A sentinel keyed by the expected digest (or by
+    the URL when no digest is supplied) makes later calls no-ops. Archive
+    members are checked by :func:`_safe_extract_tar` before extraction.
+    """
+    archive_name = os.path.basename(filename)
+    cache_key = sha256 or hashlib.sha256(url.encode("utf-8")).hexdigest()
+    sentinel = os.path.join(
+        dest_dir, f".{archive_name}.{cache_key[:16]}{_ARCHIVE_EXTRACTED_SENTINEL}")
+    if os.path.isfile(sentinel):
+        return
+
+    cache_dir = _archive_cache_dir(dest_dir)
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_path = os.path.join(cache_dir, f"{cache_key}.{archive_name}")
+
+    needs_download = not os.path.isfile(cache_path)
+    if not needs_download and sha256:
+        needs_download = _sha256_hex_file(cache_path) != sha256
+    if needs_download:
+        download_file(url, cache_path, sha256=sha256, label=archive_name)
+
+    os.makedirs(dest_dir, exist_ok=True)
+    with tarfile.open(cache_path, "r:*") as tf:
+        print(f"  Extracting {archive_name} ...")
+        _safe_extract_tar(tf, dest_dir)
+
+    with atomic_output_path(sentinel) as tmp:
+        with open(tmp, "w") as f:
+            f.write(f"url:{url}\n")
+            if sha256:
+                f.write(f"sha256:{sha256}\n")
+
+
+# ======================================================================
 # Zenodo helpers
 # ======================================================================
 
@@ -332,7 +390,7 @@ def _sha256_file(path: str) -> str:
     return base64.urlsafe_b64encode(h.digest()).rstrip(b"=").decode("ascii")
 
 
-def _zip_cache_dir(dest_dir: str) -> str:
+def _archive_cache_dir(dest_dir: str) -> str:
     return os.path.join(dest_dir, ".download_cache")
 
 
@@ -343,7 +401,7 @@ def _cached_zip(dest_dir: str, record_id: str, filename: str,
     The cache filename is the full SHA-256 of the zip content (URL-safe
     base64, 43 chars) so that different versions never collide.
     """
-    cache_dir = _zip_cache_dir(dest_dir)
+    cache_dir = _archive_cache_dir(dest_dir)
     os.makedirs(cache_dir, exist_ok=True)
 
     # Check for an existing cached file for this record/filename
@@ -392,6 +450,33 @@ def _safe_extract(zf: zipfile.ZipFile, dest_dir: str,
             raise ValueError(
                 f"Zip entry '{name}' would extract outside {dest_dir}")
         zf.extract(name, dest_dir)
+
+
+def _safe_extract_tar(tf: tarfile.TarFile, dest_dir: str) -> None:
+    """Extract regular files and directories without path traversal.
+
+    Links and special files are rejected because they are unnecessary for
+    SIREN data bundles and can redirect extraction outside *dest_dir*.
+    """
+    abs_dest = os.path.realpath(dest_dir)
+    members = tf.getmembers()
+    for member in members:
+        target = os.path.realpath(os.path.join(dest_dir, member.name))
+        if not target.startswith(abs_dest + os.sep) and target != abs_dest:
+            raise ValueError(
+                f"Tar entry '{member.name}' would extract outside {dest_dir}")
+        if member.issym() or member.islnk():
+            raise ValueError(
+                f"Tar entry '{member.name}' is a link; links are not allowed")
+        if not member.isfile() and not member.isdir():
+            raise ValueError(
+                f"Tar entry '{member.name}' is not a regular file or directory")
+
+    for member in members:
+        if sys.version_info >= (3, 12):
+            tf.extract(member, dest_dir, filter="data")
+        else:
+            tf.extract(member, dest_dir)
 
 
 def ensure_zenodo_archive(record_id: str, filename: str, dest_dir: str,

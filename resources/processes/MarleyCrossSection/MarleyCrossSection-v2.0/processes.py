@@ -5,16 +5,18 @@ import siren
 import collections
 from siren.download import ensure_tar_archive, writable_data_dir
 
-# MarleyCrossSection-v1.0: MARLEY v1-era nuclear data (measured discrete levels
-# + Cheoun QRPA) evaluated with the MARLEY 2.0.0 engine in its MARLEY v1
-# compatibility mode.
+# MarleyCrossSection-v2.0: MARLEY v2 hybrid model resources.
 #
-# Data comes from the same SHA-256-verified SIREN-data bundle used by
-# MarleyCrossSection-v2.0; the v1-format react files live under react/v1/.
+# Differences with respect to v1.0:
+#  - Self-contained after download: the complete, SHA-256-verified data bundle
+#    comes from SIREN-data (react files, CRPA response tables, nuclear charge
+#    radii, v2-format structure files with per-level half-lives, masses, and
+#    parities). No dependency on $PREFIX or an external MARLEY installation.
+#  - The CC process is the MARLEY v2 recommended hybrid: measured discrete
+#    levels (Bhattacharya 2009) + HF-CRPA continuum, loaded together as a
+#    single MarleyCrossSection object (multi-react constructor).
 basepath = os.path.dirname(os.path.abspath(__file__))
 
-# Keep these constants in sync with MarleyCrossSection-v2.0/processes.py
-# (both bundles download the same archive).
 _DATA_ARCHIVE = "MarleyCrossSection-v2.0.tar.xz"
 _DATA_URL = (
     "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/main/"
@@ -41,7 +43,7 @@ def _get_data_dir():
 
 
 def fetch_data():
-    """Download and extract the MARLEY input bundle from SIREN-data."""
+    """Download and extract the MARLEY v2 input bundle from SIREN-data."""
     data_dir = _get_data_dir()
     ensure_tar_archive(
         _DATA_URL, _DATA_ARCHIVE, data_dir, sha256=_DATA_SHA256)
@@ -62,22 +64,30 @@ antineutrinos = [
         siren.dataclasses.Particle.ParticleType.NuTauBar,
 ]
 
-#list of processes and mapping of reaction files to processes
+#list of processes and the react files that build each one.
+#CC is the v2 hybrid: BOTH files form a single cross-section object.
 processes = ["CC", "CEvNS", "ES"]
-process_by_reaction = {
-    "v1/ve40ArCC_Bhattacharya1998.react": "CC",
-    "v1/ve40ArCC_Liu1998.react": "CC",
-    "v1/ve40ArCC_Bhattacharya2009.react": "CC",
-    "CEvNS40Ar.react": "CEvNS",
-    "ES.react": "ES",
+reactions_by_process = {
+    "CC": ["ve40ArCC_HF-CRPA.react", "ve40ArCC_Bhattacharya2009-Discrete.react"],
+    "CEvNS": ["CEvNS40Ar.react"],
+    "ES": ["ES.react"],
 }
 
-# Runtime data files required by the MARLEY 2.0.0 engine, with the relative
-# name each one must keep on the MARLEY search path.
-_runtime_aux = [
-    ("config/logger.js", "data/config/logger.js"),
-    ("nuclear_charge_radii.js", "nuclear_charge_radii.js"),
-]
+# Auxiliary data files needed by the v2 engine, with the relative name each
+# one must keep on the MARLEY search path (the HF-CRPA manifest references the
+# response tables as "crpa/<table>.dat"). Keep this list explicit because the
+# data files are not present until fetch_data() extracts the archive.
+_crpa_tables = [f"responses_ar40_crpa_J{j}_G3.dat" for j in range(6)]
+_logger_config = [("config/logger.js", "data/config/logger.js")]
+aux_by_process = {
+    "CC": [(os.path.join("react", "crpa", f), os.path.join("crpa", f))
+           for f in _crpa_tables]
+          + [("nuclear_charge_radii.js", "nuclear_charge_radii.js")]
+          + _logger_config,
+    "CEvNS": [("nuclear_charge_radii.js", "nuclear_charge_radii.js")]
+             + _logger_config,
+    "ES": _logger_config,
+}
 
 #mapping of processes to primary particles
 primaries_by_process = {
@@ -129,7 +139,6 @@ def load_processes(
     primary_types: Optional[List[siren.dataclasses.Particle.ParticleType]] = None,
     process_types: Optional[List[str]] = None,
     marley_search_path: Optional[str] = None,
-    reaction_name: Optional[str] = None,
     ):
 
     if marley_search_path is None:
@@ -137,39 +146,29 @@ def load_processes(
 
     primary_types = _get_primary_types(primary_types)
     process_types = _get_process_types(process_types)
-    reaction_names = []
-
-    if reaction_name is not None:
-        reaction_names = [reaction_name]
-    else:
-        if "CC" in process_types and (siren.dataclasses.Particle.ParticleType.NuE in primary_types or siren.dataclasses.Particle.ParticleType.NuEBar in primary_types):
-            reaction_names.append("v1/ve40ArCC_Bhattacharya2009.react")
-        if "CEvNS" in process_types:
-            reaction_names.append("CEvNS40Ar.react")
-        if "ES" in process_types:
-            reaction_names.append("ES.react")
 
     primary_processes_dict = collections.defaultdict(list)
 
-    for reaction_name in reaction_names:
-        react_fname = _find_file(marley_search_path, reaction_name)
+    for process in process_types:
+        #Resolve every react file of this process (CC = hybrid pair)
+        react_fnames = [_find_file(marley_search_path, r) for r in reactions_by_process[process]]
+
         nuclide_index_fname = _find_file(marley_search_path, "nuclide_index.txt")
         nuclide_path = os.path.dirname(nuclide_index_fname)
         nuclide_fnames = sorted(glob.glob(os.path.join(nuclide_path, "*.dat")))
         masses_fname = _find_file(marley_search_path, "mass_table.js")
         gs_parity_fname = _find_file(marley_search_path, "gs_spin_parity_table.txt")
 
+        #Auxiliary files: (path inside the bundle, relative name for MARLEY)
         aux_files = [_find_file(marley_search_path, rel_src)
-                     for rel_src, _ in _runtime_aux]
-        aux_names = [name for _, name in _runtime_aux]
+                     for rel_src, _ in aux_by_process[process]]
+        aux_names = [name for _, name in aux_by_process[process]]
 
         xs = siren.interactions.MarleyCrossSection(
-            [react_fname], nuclide_index_fname, nuclide_fnames,
-            masses_fname, gs_parity_fname, aux_files, aux_names,
-            use_marley_v1_compatibility=True)
+            react_fnames, nuclide_index_fname, nuclide_fnames,
+            masses_fname, gs_parity_fname, aux_files, aux_names)
 
-        reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
-        reaction_primary_types = reaction_primary_types & set(primary_types)
+        reaction_primary_types = set(primaries_by_process[process]) & set(primary_types)
 
         #Add cross section to primary_processes_dict
         for primary_type in reaction_primary_types:
