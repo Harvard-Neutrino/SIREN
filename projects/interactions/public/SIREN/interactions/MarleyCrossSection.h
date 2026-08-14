@@ -14,10 +14,10 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "SIREN/dataclasses/Particle.h"  // for Particle
-#include "SIREN/dataclasses/InteractionSignature.h" // for InteractionSignature
-#include "SIREN/utilities/Random.h" // for SIREN_random
-#include "SIREN/interactions/Interaction.h" // for Interaction
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/utilities/Random.h"
+#include "SIREN/interactions/Interaction.h"
 #include "SIREN/interactions/CrossSection.h"
 
 #include "marley/Generator.hh"
@@ -53,10 +53,8 @@ friend class siren::interactions::MarleyCrossSection;
 class MarleyCrossSection : public CrossSection {
 //friend cereal::access;
 private:
-    // MARLEY v2 hybrid model support: N react files plus arbitrary auxiliary
-    // data files (CRPA response tables, nuclear charge radii, ...). Every file
-    // is stored as raw bytes inside the object (self-contained serialization
-    // pattern): a deserialized object carries its nuclear data with it.
+    // All data files (react files + auxiliary files such as CRPA response
+    // tables) are stored as raw bytes so serialized objects are self-contained.
     std::vector<std::vector<char>> marley_react_data_;
     std::vector<char> marley_nuclide_index_data_;
     std::vector<std::vector<char>> marley_nuclide_data_;
@@ -68,13 +66,11 @@ private:
     std::vector<std::string> marley_nuclide_fnames_;
     std::string marley_masses_fname_;
     std::string marley_gs_parity_fname_;
-    // aux names may contain a relative subdirectory (e.g. "crpa/responses_....dat")
-    // reproduced inside the tmp dir so react-file manifests resolve them.
+    // may contain a relative subdirectory (e.g. "crpa/<table>.dat")
     std::vector<std::string> marley_aux_fnames_;
     std::vector<std::unique_ptr<marley::Reaction>> reactions_;
     std::unique_ptr<marley::StructureDatabase> structure_database_;
-    // Writes the stored data files into a tmp dir, configures the MARLEY
-    // search path and loads all reactions (constructors delegate here).
+    // writes stored data to a tmp dir, sets the search path, loads reactions
     void SetupMarley();
     void InitializeMarley(std::vector<std::string> const & marley_react_files);
     bool has_nu_cc;
@@ -83,15 +79,14 @@ private:
     bool has_elastic;
 
 public:
-    // MARLEY v2 hybrid: several react files + auxiliary data files.
-    // aux_names give the relative name each aux file must have on the MARLEY
-    // search path (usually the basename; "crpa/<table>.dat" for CRPA tables).
+    // aux_names: relative name of each aux file on the MARLEY search path
+    // (basename by default; e.g. "crpa/<table>.dat" for CRPA tables)
     MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files = {}, std::vector<std::string> marley_aux_names = {});
-    // Single-react convenience overload (v1-era interface, unchanged)
+    // single-react convenience overload
     MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file);
-    // Reconstruction from serialized bytes (cereal version 1)
+    // reconstruction from serialized bytes (cereal version 1)
     MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames);
-    // Reconstruction from serialized bytes (cereal version 0, single react)
+    // reconstruction from serialized bytes (cereal version 0)
     MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames);
     virtual ~MarleyCrossSection() {};
     virtual bool equal(CrossSection const & other) const override;

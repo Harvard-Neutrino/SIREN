@@ -30,8 +30,7 @@ if(DEFINED ENV{MARLEY_ROOT} AND NOT "$ENV{MARLEY_ROOT}" STREQUAL "")
   set(MARLEY_PREFIX "$ENV{MARLEY_ROOT}")
   message(STATUS "Using MARLEY_ROOT from environment: ${MARLEY_PREFIX}")
 else()
-  # Probe with Generator.hh: present in both MARLEY v1 and v2
-  # (v2 removed Particle.hh, the previous probe file)
+  # Generator.hh is present in both MARLEY v1 and v2
   find_path(MARLEY_PREFIX
     NAMES include/marley/Generator.hh
     PATHS ${CMAKE_PREFIX_PATH} /usr /usr/local /opt/local /opt/homebrew
@@ -114,9 +113,7 @@ if(_marley_ok)
     INTERFACE_INCLUDE_DIRECTORIES "${MARLEY_INCLUDE_DIR}"
   )
 
-  # MARLEY v2 links against its bundled HepMC3 library; if present in the
-  # same prefix, propagate it so consumers link it explicitly (v1: not found,
-  # nothing changes).
+  # propagate MARLEY's bundled HepMC3 when present (v2 only)
   find_library(MARLEY_HEPMC3_LIBRARY
     NAMES HepMC3
     PATHS "${MARLEY_PREFIX}/lib64" "${MARLEY_PREFIX}/lib"

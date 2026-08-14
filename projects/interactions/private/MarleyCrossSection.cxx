@@ -8,8 +8,8 @@
 #include "SIREN/utilities/Constants.h"
 #include "SIREN/detector/MaterialModel.h"
 
-#include "marley/Generator.hh"  // MARLEY generator
-#include "marley/JSON.hh"  // For handling MARLEY JSON configuration
+#include "marley/Generator.hh"
+#include "marley/JSON.hh"
 #include "marley/JSONConfig.hh"
 #include "marley/CoulombCorrector.hh"  // MARLEY v2: CoulombMode for Reaction::load_from_file
 
@@ -17,9 +17,7 @@ namespace siren {
 namespace interactions {
 
 MarleyCrossSection::MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files, std::vector<std::string> marley_aux_names) {
-    // Auxiliary files (CRPA response tables, nuclear charge radii, ...) may
-    // need a relative name with a subdirectory (e.g. "crpa/<table>.dat") so
-    // that react-file manifests can resolve them; default to the basename.
+    // default each aux name to the file's basename
     if(marley_aux_names.size() != marley_aux_files.size()) {
         if(marley_aux_names.empty()) {
             for(std::string const & f : marley_aux_files)
@@ -71,7 +69,7 @@ MarleyCrossSection::MarleyCrossSection(std::vector<std::string> marley_react_fil
 MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file)
     : MarleyCrossSection(std::vector<std::string>{marley_react_file}, marley_nuclide_index_file, marley_nuclide_files, marley_masses_file, marley_gs_parity_file) {}
 
-// Reconstruction from serialized bytes (cereal version 1)
+// reconstruction from serialized bytes (cereal version 1)
 MarleyCrossSection::MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames) {
     marley_react_data_ = react_data;
     marley_nuclide_index_data_ = nuclide_index_data;
@@ -88,8 +86,7 @@ MarleyCrossSection::MarleyCrossSection(std::vector<std::vector<char>> const & re
     SetupMarley();
 }
 
-// Reconstruction from serialized bytes (cereal version 0: single react file,
-// no auxiliary data)
+// reconstruction from serialized bytes (cereal version 0)
 MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames) {
     marley_react_data_ = {data[0]};
     marley_nuclide_index_data_ = data[1];
@@ -104,9 +101,8 @@ MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & 
     SetupMarley();
 }
 
-// Common setup: write the stored data files into a fresh tmp dir (recreating
-// any relative subdirectories), configure the MARLEY search path and load all
-// reactions. Called by every constructor once the data members are filled.
+// Write the stored data files into a fresh tmp dir, configure the MARLEY
+// search path and load all reactions.
 void MarleyCrossSection::SetupMarley() {
     std::filesystem::path tmp_dir_path {std::filesystem::temp_directory_path() /= std::tmpnam(nullptr)};
     std::filesystem::create_directories(tmp_dir_path);
@@ -146,11 +142,8 @@ void MarleyCrossSection::SetupMarley() {
 void MarleyCrossSection::InitializeMarley(std::vector<std::string> const & marley_react_files) {
     structure_database_ = std::make_unique<marley::StructureDatabase>();
 
-    // MARLEY v2: load_from_file requires a Coulomb correction mode and a form
-    // factor configuration. These values reproduce the v2 executable defaults
-    // (see marley::JSONConfig): Fermi/MEMA Coulomb treatment and finite-q form
-    // factors. Use ff_config = "allowed" instead to recover the v1 allowed
-    // (q->0) approximation.
+    // Coulomb mode and form factor config matching the MARLEY v2 executable
+    // defaults (ff_config = "allowed" would select the q->0 approximation)
     marley::JSON ff_config;
     ff_config["sachs_model"] = "bbba05";
     ff_config["axial_model"] = "dipole";
@@ -210,9 +203,8 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
     std::vector<std::unique_ptr<marley::Reaction>> const & reactions = reactions_;
     std::vector<marley::Reaction const *> the_reactions;
 
-    // MARLEY v2 splits each nuclear process into Discrete and Continuum
-    // reactions; both contribute to the same physical final state, so the
-    // cross sections are summed over the accepted process types.
+    // Discrete and Continuum reactions contribute to the same physical final
+    // state, so both process types are accepted and summed
     std::vector<marley::Reaction::ProcessType> desired_process_types;
 
     size_t lepton_index;
