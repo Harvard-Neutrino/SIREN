@@ -3,15 +3,52 @@ import glob
 from typing import List, Optional
 import siren
 import collections
+from siren.download import ensure_tar_archive, writable_data_dir
 
-#basepath and search path for marley reaction files
-basepath = os.environ['PREFIX']
-basepath = os.path.join(basepath, 'share/marley')
-default_marley_search_path = ':'.join([
-    basepath,
-    os.path.join(basepath, 'react'),
-    os.path.join(basepath, 'structure')
+# MarleyCrossSection-v1.0: MARLEY v1-era nuclear data (measured discrete levels
+# + Cheoun QRPA) evaluated with the MARLEY 2.0.0 engine. Kept primarily as a
+# validation control for the single-react code path.
+#
+# Data comes from the same SHA-256-verified SIREN-data bundle used by
+# MarleyCrossSection-v2.0; the v1-format react files live under react/v1/.
+basepath = os.path.dirname(os.path.abspath(__file__))
+
+# Keep these constants in sync with MarleyCrossSection-v2.0/processes.py
+# (both bundles download the same archive).
+_DATA_ARCHIVE = "MarleyCrossSection-v2.0.tar.xz"
+_DATA_URL = (
+    "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/main/"
+    "processes/MarleyCrossSection/MarleyCrossSection-v2.0/"
+    + _DATA_ARCHIVE
+)
+_DATA_SHA256 = "eb64ee2b330001205c96118d5dbdd2021c41d4f08b506363cef8a700433a6aa8"
+_DATA_DIR = None
+
+
+def _search_path(data_dir):
+    return ':'.join([
+        data_dir,
+        os.path.join(data_dir, 'react'),
+        os.path.join(data_dir, 'structure')
     ])
+
+
+def _get_data_dir():
+    global _DATA_DIR
+    if _DATA_DIR is None:
+        _DATA_DIR = writable_data_dir(basepath)
+    return _DATA_DIR
+
+
+def fetch_data():
+    """Download and extract the MARLEY input bundle from SIREN-data."""
+    data_dir = _get_data_dir()
+    ensure_tar_archive(
+        _DATA_URL, _DATA_ARCHIVE, data_dir, sha256=_DATA_SHA256)
+    return data_dir
+
+
+default_marley_search_path = _search_path(_get_data_dir())
 
 #lists of neutrinos and antineutrinos
 neutrinos = [
@@ -28,12 +65,19 @@ antineutrinos = [
 #list of processes and mapping of reaction files to processes
 processes = ["CC", "CEvNS", "ES"]
 process_by_reaction = {
-    "ve40ArCC_Bhattacharya1998.react": "CC",
-    "ve40ArCC_Liu1998.react": "CC",
-    "ve40ArCC_Bhattacharya2009.react": "CC",
+    "v1/ve40ArCC_Bhattacharya1998.react": "CC",
+    "v1/ve40ArCC_Liu1998.react": "CC",
+    "v1/ve40ArCC_Bhattacharya2009.react": "CC",
     "CEvNS40Ar.react": "CEvNS",
     "ES.react": "ES",
 }
+
+# Runtime data files required by the MARLEY 2.0.0 engine, with the relative
+# name each one must keep on the MARLEY search path.
+_runtime_aux = [
+    ("config/logger.js", "data/config/logger.js"),
+    ("nuclear_charge_radii.js", "nuclear_charge_radii.js"),
+]
 
 #mapping of processes to primary particles
 primaries_by_process = {
@@ -89,7 +133,7 @@ def load_processes(
     ):
 
     if marley_search_path is None:
-        marley_search_path = default_marley_search_path
+        marley_search_path = _search_path(fetch_data())
 
     primary_types = _get_primary_types(primary_types)
     process_types = _get_process_types(process_types)
@@ -99,7 +143,7 @@ def load_processes(
         reaction_names = [reaction_name]
     else:
         if "CC" in process_types and (siren.dataclasses.Particle.ParticleType.NuE in primary_types or siren.dataclasses.Particle.ParticleType.NuEBar in primary_types):
-            reaction_names.append("ve40ArCC_Bhattacharya2009.react")
+            reaction_names.append("v1/ve40ArCC_Bhattacharya2009.react")
         if "CEvNS" in process_types:
             reaction_names.append("CEvNS40Ar.react")
         if "ES" in process_types:
@@ -108,24 +152,21 @@ def load_processes(
     primary_processes_dict = collections.defaultdict(list)
 
     for reaction_name in reaction_names:
-        #Load cross section from marley reaction file
         react_fname = _find_file(marley_search_path, reaction_name)
         nuclide_index_fname = _find_file(marley_search_path, "nuclide_index.txt")
         nuclide_path = os.path.dirname(nuclide_index_fname)
-        nuclide_fnames = glob.glob(os.path.join(nuclide_path, "*.dat"))
+        nuclide_fnames = sorted(glob.glob(os.path.join(nuclide_path, "*.dat")))
         masses_fname = _find_file(marley_search_path, "mass_table.js")
         gs_parity_fname = _find_file(marley_search_path, "gs_spin_parity_table.txt")
 
-        # Runtime data the MARLEY v2 engine resolves through $MARLEY (pointed
-        # at the reconstructed bundle by the constructor): ship as aux files
-        _here = os.path.dirname(os.path.abspath(__file__))
-        aux_files = [os.path.join(_here, "logger.js"),
-                     os.path.join(_here, "nuclear_charge_radii.js")]
-        aux_names = ["data/config/logger.js",
-                     "nuclear_charge_radii.js"]
+        aux_files = [_find_file(marley_search_path, rel_src)
+                     for rel_src, _ in _runtime_aux]
+        aux_names = [name for _, name in _runtime_aux]
+
         xs = siren.interactions.MarleyCrossSection(
             [react_fname], nuclide_index_fname, nuclide_fnames,
             masses_fname, gs_parity_fname, aux_files, aux_names)
+
         reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
         reaction_primary_types = reaction_primary_types & set(primary_types)
 
@@ -134,4 +175,3 @@ def load_processes(
             primary_processes_dict[primary_type].append(xs)
 
     return dict(primary_processes_dict), {}
-
