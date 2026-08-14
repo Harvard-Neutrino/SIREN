@@ -68,6 +68,9 @@ private:
     std::string marley_gs_parity_fname_;
     // may contain a relative subdirectory (e.g. "crpa/<table>.dat")
     std::vector<std::string> marley_aux_fnames_;
+    // Reproduce MARLEY v1 physics with the MARLEY 2 engine by selecting the
+    // allowed approximation. The MARLEY 2 defaults remain active otherwise.
+    bool use_marley_v1_compatibility_;
     std::vector<std::unique_ptr<marley::Reaction>> reactions_;
     std::unique_ptr<marley::StructureDatabase> structure_database_;
     // writes stored data to a tmp dir, sets the search path, loads reactions
@@ -81,11 +84,11 @@ private:
 public:
     // aux_names: relative name of each aux file on the MARLEY search path
     // (basename by default; e.g. "crpa/<table>.dat" for CRPA tables)
-    MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files = {}, std::vector<std::string> marley_aux_names = {});
+    MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files = {}, std::vector<std::string> marley_aux_names = {}, bool use_marley_v1_compatibility = false);
     // single-react convenience overload
-    MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file);
-    // reconstruction from serialized bytes (cereal version 1)
-    MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames);
+    MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, bool use_marley_v1_compatibility = false);
+    // reconstruction from serialized bytes (cereal versions 1 and 2)
+    MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames, bool use_marley_v1_compatibility);
     // reconstruction from serialized bytes (cereal version 0)
     MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames);
     virtual ~MarleyCrossSection() {};
@@ -105,7 +108,7 @@ public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 1) {
+        if(version == 1 || version == 2) {
             archive(::cereal::make_nvp("MarleyReactData", marley_react_data_));
             archive(::cereal::make_nvp("MarleyNuclideIndexData", marley_nuclide_index_data_));
             archive(::cereal::make_nvp("MarleyNuclideData", marley_nuclide_data_));
@@ -118,9 +121,12 @@ public:
             archive(::cereal::make_nvp("MarleyMassesFname", marley_masses_fname_));
             archive(::cereal::make_nvp("MarleyGSParityFname", marley_gs_parity_fname_));
             archive(::cereal::make_nvp("MarleyAuxFnames", marley_aux_fnames_));
+            if(version == 2) {
+                archive(::cereal::make_nvp("UseMarleyV1Compatibility", use_marley_v1_compatibility_));
+            }
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
-            throw std::runtime_error("MarleyCrossSection only supports version <= 1!");
+            throw std::runtime_error("MarleyCrossSection only supports version <= 2!");
         }
     }
     template<typename Archive>
@@ -143,7 +149,7 @@ public:
             archive(::cereal::make_nvp("MarleyGSParityFname", fnames[3]));
             construct(data, nuclide_data, fnames, nuclide_fnames);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
-        } else if(version == 1) {
+        } else if(version == 1 || version == 2) {
             std::vector<std::vector<char>> react_data;
             std::vector<char> nuclide_index_data;
             std::vector<std::vector<char>> nuclide_data;
@@ -156,6 +162,7 @@ public:
             std::string masses_fname;
             std::string gs_parity_fname;
             std::vector<std::string> aux_fnames;
+            bool use_marley_v1_compatibility = false;
             archive(::cereal::make_nvp("MarleyReactData", react_data));
             archive(::cereal::make_nvp("MarleyNuclideIndexData", nuclide_index_data));
             archive(::cereal::make_nvp("MarleyNuclideData", nuclide_data));
@@ -168,12 +175,16 @@ public:
             archive(::cereal::make_nvp("MarleyMassesFname", masses_fname));
             archive(::cereal::make_nvp("MarleyGSParityFname", gs_parity_fname));
             archive(::cereal::make_nvp("MarleyAuxFnames", aux_fnames));
+            if(version == 2) {
+                archive(::cereal::make_nvp("UseMarleyV1Compatibility", use_marley_v1_compatibility));
+            }
             construct(react_data, nuclide_index_data, nuclide_data, masses_data,
                 gs_parity_data, aux_data, react_fnames, nuclide_index_fname,
-                nuclide_fnames, masses_fname, gs_parity_fname, aux_fnames);
+                nuclide_fnames, masses_fname, gs_parity_fname, aux_fnames,
+                use_marley_v1_compatibility);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
         } else {
-            throw std::runtime_error("MarleyCrossSection only supports version <= 1!");
+            throw std::runtime_error("MarleyCrossSection only supports version <= 2!");
         }
     }
 }; // class MarleyCrossSection
@@ -182,7 +193,7 @@ public:
 } // namespace siren
 
 
-CEREAL_CLASS_VERSION(siren::interactions::MarleyCrossSection, 1);
+CEREAL_CLASS_VERSION(siren::interactions::MarleyCrossSection, 2);
 CEREAL_REGISTER_TYPE(siren::interactions::MarleyCrossSection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::MarleyCrossSection);
 

@@ -16,7 +16,8 @@
 namespace siren {
 namespace interactions {
 
-MarleyCrossSection::MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files, std::vector<std::string> marley_aux_names) {
+MarleyCrossSection::MarleyCrossSection(std::vector<std::string> marley_react_files, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, std::vector<std::string> marley_aux_files, std::vector<std::string> marley_aux_names, bool use_marley_v1_compatibility) {
+    use_marley_v1_compatibility_ = use_marley_v1_compatibility;
     // default each aux name to the file's basename
     if(marley_aux_names.size() != marley_aux_files.size()) {
         if(marley_aux_names.empty()) {
@@ -65,12 +66,12 @@ MarleyCrossSection::MarleyCrossSection(std::vector<std::string> marley_react_fil
     SetupMarley();
 }
 
-// Single-react convenience overload (v1-era interface, unchanged behavior)
-MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file)
-    : MarleyCrossSection(std::vector<std::string>{marley_react_file}, marley_nuclide_index_file, marley_nuclide_files, marley_masses_file, marley_gs_parity_file) {}
+// Single-react convenience overload
+MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file, bool use_marley_v1_compatibility)
+    : MarleyCrossSection(std::vector<std::string>{marley_react_file}, marley_nuclide_index_file, marley_nuclide_files, marley_masses_file, marley_gs_parity_file, {}, {}, use_marley_v1_compatibility) {}
 
-// reconstruction from serialized bytes (cereal version 1)
-MarleyCrossSection::MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames) {
+// reconstruction from serialized bytes (cereal versions 1 and 2)
+MarleyCrossSection::MarleyCrossSection(std::vector<std::vector<char>> const & react_data, std::vector<char> const & nuclide_index_data, std::vector<std::vector<char>> const & nuclide_data, std::vector<char> const & masses_data, std::vector<char> const & gs_parity_data, std::vector<std::vector<char>> const & aux_data, std::vector<std::string> const & react_fnames, std::string const & nuclide_index_fname, std::vector<std::string> const & nuclide_fnames, std::string const & masses_fname, std::string const & gs_parity_fname, std::vector<std::string> const & aux_fnames, bool use_marley_v1_compatibility) {
     marley_react_data_ = react_data;
     marley_nuclide_index_data_ = nuclide_index_data;
     marley_nuclide_data_ = nuclide_data;
@@ -83,6 +84,7 @@ MarleyCrossSection::MarleyCrossSection(std::vector<std::vector<char>> const & re
     marley_masses_fname_ = masses_fname;
     marley_gs_parity_fname_ = gs_parity_fname;
     marley_aux_fnames_ = aux_fnames;
+    use_marley_v1_compatibility_ = use_marley_v1_compatibility;
     SetupMarley();
 }
 
@@ -98,6 +100,8 @@ MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & 
     marley_nuclide_fnames_ = nuclide_fnames;
     marley_masses_fname_ = fnames[2];
     marley_gs_parity_fname_ = fnames[3];
+    // Version-0 archives were produced by the MARLEY v1 implementation.
+    use_marley_v1_compatibility_ = true;
     SetupMarley();
 }
 
@@ -142,12 +146,16 @@ void MarleyCrossSection::SetupMarley() {
 void MarleyCrossSection::InitializeMarley(std::vector<std::string> const & marley_react_files) {
     structure_database_ = std::make_unique<marley::StructureDatabase>();
 
-    // Coulomb mode and form factor config matching the MARLEY v2 executable
-    // defaults (ff_config = "allowed" would select the q->0 approximation)
+    // MARLEY v1 used the allowed (q->0) approximation. Otherwise use the
+    // modern form-factor defaults from the MARLEY v2 executable.
     marley::JSON ff_config;
-    ff_config["sachs_model"] = "bbba05";
-    ff_config["axial_model"] = "dipole";
-    ff_config["nuclear_model"] = "klein";
+    if(use_marley_v1_compatibility_) {
+        ff_config = std::string("allowed");
+    } else {
+        ff_config["sachs_model"] = "bbba05";
+        ff_config["axial_model"] = "dipole";
+        ff_config["nuclear_model"] = "klein";
+    }
 
     reactions_.clear();
     for(std::string const & react_file : marley_react_files) {
@@ -368,7 +376,7 @@ bool MarleyCrossSection::equal(CrossSection const & other) const {
     if(!x)
         return false;
     else
-        return std::tie(marley_react_data_, marley_nuclide_index_data_, marley_nuclide_data_, marley_masses_data_, marley_gs_parity_data_, marley_aux_data_, marley_react_fnames_, marley_nuclide_index_fname_, marley_nuclide_fnames_, marley_masses_fname_, marley_gs_parity_fname_, marley_aux_fnames_) == std::tie(x->marley_react_data_, x->marley_nuclide_index_data_, x->marley_nuclide_data_, x->marley_masses_data_, x->marley_gs_parity_data_, x->marley_aux_data_, x->marley_react_fnames_, x->marley_nuclide_index_fname_, x->marley_nuclide_fnames_, x->marley_masses_fname_, x->marley_gs_parity_fname_, x->marley_aux_fnames_);
+        return std::tie(marley_react_data_, marley_nuclide_index_data_, marley_nuclide_data_, marley_masses_data_, marley_gs_parity_data_, marley_aux_data_, marley_react_fnames_, marley_nuclide_index_fname_, marley_nuclide_fnames_, marley_masses_fname_, marley_gs_parity_fname_, marley_aux_fnames_, use_marley_v1_compatibility_) == std::tie(x->marley_react_data_, x->marley_nuclide_index_data_, x->marley_nuclide_data_, x->marley_masses_data_, x->marley_gs_parity_data_, x->marley_aux_data_, x->marley_react_fnames_, x->marley_nuclide_index_fname_, x->marley_nuclide_fnames_, x->marley_masses_fname_, x->marley_gs_parity_fname_, x->marley_aux_fnames_, x->use_marley_v1_compatibility_);
 }
 
 std::vector<siren::dataclasses::ParticleType> MarleyCrossSection::GetPossibleTargets() const {

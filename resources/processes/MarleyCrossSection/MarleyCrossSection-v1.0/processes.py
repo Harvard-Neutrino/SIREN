@@ -6,8 +6,8 @@ import collections
 from siren.download import ensure_tar_archive, writable_data_dir
 
 # MarleyCrossSection-v1.0: MARLEY v1-era nuclear data (measured discrete levels
-# + Cheoun QRPA) evaluated with the MARLEY 2.0.0 engine. Kept primarily as a
-# validation control for the single-react code path.
+# + Cheoun QRPA) evaluated with the MARLEY 2.0.0 engine in its MARLEY v1
+# compatibility mode.
 #
 # Data comes from the same SHA-256-verified SIREN-data bundle used by
 # MarleyCrossSection-v2.0; the v1-format react files live under react/v1/.
@@ -165,7 +165,8 @@ def load_processes(
 
         xs = siren.interactions.MarleyCrossSection(
             [react_fname], nuclide_index_fname, nuclide_fnames,
-            masses_fname, gs_parity_fname, aux_files, aux_names)
+            masses_fname, gs_parity_fname, aux_files, aux_names,
+            use_marley_v1_compatibility=True)
 
         reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
         reaction_primary_types = reaction_primary_types & set(primary_types)
