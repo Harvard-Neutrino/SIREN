@@ -116,7 +116,16 @@ def load_processes(
         masses_fname = _find_file(marley_search_path, "mass_table.js")
         gs_parity_fname = _find_file(marley_search_path, "gs_spin_parity_table.txt")
 
-        xs = siren.interactions.MarleyCrossSection(react_fname, nuclide_index_fname, nuclide_fnames, masses_fname, gs_parity_fname)
+        # Runtime data the MARLEY v2 engine resolves through $MARLEY (pointed
+        # at the reconstructed bundle by the constructor): ship as aux files
+        _here = os.path.dirname(os.path.abspath(__file__))
+        aux_files = [os.path.join(_here, "logger.js"),
+                     os.path.join(_here, "nuclear_charge_radii.js")]
+        aux_names = ["data/config/logger.js",
+                     "nuclear_charge_radii.js"]
+        xs = siren.interactions.MarleyCrossSection(
+            [react_fname], nuclide_index_fname, nuclide_fnames,
+            masses_fname, gs_parity_fname, aux_files, aux_names)
         reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
         reaction_primary_types = reaction_primary_types & set(primary_types)
 
