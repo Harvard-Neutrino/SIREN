@@ -26,7 +26,12 @@ set(_marley_ok TRUE)
 unset(MARLEY_PREFIX CACHE)
 unset(MARLEY_PREFIX)
 
-if(DEFINED ENV{MARLEY_ROOT} AND NOT "$ENV{MARLEY_ROOT}" STREQUAL "")
+# Precedence: MARLEY_ROOT cmake cache variable (persists across reconfigures,
+# set with -DMARLEY_ROOT=...) > MARLEY_ROOT environment variable > search.
+if(DEFINED MARLEY_ROOT AND NOT "${MARLEY_ROOT}" STREQUAL "")
+  set(MARLEY_PREFIX "${MARLEY_ROOT}")
+  message(STATUS "Using MARLEY_ROOT from CMake cache: ${MARLEY_PREFIX}")
+elseif(DEFINED ENV{MARLEY_ROOT} AND NOT "$ENV{MARLEY_ROOT}" STREQUAL "")
   set(MARLEY_PREFIX "$ENV{MARLEY_ROOT}")
   message(STATUS "Using MARLEY_ROOT from environment: ${MARLEY_PREFIX}")
 else()
