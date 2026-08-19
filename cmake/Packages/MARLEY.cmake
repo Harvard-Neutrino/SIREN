@@ -93,9 +93,6 @@ if(_marley_ok)
   endif()
 endif()
 
-# NOTE: Your current file sets include dir to "${prefix}/include/marley".
-# That only works if you include headers as <Particle.hh>.
-# If you include as <marley/Particle.hh> (typical), the include dir should be "${prefix}/include".
 if(_marley_ok)
   set(MARLEY_INCLUDE_DIR "${MARLEY_PREFIX}/include")
   if(NOT EXISTS "${MARLEY_INCLUDE_DIR}/marley/Generator.hh")
