@@ -26,7 +26,12 @@ set(_marley_ok TRUE)
 unset(MARLEY_PREFIX CACHE)
 unset(MARLEY_PREFIX)
 
-if(DEFINED ENV{MARLEY_ROOT} AND NOT "$ENV{MARLEY_ROOT}" STREQUAL "")
+# Precedence: MARLEY_ROOT cmake cache variable (persists across reconfigures,
+# set with -DMARLEY_ROOT=...) > MARLEY_ROOT environment variable > search.
+if(DEFINED MARLEY_ROOT AND NOT "${MARLEY_ROOT}" STREQUAL "")
+  set(MARLEY_PREFIX "${MARLEY_ROOT}")
+  message(STATUS "Using MARLEY_ROOT from CMake cache: ${MARLEY_PREFIX}")
+elseif(DEFINED ENV{MARLEY_ROOT} AND NOT "$ENV{MARLEY_ROOT}" STREQUAL "")
   set(MARLEY_PREFIX "$ENV{MARLEY_ROOT}")
   message(STATUS "Using MARLEY_ROOT from environment: ${MARLEY_PREFIX}")
 else()
@@ -88,9 +93,6 @@ if(_marley_ok)
   endif()
 endif()
 
-# NOTE: Your current file sets include dir to "${prefix}/include/marley".
-# That only works if you include headers as <Particle.hh>.
-# If you include as <marley/Particle.hh> (typical), the include dir should be "${prefix}/include".
 if(_marley_ok)
   set(MARLEY_INCLUDE_DIR "${MARLEY_PREFIX}/include")
   if(NOT EXISTS "${MARLEY_INCLUDE_DIR}/marley/Generator.hh")
