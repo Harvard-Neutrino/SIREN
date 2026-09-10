@@ -789,6 +789,77 @@ TEST(ConcreteInteractionSelection, SameSignatureDecaysKeepRateProbability) {
     }
 }
 
+TEST(ConcreteInteractionSelection, PureDecaysNeedNoMaterialWorld) {
+    auto detector = std::make_shared<siren::detector::DetectorModel>();
+    detector->ClearSectors();
+    auto decay = std::make_shared<TaggedDecay>(1, 1.0, 2.0);
+    auto interactions =
+        std::make_shared<siren::interactions::InteractionCollection>(
+            siren::dataclasses::ParticleType::NuMu,
+            std::vector<std::shared_ptr<siren::interactions::Decay>>{decay});
+    auto random = std::make_shared<siren::utilities::SIREN_random>(831609);
+    siren::injection::Injector injector(
+        1, detector, SelectionProcess(interactions), random);
+
+    for (double distance : {0.0, 1e6, 1e12, 1e18}) {
+        auto record = SelectionRecord();
+        record.interaction_vertex = {distance, distance, distance};
+        auto selected = injector.SelectChannel(record, interactions);
+        EXPECT_EQ(selected.get(), decay.get());
+        EXPECT_EQ(record.signature, SharedDecaySignature());
+    }
+}
+
+TEST(ConcreteInteractionSelection, OnlyCrossSectionsNavigateMaterial) {
+    class CountingSphere : public siren::geometry::Sphere {
+    public:
+        CountingSphere() : Sphere(100.0, 0.0) {}
+        mutable int intersection_calls = 0;
+        std::vector<Intersection> ComputeIntersections(
+            siren::math::Vector3D const & position,
+            siren::math::Vector3D const & direction) const override
+        {
+            ++intersection_calls;
+            return Sphere::ComputeIntersections(position, direction);
+        }
+    };
+
+    auto geometry = std::make_shared<CountingSphere>();
+    auto detector = std::make_shared<siren::detector::DetectorModel>();
+    detector->ClearSectors();
+    siren::detector::DetectorSector world;
+    world.name = "world";
+    world.material_id = 0;
+    world.level = 0;
+    world.geo = geometry;
+    world.density = siren::detector::ConstantDensityDistribution(1.0).create();
+    detector->AddSector(world);
+
+    auto decay = std::make_shared<TaggedDecay>(1, 1.0, 2.0);
+    auto cross_section = std::make_shared<TaggedCrossSection>(2, 1.0, 2.0);
+    for (bool include_scattering : {false, true}) {
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>> scattering;
+        if (include_scattering) scattering.push_back(cross_section);
+        auto interactions =
+            std::make_shared<siren::interactions::InteractionCollection>(
+                siren::dataclasses::ParticleType::NuMu, scattering,
+                std::vector<std::shared_ptr<siren::interactions::Decay>>{decay});
+        auto random = std::make_shared<siren::utilities::SIREN_random>(831609);
+        siren::injection::Injector injector(
+            1, detector, SelectionProcess(interactions), random);
+        auto record = SelectionRecord();
+        geometry->intersection_calls = 0;
+        auto selected = injector.SelectChannel(record, interactions);
+        ASSERT_TRUE(selected);
+        if (include_scattering) {
+            EXPECT_GT(geometry->intersection_calls, 0);
+        } else {
+            EXPECT_EQ(geometry->intersection_calls, 0);
+            EXPECT_EQ(selected.get(), decay.get());
+        }
+    }
+}
+
 TEST(ConcreteInteractionSelection, SameSignatureCrossSectionsKeepRateProbability) {
     auto detector = SelectionDetector();
     for (bool reverse_order : {false, true}) {
