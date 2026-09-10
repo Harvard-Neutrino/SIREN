@@ -208,6 +208,17 @@ TEST(FailureLedgerUnit, RecordAggregatesByKeyAndKeepsFirstExemplar) {
     EXPECT_TRUE(ledger.entries.empty());
 }
 
+TEST(FailureLedgerUnit, KeepsFirstExemplarWhenEmpty) {
+    FailureLedger ledger;
+    ledger.Record(1, 14, FailureReason::SamplingFailure, "");
+    ledger.Record(1, 14, FailureReason::SamplingFailure, "later failure");
+
+    FailureLedger::Key key{1, 14, FailureReason::SamplingFailure};
+    ASSERT_EQ(ledger.entries.size(), 1u);
+    EXPECT_EQ(ledger.entries.at(key).count, 2u);
+    EXPECT_TRUE(ledger.entries.at(key).exemplar.empty());
+}
+
 // A primary vertex distribution that always throws NoTargetsOnPath must
 // surface as a single depth-0 ledger entry tagged with that reason, leave a
 // non-empty partial tree behind, and be cleared by ResetInjectedEvents().
