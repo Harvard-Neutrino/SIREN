@@ -2,6 +2,7 @@
 #ifndef SIREN_Process_H
 #define SIREN_Process_H
 
+#include <map>                                           // for map
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
@@ -12,14 +13,18 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/types/memory.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"         // for Particle
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/VertexWeightingMode.h"
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/injection/PhaseSpaceChannel.h"
 
 namespace siren {
 namespace injection {
@@ -58,6 +63,9 @@ public:
 class PhysicalProcess : public Process {
 protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
+    std::map<siren::dataclasses::InteractionSignature,
+             std::shared_ptr<MultiChannelPhaseSpace>> phase_space_map_;
+    siren::dataclasses::VertexWeightingMode weighting_mode_;
 public:
     PhysicalProcess() = default;
     PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
@@ -69,13 +77,41 @@ public:
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist);
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & GetPhysicalDistributions() const;
     virtual void SetPhysicalDistributions(std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & distributions);
+
+    // Per-signature phase space channels.
+    void SetPhaseSpace(siren::dataclasses::InteractionSignature const & sig,
+                       std::shared_ptr<MultiChannelPhaseSpace> ps);
+    std::shared_ptr<MultiChannelPhaseSpace> GetPhaseSpace(
+        siren::dataclasses::InteractionSignature const & sig) const;
+    bool HasPhaseSpace(siren::dataclasses::InteractionSignature const & sig) const;
+    bool HasAnyPhaseSpace() const;
+
+    // Read access to the full signature -> phase-space map, so a caller can
+    // enumerate this process's mixtures (e.g. to feed the weight optimizer's
+    // accumulators) without knowing the signatures in advance.
+    std::map<siren::dataclasses::InteractionSignature,
+             std::shared_ptr<MultiChannelPhaseSpace>> const &
+    GetPhaseSpaceMap() const { return phase_space_map_; }
+
+    void SetWeightingMode(siren::dataclasses::VertexWeightingMode mode) { weighting_mode_ = mode; }
+    siren::dataclasses::VertexWeightingMode GetWeightingMode() const { return weighting_mode_; }
+
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
+        if(version <= 2) {
             archive(::cereal::make_nvp("PhysicalDistributions", physical_distributions));
             archive(cereal::virtual_base_class<Process>(this));
+            // weighting_mode_ added in version 1. On save cereal passes the
+            // current class version (>= 1) so it is always written; on load
+            // version-0 archives skip it and keep the default (Propagated).
+            if(version >= 1) {
+                archive(::cereal::make_nvp("WeightingMode", weighting_mode_));
+            }
+            if(version >= 2) {
+                archive(::cereal::make_nvp("PhaseSpaceMap", phase_space_map_));
+            }
         } else {
-            throw std::runtime_error("PhysicalProcess only supports version <= 0!");
+            throw std::runtime_error("PhysicalProcess only supports version <= 2!");
         }
     };
 };
@@ -142,7 +178,7 @@ public:
 
 CEREAL_CLASS_VERSION(siren::injection::Process, 0);
 
-CEREAL_CLASS_VERSION(siren::injection::PhysicalProcess, 0);
+CEREAL_CLASS_VERSION(siren::injection::PhysicalProcess, 2);
 CEREAL_REGISTER_TYPE(siren::injection::PhysicalProcess);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Process, siren::injection::PhysicalProcess);
 

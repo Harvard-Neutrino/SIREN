@@ -9,6 +9,7 @@ from . import injection
 # siren.hepmc3 (HepMC3 output) is imported lazily where used rather than here,
 # so importing siren does not require HepMC3 to be present.
 
+
 from . import _util
 from . import resources
 from . import visualization
@@ -70,6 +71,7 @@ utilities.darknews_version = darknews_version
 # ---- Sub-namespaces (for tab completion) ----
 from . import particles
 from . import dist
+from . import tune
 
 # ---- Model base classes + sampling closure ----
 from .Simulation import Simulation
