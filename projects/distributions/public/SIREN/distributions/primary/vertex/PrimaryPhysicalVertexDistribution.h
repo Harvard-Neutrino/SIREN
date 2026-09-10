@@ -2,6 +2,7 @@
 #ifndef SIREN_PrimaryPhysicalVertexDistribution_H
 #define SIREN_PrimaryPhysicalVertexDistribution_H
 
+#include <set>
 #include <tuple>
 #include <limits>
 #include <memory>
@@ -18,6 +19,7 @@
 #include <cereal/types/memory.hpp>
 
 #include "SIREN/dataclasses/InteractionTree.h"
+#include "SIREN/distributions/DistributionVariable.h"
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "SIREN/math/Vector3D.h"
 
@@ -39,6 +41,8 @@ public:
     PrimaryPhysicalVertexDistribution();
     PrimaryPhysicalVertexDistribution(const PrimaryPhysicalVertexDistribution &) = default;
 
+    virtual std::set<DistributionVariable> SetVariables() const override;
+    virtual std::set<DistributionVariable> RequiredVariables() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 

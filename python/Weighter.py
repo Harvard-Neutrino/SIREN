@@ -406,3 +406,15 @@ class Weighter:
         else:
             injectors = []
         self.__weighter = _Weighter(injectors, filename)
+
+    def weight_all(self, events) -> list:
+        """
+        Calculate weights for a list of events.
+
+        Args:
+            events: A list of InteractionTree objects.
+
+        Returns:
+            list[float]: The calculated event weights.
+        """
+        return [self(event) for event in events]

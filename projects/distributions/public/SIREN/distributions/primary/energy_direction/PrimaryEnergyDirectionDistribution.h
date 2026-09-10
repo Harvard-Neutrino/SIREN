@@ -2,6 +2,7 @@
 #ifndef SIREN_PrimaryEnergyDirectionDistribution_H
 #define SIREN_PrimaryEnergyDirectionDistribution_H
 
+#include <set>                                           // for set
 #include <memory>                                        // for shared_ptr
 #include <string>                                        // for string
 #include <vector>                                        // for vector
@@ -14,6 +15,7 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/distributions/Distributions.h"  // for WeightableDi...
+#include "SIREN/distributions/DistributionVariable.h"  // for DistributionVariable
 #include "SIREN/math/Vector3D.h"  // for Vector3D
 
 namespace siren { namespace interactions { class InteractionCollection; } }
@@ -32,6 +34,7 @@ public:
     virtual std::pair<double,siren::math::Vector3D> SampleEnergyAndDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override = 0;
+    virtual std::set<DistributionVariable> SetVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override = 0;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override = 0;

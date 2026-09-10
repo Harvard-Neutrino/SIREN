@@ -3,6 +3,7 @@
 #define SIREN_PrimaryNeutrinoHelicityDistribution_H
 
 #include <memory>                                        // for shared_ptr
+#include <set>                                           // for set
 #include <string>                                        // for string
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
@@ -13,7 +14,8 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "SIREN/distributions/Distributions.h"  // for InjectionDis...
+#include "SIREN/distributions/Distributions.h"       // for InjectionDis...
+#include "SIREN/distributions/DistributionVariable.h" // for DistributionVariable
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -30,6 +32,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 	PrimaryNeutrinoHelicityDistribution();
 	PrimaryNeutrinoHelicityDistribution(const PrimaryNeutrinoHelicityDistribution &) = default;
+    virtual std::set<DistributionVariable> SetVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;

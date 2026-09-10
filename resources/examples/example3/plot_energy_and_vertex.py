@@ -1,24 +1,19 @@
-import pickle
+import awkward as ak
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# Load the data from the pickle file
-with open('output/successful_events_summary.pkl', 'rb') as f:
-    event_data = pickle.load(f)
+# Load the events saved by CC_MARLEY_CCM.py
+events = ak.from_parquet("output/CCM_MARLEY.parquet")
 
-# Extract interaction vertices and primary energies
-vertices = []
-energies = []
-for event in event_data:
-    if 'energies' in event and event['energies']:
-        energies.append(event['energies'][0])
-    if 'vertices' in event:
-        for vertex in event['vertices']:
-            vertices.append(vertex)
+# Keep events with at least one interaction (failed injection attempts are
+# saved with an empty interaction list).
+events = events[ak.num(events["vertex"]) > 0]
 
-# Convert vertices to a numpy array for plotting
-vertices = np.array(vertices)
+# Extract interaction vertices and primary energies. Each event stores one
+# entry per interaction; the first interaction is the primary CC vertex.
+vertices = np.asarray(ak.flatten(events["vertex"]))
+energies = np.asarray(events["primary_momentum"][:, 0, 0])
 
 # Plot the interaction vertices in 3D
 if vertices.ndim == 2 and vertices.shape[1] == 3:
