@@ -126,7 +126,8 @@ PYBIND11_MODULE(injection,m) {
     .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden)
     .value("UnregisteredSecondaryType", siren::utilities::FailureReason::UnregisteredSecondaryType)
     .value("PrimaryVertexFailure", siren::utilities::FailureReason::PrimaryVertexFailure)
-    .value("TopLevelCatch", siren::utilities::FailureReason::TopLevelCatch);
+    .value("TopLevelCatch", siren::utilities::FailureReason::TopLevelCatch)
+    .value("SamplingFailure", siren::utilities::FailureReason::SamplingFailure);
 
   enum_<PhaseSpaceMeasure::Type>(m, "PhaseSpaceMeasureType")
     .value("SolidAngleRest", PhaseSpaceMeasure::Type::SolidAngleRest,
