@@ -28,6 +28,16 @@ EXPECTED_EXCEPTIONS = [
 ]
 
 
+def test_sampling_failure_is_distinct_from_zero_support():
+    reasons = siren.injection.FailureReason
+    assert reasons.SamplingFailure != reasons.KinematicallyForbidden
+    assert reasons.SamplingFailure != reasons.NoPathThroughVolume
+    assert reasons.SamplingFailure != reasons.NoTargetsOnPath
+    # Existing reason values remain stable when the vocabulary grows.
+    assert int(reasons.TopLevelCatch) == 7
+    assert int(reasons.SamplingFailure) == 8
+
+
 # ------------------------------------------------------------------ #
 #  Surface: each exception exists and is a RuntimeError subclass       #
 # ------------------------------------------------------------------ #

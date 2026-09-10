@@ -635,9 +635,9 @@ inline DirectedStepResult SampleDirectedStep(
         // claim 1/4pi while DensityDirectedStep reports 1/omega_eff over the
         // lens, breaking Sample/Density closure.
         throw siren::utilities::InjectionFailure(
-            siren::utilities::FailureReason::KinematicallyForbidden,
+            siren::utilities::FailureReason::SamplingFailure,
             "Directed 2-body rejection sampler exhausted its attempts without a "
-            "valid lab direction in the cone-intersection lens");
+            "valid lab direction in the proposal support");
     }
 
     // Choose branch
@@ -965,6 +965,7 @@ inline DirectedStepResult SampleAngularSectorStep(
         // does not model. Reject this injection attempt instead of returning a
         // sample with an incorrect proposal density.
         throw siren::utilities::InjectionFailure(
+            siren::utilities::FailureReason::SamplingFailure,
             "Directed angular-sector sampler found no valid kinematic branch");
     }
     int chosen = 0;
