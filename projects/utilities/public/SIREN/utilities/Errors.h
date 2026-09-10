@@ -31,7 +31,8 @@ enum class FailureReason {
     KinematicallyForbidden,
     UnregisteredSecondaryType,
     PrimaryVertexFailure,
-    TopLevelCatch
+    TopLevelCatch,
+    SamplingFailure
 };
 
 class SIREN_EXCEPTION_EXPORT InjectionFailure : public std::runtime_error {

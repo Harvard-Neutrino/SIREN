@@ -2407,14 +2407,18 @@ TEST(KinematicInjectionFailure, DirectedStepsRejectSubThresholdParent) {
     auto random = std::make_shared<siren::utilities::SIREN_random>(577215);
     double target_volume = 4.0 * M_PI / 3.0;
 
-    EXPECT_THROW(
+    try {
         siren::injection::detail::SampleDirectedStep(
             parent_energy, 0.0, 0.0, parent_momentum,
             parent_mass, daughter_mass, other_mass,
             vertex, *target, target_volume,
             siren::injection::DetectorDirected2BodyChannel::Mode::Volume,
-            random),
-        siren::utilities::InjectionFailure);
+            random);
+        FAIL() << "Expected a forbidden two-body split";
+    } catch (siren::utilities::InjectionFailure const & failure) {
+        EXPECT_EQ(failure.reason(),
+                  siren::utilities::FailureReason::KinematicallyForbidden);
+    }
     EXPECT_DOUBLE_EQ(
         siren::injection::detail::DensityDirectedStep(
             parent_energy, 0.0, 0.0, parent_momentum,
@@ -2426,12 +2430,16 @@ TEST(KinematicInjectionFailure, DirectedStepsRejectSubThresholdParent) {
 
     siren::injection::detail::AngularSectorBin bin{
         0.0, 1.0, 0.0, siren::injection::detail::kTwoPi};
-    EXPECT_THROW(
+    try {
         siren::injection::detail::SampleAngularSectorStep(
             parent_energy, 0.0, 0.0, parent_momentum,
             parent_mass, daughter_mass, other_mass,
-            vertex, *target, bin, random),
-        siren::utilities::InjectionFailure);
+            vertex, *target, bin, random);
+        FAIL() << "Expected a forbidden angular-sector split";
+    } catch (siren::utilities::InjectionFailure const & failure) {
+        EXPECT_EQ(failure.reason(),
+                  siren::utilities::FailureReason::KinematicallyForbidden);
+    }
     EXPECT_DOUBLE_EQ(
         siren::injection::detail::DensityAngularSectorStep(
             parent_energy, 0.0, 0.0, parent_momentum,
@@ -2639,14 +2647,18 @@ TEST(DirectedRejectionExhaustion, SharedStepRejectsInjectionAttempt) {
 
     auto random = std::make_shared<siren::utilities::SIREN_random>(331663);
     double target_volume = 4.0 * M_PI / 3.0;
-    EXPECT_THROW(
+    try {
         siren::injection::detail::SampleDirectedStep(
             parent_energy, 0.0, 0.0, parent_momentum,
             parent_mass, daughter_mass, other_mass,
             vertex, *target, target_volume,
             siren::injection::DetectorDirected2BodyChannel::Mode::Cone,
-            random),
-        siren::utilities::InjectionFailure);
+            random);
+        FAIL() << "Expected directed rejection exhaustion";
+    } catch (siren::utilities::InjectionFailure const & failure) {
+        EXPECT_EQ(failure.reason(),
+                  siren::utilities::FailureReason::SamplingFailure);
+    }
 }
 
 TEST(DirectedRejectionExhaustion, AngularSectorRejectsInjectionAttempt) {
@@ -2669,12 +2681,16 @@ TEST(DirectedRejectionExhaustion, AngularSectorRejectsInjectionAttempt) {
     siren::injection::detail::AngularSectorBin bin{
         0.0, 1.0, 0.0, siren::injection::detail::kTwoPi};
     auto random = std::make_shared<siren::utilities::SIREN_random>(346410);
-    EXPECT_THROW(
+    try {
         siren::injection::detail::SampleAngularSectorStep(
             parent_energy, 0.0, 0.0, parent_momentum,
             parent_mass, daughter_mass, other_mass,
-            vertex, *target, bin, random),
-        siren::utilities::InjectionFailure);
+            vertex, *target, bin, random);
+        FAIL() << "Expected an unresolved angular-sector branch";
+    } catch (siren::utilities::InjectionFailure const & failure) {
+        EXPECT_EQ(failure.reason(),
+                  siren::utilities::FailureReason::SamplingFailure);
+    }
 }
 
 TEST(TabulatedMappingSupport, ZeroOverlapWindowHasZeroDensity) {
