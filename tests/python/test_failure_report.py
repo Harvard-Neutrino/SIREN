@@ -7,11 +7,16 @@ in the ledger under its FailureReason so callers can filter by reason.
 """
 from __future__ import annotations
 
+import math
+
+import pytest
+
 from siren import dataclasses as dc
 from siren import injection
 from siren import interactions
 from siren import distributions
 from siren import detector
+from siren import geometry
 from siren import math as smath
 from siren import utilities
 
@@ -23,11 +28,12 @@ _NuMu = dc.Particle.ParticleType.NuMu
 # --------------------------------------------------------------------------- #
 
 def test_failure_reason_enum_members_present():
-    """All eight documented FailureReason members are importable."""
+    """All documented FailureReason members are importable."""
     expected = [
         "Unspecified", "NoPathThroughVolume", "NoTargetsOnPath",
         "NoColumnDepthSolution", "KinematicallyForbidden",
         "UnregisteredSecondaryType", "PrimaryVertexFailure", "TopLevelCatch",
+        "SamplingFailure",
     ]
     for name in expected:
         assert hasattr(injection.FailureReason, name), (
@@ -112,7 +118,10 @@ def test_forced_failure_populates_ledger_with_reason():
     (depth, parent_pdg, reason), (count, exemplar) = next(iter(entries.items()))
     assert reason == injection.FailureReason.NoTargetsOnPath
     assert depth == 0
-    assert count >= 1
+    assert parent_pdg == int(_NuMu)
+    assert count == 1
+    assert inj.InjectionAttempts() == inj.FailedEvents() == 1
+    assert inj.InjectedEvents() == 0
     assert isinstance(exemplar, str) and len(exemplar) > 0
 
 
@@ -162,3 +171,174 @@ def test_ledger_clear_resets_to_empty():
 
     inj.GetFailureLedger().Clear()
     assert inj.GetFailureLedger().entries() == {}
+
+
+class _FixedPrimary(distributions.VertexPositionDistribution):
+    """Controlled inputs for native sampler failure tests, without detector data."""
+
+    def __init__(self):
+        super().__init__()
+        self.mass = 2.0
+        self.momentum = [10.0, 0.0, 0.0, 10.0]
+
+    def Sample(self, random, detector_model, interactions, record):
+        record.mass = self.mass
+        record.four_momentum = self.momentum
+        record.initial_position = record.interaction_vertex = [0.0, 0.0, 0.0]
+        record.helicity = record.initial_time = record.interaction_time = 0.0
+
+
+class _FixedSecondary(distributions.SecondaryVertexPositionDistribution):
+    def SampleVertex(self, random, detector_model, interactions, record):
+        record.length = 0.0
+
+
+class _ChainDecay(interactions.Decay):
+    """Test double delivering controlled inputs to a downstream native sampler.
+
+    Intermediate final states deliberately copy the primary fixture; they are
+    plumbing fixtures, not a physical decay model. Only the last vertex uses
+    the native two-body sampler under test (with daughter masses 0.5, 0.5).
+    """
+
+    def __init__(self, primary, secondary, source):
+        super().__init__()
+        self.source = source
+        self.signature = dc.InteractionSignature()
+        self.signature.primary_type = primary
+        self.signature.target_type = dc.ParticleType.Decay
+        self.signature.secondary_types = [secondary, dc.ParticleType.Gamma]
+
+    def equal(self, other):
+        return self is other
+
+    def TotalDecayLengthAllFinalStates(self, record):
+        return 1.0
+
+    def TotalDecayLength(self, record):
+        return 1.0
+
+    def TotalDecayWidthAllFinalStates(self, record):
+        return 1.0
+
+    def TotalDecayWidth(self, record):
+        return 1.0
+
+    def SampleFinalState(self, record, random):
+        for daughter in record.secondary_particle_records:
+            daughter.mass = self.source.mass
+            daughter.four_momentum = self.source.momentum
+            daughter.helicity = 0.0
+
+    def SecondaryMasses(self, types):
+        return [0.5] * len(types)
+
+    def GetPossibleSignatures(self):
+        return [self.signature]
+
+    def GetPossibleSignaturesFromParent(self, primary):
+        return [self.signature] if primary == self.signature.primary_type else []
+
+    def DensityVariables(self):
+        return ["cos_theta"]
+
+    def Topology(self):
+        return injection.PhaseSpaceTopology.Decay2Body
+
+    def Measure(self):
+        return injection.PhaseSpaceMeasure.SolidAngleRest()
+
+
+@pytest.mark.parametrize("depth", [0, 1, 2], ids=["primary", "secondary", "grandchild"])
+@pytest.mark.parametrize("angular_sector", [False, True], ids=["cone", "sector"])
+def test_native_sampling_failures_preserve_reason_and_attempt_accounting(depth, angular_sector):
+    """Native failures reach the ledger unchanged through every generation path.
+
+    As in the C++ DirectedRejectionExhaustion tests, beta=1 with a finite supplied
+    mass deterministically exhausts the inverse solver. A subthreshold mass
+    instead has physical zero support; on-shell inputs succeed in the same run.
+    """
+    source = _FixedPrimary()
+    secondary_vertex = _FixedSecondary()
+    types = [dc.ParticleType.NuMu, dc.ParticleType.NuE, dc.ParticleType.NuTau,
+             dc.ParticleType.Gamma]
+    models = [_ChainDecay(types[i], types[i + 1], source) for i in range(depth + 1)]
+    processes = []
+    for i, model in enumerate(models):
+        process = (injection.PrimaryInjectionProcess() if i == 0
+                   else injection.SecondaryInjectionProcess())
+        process.primary_type = types[i]
+        process.interactions = interactions.InteractionCollection(types[i], [model])
+        process.distributions = [source if i == 0 else secondary_vertex]
+        processes.append(process)
+
+    target = geometry.Sphere(geometry.Placement(smath.Vector3D(0, 0, 100)), 1.0, 0.0)
+    channel = (injection.DetectorDirectedAngularSectorChannel(
+        target, 0.0, 1.0, 0.0, 2 * math.pi, 0) if angular_sector
+        else injection.DetectorDirected2BodyChannel(target, 0, injection.DirectedMode.Cone))
+    mixture = injection.MultiChannelPhaseSpace([channel])
+    processes[-1].SetPhaseSpace(models[-1].signature, mixture)
+    inj = injection._Injector(5, detector.DetectorModel(), processes[0],
+                              processes[1:], utilities.SIREN_random(331663))
+    inj.SetStoppingCondition(lambda tree, parent, secondary_index: False)
+    reason = injection.FailureReason
+    # At secondary depths the key identifies the producing parent, which has
+    # a different PDG from the particle whose sampler failed.
+    parent_pdg = int(types[max(0, depth - 1)])
+    sampling_key = (depth, parent_pdg, reason.SamplingFailure)
+    forbidden_key = (depth, parent_pdg, reason.KinematicallyForbidden)
+
+    for attempt in (1, 2):
+        assert len(inj.GenerateEvent().tree) == 0
+        entries = inj.GetFailureLedger().entries()
+        assert set(entries) == {sampling_key}
+        assert entries[sampling_key][0] == attempt
+        assert inj.InjectionAttempts() == inj.FailedEvents() == attempt
+        assert inj.InjectedEvents() == 0
+        assert len(inj.GetLastFailedTree().tree) == max(1, depth)
+        if attempt == 1:
+            exemplar = entries[sampling_key][1]
+            assert exemplar
+        else:
+            assert entries[sampling_key][1] == exemplar
+        if depth:
+            assert f"secondary pdg {int(types[depth])}" in exemplar
+
+    source.mass = 0.9
+    source.momentum = [10.0, 0.0, 0.0, math.sqrt(100.0 - source.mass**2)]
+    assert len(inj.GenerateEvent().tree) == 0
+    entries = inj.GetFailureLedger().entries()
+    assert set(entries) == {sampling_key, forbidden_key}
+    assert entries[sampling_key] == (2, exemplar)
+    assert entries[forbidden_key][0] == 1
+    assert inj.GetLastFailureReason()
+
+    source.mass = 2.0
+    source.momentum = [10.0, 0.0, 0.0, math.sqrt(96.0)]
+    for event_number in (0, 1):
+        event = inj.GenerateEvent()
+        assert len(event.tree) == depth + 1
+        assert event.header.event_number == event_number
+    assert inj.GetFailureLedger().entries() == entries
+    assert inj.InjectionAttempts() == 5
+    assert inj.InjectedEvents() == 2
+    assert inj.FailedEvents() == sum(count for count, _ in entries.values()) == 3
+    assert inj.InjectionAttempts() == inj.InjectedEvents() + inj.FailedEvents()
+    assert inj.UnregisteredSecondaryCount() > 0
+    with pytest.raises(RuntimeError, match="maximum number of injection attempts"):
+        inj.GenerateEvent()
+    assert inj.InjectionAttempts() == 5
+    assert inj.GetFailureLedger().entries() == entries
+
+    inj.ResetInjectedEvents()
+    assert inj.EventsToInject() == 5
+    assert inj.InjectionAttempts() == inj.InjectedEvents() == inj.FailedEvents() == 0
+    assert inj.UnregisteredSecondaryCount() == 0
+    assert inj.GetFailureLedger().entries() == {}
+    assert inj.GetLastFailureReason() == ""
+    assert len(inj.GetLastFailedTree().tree) == 0
+    assert inj.GenerateEvent().header.event_number == 0
+
+    inj.ResetInjectedEvents(1)
+    assert inj.EventsToInject() == 1
+    assert inj.InjectionAttempts() == inj.InjectedEvents() == inj.FailedEvents() == 0

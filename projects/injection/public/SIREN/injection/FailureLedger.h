@@ -36,7 +36,7 @@ struct FailureLedger {
                 std::string const & message) {
         Entry & entry = entries[Key{depth, parent_pdg, reason}];
         entry.count += 1;
-        if(entry.exemplar.empty()) {
+        if(entry.count == 1) {
             entry.exemplar = message;
         }
     }
