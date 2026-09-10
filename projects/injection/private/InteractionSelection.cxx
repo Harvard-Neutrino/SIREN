@@ -37,20 +37,24 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
         record.interaction_vertex[0],
         record.interaction_vertex[1],
         record.interaction_vertex[2]);
-    siren::math::Vector3D primary_direction(
-        record.primary_momentum[1],
-        record.primary_momentum[2],
-        record.primary_momentum[3]);
-    primary_direction.normalize();
-
-    siren::geometry::Geometry::IntersectionList intersections =
-        detector_model->GetIntersections(
+    siren::geometry::Geometry::IntersectionList intersections;
+    std::set<siren::dataclasses::ParticleType> available_targets;
+    // Decay rates do not depend on material. In particular, long-lived
+    // particles can decay outside the finite detector hierarchy; querying
+    // material intersections there is unnecessary and can lose precision.
+    if (interactions->HasCrossSections()) {
+        siren::math::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+        primary_direction.normalize();
+        intersections = detector_model->GetIntersections(
             siren::detector::DetectorPosition(interaction_vertex),
             siren::detector::DetectorDirection(primary_direction));
-    std::set<siren::dataclasses::ParticleType> available_targets =
-        detector_model->GetAvailableTargets(
+        available_targets = detector_model->GetAvailableTargets(
             intersections,
             siren::detector::DetectorPosition(record.interaction_vertex));
+    }
     std::set<siren::dataclasses::ParticleType> const & possible_targets =
         interactions->TargetTypes();
 
