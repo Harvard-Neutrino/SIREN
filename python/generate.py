@@ -11,16 +11,16 @@ from .Results import Results
 
 
 def generate(injector, weighter, *, events, on_shortfall="warn",
-             progress=None, min_efficiency=None):
+             progress=None, min_efficiency=None, on_failure="retry"):
     """Generate `events` weighted trees.
 
     Delegates generation to ``injector.generate`` (which counts successes and
-    honours ``on_shortfall``/``min_efficiency``), weights via
+    honours ``on_shortfall``/``min_efficiency``/``on_failure``), weights via
     ``weighter.weight_all``, and returns a Results over the trees and weights.
     """
     trees = injector.generate(
         events, on_shortfall=on_shortfall, progress=progress,
-        min_efficiency=min_efficiency)
+        min_efficiency=min_efficiency, on_failure=on_failure)
     weights = weighter.weight_all(trees)
     gen_times = [0.0] * len(trees)
     return Results(list(trees), list(weights), gen_times, weighter, injector)
