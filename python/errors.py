@@ -43,6 +43,14 @@ class NotSerializableError(RuntimeError):
         self.offenders = list(offenders) if offenders is not None else []
 
 
+class GenerationFailure(RuntimeError):
+    """Strict generation encountered a failure beyond a geometric miss."""
+
+    def __init__(self, message, report=None):
+        super().__init__(message)
+        self.report = report
+
+
 class InjectionShortfall(RuntimeError, UserWarning):
     """Generation produced fewer successes than requested.
 

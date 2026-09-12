@@ -71,10 +71,16 @@ class Weighter:
                      primary_interactions=..., primary_physical_distributions=...,
                      secondary_interactions=..., secondary_physical_distributions=...)
 
-        Spec form, positional injectors plus physical-side keywords, inheriting
-        detector/types/interactions from the injectors themselves::
+        Spec form inherits the first injector's detector, types, and vertex
+        physical models/distributions for the shared physical target::
 
-            Weighter(injector, primary_physical=[...], secondary_physical={...})
+            Weighter(injector)
+
+        ``primary_physical`` and ``secondary_physical`` replace the inherited
+        distributions, including when explicitly empty.
+
+        Injectors without Vertex specifications default to their sampling
+        models and no physical distributions.
 
         ``overrides`` (spec form only) is a dict of legacy field names
         (``detector_model``, ``primary_type``, ``primary_interactions``,
@@ -161,24 +167,29 @@ class Weighter:
 
     def __init_from_injectors(self, injectors, primary_physical,
                                secondary_physical, overrides):
-        """Populate fields by inheriting from the given injectors' processes."""
+        """Inherit the first injector's physical target, then apply overrides."""
         overrides = overrides or {}
 
         self.injectors = injectors
 
-        engine0 = injectors[0].engine if isinstance(injectors[0], _PyInjector) else injectors[0]
+        first = injectors[0]
+        engine0 = first.engine if isinstance(first, _PyInjector) else first
         primary_proc = engine0.GetPrimaryProcess()
+        primary_vertex = first.primary if isinstance(first, _PyInjector) else None
 
         self.__detector_model = overrides.get(
             "detector_model",
-            injectors[0].detector_model if isinstance(injectors[0], _PyInjector)
+            first.detector_model if isinstance(first, _PyInjector)
             else engine0.GetDetectorModel())
         self.__primary_type = overrides.get(
             "primary_type", primary_proc.primary_type)
-        self.__primary_interactions = overrides.get(
-            "primary_interactions",
+        primary_interactions = (
             list(primary_proc.interactions.GetCrossSections())
             + list(primary_proc.interactions.GetDecays()))
+        if primary_vertex is not None and primary_vertex.physical_interactions is not None:
+            primary_interactions = list(primary_vertex.physical_interactions)
+        self.__primary_interactions = overrides.get(
+            "primary_interactions", primary_interactions)
 
         secondary_interactions = overrides.get("secondary_interactions", None)
         if secondary_interactions is None:
@@ -187,12 +198,23 @@ class Weighter:
                 secondary_interactions[ptype] = (
                     list(sproc.interactions.GetCrossSections())
                     + list(sproc.interactions.GetDecays()))
+            if isinstance(first, _PyInjector):
+                for vertex in first.secondaries:
+                    if vertex.physical_interactions is not None:
+                        secondary_interactions[vertex._resolved_particle] = list(
+                            vertex.physical_interactions)
         self.__secondary_interactions = secondary_interactions
 
-        self.__primary_physical_distributions = (
-            list(primary_physical) if primary_physical is not None else [])
-        self.__secondary_physical_distributions = (
-            dict(secondary_physical) if secondary_physical is not None else {})
+        if primary_physical is None:
+            primary_physical = primary_vertex.physical if primary_vertex is not None else []
+        if secondary_physical is None:
+            secondary_physical = {
+                vertex._resolved_particle: list(vertex.physical)
+                for vertex in first.secondaries
+            } if isinstance(first, _PyInjector) else {}
+        self.__primary_physical_distributions = list(primary_physical)
+        self.__secondary_physical_distributions = {
+            ptype: list(dists) for ptype, dists in secondary_physical.items()}
 
     @property
     def injectors(self) -> List[_Injector]:
@@ -449,7 +471,7 @@ class Weighter:
         for injector in (self.__injectors or []):
             if isinstance(injector, _PyInjector):
                 try:
-                    injector._guard_serializable(_errors)
+                    injector._guard_serializable(_errors, for_weighter=True)
                 except _errors.NotSerializableError as exc:
                     offenders.extend("injector: " + o for o in exc.offenders)
         for interaction in self.__primary_interactions:
@@ -576,8 +598,6 @@ class Weighter:
             raise ValueError("Primary type has not been set.")
         if len(self.__primary_interactions) == 0:
             raise ValueError("Primary interactions have not been set.")
-        if len(self.__primary_physical_distributions) == 0:
-            raise ValueError("Primary physical distributions have not been set.")
 
         injectors = [
             injector.engine

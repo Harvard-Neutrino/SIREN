@@ -354,7 +354,7 @@ class Injector:
     # ------------------------------------------------------------------ #
 
     def generate(self, events=None, *, on_shortfall="warn", progress=None,
-                 min_efficiency=None):
+                 min_efficiency=None, on_failure="retry"):
         """Generate `events` successful trees.
 
         Retries failed ``GenerateEvent`` calls (never yields an empty tree) up
@@ -362,9 +362,15 @@ class Injector:
         attempts. ``min_efficiency`` aborts early if the success rate falls
         below it. On shortfall, ``on_shortfall`` chooses ``'warn'`` (default),
         ``'raise'``, or ``'ignore'``, carrying an InjectionReport.
+
+        ``on_failure``: ``'retry'`` (default) retries failed attempts; ``'raise'``
+        raises GenerationFailure except for NoPathThroughVolume and
+        NoTargetsOnPath, which are retried.
         """
         from . import errors as _errors
 
+        if on_failure not in ("retry", "raise"):
+            raise ValueError("on_failure must be 'retry' or 'raise'")
         if self.__injector is None:
             self._build()
         if events is None:
@@ -398,6 +404,21 @@ class Injector:
                     break
                 raise
             if len(tree.tree) == 0:
+                if on_failure == "raise":
+                    allowed = (_injection.FailureReason.NoPathThroughVolume,
+                               _injection.FailureReason.NoTargetsOnPath)
+                    report = self.report()
+                    failures = [bucket for bucket in report.by_vertex
+                                if bucket.reason not in allowed]
+                    if failures or not report.by_vertex:
+                        details = "\n".join(
+                            "{} at depth {}, parent {}: {}".format(
+                                bucket.reason_name, bucket.depth,
+                                bucket.pdg, bucket.exemplar)
+                            for bucket in failures)
+                        raise _errors.GenerationFailure(
+                            "injection failed: " + (details or "no failure diagnosis"),
+                            report=report)
                 continue
             trees.append(tree)
             if progress is not None:
@@ -542,8 +563,9 @@ class Injector:
 
         The engine archives processes, including weighting modes and phase-space
         maps, but not a stopping condition, and it cannot serialize Python
-        trampoline-derived interactions/distributions. Unsupported Python state
-        raises NotSerializableError instead. Pickle preserves the stopping
+        trampoline-derived interactions/distributions or vertex physical
+        declarations. Save the Weighter to archive its physical processes.
+        Unsupported state raises NotSerializableError. Pickle preserves the stopping
         condition, so pickle a chain that needs one.
         """
         from . import errors as _errors
@@ -552,8 +574,19 @@ class Injector:
         self._guard_serializable(_errors)
         self.__injector.SaveInjector(filename)
 
-    def _guard_serializable(self, _errors, for_pickle=False):
+    def _guard_serializable(self, _errors, for_pickle=False, for_weighter=False):
         offenders = []
+        # Injector archives contain sampling processes only. A Weighter archive
+        # also stores the resolved physical processes, so it preserves these.
+        if not for_weighter:
+            vertices = ([self.__primary_vertex] if self.__primary_vertex is not None else [])
+            vertices += self.__secondary_vertices
+            for vertex in vertices:
+                if vertex.physical or vertex.physical_interactions is not None:
+                    offenders.append(
+                        "vertex {!r} declares physical models/distributions "
+                        "(not archived by Injector; save the Weighter instead)"
+                        .format(vertex.particle))
         # The stopping condition rides along in the pickle state tuple, so
         # pickle preserves it; the standalone C++ archive cannot.
         if self.__stopping_condition is not None and not for_pickle:
@@ -694,6 +727,16 @@ class Injector:
     # ------------------------------------------------------------------ #
     #  Properties (legacy surface, retained)                              #
     # ------------------------------------------------------------------ #
+
+    @property
+    def primary(self):
+        """The primary Vertex, or None for a legacy/loaded injector."""
+        return self.__primary_vertex
+
+    @property
+    def secondaries(self):
+        """The secondary Vertices, in declaration order."""
+        return tuple(self.__secondary_vertices)
 
     @property
     def seed(self):
