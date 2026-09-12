@@ -90,7 +90,7 @@ class Vertex:
         The particle this vertex is compiled for (the primary of the
         root vertex, or the secondary type of a non-root vertex).
     interactions : Decay/CrossSection or list thereof
-        The interaction model(s) driving this vertex.
+        The interaction model(s) used to sample this vertex.
     distributions : list, optional
         PrimaryInjectionDistribution / SecondaryInjectionDistribution
         objects sampling this vertex's free parameters.
@@ -100,6 +100,8 @@ class Vertex:
     physical : list, optional
         Physical-side distributions kept on the Vertex for the Weighter
         to read; not consumed by Vertex.compile() itself.
+    physical_interactions : Decay/CrossSection or non-empty list/tuple, optional
+        Physical model(s) for the Weighter. None means use `interactions`.
     kinematics : channels.Mixture, channels.Channel, _directed.Directed, optional
         Phase-space biasing description, compiled once per signature
         enumerated from `interactions`. None means no phase space is
@@ -129,6 +131,7 @@ class Vertex:
         "interactions",
         "distributions",
         "physical",
+        "physical_interactions",
         "kinematics",
         "weighting",
         "expand",
@@ -137,7 +140,7 @@ class Vertex:
     )
 
     def __init__(self, particle, interactions, *, distributions=None,
-                 position=None, physical=None, kinematics=None,
+                 position=None, physical=None, physical_interactions=None, kinematics=None,
                  weighting=None, expand=(), continue_if=None, label=None):
         self.particle = particle
         self._resolved_particle = _particles.resolve(particle)
@@ -153,6 +156,18 @@ class Vertex:
         self.distributions = dists
 
         self.physical = list(physical) if physical is not None else []
+        self.physical_interactions = (
+            None if physical_interactions is None else _as_list(physical_interactions))
+        if self.physical_interactions is not None:
+            siren = _siren()
+            if not self.physical_interactions or not all(
+                isinstance(model, (siren.interactions.Decay, siren.interactions.CrossSection))
+                for model in self.physical_interactions
+            ):
+                raise ConfigurationError(
+                    "Vertex(particle={!r}): physical_interactions must be a Decay/"
+                    "CrossSection or a non-empty list/tuple thereof; use None to "
+                    "inherit interactions".format(particle))
         self.kinematics = kinematics
         self.weighting = weighting
         self.expand = tuple(expand)

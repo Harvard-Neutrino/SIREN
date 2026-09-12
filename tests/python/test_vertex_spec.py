@@ -6,6 +6,8 @@ genuinely needs one is skipped with pytest.skip.
 
 import gc
 import math
+import pickle
+import weakref
 
 import pytest
 
@@ -51,6 +53,10 @@ class _KeepAliveCrossSection(siren.interactions.CrossSection):
 
     def __del__(self):
         _KeepAliveCrossSection.alive_count -= 1
+
+    def __reduce__(self):
+        # This test model has no parameters; reconstructing its type suffices.
+        return type(self), ()
 
     def TotalCrossSection(self, *args, **kwargs):
         return 1.0
@@ -196,6 +202,84 @@ class TestVertexCompileParity:
         v = Vertex(sig.primary_type, xs, distributions=[])
         with pytest.raises(AttributeError):
             v.distirbutions = []
+
+
+# ------------------------------------------------------------------ #
+#  Physical interaction declarations                                  #
+# ------------------------------------------------------------------ #
+
+class TestPhysicalInteractions:
+
+    @pytest.mark.parametrize("kwargs", [{}, {"physical_interactions": None}])
+    def test_default_defers_to_sampling_interactions(self, kwargs):
+        proposal = _dummy_xs()
+        v = Vertex(siren.particles.NuMu, proposal, **kwargs)
+        assert v.physical_interactions is None
+        assert v.compile(is_primary=True).interactions.GetCrossSections()[0] is proposal
+
+    @pytest.mark.parametrize("container", [None, list, tuple], ids=["single", "list", "tuple"])
+    @pytest.mark.parametrize("model_type", [siren.interactions.DummyCrossSection,
+                                           siren.interactions.Decay], ids=["scatter", "decay"])
+    def test_normalizes_models_without_aliasing_the_input_list(self, container, model_type):
+        physical = model_type()
+        supplied = physical if container is None else container([physical])
+        v = Vertex(siren.particles.NuMu, _dummy_xs(), physical_interactions=supplied)
+        assert isinstance(v.physical_interactions, list)
+        assert len(v.physical_interactions) == 1
+        assert v.physical_interactions[0] is physical
+        if isinstance(supplied, list):
+            supplied.clear()
+            assert v.physical_interactions == [physical]
+
+    @pytest.mark.parametrize("invalid", [[], (), 1.0, "model", [None], {}])
+    def test_invalid_declarations_raise_configuration_error(self, invalid):
+        with pytest.raises(siren.utilities.ConfigurationError, match="physical_interactions"):
+            Vertex(siren.particles.NuMu, _dummy_xs(), physical_interactions=invalid)
+
+    @pytest.mark.parametrize("is_primary", [True, False], ids=["primary", "secondary"])
+    def test_compile_and_expansion_use_only_sampling_models(self, is_primary):
+        class PhysicalOnly(_KeepAliveCrossSection):
+            def GetPossibleSignatures(self):
+                raise AssertionError("Injection must not inspect physical-only signatures")
+
+        proposal = _dummy_xs()
+        physical = PhysicalOnly()
+        baseline = Vertex(siren.particles.NuMu, proposal, kinematics=channels.isotropic(0))
+        v = Vertex(siren.particles.NuMu, proposal, physical_interactions=physical,
+                   kinematics=channels.isotropic(0))
+        proc = v.compile(is_primary=is_primary)
+        assert len(proc.interactions.GetCrossSections()) == 1
+        assert proc.interactions.GetCrossSections()[0] is proposal
+        assert v.as_vertex_spec().secondary_types == baseline.as_vertex_spec().secondary_types
+        for signature in proposal.GetPossibleSignatures():
+            assert proc.HasPhaseSpace(signature)
+        assert v.physical_interactions[0] is physical
+
+    def test_vertex_owns_physical_model_lifetime(self):
+        physical = _KeepAliveCrossSection()
+        reference = weakref.ref(physical)
+        v = Vertex(siren.particles.NuMu, _dummy_xs(), physical_interactions=physical)
+        proc = v.compile(is_primary=True)
+        del physical
+        gc.collect()
+        assert reference() is v.physical_interactions[0]
+        assert reference().TotalCrossSection(None) == 1.0
+        del v
+        gc.collect()
+        assert reference() is None
+        # Retaining the injection process must not retain a physical-only model.
+        assert len(proc.interactions.GetCrossSections()) == 1
+
+    @pytest.mark.parametrize("explicit", [False, True], ids=["default", "explicit"])
+    def test_pickle_preserves_physical_interaction_declaration(self, explicit):
+        physical = [_KeepAliveCrossSection(), _KeepAliveCrossSection()] if explicit else None
+        v = Vertex(siren.particles.NuMu, _KeepAliveCrossSection(), physical_interactions=physical)
+        restored = pickle.loads(pickle.dumps(v))
+        assert restored.physical_interactions == physical
+        if explicit:
+            assert len(restored.physical_interactions) == 2
+            assert restored.physical_interactions[0] is not restored.interactions[0]
+            assert restored.physical_interactions[0] is not restored.physical_interactions[1]
 
 
 # ------------------------------------------------------------------ #
