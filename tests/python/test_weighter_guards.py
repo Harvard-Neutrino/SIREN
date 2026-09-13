@@ -10,11 +10,9 @@ Pinned:
     (InjectedEvents()), not the requested count. Weighting the same event at two
     different realized counts M and N scales as w_M * M == w_N * N.
 
-Two further guard behaviors are pinned in C++ (Weighter_TEST.cxx) rather than
-here, since they are not cheaply constructible from a pure-Python injection
-chain:
-  * generation_probability <= 0 -> WeightCalculationError
-  * physical_probability == 0 -> weight exactly 0.0 (no raise)
+Native guard branches, zero weights, and arithmetic overflow are pinned in
+Weighter_TEST.cxx. These tests also verify that invalid physical probabilities
+propagate as the typed WeightCalculationError through the Python binding.
 
 ASCII only. No network. Each test stays well under ~30s.
 """
@@ -188,3 +186,43 @@ def test_weight_falls_back_to_events_to_inject_before_generation():
         "fallback seed mismatch: w_realized*realized={} vs w_fallback*quota={}"
         .format(w_realized * realized, w_fallback * quota))
 
+
+@pytest.mark.parametrize("normalization", [-1.0, float("inf"), -float("inf"), float("nan")])
+def test_invalid_physical_probability_raises_typed_error(normalization):
+    dm = _load_ccm_detector()
+    inj, _weighter, keepalive = _build_chain(dm, n_inject=1, seed=1234)
+    event = _generate_until(inj, 1)
+    assert event is not None
+    primary_phys = keepalive[3]
+    primary_phys.distributions = list(primary_phys.distributions) + [
+        distributions.NormalizationConstant(normalization),
+    ]
+    weighter = injection._Weighter([inj], dm, primary_phys, [])
+    with pytest.raises(utilities.WeightCalculationError, match="unusable probabilities"):
+        weighter.EventWeight(event)
+
+
+@pytest.mark.parametrize("primary_normalization", [-1.0, 0.0, 1.0])
+def test_negative_secondary_probability_cannot_cancel_or_hide(primary_normalization):
+    dm = _load_ccm_detector()
+    _inj, _weighter, keepalive = _build_chain(dm, n_inject=1, seed=5678)
+    _xs, int_col, primary_inj, primary_phys, rand = keepalive
+    secondary_inj = injection.SecondaryInjectionProcess()
+    secondary_inj.primary_type = _NuMu
+    secondary_inj.interactions = int_col
+    secondary_inj.distributions = [distributions.SecondaryPhysicalVertexDistribution()]
+    secondary_phys = injection.PhysicalProcess()
+    secondary_phys.primary_type = _NuMu
+    secondary_phys.interactions = int_col
+    secondary_phys.distributions = [distributions.SecondaryPhysicalVertexDistribution(),
+                                    distributions.NormalizationConstant(-1.0)]
+    primary_phys.distributions = list(primary_phys.distributions) + [
+        distributions.NormalizationConstant(primary_normalization),
+    ]
+    inj = injection._Injector(1, dm, primary_inj, [secondary_inj], rand)
+    inj.SetStoppingCondition(lambda tree, datum, i: datum.depth(tree) >= 1)
+    weighter = injection._Weighter([inj], dm, primary_phys, [secondary_phys])
+    event = _generate_until(inj, 1)
+    assert event is not None and len(event.tree) >= 2
+    with pytest.raises(utilities.WeightCalculationError, match="unusable probabilities"):
+        weighter.EventWeight(event)
