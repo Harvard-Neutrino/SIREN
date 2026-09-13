@@ -1,4 +1,5 @@
 #include <cmath>
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -350,4 +351,87 @@ TEST(WeighterGuards, ProcessWeightPreservesZeroAndPositiveWeights) {
         auto bounds = fixture.injector->PrimaryInjectionBounds(datum.record);
         EXPECT_DOUBLE_EQ(process.EventWeight(bounds, datum), physical / 0.25);
     }
+}
+
+TEST(WeighterBreakdown, InvalidPhysicalProbabilityIsFlaggedAndTotalIsNaN) {
+    for(double probability : {-1.0, std::numeric_limits<double>::infinity(),
+                              std::numeric_limits<double>::quiet_NaN()}) {
+        auto fixture = BuildWeighterGuardFixture(1, probability);
+        auto breakdown = fixture.weighter->EventWeightWithBreakdown(fixture.tree);
+        EXPECT_TRUE(std::isnan(breakdown.total));
+        ASSERT_EQ(breakdown.vertices.size(), 1u);
+        auto const & flags = breakdown.vertices.front().flags;
+        std::string expected = probability < 0.0 ? "physical density negative"
+                                               : "physical density non-finite";
+        EXPECT_NE(std::find(flags.begin(), flags.end(), expected), flags.end());
+    }
+}
+
+TEST(WeighterBreakdown, InvalidGenerationProbabilityIsFlaggedEvenWithZeroPhysicalSupport) {
+    for(double probability : {0.0, -1.0, std::numeric_limits<double>::infinity(),
+                              std::numeric_limits<double>::quiet_NaN()}) {
+        auto fixture = BuildWeighterGuardFixture(1, 0.0, probability);
+        auto breakdown = fixture.weighter->EventWeightWithBreakdown(fixture.tree);
+        EXPECT_TRUE(std::isnan(breakdown.total));
+        ASSERT_EQ(breakdown.vertices.size(), 1u);
+        auto const & flags = breakdown.vertices.front().flags;
+        std::string expected = probability == 0.0 ? "generation density zero"
+                             : probability < 0.0 ? "generation density negative"
+                                                 : "generation density non-finite";
+        EXPECT_NE(std::find(flags.begin(), flags.end(), expected), flags.end());
+    }
+}
+
+TEST(WeighterBreakdown, OverflowProducesNaNWithDiagnosticFlag) {
+    for(auto const & probabilities : std::vector<std::pair<double, double>>{
+            {1e-308, 1e100}, {1e308, 0.01}, {1e308, 1e-102}}) {
+        auto fixture = BuildWeighterGuardFixture(1, probabilities.first, probabilities.second);
+        auto breakdown = fixture.weighter->EventWeightWithBreakdown(fixture.tree);
+        EXPECT_TRUE(std::isnan(breakdown.total));
+        ASSERT_EQ(breakdown.vertices.size(), 1u);
+        EXPECT_FALSE(breakdown.vertices.front().flags.empty());
+    }
+}
+
+TEST(WeighterBreakdown, PooledInverseWeightOverflowProducesNaN) {
+    auto first = BuildWeighterGuardFixture(1, 1.0, 1e308);
+    auto second = BuildWeighterGuardFixture(1, 1.0, 1e308);
+    Weighter pooled({first.injector, second.injector},
+                    first.weighter->GetDetectorModel(),
+                    first.weighter->GetPrimaryPhysicalProcess());
+    auto breakdown = pooled.EventWeightWithBreakdown(first.tree);
+    EXPECT_TRUE(std::isnan(breakdown.total));
+    ASSERT_EQ(breakdown.vertices.size(), 2u);
+    EXPECT_FALSE(breakdown.vertices.back().flags.empty());
+}
+
+TEST(WeighterBreakdown, ZeroSupportDoesNotHideInvalidPooledInjector) {
+    auto first = BuildWeighterGuardFixture(1, 0.0);
+    auto second = BuildWeighterGuardFixture(0, 0.0);
+    Weighter pooled({first.injector, second.injector},
+                    first.weighter->GetDetectorModel(),
+                    first.weighter->GetPrimaryPhysicalProcess());
+    EXPECT_TRUE(std::isnan(pooled.EventWeightWithBreakdown(first.tree).total));
+}
+
+TEST(WeighterBreakdown, ValidZeroAndPositiveTotalsMatchScalarWeight) {
+    for(double physical : {0.0, 2.0}) {
+        auto fixture = BuildWeighterGuardFixture(100, physical, 0.25);
+        auto breakdown = fixture.weighter->EventWeightWithBreakdown(fixture.tree);
+        EXPECT_DOUBLE_EQ(breakdown.total, fixture.weighter->EventWeight(fixture.tree));
+        ASSERT_EQ(breakdown.vertices.size(), 1u);
+        if(physical == 0.0) {
+            EXPECT_DOUBLE_EQ(breakdown.total, 0.0);
+            EXPECT_FALSE(breakdown.vertices.front().flags.empty());
+        } else {
+            EXPECT_TRUE(breakdown.vertices.front().flags.empty());
+        }
+    }
+}
+
+TEST(WeighterBreakdown, EmptyPoolHasNaNTotal) {
+    auto fixture = BuildWeighterGuardFixture(1);
+    Weighter empty({}, fixture.weighter->GetDetectorModel(),
+                   fixture.weighter->GetPrimaryPhysicalProcess());
+    EXPECT_TRUE(std::isnan(empty.EventWeightWithBreakdown(fixture.tree).total));
 }
