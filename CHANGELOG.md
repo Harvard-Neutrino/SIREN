@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- EventWeightWithBreakdown follows the scalar weight guards, reporting invalid vertex probabilities and arithmetic overflow with flags and a NaN total. Valid zero physical support still gives a zero total.
 
 ### Added
 

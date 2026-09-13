@@ -241,16 +241,14 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     return weight;
 }
 
-// Per-vertex decomposition of EventWeight, using the same ComputeVertexFactors
-// call per datum so the two paths cannot diverge. A generation-probability
-// failure that would make EventWeight throw is instead flagged and yields a
-// NaN total; a zero physical probability is flagged and yields a 0.0 total,
-// matching EventWeight's non-throwing zero-weight case.
+// Report invalid probabilities or weight overflow with flags and a NaN total.
+// Valid zero physical support retains EventWeight's zero total.
 EventWeightBreakdown Weighter::EventWeightWithBreakdown(
         siren::dataclasses::InteractionTree const & tree) const {
     EventWeightBreakdown breakdown;
     double inv_weight = 0;
     bool usable = true;
+    bool zero_weight = false;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
         double physical_probability = 1.0;
         double generation_probability = injectors[idx]->InjectedEvents();
@@ -262,26 +260,55 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
             if(!datum->is_root()) {
                 factors.depth = static_cast<int>(datum->depth(tree));
             }
-            if(factors.generation <= 0.0 || !std::isfinite(factors.generation)) {
-                factors.flags.push_back("generation density zero");
+            if(!std::isfinite(factors.generation)) {
+                factors.flags.push_back("generation density non-finite");
+                usable = false;
+            } else if(factors.generation <= 0.0) {
+                factors.flags.push_back(factors.generation == 0.0
+                    ? "generation density zero" : "generation density negative");
+                usable = false;
             }
-            if(factors.physical == 0.0) {
-                factors.flags.push_back("outside physical support (weight 0)");
-            } else if(!std::isfinite(factors.physical)) {
+            if(!std::isfinite(factors.physical)) {
                 factors.flags.push_back("physical density non-finite");
+                usable = false;
+            } else if(factors.physical < 0.0) {
+                factors.flags.push_back("physical density negative");
+                usable = false;
+            } else if(factors.physical == 0.0) {
+                factors.flags.push_back("outside physical support (weight 0)");
             }
             physical_probability *= factors.physical;
             generation_probability *= factors.generation;
             breakdown.vertices.push_back(std::move(factors));
         }
         if(generation_probability <= 0.0 || !std::isfinite(generation_probability)
-           || !std::isfinite(physical_probability)) {
+           || physical_probability < 0.0 || !std::isfinite(physical_probability)) {
             usable = false;
+            if(!tree.tree.empty()) {
+                breakdown.vertices.back().flags.push_back("unusable event probabilities");
+            }
+            continue;
+        }
+        if(physical_probability == 0.0) {
+            zero_weight = true;
             continue;
         }
         inv_weight += generation_probability / physical_probability;
+        if(!std::isfinite(inv_weight)) {
+            usable = false;
+            if(!tree.tree.empty()) {
+                breakdown.vertices.back().flags.push_back("inverse weight overflow");
+            }
+        }
     }
-    breakdown.total = usable ? (1.0 / inv_weight) : std::numeric_limits<double>::quiet_NaN();
+    double weight = zero_weight ? 0.0 : 1.0 / inv_weight;
+    if(usable && (!std::isfinite(weight) || weight < 0.0)) {
+        usable = false;
+        if(!breakdown.vertices.empty()) {
+            breakdown.vertices.back().flags.push_back("unusable event weight");
+        }
+    }
+    breakdown.total = usable ? weight : std::numeric_limits<double>::quiet_NaN();
     return breakdown;
 }
 

@@ -184,3 +184,29 @@ def test_breakdown_vertices_cover_the_tree_with_no_flags():
             assert v.generation > 0.0
             assert "generation density zero" not in v.flags
             assert "outside physical support (weight 0)" not in v.flags
+
+
+@pytest.mark.parametrize("primary_norm, secondary_norm", [
+    (-1.0, -1.0), (0.0, -1.0), (1.0, -1.0),
+    (1.0, float("nan")), (1.0, float("inf")),
+])
+def test_invalid_secondary_factor_is_reported_even_when_products_hide_it(
+        primary_norm, secondary_norm):
+    _skip_unless_ccm_data()
+    dm = _load_ccm_detector()
+    inj, _weighter, keepalive = _build_chain(dm, MAX_ATTEMPTS, CHAIN_SEED)
+    event = _generate_events(inj, 1, MAX_ATTEMPTS)[0]
+    primary_phys, secondary_phys = keepalive[5], keepalive[7]
+    primary_phys.distributions = list(primary_phys.distributions) + [
+        distributions.NormalizationConstant(primary_norm)]
+    secondary_phys.distributions = list(secondary_phys.distributions) + [
+        distributions.NormalizationConstant(secondary_norm)]
+    weighter = injection._Weighter([inj], dm, primary_phys, [secondary_phys])
+
+    report = weighter.EventWeightWithBreakdown(event)
+    assert math.isnan(report.total)
+    expected = ("physical density negative" if secondary_norm < 0
+                else "physical density non-finite")
+    assert any(v.depth == 1 and expected in v.flags for v in report.vertices)
+    with pytest.raises(utilities.WeightCalculationError):
+        weighter.EventWeight(event)
