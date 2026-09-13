@@ -962,11 +962,7 @@ def _typed_siren_errors():
 def _is_trampoline(obj):
     """Whether `obj` is a Python subclass of a pybind base (a trampoline).
 
-    Delegates to the MRO-walk check in ``_validation``, the single
-    trampoline-detection helper shared with ``audit_overrides``: a
-    ``__module__``-prefix check would misclassify a trampoline-derived class
-    shipped inside the siren package itself (e.g. built directly from
-    ``models.decay_model_base()``) as C++-native.
+    Uses the same native-type identity check as ``audit_overrides``.
     """
     from . import _validation
     return _validation.is_trampoline(obj)
