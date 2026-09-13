@@ -41,6 +41,7 @@ public:
     pyDarkNewsDecay(DarkNewsDecay && parent);
     pyDarkNewsDecay(DarkNewsDecay const & parent);
 
+    bool equal(Decay const & other) const override;
     double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
@@ -64,4 +65,3 @@ CEREAL_REGISTER_TYPE(siren::interactions::pyDarkNewsDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::DarkNewsDecay, siren::interactions::pyDarkNewsDecay);
 
 #endif // SIREN_pyDarkNewsDecay_H
-

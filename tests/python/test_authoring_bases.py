@@ -1,6 +1,5 @@
-"""Authoring-base contracts: derived signatures, closure-by-construction
-default sampler, the recursion guard, near-miss override rejection, and the
-override audit at Injector build.
+"""Authoring contracts: signatures, explicit samplers, identity equality,
+near-miss rejection, and the override audit at Injector build.
 """
 
 import math
@@ -41,6 +40,9 @@ class IsoDecay(siren.DecayModel):
     daughters = ("NuLight", "Gamma")
     measure = siren.Measure.SolidAngleRest()
 
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
+
     def total_width(self):
         return 1.0
 
@@ -78,7 +80,7 @@ def test_width_overload_pair_and_fsp():
     assert m.FinalStateProbability(rec) == pytest.approx(1.0 / (4.0 * math.pi))
 
 
-def test_default_sampler_writes_secondaries():
+def test_isotropic_sampler_writes_secondaries():
     m = IsoDecay()
     csdr, _rec = _template_csdr(m.GetPossibleSignatures()[0])
     rng = siren.utilities.SIREN_random(1234)
@@ -92,7 +94,7 @@ def test_default_sampler_writes_secondaries():
 
 
 def test_recursion_canary_completes():
-    """The default sampler samples the engine channel, never recursing back
+    """The explicit isotropic sampler samples the engine channel, never recursing back
     into SampleFinalState through PhysicalDecayChannel."""
     m = IsoDecay()
     sig = m.GetPossibleSignatures()[0]
@@ -167,7 +169,7 @@ def test_audit_accepts_overridden_sampler_for_unsupported_measure():
 
 
 # ------------------------------------------------------------------ #
-#  Legacy attribute interface reaches the default sampler             #
+#  Legacy attribute interface reaches the explicit isotropic sampler             #
 # ------------------------------------------------------------------ #
 
 class OverrideMassDecay(siren.DecayModel):
@@ -178,6 +180,9 @@ class OverrideMassDecay(siren.DecayModel):
     parent = "N4"
     daughters = ("NuLight", "Gamma")
     measure = siren.Measure.SolidAngleRest()
+
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
 
     def total_width(self):
         return 1.0
@@ -211,8 +216,8 @@ def _legacy_decay_injector(model, events=4, seed=101):
     )
 
 
-def test_legacy_interface_drives_default_sampler():
-    """Exercises the default sampler through the legacy attribute-form
+def test_legacy_interface_drives_explicit_sampler():
+    """Exercises the explicit isotropic sampler through the legacy attribute-form
     Injector path, whose SampleFinalState call arrives with unsized
     secondary storage; the sampler must size the record itself from the
     model's SecondaryMasses for the engine channel to accept it."""
@@ -268,6 +273,9 @@ class ElasticXS(siren.CrossSectionModel):
     target = "PPlus"
     finals = ("NuMu", "PPlus")
     measure = siren.Measure.SolidAngleRest()
+
+    def sample(self, record, random):
+        raise NotImplementedError("This fixture only exercises metadata")
 
     def total_xs(self, record):
         return 1e-38

@@ -4,6 +4,7 @@
 
 ### Breaking (loud-by-design)
 
+- Model authors must implement `sample(record, random)`; declaring a measure no longer silently selects isotropic sampling. Isotropic two-body decays can explicitly call `sample_isotropic`.
 - Misconfigured primary/secondary processes now raise AddProcessFailure instead of terminating the interpreter with exit(0).
 - Weighter initialization mismatches raise ConfigurationError instead of a debug-only assert or printed message; missing secondary types in weighting raise instead of returning empty/zero results.
 - MultiChannelPhaseSpace: channel/weight length mismatches and un-normalized weights raise ConfigurationError at construction or use, instead of silently assigning leftover probability to the last channel; non-convertible measure combinations raise MeasureCompatibilityError instead of a one-shot stderr warning (allow_incompatible=True opts out).
@@ -16,6 +17,10 @@
 
 ### Fixed
 
+- Closure refuses certification when densities depend on sampler-written parameters unavailable to the reference, sizes missing reference storage, uses independent sample variances and a joint covariance test in angular comparisons, and omits unmeasured worst-bin diagnostics.
+- DarkNews native and legacy defaults compare by identity, matching authoring models. Sampler audits accept bound instance methods and lambdas while rejecting the default; isotropic mass errors name the model and `SecondaryMasses` hook.
+- Authoring models use identity equality by default; the override audit checks `equal`, and DarkNews trampolines forward explicit Python equality overrides.
+- Closure uses an independent joint angular reference, reports incomplete checks explicitly, rejects invalid densities, and rechecks mutable models. Coordinate diagnostics use the declared lab, parent-rest, or collision-CM frame.
 - Serialization guards recognize Python subclasses even when they define no methods.
 - Python weighting rejects invalid final weights, including negative values that underflow during float conversion, subclass results, and custom generation-batch results. Valid zero weights remain usable in diagnostics.
 - Weighter save guards inspect fully initialized injectors, including compiled expansion callbacks and Python sampling models.
