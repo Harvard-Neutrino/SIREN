@@ -890,9 +890,8 @@ class ChiPrimeDecay(_DecayModel):
 
     Isotropic in the chi' rest frame (SolidAngleRest 2-body): the authoring
     base derives the signature methods, the width overload pair, the isotropic
-    1/(4 pi) FinalStateProbability, Topology/Measure, and the closure-by-
-    construction Isotropic2BodyChannel sampler from total_width() /
-    differential_width().
+    1/(4 pi) FinalStateProbability, and Topology/Measure. The sampler
+    explicitly uses sample_isotropic().
     """
 
     measure = _Measure.SolidAngleRest()
@@ -941,6 +940,9 @@ class ChiPrimeDecay(_DecayModel):
         if int(record.signature.primary_type) != self.pdgid_chi_prime:
             return 0.0
         return self._total_width / (4.0 * math.pi)
+
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
 
     def density_variables(self):
         return ["cos_theta"]
@@ -1092,9 +1094,8 @@ class DarkPhotonToChiDecay(_DecayModel):
 
     Isotropic in the V1 rest frame (SolidAngleRest 2-body): the authoring
     base derives the signature methods, the width overload pair, the isotropic
-    1/(4 pi) FinalStateProbability, Topology/Measure, and the closure-by-
-    construction Isotropic2BodyChannel sampler from total_width() /
-    differential_width().
+    1/(4 pi) FinalStateProbability, and Topology/Measure. The sampler
+    explicitly uses sample_isotropic().
     """
 
     measure = _Measure.SolidAngleRest()
@@ -1140,6 +1141,9 @@ class DarkPhotonToChiDecay(_DecayModel):
         if int(record.signature.primary_type) != self.pdgid_V1:
             return 0.0
         return self._total_width / (4.0 * math.pi)
+
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
 
     def density_variables(self):
         return ["cos_theta"]
