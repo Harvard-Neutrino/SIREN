@@ -59,8 +59,8 @@ class MesonTwoBodyLeptonicDecay(siren.DecayModel):
     """Two-body leptonic decay of a charged pion or kaon, M -> mu nu.
 
     The parent is spin zero, so the decay is isotropic in its rest frame
-    and the authoring base derives the sampler and the 1/(4 pi)
-    FinalStateProbability from the declared SolidAngleRest measure.
+    and sample_isotropic implements the normalized 1/(4 pi) density
+    in the declared SolidAngleRest measure.
     total_width() is the mu-nu partial width, hbar/tau times the PDG
     branching ratio (given-channel semantics; see the module docstring).
     """
@@ -98,6 +98,9 @@ class MesonTwoBodyLeptonicDecay(siren.DecayModel):
         if int(record.signature.primary_type) != self.pdgid_meson:
             return 0.0
         return self._width / (4.0 * math.pi)
+
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
 
     def density_variables(self):
         return ["cos_theta", "phi"]
