@@ -73,7 +73,30 @@ from . import particles
 from . import dist
 from . import tune
 
-# ---- Model base classes + sampling closure ----
+# ---- Spec vocabulary ----
+from . import errors
+from . import channels
+from . import expand
+from .vertex import Vertex
+from ._directed import Directed
+from .generate import generate
+
+# Weighting-mode presets re-exported at the top level.
+Propagated = injection.VertexWeightingMode.Propagated
+Fixed = injection.VertexWeightingMode.Fixed
+
+# Deprecation aliases in this package should surface once by default; set
+# SIREN_STRICT=1 to escalate them to errors.
+import os as _os
+import warnings as _warnings
+_warnings.filterwarnings("default", category=DeprecationWarning,
+                         module=r"siren($|\.)")
+if _os.environ.get("SIREN_STRICT") == "1":
+    _warnings.filterwarnings("error", category=DeprecationWarning,
+                             module=r"siren($|\.)")
+del _os, _warnings
+
+# ---- Simulation and Results ----
 from .Simulation import Simulation
 from .Results import Results
 
