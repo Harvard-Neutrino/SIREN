@@ -16,10 +16,13 @@
 
 ### Fixed
 
+- Python weighting rejects invalid final weights, including negative values that underflow during float conversion, subclass results, and custom generation-batch results. Valid zero weights remain usable in diagnostics.
+- Weighter save guards inspect fully initialized injectors, including compiled expansion callbacks and Python sampling models.
 - EventWeightWithBreakdown follows the scalar weight guards, reporting invalid vertex probabilities and arithmetic overflow with flags and a NaN total. Valid zero physical support still gives a zero total.
 
 ### Added
 
+- Weighter accepts an optional event_factor(tree) for whole-event physical corrections, with scalar/batch/explain agreement, in-memory copying, and explicit serialization guards.
 - Typed exceptions exported via siren.utilities and registered with RuntimeError base.
 - ConvertDensity pybind binding.
 - Fixed-seed golden-physics regression harness (tests/python/test_golden_regression.py).
