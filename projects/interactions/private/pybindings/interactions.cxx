@@ -9,6 +9,7 @@
 #include "../../public/SIREN/interactions/DISFromSpline.h"
 #include "../../public/SIREN/interactions/DummyCrossSection.h"
 #include "../../public/SIREN/interactions/ElasticScattering.h"
+#include "../../public/SIREN/interactions/TrivialCrossSection.h"
 #include "../../public/SIREN/interactions/ElectroweakDecay.h"
 #include "../../public/SIREN/interactions/HNLDipoleDecay.h"
 #include "../../public/SIREN/interactions/HNLDipoleFromTable.h"
@@ -34,6 +35,7 @@
 #include "./Decay.h"
 #include "./DummyCrossSection.h"
 //#include "./ElasticScattering.h"
+#include "./TrivialCrossSection.h"
 #include "./ElectroweakDecay.h"
 #include "./HNLDipoleDecay.h"
 #include "./HNLDipoleFromTable.h"
@@ -66,6 +68,7 @@ PYBIND11_MODULE(interactions,m) {
     register_DISFromSpline(m);
     register_DummyCrossSection(m);
     //register_ElasticScattering();
+    register_TrivialCrossSection(m);
     register_ElectroweakDecay(m);
     register_HNLDipoleDecay(m);
     register_HNLDipoleFromTable(m);
