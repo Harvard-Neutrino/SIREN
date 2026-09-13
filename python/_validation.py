@@ -478,40 +478,16 @@ _REQUIRED_CROSS_SECTION_METHODS = (
 )
 
 
-def _is_pybind_registered(klass):
-    """True for a class registered directly by a pybind module.
-
-    A subclass authored in Python still carries the pybind11 metaclass once it
-    inherits a bound C++ base, so the metaclass alone cannot separate the two.
-    A directly-registered C++ type has no method __dict__ authored in Python:
-    its methods are builtin_function_or_method / instancemethod wrappers with a
-    __module__ under the compiled interactions module, and it defines no
-    ordinary Python function in its own namespace.
-    """
-    import types
-    for value in vars(klass).values():
-        if isinstance(value, types.FunctionType):
-            return False
-    return True
-
-
 def is_trampoline(obj):
-    """True when a Python-authored class sits anywhere in obj's MRO.
+    """Whether an interaction or distribution has a Python-authored type.
 
-    The single trampoline-detection check shared by ``audit_overrides``
-    below and the serialization guards in ``Injector.py``/``Weighter.py``.
-    Walking the full MRO rather than checking ``type(obj).__module__``
-    against a ``siren.`` prefix means a trampoline-derived class shipped
-    inside the siren package itself (e.g. built directly from
-    ``models.decay_model_base()``) is still identified correctly: a
-    C++-native model resolves every virtual in C++, so no class in its MRO
-    defines an ordinary Python function, while a genuinely Python-authored
-    model always has at least one.
+    Compare type identity with the native extension exports. Python subclasses
+    retain the pybind metaclass and may define no methods of their own.
     """
-    for klass in type(obj).__mro__:
-        if not _is_pybind_registered(klass):
-            return True
-    return False
+    from . import interactions as _interactions
+    return not any(type(obj) is value
+                   for module in (_interactions, _d)
+                   for value in vars(module).values())
 
 
 def _resolves_before_root(model, method_name, abstract_root):
