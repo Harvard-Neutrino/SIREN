@@ -1,4 +1,6 @@
 """Results snapshot/normalization contract: immutability, merge, variance, bad()."""
+from simulation_fixtures import offline_detector
+
 import numpy as np
 import pytest
 
@@ -23,7 +25,10 @@ class _FakeInjector:
 def _results(weights, injector, weighter=None):
     events = list(range(len(weights)))
     gen_times = [0.0] * len(weights)
-    return Results(events, list(weights), gen_times, weighter, injector)
+    result = Results(events, list(weights), gen_times, weighter, injector)
+    # The stub has no model configuration; supply a known key for the pooling arithmetic tests.
+    result._config_key = (injector.primary_type,)
+    return result
 
 
 # --------------------------------------------------------------------------- #
@@ -64,9 +69,9 @@ def test_run_requested_is_the_request_not_the_retry_budget():
     N = 3
     sim = siren.Simulation(
         events=N,
-        detector="IceCube",
+        detector=offline_detector(),
         primary="NuMu",
-        interactions="CSMSDISSplines",
+        interactions=[siren.interactions.DummyCrossSection()],
         targets="Nucleon",
         process="CC",
         energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -162,7 +167,7 @@ def test_merge_rescales_by_injected_fraction():
     """
     inj_a = _FakeInjector(attempts=200, requested=100, injected=100)
     inj_b = _FakeInjector(attempts=200, requested=100, injected=100)
-    # Same config key (same requested + primary_type) so merge is allowed.
+    # The stubs declare the same process configuration, so merge is allowed.
     wa = [2.0, 4.0, 6.0]
     wb = [1.0, 3.0]
     ra = _results(wa, inj_a)
@@ -212,7 +217,8 @@ def test_merge_estimator_equals_single_double_length_run():
 
 def test_merge_rejects_differing_config():
     inj_a = _FakeInjector(attempts=1, requested=100, injected=100)
-    inj_b = _FakeInjector(attempts=1, requested=250, injected=100)  # different requested
+    inj_b = _FakeInjector(attempts=1, requested=100, injected=100,
+                          primary_type=siren.particles.NuE)
     ra = _results([1.0], inj_a)
     rb = _results([1.0], inj_b)
     with pytest.raises(ConfigurationError):

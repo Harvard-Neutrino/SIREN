@@ -33,13 +33,8 @@ from . import utilities as _utilities
 from . import detector as _detector
 from . import math as _math
 from .Results import Results
-from ._validation import (
-    validate_physical_distributions,
-    validate_reweighting_compatibility,
-    collect_set_variables,
-)
-from ._validation import validate_physical_distributions
-from .errors import ConfigurationError, MeasureCompatibilityError
+from ._validation import collect_set_variables
+from .errors import ConfigurationError
 
 
 def _is_vertex(obj):
@@ -127,6 +122,8 @@ class Simulation:
         Alias for ``physical_energy``.  When set alongside ``energy``,
         ``energy`` becomes the injection energy and ``flux`` the physical
         energy.
+    event_factor : callable, optional
+        Whole-tree physical multiplier, evaluated once per event weight.
     seed : int, optional
         Random number seed.
     targets : list or str or ParticleType, optional
@@ -195,6 +192,7 @@ class Simulation:
         flux=None,
         # Process loading helpers
         seed=None,
+        event_factor=None,
         targets=None,
         process=None,
         isoscalar=None,
@@ -239,6 +237,9 @@ class Simulation:
 
         # ---- Store the per-vertex weighting mode (applied at build time) ----
         self._weighting_mode = weighting
+        if event_factor is not None and not callable(event_factor):
+            raise TypeError("event_factor must be callable or None")
+        self._event_factor = event_factor
 
         # ---- Resolve detector ----
         if isinstance(detector, str):
@@ -283,6 +284,13 @@ class Simulation:
             self._init_interactions(
                 interactions, process, isoscalar, process_kwargs)
 
+        self._physical_interactions = list(
+            primary_vertex.physical_interactions
+            if primary_vertex is not None and primary_vertex.physical_interactions is not None
+            else self._primary_interactions)
+        if primary_vertex is not None and weighting is None:
+            self._weighting_mode = primary_vertex.weighting
+
         # ---- Resolve secondary interactions ----
         if secondary_interactions is not None:
             resolved = {}
@@ -295,16 +303,8 @@ class Simulation:
         # explicit energy/direction/position kwargs otherwise drive the
         # injection and physical lists.
         if primary_vertex is not None and primary_vertex.distributions:
-            self._resolve_distributions_from_vertex(
-                primary_vertex,
-                energy=energy,
-                direction=direction,
-                physical_energy=physical_energy,
-                physical_direction=physical_direction,
-                flux=flux,
-                injection_distributions=injection_distributions,
-                physical_distributions=physical_distributions,
-            )
+            self._injection_distributions = (
+                list(primary_vertex.distributions) + list(injection_distributions or []))
         else:
             self._resolve_distributions(
                 energy=energy,
@@ -320,13 +320,27 @@ class Simulation:
                 physical_distributions=physical_distributions,
             )
 
+        if primary_vertex is not None:
+            self._resolve_vertex_physical(
+                primary_vertex, energy, direction, physical_energy,
+                physical_direction, flux, physical_distributions)
+
         # ---- Resolve secondary interaction vertices (spec form) ----
         # A non-empty `secondaries` tuple of Vertex specs populates the
         # secondary processes, their injection distributions, and their
         # phase spaces; it is an alternative to the
         # secondary_interactions/secondary_position kwargs.
+        self._secondary_physical_interactions = {
+            pt: list(models) for pt, models in self._secondary_processes.items()}
+        self._secondary_physical_distributions = {}
+        self._secondary_weighting_modes = {}
         self._secondary_injection_distributions = {}
+        self._primary_phase_spaces = {}
         self._secondary_phase_spaces = {}  # {InteractionSignature: MultiChannelPhaseSpace}
+        if primary_vertex is not None and primary_vertex.kinematics is not None:
+            self._compile_biasing_for_models(
+                primary_vertex.kinematics, primary_vertex.interactions,
+                self._primary_phase_spaces)
         secondary_specs = list(secondaries) if secondaries else []
         if secondary_specs:
             if secondary_interactions is not None:
@@ -375,12 +389,37 @@ class Simulation:
         self._events = events
         self._seed = seed
         self._stopping_condition = stopping_condition
+        vertices = ([primary_vertex] if primary_vertex is not None else []) + secondary_specs
+        if vertices:
+            from . import expand, _validation
+            has_expand = any(v.expand or v.continue_if is not None for v in vertices)
+            _validation.check_expand_vs_legacy_stopping(stopping_condition is not None, has_expand)
+            if has_expand:
+                if primary_vertex is None:
+                    from .vertex import Vertex
+                    vertices.insert(0, Vertex(self._primary_type, self._primary_interactions))
+                specs = [v.as_vertex_spec() for v in vertices]
+                _validation.validate_expansion_wiring(specs)
+                self._stopping_condition = expand.compile_expansion(specs)
 
         # ---- Built lazily by run() ----
         self._injector = None
         self._weighter = None
         self._last_events = None
         self._last_gen_times = None
+        self._last_results = None
+
+    def __copy__(self):
+        from ._copy import copy_state
+        return copy_state(self)
+
+    def __reduce_ex__(self, protocol):
+        if self._event_factor is not None:
+            from .errors import NotSerializableError
+            raise NotSerializableError(
+                "Simulation serialization does not support event_factor.",
+                offenders=["event_factor"])
+        return super().__reduce_ex__(protocol)
 
     # ------------------------------------------------------------------ #
     #  Interaction resolution                                              #
@@ -571,57 +610,32 @@ class Simulation:
         self._injection_distributions = injection
         self._physical_distributions = physical
 
-    def _resolve_distributions_from_vertex(
+    def _resolve_vertex_physical(
         self, vertex, energy, direction, physical_energy, physical_direction,
-        flux, injection_distributions, physical_distributions,
+        flux, physical_distributions,
     ):
-        """Resolve distributions when the primary is a Vertex spec.
-
-        The Vertex's own distribution list is the injection list (it already
-        carries mass/energy/direction/position samplers); any explicit
-        ``injection_distributions`` are appended to it, matching how the named
-        keyword path composes them. The physical list is taken from the
-        Vertex's ``physical`` field when present, else built from the explicit
-        ``physical_energy``/``flux`` and ``physical_direction`` (falling back to
-        the shared ``energy``/``direction`` kwargs, then to the energy- and
-        direction-carrying members of the injection list). Explicit
-        ``physical_distributions`` are appended to whichever physical list
-        results.
-        """
-        self._injection_distributions = (
-            list(vertex.distributions) + list(injection_distributions or []))
-
+        """Start from Vertex.physical, replace named roles, then append extras."""
         if flux is not None and physical_energy is not None:
             raise ValueError(
                 "Cannot specify both 'flux' and 'physical_energy'. "
                 "'flux' is an alias for 'physical_energy'."
             )
 
-        if getattr(vertex, "physical", None):
-            self._physical_distributions = (
-                list(vertex.physical) + list(physical_distributions or []))
-            return
-
+        if energy is not None and physical_energy is not None:
+            raise ValueError("Cannot specify both 'energy' and 'physical_energy' with a Vertex")
+        if direction is not None and physical_direction is not None:
+            raise ValueError("Cannot specify both 'direction' and 'physical_direction' with a Vertex")
+        phys = list(vertex.physical)
         phys_energy = physical_energy if physical_energy is not None else flux
         if phys_energy is None:
             phys_energy = energy
-        phys_dir = physical_direction
-        if phys_dir is None:
-            phys_dir = direction
-
-        phys = []
+        phys_dir = physical_direction if physical_direction is not None else direction
         if phys_energy is not None:
+            phys = [d for d in phys if not isinstance(d, _distributions.PrimaryEnergyDistribution)]
             phys.append(phys_energy)
-        else:
-            phys.extend(
-                d for d in self._injection_distributions
-                if isinstance(d, _distributions.PrimaryEnergyDistribution))
         if phys_dir is not None:
+            phys = [d for d in phys if not isinstance(d, _distributions.PrimaryDirectionDistribution)]
             phys.append(phys_dir)
-        else:
-            phys.extend(
-                d for d in self._injection_distributions
-                if isinstance(d, _distributions.PrimaryDirectionDistribution))
         phys.extend(physical_distributions or [])
         self._physical_distributions = phys
 
@@ -640,12 +654,21 @@ class Simulation:
                     "Simulation(secondaries=...): each entry must be a Vertex "
                     "spec, got {!r}".format(type(vertex).__name__))
             sec_type = vertex._resolved_particle
+            if sec_type in self._secondary_injection_distributions:
+                raise ConfigurationError(
+                    f"two secondary vertices resolve to the same particle type {sec_type}")
             self._secondary_processes[sec_type] = list(vertex.interactions)
+            self._secondary_physical_interactions[sec_type] = list(
+                vertex.physical_interactions if vertex.physical_interactions is not None
+                else vertex.interactions)
+            self._secondary_physical_distributions[sec_type] = list(vertex.physical)
+            if vertex.weighting is not None:
+                self._secondary_weighting_modes[sec_type] = vertex.weighting
             self._secondary_injection_distributions[sec_type] = list(
                 vertex.distributions)
             if vertex.kinematics is not None:
                 self._compile_biasing_for_models(
-                    vertex.kinematics, vertex.interactions)
+                    vertex.kinematics, vertex.interactions, primary_type=sec_type)
 
     def _resolve_biasing_object(self, biasing):
         """Build per-signature phase spaces from a channel-algebra spec.
@@ -661,39 +684,35 @@ class Simulation:
                 "channels.Mixture, or a Directed.by_signature() result, got "
                 "{!r}".format(type(biasing).__name__))
         if self._secondary_processes:
-            for models in self._secondary_processes.values():
-                self._compile_biasing_for_models(biasing, models)
+            for sec_type, models in self._secondary_processes.items():
+                self._compile_biasing_for_models(biasing, models, primary_type=sec_type)
         else:
             self._compile_biasing_for_models(
-                biasing, self._primary_interactions)
+                biasing, self._primary_interactions, self._primary_phase_spaces)
 
-    def _compile_biasing_for_models(self, biasing, models):
-        """Compile `biasing` for every signature of every model in `models`.
+    def _compile_biasing_for_models(self, biasing, models, phase_spaces=None, *,
+                                   primary_type=None):
+        """Compile signatures with Vertex's model-ownership checks.
 
-        Registers each compiled MultiChannelPhaseSpace under its signature in
-        ``self._secondary_phase_spaces``. A Directed / Directed.by_signature()
-        object exposes ``to_mixture(sig)``; a bare channels.Mixture is compiled
-        directly. A per-signature compilation that raises a measure/
-        configuration error is warned and skipped, matching the geometry-based
-        bias path.
+        Secondary registrations are limited to the configured particle type:
+        a model may advertise other flavors that belong to other vertices.
         """
-        import warnings
-        for model in models:
-            for sig in model.GetPossibleSignatures():
-                try:
-                    if hasattr(biasing, "to_mixture"):
-                        compilable = biasing.to_mixture(sig)
-                    else:
-                        compilable = biasing
-                    mcps = compilable.compile(
-                        sig, detector=self._detector_model, models=[model])
-                except (MeasureCompatibilityError, ConfigurationError) as exc:
-                    warnings.warn(
-                        f"Skipping biasing for signature {sig}: {exc}",
-                        stacklevel=3,
-                    )
-                    continue
-                self._secondary_phase_spaces[sig] = mcps
+        from .vertex import _compile_phase_spaces
+        if phase_spaces is None:
+            phase_spaces = self._secondary_phase_spaces
+        compiled = _compile_phase_spaces(
+            biasing, models, detector=self._detector_model, primary_type=primary_type)
+        self._register_phase_spaces(phase_spaces, compiled)
+
+    @staticmethod
+    def _register_phase_spaces(phase_spaces, additions):
+        overlap = phase_spaces.keys() & additions.keys()
+        if overlap:
+            raise ConfigurationError(
+                "Multiple kinematics/biasing declarations for signature {}; "
+                "use only one of Vertex(kinematics=...), biasing=, or "
+                "bias_targets= for that vertex".format(next(iter(overlap))))
+        phase_spaces.update(additions)
 
     @staticmethod
     def _find_daughter_index(signature, daughter_type):
@@ -837,7 +856,7 @@ class Simulation:
                 if isinstance(v, _injection.MultiChannelPhaseSpace):
                     # {InteractionSignature: MultiChannelPhaseSpace}: registered
                     # verbatim under the signature key.
-                    self._secondary_phase_spaces[k] = v
+                    self._register_phase_spaces(self._secondary_phase_spaces, {k: v})
                 else:
                     # {ParticleType: Geometry}: direct that type's daughters
                     # toward the geometry, per signature that type's models can
@@ -850,7 +869,7 @@ class Simulation:
                             "secondary particle type".format(sec_type))
                     self._bias_type_toward(
                         interactions_list, v, daughter_type, spectator_type,
-                        fraction)
+                        fraction, primary_type=sec_type)
             return
 
         # Single geometry: build per-signature for all secondaries
@@ -858,10 +877,10 @@ class Simulation:
         for sec_type, interactions_list in self._secondary_processes.items():
             self._bias_type_toward(
                 interactions_list, target, daughter_type, spectator_type,
-                fraction)
+                fraction, primary_type=sec_type)
 
     def _bias_type_toward(self, interactions_list, target, daughter_type,
-                          spectator_type, fraction):
+                          spectator_type, fraction, *, primary_type):
         """Register directed phase spaces for one secondary type's signatures.
 
         Builds one MultiChannelPhaseSpace per signature every model in
@@ -871,12 +890,13 @@ class Simulation:
         """
         for interaction in interactions_list:
             for sig in interaction.GetPossibleSignatures():
+                if sig.primary_type != primary_type:
+                    continue
                 try:
                     mc = self._build_phase_space_for_signature(
                         target, sig, interaction,
                         daughter_type, spectator_type, fraction,
                     )
-                    self._secondary_phase_spaces[sig] = mc
                 except ValueError:
                     import warnings
                     warnings.warn(
@@ -885,6 +905,8 @@ class Simulation:
                         f"or ambiguous in this channel.",
                         stacklevel=3,
                     )
+                    continue
+                self._register_phase_spaces(self._secondary_phase_spaces, {sig: mc})
 
     def _resolve_secondary_position(self, secondary_position):
         """Resolve secondary vertex position distributions."""
@@ -915,12 +937,14 @@ class Simulation:
         # wrapper; when None (the default) it leaves the process at
         # Propagated(), so the engine configuration is unchanged.
         injector = _injection.Injector(
-            primary_weighting_mode=self._weighting_mode)
+            primary_weighting_mode=self._weighting_mode,
+            secondary_weighting_modes=self._secondary_weighting_modes)
         injector.number_of_events = self._events
         injector.detector_model = self._detector_model
         injector.primary_type = self._primary_type
         injector.primary_interactions = self._primary_interactions
         injector.primary_injection_distributions = self._injection_distributions
+        injector.primary_phase_spaces = self._primary_phase_spaces
 
         if self._seed is not None:
             injector.seed = self._seed
@@ -948,30 +972,19 @@ class Simulation:
 
     def _build_weighter(self, injector):
         """Construct and return a Weighter from stored config."""
-        validate_physical_distributions(self._physical_distributions)
-        validate_reweighting_compatibility(
-            self._injection_distributions,
-            self._physical_distributions,
-        )
-
-        weighter = _injection.Weighter()
-        weighter.injectors = [injector]
-        weighter.detector_model = self._detector_model
-        weighter.primary_type = self._primary_type
-        weighter.primary_interactions = self._primary_interactions
-        weighter.primary_physical_distributions = self._physical_distributions
-
-        if self._secondary_processes:
-            weighter.secondary_interactions = self._secondary_processes
-            weighter.secondary_physical_distributions = {}
-
-        return weighter
+        # Weighter checks compatibility with the actual vertex weighting modes.
+        return _injection.Weighter(
+            injector, primary_physical=self._physical_distributions,
+            secondary_physical=self._secondary_physical_distributions,
+            overrides={"primary_interactions": self._physical_interactions,
+                       "secondary_interactions": self._secondary_physical_interactions},
+            event_factor=self._event_factor)
 
     # ------------------------------------------------------------------ #
     #  Run                                                                 #
     # ------------------------------------------------------------------ #
 
-    def run(self, *, optimize=False, on_shortfall="warn"):
+    def run(self, *, optimize=False, on_shortfall="warn", on_failure="retry"):
         """Generate events and compute weights.
 
         Parameters
@@ -983,6 +996,8 @@ class Simulation:
             keyword arguments. Tuning warms up the channel weights; the
             injector's counters are reset afterward so the tuning batch does
             not count against the requested event total.
+        on_failure : str, optional
+            ``'retry'`` retries failures; ``'raise'`` retries only geometric misses.
         on_shortfall : str, optional
             Policy when fewer than ``events`` successful trees are generated:
             ``'warn'`` (default), ``'raise'``, or ``'ignore'``.
@@ -997,11 +1012,13 @@ class Simulation:
         """
         import time
 
+        if on_failure not in ("retry", "raise"):
+            raise ValueError("on_failure must be 'retry' or 'raise'")
         injector = self._build_injector()
         weighter = self._build_weighter(injector)
 
         if optimize:
-            self._optimize(injector, weighter, optimize)
+            self._optimize(injector, weighter, optimize, on_failure)
             # Clear the tuning batch's injected/attempt counters so the real
             # generation starts from a full budget.
             injector.reset()
@@ -1009,7 +1026,8 @@ class Simulation:
         # Forward generation to the Layer-2 injector, which counts successes,
         # retries failed attempts, and applies the shortfall policy itself.
         t0 = time.time()
-        events = injector.generate(self._events, on_shortfall=on_shortfall)
+        events = injector.generate(self._events, on_shortfall=on_shortfall,
+                                   on_failure=on_failure)
         elapsed = time.time() - t0
         # Generation is timed for the whole run, not per event, so record the
         # uniform run-average (total wall-clock time split evenly across the
@@ -1017,7 +1035,7 @@ class Simulation:
         per_event = (elapsed / len(events)) if events else 0.0
         gen_times = [per_event] * len(events)
 
-        weights = [weighter(event) for event in events]
+        weights = weighter.weight_all(events)
 
         self._injector = injector
         self._weighter = weighter
@@ -1027,10 +1045,11 @@ class Simulation:
         # Snapshot the requested count explicitly: generate() raises the
         # injector's engine attempt quota to events * 1000, so its live
         # number_of_events no longer reports the request.
-        return Results(events, weights, gen_times, weighter, injector,
-                       requested=self._events)
+        self._last_results = Results(events, weights, gen_times, weighter, injector,
+                                     requested=self._events)
+        return self._last_results
 
-    def _optimize(self, injector, weighter, optimize):
+    def _optimize(self, injector, weighter, optimize, on_failure):
         """Tune the injection chain's channel weights in place.
 
         ``optimize`` is either ``True`` (tune with defaults) or a
@@ -1049,9 +1068,10 @@ class Simulation:
                 min_weight=plan.min_weight,
                 failure_mode=plan.failure_mode,
                 group_directed=plan.group_directed,
+                on_failure=on_failure,
             )
         else:
-            _tune(injector, weighter)
+            _tune(injector, weighter, on_failure=on_failure)
 
     # ------------------------------------------------------------------ #
     #  Reweight                                                            #
@@ -1065,6 +1085,8 @@ class Simulation:
         physical_distributions=None,
         interactions=None,
         secondary_interactions=None,
+        secondary_physical_distributions=None,
+        event_factor=...,
     ):
         """Reweight existing events with new physical parameters.
 
@@ -1075,6 +1097,8 @@ class Simulation:
         scans.
 
         Any parameter not specified is kept from the original simulation.
+        ``event_factor=None`` disables the original factor; a callable replaces it.
+        ``secondary_physical_distributions={}`` clears secondary physical factors.
 
         Parameters
         ----------
@@ -1090,6 +1114,10 @@ class Simulation:
             New primary interaction list (CrossSection/Decay objects).
         secondary_interactions : dict, optional
             New secondary interactions ``{ParticleType: [CrossSection/Decay]}``.
+        secondary_physical_distributions : dict, optional
+            Replacement physical distributions by secondary particle type.
+        event_factor : callable or None, optional
+            Replacement whole-tree physical factor; None disables it.
 
         Returns
         -------
@@ -1122,11 +1150,15 @@ class Simulation:
                     secondary_interactions=bundle.secondary,
                 )
         """
-        if self._injector is None:
+        if self._last_results is None:
             raise RuntimeError(
                 "Must call run() before reweight(). "
                 "No events have been generated yet."
             )
+
+        if (self._injector.injection_attempts != self._last_results.attempts
+                or self._injector.injected_events != self._last_results.injected):
+            raise ConfigurationError("The injector has changed since run(); cannot reweight its snapshot")
 
         # Build new physical distribution list.  An explicit
         # physical_distributions list replaces the whole set; otherwise the
@@ -1154,35 +1186,27 @@ class Simulation:
                 ]
                 phys_dists.append(physical_direction)
 
-        validate_physical_distributions(phys_dists)
-        validate_reweighting_compatibility(
-            self._injection_distributions,
-            phys_dists,
-        )
 
         # Resolve interactions
         primary_interactions = (
             interactions if interactions is not None
-            else self._primary_interactions
+            else self._physical_interactions
         )
         secondary = (
             secondary_interactions if secondary_interactions is not None
-            else self._secondary_processes
+            else self._secondary_physical_interactions
         )
 
-        # Build a new Weighter (cheap -- just pointer copies)
-        weighter = _injection.Weighter()
-        weighter.injectors = [self._injector]
-        weighter.detector_model = self._detector_model
-        weighter.primary_type = self._primary_type
-        weighter.primary_interactions = primary_interactions
-        weighter.primary_physical_distributions = phys_dists
-
-        if secondary:
-            weighter.secondary_interactions = secondary
-            weighter.secondary_physical_distributions = {}
-
-        weights = [weighter(event) for event in self._last_events]
+        secondary_physical = (self._secondary_physical_distributions
+                              if secondary_physical_distributions is None
+                              else secondary_physical_distributions)
+        weighter = _injection.Weighter(
+            self._injector, primary_physical=phys_dists,
+            secondary_physical=secondary_physical,
+            overrides={"primary_interactions": primary_interactions,
+                       "secondary_interactions": secondary},
+            event_factor=self._event_factor if event_factor is ... else event_factor)
+        weights = weighter.weight_all(self._last_events)
 
         return Results(
             self._last_events, weights, self._last_gen_times,
@@ -1220,9 +1244,11 @@ class Simulation:
         Returns a dict mapping ``InteractionSignature`` to
         ``MultiChannelPhaseSpace`` for all signatures that have
         biased phase space channels registered.  Empty if no biasing
-        is configured.
+        is configured. If a signature occurs at both the primary and a
+        secondary vertex, the secondary entry takes precedence; inspect
+        ``injector.engine`` processes to access both mixtures separately.
         """
-        return dict(self._secondary_phase_spaces)
+        return {**self._primary_phase_spaces, **self._secondary_phase_spaces}
 
     @property
     def process_metadata(self):
@@ -1291,7 +1317,7 @@ class Simulation:
         else:
             lines.append("  secondary processes: none")
 
-        n_biased = len(self._secondary_phase_spaces)
+        n_biased = len(self._primary_phase_spaces) + len(self._secondary_phase_spaces)
         if n_biased:
             lines.append(
                 "  biasing: {} signature(s) with directed channels".format(
