@@ -1014,8 +1014,7 @@ class DarkPhotonDecay(_DecayModel):
     chain produces or propagates a V1 polarization state, so the unpolarized
     average applies. The authoring base derives the signature methods, the
     width overload pair, the isotropic 1/(4 pi) FinalStateProbability,
-    Topology/Measure, and the closure-by-construction Isotropic2BodyChannel
-    sampler from total_width() / differential_width().
+    and Topology/Measure. The sampler explicitly uses sample_isotropic().
     """
 
     measure = _Measure.SolidAngleRest()
@@ -1053,6 +1052,9 @@ class DarkPhotonDecay(_DecayModel):
         if int(record.signature.primary_type) != self.pdgid_V1:
             return 0.0
         return self._total_width / (4.0 * math.pi)
+
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
 
     def density_variables(self):
         return ["cos_theta"]
