@@ -411,20 +411,7 @@ class Injector:
                 raise
             if len(tree.tree) == 0:
                 if on_failure == "raise":
-                    allowed = (_injection.FailureReason.NoPathThroughVolume,
-                               _injection.FailureReason.NoTargetsOnPath)
-                    report = self.report()
-                    failures = [bucket for bucket in report.by_vertex
-                                if bucket.reason not in allowed]
-                    if failures or not report.by_vertex:
-                        details = "\n".join(
-                            "{} at depth {}, parent {}: {}".format(
-                                bucket.reason_name, bucket.depth,
-                                bucket.pdg, bucket.exemplar)
-                            for bucket in failures)
-                        raise _errors.GenerationFailure(
-                            "injection failed: " + (details or "no failure diagnosis"),
-                            report=report)
+                    self.report()._raise_for_failure()
                 continue
             trees.append(tree)
             if progress is not None:

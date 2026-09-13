@@ -1280,7 +1280,34 @@ def SaveEvents(events,
                fid_vol=None,
                injector=None,
                output_filename=None,
-               pot=None):
+               pot=None,
+               weights=None,
+               run_counts=None):
+
+    """Save trees, using explicit ``weights`` consistently in every output format.
+
+    ``run_counts`` supplies snapshot attempted_events, accepted_events, and
+    events_to_inject metadata in place of a live injector.
+    """
+    if weights is not None:
+        if weighter is not None or not isinstance(hepmc3_weights, str) or hepmc3_weights != "auto":
+            raise ValueError("weights cannot be combined with a weighter or hepmc3_weights policy")
+        weights = list(weights)
+        if len(weights) != len(events):
+            raise ValueError("weights must contain one value per event")
+        from .Weighter import _checked_weight
+        weights = [_checked_weight(w, "Event {} weight", i) for i, w in enumerate(weights)]
+    if gen_times is not None and len(gen_times) != len(events):
+        raise ValueError("gen_times must contain one value per event")
+    if run_counts is not None:
+        if injector is not None:
+            raise ValueError("run_counts and injector are mutually exclusive")
+        if set(run_counts) != {"attempted_events", "accepted_events", "events_to_inject"}:
+            raise ValueError("run_counts requires attempted_events, accepted_events, and events_to_inject")
+        import operator
+        run_counts = {name: operator.index(value) for name, value in run_counts.items()}
+        if any(value < 0 for value in run_counts.values()):
+            raise ValueError("run_counts must be non-negative")
 
     # pot is recorded only as an HDF5 attribute; accepting it while HDF5
     # output is disabled would drop it silently.
@@ -1310,7 +1337,12 @@ def SaveEvents(events,
     hepmc3_state = "unweighted"
     if save_hepmc3 or save_siren_events:
         hepmc3_cv, hepmc3_state = resolve_hepmc3_weight_policy(
-            events, hepmc3_weights, weighter)
+            events, weights if weights is not None else hepmc3_weights, weighter)
+        if weights is not None:
+            for tree in events:
+                provenance = dict(tree.header.provenance)
+                provenance["siren.weights_state"] = hepmc3_state
+                tree.header.provenance = provenance
 
     # Optionally save things. Headers are already populated (when the policy chose
     # to) so the native .siren_events file carries the same CV as the HepMC3 file.
@@ -1327,6 +1359,9 @@ def SaveEvents(events,
             opts.attempted_events = int(injector.InjectionAttempts())
             opts.accepted_events = int(injector.InjectedEvents())
             opts.events_to_inject = int(injector.EventsToInject())
+        if run_counts is not None:
+            for name, value in run_counts.items():
+                setattr(opts, name, int(value))
         out = output_filename + ".hepmc3"
         if hepmc3_gzip and not out.endswith(".gz"):
             out = out + ".gz"
@@ -1351,7 +1386,9 @@ def SaveEvents(events,
     for ie, event in enumerate(events):
         progress.update(ie + 1)
         t0 = time.time()
-        if hepmc3_cv is not None:
+        if weights is not None:
+            datasets["event_weight"].append(weights[ie])
+        elif hepmc3_cv is not None:
             datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
         elif weighter is None:
             datasets["event_weight"].append(0)
@@ -1427,6 +1464,9 @@ def SaveEvents(events,
         # records the exposure it represents.
         if pot is not None:
             group.attrs["pot"] = float(pot)
+        if run_counts is not None:
+            for name, value in run_counts.items():
+                group.attrs[name] = int(value)
         fout.close()
     if save_parquet:
         ak.to_parquet(ak_array, output_filename+".parquet")
