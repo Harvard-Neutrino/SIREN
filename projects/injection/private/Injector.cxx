@@ -173,6 +173,10 @@ void Injector::SetRandom(std::shared_ptr<siren::utilities::SIREN_random> random)
     this->random = random;
 }
 
+std::shared_ptr<siren::utilities::SIREN_random> Injector::GetRandom() const {
+    return random;
+}
+
 void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record) const {
     SampleCrossSection(record, primary_process->GetInteractions());
 }
@@ -733,31 +737,89 @@ constexpr std::uint32_t kInjectorArchiveMagic = 0x53494E4A; // "SINJ"
 
 void Injector::SaveInjector(std::string const & filename) const {
     std::ofstream os(filename, std::ios::binary);
+    if(!os) {
+        throw std::runtime_error(
+            "Failed to open injector archive '" + filename + "' for writing");
+    }
     ::cereal::BinaryOutputArchive archive(os);
     std::uint32_t magic = kInjectorArchiveMagic;
-    // Must match CEREAL_CLASS_VERSION(siren::injection::Injector, ...).
-    std::uint32_t version = 1;
+    // ::cereal::detail::Version<Injector> is what CEREAL_CLASS_VERSION registered,
+    // so the header version can never drift from the class version.
+    std::uint32_t version = ::cereal::detail::Version<Injector>::version;
     archive(magic, version);
     this->save(archive, version);
 }
 
 void Injector::LoadInjector(std::string const & filename) {
+    // A missing file otherwise surfaces as a cryptic cereal stream error; name it.
+    {
+        std::ifstream is(filename, std::ios::binary);
+        if(!is) {
+            throw std::runtime_error(
+                "Failed to load injector archive '" + filename + "': cannot open file");
+        }
+    }
+    // The stopping condition is never archived, and version-0/1 archives omit
+    // the RNG as well, so preserve the ones this injector already holds. A
+    // version-2 archive DOES restore the RNG (temp.random is then non-null after
+    // the swap), so the RNG is preserved only when the archive left it null;
+    // otherwise the temp-and-move would overwrite them with the temporary's
+    // defaults and a null RNG would segfault the next GenerateEvent.
+    auto preserved_random = random;
+    auto preserved_stopping_condition = stopping_condition;
+    // Headered archive: magic word, then version, then the version-stamped
+    // payload. Parse into a TEMPORARY and move-assign so a failed parse cannot
+    // leave *this half-mutated. The polymorphic processes (and the cross
+    // sections and decays they hold) are reconstructed via their registered
+    // cereal load hooks.
     {
         std::ifstream is(filename, std::ios::binary);
         ::cereal::BinaryInputArchive archive(is);
         std::uint32_t magic = 0;
-        archive(magic);
+        try {
+            archive(magic);
+        } catch(...) {
+            // Too short to hold a magic word; fall through to the headerless path.
+            magic = 0;
+        }
         if(magic == kInjectorArchiveMagic) {
-            std::uint32_t version = 0;
-            archive(version);
-            this->load(archive, version);
+            try {
+                std::uint32_t version = 0;
+                archive(version);
+                Injector temp;
+                temp.load(archive, version);
+                *this = std::move(temp);
+            } catch(std::exception const & e) {
+                throw std::runtime_error(
+                    "Failed to load injector archive '" + filename
+                    + "': the headered parse failed: " + e.what());
+            }
+            // Version 2 restored the RNG into `random`; keep it. Older archives
+            // left it null, so fall back to the pre-load engine.
+            if(!random) random = preserved_random;
+            stopping_condition = preserved_stopping_condition;
             return;
         }
     }
-    // Headerless archive: version-0 schema from the first byte.
-    std::ifstream is(filename, std::ios::binary);
-    ::cereal::BinaryInputArchive archive(is);
-    this->load(archive, 0);
+    // Headerless (legacy version-0) archive: the first word was the
+    // EventsToInject payload, not a magic word. Reparse the whole stream from
+    // the start as the version-0 schema, again into a temporary.
+    try {
+        std::ifstream is(filename, std::ios::binary);
+        ::cereal::BinaryInputArchive archive(is);
+        Injector temp;
+        temp.load(archive, 0);
+        *this = std::move(temp);
+    } catch(std::exception const & e) {
+        throw std::runtime_error(
+            "Failed to load injector archive '" + filename
+            + "': not a headered archive and the headerless version-0 parse "
+              "failed: " + e.what());
+    }
+    // Headerless archives are version 0 and never carry the RNG, so restore the
+    // pre-load engine.
+    if(!random) random = preserved_random;
+    stopping_condition = preserved_stopping_condition;
 }
 
 } // namespace injection

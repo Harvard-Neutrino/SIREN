@@ -566,13 +566,33 @@ def test_pickle_roundtrip_installs_rng_data_free():
 
 def test_pickle_roundtrip_plain_injector_generates():
     """A plain injector round-trips to a usable engine: the restored injector
-    installs a fresh RNG (re-seeded from the stored seed) and generate()
-    produces events instead of segfaulting on a null RNG."""
+    resumes the saved RNG stream and generate() produces events instead of
+    segfaulting on a null RNG."""
     inj = _working_injector(events=5, seed=11)
     restored = pickle.loads(pickle.dumps(inj))
     trees = restored.generate(2, on_shortfall="raise")
     assert len(trees) == 2
     assert all(len(t.tree) > 0 for t in trees)
+
+
+def test_pickle_roundtrip_resumes_the_rng_stream():
+    """The pickled injector carries its RNG engine state, so the unpickled
+    injector RESUMES the generation stream where the original left off rather
+    than restarting from the seed."""
+    inj = _working_injector(events=5, seed=11)
+    inj._build()
+    engine = inj.engine.GetRandom()
+    for _ in range(15):
+        engine.Uniform(0.0, 1.0)
+    blob = pickle.dumps(inj)
+    continuation = [engine.Uniform(0.0, 1.0) for _ in range(6)]
+
+    restored = pickle.loads(blob)
+    resumed = [restored.engine.GetRandom().Uniform(0.0, 1.0) for _ in range(6)]
+    assert resumed == continuation
+    # Not a restart-from-seed: seed 11 from the start differs from the resume.
+    restart = [utilities.SIREN_random(11).Uniform(0.0, 1.0) for _ in range(6)]
+    assert resumed != restart
 
 
 def test_pickle_roundtrip_preserves_stopping_condition_on_engine():

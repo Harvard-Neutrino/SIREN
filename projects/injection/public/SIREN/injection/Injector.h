@@ -105,6 +105,7 @@ public:
     void SetSecondaryProcesses(std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondary_processes);
     virtual siren::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
     void SetRandom(std::shared_ptr<siren::utilities::SIREN_random> random);
+    std::shared_ptr<siren::utilities::SIREN_random> GetRandom() const;
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record,
                                     std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
@@ -175,7 +176,7 @@ public:
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version <= 1) {
+        if(version <= 2) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
@@ -186,11 +187,17 @@ public:
                 archive(::cereal::make_nvp("FailedEvents", failed_events));
             }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
-            // archive(::cereal::make_nvp("SIRENRandom", random));
+            // Version 2 archives the RNG engine (SIREN_random version 1 carries
+            // its full state) so a reloaded injector resumes its generation
+            // stream. Earlier versions omit it and the loader keeps the
+            // injector's existing engine (the restart-from-seed behavior).
+            if(version >= 2) {
+                archive(::cereal::make_nvp("SIRENRandom", random));
+            }
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
-            throw std::runtime_error("Injector only supports version <= 1!");
+            throw std::runtime_error("Injector only supports version <= 2!");
         }
     }
 
@@ -198,7 +205,7 @@ public:
     // incompatible archive throws siren::utilities::AddProcessFailure instead of exiting.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version <= 1) {
+        if(version <= 2) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
 
@@ -211,7 +218,12 @@ public:
                 archive(::cereal::make_nvp("FailedEvents", failed_events));
             }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
-            // archive(::cereal::make_nvp("SIRENRandom", random));
+            // Version 2 restores the RNG engine into `random` (see save). Older
+            // archives omit it, leaving `random` null here, so LoadInjector
+            // keeps the pre-load engine (restart-from-seed).
+            if(version >= 2) {
+                archive(::cereal::make_nvp("SIRENRandom", random));
+            }
             archive(::cereal::make_nvp("PrimaryProcess", _primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", _secondary_processes));
             SetPrimaryProcess(_primary_process);
@@ -219,7 +231,7 @@ public:
                 AddSecondaryProcess(secondary_process);
             }
         } else {
-            throw std::runtime_error("Injector only supports version <= 1!");
+            throw std::runtime_error("Injector only supports version <= 2!");
         }
     }
 };
@@ -227,6 +239,6 @@ public:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::Injector, 1);
+CEREAL_CLASS_VERSION(siren::injection::Injector, 2);
 
 #endif // SIREN_Injector_H

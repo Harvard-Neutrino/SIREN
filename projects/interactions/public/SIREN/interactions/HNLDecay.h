@@ -129,6 +129,10 @@ public:
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
             archive(::cereal::make_nvp("Mixing", _mixing));
             archive(::cereal::make_nvp("ChiralNature", _nature_int));
+            if(_nature_int != static_cast<int>(Dirac) && _nature_int != static_cast<int>(Majorana)) {
+                throw std::runtime_error("HNLDecay: invalid ChiralNature value "
+                    + std::to_string(_nature_int) + " in archive");
+            }
             _nature = static_cast<ChiralNature>(_nature_int);
             construct(_hnl_mass, _mixing, _nature, _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
