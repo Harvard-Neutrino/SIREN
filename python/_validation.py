@@ -397,6 +397,23 @@ def validate_secondary_keys(*dicts_with_labels):
                     ref_label, sorted(str(k) for k in ref_keys)))
 
 
+def model_secondary_masses(model, secondary_types):
+    """Resolve an author-supplied mass list with a named contract error."""
+    types = list(secondary_types)
+    label = type(model).__name__ + '.SecondaryMasses'
+    try:
+        masses = [float(mass) for mass in model.SecondaryMasses(types)]
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ConfigurationError(
+            '%s must return numeric masses for %d secondary types: %s'
+            % (label, len(types), exc)) from exc
+    if len(masses) != len(types):
+        raise ConfigurationError(
+            '%s returned %d masses for %d secondary types'
+            % (label, len(masses), len(types)))
+    return masses
+
+
 def build_template_record(signature, *, primary_mass=0.02, energy=0.05):
     """A minimal InteractionRecord for a signature, for config-time probes.
 
@@ -464,12 +481,14 @@ def _pybind_base_of(model):
 # in C++ with an opaque pure-virtual message; audit_overrides turns that into a
 # named ConfigurationError.
 _REQUIRED_DECAY_METHODS = (
+    "equal",
     "GetPossibleSignatures", "GetPossibleSignaturesFromParent",
     "TotalDecayWidth", "TotalDecayWidthAllFinalStates",
     "DifferentialDecayWidth", "FinalStateProbability",
     "DensityVariables", "SampleFinalState",
 )
 _REQUIRED_CROSS_SECTION_METHODS = (
+    "equal",
     "GetPossiblePrimaries", "GetPossibleTargets",
     "GetPossibleTargetsFromPrimary", "GetPossibleSignatures",
     "GetPossibleSignaturesFromParents", "TotalCrossSection",
@@ -515,9 +534,7 @@ def audit_overrides(interactions):
     for the required virtuals of Decay/CrossSection; a method that resolves only
     to the abstract root (pure there, with no override or concrete intermediate)
     raises ConfigurationError naming the class and the missing method. Also
-    enforces the default-sampler measure contract: a model relying on the base
-    SampleFinalState for a measure with no self-contained channel must override
-    sample().
+    requires authoring models to supply a sampler matching their density.
 
     For an authoring-base-derived model, also requires its declared physics
     hook -- total_width/differential_width, or total_xs/differential_xs -- to
@@ -555,28 +572,19 @@ def audit_overrides(interactions):
 
 
 def _audit_default_sampler(model):
-    """Enforce the recursion-safe default-sampler contract for authoring bases.
-
-    A model that leaves sample() at the authoring-base default must declare a
-    measure with a self-contained channel; otherwise the default would need
-    PhysicalChannelAdapters, which recurses. Skip models that override sample()
-    or are not authoring-base derived.
-    """
-    from . import models as _models
-
+    """Require an explicit sampler on authoring models."""
     base_class = _models_base_sample(model)
     if base_class is None:
         return
-    base_sample = getattr(base_class, "sample", None)
-    if base_sample is None or type(model).sample is not base_sample:
-        return
-    measure = model.Measure()
-    finals = len(model.GetPossibleSignatures()[0].secondary_types)
-    if _models._self_contained_channel(measure, finals, 0) is None:
-        raise ConfigurationError(
-            "%s uses the default sampler for measure %r, which has no "
-            "self-contained channel; override sample(record, random)"
-            % (type(model).__name__, measure))
+    for name in ('SampleFinalState', 'sample'):
+        implementation = getattr(model, name, None)
+        if (callable(implementation)
+                and getattr(implementation, '__func__', implementation)
+                is not getattr(base_class, name)):
+            return
+    raise ConfigurationError(
+        "%s must implement sample(record, random); a measure does not "
+        "determine the sampling density" % type(model).__name__)
 
 
 def _audit_required_physics_hooks(model):

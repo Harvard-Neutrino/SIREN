@@ -7,15 +7,10 @@ or cross-section overload pairs, ``FinalStateProbability`` as differential over
 total, ``DensityVariables`` (normalized to a list of strings), and ``Topology``
 from the final-state arity.
 
-The default ``SampleFinalState`` samples the DECLARED measure through a
-self-contained engine channel, so the Sample==Density closure holds by
-construction whenever ``sample()`` is not overridden. It NEVER delegates to
-``PhysicalDecayChannel``/``PhysicalCrossSectionChannel``: those channels call
-the wrapped model's ``SampleFinalState`` (PhysicalChannelAdapters.cxx), which
-dispatches back through the trampoline into this default and recurses forever.
-Only measures with a self-contained channel are supported by the default; any
-other declared measure requires an explicit ``sample()`` override, enforced at
-model registration by ``_validation.audit_overrides``.
+Each model supplies ``sample(record, random)`` to match its declared density.
+A measure identifies coordinates; it does not determine that distribution.
+For isotropic two-body decays, ``sample()`` can call ``sample_isotropic()``.
+Use ``siren.check_closure`` to test the sampler against the physical density.
 
 ``decay_model_base(base=...)`` / ``cross_section_model_base(base=...)`` produce
 these bases over a chosen pybind C++ base, so the DarkNews port can build on
@@ -29,6 +24,7 @@ from . import interactions as _interactions
 from . import dataclasses as _dataclasses
 from . import injection as _injection
 from . import particles as _particles
+from ._validation import model_secondary_masses
 from .errors import ConfigurationError
 
 Particle = _dataclasses.Particle
@@ -49,6 +45,7 @@ Topology = PhaseSpaceTopology
 # name resolving only to the abstract pybind base (no Python override) is the
 # silent pure-virtual-abort case audit_overrides turns into a loud error.
 _DECAY_VIRTUALS = (
+    "equal",
     "TotalDecayWidth",
     "TotalDecayWidthAllFinalStates",
     "DifferentialDecayWidth",
@@ -60,6 +57,7 @@ _DECAY_VIRTUALS = (
 )
 
 _CROSS_SECTION_VIRTUALS = (
+    "equal",
     "TotalCrossSection",
     "DifferentialCrossSection",
     "InteractionThreshold",
@@ -101,55 +99,6 @@ def _topology_from_arity(n_finals):
     if n_finals == 3:
         return PhaseSpaceTopology.Decay3Body
     return PhaseSpaceTopology.DecayNBody
-
-
-# A declared measure maps to a self-contained engine channel (one that writes an
-# InteractionRecord directly and does not call back into SampleFinalState).
-# SolidAngleRest 2-body -> Isotropic2BodyChannel, whose DetectorModel argument is
-# unused (None is safe). Anything absent here has no closure-by-construction
-# default; the author must override sample().
-def _self_contained_channel(measure, n_finals, daughter_index):
-    if n_finals == 2 and measure.type == PhaseSpaceMeasureType.SolidAngleRest:
-        return _injection.Isotropic2BodyChannel(daughter_index)
-    return None
-
-
-def _bridge_channel_sample(model, channel, csdr, random):
-    """Bridge a CrossSectionDistributionRecord through an engine channel.
-
-    ``csdr.record`` is a detached copy of the record the engine built the
-    CSDR from. Self-contained channels require that copy to carry sized
-    secondary storage, but only the spec-form injector path sizes it
-    (PreparePhaseSpaceFinalState); the legacy attribute path hands
-    SampleFinalState a record whose secondary masses/momenta are empty. Size
-    an unsized copy here from the model's own SecondaryMasses -- the same
-    source the spec-form path consults -- so the default sampler is
-    interface-agnostic. A copy that arrives already sized is left untouched:
-    config-time probes and closure templates deliberately install synthetic
-    masses matched to their synthetic parent, and overriding those would
-    reject kinematics the caller constructed to be feasible.
-
-    The channel writes secondary momenta into the copy; copy them back onto
-    the CSDR's secondary particle records. The DetectorModel argument is
-    unused by self-contained channels, so None is passed.
-    """
-    ir = csdr.record
-    n_secondaries = len(ir.signature.secondary_types)
-    if len(ir.secondary_masses) != n_secondaries:
-        masses = [float(m) for m in
-                  model.SecondaryMasses(list(ir.signature.secondary_types))]
-        if len(masses) != n_secondaries:
-            raise ConfigurationError(
-                "%s.SecondaryMasses returned %d masses for %d secondary types"
-                % (type(model).__name__, len(masses), n_secondaries))
-        ir.secondary_masses = masses
-    if len(ir.secondary_momenta) != n_secondaries:
-        ir.secondary_momenta = [[0.0, 0.0, 0.0, 0.0]] * n_secondaries
-    channel.Sample(random, None, ir)
-    secondaries = csdr.get_secondary_particle_records()
-    for i, spr in enumerate(secondaries):
-        spr.four_momentum = ir.secondary_momenta[i]
-        spr.mass = ir.secondary_masses[i]
 
 
 class _ModelSubclassCheck:
@@ -196,9 +145,10 @@ def decay_model_base(base=None):
 
         Declare ``parent`` and ``daughters`` (names or ParticleTypes) and a
         ``measure``; supply ``total_width()`` and ``differential_width(record)``.
-        Override ``sample(record, random)`` only for a measure without a
-        self-contained default; overriding it is the trigger to run
-        ``siren.check_closure``.
+        Supply ``sample(record, random)`` with the same density. Isotropic
+        two-body decays can call ``self.sample_isotropic(record, random)``.
+        Equality defaults to object identity; override ``equal`` for value
+        comparisons.
         """
 
         parent = None
@@ -218,6 +168,9 @@ def decay_model_base(base=None):
             # DarkNewsDecay) bind only a zero-arg constructor, so the common
             # empty-args call stays valid.
             super().__init__(*args, **kwargs)
+
+        def equal(self, other):
+            return self is other
 
         # ---- declared metadata -> signature methods ----
 
@@ -243,6 +196,19 @@ def decay_model_base(base=None):
             if self.measure is None:
                 return PhaseSpaceMeasure.Unspecified()
             return self.measure
+
+        def TopologyForSignature(self, signature):
+            # Membership in the advertised set, not equality with the default
+            # signature: a subclass may override GetPossibleSignatures to
+            # offer more channels, and each keeps the declared measure.
+            if signature not in self.GetPossibleSignatures():
+                return PhaseSpaceTopology.Unspecified
+            return _topology_from_arity(len(signature.secondary_types))
+
+        def MeasureForSignature(self, signature):
+            if signature not in self.GetPossibleSignatures():
+                return PhaseSpaceMeasure.Unspecified()
+            return self.Measure()
 
         def DensityVariables(self):
             return _normalize_density_variables(self.density_variables())
@@ -283,22 +249,28 @@ def decay_model_base(base=None):
                 return 0.0
             return float(self.differential_width(record)) / total
 
-        # ---- closure-by-construction default sampler ----
-
         def SampleFinalState(self, record, random):
-            # The engine calls this; it dispatches to sample() so an override
-            # takes effect. The default sample() draws the declared measure.
             self.sample(record, random)
 
-        def _sample_via_channel(self, channel, csdr, random):
-            """Bridge a CrossSectionDistributionRecord through an engine channel.
-
-            Sizes the bridged record copy from this model's SecondaryMasses
-            (the legacy injector path never pre-sizes it), lets the channel
-            write secondary momenta, and copies them back onto the CSDR's
-            secondary particle records. See _bridge_channel_sample.
-            """
-            _bridge_channel_sample(self, channel, csdr, random)
+        def sample_isotropic(self, record, random):
+            """Sample a two-body decay uniformly in rest-frame solid angle."""
+            if (len(self.daughters) != 2
+                    or self.Measure().type != PhaseSpaceMeasureType.SolidAngleRest):
+                raise ConfigurationError(
+                    "sample_isotropic requires a two-body SolidAngleRest decay")
+            # The legacy injection path does not size secondary storage.
+            ir = record.record
+            n = len(ir.signature.secondary_types)
+            if len(ir.secondary_masses) != n:
+                ir.secondary_masses = model_secondary_masses(self, ir.signature.secondary_types)
+            if len(ir.secondary_momenta) != n:
+                ir.secondary_momenta = [[0.0, 0.0, 0.0, 0.0]] * n
+            _injection.Isotropic2BodyChannel(self.daughter_index).Sample(random, None, ir)
+            for secondary, momentum, mass in zip(
+                    record.get_secondary_particle_records(), ir.secondary_momenta,
+                    ir.secondary_masses):
+                secondary.four_momentum = momentum
+                secondary.mass = mass
 
         # ---- physics hooks (subclass supplies these) ----
 
@@ -316,20 +288,10 @@ def decay_model_base(base=None):
             return []
 
         def sample(self, record, random):
-            """Sample the declared measure via a self-contained engine channel.
-
-            Override for a measure with no self-contained channel. This never
-            delegates to PhysicalDecayChannel, whose Sample dispatches back into
-            SampleFinalState and would recurse.
-            """
-            channel = _self_contained_channel(
-                self.Measure(), len(self.daughters), self.daughter_index)
-            if channel is None:
-                raise ConfigurationError(
-                    "%s declares measure %r with no self-contained sampling "
-                    "channel; override sample(record, random)"
-                    % (type(self).__name__, self.Measure()))
-            self._sample_via_channel(channel, record, random)
+            """Draw final-state kinematics with this model's physical density."""
+            raise ConfigurationError(
+                "%s must implement sample(record, random); a measure does not "
+                "determine the sampling density" % type(self).__name__)
 
     return DecayModel
 
@@ -349,8 +311,9 @@ def cross_section_model_base(base=None):
 
         Declare ``primary``, ``target`` and ``finals`` (names or ParticleTypes)
         and a ``measure``; supply ``total_xs(record)`` and
-        ``differential_xs(record)``. Override ``sample(record, random)`` only for
-        a measure without a self-contained default.
+        ``differential_xs(record)`` and a matching ``sample(record, random)``.
+        Equality defaults to object identity; override ``equal`` for value
+        comparisons.
         """
 
         primary = None
@@ -371,6 +334,9 @@ def cross_section_model_base(base=None):
             # DarkNewsCrossSection) bind only a zero-arg constructor, so the
             # common empty-args call stays valid.
             super().__init__(*args, **kwargs)
+
+        def equal(self, other):
+            return self is other
 
         # ---- declared metadata -> target/signature methods ----
 
@@ -410,6 +376,21 @@ def cross_section_model_base(base=None):
                 return PhaseSpaceMeasure.Unspecified()
             return self.measure
 
+        def TopologyForSignature(self, signature):
+            # Membership in the advertised set, not equality with the default
+            # signature: a subclass may override GetPossibleSignatures to
+            # offer more targets, and each keeps the declared measure.
+            if signature not in self.GetPossibleSignatures():
+                return PhaseSpaceTopology.Unspecified
+            return (PhaseSpaceTopology.Scatter2to2
+                    if len(signature.secondary_types) == 2
+                    else PhaseSpaceTopology.Scatter2to3)
+
+        def MeasureForSignature(self, signature):
+            if signature not in self.GetPossibleSignatures():
+                return PhaseSpaceMeasure.Unspecified()
+            return self.Measure()
+
         def DensityVariables(self):
             return _normalize_density_variables(self.density_variables())
 
@@ -430,7 +411,7 @@ def cross_section_model_base(base=None):
                 return 0.0
             return float(self.differential_xs(record)) / total
 
-        # ---- default sampler (same recursion-safe contract as decays) ----
+        # ---- sampler supplied by the model ----
 
         def SampleFinalState(self, record, random):
             self.sample(record, random)
@@ -449,19 +430,10 @@ def cross_section_model_base(base=None):
             return []
 
         def sample(self, record, random):
-            """Sample the declared measure via a self-contained engine channel.
-
-            Override for a measure with no self-contained channel; never
-            delegates to PhysicalCrossSectionChannel, which would recurse.
-            """
-            channel = _self_contained_channel(
-                self.Measure(), len(self.finals), 0)
-            if channel is None:
-                raise ConfigurationError(
-                    "%s declares measure %r with no self-contained sampling "
-                    "channel; override sample(record, random)"
-                    % (type(self).__name__, self.Measure()))
-            _bridge_channel_sample(self, channel, record, random)
+            """Draw final-state kinematics with this model's physical density."""
+            raise ConfigurationError(
+                "%s must implement sample(record, random); a measure does not "
+                "determine the sampling density" % type(self).__name__)
 
     return CrossSectionModel
 

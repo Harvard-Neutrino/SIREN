@@ -23,6 +23,9 @@ class GoodIsoDecay(siren.DecayModel):
     daughters = ("NuLight", "Gamma")
     measure = siren.Measure.SolidAngleRest()
 
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
+
     def total_width(self):
         return 1.0
 
@@ -66,6 +69,9 @@ class SkewedDensityDecay(siren.DecayModel):
     daughters = ("NuLight", "Gamma")
     measure = siren.Measure.SolidAngleRest()
 
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
+
     def total_width(self):
         return 1.0
 
@@ -108,6 +114,9 @@ class ScaledDensityDecay(siren.DecayModel):
     daughters = ("NuLight", "Gamma")
     measure = siren.Measure.SolidAngleRest()
 
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
+
     def total_width(self):
         return 1.0
 
@@ -143,15 +152,9 @@ def test_uniform_scale_error_raises():
 # ------------------------------------------------------------------ #
 
 def test_closure_deterministic_under_seed():
-    import siren.closure as closure
 
-    # The result cache is keyed on the model INSTANCE, and these are two
-    # distinct GoodIsoDecay() objects, so neither call can serve the other from
-    # cache; clearing is belt-and-suspenders. The same seed drives the same
-    # validation RNG streams, so the reports must match exactly.
-    closure._CACHE.clear()
+    # Both calls rerun the independent validation streams at the same seed.
     r1 = siren.check_closure(GoodIsoDecay(), samples=2000, seed=42)
-    closure._CACHE.clear()
     r2 = siren.check_closure(GoodIsoDecay(), samples=2000, seed=42)
     assert r1.normalization[0] == pytest.approx(r2.normalization[0])
     assert r1.flatness[0] == pytest.approx(r2.flatness[0])
@@ -174,6 +177,9 @@ class ScaleParamDecay(siren.DecayModel):
         super().__init__(*args, **kwargs)
         self._scale = scale
 
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
+
     def total_width(self):
         return 1.0
 
@@ -184,10 +190,8 @@ class ScaleParamDecay(siren.DecayModel):
         return "cost"
 
 
-def test_cache_keys_on_instance_not_class():
-    import siren.closure as closure
+def test_distinct_model_state_is_rechecked():
 
-    closure._CACHE.clear()
     correct = ScaleParamDecay(1.0)
     scaled = ScaleParamDecay(2.0)
     # Same class, same call parameters, different internal state. Keying on the
