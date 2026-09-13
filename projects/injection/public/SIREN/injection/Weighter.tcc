@@ -12,6 +12,7 @@
 #include <set>                                                    // for set
 #include <sstream>                                                // for ost...
 #include <stdexcept>                                              // for out...
+#include <sstream>
 
 #include <type_traits>
 
@@ -29,6 +30,7 @@
 #include "SIREN/injection/Process.h"                     // for Phy...
 #include "SIREN/injection/WeightingUtils.h"              // for Cro...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
+#include "SIREN/utilities/Errors.h"
 
 #include <tuple>
 #include <cassert>
@@ -362,8 +364,27 @@ template<typename ProcessType>
 double ProcessWeighter<ProcessType>::EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionTreeDatum const & datum) const {
     PhaseSpaceConvention convention = WeightingConvention(datum.record);
-    return PhysicalProbability(bounds, datum.record, convention)
-         / GenerationProbability(datum, convention);
+    double physical = PhysicalProbability(bounds, datum.record, convention);
+    double generation = GenerationProbability(datum, convention);
+    if(generation <= 0.0 || !std::isfinite(generation)
+       || physical < 0.0 || !std::isfinite(physical)) {
+        std::ostringstream oss;
+        oss << "ProcessWeighter::EventWeight: unusable probabilities for primary type "
+            << datum.record.signature.primary_type
+            << ": generation_probability=" << generation
+            << ", physical_probability=" << physical
+            << " [siren-docs: errors#weight-calc]";
+        throw siren::utilities::WeightCalculationError(oss.str());
+    }
+    double weight = physical / generation;
+    if(!std::isfinite(weight) || weight < 0.0) {
+        std::ostringstream oss;
+        oss << "ProcessWeighter::EventWeight: unusable event weight=" << weight
+            << " for primary type " << datum.record.signature.primary_type
+            << " [siren-docs: errors#weight-calc]";
+        throw siren::utilities::WeightCalculationError(oss.str());
+    }
+    return weight;
 }
 
 template<typename ProcessType>

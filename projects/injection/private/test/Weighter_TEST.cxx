@@ -1,4 +1,5 @@
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -126,16 +127,31 @@ TEST(WeighterHelpers, LogOneMinusExpIsNegative) {
 // ---------------------------------------------------------------------------
 // Weighter::EventWeight guard behavior
 //
-// Both fixtures below use VertexWeightingMode::Fixed() on the injection and
+// The fixtures below use VertexWeightingMode::Fixed() on the injection and
 // physical process, so InteractionProbability and NormalizedPositionProbability
 // (which integrate density along the path) are never evaluated. Only the
 // channel-selection and final-state-density factors are, and both reduce to
 // an exact 1.0 for this single-channel DummyCrossSection with a matching
 // signature, so the per-vertex generation/physical probabilities are
-// predictable and the two guard branches can be pinned exactly.
+// predictable. A test position distribution supplies a controlled density.
 // ---------------------------------------------------------------------------
 
 namespace {
+
+class GuardPositionDistribution : public siren::distributions::SphereVolumePositionDistribution {
+    double density;
+public:
+    explicit GuardPositionDistribution(double density)
+        : SphereVolumePositionDistribution(siren::geometry::Sphere(50.0, 0.0)),
+          density(density) {}
+
+    double GenerationProbability(
+            std::shared_ptr<siren::detector::DetectorModel const>,
+            std::shared_ptr<siren::interactions::InteractionCollection const>,
+            siren::dataclasses::InteractionRecord const &) const override {
+        return density;
+    }
+};
 
 struct WeighterGuardFixture {
     std::shared_ptr<siren::injection::Injector> injector;
@@ -145,12 +161,11 @@ struct WeighterGuardFixture {
 
 // `events_to_inject` seeds the realized-count normalization: Weighter reads
 // EventsToInject() while InjectedEvents() is still 0 (i.e. before any
-// generation). `zero_physical_normalization` adds a NormalizationConstant(0.0)
-// to the physical process; PhysicalProbability multiplies its result by that
-// distribution's normalization, so it becomes exactly 0.0 without perturbing
-// GenerationProbability, which never applies the physical normalization.
+// generation). Physical normalization and generation density are independent,
+// so invalid inputs and arithmetic overflow can be tested separately.
 WeighterGuardFixture BuildWeighterGuardFixture(unsigned int events_to_inject,
-                                                bool zero_physical_normalization) {
+                                                double physical_normalization = 1.0,
+                                                double generation_density = 1.0) {
     siren::dataclasses::ParticleType primary_type = siren::dataclasses::ParticleType::NuMu;
     siren::dataclasses::ParticleType target_type = siren::dataclasses::ParticleType::Nucleon;
 
@@ -175,16 +190,13 @@ WeighterGuardFixture BuildWeighterGuardFixture(unsigned int events_to_inject,
         std::make_shared<siren::injection::PrimaryInjectionProcess>(primary_type, int_col);
     primary_inj->SetWeightingMode(siren::dataclasses::VertexWeightingMode::Fixed());
     primary_inj->AddPrimaryInjectionDistribution(
-        std::make_shared<siren::distributions::SphereVolumePositionDistribution>(
-            siren::geometry::Sphere(50.0, 0.0)));
+        std::make_shared<GuardPositionDistribution>(generation_density));
 
     std::shared_ptr<siren::injection::PhysicalProcess> primary_phys =
         std::make_shared<siren::injection::PhysicalProcess>(primary_type, int_col);
     primary_phys->SetWeightingMode(siren::dataclasses::VertexWeightingMode::Fixed());
-    if (zero_physical_normalization) {
-        primary_phys->AddPhysicalDistribution(
-            std::make_shared<siren::distributions::NormalizationConstant>(0.0));
-    }
+    primary_phys->AddPhysicalDistribution(
+        std::make_shared<siren::distributions::NormalizationConstant>(physical_normalization));
 
     std::shared_ptr<siren::utilities::SIREN_random> random =
         std::make_shared<siren::utilities::SIREN_random>(1234);
@@ -221,7 +233,7 @@ WeighterGuardFixture BuildWeighterGuardFixture(unsigned int events_to_inject,
 // than let the reciprocal in EventWeight blow up silently.
 TEST(WeighterGuards, GenerationProbabilityNonpositiveThrowsWeightCalculationError) {
     WeighterGuardFixture fixture = BuildWeighterGuardFixture(
-        /*events_to_inject=*/0, /*zero_physical_normalization=*/false);
+        /*events_to_inject=*/0);
     EXPECT_EQ(fixture.injector->InjectedEvents(), 0u);
     EXPECT_EQ(fixture.injector->EventsToInject(), 0u);
     EXPECT_THROW(fixture.weighter->EventWeight(fixture.tree),
@@ -233,8 +245,109 @@ TEST(WeighterGuards, GenerationProbabilityNonpositiveThrowsWeightCalculationErro
 // distinct from the generation-side guard above.
 TEST(WeighterGuards, PhysicalProbabilityZeroGivesZeroWeightWithoutThrowing) {
     WeighterGuardFixture fixture = BuildWeighterGuardFixture(
-        /*events_to_inject=*/100, /*zero_physical_normalization=*/true);
+        /*events_to_inject=*/100, /*physical_normalization=*/0.0);
     double weight = 0.0;
     EXPECT_NO_THROW(weight = fixture.weighter->EventWeight(fixture.tree));
     EXPECT_EQ(weight, 0.0);
+}
+
+TEST(WeighterGuards, InvalidPhysicalProbabilityThrows) {
+    for(double probability : {-1.0, std::numeric_limits<double>::infinity(),
+                              -std::numeric_limits<double>::infinity(),
+                              std::numeric_limits<double>::quiet_NaN()}) {
+        SCOPED_TRACE(probability);
+        auto fixture = BuildWeighterGuardFixture(1, probability);
+        EXPECT_THROW(fixture.weighter->EventWeight(fixture.tree),
+                     siren::utilities::WeightCalculationError);
+    }
+}
+
+TEST(WeighterGuards, InvalidGenerationProbabilityThrowsEvenWithZeroPhysicalProbability) {
+    for(double probability : {0.0, -1.0, std::numeric_limits<double>::infinity(),
+                              -std::numeric_limits<double>::infinity(),
+                              std::numeric_limits<double>::quiet_NaN()}) {
+        SCOPED_TRACE(probability);
+        for(double physical : {0.0, 1.0}) {
+            auto fixture = BuildWeighterGuardFixture(1, physical, probability);
+            EXPECT_THROW(fixture.weighter->EventWeight(fixture.tree),
+                         siren::utilities::WeightCalculationError);
+        }
+    }
+}
+
+TEST(WeighterGuards, FinitePositiveProbabilitiesGiveExpectedWeight) {
+    auto fixture = BuildWeighterGuardFixture(100, 2.0, 0.25);
+    EXPECT_DOUBLE_EQ(fixture.weighter->EventWeight(fixture.tree), 2.0 / 25.0);
+}
+
+TEST(WeighterGuards, InverseWeightOverflowThrowsInsteadOfReturningZero) {
+    auto fixture = BuildWeighterGuardFixture(1, 1e-308, 1e100);
+    EXPECT_THROW(fixture.weighter->EventWeight(fixture.tree),
+                 siren::utilities::WeightCalculationError);
+}
+
+TEST(WeighterGuards, WeightOverflowThrows) {
+    // The first ratio remains representable; the second underflows to zero.
+    for(double generation : {1.0, 1e-100}) {
+        auto fixture = BuildWeighterGuardFixture(1, 1e308, generation * 0.01);
+        EXPECT_THROW(fixture.weighter->EventWeight(fixture.tree),
+                     siren::utilities::WeightCalculationError);
+    }
+}
+
+TEST(WeighterGuards, PooledInverseWeightOverflowThrows) {
+    auto first = BuildWeighterGuardFixture(1, 1.0, 1e308);
+    auto second = BuildWeighterGuardFixture(1, 1.0, 1e308);
+    EXPECT_GT(first.weighter->EventWeight(first.tree), 0.0);
+    Weighter pooled({first.injector, second.injector},
+                    first.weighter->GetDetectorModel(),
+                    first.weighter->GetPrimaryPhysicalProcess());
+    EXPECT_THROW(pooled.EventWeight(first.tree),
+                 siren::utilities::WeightCalculationError);
+}
+
+TEST(WeighterGuards, ZeroPhysicalProbabilityDoesNotHideInvalidPooledInjector) {
+    auto first = BuildWeighterGuardFixture(1, 0.0);
+    auto second = BuildWeighterGuardFixture(0, 0.0);
+    Weighter pooled({first.injector, second.injector},
+                    first.weighter->GetDetectorModel(),
+                    first.weighter->GetPrimaryPhysicalProcess());
+    EXPECT_THROW(pooled.EventWeight(first.tree),
+                 siren::utilities::WeightCalculationError);
+}
+
+TEST(WeighterGuards, EmptyInjectorPoolThrowsInsteadOfReturningInfinity) {
+    auto fixture = BuildWeighterGuardFixture(1);
+    Weighter empty({}, fixture.weighter->GetDetectorModel(),
+                   fixture.weighter->GetPrimaryPhysicalProcess());
+    EXPECT_THROW(empty.EventWeight(fixture.tree),
+                 siren::utilities::WeightCalculationError);
+}
+
+TEST(WeighterGuards, ProcessWeightRejectsInvalidProbabilitiesAndOverflow) {
+    for(auto const & probabilities : std::vector<std::pair<double, double>>{
+            {-1.0, 1.0}, {1.0, -1.0}, {0.0, 0.0}, {1.0, 0.0},
+            {std::numeric_limits<double>::infinity(), 1.0},
+            {1.0, std::numeric_limits<double>::quiet_NaN()}, {1e308, 0.01}}) {
+        auto fixture = BuildWeighterGuardFixture(1, probabilities.first, probabilities.second);
+        PrimaryProcessWeighter process(fixture.weighter->GetPrimaryPhysicalProcess(),
+                                       fixture.injector->GetPrimaryProcess(),
+                                       fixture.weighter->GetDetectorModel());
+        auto const & datum = *fixture.tree.tree.front();
+        auto bounds = fixture.injector->PrimaryInjectionBounds(datum.record);
+        EXPECT_THROW(process.EventWeight(bounds, datum),
+                     siren::utilities::WeightCalculationError);
+    }
+}
+
+TEST(WeighterGuards, ProcessWeightPreservesZeroAndPositiveWeights) {
+    for(double physical : {0.0, 2.0}) {
+        auto fixture = BuildWeighterGuardFixture(1, physical, 0.25);
+        PrimaryProcessWeighter process(fixture.weighter->GetPrimaryPhysicalProcess(),
+                                       fixture.injector->GetPrimaryProcess(),
+                                       fixture.weighter->GetDetectorModel());
+        auto const & datum = *fixture.tree.tree.front();
+        auto bounds = fixture.injector->PrimaryInjectionBounds(datum.record);
+        EXPECT_DOUBLE_EQ(process.EventWeight(bounds, datum), physical / 0.25);
+    }
 }

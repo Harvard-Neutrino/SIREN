@@ -7,7 +7,7 @@
 - Misconfigured primary/secondary processes now raise AddProcessFailure instead of terminating the interpreter with exit(0).
 - Weighter initialization mismatches raise ConfigurationError instead of a debug-only assert or printed message; missing secondary types in weighting raise instead of returning empty/zero results.
 - MultiChannelPhaseSpace: channel/weight length mismatches and un-normalized weights raise ConfigurationError at construction or use, instead of silently assigning leftover probability to the last channel; non-convertible measure combinations raise MeasureCompatibilityError instead of a one-shot stderr warning (allow_incompatible=True opts out).
-- Zero or non-finite generation density during weighting raises WeightCalculationError instead of returning an infinite weight. Zero physical density still yields weight 0.
+- Nonpositive/nonfinite generation probabilities and negative/nonfinite physical probabilities raise WeightCalculationError in event and per-process weighting. Vertex factors are checked before multiplication; inverse-weight and final-weight overflow also raise. Zero physical density still yields weight 0.
 
 ### Physics-affecting fixes
 
