@@ -3,6 +3,7 @@
 #define SIREN_Weighter_H
 
 #include <map>                                           // for map
+#include <string>                                        // for string
 #include <tuple>
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
@@ -72,6 +73,30 @@ public:
 typedef ProcessWeighter<siren::injection::PrimaryInjectionProcess> PrimaryProcessWeighter;
 typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryProcessWeighter;
 
+// One tree vertex's weight factors, recorded for diagnostics. generation and
+// physical are the exact per-datum factors the event weight consumes; the other
+// fields are observation-only and never fed back into the weight.
+struct VertexWeightFactors {
+    int injector_index = 0;
+    int depth = 0;
+    // pdg of the particle at this vertex, not the event's primary.
+    int vertex_pdg = 0;
+    double generation = 1.0;
+    double physical = 1.0;
+    double interaction_prob = 1.0;
+    double position_prob = 1.0;
+    std::map<std::string, double> channel_densities;
+    std::vector<std::string> cancelled;
+    std::vector<std::string> flags;
+};
+
+// Per-vertex factors and total. Invalid probabilities or weight overflow produce
+// flags and a NaN total; valid zero physical support produces a zero total.
+struct EventWeightBreakdown {
+    double total = 0.0;
+    std::vector<VertexWeightFactors> vertices;
+};
+
 // Parent class for calculating event weights
 // Assumes there is a unique secondary physical process for each particle type
 class Weighter {
@@ -92,8 +117,15 @@ private:
     > secondary_process_weighter_maps;
 
     void Initialize();
+    // with_diagnostics fills the observation-only interaction_prob/position_prob
+    // fields; EventWeight leaves it false so it computes only the physical and
+    // generation factors it consumes.
+    VertexWeightFactors ComputeVertexFactors(unsigned int idx,
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
+        bool with_diagnostics = false) const;
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
+    EventWeightBreakdown EventWeightWithBreakdown(siren::dataclasses::InteractionTree const & tree) const;
     std::vector<std::shared_ptr<Injector>> const & GetInjectors() const;
     std::shared_ptr<siren::detector::DetectorModel> GetDetectorModel() const;
     std::shared_ptr<siren::injection::PhysicalProcess> GetPrimaryPhysicalProcess() const;
