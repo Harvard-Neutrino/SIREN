@@ -11,6 +11,7 @@
 
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/distributions/DistributionVariable.h"
+#include "SIREN/utilities/Errors.h"               // for WeightCalculationError
 #include "SIREN/utilities/Random.h"               // for SIREN_random
 #include "SIREN/math/Vector3D.h"
 
@@ -328,9 +329,6 @@ void PrimaryExternalDistribution::Sample(
         else if (keys[i_key] == "m") {
             record.SetMass(value);
         }
-        else if (keys[i_key] == "weight") {
-            record.SetInteractionParameter("PrimaryExternalDistribution_weight", value);
-        }
         else {
             record.SetInteractionParameter(keys[i_key], value);
         }
@@ -404,11 +402,15 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
             if (energy >= emin) return gp_it->second;
             return 0;
         }
+        // Records produced by this distribution's own Sample always carry the
+        // cached generation probability when sampling weights are in use; its
+        // absence means the record did not originate here, so the biased density
+        // cannot be recovered.
+        throw siren::utilities::WeightCalculationError(
+            "PrimaryExternalDistribution: missing cached interaction parameter "
+            "\"PrimaryExternalDistribution_gen_prob\"");
     }
     if (energy >= emin) return 1;
-    if (record.interaction_parameters.find("PrimaryExternalDistribution_weight") != record.interaction_parameters.end()) {
-        return record.interaction_parameters.at("PrimaryExternalDistribution_weight");
-    }
     return 0;
 }
 

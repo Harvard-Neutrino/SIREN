@@ -29,7 +29,14 @@ new "golden" from whatever the current (possibly broken) code produces.
 
 What is pinned
 --------------
-1. test_golden_kp_alphas -- a fixed-seed Kleiss-Pittau optimization of a toy
+1. test_golden_weighted_distributions -- a fixed-seed multi-vertex chain built
+   from a real siren injection.Injector + injection.Weighter (the same
+   data-free DummyCrossSection + CCM-detector assembly used by the HepMC3
+   closure tests). N=500 accepted events. Archived: the per-event weights, the
+   primary energies, the interaction-vertex coordinates, the per-event tree
+   depth (a cheap kinematic-topology observable available from the chain), and
+   weighted histograms of energy and of vertex radius.
+2. test_golden_kp_alphas -- a fixed-seed Kleiss-Pittau optimization of a toy
    3-channel mixture (physical/isotropic + two detector-directed channels) via
    tune.optimize_multichannel_weights, which drives the bare
    W_i = mean(w^2 g_i/g) statistic through the C++ Accumulate/UpdateWeights
@@ -101,6 +108,165 @@ _M_V1 = 0.017
 
 
 # --------------------------------------------------------------------------- #
+# Part 1: a real assembled injector + weighter (multi-vertex, data-free)       #
+# --------------------------------------------------------------------------- #
+
+def _skip_unless_ccm_data():
+    """Skip only when the CCM detector data files are absent.
+
+    Missing files are an environment condition; any error raised while
+    PARSING present files is a real regression and must propagate.
+    """
+    try:
+        det_dir = _util.get_detector_model_path("CCM")
+    except ValueError as e:
+        pytest.skip(f"CCM detector model path unavailable: {e}")
+    missing = [p for p in (os.path.join(det_dir, "materials.dat"),
+                           os.path.join(det_dir, "densities.dat"))
+               if not os.path.exists(p)]
+    if missing:
+        pytest.skip("CCM detector data missing: " + ", ".join(missing))
+
+
+def _load_ccm_detector():
+    """Load the CCM detector model; errors propagate to the caller."""
+    dm = detector.DetectorModel()
+    det_dir = _util.get_detector_model_path("CCM")
+    dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
+    dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
+    return dm
+
+
+def _build_chain(detector_model, n_inject, seed):
+    """Assemble a real multi-vertex Injector + Weighter over a data-free
+    DummyCrossSection.
+
+    Generation flux: a power-law energy spectrum, a neutrino-helicity
+    distribution, isotropic direction, and a point-source position -- so the
+    weight genuinely depends on energy, helicity, and geometry (a monoenergetic
+    setup would not exercise the reweighting). One generation of secondaries is
+    simulated so every event is a multi-vertex cascade. Returns
+    (injector, weighter, keepalive) where keepalive holds Python objects that
+    must outlive the C++ engines.
+    """
+    xs = interactions.DummyCrossSection()
+    int_col = interactions.InteractionCollection(_NuMu, [xs])
+
+    primary_inj = injection.PrimaryInjectionProcess()
+    primary_inj.primary_type = _NuMu
+    primary_inj.interactions = int_col
+    primary_inj.distributions = [
+        distributions.PrimaryMass(0),
+        distributions.PowerLaw(2.0, 0.5, 5.0),
+        distributions.PrimaryNeutrinoHelicityDistribution(),
+        distributions.IsotropicDirection(),
+        distributions.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 25.0),
+    ]
+
+    primary_phys = injection.PhysicalProcess()
+    primary_phys.primary_type = _NuMu
+    primary_phys.interactions = int_col
+    primary_phys.distributions = [
+        distributions.PrimaryMass(0),
+        distributions.PrimaryNeutrinoHelicityDistribution(),
+        distributions.IsotropicDirection(),
+    ]
+
+    sec_xs = interactions.DummyCrossSection()
+    sec_col = interactions.InteractionCollection(_NuMu, [sec_xs])
+
+    sec_inj = injection.SecondaryInjectionProcess()
+    sec_inj.primary_type = _NuMu
+    sec_inj.interactions = sec_col
+    sec_inj.distributions = [distributions.SecondaryPhysicalVertexDistribution()]
+
+    sec_phys = injection.PhysicalProcess()
+    sec_phys.primary_type = _NuMu
+    sec_phys.interactions = sec_col
+    sec_phys.distributions = [distributions.SecondaryPhysicalVertexDistribution()]
+
+    rand = utilities.SIREN_random(seed)
+    inj = injection._Injector(n_inject, detector_model, primary_inj, [sec_inj], rand)
+    # Simulate exactly one generation of secondaries (stop at depth >= 1).
+    inj.SetStoppingCondition(lambda tree, datum, i: datum.depth(tree) >= 1)
+    weighter = injection._Weighter([inj], detector_model, primary_phys, [sec_phys])
+
+    keepalive = (xs, int_col, sec_xs, sec_col, primary_inj, primary_phys,
+                 sec_inj, sec_phys, rand)
+    return inj, weighter, keepalive
+
+
+def _generate_chain_arrays(detector_model):
+    """Generate N_EVENTS accepted events and return the pinned per-event arrays
+    plus the derived weighted histograms.
+
+    Deterministic: identical seeds -> identical arrays (verified by the second
+    pytest run in CI and by the determinism assertions here).
+    """
+    inj, weighter, _keepalive = _build_chain(detector_model, MAX_ATTEMPTS, CHAIN_SEED)
+
+    events = []
+    energy = []
+    vx, vy, vz = [], [], []
+    depth = []
+
+    for _ in range(MAX_ATTEMPTS):
+        if len(events) >= N_EVENTS:
+            break
+        try:
+            ev = inj.GenerateEvent()
+        except RuntimeError as err:
+            # Only the max-attempts sentinel ends the loop; any other typed
+            # engine RuntimeError re-raises so it cannot be masked here.
+            if "maximum number of injection attempts" not in str(err):
+                raise
+            break
+        if len(ev.tree) == 0:
+            continue
+        root = ev.tree[0].record
+        p = root.primary_momentum
+        v = root.interaction_vertex
+        events.append(ev)
+        energy.append(p[0])
+        vx.append(v[0])
+        vy.append(v[1])
+        vz.append(v[2])
+        depth.append(len(ev.tree))
+
+    if len(events) < N_EVENTS:
+        raise RuntimeError(
+            f"golden chain produced only {len(events)} accepted events "
+            f"(< N_EVENTS={N_EVENTS}) within {MAX_ATTEMPTS} attempts")
+
+    # Weight after generation completes: EventWeight normalizes by the realized
+    # injected count, so all events must share the same (final) normalization.
+    # Weighting mid-generation would bake the running count into each weight.
+    weights = [weighter.EventWeight(ev) for ev in events]
+
+    weights = np.asarray(weights[:N_EVENTS], dtype=np.float64)
+    energy = np.asarray(energy[:N_EVENTS], dtype=np.float64)
+    vx = np.asarray(vx[:N_EVENTS], dtype=np.float64)
+    vy = np.asarray(vy[:N_EVENTS], dtype=np.float64)
+    vz = np.asarray(vz[:N_EVENTS], dtype=np.float64)
+    depth = np.asarray(depth[:N_EVENTS], dtype=np.float64)
+
+    radius = np.sqrt(vx * vx + vy * vy + vz * vz)
+    energy_hist, _ = np.histogram(energy, bins=E_BINS, weights=weights)
+    radius_hist, _ = np.histogram(radius, bins=R_BINS, weights=weights)
+
+    return {
+        "chain_weights": weights,
+        "chain_energy": energy,
+        "chain_vx": vx,
+        "chain_vy": vy,
+        "chain_vz": vz,
+        "chain_depth": depth,
+        "chain_energy_hist": energy_hist.astype(np.float64),
+        "chain_radius_hist": radius_hist.astype(np.float64),
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Part 2: Kleiss-Pittau optimizer toy (pins the bare W_i statistic)            #
 # --------------------------------------------------------------------------- #
 
@@ -166,6 +332,15 @@ def _generate_kp_alphas():
 # Archive helpers                                                             #
 # --------------------------------------------------------------------------- #
 
+def _build_archive():
+    """Compute every pinned array. Used both by --regenerate and by the tests."""
+    detector_model = _load_ccm_detector()
+    data = {}
+    data.update(_generate_chain_arrays(detector_model))
+    data.update(_generate_kp_alphas())
+    return data
+
+
 def _load_archive():
     if not ARCHIVE.exists():
         pytest.fail(_REGEN_MSG.format(path=ARCHIVE))
@@ -176,6 +351,32 @@ def _load_archive():
 # --------------------------------------------------------------------------- #
 # Tests                                                                       #
 # --------------------------------------------------------------------------- #
+
+def test_golden_weighted_distributions():
+    """Fixed-seed assembled chain reproduces the archived weighted distributions
+    to rtol=1e-12."""
+    _skip_unless_ccm_data()
+    detector_model = _load_ccm_detector()
+
+    archive = _load_archive()
+    fresh = _generate_chain_arrays(detector_model)
+
+    for key in ("chain_weights", "chain_energy", "chain_vx", "chain_vy",
+                "chain_vz", "chain_depth", "chain_energy_hist",
+                "chain_radius_hist"):
+        assert key in archive, f"archive missing key {key!r}; regenerate it"
+        np.testing.assert_allclose(
+            fresh[key], archive[key], rtol=RTOL, atol=ATOL,
+            err_msg=(f"golden chain array {key!r} changed. If this is an "
+                     "intended, changelog-labeled physics change, regenerate "
+                     "the archive; otherwise the engine numerics moved."))
+
+    # Sanity: the pinned sample really is the assembled multi-vertex pipeline.
+    assert fresh["chain_weights"].shape == (N_EVENTS,)
+    assert np.all(np.isfinite(fresh["chain_weights"]))
+    assert np.all(fresh["chain_weights"] > 0.0)
+    assert np.all(fresh["chain_depth"] >= 2.0)   # secondaries -> multi-vertex
+
 
 def test_golden_kp_alphas():
     """Fixed-seed Kleiss-Pittau optimizer reproduces the archived converged
@@ -195,3 +396,34 @@ def test_golden_kp_alphas():
     assert alphas.shape == (3,)
     assert abs(float(alphas.sum()) - 1.0) < 1e-9
     assert np.all(alphas >= 0.0)
+
+
+# --------------------------------------------------------------------------- #
+# Regeneration entry point (never invoked by pytest)                          #
+# --------------------------------------------------------------------------- #
+
+def _regenerate():
+    data = _build_archive()
+    ARCHIVE.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(ARCHIVE, **data)
+    print(f"wrote {ARCHIVE}")
+    for key in sorted(data):
+        arr = np.asarray(data[key])
+        print(f"  {key}: shape={arr.shape} dtype={arr.dtype}")
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Regenerate the golden-physics regression archive. "
+                    "Only run this as part of a deliberate, changelog-labeled "
+                    "physics change.")
+    parser.add_argument("--regenerate", action="store_true",
+                        help="recompute and overwrite the archive .npz")
+    args = parser.parse_args()
+
+    if args.regenerate:
+        _regenerate()
+    else:
+        parser.error("pass --regenerate to write the archive")
