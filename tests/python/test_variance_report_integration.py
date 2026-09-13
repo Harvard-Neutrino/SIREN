@@ -54,8 +54,7 @@ DIRECTED_FRACTION = 0.9     # weight on the directed biased channel
 
 
 class _IsoDecay(siren.DecayModel):
-    """Minimal data-free 2-body decay N4 -> NuLight Gamma on the rest-frame
-    solid-angle measure (the closure-by-construction default sampler)."""
+    """Isotropic N4 -> NuLight Gamma with an explicit rest-frame sampler."""
 
     parent = "N4"
     daughters = ("NuLight", "Gamma")
@@ -66,6 +65,9 @@ class _IsoDecay(siren.DecayModel):
 
     def differential_width(self, record):
         return 1.0 / (4.0 * math.pi)
+
+    def sample(self, record, random):
+        self.sample_isotropic(record, random)
 
     def density_variables(self):
         return "cost"
