@@ -102,3 +102,7 @@ incomplete coverage. Unsupported measures, unresolved angles, sparse reference
 coverage, and mixture density probes that have not run cannot certify closure.
 Mixture configuration validation is reported separately. Three-body and
 scattering models still need an independent reference before full certification.
+
+For a three-body decay with one massless daughter, [siren.three_body](three_body.md)
+provides Dalitz integration, energy sampling, isotropic momentum construction,
+boosts, and the matching Recursive2Body density.
