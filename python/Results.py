@@ -100,12 +100,30 @@ class Results:
     def __init__(self, events, weights, gen_times, weighter, injector,
                  *, requested=None):
         self.events = list(events)
-        w = np.asarray(weights, dtype=float)
+        self.gen_times = list(gen_times)
+        w = np.array(weights, dtype=float, copy=True)
+        if w.ndim != 1 or len(w) != len(self.events) or len(self.gen_times) != len(self.events):
+            raise ValueError("Results requires one weight and generation time per event")
         w.setflags(write=False)
         self._weights = w
-        self.gen_times = list(gen_times)
         self._weighter = weighter
         self._injector = injector
+        self._config_key = None
+        self._run_ids = frozenset([injector]) if injector is not None else frozenset()
+        from .Weighter import Weighter
+        from .Injector import Injector
+        if isinstance(weighter, Weighter) and isinstance(injector, Injector):
+            inj, phys = injector.engine, weighter.engine
+            self._run_ids = frozenset([inj])
+            self._config_key = (
+                inj.GetDetectorModel(), phys.GetDetectorModel(),
+                injector.stopping_condition,
+                _process_config(inj.GetPrimaryProcess()),
+                {p.primary_type: _process_config(p) for p in inj.GetSecondaryProcesses()},
+                _process_config(phys.GetPrimaryPhysicalProcess()),
+                {p.primary_type: _process_config(p) for p in phys.GetSecondaryPhysicalProcesses()},
+                weighter.event_factor,
+            )
         # Snapshot the run-level counts so this Results reflects the run at
         # creation even if the injector is reused afterwards. A raw engine (or
         # None) may lack these attributes; fall back to 0.
@@ -168,6 +186,8 @@ class Results:
         self.attempts = parent.attempts
         self.requested = parent.requested
         self.injected = parent.injected
+        self._config_key = parent._config_key
+        self._run_ids = parent._run_ids
 
     @property
     def n_events(self):
@@ -178,8 +198,22 @@ class Results:
     #  Persistence                                                         #
     # ------------------------------------------------------------------ #
 
+    def __copy__(self):
+        from ._copy import copy_state
+        return copy_state(self)
+
+    def __reduce_ex__(self, protocol):
+        if self._weighter is not None:
+            from .Weighter import Weighter
+            if isinstance(self._weighter, Weighter):
+                self._weighter._guard_event_factor_serializable()
+        return super().__reduce_ex__(protocol)
+
     def save(self, path, *, pot=None, **kwargs):
-        """Save events and weights to HDF5/Parquet/native files.
+        """Save the stored weights and run counts to HDF5/Parquet/native files.
+
+        Saving never reevaluates the weighter or ``event_factor``. Weight and
+        injector overrides are not accepted; use reweight() to create new Results.
 
         Parameters
         ----------
@@ -192,14 +226,19 @@ class Results:
             Additional keyword arguments forwarded to
             :func:`siren._util.SaveEvents`.
         """
-        _SaveEvents(
-            self.events,
-            self._weighter,
-            self.gen_times,
-            output_filename=path,
-            pot=pot,
-            **kwargs,
-        )
+        headers = [(list(event.header.weights), dict(event.header.provenance))
+                   for event in self.events]
+        try:
+            _SaveEvents(
+                self.events, gen_times=self.gen_times, weights=self._weights,
+                run_counts={"attempted_events": self.attempts,
+                            "accepted_events": self.injected,
+                            "events_to_inject": self.requested},
+                output_filename=str(path), pot=pot, **kwargs)
+        finally:
+            for event, (weights, provenance) in zip(self.events, headers):
+                event.header.weights = weights
+                event.header.provenance = provenance
 
     # ------------------------------------------------------------------ #
     #  Weight diagnostics                                                  #
@@ -240,7 +279,20 @@ class Results:
         decomposing the event's weight into per-vertex generation and physical
         factors. Useful for diagnosing inf/0/NaN weights.
         """
-        return self._weighter.explain(self.events[i])
+        if self._weighter is None:
+            raise ConfigurationError(
+                "No weighter is available to explain these Results")
+        breakdown = self._weighter.explain(self.events[i])
+        if not math.isclose(breakdown.total, self._weights[i], rel_tol=1e-12, abs_tol=0):
+            message = (
+                "The weighter no longer reproduces this Results snapshot; "
+                "its models, event_factor, or injector state have changed")
+            if breakdown.flags:
+                message += ": " + "; ".join(breakdown.flags)
+            error = ConfigurationError(message)
+            error.breakdown = breakdown
+            raise error
+        return breakdown
 
     def where(self, pred):
         """A new Results over events satisfying ``pred(event, weight)``.
@@ -367,24 +419,6 @@ class Results:
     #  Pooling                                                             #
     # ------------------------------------------------------------------ #
 
-    @property
-    def _config_key(self):
-        """Best-effort hashable signature of the generation configuration.
-
-        Used by :meth:`merge` to reject pooling across differing configs. Keys
-        on the requested count and, when cheaply available, the injector's
-        primary type; permissive by design so same-config runs always match
-        (a fresh DetectorModel object per run rules out identity comparison).
-        """
-        primary = None
-        inj = self._injector
-        if inj is not None:
-            try:
-                primary = str(getattr(inj, "primary_type", None))
-            except Exception:
-                primary = None
-        return (self.requested, primary)
-
     @classmethod
     def merge(cls, results_list):
         """Pool same-config runs into a single Results.
@@ -392,11 +426,14 @@ class Results:
         Concatenates events/weights/gen_times across runs and rescales each
         run's weights by ``n_i / n_total``, where n_i is that run's injected
         (realized) count and n_total is the sum of injected counts. This makes
-        the pooled per-event mean equal a single run of size n_total.
+        pooled weights agree with a single run of size n_total. Each run must
+        have a positive injected count.
 
-        All runs must share a configuration (see :attr:`_config_key`); a
-        mismatch raises :class:`ConfigurationError`. The merged Results carries
-        the first run's weighter/injector so explain/save still work.
+        Configured models, distributions, detector, phase spaces, expansion,
+        and event_factor must match and remain unchanged across runs. Requested
+        counts may differ. Opaque objects must be shared or implement equality.
+        Unknown configurations are rejected. Stored weights are rescaled without
+        reevaluating event_factor. Explanations use a pooled Weighter.
         """
         runs = list(results_list)
         if not runs:
@@ -404,17 +441,28 @@ class Results:
                 "Results.merge: empty results list; nothing to pool")
 
         key = runs[0]._config_key
+        if key is None or any(r._config_key is None for r in runs):
+            raise ConfigurationError("Results.merge: cannot verify an unknown configuration")
+        run_ids = set()
+        for r in runs:
+            if run_ids.intersection(r._run_ids):
+                raise ConfigurationError("Results.merge: runs must use independent injectors")
+            run_ids.update(r._run_ids)
         for r in runs[1:]:
-            if r._config_key != key:
+            try:
+                matches = r._config_key == key
+            except TypeError as exc:
+                raise ConfigurationError(
+                    "Results.merge: cannot compare configurations; model and "
+                    "distribution equality must accept the compared types") from exc
+            if not matches:
                 raise ConfigurationError(
                     "Results.merge: runs have differing config; only "
                     "same-config runs may be pooled")
 
+        if any(r.injected <= 0 for r in runs):
+            raise ConfigurationError("Results.merge: each run needs a positive injected count")
         n_total = sum(r.injected for r in runs)
-        if n_total <= 0:
-            raise ConfigurationError(
-                "Results.merge: total injected count is zero; cannot pool")
-
         events = []
         gen_times = []
         weights = []
@@ -424,12 +472,86 @@ class Results:
             gen_times.extend(r.gen_times)
             weights.extend(w * scale for w in r._weights)
 
-        merged = cls(events, weights, gen_times,
-                     runs[0]._weighter, runs[0]._injector)
+        weighter = None
+        first = runs[0]._weighter
+        if first is not None:
+            from .Weighter import Weighter
+            weighter = Weighter(
+                *run_ids, primary_physical=first.primary_physical_distributions,
+                secondary_physical=first.secondary_physical_distributions,
+                overrides={"detector_model": first.detector_model,
+                           "primary_interactions": first.primary_interactions,
+                           "secondary_interactions": first.secondary_interactions},
+                event_factor=first.event_factor)
+        merged = cls(events, weights, gen_times, weighter, runs[0]._injector)
+        merged._config_key = key
+        merged._run_ids = frozenset(run_ids)
         merged.attempts = sum(r.attempts for r in runs)
         merged.requested = sum(r.requested for r in runs)
         merged.injected = n_total
         return merged
+
+
+def _process_config(process):
+    """Compare full process declarations, including the sampled mixture weights."""
+    models = process.interactions
+    mode = process.GetWeightingMode()
+    return (process.primary_type,
+            tuple(_model_config(m) for m in
+                  list(models.GetCrossSections()) + list(models.GetDecays())),
+            tuple(_distribution_config(d) for d in process.distributions),
+            (mode.compute_interaction_probability, mode.compute_position_probability,
+             int(mode.bound_source)),
+            {sig: _mixture_config(mc)
+             for sig, mc in process.GetPhaseSpaceMap().items()})
+
+
+def _model_config(model):
+    # Typed pybind equality methods reject objects from unrelated model bases.
+    # Compare model families first, then honor declared value equality, even
+    # when two subclasses of the same native base implement it across types.
+    from .interactions import CrossSection
+    return ("cross_section" if isinstance(model, CrossSection) else "decay", model)
+
+
+def _distribution_config(distribution):
+    from .distributions import PhysicallyNormalizedDistribution
+    normalization = None
+    if isinstance(distribution, PhysicallyNormalizedDistribution):
+        # Native energy-distribution equality compares the shape, not its
+        # physical normalization. Snapshot the latter separately.
+        normalization = (distribution.IsNormalizationSet(), distribution.normalization)
+    return (distribution, normalization)
+
+
+def _mixture_config(mixture):
+    # Accumulators and diagnostic labels do not affect the sampled density.
+    return (tuple(_channel_config(c) for c in mixture.channels), tuple(mixture.weights))
+
+
+def _channel_config(channel):
+    from . import injection as inj
+    cls = type(channel)
+    if cls is inj.NestedMixtureChannel:
+        return (cls, _mixture_config(channel.mixture))
+    if cls in (inj.PhysicalDecayChannel, inj.PhysicalCrossSectionChannel):
+        model = (channel.GetDecay() if cls is inj.PhysicalDecayChannel
+                 else channel.GetCrossSection())
+        # These adapters store only their model, topology, and measure. Do not
+        # serialize the model: it may be a Python authoring class.
+        return (cls, _model_config(model), channel.Topology(), channel.Measure())
+    if cls in (inj.Isotropic2BodyChannel, inj.DetectorDirected2BodyChannel,
+               inj.DetectorDirectedAngularSectorChannel, inj.DetectorDirected3BodyChannel,
+               inj.DetectorDirectedScatteringChannel):
+        try:
+            # Native leaf-channel archives contain all proposal parameters
+            # (geometry, indices, mappings, etc.), without runtime caches.
+            return (cls, "native", channel.__getstate__())
+        except (TypeError, RuntimeError):
+            # A custom dependency may not be serializable. Require that opaque
+            # channel to be shared instead of guessing equality from its name.
+            pass
+    return (cls, "opaque", channel)
 
 
 def _channel_labels(mixture):

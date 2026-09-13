@@ -5,6 +5,8 @@ The compiled default biasing must reproduce the fixed channel order and the
 selection walks cumulative weights in stored order, so both order and value
 are load-bearing.
 """
+from simulation_fixtures import offline_detector
+
 import pytest
 
 import siren
@@ -82,9 +84,9 @@ class TestFacadeRunDeterminism:
     def _sim(self):
         return siren.Simulation(
             events=8,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             seed=20240607,
@@ -108,7 +110,7 @@ class TestFacadeRunDeterminism:
             v1 = list(rec1.interaction_vertex)
             v2 = list(rec2.interaction_vertex)
             assert v1 == pytest.approx(v2, rel=0, abs=0)
-            # The DIS final state is what the interaction actually samples;
+            # Check the sampled final state as well as the primary record;
             # compare it too so a divergence in secondary kinematics (not just
             # the primary/vertex/weight) is caught. Stream identity is bit-exact,
             # so a direct == on the nested four-momenta is the right comparison.
@@ -157,9 +159,9 @@ class TestFacadeForwarding:
     def _sim(self):
         return siren.Simulation(
             events=4,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             seed=4242,
@@ -197,8 +199,8 @@ class TestFacadeForwarding:
     def test_two_real_same_config_runs_merge(self):
         """Two independently built same-config Simulations pool without error.
 
-        A fresh DetectorModel object per run means config identity must key on
-        stable values, not object identity.
+        The detector is shared; native model and distribution equality verifies
+        the rest of the configuration.
         """
         r1 = self._sim().run()
         r2 = self._sim().run()

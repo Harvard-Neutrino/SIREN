@@ -81,6 +81,31 @@ def _as_compilable(kinematics):
             type(kinematics).__name__))
 
 
+def _compile_phase_spaces(kinematics, models, *, detector=None, particle=None,
+                          primary_type=None):
+    """Compile signatures, optionally scoped to a vertex's primary type.
+
+    Only models advertising the same in-scope signature have ambiguous ownership.
+    """
+    compilable = _as_compilable(kinematics)
+    seen = {}
+    for model in models:
+        for sig in _model_signatures(model):
+            if primary_type is not None and sig.primary_type != primary_type:
+                continue
+            if sig in seen:
+                raise ConfigurationError(
+                    "Vertex(particle={!r}): models {!r} and {!r} both "
+                    "produce signature {}; combine colliding-signature "
+                    "models into a single channels.Mixture per "
+                    "signature".format(
+                        sig.primary_type if particle is None else particle,
+                        type(seen[sig]).__name__, type(model).__name__, sig))
+            seen[sig] = model
+    return {sig: compilable.compile(sig, detector=detector, models=[model])
+            for sig, model in seen.items()}
+
+
 class Vertex:
     """One chain node: particle, interactions, distributions, phase space.
 
@@ -243,24 +268,10 @@ class Vertex:
         process.distributions = self.distributions
 
         if self.kinematics is not None:
-            compilable = _as_compilable(self.kinematics)
-            seen_signatures = {}
-            for model, sig in self._all_signatures():
-                # Two models sharing a signature would each register their own
-                # phase space under it, the second silently replacing the
-                # first even though InteractionCollection still selects both.
-                if sig in seen_signatures:
-                    raise ConfigurationError(
-                        "Vertex(particle={!r}): models {!r} and {!r} both "
-                        "produce signature {}; combine colliding-signature "
-                        "models into a single channels.Mixture per "
-                        "signature".format(
-                            self.particle,
-                            type(seen_signatures[sig]).__name__,
-                            type(model).__name__, sig))
-                seen_signatures[sig] = model
-                mcps = compilable.compile(
-                    sig, detector=detector, models=[model])
+            phase_spaces = _compile_phase_spaces(
+                self.kinematics, self.interactions,
+                detector=detector, particle=self.particle)
+            for sig, mcps in phase_spaces.items():
                 process.SetPhaseSpace(sig, mcps)
 
         process.weighting_mode = _resolve_weighting_mode(self.weighting)

@@ -210,9 +210,8 @@ def optimize_multichannel_weights(
 def _resolve_engine(injector):
     """Return the raw C++ injector for either a wrapper or raw Injector.
 
-    Forces the wrapper to build (which requires one round-trip event
-    generation to warm up the mixture accumulators) via its public
-    ``engine`` property; a raw C++ injector is returned unchanged.
+    Builds the wrapper through its public ``engine`` property without
+    generating an event; a raw C++ injector is returned unchanged.
     """
     from .Injector import Injector as _PyInjector
     if isinstance(injector, _PyInjector):
@@ -221,7 +220,7 @@ def _resolve_engine(injector):
 
 
 def _run_accumulation_round(cpp_inj, mixtures, weighter, batch_size, metric,
-                            discount_fallback, recurse_nested):
+                            discount_fallback, recurse_nested, on_failure="retry"):
     """Run one warm-up batch: generate events, accumulate their weights and
     selection status into every vertex mixture, and return the batch's
     non-zero finite weights (for the ESS estimate) plus event/failure counts.
@@ -239,6 +238,19 @@ def _run_accumulation_round(cpp_inj, mixtures, weighter, batch_size, metric,
     for _ in range(batch_size):
         event = cpp_inj.GenerateEvent()
         if not event.tree:
+            if on_failure == "raise":
+                from .dataclasses import InteractionTree
+                from .report import InjectionReport
+                failed = cpp_inj.GetLastFailedTree()
+                # GetLastFailedTree is a borrowed native reference that reset
+                # replaces. Retain its nodes/header in an owned tree first.
+                snapshot = InteractionTree()
+                snapshot.tree = failed.tree
+                snapshot.header = failed.header
+                InjectionReport.from_ledger(
+                    cpp_inj.GetFailureLedger(), attempts=cpp_inj.InjectionAttempts(),
+                    successes=cpp_inj.InjectedEvents(),
+                    last_failed_tree=snapshot)._raise_for_failure()
             # A partial/failed tree: feed its per-vertex selection so the
             # failure penalty inflates channels that tend to fail.
             ft = cpp_inj.GetLastFailedTree()
@@ -512,6 +524,7 @@ def tune(
     min_weight: float = 1e-3,
     failure_mode: str = "throughput",
     group_directed: bool = True,
+    on_failure: str = "retry",
 ) -> OptimizationReport:
     """Tune every multi-channel phase space in an injection chain.
 
@@ -531,6 +544,8 @@ def tune(
     with it False, only the outer per-vertex weights are updated and any
     nested group's internal split is left at its initial value.
 
+    ``on_failure='raise'`` retries only geometric misses, as in Injector.generate.
+
     Returns an ``OptimizationReport`` with the per-round ESS trajectory, the
     per-round alpha snapshots, and a ``converged`` flag comparing the last two
     rounds' alphas.
@@ -542,32 +557,36 @@ def tune(
     weights is silently biased. ``tune()`` regenerates every round, and the
     shipped ``Simulation.run`` resets and regenerates before it weights.
     """
+    if on_failure not in ("retry", "raise"):
+        raise ValueError("on_failure must be 'retry' or 'raise'")
     cpp_inj = _resolve_engine(injector)
 
     prev_events_to_inject = cpp_inj.EventsToInject()
 
-    mixtures = cpp_inj.GetPhaseSpaces()
-    report = OptimizationReport()
-    if not mixtures:
+    try:
+        mixtures = cpp_inj.GetPhaseSpaces()
+        report = OptimizationReport()
+        if not mixtures:
+            return report
+
+        recurse_nested = bool(group_directed)
+
+        for _ in range(rounds):
+            weights_seen, _n_events, _n_failures = _run_accumulation_round(
+                cpp_inj, mixtures, weighter, events, metric,
+                True, recurse_nested, on_failure)
+
+            report.ess_trajectory.append(_ess(weights_seen))
+
+            for mc in mixtures:
+                mc.UpdateWeights(rule, damping, min_weight, recurse_nested,
+                                 failure_mode)
+
+            report.alpha_history.append([list(mc.weights) for mc in mixtures])
+    finally:
+        # Restore the caller's quota even when generation, weighting, or an
+        # update fails. This does not restore earlier channel weights.
         cpp_inj.ResetInjectedEvents(prev_events_to_inject)
-        return report
-
-    recurse_nested = bool(group_directed)
-
-    for _ in range(rounds):
-        weights_seen, _n_events, _n_failures = _run_accumulation_round(
-            cpp_inj, mixtures, weighter, events, metric,
-            True, recurse_nested)
-
-        report.ess_trajectory.append(_ess(weights_seen))
-
-        for mc in mixtures:
-            mc.UpdateWeights(rule, damping, min_weight, recurse_nested,
-                             failure_mode)
-
-        report.alpha_history.append([list(mc.weights) for mc in mixtures])
-
-    cpp_inj.ResetInjectedEvents(prev_events_to_inject)
 
     report.converged = report._compute_converged()
     return report
