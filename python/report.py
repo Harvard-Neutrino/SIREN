@@ -1,10 +1,8 @@
-"""Rendering layer over the engine's failure ledger and weight breakdown.
+"""Readable injection-failure and event-weight reports.
 
 InjectionReport turns an Injector's FailureLedger into a readable attrition
-table with per-reason remedies; WeightBreakdown turns a Weighter's
-EventWeightBreakdown into a per-vertex weight decomposition that names the
-culprit vertex behind an inf/zero/NaN weight. Neither computes physics; both
-read structures the engine already produced.
+table with per-reason remedies; WeightBreakdown displays weight contributions
+and diagnostics. These reports do not evaluate models.
 """
 
 from __future__ import annotations
@@ -177,7 +175,7 @@ class VertexWeightLine:
 
     @property
     def is_ok(self) -> bool:
-        return (math.isfinite(self.physical) and self.physical > 0.0
+        return (math.isfinite(self.physical) and self.physical >= 0.0
                 and math.isfinite(self.generation) and self.generation > 0.0)
 
     def __repr__(self):
@@ -187,22 +185,27 @@ class VertexWeightLine:
 
 
 class WeightBreakdown:
-    """Per-vertex decomposition of one event's weight.
+    """Native and whole-event contributions to one event's weight.
 
-    total is the event weight; vertices are the per-vertex factor lines.
-    culprit() names the first vertex whose factors explain a non-finite or
-    zero total.
+    ``base_total`` is the native weight; ``event_factor`` records the callback's
+    returned value when evaluated, and ``total`` includes that factor.
+    ``vertices`` retain the native factors. ``flags`` describe invalid
+    event-level corrections; ``culprit()`` identifies invalid vertex factors.
+    A zero physical weight is valid.
     """
 
-    __slots__ = ("total", "vertices")
+    __slots__ = ("total", "base_total", "event_factor", "flags", "vertices")
 
     def __init__(self, total: float, vertices: List[VertexWeightLine]):
         self.total = total
+        self.base_total = total
+        self.event_factor = None
+        self.flags = []
         self.vertices = list(vertices)
 
     @classmethod
     def from_engine(cls, breakdown) -> "WeightBreakdown":
-        """Build from an engine EventWeightBreakdown struct."""
+        """Build the native portion from an engine EventWeightBreakdown struct."""
         lines = []
         for v in breakdown.vertices:
             lines.append(VertexWeightLine(
@@ -212,7 +215,7 @@ class WeightBreakdown:
 
     def culprit(self) -> Optional[VertexWeightLine]:
         """The first vertex whose factors explain a bad total, or None."""
-        if math.isfinite(self.total) and self.total > 0.0:
+        if math.isfinite(self.total) and self.total >= 0.0:
             return None
         for v in self.vertices:
             if not v.is_ok:
@@ -220,9 +223,14 @@ class WeightBreakdown:
         return None
 
     def __str__(self):
-        ok = math.isfinite(self.total) and self.total > 0.0
+        ok = math.isfinite(self.total) and self.total >= 0.0 and not self.flags
         lines = ["WeightBreakdown: total={:.6e}{}".format(
             self.total, "" if ok else " (unusable)")]
+        if self.event_factor is not None or self.flags:
+            lines.append("  base_total={:.6e} event_factor={!r}".format(
+                self.base_total, self.event_factor))
+        if self.flags:
+            lines.append("  event flags=" + ";".join(self.flags))
         for v in self.vertices:
             line = "  d={} {:<12} gen={:.3e} phys={:.3e}".format(
                 v.depth, v.particle, v.generation, v.physical)

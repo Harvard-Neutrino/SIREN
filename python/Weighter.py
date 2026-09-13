@@ -12,6 +12,8 @@ from ._validation import validate_reweighting_compatibility
 
 from typing import Tuple, List, Dict, Optional, Union, Callable
 from typing import TYPE_CHECKING
+import math
+from numbers import Real
 import warnings
 
 import numpy as np
@@ -31,14 +33,38 @@ DetectorModel = _detector.DetectorModel
 InteractionTree = _dataclasses.InteractionTree
 
 
+def _checked_weight(value, label="event weight", *label_args):
+    """Validate a real scalar, formatting diagnostic labels only on failure."""
+    if not isinstance(value, Real):
+        raise _utilities.WeightCalculationError(
+            "{} must be a real scalar, got {!r}".format(
+                label.format(*label_args), value))
+    # A negative Real (e.g. Fraction) can underflow to -0.0 during float().
+    if value < 0:
+        raise _utilities.WeightCalculationError(
+            "{} must be finite and nonnegative, got {!r}".format(
+                label.format(*label_args), value))
+    try:
+        weight = float(value)
+    except OverflowError as exc:
+        raise _utilities.WeightCalculationError(
+            "{} is not finite: {!r}".format(
+                label.format(*label_args), value)) from exc
+    if not math.isfinite(weight) or weight < 0:
+        raise _utilities.WeightCalculationError(
+            "{} must be finite and nonnegative, got {!r}".format(
+                label.format(*label_args), value))
+    return weight
+
+
 class Weighter:
     """
     A wrapper for the C++ Weighter class, handling event weight calculations.
 
-    Besides the pooled central-value weight (``__call__`` / ``event_weight``),
-    two factorized per-vertex quantities are exposed for a single chosen
-    injector: ``interaction_probabilities`` and ``survival_probabilities`` (see
-    those methods). Still finer per-vertex factors -- the individual generation
+    The pooled weight (``__call__`` / ``event_weight``) includes the optional
+    ``event_factor``. The per-vertex ``interaction_probabilities`` and
+    ``survival_probabilities`` expose native quantities for one chosen injector
+    without this factor. Still finer per-vertex factors -- the individual generation
     and physical probability terms -- are reachable through the bound
     ``siren.injection.PrimaryProcessWeighter`` /
     ``siren.injection.SecondaryProcessWeighter`` classes, which expose
@@ -46,6 +72,9 @@ class Weighter:
     ``PhysicalProbability``, ``GenerationProbability`` and ``EventWeight`` per
     interaction datum.
     """
+
+    # Default for pickles written before event_factor existed.
+    __event_factor = None
 
     def __init__(self,
         *args,
@@ -59,6 +88,7 @@ class Weighter:
         primary_physical: Optional[List[_distributions.WeightableDistribution]] = None,
         secondary_physical: Optional[Dict[_dataclasses.ParticleType, List[_distributions.WeightableDistribution]]] = None,
         overrides: Optional[Dict[str, object]] = None,
+        event_factor: Optional[Callable[[InteractionTree], float]] = None,
     ):
         """
         Initialize the Weighter with interactions and physical processes.
@@ -75,6 +105,13 @@ class Weighter:
         physical models/distributions for the shared physical target::
 
             Weighter(injector)
+
+        ``event_factor(tree)`` multiplies the physical event weight once, after
+        combining injectors. It must be deterministic for a fixed tree and
+        model, leave the tree unchanged, and return a finite nonnegative scalar.
+        For correlations, supply the joint/reference physical density ratio;
+        the sampler must cover the joint density's support. Generation densities
+        and per-vertex factors are unchanged. ``None`` applies no correction.
 
         ``primary_physical`` and ``secondary_physical`` replace the inherited
         distributions, including when explicitly empty.
@@ -98,6 +135,7 @@ class Weighter:
             primary_physical: Primary physical distributions (spec form).
             secondary_physical: Secondary physical distributions (spec form).
             overrides: Legacy-field overrides for the spec form.
+            event_factor: Optional physical factor evaluated on the whole tree.
 
         Note:
             All parameters are optional and can be set later using property setters.
@@ -114,6 +152,7 @@ class Weighter:
         self.__secondary_physical_distributions = {}
 
         self.__weighter = None
+        self.event_factor = event_factor
 
         spec_injectors = self.__detect_spec_injectors(args, injectors)
 
@@ -215,6 +254,22 @@ class Weighter:
         self.__primary_physical_distributions = list(primary_physical)
         self.__secondary_physical_distributions = {
             ptype: list(dists) for ptype, dists in secondary_physical.items()}
+
+    @property
+    def event_factor(self) -> Optional[Callable[[InteractionTree], float]]:
+        """Whole-tree physical multiplier; ``None`` disables it.
+
+        Saving or pickling a weighter with this callback is unsupported.
+        Shallow copies retain the callback; deep copies copy it with the
+        remaining state, subject to the contained objects' copy support.
+        """
+        return self.__event_factor
+
+    @event_factor.setter
+    def event_factor(self, factor):
+        if factor is not None and not callable(factor):
+            raise TypeError("event_factor must be callable or None")
+        self.__event_factor = factor
 
     @property
     def injectors(self) -> List[_Injector]:
@@ -359,9 +414,7 @@ class Weighter:
 
     def __call__(self, interaction_tree: InteractionTree) -> float:
         """
-        Calculate the event weight for a given interaction tree.
-
-        This method initializes the weighter if necessary and then calculates the event weight.
+        Calculate the event weight, including ``event_factor`` when configured.
 
         Args:
             interaction_tree: The interaction tree to weight.
@@ -370,22 +423,17 @@ class Weighter:
             float: The calculated event weight.
         """
 
-        if self.__weighter is None:
-            self.__initialize_weighter()
-        return self.__weighter.EventWeight(interaction_tree)
+        base = _checked_weight(self.engine.EventWeight(interaction_tree),
+                               "base event weight")
+        if self.event_factor is None:
+            return base
+        factor = _checked_weight(self.event_factor(interaction_tree), "event factor")
+        return _checked_weight(base * factor,
+                               "corrected event weight (base={!r}, event_factor={!r})",
+                               base, factor)
 
     def event_weight(self, interaction_tree: InteractionTree) -> float:
-        """
-        Calculate the event weight for a given interaction tree.
-
-        This method is an alias for __call__ and provides the same functionality.
-
-        Args:
-            interaction_tree: The interaction tree to weight.
-
-        Returns:
-            float: The calculated event weight.
-        """
+        """Alias for ``__call__``."""
         return self(interaction_tree)
 
     def interaction_probabilities(self, interaction_tree: InteractionTree, i_inj: int = 0) -> List[float]:
@@ -448,25 +496,64 @@ class Weighter:
 
         Phase space maps are archived with their processes. Configurations that
         still cannot survive the round-trip -- Python trampoline-derived
-        interactions or distributions, and a Python injector's stopping
-        condition -- raise NotSerializableError instead.
+        interactions or distributions, a Python injector's stopping condition,
+        and ``event_factor`` -- raise ``NotSerializableError`` instead.
 
         Args:
             filename: Base path; the ".siren_weighter" suffix is added.
         """
         from . import errors as _errors
+        self._guard_event_factor_serializable()
         if self.__weighter is None:
             self.__initialize_weighter()
+        # Building spec injectors resolves their models and expansion callbacks.
         self._guard_serializable(_errors)
         self.__weighter.SaveWeighter(filename)
 
-    def _guard_serializable(self, _errors):
-        """Collect configurations that cannot survive a save/load round-trip.
+    def _guard_event_factor_serializable(self):
+        if self.event_factor is not None:
+            from .errors import NotSerializableError
+            raise NotSerializableError(
+                "Weighter serialization does not support event_factor.",
+                offenders=["event_factor"])
 
-        Phase space maps are archived. The weighter checks its own Python
-        trampoline models and defers to each Python injector's guard for its
-        remaining unsupported trampoline and stopping-condition state.
-        """
+    def __reduce_ex__(self, protocol):
+        self._guard_event_factor_serializable()
+        return super().__reduce_ex__(protocol)
+
+    def __copy__(self):
+        return self._copy_state()
+
+    def __deepcopy__(self, memo):
+        return self._copy_state(memo)
+
+    def _copy_state(self, memo=None):
+        """Copy in-memory state without invoking the weighter's pickle guard."""
+        from copy import deepcopy
+        from types import MemberDescriptorType
+
+        cls = type(self)
+        result = object.__new__(cls)
+        if memo is not None:
+            memo[id(self)] = result
+            result.__dict__ = deepcopy(self.__dict__, memo)
+        else:
+            result.__dict__ = self.__dict__.copy()
+        # Slots can be inherited or name-mangled; their descriptors handle both.
+        for base in cls.__mro__:
+            for member in vars(base).values():
+                if isinstance(member, MemberDescriptorType):
+                    try:
+                        value = member.__get__(self, cls)
+                    except AttributeError:
+                        continue
+                    member.__set__(result, value if memo is None
+                                   else deepcopy(value, memo))
+        return result
+
+    def _guard_serializable(self, _errors):
+        """Reject configurations the native archive cannot preserve."""
+        self._guard_event_factor_serializable()
         offenders = []
         for injector in (self.__injectors or []):
             if isinstance(injector, _PyInjector):
@@ -516,9 +603,12 @@ class Weighter:
         processes for the generation-probability cancellation; if they were not
         set, the injectors serialized in the file are used instead.
 
+        Load with ``event_factor=None``; a factor can be attached after loading.
+
         Args:
             filename: Base path; the ".siren_weighter" suffix is added.
         """
+        self._guard_event_factor_serializable()
         if self.__injectors is not None:
             injectors = [injector.engine if isinstance(injector, _PyInjector) else injector
                          for injector in self.__injectors]
@@ -544,36 +634,65 @@ class Weighter:
 
     def weight_all(self, events) -> "np.ndarray":
         """
-        Calculate weights for a list of events.
+        Calculate weights by calling ``self(event)`` for each event.
 
         Args:
             events: A list of InteractionTree objects.
 
         Returns:
             numpy.ndarray: The calculated event weights.
+
+        Invalid results, including subclass corrections, raise
+        WeightCalculationError with the event and its zero-based event_index.
         """
-        return np.array([self(event) for event in events])
+        weights = []
+        for index, event in enumerate(events):
+            try:
+                weights.append(_checked_weight(self(event)))
+            except _utilities.WeightCalculationError as exc:
+                error = _utilities.WeightCalculationError(
+                    "Event {}: {}".format(index, exc))
+                error.event_index = index
+                error.event = event
+                raise error from exc
+        return np.array(weights, dtype=float)
 
     @property
     def engine(self) -> _Weighter:
-        """The raw C++ _Weighter, building it via __initialize_weighter if needed."""
+        """The raw C++ weighter, excluding the Python ``event_factor``."""
         if self.__weighter is None:
             self.__initialize_weighter()
         return self.__weighter
 
     def explain(self, interaction_tree: InteractionTree) -> "report.WeightBreakdown":
-        """Per-vertex decomposition of the event weight.
+        """Explain the final weight and its native vertex factors.
 
-        Returns a ``report.WeightBreakdown`` built from the engine's
-        ``EventWeightWithBreakdown``, giving each vertex's generation and
-        physical probability, channel densities, cancelled distributions, and
-        diagnostic flags. Useful for diagnosing inf/0/NaN weights.
+        Returns a ``report.WeightBreakdown`` whose ``total`` includes the
+        optional ``event_factor``; ``base_total`` and vertex factors remain
+        native. Invalid returned factors or corrected weights produce
+        event-level flags and a NaN total. Callback exceptions propagate.
+        A valid zero base still evaluates the factor; an invalid native
+        weight does not.
         """
         from .report import WeightBreakdown
-        if self.__weighter is None:
-            self.__initialize_weighter()
-        return WeightBreakdown.from_engine(
+        breakdown = WeightBreakdown.from_engine(
             self.engine.EventWeightWithBreakdown(interaction_tree))
+        if self.event_factor is None:
+            return breakdown
+        try:
+            _checked_weight(breakdown.base_total, "base event weight")
+        except _utilities.WeightCalculationError:
+            return breakdown
+        breakdown.event_factor = self.event_factor(interaction_tree)
+        try:
+            factor = _checked_weight(breakdown.event_factor, "event factor")
+            breakdown.total = _checked_weight(
+                breakdown.base_total * factor, "corrected event weight")
+            breakdown.event_factor = factor
+        except _utilities.WeightCalculationError as exc:
+            breakdown.flags.append(str(exc))
+            breakdown.total = float("nan")
+        return breakdown
 
     def breakdown(self, interaction_tree: InteractionTree) -> "report.WeightBreakdown":
         """Deprecated alias of explain().
