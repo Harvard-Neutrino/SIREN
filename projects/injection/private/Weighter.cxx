@@ -138,7 +138,23 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
 
 
     double inv_weight = 0;
+    bool zero_weight = false;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        auto check_probabilities = [&](double generation, double physical) {
+            if(generation <= 0.0 || !std::isfinite(generation)
+               || physical < 0.0 || !std::isfinite(physical)) {
+                std::ostringstream oss;
+                oss << "Weighter::EventWeight: unusable probabilities for injector " << idx;
+                if(!tree.tree.empty()) {
+                    oss << " (primary type "
+                        << tree.tree.front()->record.signature.primary_type << ")";
+                }
+                oss << ": generation_probability=" << generation
+                    << ", physical_probability=" << physical
+                    << " [siren-docs: errors#weight-calc]";
+                throw siren::utilities::WeightCalculationError(oss.str());
+            }
+        };
         double physical_probability = 1.0;
         // Seed with the number of events actually injected so the
         // weight normalizes by the realized sample size.  Fall back to the
@@ -150,18 +166,18 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         }
         for(auto const & datum : tree.tree) {
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+            double phys_prob;
+            double gen_prob;
             if(datum->is_root()) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
-                physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
-                generation_probability *= primary_process_weighters[idx]->GenerationProbability(*datum);
+                phys_prob = primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
+                gen_prob = primary_process_weighters[idx]->GenerationProbability(*datum);
             }
             else {
                 try {
                     bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
-                    double phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
-                    double gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
-                    physical_probability *= phys_prob;
-                    generation_probability *= gen_prob;
+                    phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
+                    gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
                 } catch(const std::out_of_range& oor) {
                     std::ostringstream oss;
                     oss << "Weighter::EventWeight: no secondary process weighter for secondary type "
@@ -171,29 +187,36 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                     throw siren::utilities::ConfigurationError(oss.str());
                 }
             }
+            // Invalid vertex factors must not cancel or hide behind a zero.
+            check_probabilities(gen_prob, phys_prob);
+            physical_probability *= phys_prob;
+            generation_probability *= gen_prob;
         }
-        // Weight-calculation guard: a generation_probability that is <= 0 or
-        // non-finite would produce an infinite or NaN weight via the reciprocal
-        // below; a non-finite physical probability is equally unrecoverable.
-        // Both are configuration/physics failures the caller must not silently
-        // absorb.  physical_probability == 0 is NOT caught here: it drives
-        // inv_weight to +inf and yields a legitimate 0.0-weight event.
-        if(generation_probability <= 0.0 || !std::isfinite(generation_probability)
-           || !std::isfinite(physical_probability)) {
+        check_probabilities(generation_probability, physical_probability);
+        if(physical_probability == 0.0) {
+            // Preserve zero support, but still validate every other injector.
+            zero_weight = true;
+            continue;
+        }
+        inv_weight += generation_probability / physical_probability;
+        if(!std::isfinite(inv_weight)) {
             std::ostringstream oss;
-            oss << "Weighter::EventWeight: unusable probabilities for injector " << idx;
-            if(!tree.tree.empty()) {
-                oss << " (primary type "
-                    << tree.tree.front()->record.signature.primary_type << ")";
-            }
-            oss << ": generation_probability=" << generation_probability
+            oss << "Weighter::EventWeight: inverse weight overflow for injector " << idx
+                << ": generation_probability=" << generation_probability
                 << ", physical_probability=" << physical_probability
                 << " [siren-docs: errors#weight-calc]";
             throw siren::utilities::WeightCalculationError(oss.str());
         }
-        inv_weight += generation_probability / physical_probability;
     }
-    return 1./inv_weight;
+    double weight = zero_weight ? 0.0 : 1.0 / inv_weight;
+    if(!std::isfinite(weight) || weight < 0.0) {
+        std::ostringstream oss;
+        oss << "Weighter::EventWeight: unusable event weight=" << weight
+            << ", inverse_weight=" << inv_weight
+            << " [siren-docs: errors#weight-calc]";
+        throw siren::utilities::WeightCalculationError(oss.str());
+    }
+    return weight;
 }
 
 std::vector<std::shared_ptr<Injector>> const & Weighter::GetInjectors() const {
