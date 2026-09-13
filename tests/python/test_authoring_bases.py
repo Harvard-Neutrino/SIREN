@@ -390,3 +390,17 @@ def test_decay_model_base_over_darknews_base():
     m = DNStyle()
     assert isinstance(m, DarkNewsDecay)
     assert isinstance(m, siren.interactions.Decay)
+
+
+@pytest.mark.parametrize("base,args", [
+    (siren.distributions.PrimaryMass, (0,)),
+    (siren.interactions.DummyCrossSection, ()),
+])
+@pytest.mark.parametrize("module", [__name__, "siren.models", "siren.distributions"])
+def test_empty_python_subclass_is_not_a_native_type(base, args, module):
+    from siren import _validation
+
+    assert not _validation.is_trampoline(base(*args))
+    # Sharing a native name or a siren module prefix does not register the type.
+    subclass = type(base.__name__, (base,), {"__module__": module})
+    assert _validation.is_trampoline(subclass(*args))
