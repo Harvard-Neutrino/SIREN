@@ -537,26 +537,17 @@ def test_meson_three_body_sampler_matches_dalitz_marginal(processes_dir):
         f"alternative {chi2_avg:.2f})")
 
 
-def test_meson_three_body_check_closure_passes(processes_dir):
-    """siren.check_closure certifies MesonThreeBodySIRENDecay: its Recursive2Body
-    sampler and FinalStateProbability are the same distribution.
-
-    The gauge reads the fallback cos(theta) in the parent rest frame for a
-    Recursive2Body measure; the lab coordinate is degenerate at ~1 for a
-    boosted parent, collapsing the flatness test to a single bin.
-    """
-    from siren import _util
-
-    meson = _util.load_module(
-        "test_dutta_kim_MesonProduction_closure",
-        str(processes_dir / "DarkNewsTables" / "MesonProduction.py"),
-    )
-
-    decay = meson.MesonThreeBodySIRENDecay(m_mediator=0.017, g_mu=1.0e-3)
-    report = siren.check_closure(decay, primary_energy=2.0, samples=6000, seed=0)
-    assert report.ok, str(report)
-    fmean, _ferr = report.flatness
-    assert fmean == pytest.approx(1.0, abs=0.1)
+def test_meson_three_body_closure_requires_an_independent_reference(meson_production_module):
+    """Dalitz/width tests supply independent physics checks; the gauge cannot."""
+    decay = meson_production_module.MesonThreeBodySIRENDecay(m_mediator=0.017, g_mu=1.0e-3)
+    sig = decay.GetPossibleSignatures()[0]
+    record = _zero_secondaries(_record(sig, decay.m_meson, 2.0),
+                               decay.SecondaryMasses(sig.secondary_types))
+    report = siren.check_closure(decay, record=record, samples=1000, seed=0)
+    assert report.status == "incomplete" and not report.ok
+    assert report.checks["sampling"] == "passed"
+    assert report.checks["normalization"] == report.checks["shape"] == "incomplete"
+    assert any("secondary0_rest" in note for note in report.notes)
 
 
 # ------------------------------------------------------------------ #
@@ -823,9 +814,7 @@ def _model_family(vector_portal, meson_production_module, beam_decays):
 
 def test_audit_overrides_passes_over_model_family(
         vector_portal, meson_production_module, beam_decays):
-    """Every model satisfies the trampoline override contract: no required
-    virtual resolves only to the abstract root, and models relying on the
-    default sampler declare a self-contained measure."""
+    """Every model supplies the required physics, equality and sampling hooks."""
     from siren import _validation
 
     _validation.audit_overrides(
@@ -834,28 +823,33 @@ def test_audit_overrides_passes_over_model_family(
 
 def test_check_closure_family_coverage(vector_portal, meson_production_module,
                                        beam_decays):
-    """check_closure certifies (or honestly declines) every model:
-
-    * on-shell decays and the Q2 upscatter get a full shape verdict;
-    * the cone-biased decay is gauged over its empirical angular range;
-    * the off-shell 2->3 scatter is out of the single-coordinate shape
-      check's jurisdiction and must say so rather than fail, since its
-      mixture-level E[f/g] closure is pinned elsewhere in this suite.
-    """
-    import siren
-
-    vp = vector_portal
+    """Only supported independent references can certify model closure."""
     family = _model_family(vector_portal, meson_production_module, beam_decays)
+    expected = {
+        "DarkPhotonToChiDecay": (0.017, True),
+        "DarkPhotonDecay": (0.017, True),
+        "ChiPrimeDecay": (0.050, True),
+        "VectorPortalUpscatteringXS": (0.008, False),
+        "VectorPortalOffShellXS": (0.008, False),
+        "BiasedDarkPhotonToChiDecay": (0.017, False),
+        "MesonTwoBodyLeptonicDecay": (beam_decays.M_PI, True),
+        "BiasedMesonThreeBodyDecay": (beam_decays.M_PI, False),
+    }
     for model in family:
-        report = siren.check_closure(
-            model, primary_energy=1.0, samples=4000, seed=0)
-        assert report.ok, "%s: %s" % (type(model).__name__, report)
-
-    offshell = vp.VectorPortalOffShellXS(0.008, 0.035, 0.017, 0.05, 1.0, 1.0e-4)
-    report = siren.check_closure(
-        offshell, primary_energy=1.0, samples=4000, seed=0)
-    assert any("not applicable" in n for n in report.notes), report.notes
-    assert any("kinematically pinned" in n for n in report.notes), report.notes
+        mass, supported = expected[type(model).__name__]
+        sig = model.GetPossibleSignatures()[0]
+        record = _zero_secondaries(_record(sig, mass, 1.0),
+                                   model.SecondaryMasses(sig.secondary_types))
+        if sig.target_type != siren.particles.Decay:
+            record.target_mass = model.m_target
+        report = siren.check_closure(model, record=record, samples=4000, seed=0)
+        assert report.checks["sampling"] == "passed", str(report)
+        if supported:
+            assert report.ok, "%s: %s" % (type(model).__name__, report)
+        else:
+            assert report.status == "incomplete" and not report.ok, str(report)
+            assert report.checks["normalization"] == report.checks["shape"] == "incomplete"
+            assert any("No independent reference" in note for note in report.notes)
 
 
 def test_chi_box_edges_match_two_body_kinematics(vector_portal):
