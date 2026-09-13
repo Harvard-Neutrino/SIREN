@@ -1,37 +1,15 @@
-"""siren.check_closure -- the explicit, quantitative Sample==Density gauge.
+"""Check model sampling against an independent physical-density reference.
 
-A model's SampleFinalState draws kinematics; its FinalStateProbability names
-the analytic density those kinematics are supposed to follow. The two must
-agree: every weight in the framework is PhysicalProbability / GenerationProbability,
-and if a model's own sampler disagrees with its own density, weights computed
-against that model are wrong by a kinematics-dependent factor that no amount
-of statistics averages away.
-
-check_closure runs two complementary checks:
-
-* An ABSOLUTE normalization check. Where the declared measure has a
-  self-contained reference density (SolidAngleRest 2-body: uniform 1/(4*pi)
-  per steradian over the sphere), it draws validation samples from that
-  reference, evaluates FinalStateProbability on each, and estimates the
-  integral of the density over the measure as E[f / g_ref], which must equal
-  1. This is the ONLY check that catches a uniform scale error -- a density
-  off by a constant factor everywhere -- because it fixes the absolute scale.
-
-* A SHAPE (flatness) check. It bins f / g_empirical over a fallback
-  coordinate; because g_empirical is a 1-D marginal carrying an unknown
-  constant, each bin ratio is normalized by their weighted mean before testing
-  for a flat profile at 1.0. This detects a cos(theta)-dependent mismatch
-  between sampler and density but is BLIND to a uniform scale error by
-  construction. Each declared DensityVariable's sampled mean is also compared
-  to its density-weighted mean, and a frame heuristic flags a rest-frame /
-  lab-frame swap for SolidAngle*-type measures.
-
-This module never generates events for physics use; it exists only to certify
-that a model's sampler and density are the same distribution.
+Two-body SolidAngleRest decays have a built-in uniform reference. Its weighted
+samples test absolute normalization and the joint (cos(theta), phi) shape.
+Other measures and detector-dependent mixtures report incomplete coverage;
+configuration checks alone do not certify their sampling densities.
 """
 
 import math
-import weakref
+
+import numpy as np
+from scipy.special import gammaincc
 
 from . import dataclasses as _dataclasses
 from . import injection as _injection
@@ -39,262 +17,384 @@ from . import utilities as _utilities
 from . import _validation
 from .errors import ClosureError
 
-_MIN_SAMPLES = 200
-_MIN_BIN_COUNT = 5
-_N_BINS = 20
-
-# Result cache keyed on the model INSTANCE (via a WeakKeyDictionary) so that
-# two objects of the same class with different internal state never collide,
-# and a cached report dies with the model that produced it. Each instance maps
-# to {call_params: ClosureReport}. A model that cannot be weakly referenced is
-# simply not cached.
-_CACHE = weakref.WeakKeyDictionary()
-
-
-def _params_key(primary_energy, target, samples, seed, tol_sigma):
-    """The per-instance sub-key: the call parameters other than the model."""
-    return (primary_energy, target, samples, seed, tol_sigma)
-
-
-def _cache_get(model, params):
-    """Return a cached ClosureReport for (model instance, params), or None.
-
-    Unhashable/unweakrefable models never hit the cache; identity is exact.
-    """
-    try:
-        per_model = _CACHE.get(model)
-    except TypeError:
-        return None
-    if per_model is None:
-        return None
-    return per_model.get(params)
-
-
-def _cache_put(model, params, report):
-    """Store a report under the model instance; skip silently if unweakrefable."""
-    try:
-        per_model = _CACHE.get(model)
-        if per_model is None:
-            per_model = {}
-            _CACHE[model] = per_model
-    except TypeError:
-        return
-    per_model[params] = report
-
-
-def _is_mixture(obj):
-    """True for a siren.channels.Mixture-like object (compile + validate)."""
-    return hasattr(obj, "compile") and hasattr(obj, "validate")
-
-
-def _is_multichannel(obj):
-    return hasattr(obj, "ValidateChannelDensities")
-
 
 class ClosureReport:
-    """Result of a check_closure run.
+    """Closure diagnostics at the tested kinematics and statistical resolution.
 
-    Two orthogonal checks feed ``ok``:
-
-    * ``normalization`` -- an ABSOLUTE test that the model's density integrates
-      to 1. It is populated only when the declared measure has a self-contained
-      reference density the gauge can integrate against (currently a
-      SolidAngleRest 2-body measure, whose reference is the uniform
-      ``1/(4*pi)`` per steradian over the sphere). Validation samples are drawn
-      from that reference, so the estimate ``E[f / g_ref]`` equals the integral
-      of the model's FinalStateProbability over the reference measure and must
-      be 1.0. This is the ONLY check that catches a uniform scale error in
-      FinalStateProbability -- a density off by a constant factor everywhere.
-      When no self-contained reference exists it is ``(nan, nan)`` and does not
-      gate ``ok``.
-
-    * ``flatness`` -- a SHAPE-only test. It bins ``f / g_empirical`` over a
-      fallback coordinate and, because ``g_empirical`` is a 1-D marginal that
-      carries an unknown constant, normalizes each bin ratio by their weighted
-      mean before testing for a flat profile at 1.0. It therefore detects a
-      cos(theta)-dependent (shape) mismatch between sampler and density but is
-      blind to a uniform scale error BY CONSTRUCTION. Reported as
-      ``(mean, stderr)`` of the self-normalized profile (mean is ~1.0 by
-      construction; ``worst_region`` names the most deviant bin).
-
-    Attributes
-    ----------
-    ok : bool
-        True when every populated check passes within tol_sigma and no fatal
-        flag was raised while probing the model or mixture. Specifically: the
-        normalization estimate (when present) is within tol_sigma of 1.0, no
-        flatness bin deviates from 1.0 by more than tol_sigma of its Poisson
-        uncertainty, and no moment z-score exceeds tol_sigma.
-    normalization : tuple
-        (estimate, stderr) of the absolute integral E[f / g_ref] over the
-        reference measure; expected 1.0. ``(nan, nan)`` when the declared
-        measure has no self-contained reference density.
-    flatness : tuple
-        (mean, stderr) of the self-normalized bin ratios of f / g_empirical;
-        a shape diagnostic only. ``(nan, nan)`` when no binned profile was
-        computed.
-    moment_z : dict
-        {variable_name: z_score} of sampled vs density-weighted mean, one
-        entry per DensityVariable (or per fallback coordinate).
-    worst_region : str
-        Human string naming the flatness bin with the largest normalized
-        deviation, or "" if no binned diagnostic was computed.
-    frame_check : str or None
-        A note when the declared SolidAngle* frame looks wrong, else None.
+    ``checks`` maps check names to ``passed``, ``failed``, or ``incomplete``.
+    ``ok`` requires every check to pass; ``complete`` requires every check to
+    have been performed. A failed check takes precedence over incomplete ones.
+    ``normalization`` is the absolute density integral and its standard error.
+    ``flatness`` summarizes sampled/reference bin-probability ratios, normalized
+    to remove the overall density scale. ``moment_z`` names only coordinates
+    actually measured. ``joint_shape`` is the joint histogram's chi-square
+    statistic, degrees of freedom, and p-value, or None when not tested.
+    Missing normalization/flatness diagnostics are ``(nan, nan)``.
     """
 
-    def __init__(self, ok, normalization, flatness, moment_z, worst_region,
-                 frame_check, notes=None):
-        self.ok = bool(ok)
+    def __init__(self, *, checks, normalization=(float('nan'), float('nan')),
+                 flatness=(float('nan'), float('nan')), moment_z=None,
+                 worst_region='', frame_check=None, notes=(), joint_shape=None):
+        self.checks = dict(checks)
         self.normalization = tuple(normalization)
         self.flatness = tuple(flatness)
-        self.moment_z = dict(moment_z)
+        self.moment_z = dict(moment_z or {})
         self.worst_region = worst_region
         self.frame_check = frame_check
-        self.notes = list(notes) if notes is not None else []
+        self.notes = list(notes)
+        self.joint_shape = joint_shape
+
+    @property
+    def complete(self):
+        return bool(self.checks) and 'incomplete' not in self.checks.values()
+
+    @property
+    def ok(self):
+        return bool(self.checks) and all(v == 'passed' for v in self.checks.values())
+
+    @property
+    def status(self):
+        if 'failed' in self.checks.values():
+            return 'failed'
+        return 'passed' if self.ok else 'incomplete'
 
     def raise_if_failed(self):
-        """Raise ClosureError with the rendered report if ok is False."""
+        """Raise ClosureError for failed or incomplete certification."""
         if not self.ok:
             raise ClosureError(str(self))
 
     def __str__(self):
-        n_est, n_err = self.normalization
-        f_est, f_err = self.flatness
-        lines = []
-        lines.append("Closure report: %s" % ("PASS" if self.ok else "FAIL"))
-        if math.isfinite(n_est):
-            lines.append(
-                "  normalization (absolute) E[f/g_ref] = %.4f +/- %.4f "
-                "(expect 1.0)" % (n_est, n_err))
-        else:
-            lines.append(
-                "  normalization (absolute): (not available for this measure; "
-                "cannot detect a uniform scale error)")
-        lines.append(
-            "  flatness (shape only) = %.4f +/- %.4f "
-            "(self-normalized bin ratios; blind to a uniform scale error)"
-            % (f_est, f_err))
-        if self.moment_z:
-            lines.append("  moment z-scores:")
-            for name in sorted(self.moment_z):
-                lines.append("    %s: z=%.2f" % (name, self.moment_z[name]))
-        else:
-            lines.append("  moment z-scores: (none computed)")
+        lines = ['Closure report: ' + self.status.upper()]
+        lines.extend('  %s: %s' % item for item in self.checks.items())
+        if math.isfinite(self.normalization[0]):
+            lines.append('  normalization E[f/g_ref] = %.4f +/- %.4f (expect 1.0)'
+                         % self.normalization)
+        if math.isfinite(self.flatness[0]):
+            lines.append('  flatness (shape only) = %.4f +/- %.4f' % self.flatness)
+        lines.extend('  %s: z=%.2f' % item for item in self.moment_z.items())
+        if self.joint_shape is not None:
+            lines.append('  joint angular test: chi2=%.2f, df=%d, p=%.3g'
+                         % self.joint_shape)
         if self.worst_region:
-            lines.append("  worst region: %s" % self.worst_region)
+            lines.append('  worst region: ' + self.worst_region)
         if self.frame_check:
-            lines.append("  frame check: %s" % self.frame_check)
-        for note in self.notes:
-            lines.append("  note: %s" % note)
-        return "\n".join(lines)
+            lines.append('  frame check: ' + self.frame_check)
+        lines.extend('  note: ' + note for note in self.notes)
+        return '\n'.join(lines)
 
     def __repr__(self):
-        return ("<ClosureReport ok=%r normalization=%r flatness=%r>"
-                % (self.ok, self.normalization, self.flatness))
+        return '<ClosureReport status=%r checks=%r>' % (self.status, self.checks)
 
 
 def check_closure(model_or_mixture, *, primary_energy=None, target=None,
-                   samples=2000, seed=0, tol_sigma=4.0):
-    """Quantify whether a model's sampler matches its own analytic density.
+                  record=None, samples=2000, seed=0, tol_sigma=4.0):
+    """Test density normalization and sampling shape with independent RNG streams.
 
-    Parameters
-    ----------
-    model_or_mixture : object
-        A Python model (DecayModel/CrossSectionModel subclass, or any object
-        exposing GetPossibleSignatures/SampleFinalState/FinalStateProbability/
-        DensityVariables/Measure/Topology), a siren.channels.Mixture, or a
-        siren.injection.MultiChannelPhaseSpace.
-    primary_energy : float, optional
-        Parent/primary energy for the template record. Defaults to a small
-        placeholder energy when not given.
-    target : object, optional
-        Target particle type, forwarded to detector-dependent mixture probes
-        when available. Ignored for a plain model (decays have no target).
-    samples : int
-        Number of samples to draw for the model-path gauge.
-    seed : int
-        Seed for the validation RNG stream. Always its own stream, never a
-        generation stream, so closure checks do not perturb injection.
-    tol_sigma : float
-        Tolerance in standard errors for every gated check: the absolute
-        normalization estimate must fall within tol_sigma of 1.0, each flatness
-        bin within tol_sigma of its Poisson uncertainty, and each moment
-        z-score below tol_sigma, for ok to be True.
+    ``record`` supplies the initial kinematics and signature without being
+    modified. Otherwise a synthetic template uses the first model signature,
+    ``primary_energy`` (default 0.05 GeV), and ``target``. Unknown masses get
+    synthetic defaults; supply a record to test specific model parameters.
+    ``record`` cannot be combined with the energy/target shortcuts.
 
-    Returns
-    -------
-    ClosureReport
+    ``samples`` draws are made from each of the model and reference samplers.
+    ``tol_sigma`` bounds normalization, bin and moment deviations in standard
+    errors, including reference Monte Carlo uncertainty. The joint histogram
+    test uses the corresponding two-sided Gaussian tail probability. Tests cover the
+    joint angular histogram at the reported resolution, not arbitrarily fine
+    structure. Unsupported references or insufficient coverage are incomplete.
+    Results are recomputed because model state can change between calls.
     """
-    params = _params_key(primary_energy, target, samples, seed, tol_sigma)
-    cached = _cache_get(model_or_mixture, params)
-    if cached is not None:
-        return cached
+    if int(samples) != samples or samples < 2:
+        raise ValueError('samples must be an integer >= 2')
+    if not math.isfinite(tol_sigma) or tol_sigma <= 0:
+        raise ValueError('tol_sigma must be finite and positive')
+    if record is not None and (primary_energy is not None or target is not None):
+        raise ValueError('record cannot be combined with primary_energy or target')
+    obj = model_or_mixture
+    if hasattr(obj, 'ValidateChannelDensities') or (
+            hasattr(obj, 'compile') and hasattr(obj, 'validate')):
+        report = ClosureReport(checks={'configuration': 'incomplete',
+                                      'normalization': 'incomplete', 'shape': 'incomplete'})
+        if hasattr(obj, 'validate'):
+            try:
+                obj.validate()
+                report.checks['configuration'] = 'passed'
+            except Exception as exc:
+                report.checks['configuration'] = 'failed'
+                report.notes.append('%s: %s' % (type(exc).__name__, exc))
+        report.notes.append('The detector-dependent density probe was not run; '
+                            'configuration validation does not establish closure.')
+        return report
+    template = (_dataclasses.InteractionRecord(record) if record is not None
+                else _make_template(obj, primary_energy, target)[0])
+    return _check_closure_model(obj, template, int(samples), seed, tol_sigma)
 
-    if _is_mixture(model_or_mixture) or _is_multichannel(model_or_mixture):
-        report = _check_closure_mixture(
-            model_or_mixture, primary_energy=primary_energy, target=target,
-            samples=samples, seed=seed, tol_sigma=tol_sigma)
-    else:
-        report = _check_closure_model(
-            model_or_mixture, primary_energy=primary_energy, target=target,
-            samples=samples, seed=seed, tol_sigma=tol_sigma)
 
-    _cache_put(model_or_mixture, params, report)
+def _density(model, record, label):
+    value = float(model.FinalStateProbability(record))
+    if not math.isfinite(value) or value < 0:
+        raise ClosureError('%s: FinalStateProbability must be finite and '
+                           'nonnegative, got %r' % (label, value))
+    return value
+
+
+def _reference_context_issue(model, template, drawn, densities):
+    """Do sampler-written parameters change the density at fixed kinematics?
+
+    The angular reference cannot reconstruct a model's cached coordinates.
+    Compare the density on each sampled point with the same point carrying
+    only template parameters before trusting density evaluations on references.
+    Unused sampler bookkeeping is harmless; required cached values make this
+    reference incomplete, even if the density supplies a plausible fallback.
+    """
+    parameters = template.interaction_parameters
+    for i, (record, density) in enumerate(zip(drawn, densities)):
+        if record.interaction_parameters == parameters:
+            continue
+        probe = _dataclasses.InteractionRecord(record)
+        probe.interaction_parameters = parameters
+        try:
+            reference_value = _density(model, probe, 'density context probe')
+        except Exception as exc:
+            return ('Model sample %d requires sampler-written interaction parameters '
+                    'unavailable to the reference (%s: %s).'
+                    % (i, type(exc).__name__, exc))
+        if not math.isclose(density, reference_value, rel_tol=1e-12, abs_tol=0.0):
+            return ('Model sample %d changes density when sampler-written interaction '
+                    'parameters are replaced by template parameters; the reference '
+                    'cannot reconstruct these values.' % i)
+    return None
+
+
+def _prepare_reference_template(model, template):
+    """Allocate reference output storage without modifying supplied kinematics."""
+    record = _dataclasses.InteractionRecord(template)
+    count = len(record.signature.secondary_types)
+    if len(record.secondary_masses) != count:
+        record.secondary_masses = _validation.model_secondary_masses(
+            model, record.signature.secondary_types)
+    if len(record.secondary_momenta) != count:
+        record.secondary_momenta = [[0.0] * 4 for _ in range(count)]
+    if len(record.secondary_helicities) != count:
+        record.secondary_helicities = [0.0] * count
+    if len(record.secondary_times) != count:
+        record.secondary_times = [record.interaction_time] * count
+    return record
+
+
+def _check_closure_model(model, template, n, seed, tol_sigma):
+    report = ClosureReport(checks={'sampling': 'incomplete',
+                                  'normalization': 'incomplete', 'shape': 'incomplete'})
+    random = _utilities.SIREN_random(int(seed) & 0x7fffffff)
+    drawn = []
+    densities = []
+    try:
+        for i in range(n):
+            source = _dataclasses.InteractionRecord(template)
+            csdr = _dataclasses.CrossSectionDistributionRecord(source)
+            model.SampleFinalState(csdr, random)
+            out = _dataclasses.InteractionRecord(template)
+            csdr.finalize(out)
+            density = _density(model, out, 'model sample %d' % i)
+            if density == 0:
+                raise ClosureError('model sample %d has zero physical density' % i)
+            drawn.append(out)
+            densities.append(density)
+    except ClosureError as exc:
+        report.checks['sampling'] = 'failed'
+        report.worst_region = str(exc)
+        return report
+    report.checks['sampling'] = 'passed'
+
+    frame = _coordinate_frame(model)
+    index = _coordinate_secondary_index(model)
+    try:
+        boost = (_cm_boost(template) if frame == 'cm'
+                 else _boost_to_rest(template.primary_momentum, template.primary_mass))
+        actual = [_angles(r, frame, boost, index) for r in drawn]
+    except ClosureError as exc:
+        report.checks['sampling'] = 'failed'
+        report.worst_region = str(exc)
+        return report
+    resolved = [point for point in actual if point is not None]
+    if resolved:
+        report.notes.append('Measured costheta_secondary%d_%s range [%.4g, %.4g].'
+                            % (index, frame, min(c[0] for c in resolved),
+                               max(c[0] for c in resolved)))
+
+    channel, reference_density = _reference_channel(model, template.signature)
+    if channel is None:
+        report.notes.append('No independent reference for %r / %r; normalization '
+                            'and joint shape were not checked.'
+                            % (model.Topology(), model.Measure()))
+        return report
+    context_issue = _reference_context_issue(model, template, drawn, densities)
+    if context_issue:
+        report.notes.append(context_issue)
+        report.notes.append('Normalization and shape need a density computed from '
+                            'kinematics and configured template parameters.')
+        return report
+    reference_template = _prepare_reference_template(model, template)
+    reference = []
+    weights = []
+    random = _utilities.SIREN_random((int(seed) & 0x7fffffff) ^ 0x5a5a5a5a)
+    try:
+        for i in range(n):
+            out = _dataclasses.InteractionRecord(reference_template)
+            channel.Sample(random, None, out)
+            weights.append(_density(model, out, 'reference sample %d' % i)
+                           / reference_density)
+            reference.append(out)
+    except ClosureError as exc:
+        report.checks['normalization'] = 'failed'
+        report.worst_region = str(exc)
+        return report
+
+    weights = np.asarray(weights)
+    mean = float(weights.mean())
+    stderr = float(weights.std(ddof=1) / math.sqrt(n))
+    report.normalization = (mean, stderr)
+    if not math.isfinite(mean) or not math.isfinite(stderr) or mean <= 0:
+        report.checks['normalization'] = 'failed'
+        report.notes.append('The reference density integral is invalid or zero.')
+        return report
+    report.checks['normalization'] = (
+        'passed' if abs(mean - 1.0) <= max(tol_sigma * stderr, 1e-9) else 'failed')
+
+    try:
+        expected = [_angles(r, frame, boost, index) for r in reference]
+    except ClosureError as exc:
+        report.checks['shape'] = 'failed'
+        report.worst_region = str(exc)
+        return report
+    if any(c is None for c in actual + expected):
+        report.notes.append('An angular coordinate is unresolved; shape was not checked.')
+        return report
+    actual, expected = np.asarray(actual), np.asarray(expected)
+    _compare_shape(report, actual, expected, weights, frame, index, tol_sigma)
+    if report.checks['shape'] == 'failed' and np.ptp(weights) <= 1e-10 * mean:
+        report.frame_check = _frame_check(model, template, drawn)
     return report
 
 
-# ---------------------------------------------------------------------- #
-#  Mixture / MultiChannelPhaseSpace path                                  #
-# ---------------------------------------------------------------------- #
-
-def _check_closure_mixture(obj, *, primary_energy, target, samples, seed,
-                            tol_sigma):
-    """Gauge a Mixture or MultiChannelPhaseSpace via ValidateChannelDensities.
-
-    Kept defensive: any failure to probe (missing detector model, unresolved
-    signature, engine error) is caught and reported as a note rather than
-    propagated, since a mixture is frequently checked before a detector model
-    or concrete signature exists.
-    """
-    notes = []
-    ok = True
-
-    # The detector-dependent ValidateChannelDensities probe needs a detector
-    # model and validation RNG, which exist only inside Injector._build. The
-    # standalone mixture gauge runs the detector-free Mixture.validate()
-    # (ValidateChannelsDetailed + normalization + ConvertDensity probe) and
-    # surfaces its result; the full density probe fires at build time.
-    try:
-        if hasattr(obj, "validate"):
-            obj.validate()
-            notes.append("mixture validate() passed; the detector-dependent "
-                         "density probe runs at Injector build")
-        elif _is_multichannel(obj):
-            notes.append(
-                "bare MultiChannelPhaseSpace has no detector model here; the "
-                "density probe runs at Injector build")
+def _compare_shape(report, actual, reference, weights, frame, index, tol_sigma):
+    """Compare joint angular bins and moments using independent reference weights."""
+    n = len(actual)
+    side = max(2, min(8, int(math.sqrt(n / 20))))
+    bounds = [[-1, 1], [-math.pi, math.pi]]
+    observed, edges = np.histogramdd(actual, bins=(side, side), range=bounds)
+    target, _ = np.histogramdd(reference, bins=(side, side), range=bounds, weights=weights)
+    squared, _ = np.histogramdd(reference, bins=(side, side), range=bounds, weights=weights**2)
+    ref_count, _ = np.histogramdd(reference, bins=(side, side), range=bounds)
+    probability = target / weights.sum()
+    w2 = float(np.sum(weights**2))
+    ref_var = (squared * (1-probability)**2 + (w2-squared) * probability**2)
+    ref_var /= n * (n-1) * float(weights.mean())**2
+    observed_probability = observed / n
+    # Each independent sample estimates its own variance. Using the reference
+    # probability twice understates the error when a reference bin fluctuates
+    # low. With constant weights this is symmetric under exchanging samples.
+    variance = observed_probability * (1-observed_probability) / (n-1) + ref_var
+    deviation = observed_probability - probability
+    z = np.divide(deviation, np.sqrt(variance), out=np.zeros_like(deviation), where=variance > 0)
+    z[(variance == 0) & (deviation != 0)] = float('inf')
+    adequate = (ref_count >= 5) & ((n * probability >= 5) | ((target == 0) & (observed == 0)))
+    # A bin absent from the finite reference sample is unmeasured, not evidence
+    # that its physical probability is zero.
+    failed = bool(np.any((np.abs(z) > tol_sigma) & adequate))
+    report.checks['shape'] = 'failed' if failed else ('passed' if adequate.all() else 'incomplete')
+    if not adequate.all():
+        report.notes.append('Some angular bins have insufficient reference coverage; '
+                            'increase samples to resolve them.')
+    report.notes.append('Joint angular shape tested in %d x %d (cos(theta), phi) bins.'
+                        % (side, side))
+    ratios = np.divide(observed/n, probability, out=np.zeros_like(probability), where=probability > 0)
+    mean_ratio = float(np.sum(ratios * probability))
+    error = math.sqrt(float(np.sum(probability * (ratios-mean_ratio)**2)) / (side*side))
+    report.flatness = (mean_ratio, error)
+    if adequate.any():
+        i, j = np.unravel_index(np.argmax(np.where(adequate, np.abs(z), -1)), z.shape)
+        report.worst_region = ('secondary%d_%s: cos(theta) in [%.3g, %.3g], '
+                               'phi in [%.3g, %.3g], z=%.2f'
+                               % (index, frame, edges[0][i], edges[0][i+1],
+                                  edges[1][j], edges[1][j+1], z[i, j]))
+    if adequate.all():
+        # Broad correlations can move many bins without making any individual
+        # bin a four-sigma outlier. Test the full probability vector with the
+        # covariance of both independent samples, including correlations from
+        # normalization of the weighted reference.
+        try:
+            report.joint_shape = _joint_shape_test(
+                observed_probability.ravel(), probability.ravel(), squared.ravel(),
+                n, float(weights.mean()))
+        except np.linalg.LinAlgError:
+            if report.checks['shape'] != 'failed':
+                report.checks['shape'] = 'incomplete'
+            report.notes.append('Joint angular covariance could not be resolved.')
         else:
-            notes.append("object exposes no mixture validation surface")
-    except Exception as exc:  # noqa: BLE001 -- defensive by contract
-        ok = False
-        notes.append("mixture validation raised %s: %s"
-                      % (type(exc).__name__, exc))
+            if report.joint_shape[2] < math.erfc(tol_sigma / math.sqrt(2)):
+                report.checks['shape'] = 'failed'
+    observed_moments = [actual[:, 0], np.cos(actual[:, 1]), np.sin(actual[:, 1])]
+    reference_moments = [reference[:, 0], np.cos(reference[:, 1]), np.sin(reference[:, 1])]
+    for name, obs, ref in zip(('costheta', 'cosphi', 'sinphi'), observed_moments, reference_moments):
+        ref_mean = float(np.average(ref, weights=weights))
+        ref_variance = float(np.sum((weights * (ref-ref_mean))**2)
+                             / (n*(n-1)*weights.mean()**2))
+        variance = float(obs.var(ddof=1)/n) + ref_variance
+        difference = float(obs.mean()) - ref_mean
+        z_value = difference/math.sqrt(variance) if variance > 0 else (0.0 if difference == 0 else float('inf'))
+        report.moment_z['%s_secondary%d_%s' % (name, index, frame)] = z_value
+        if n >= 200 and (not math.isfinite(z_value) or abs(z_value) > tol_sigma):
+            report.checks['shape'] = 'failed'
 
-    return ClosureReport(
-        ok=ok,
-        normalization=(float("nan"), float("nan")),
-        flatness=(float("nan"), float("nan")),
-        moment_z={},
-        worst_region="",
-        frame_check=None,
-        notes=notes if notes else ["mixture path: no diagnostics raised"],
-    )
+
+def _joint_shape_test(observed, reference, squared_weights, n, mean_weight):
+    """Wald test for two independent, normalized histogram estimates.
+
+    The model contributes the multinomial sample-mean covariance. For the
+    reference, the influence of draw j is w_j * (one_hot(bin_j) - reference)
+    divided by the mean weight; summing its outer products gives the second
+    term below. This retains bin correlations and importance-weight variance.
+    Constant reference weights recover an exchange-symmetric two-sample test.
+    """
+    active = (observed + reference) > 0
+    observed, reference = observed[active], reference[active]
+    squared_weights = squared_weights[active]
+    # Empty-probability bins add no degrees of freedom. The remaining vector
+    # sums to one, so omit its last component to remove the redundant equation.
+    degrees = len(observed) - 1
+    if degrees <= 0:
+        return (0.0, 0, 1.0)
+    covariance = (np.diag(observed) - np.outer(observed, observed)) / (n-1)
+    covariance += (
+        np.diag(squared_weights)
+        - np.outer(squared_weights, reference)
+        - np.outer(reference, squared_weights)
+        + squared_weights.sum() * np.outer(reference, reference)
+    ) / (n * (n-1) * mean_weight**2)
+    deviation = (observed - reference)[:-1]
+    statistic = float(deviation @ np.linalg.solve(covariance[:-1, :-1], deviation))
+    if not math.isfinite(statistic) or statistic < 0:
+        raise np.linalg.LinAlgError('Invalid joint angular statistic')
+    return (statistic, degrees, float(gammaincc(degrees / 2, statistic / 2)))
 
 
-# ---------------------------------------------------------------------- #
-#  Model path                                                              #
-# ---------------------------------------------------------------------- #
+def _angles(record, frame, boost, index):
+    if index >= len(record.secondary_momenta):
+        return None
+    momentum = list(record.secondary_momenta[index])
+    if not all(math.isfinite(x) for x in momentum):
+        raise ClosureError('Sampled momentum is not finite')
+    if frame != 'lab':
+        momentum = boost(momentum)
+    _, x, y, z = momentum
+    magnitude = math.hypot(x, y, z)
+    if not math.isfinite(magnitude):
+        raise ClosureError('Boosted momentum is not finite')
+    if magnitude == 0:
+        return None
+    return (z/magnitude, math.atan2(y, x))
+
 
 def _mass_or(default, ptype):
     """Particle mass, or a fallback for BSM types absent from the mass map."""
@@ -320,49 +420,9 @@ def _make_template(model, primary_energy, target):
     rec.secondary_masses = [_mass_or(0.001, t) for t in signature.secondary_types]
     if target is not None:
         rec.signature.target_type = target
-        rec.target_mass = _mass_or(0.001, target)
+    if rec.signature.target_type != _dataclasses.ParticleType.Decay:
+        rec.target_mass = _mass_or(0.001, rec.signature.target_type)
     return rec, signature
-
-
-def _blank_like(template):
-    """A fresh InteractionRecord carrying the template's kinematics.
-
-    InteractionRecord has no copy constructor binding, so the fields the gauge
-    and FinalStateProbability read (signature, primary, secondary masses) are
-    copied onto a default-constructed record; secondary momenta are filled by
-    the CSDR finalize step.
-    """
-    rec = _dataclasses.InteractionRecord()
-    rec.signature = template.signature
-    rec.primary_mass = template.primary_mass
-    rec.primary_momentum = template.primary_momentum
-    rec.secondary_masses = list(template.secondary_masses)
-    rec.secondary_momenta = [list(p) for p in template.secondary_momenta]
-    rec.secondary_helicities = list(template.secondary_helicities)
-    rec.interaction_vertex = template.interaction_vertex
-    rec.primary_initial_position = template.primary_initial_position
-    rec.target_mass = template.target_mass
-    return rec
-
-
-def _draw_samples(model, template, random, n):
-    """Draw n (record, f_i) pairs by sampling and evaluating the density.
-
-    Each draw builds a fresh CrossSectionDistributionRecord from the template
-    so samples are independent and never contaminate each other's secondary
-    state.
-    """
-    drawn = []
-    for _ in range(n):
-        csdr = _dataclasses.CrossSectionDistributionRecord(template)
-        model.SampleFinalState(csdr, random)
-        out_rec = _blank_like(template)
-        csdr.finalize(out_rec)
-        f_i = float(model.FinalStateProbability(out_rec))
-        if not math.isfinite(f_i) or f_i < 0.0:
-            f_i = 0.0
-        drawn.append((out_rec, f_i))
-    return drawn
 
 
 def _reference_channel(model, signature):
@@ -376,51 +436,11 @@ def _reference_channel(model, signature):
     """
     measure = model.Measure()
     n_finals = len(signature.secondary_types)
-    if (n_finals == 2
+    if (model.Topology() == _injection.PhaseSpaceTopology.Decay2Body
+            and n_finals == 2
             and measure.type == _injection.PhaseSpaceMeasureType.SolidAngleRest):
         return _injection.Isotropic2BodyChannel(0), 1.0 / (4.0 * math.pi)
     return None, None
-
-
-def _estimate_absolute_normalization(model, template, signature, random, n):
-    """Estimate the absolute integral of FinalStateProbability over the measure.
-
-    Draws n samples from a reference channel whose density g_ref over the
-    declared measure is known analytically (uniform 1/(4*pi) for SolidAngleRest
-    2-body). For each drawn record it evaluates f = FinalStateProbability and
-    forms f / g_ref; the Monte Carlo mean of that ratio is an unbiased estimate
-    of the integral of f over the reference measure, which must equal 1.0 for a
-    correctly normalized density. Because the samples come from the reference
-    -- NOT the model's own sampler -- this estimate is sensitive to a uniform
-    scale error in f (a density scaled by a constant everywhere returns that
-    constant instead of 1.0), which the shape-only flatness check cannot see.
-
-    Returns (estimate, stderr), or (nan, nan) when no self-contained reference
-    density is available for the declared measure.
-    """
-    channel, g_ref = _reference_channel(model, signature)
-    if channel is None:
-        return float("nan"), float("nan")
-
-    ratios = []
-    for _ in range(n):
-        out_rec = _blank_like(template)
-        channel.Sample(random, None, out_rec)
-        f_i = float(model.FinalStateProbability(out_rec))
-        if not math.isfinite(f_i) or f_i < 0.0:
-            f_i = 0.0
-        ratios.append(f_i / g_ref)
-
-    if not ratios:
-        return float("nan"), float("nan")
-    m = len(ratios)
-    mean = sum(ratios) / m
-    if m > 1:
-        var = sum((r - mean) ** 2 for r in ratios) / (m - 1)
-        stderr = math.sqrt(var / m)
-    else:
-        stderr = float("inf")
-    return mean, stderr
 
 
 def _boost_to_rest(momentum, mass):
@@ -461,7 +481,7 @@ def _costheta(p4):
     return pz / p
 
 
-def _chi_square_uniform(values, n_bins=_N_BINS):
+def _chi_square_uniform(values, n_bins=20):
     """Chi-square of a cos(theta)-like sample against a uniform [-1, 1] fit."""
     n = len(values)
     if n == 0:
@@ -475,11 +495,10 @@ def _chi_square_uniform(values, n_bins=_N_BINS):
     return sum((c - expected) ** 2 / expected for c in counts)
 
 
-def _frame_check(model, template, samples_xy):
+def _frame_check(model, template, samples):
     """Flag a declared SolidAngle*-type measure that fits the other frame better.
 
-    samples_xy is a list of (out_rec, f_i) pairs already drawn; reused here so
-    the frame heuristic costs no extra sampling.
+    Reuses the model samples without drawing additional events.
     """
     measure = model.Measure()
     mtype = measure.type
@@ -496,7 +515,7 @@ def _frame_check(model, template, samples_xy):
 
     lab_cos = []
     rest_cos = []
-    for out_rec, _f in samples_xy:
+    for out_rec in samples:
         if not out_rec.secondary_momenta:
             continue
         p4_lab = out_rec.secondary_momenta[0]
@@ -504,14 +523,11 @@ def _frame_check(model, template, samples_xy):
         p4_rest = boost(p4_lab)
         rest_cos.append(_costheta(p4_rest))
 
-    if len(lab_cos) < _MIN_SAMPLES // 4:
+    if len(lab_cos) < 50:
         return None
 
     chi2_lab = _chi_square_uniform(lab_cos)
     chi2_rest = _chi_square_uniform(rest_cos)
-
-    declared_name = "SolidAngleRest" if mtype == _injection.PhaseSpaceMeasureType.SolidAngleRest \
-        else "SolidAngleLab"
 
     if mtype == _injection.PhaseSpaceMeasureType.SolidAngleRest and chi2_lab < chi2_rest:
         return ("declared SolidAngleRest but sampled directions look isotropic "
@@ -525,229 +541,32 @@ def _frame_check(model, template, samples_xy):
 
 
 def _coordinate_frame(model):
-    """Which frame the empirical coordinate is read in, from the declared
-    measure. SolidAngleRest densities are flat over rest-frame solid angle, so
-    the coordinate must be the rest-frame cos(theta) for the sampler/density
-    ratio to be flat; SolidAngleLab uses the lab frame. Other measures default
-    to the lab frame with a descriptive label.
-    """
-    mtype = model.Measure().type
-    if mtype == _injection.PhaseSpaceMeasureType.SolidAngleRest:
+    """Read declared lab angles in the lab, scattering in CM, and decays at rest."""
+    measure = model.Measure().type
+    if measure == _injection.PhaseSpaceMeasureType.SolidAngleLab:
+        return "lab"
+    if model.Topology() in (_injection.PhaseSpaceTopology.Scatter2to2,
+                            _injection.PhaseSpaceTopology.Scatter2to3):
+        return "cm"
+    if measure in (_injection.PhaseSpaceMeasureType.SolidAngleRest,
+                   _injection.PhaseSpaceMeasureType.Recursive2Body):
         return "rest"
     return "lab"
 
 
-def _extract_coordinate(out_rec, template, frame, boost):
-    """cos(theta) of the first secondary, in the frame the measure declares.
-
-    The single fallback coordinate for the normalization/moment checks. Read in
-    the parent rest frame for a rest-frame measure (so f/g is flat for a
-    correct sampler) and in the lab frame otherwise.
-    """
-    if not out_rec.secondary_momenta:
-        return None
-    p4 = list(out_rec.secondary_momenta[0])
-    if frame == "rest":
-        p4 = boost(p4)
-    return _costheta(p4)
+def _cm_boost(template):
+    """Boost by the total primary plus stationary-target four-momentum."""
+    momentum = list(template.primary_momentum)
+    momentum[0] += template.target_mass
+    mass_squared = momentum[0]**2 - sum(p*p for p in momentum[1:])
+    if mass_squared <= 0 or not math.isfinite(mass_squared):
+        raise ClosureError("The collision has no timelike centre-of-mass frame")
+    return _boost_to_rest(momentum, math.sqrt(mass_squared))
 
 
-def _check_closure_model(model, *, primary_energy, target, samples, seed,
-                          tol_sigma):
-    n = max(int(samples), _MIN_SAMPLES)
-    random = _utilities.SIREN_random(int(seed) & 0x7FFFFFFF)
-
-    template, signature = _make_template(model, primary_energy, target)
-
-    drawn = _draw_samples(model, template, random, n)
-    f_values = [f for _rec, f in drawn]
-
-    notes = []
-    n_positive = sum(1 for f in f_values if f > 0.0)
-    if n_positive == 0:
-        return ClosureReport(
-            ok=False,
-            normalization=(float("nan"), float("nan")),
-            flatness=(float("nan"), float("nan")),
-            moment_z={},
-            worst_region="",
-            frame_check=None,
-            notes=["every drawn sample has FinalStateProbability <= 0; "
-                   "sampler and density cannot be compared"],
-        )
-
-    # Absolute normalization: integrate FinalStateProbability against a
-    # reference channel whose density over the declared measure is known. This
-    # is the only diagnostic that catches a uniform scale error in the density;
-    # populated only when a self-contained reference exists (SolidAngleRest
-    # 2-body). A separate validation stream so it does not perturb the draw
-    # already consumed above.
-    norm_random = _utilities.SIREN_random((int(seed) & 0x7FFFFFFF) ^ 0x5A5A5A5A)
-    norm_est, norm_err = _estimate_absolute_normalization(
-        model, template, signature, norm_random, n)
-    has_reference = math.isfinite(norm_est)
-
-    # Empirical sampling density g_i via a 1-D histogram of the fallback
-    # coordinate (cos theta of the first secondary, read in the measure's
-    # declared frame): each sample's weight is f_i / g_i, where g_i is the
-    # fraction of samples landing in its bin divided by the bin width. This is
-    # well-defined regardless of what DensityVariables the model declares, since
-    # every topology has at least one secondary whose direction can be read off
-    # the record.
-    frame = _coordinate_frame(model)
-    boost = _boost_to_rest(template.primary_momentum, template.primary_mass)
-    coord_name = "costheta_secondary0_%s" % frame
-    coords = []
-    valid_idx = []
-    for i, (out_rec, f_i) in enumerate(drawn):
-        c = _extract_coordinate(out_rec, template, frame, boost)
-        if c is None:
-            continue
-        coords.append(c)
-        valid_idx.append(i)
-
-    if len(coords) < _MIN_SAMPLES:
-        notes.append(
-            "fewer than %d samples had an extractable coordinate; "
-            "normalization/moment estimates are unreliable" % _MIN_SAMPLES)
-
-    n_bins = _N_BINS
-    bin_width = 2.0 / n_bins
-    bin_counts = [0] * n_bins
-    bin_members = [[] for _ in range(n_bins)]
-    for local_i, c in enumerate(coords):
-        cc = min(max(c, -1.0), 1.0)
-        idx = min(int((cc + 1.0) / 2.0 * n_bins), n_bins - 1)
-        bin_counts[idx] += 1
-        bin_members[idx].append(valid_idx[local_i])
-
-    n_valid = len(coords)
-    ratios = []
-    ratio_weights = []
-    bin_ratio_info = []
-    for b in range(n_bins):
-        count = bin_counts[b]
-        if count < _MIN_BIN_COUNT or n_valid == 0:
-            continue
-        g_b = count / float(n_valid) / bin_width
-        f_mean_b = sum(f_values[i] for i in bin_members[b]) / count
-        if g_b <= 0.0:
-            continue
-        ratio = f_mean_b / g_b
-        ratios.append(ratio)
-        ratio_weights.append(count)
-        lo = -1.0 + b * bin_width
-        hi = lo + bin_width
-        bin_ratio_info.append((lo, hi, ratio, count))
-
-    # Flatness (SHAPE-only) check. f_i / g_i must be FLAT across bins for the
-    # sampler and density to describe the same distribution. Its absolute scale
-    # carries a fixed measure/marginalization constant (f is a density over the
-    # full measure; g is the 1-D cos(theta) marginal), so the gauge normalizes
-    # each bin ratio by the weighted mean and tests that the normalized profile
-    # sits at 1.0. A shape mismatch bends the profile away from flat, but a
-    # UNIFORM scale error cancels in the self-normalization and is invisible
-    # here -- the absolute normalization check above is what catches that.
-    if ratios:
-        total_w = sum(ratio_weights)
-        scale = sum(r * w for r, w in zip(ratios, ratio_weights)) / total_w
-        norm_ratios = [r / scale for r in ratios] if scale > 0.0 else ratios
-        mean_ratio = sum(nr * w for nr, w in zip(norm_ratios, ratio_weights)) / total_w
-        if len(norm_ratios) > 1:
-            var = sum(w * (nr - mean_ratio) ** 2
-                      for nr, w in zip(norm_ratios, ratio_weights)) / total_w
-            stderr = math.sqrt(max(var, 0.0) / len(norm_ratios))
-        else:
-            stderr = float("inf")
-    else:
-        scale = float("nan")
-        norm_ratios = []
-        mean_ratio = float("nan")
-        stderr = float("nan")
-
-    # The worst region is the bin whose normalized ratio deviates most from 1.0
-    # in units of its own Poisson uncertainty, matching the ok gate.
-    worst_region = ""
-    if bin_ratio_info and scale > 0.0:
-        best = None
-        for lo, hi, ratio, count in bin_ratio_info:
-            norm = ratio / scale
-            rel = 1.0 / math.sqrt(count)
-            z = (norm - 1.0) / rel if rel > 0.0 else 0.0
-            if best is None or abs(z) > abs(best[4]):
-                best = (lo, hi, norm, count, z)
-        if best is not None:
-            lo, hi, norm, _count, z = best
-            worst_region = ("%s in [%.2f, %.2f): ratio %.2f (z=%.1f)"
-                             % (coord_name, lo, hi, norm, z))
-
-    # Per-DensityVariable moment check: self-normalized importance-weighted
-    # mean of the fallback coordinate vs its plain sampled mean. Only one
-    # fallback coordinate is available (see _extract_coordinate), so every
-    # declared DensityVariable name is reported against the same coordinate;
-    # this is documented here rather than silently mislabeled.
-    density_vars = list(model.DensityVariables())
-    moment_z = {}
-    if coords and math.isfinite(mean_ratio):
-        sample_mean = sum(coords) / len(coords)
-        f_subset = [f_values[i] for i in valid_idx]
-        f_sum = sum(f_subset)
-        if f_sum > 0.0:
-            analytic_mean = sum(c * f for c, f in zip(coords, f_subset)) / f_sum
-            sample_var = (sum((c - sample_mean) ** 2 for c in coords)
-                          / max(len(coords) - 1, 1))
-            se = math.sqrt(sample_var / len(coords)) if len(coords) > 1 else float("inf")
-            z = (sample_mean - analytic_mean) / se if se > 0.0 else 0.0
-            labels = density_vars if density_vars else [coord_name]
-            for label in labels:
-                moment_z[label] = z
-
-    frame_note = _frame_check(model, template, drawn)
-
-    # The gauge passes only when every populated check passes:
-    #  * the absolute normalization estimate (when a reference density exists)
-    #    is within tol_sigma of 1.0 -- this catches a uniform scale error;
-    #  * the shape profile is flat: no well-populated bin's self-normalized
-    #    ratio deviates from 1.0 by more than tol_sigma of its own Poisson-scale
-    #    uncertainty (two or more usable bins are required to see a shape);
-    #  * no coordinate moment z-score exceeds tol_sigma.
-    ok = math.isfinite(mean_ratio) and len(norm_ratios) >= 2
-
-    if has_reference:
-        if not math.isfinite(norm_est):
-            ok = False
-        elif norm_err > 0.0:
-            if abs(norm_est - 1.0) > tol_sigma * norm_err:
-                ok = False
-        elif abs(norm_est - 1.0) > 1e-9:
-            # Zero stderr means f/g_ref was constant over the samples: the
-            # estimate is exact, so it must equal 1 outright.
-            ok = False
-    else:
-        notes.append(
-            "no self-contained reference density for measure %r; the absolute "
-            "normalization was not checked, so a uniform scale error in "
-            "FinalStateProbability would not be caught (only shape is tested)"
-            % (model.Measure(),))
-
-    if ok:
-        for (lo, hi, ratio, count), w in zip(bin_ratio_info, ratio_weights):
-            norm = ratio / scale if scale > 0.0 else ratio
-            # Poisson relative error on the bin's occupancy sets the tolerance.
-            rel = 1.0 / math.sqrt(count)
-            if abs(norm - 1.0) > tol_sigma * rel:
-                ok = False
-                break
-    for z in moment_z.values():
-        if math.isfinite(z) and abs(z) > tol_sigma:
-            ok = False
-
-    return ClosureReport(
-        ok=ok,
-        normalization=(norm_est, norm_err),
-        flatness=(mean_ratio, stderr),
-        moment_z=moment_z,
-        worst_region=worst_region,
-        frame_check=frame_note,
-        notes=notes,
-    )
+def _coordinate_secondary_index(model):
+    """Use the Recursive2Body spectator, otherwise the first secondary."""
+    measure = model.Measure()
+    if measure.type == _injection.PhaseSpaceMeasureType.Recursive2Body:
+        return int(measure.spectator)
+    return 0

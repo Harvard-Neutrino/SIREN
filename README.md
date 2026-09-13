@@ -217,6 +217,9 @@ Contributions of new detector geometries are welcome.
 
 ## Built-in process models
 
+For Python model definitions and sampler validation, see
+[authoring interaction models](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/authoring.md).
+
 | Model | Description |
 |-------|-------------|
 | `CSMSDISSplines` | Deep inelastic scattering (CC and NC) on nucleons, using photospline cross-section tables |

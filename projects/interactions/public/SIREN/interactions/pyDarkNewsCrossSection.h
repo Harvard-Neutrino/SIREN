@@ -37,6 +37,7 @@ public:
     using DarkNewsCrossSection::DarkNewsCrossSection;
     pyDarkNewsCrossSection(DarkNewsCrossSection && parent);
     pyDarkNewsCrossSection(DarkNewsCrossSection const & parent);
+    bool equal(CrossSection const & other) const override;
     double TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const override;
     double TotalCrossSection(dataclasses::InteractionRecord const & interaction) const override;
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const override;
@@ -69,4 +70,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::DarkNewsCrossSection, 
 //CEREAL_FORCE_DYNAMIC_INIT(pyDarkNewsCrossSection);
 
 #endif // SIREN_pyDarkNewsCrossSection_H
-
