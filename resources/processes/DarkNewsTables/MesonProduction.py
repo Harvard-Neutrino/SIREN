@@ -51,7 +51,7 @@ _final_state_probability = _beam._final_state_probability
 
 _GF = 1.16638e-5       # Fermi constant [GeV^-2]
 _FPI = 0.1307           # pion decay constant [GeV]
-_FK = 0.1598            # kaon decay constant [GeV]
+_FK = 0.1557            # kaon decay constant [GeV]
 _VUD = 0.9737           # CKM |V_ud|
 _VUS = 0.2245           # CKM |V_us|
 _ALPHA_EM = 1.0 / 137.036
@@ -85,6 +85,21 @@ def _two_body_p_cm(M, m1, m2):
     if arg <= 0.0:
         return 0.0
     return math.sqrt(arg) / (2.0 * M)
+
+
+def _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf):
+    """
+    Exact inversion of the on-axis forward two-body relation
+    E_nu(theta=0) = E_nu_rf (E_M + p_M)/m_M, giving E_M = 0.5 m_M (k + 1/k)
+    with k = E_nu/E_nu_rf.  The isotropic-mean inverse (gamma = E_nu/E_nu_rf)
+    understates the on-axis parent energy by up to a factor of two at high
+    boost; the collinear direction approximation itself is unchanged.  Returns
+    None when E_nu <= E_nu_rf (k <= 1 has no forward solution).
+    """
+    if E_nu <= E_nu_rf:
+        return None
+    k = E_nu / E_nu_rf
+    return 0.5 * m_meson * (k + 1.0 / k)
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +189,9 @@ class MesonThreeBodyDecay:
         f_M, V_Mq = _meson_params(m_meson)
         self.f_M = f_M
         self.V_Mq = V_Mq
-        self._C2 = (_GF * f_M * V_Mq * g_mu)**2 / 2.0
+        # C2 pairs the PDG-convention f_M (Gamma = G_F^2 f_M^2 V^2 m_M m_l^2 (1-r)^2/(8 pi))
+        # with Carlson-Rislow's T, written for f_CR = f_M/sqrt(2); hence (G_F f_M V g)^2/4.
+        self._C2 = (_GF * f_M * V_Mq * g_mu)**2 / 4.0
 
         if m_meson < m_lepton + m_mediator:
             raise ValueError(
@@ -934,6 +951,44 @@ class BiasedMesonThreeBodyDecay(_Decay):
 #  build_phi_flux  --  construct mediator flux at detector
 # ===================================================================
 
+def _deposit_box_into_hist(edges, hist, E_minus, E_plus, weight):
+    """Spread weight uniformly over [E_minus, E_plus] into a histogram in place.
+
+    The chi lab-energy density is flat across the box, so each bin receives
+    weight in proportion to the length of its overlap with the box, conserving
+    the total to machine precision.  A degenerate box (beta -> 0 or p_rf -> 0)
+    deposits the full weight into the single bin containing its center, matching
+    a point deposit at gamma_V1 E_chi_rf.
+    """
+    n = len(edges) - 1
+    if n < 1:
+        return
+    lo = E_minus if E_minus <= E_plus else E_plus
+    hi = E_plus if E_plus >= E_minus else E_minus
+    width = hi - lo
+    if width <= 0.0:
+        center = 0.5 * (lo + hi)
+        if center < edges[0] or center > edges[-1]:
+            return
+        idx = int(np.searchsorted(edges, center, side="right")) - 1
+        idx = min(max(idx, 0), n - 1)
+        hist[idx] += weight
+        return
+    overlap_lo = max(lo, edges[0])
+    overlap_hi = min(hi, edges[-1])
+    if overlap_hi <= overlap_lo:
+        return
+    i_start = int(np.searchsorted(edges, overlap_lo, side="right")) - 1
+    i_stop = int(np.searchsorted(edges, overlap_hi, side="left"))
+    i_start = min(max(i_start, 0), n - 1)
+    i_stop = min(max(i_stop, 1), n)
+    for i in range(i_start, i_stop):
+        a = max(edges[i], lo)
+        b = min(edges[i + 1], hi)
+        if b > a:
+            hist[i] += weight * (b - a) / width
+
+
 def build_phi_flux(
     m_meson,
     m_lepton,
@@ -950,6 +1005,12 @@ def build_phi_flux(
     Construct the scalar/pseudoscalar mediator phi flux at the detector
     by convolving the parent meson spectrum with the three-body
     differential decay rate and boosting to the lab frame.
+
+    Folding dGamma3 / Gamma2 counts three-body decays per tabulated neutrino
+    (one neutrino = one two-body decay), which is exact for pion and kaon tags
+    alike: each tabulated neutrino marks one two-body decay M -> l nu, and the
+    ratio of the three-body differential width to the SM two-body width converts
+    it into the number of M -> l nu phi decays it implies.
 
     Returns a siren.distributions.TabulatedFluxDistribution.
     """
@@ -981,23 +1042,41 @@ def build_phi_flux(
     n_rf = 200
     E_phi_rf = np.linspace(m_phi, E_phi_rf_max, n_rf)
     dGamma = decay.differential_decay_rate(E_phi_rf)
-
-    E_phi_out = np.linspace(min_energy, max_energy, n_bins)
-    phi_flux = np.zeros(n_bins)
-    dEout = (max_energy - min_energy) / (n_bins - 1) if n_bins > 1 else 1.0
     dErf = (E_phi_rf_max - m_phi) / (n_rf - 1) if n_rf > 1 else 1.0
 
+    # SM two-body width Gamma(M -> l nu) of the same meson, in its analytic
+    # form (not the measured hbar/tau branching width the BeamDecays models
+    # report).  The three-body differential width dGamma carries the
+    # matrix-element coefficient (G_F f_M V_Mq g_mu)^2 / 4 and Gamma2 carries
+    # G_F^2 f_M^2 V_Mq^2, so G_F^2 f_M^2 V_Mq^2 cancels in dGamma / Gamma2 and
+    # the branching fraction is free of those constants.
+    f_M, V_Mq = _meson_params(m_meson)
+    r = (m_lepton / m_meson)**2
+    Gamma2 = (_GF**2 * f_M**2 * V_Mq**2
+              * m_meson * m_lepton**2 * (1.0 - r)**2 / (8.0 * math.pi))
+
+    edges = np.linspace(min_energy, max_energy, n_bins + 1)
+    dEout = edges[1] - edges[0]
+    hist = np.zeros(n_bins)
+
     nu_energies = list(raw_flux.GetEnergyNodes())
-
     E_nu_rf_2body = (m_meson**2 - m_lepton**2) / (2.0 * m_meson)
-    nu_to_meson = m_meson / E_nu_rf_2body if E_nu_rf_2body > 0 else 1.0
 
-    for E_nu in nu_energies:
-        E_meson = E_nu * nu_to_meson
-        if E_meson < m_meson:
+    for i, E_nu in enumerate(nu_energies):
+        E_meson = _meson_energy_from_forward_nu(E_nu, m_meson, E_nu_rf_2body)
+        if E_meson is None:
             continue
 
-        # SampleUnnormedPDF returns the tabulated absolute flux at E_nu.
+        # SampleUnnormedPDF is the tabulated absolute flux per GeV at the node;
+        # weight it by the node's own energy interval (midpoint spacing) so the
+        # deposited histogram divided by the output bin width is again per GeV
+        # and independent of the neutrino table's node density.
+        lo = nu_energies[i - 1] if i > 0 else E_nu
+        hi = nu_energies[i + 1] if i + 1 < len(nu_energies) else E_nu
+        dE_node = 0.5 * (hi - lo)
+        if dE_node <= 0.0:
+            continue
+
         meson_flux = raw_flux.SampleUnnormedPDF(E_nu)
         if meson_flux <= 0.0:
             continue
@@ -1012,23 +1091,26 @@ def build_phi_flux(
             if dG <= 0.0:
                 continue
 
+            # Count of three-body decays this (node, rest-frame slice)
+            # contributes: neutrinos over the node interval times the branching
+            # fraction dGamma3 / Gamma2 over the rest-frame slice.
+            count = meson_flux * dE_node * dG * dErf / Gamma2
+
             p_rf = math.sqrt(max(Erf**2 - m_phi**2, 0.0))
             E_lo = gamma * (Erf - beta * p_rf)
             E_hi = gamma * (Erf + beta * p_rf)
+            _deposit_box_into_hist(edges, hist, E_lo, E_hi, count)
 
-            if E_hi <= min_energy or E_lo >= max_energy:
-                continue
-            dE_lab = max(E_hi - E_lo, 1e-9)
-            density = dG * dErf / dE_lab * meson_flux
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    values = hist / dEout
 
-            for k in range(n_bins):
-                Eout = E_phi_out[k]
-                bin_lo = Eout - 0.5 * dEout
-                bin_hi = Eout + 0.5 * dEout
-                if bin_lo < E_hi and bin_hi > E_lo:
-                    overlap = min(bin_hi, E_hi) - max(bin_lo, E_lo)
-                    phi_flux[k] += density * overlap
+    if not np.any(hist > 0.0):
+        energies = [min_energy, max_energy]
+        flux_arr = [0.0, 0.0]
+    else:
+        energies = list(centers)
+        flux_arr = list(values)
 
     return siren.distributions.TabulatedFluxDistribution(
-        min_energy, max_energy, list(E_phi_out), list(phi_flux), physically_normalized
+        min_energy, max_energy, energies, flux_arr, physically_normalized
     )
