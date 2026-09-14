@@ -406,5 +406,29 @@ double CrossSectionProbabilityWithPhaseSpace(
     return (selected_rate * mc_density) / total_rate;
 }
 
+double DecayChannelGenerationProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const * phase_space,
+    PhaseSpaceConvention const * convention)
+{
+    auto candidates = detail::EnumerateInteractionCandidates(detector_model, interactions, record, true);
+    double total = 0.0, selected = 0.0;
+    for (auto const & candidate : candidates) {
+        total += candidate.rate;
+        if (candidate.signature == record.signature) selected += candidate.rate;
+    }
+    if (!std::isfinite(total)) {
+        throw siren::utilities::WeightCalculationError("Non-finite selected decay generation rate");
+    }
+    if (total == 0.0 || selected == 0.0) return 0.0;
+    auto natural = convention ? *convention : (phase_space ? phase_space->CommonConvention()
+        : SelectedFinalStateConvention(interactions, record));
+    double density = phase_space ? phase_space->DensityIn(detector_model, record, natural)
+        : SelectedFinalStateProbability(detector_model, interactions, record, natural);
+    return (selected / total) * density;
+}
+
 } // namespace injection
 } // namespace siren

@@ -38,6 +38,7 @@
 
 ### Added
 
+- `Vertex(decay_channels=...)` restricts generated decay signatures while retaining all models for propagation and physical weights. Native collections, Injector, Simulation, and supported archives preserve the selection. See docs/decay_channels.md.
 - dk2nu converters accept explicit parent masses and an `extra_columns` mapping for source IDs, inclusion probabilities, and other numeric metadata. Columns follow row filtering without changing physical or sampling weights; reserved columns, masked metadata on selected rows, and integer IDs outside the exact double-precision range are rejected. Integer checks preserve identities in mixed numeric sequences, including zero-dimensional array elements. CSV export writes plain UTF-8 text with LF newlines even for `.gz`/`.bz2` filenames so the native loader can read it. See docs/beam_tables.md.
 - `siren.three_body` exposes the shared Dalitz band and width, rejection sampling, isotropic momentum construction, boosts, and Recursive2Body density for a decay with one massless daughter. Existing physics objects need no base class. See docs/three_body.md.
 - Weighter accepts an optional event_factor(tree) for whole-event physical corrections, with scalar/batch/explain agreement, in-memory copying, and explicit serialization guards.
