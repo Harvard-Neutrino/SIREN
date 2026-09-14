@@ -144,7 +144,8 @@ def decay_model_base(base=None):
         """Authoring base for a Python decay model.
 
         Declare ``parent`` and ``daughters`` (names or ParticleTypes) and a
-        ``measure``; supply ``total_width()`` and ``differential_width(record)``.
+        ``measure``; supply this channel's partial ``total_width()`` and
+        ``differential_width(record)``.
         Supply ``sample(record, random)`` with the same density. Isotropic
         two-body decays can call ``self.sample_isotropic(record, random)``.
         Equality defaults to object identity; override ``equal`` for value

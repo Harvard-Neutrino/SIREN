@@ -1,6 +1,8 @@
 #include "InteractionSelection.h"
 
 #include <set>
+#include <cmath>
+#include <algorithm>
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/detector/Coordinates.h"
@@ -20,7 +22,8 @@ namespace detail {
 std::vector<InteractionCandidate> EnumerateInteractionCandidates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record)
+    siren::dataclasses::InteractionRecord const & record,
+    bool for_generation)
 {
     if (!interactions) {
         throw siren::utilities::ConfigurationError(
@@ -87,6 +90,7 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
         }
     }
 
+    if (for_generation) interactions->ValidateDecayChannels();
     if (interactions->HasDecays()) {
         double decay_target_mass = detector_model->GetTargetMass(
             siren::dataclasses::ParticleType::Decay);
@@ -94,6 +98,7 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
             for (auto const & signature :
                  decay->GetPossibleSignaturesFromParent(
                      record.signature.primary_type)) {
+                if (for_generation && !interactions->AllowsDecay(signature)) continue;
                 candidate_record.signature = signature;
                 candidates.push_back(InteractionCandidate{
                     signature,
@@ -105,6 +110,15 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
         }
     }
 
+    if (for_generation && interactions->HasDecayChannels()) {
+        for (auto const & candidate : candidates) {
+            if (!std::isfinite(candidate.rate) || candidate.rate < 0.0) {
+                throw siren::utilities::ConfigurationError("Selected decay generation requires finite nonnegative interaction rates");
+            }
+        }
+        candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
+            [](InteractionCandidate const & c) { return c.rate == 0.0; }), candidates.end());
+    }
     return candidates;
 }
 
