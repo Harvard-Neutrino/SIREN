@@ -24,21 +24,79 @@ __all__ = [
 ]
 
 
+def _validate_masses(m_M, m_l, m_phi):
+    """Return double-precision masses and the neutrino energy limit."""
+    # NumPy's weak scalar promotion otherwise retains float32 arithmetic,
+    # even though math.ulp and the native random generator use doubles.
+    m_M, m_l, m_phi = float(m_M), float(m_l), float(m_phi)
+    if (not all(math.isfinite(m) for m in (m_M, m_l, m_phi))
+            or m_l < 0 or m_phi < 0 or not m_M > m_l + m_phi > 0):
+        raise ValueError(
+            "three-body masses must be finite and satisfy "
+            "m_M > m_l + m_phi > 0 with m_l, m_phi >= 0")
+    limit = math.fsum((m_M, -m_l, -m_phi)) * ((m_M + m_l + m_phi) / (2*m_M))
+    return m_M, m_l, m_phi, limit
+
+
+def _momentum_triangle(m_M, m_l, m_phi, E_nu, E_phi):
+    """Momentum and opening-angle terms, including daughters near rest."""
+    E_l = m_M - E_nu - E_phi
+    p_phi = math.sqrt(max((E_phi - m_phi) * (E_phi + m_phi), 0.0))
+    numerator = (E_l - m_l) * (E_l + m_l) - E_nu**2 - p_phi**2
+    return p_phi, numerator, 2.0 * E_nu * p_phi
+
+
+def _precise_dalitz_band(m_M, m_l, m_phi, E_nu):
+    """Resolve cancellation in the band without relaxing mass-shell checks.
+
+    This rare fallback uses the exact supplied floats, including interior
+    energies adjacent to threshold. Round resolved edges into the band so
+    the momentum builder is not given an amplified outward rounding error.
+    """
+    from decimal import Decimal, localcontext
+
+    with localcontext() as ctx:
+        ctx.prec = 80
+        M, a, b, energy = map(Decimal.from_float, (m_M, m_l, m_phi, E_nu))
+        limit = (M*M - (a+b)**2) / (2*M)
+        energy = min(max(energy, Decimal(0)), limit)
+        s = max(M*M - 2*M*energy, (a+b)**2)
+        center = (M-energy) * (s+b*b-a*a) / (2*s)
+        half = energy * ((s-(a+b)**2)*(s-(a-b)**2)).sqrt() / (2*s)
+        low, high = center-half, center+half
+        lo, hi = float(low), float(high)
+        if Decimal.from_float(lo) < low:
+            lo = math.nextafter(lo, math.inf)
+        if Decimal.from_float(hi) > high:
+            hi = math.nextafter(hi, -math.inf)
+        if lo > hi:
+            # No float resolves the band; retain its nearest endpoint.
+            # The builder still enforces the original invariant tolerance.
+            lo = hi = float(center)
+        return max(m_phi, lo), max(m_phi, hi)
+
+
 def dalitz_band(m_M, m_l, m_phi, E_nu):
     """Kinematically allowed E_phi range at fixed E_nu (parent rest frame).
 
     At fixed E_nu the (l, phi) system recoils with momentum E_nu and
     invariant mass squared m_M^2 - 2 m_M E_nu; the band follows from the
     two-body decay of that system boosted back to the parent frame.
-    Returns (None, None) outside the Dalitz region.
+    Returns (None, None) for finite energies outside the Dalitz region.
+    Invalid masses or nonfinite energy raise ValueError.
     """
-    E_nu_max = (m_M ** 2 - (m_l + m_phi) ** 2) / (2.0 * m_M)
-    if E_nu < 0.0 or E_nu > E_nu_max:
+    m_M, m_l, m_phi, E_nu_max = _validate_masses(m_M, m_l, m_phi)
+    E_nu = float(E_nu)
+    if not math.isfinite(E_nu):
+        raise ValueError("E_nu must be finite")
+    tolerance = 64 * math.ulp(m_M)
+    if E_nu < -tolerance or E_nu > E_nu_max + tolerance:
         return None, None
+    E_nu = max(E_nu, 0.0)
 
     M_lph2 = m_M ** 2 - 2.0 * m_M * E_nu
-    if M_lph2 < (m_l + m_phi) ** 2:
-        return None, None
+    if M_lph2 - (m_l + m_phi)**2 <= m_M * tolerance:
+        return _precise_dalitz_band(m_M, m_l, m_phi, E_nu)
 
     M_lph = math.sqrt(M_lph2)
     lam = ((M_lph2 - (m_l + m_phi) ** 2)
@@ -55,9 +113,14 @@ def dalitz_band(m_M, m_l, m_phi, E_nu):
     E_phi_hi = gamma * Estar + beta_gamma * pstar
     E_phi_lo = max(gamma * Estar - beta_gamma * pstar, m_phi)
 
-    if m_M - E_nu - E_phi_lo < m_l:
+    if m_M - E_nu - E_phi_lo < m_l - tolerance:
         return None, None
-    return E_phi_lo, E_phi_hi
+    for energy in (E_phi_lo, E_phi_hi):
+        _, numerator, denominator = _momentum_triangle(
+            m_M, m_l, m_phi, E_nu, energy)
+        if abs(numerator) > denominator + m_M * tolerance:
+            return _precise_dalitz_band(m_M, m_l, m_phi, E_nu)
+    return E_phi_lo, max(E_phi_lo, E_phi_hi)
 
 
 def dalitz_width(physics):
@@ -72,7 +135,8 @@ def dalitz_width(physics):
     requirement when small couplings scale down the integrand.
     """
     d = physics
-    prefactor = 1.0 / (64.0 * math.pi ** 3 * d.m_M)
+    m_M, m_l, _, _ = _validate_masses(d.m_M, d.m_l, d.m_phi)
+    prefactor = 1.0 / (64.0 * math.pi ** 3 * m_M)
 
     def integrand(E_phi, E_nu):
         lims = d._E_phi_limits(E_nu)
@@ -80,13 +144,13 @@ def dalitz_width(physics):
             return 0.0
         if E_phi < lims[0] or E_phi > lims[1]:
             return 0.0
-        if d.m_M - E_nu - E_phi < d.m_l:
+        if m_M - E_nu - E_phi < m_l:
             return 0.0
         return d._matel_sq(E_nu, E_phi)
 
     result, _ = _integrate.dblquad(
         integrand,
-        0.0, d.E_nu_max,
+        0.0, float(d.E_nu_max),
         lambda E_nu: (d._E_phi_limits(E_nu)[0] or 0.0),
         lambda E_nu: (d._E_phi_limits(E_nu)[1] or 0.0),
         epsabs=0.0,
@@ -102,8 +166,9 @@ def find_max_weight(physics):
     a model-specific bound when narrow peaks are not resolved by the grid.
     """
     d = physics
+    _validate_masses(d.m_M, d.m_l, d.m_phi)
     best = 0.0
-    for e_nu in np.linspace(0.0, d.E_nu_max, 400):
+    for e_nu in np.linspace(0.0, float(d.E_nu_max), 400):
         lims = d._E_phi_limits(e_nu)
         if lims[0] is None:
             continue
@@ -128,16 +193,18 @@ def sample_energies(physics, max_weight, random):
     ValueError. Invalid weights, a bound overrun, or 10,000 rejected proposals
     raise RuntimeError; no substitute event is returned.
     """
+    d = physics
+    m_M, m_l, _, _ = _validate_masses(d.m_M, d.m_l, d.m_phi)
+    max_weight = float(max_weight)
     if not math.isfinite(max_weight) or max_weight <= 0:
         raise ValueError("sample_energies requires a finite positive max_weight")
-    d = physics
     for _ in range(10000):
-        E_nu = random.Uniform(0.0, d.E_nu_max)
+        E_nu = random.Uniform(0.0, float(d.E_nu_max))
         lims = d._E_phi_limits(E_nu)
         if lims[0] is None:
             continue
         E_phi = random.Uniform(lims[0], lims[1])
-        if d.m_M - E_nu - E_phi < d.m_l:
+        if m_M - E_nu - E_phi < m_l:
             continue
         weight = d._matel_sq(E_nu, E_phi) * (lims[1] - lims[0])
         if not math.isfinite(weight) or weight < 0:
@@ -158,12 +225,33 @@ def build_rest_momenta(physics, E_nu, E_phi, random):
     The nu is massless; the phi momentum comes from physics.m_phi.
 
     Returns (P_nu, P_l, P_phi) as four-vectors in the parent rest frame.
+    Invalid masses or energies raise ValueError before drawing randomness.
+    Roundoff at the physical boundary is tolerated.
     """
-    m_M, m_l = physics.m_M, physics.m_l
+    m_M, m_l, m_phi, E_nu_max = _validate_masses(
+        physics.m_M, physics.m_l, physics.m_phi)
+    E_nu, E_phi = float(E_nu), float(E_phi)
+    if not math.isfinite(E_nu) or not math.isfinite(E_phi):
+        raise ValueError("three-body energies must be finite")
+    tolerance = 64 * math.ulp(m_M)
+    if (E_nu < -tolerance or E_nu > E_nu_max + tolerance
+            or E_phi < m_phi - tolerance
+            or m_M - E_nu - E_phi < m_l - tolerance):
+        raise ValueError("three-body energies are outside the Dalitz region")
+    E_nu = min(max(E_nu, 0.0), E_nu_max)
+    E_phi = max(m_phi, min(E_phi, m_M - E_nu - m_l))
     E_l = m_M - E_nu - E_phi
 
     p_nu = E_nu
-    p_phi = math.sqrt(max(E_phi ** 2 - physics.m_phi ** 2, 0.0))
+    # Momentum closure requires |p_nu - p_phi| <= p_l <= p_nu + p_phi.
+    # Check the squared relation before dividing by possibly tiny momenta.
+    p_phi, numerator, denominator = _momentum_triangle(
+        m_M, m_l, m_phi, E_nu, E_phi)
+    if abs(numerator) > denominator + m_M * tolerance:
+        raise ValueError("three-body energies are outside the Dalitz region")
+    cos_open = numerator / denominator if denominator > 0 else 0.0
+    cos_open = max(-1.0, min(1.0, cos_open))
+    sin_open = math.sqrt(max(1.0 - cos_open ** 2, 0.0))
 
     cos_nu = random.Uniform(-1.0, 1.0)
     phi_nu = random.Uniform(0.0, 2.0 * math.pi)
@@ -171,17 +259,6 @@ def build_rest_momenta(physics, E_nu, E_phi, random):
     nu_dir = np.array([sin_nu * math.cos(phi_nu),
                        sin_nu * math.sin(phi_nu),
                        cos_nu])
-
-    # Opening angle between the nu and phi momenta from momentum balance:
-    # p_l = -(p_nu + p_phi) gives
-    # E_l^2 - m_l^2 = p_nu^2 + p_phi^2 + 2 p_nu p_phi cos(theta).
-    if p_nu > 0 and p_phi > 0:
-        cos_open = (E_l ** 2 - m_l ** 2 - p_nu ** 2 - p_phi ** 2) \
-            / (2.0 * p_nu * p_phi)
-        cos_open = max(-1.0, min(1.0, cos_open))
-    else:
-        cos_open = 0.0
-    sin_open = math.sqrt(max(1.0 - cos_open ** 2, 0.0))
 
     perp1 = np.cross(nu_dir, np.array([0.0, 0.0, 1.0]))
     if np.linalg.norm(perp1) < 1e-10:
@@ -265,11 +342,10 @@ def final_state_probability(physics, total_width, pdgid_nu, pdgid_phi,
     depends on (s_pair, cos_theta_sub) through the matrix element and the
     Recursive2Body-to-Dalitz Jacobian.
     """
+    d = physics
+    m_M, m_l, m_phi, _ = _validate_masses(d.m_M, d.m_l, d.m_phi)
     if total_width <= 0:
         return 0.0
-
-    d = physics
-    m_M, m_l, m_phi = d.m_M, d.m_l, d.m_phi
 
     P_parent = np.asarray(record.primary_momentum, dtype=float)
     E_parent = P_parent[0]
