@@ -1,189 +1,52 @@
-if(${SIREN_PYTHON_PACKAGE})
-
-# Stage the python package within the build directory
-set(PACKAGE_STAGING_DIR "${CMAKE_BINARY_DIR}/python_staging")
-
-find_package(Python3 COMPONENTS Interpreter REQUIRED)  # or Python
-
-# Configure script that copies extra files into the package staging area
-configure_file("${PROJECT_SOURCE_DIR}/package/configure_python_package.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/configure_python_package.cmake" @ONLY)
-
-# Clear out the staging area
-add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean"
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${PACKAGE_STAGING_DIR}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${PACKAGE_STAGING_DIR}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${PACKAGE_STAGING_DIR}/siren
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-    COMMENT "Clear out python package staging area"
-    VERBATIM
-)
-
-# Copy shared object libraries into the staging area
-add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_extensions"
-    DEPENDS
-      SIREN
-      utilities
-      math
-      dataclasses
-      geometry
-      detector
-      interactions
-      distributions
-      injection
-      hepmc3
-      "${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_STAGING_DIR}/siren"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:utilities>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:math>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:dataclasses>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:geometry>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:detector>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:interactions>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:distributions>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:injection>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:hepmc3>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:SIREN>"
-        "${PACKAGE_STAGING_DIR}/siren/"
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_extensions
-    COMMENT "Copying shared object libraries into python package staging directory"
-    VERBATIM
-)
-
-# Copy python files into the staging area.
-#
-# Depend on EVERY file under python/, not a hardcoded subset: the copy command
-# stages the whole directory, so if the dependency list omits a file, editing
-# that file does not restage and `cmake --install` ships a stale copy. The glob
-# uses CONFIGURE_DEPENDS so that adding or removing a python file re-runs the
-# glob at build time (no manual reconfigure needed).
-file(GLOB_RECURSE PYTHON_PACKAGE_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS
-    ${CMAKE_SOURCE_DIR}/python/*)
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
-    DEPENDS
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-        ${PYTHON_PACKAGE_FILES}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/python
-        ${PACKAGE_STAGING_DIR}/${PROJECT_NAME}
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
-    COMMENT "Copying contents of python/ into the package staging directory"
-    VERBATIM
-)
-
-# Copy resources into the staging area. CONFIGURE_DEPENDS re-runs the glob at
-# build time so added/removed resource files are picked up (and a stale glob
-# referencing a deleted file cannot break the build after a branch switch).
-file(GLOB_RECURSE RESOURCES_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/resources/*)
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_resources
-    DEPENDS
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-        ${RESOURCES_FILES}
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        ${PACKAGE_STAGING_DIR}/${PROJECT_NAME}/resources
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/resources
-        ${PACKAGE_STAGING_DIR}/${PROJECT_NAME}/resources
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_resources
-    COMMENT "Copying resources/ into the staging directory"
-    VERBATIM
-)
-
-# Parse top-level pyproject.toml and generate new pyproject.toml for package staging area
-add_custom_command(
-    OUTPUT ${PACKAGE_STAGING_DIR}/pyproject.toml
-    COMMAND
-        ${Python3_EXECUTABLE}
-        ${CMAKE_SOURCE_DIR}/cmake/parse_pyproject.py
-        ${CMAKE_SOURCE_DIR}/pyproject.toml
-        ${PACKAGE_STAGING_DIR}/pyproject.toml
-    DEPENDS
-        ${CMAKE_SOURCE_DIR}/pyproject.toml
-        ${CMAKE_SOURCE_DIR}/cmake/parse_pyproject.py
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.pyproject
-    COMMENT "Parsing top-level pyproject.toml and generating new pyproject.toml for package staging area"
-    VERBATIM
-)
-
-# Configure other files for the python package
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.python_package_configured
-    COMMAND ${CMAKE_COMMAND} -P
-        ${CMAKE_CURRENT_BINARY_DIR}/configure_python_package.cmake
-    DEPENDS
-        ${PACKAGE_STAGING_DIR}/pyproject.toml
-        ${CMAKE_CURRENT_BINARY_DIR}/configure_python_package.cmake
-        ${PROJECT_SOURCE_DIR}/package/configure_python_package.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_resources
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_extensions
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.python_package_configured
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-    COMMENT "Configuring other files for python package"
-    VERBATIM
-)
-
-# Build the wheel from the staged package
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/.build_wheel
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/dist_wheels
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/dist_wheels
-    COMMAND ${Python3_EXECUTABLE} -m pip wheel
-            --no-deps
-            --wheel-dir ${CMAKE_CURRENT_BINARY_DIR}/dist_wheels
-            ${PACKAGE_STAGING_DIR}
-    DEPENDS
-        ${CMAKE_CURRENT_BINARY_DIR}/.python_package_configured
-        ${PACKAGE_STAGING_DIR}/pyproject.toml
-        ${CMAKE_CURRENT_BINARY_DIR}/configure_python_package.cmake
-        ${PROJECT_SOURCE_DIR}/package/configure_python_package.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_resources
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
-        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_extensions
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.build_wheel
-    COMMENT "Building wheel from the staged package"
-)
-
-add_custom_target(
-    python_package ALL
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/.build_wheel
-)
-
-set(WHEELS_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist_wheels")
-install(
-    CODE
-    "
-    file(GLOB WHEELS \"${WHEELS_DIR}/*.whl\")
-    message(STATUS \"Installing wheels: \$\{WHEELS\}\")
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} -m pip install --no-deps --force-reinstall \$\{WHEELS\} --prefix=${CMAKE_INSTALL_PREFIX}
-        COMMAND_ECHO STDOUT
-    )
-    "
-)
-
+# Source-wheel builds already run the backend; never start a nested wheel build.
+if(NOT SIREN_PYTHON_PACKAGE OR DEFINED SKBUILD)
+    return()
 endif()
+
+set(PACKAGE_STAGING_DIR "${CMAKE_BINARY_DIR}/python_staging")
+set(WHEELS_DIR "${CMAKE_BINARY_DIR}/dist_wheels")
+file(GLOB_RECURSE PYTHON_PACKAGE_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS
+    "${PROJECT_SOURCE_DIR}/python/*" "${PROJECT_SOURCE_DIR}/resources/*")
+# A removed input must invalidate the wheel as well as an added/edited input.
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
+    CONTENT "${PYTHON_PACKAGE_FILES}\n")
+
+add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "${PACKAGE_STAGING_DIR}" "${WHEELS_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_STAGING_DIR}" "${WHEELS_DIR}"
+    COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}"
+        --config $<CONFIG> --prefix "${PACKAGE_STAGING_DIR}" --component PythonWheel
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
+        "${PROJECT_SOURCE_DIR}/LICENSE" "${PACKAGE_STAGING_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
+        "${PACKAGE_STAGING_DIR}/CMakeLists.txt"
+    COMMAND ${Python_EXECUTABLE} -m pip wheel --no-deps
+        --wheel-dir "${WHEELS_DIR}" "${PACKAGE_STAGING_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel"
+    DEPENDS ${SIREN_WHEEL_LIBRARIES} ${SIREN_PYTHON_MODULES} ${PYTHON_PACKAGE_FILES}
+        "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake"
+        "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
+        "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
+        "${PROJECT_SOURCE_DIR}/LICENSE"
+    COMMENT "Building a native wheel from the CMake-installed package"
+    VERBATIM)
+add_custom_target(python_package ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel")
+
+install(CODE "
+    file(GLOB WHEELS \"${WHEELS_DIR}/*.whl\")
+    list(LENGTH WHEELS WHEEL_COUNT)
+    if(NOT WHEEL_COUNT EQUAL 1)
+        message(FATAL_ERROR \"Build the python_package target before installing SIREN\")
+    endif()
+    execute_process(
+        COMMAND \"${Python_EXECUTABLE}\" -m pip install --no-deps --force-reinstall
+            \$\{WHEELS\} --prefix=\$\{CMAKE_INSTALL_PREFIX\}
+        RESULT_VARIABLE WHEEL_INSTALL_RESULT
+        COMMAND_ECHO STDOUT)
+    if(NOT WHEEL_INSTALL_RESULT EQUAL 0)
+        message(FATAL_ERROR \"SIREN wheel installation failed\")
+    endif()
+")

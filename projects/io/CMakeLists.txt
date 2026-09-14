@@ -58,5 +58,5 @@ endif()
 # The Python module is named `hepmc3` (not `io`) to avoid shadowing the Python
 # standard-library `io` module, which breaks importing the siren package.
 pybind11_add_module(hepmc3 ${PROJECT_SOURCE_DIR}/projects/io/private/pybindings/io.cxx)
-target_link_libraries(hepmc3 PRIVATE SIREN pybind11::embed)
+target_link_libraries(hepmc3 PRIVATE SIREN pybind11::module)
 siren_strip_module(hepmc3)

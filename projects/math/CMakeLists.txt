@@ -60,8 +60,3 @@ package_add_test(UnitTest_Interpolator ${PROJECT_SOURCE_DIR}/projects/math/priva
 pybind11_add_module(math ${PROJECT_SOURCE_DIR}/projects/math/private/pybindings/math.cxx)
 target_link_libraries(math PRIVATE SIREN)
 siren_strip_module(math)
-if(DEFINED SKBUILD)
-set_target_properties(math PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
-endif()

@@ -26,7 +26,7 @@ target_link_libraries(SIREN_injection
         SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        pybind11::embed
+        pybind11::module
 )
 apply_siren_compile_options(SIREN_injection)
 
@@ -54,10 +54,5 @@ target_link_libraries(UnitTest_CCM_HNL pybind11::embed)
 endif()
 
 pybind11_add_module(injection ${PROJECT_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
-target_link_libraries(injection PRIVATE SIREN photospline pybind11::embed)
+target_link_libraries(injection PRIVATE SIREN photospline pybind11::module)
 siren_strip_module(injection)
-if(DEFINED SKBUILD)
-set_target_properties(injection PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
-endif()

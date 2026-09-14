@@ -40,8 +40,3 @@ package_add_test(UnitTest_InteractionTree ${PROJECT_SOURCE_DIR}/projects/datacla
 pybind11_add_module(dataclasses ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
 target_link_libraries(dataclasses PRIVATE SIREN)
 siren_strip_module(dataclasses)
-if(DEFINED SKBUILD)
-set_target_properties(dataclasses PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
-endif()

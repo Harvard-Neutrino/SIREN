@@ -232,6 +232,44 @@ cd SIREN
 pip install . --config-settings='build-dir=build'
 ```
 
+### Building wheels
+
+The source build and the CMake `python_package` target both use scikit-build-core.
+Wheels have native Python ABI/platform tags and install the SIREN core and
+photospline next to the extensions, with relative library lookup paths.
+Extensions use the host Python interpreter; C++ executables retain Python
+embedding linkage. The wheel must not bundle another Python runtime.
+The CMake target uses its configured Python interpreter to package the binaries;
+build it with the interpreter and architecture that will run the wheel.
+
+```bash
+python -m pip wheel . --no-deps --wheel-dir dist
+# Or, after configuring a CMake build with SIREN_PYTHON_PACKAGE=ON:
+cmake --build build --target python_package --parallel
+# The CMake wheel is in build/dist_wheels/.
+```
+
+Local wheels still require their external native dependencies, such as CFITSIO
+and HepMC3. Before distributing a wheel, bundle those dependencies with
+`delocate-wheel` on macOS, `auditwheel repair` on Linux, or `delvewheel repair`
+on Windows. The cibuildwheel configuration performs that repair for release
+wheels. It replaces the former optional `PACKAGE_SHARED_DEPS` copy step, which
+did not repair dependent-library references.
+
+Validate the installed wheel from a fresh environment outside the checkout,
+with the original source/build directories unavailable and library-search
+path overrides cleared:
+
+```bash
+python -m pip install /path/to/repaired/siren-*.whl packaging
+python /path/to/test_hepmc3_wheel.py
+```
+
+Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
+The test checks wheel tags, verifies that the loaded core library belongs to
+the installed wheel, and exercises native sampling plus plain/gzip HepMC3
+round trips. Build with `SIREN_REQUIRE_HEPMC3=ON` for this acceptance check.
+
 ### C++ library
 
 SIREN can also be built and installed as a standalone C++ shared library using CMake. This is useful when integrating SIREN into a larger C++ project.

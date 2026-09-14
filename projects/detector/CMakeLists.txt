@@ -74,8 +74,3 @@ package_add_test(UnitTest_BVH ${PROJECT_SOURCE_DIR}/projects/detector/private/te
 pybind11_add_module(detector ${PROJECT_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
 target_link_libraries(detector PRIVATE SIREN)
 siren_strip_module(detector)
-if(DEFINED SKBUILD)
-set_target_properties(detector PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
-endif()

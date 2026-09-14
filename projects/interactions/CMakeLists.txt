@@ -46,7 +46,7 @@ target_include_directories(SIREN_interactions PUBLIC
 find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
-        pybind11::embed
+        pybind11::module
         GSL::gsl
         GSL::gslcblas
     PUBLIC
@@ -81,7 +81,7 @@ package_add_test(UnitTest_HNLDecay ${PROJECT_SOURCE_DIR}/projects/interactions/p
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
-target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::embed GSL::gsl GSL::gslcblas)
+target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::module GSL::gsl GSL::gslcblas)
 if(TARGET PYTHIA8)
     target_link_libraries(interactions PRIVATE PYTHIA8)
     target_compile_definitions(interactions PRIVATE SIREN_HAS_PYTHIA8)
@@ -92,11 +92,6 @@ endif()
 #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
 #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
 siren_strip_module(interactions)
-if(DEFINED SKBUILD)
-set_target_properties(interactions PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
-endif()
 package_add_test(UnitTest_CharmMesonDecay ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmMesonDecay_TEST.cxx)
 
 # Post-selection vertex-time hooks (Decay::SampleDecayTime,
