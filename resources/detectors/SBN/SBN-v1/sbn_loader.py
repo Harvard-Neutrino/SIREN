@@ -8,6 +8,7 @@ automatically via GDMLData::MergeFrom.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from typing import Any
 
@@ -410,11 +411,12 @@ def build_composite(
       rotation : (rx, ry, rz) GDML Euler angles in radians, or None
       unwrap   : if True, set as_assembly="true" on the <file> element
 
-    Returns the path to the written stub GDML.
+    Returns the path to the written stub GDML. Its filename adds a digest of
+    the generated contents to cache_name, so different compositions cannot
+    replace one another between generation and loading. Identical contents
+    share a path and are published atomically.
     """
     from siren.download import atomic_output_path
-
-    cache_path = os.path.join(abs_dir, cache_name)
 
     _ensure_gdml_files(abs_dir, sources)
 
@@ -515,6 +517,9 @@ def build_composite(
 </gdml>
 """
 
+    digest = hashlib.sha256(stub.encode("utf-8")).hexdigest()
+    stem, extension = os.path.splitext(cache_name)
+    cache_path = os.path.join(abs_dir, f"{stem}_{digest}{extension}")
     with atomic_output_path(cache_path) as tmp_path:
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(stub)
