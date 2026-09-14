@@ -8,6 +8,10 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from pathlib import Path
+from threading import Barrier, Event
 
 import numpy as np
 import pytest
@@ -197,8 +201,8 @@ def test_load_detector_with_preseeded_gdml_offline(
         expected_origin,
         atol=1e-12)
 
-    composite = offline_sbn_cache / f"composite_{detector_name.lower()}.gdml"
-    assert composite.is_file()
+    composites = list(offline_sbn_cache.glob(f"composite_{detector_name.lower()}_*.gdml"))
+    assert len(composites) == 1
 
 
 def test_fetch_data_uses_preseeded_gdml_offline(
@@ -209,6 +213,101 @@ def test_fetch_data_uses_preseeded_gdml_offline(
     monkeypatch.setattr(sbn_detector_module, "_ABS_DIR", str(offline_sbn_cache))
 
     sbn_detector_module.fetch_data()
+
+
+@pytest.mark.parametrize("detector_name", ["ICARUS", "MiniBooNE"])
+@pytest.mark.parametrize("lbnf_flags", [(False, True), (False, False), (True, True)],
+                         ids=["distinct", "identical-sbn", "identical-lbnf"])
+def test_concurrent_compositions_load_requested_geometry(
+        sbn_detector_module, offline_sbn_cache, monkeypatch,
+        detector_name, lbnf_flags):
+    """Both writes finish before either native reader opens its composition."""
+    import siren.download as download
+
+    monkeypatch.setattr(download, "download_file", _forbid_download)
+    monkeypatch.setattr(sbn_detector_module, "_ABS_DIR", str(offline_sbn_cache))
+    loader = sbn_detector_module.sbn_loader
+    build = loader.build_composite
+    written = Barrier(2)
+
+    def build_before_read(*args, **kwargs):
+        path = build(*args, **kwargs)
+        written.wait(timeout=15)
+        return path
+
+    monkeypatch.setattr(loader, "build_composite", build_before_read)
+    if detector_name == "MiniBooNE":
+        # Force both callers past the missing-file check on a cold cache.
+        assert not (offline_sbn_cache / "gdml/miniboone_tank.gdml").exists()
+        atomic_output = download.atomic_output_path
+        tank_writers_met = Event()
+        tank_writers = Barrier(2, action=tank_writers_met.set)
+
+        @contextmanager
+        def simultaneous_tank_writes(path):
+            with atomic_output(path) as tmp:
+                if Path(path).name == "miniboone_tank.gdml":
+                    tank_writers.wait(timeout=15)
+                yield tmp
+
+        monkeypatch.setattr(download, "atomic_output_path", simultaneous_tank_writes)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        pending = [pool.submit(sbn_detector_module.load_detector, detector_name,
+                               lbnf=flag) for flag in lbnf_flags]
+        models = [future.result(timeout=30) for future in pending]
+
+    if detector_name == "MiniBooNE":
+        assert tank_writers_met.is_set(), "Cold-cache tank writers did not synchronize"
+
+    for lbnf, model in zip(lbnf_flags, models):
+        assert any("lbnf_fixture_world" in s.name for s in model.Sectors) == lbnf
+        assert model.Materials.HasMaterial("LBNFFixtureAir") == lbnf
+        expected_density = 0.845 if detector_name == "MiniBooNE" else LAR_DENSITY
+        assert model.GetMassDensity(DetectorPosition(Vector3D(0, 0, 0))) == pytest.approx(
+            expected_density, rel=1e-12, abs=0)
+        if lbnf:
+            origin = sbn_detector_module.geo.transform("LBNF", "BNB").t
+            assert "lbnf_fixture_world" in _geo_sector_name(model, *origin)
+            assert _geo_density(model, *origin) == pytest.approx(0.001225, rel=1e-12, abs=0)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("file", "gdml/g4lbnf.gdml"),
+    ("prefix", "other_beam"),
+    ("position", (15.0, 20.0, 25.0)),
+    ("rotation", (0.1, 0.2, 0.3)),
+    ("unwrap", True),
+])
+def test_composition_variants_preserve_previous_file(
+        sbn_detector_module, offline_sbn_cache, monkeypatch, field, value):
+    import siren.download as download
+
+    monkeypatch.setattr(download, "download_file", _forbid_download)
+    loader = sbn_detector_module.sbn_loader
+    sources = sbn_detector_module._beamline_sources()
+    first = Path(loader.build_composite(str(offline_sbn_cache), sources))
+    contents = first.read_bytes()
+    changed = [dict(source) for source in sources]
+    changed[0][field] = value
+    second = Path(loader.build_composite(str(offline_sbn_cache), changed))
+
+    assert first != second
+    assert first.read_bytes() == contents
+    assert second.read_bytes() != contents
+    assert Path(loader.build_composite(str(offline_sbn_cache), sources)) == first
+
+
+def test_composition_identity_includes_site_geometry(
+        sbn_detector_module, offline_sbn_cache, monkeypatch):
+    loader = sbn_detector_module.sbn_loader
+    first = Path(loader.build_composite(str(offline_sbn_cache), []))
+    contents = first.read_bytes()
+    monkeypatch.setattr(loader, "_TILL_THICKNESS", loader._TILL_THICKNESS + 1)
+    second = Path(loader.build_composite(str(offline_sbn_cache), []))
+    assert second != first
+    assert first.read_bytes() == contents
+    assert second.read_bytes() != contents
 
 
 def test_public_load_detector_with_preseeded_gdml_offline(
