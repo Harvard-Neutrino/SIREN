@@ -2,6 +2,7 @@
 #ifndef SIREN_FixedTargetPositionDistribution_H
 #define SIREN_FixedTargetPositionDistribution_H
 
+#include <set>
 #include <tuple>
 #include <memory>
 #include <string>

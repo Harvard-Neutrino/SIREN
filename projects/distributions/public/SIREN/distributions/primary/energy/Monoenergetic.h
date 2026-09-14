@@ -35,6 +35,7 @@ public:
     double pdf(double energy) const;
     virtual double SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
+    virtual std::vector<std::string> DensityVariables() const override;
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
