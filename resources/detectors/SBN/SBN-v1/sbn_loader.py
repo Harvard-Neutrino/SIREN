@@ -414,7 +414,8 @@ def build_composite(
     Returns the path to the written stub GDML. Its filename adds a digest of
     the generated contents to cache_name, so different compositions cannot
     replace one another between generation and loading. Identical contents
-    share a path and are published atomically.
+    share a path and are published atomically. Older compositions are retained
+    because other readers may still use them.
     """
     from siren.download import atomic_output_path
 

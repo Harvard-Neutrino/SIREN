@@ -11,7 +11,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
-from threading import Barrier
+from threading import Barrier, Event
 
 import numpy as np
 import pytest
@@ -240,7 +240,8 @@ def test_concurrent_compositions_load_requested_geometry(
         # Force both callers past the missing-file check on a cold cache.
         assert not (offline_sbn_cache / "gdml/miniboone_tank.gdml").exists()
         atomic_output = download.atomic_output_path
-        tank_writers = Barrier(2)
+        tank_writers_met = Event()
+        tank_writers = Barrier(2, action=tank_writers_met.set)
 
         @contextmanager
         def simultaneous_tank_writes(path):
@@ -255,6 +256,9 @@ def test_concurrent_compositions_load_requested_geometry(
         pending = [pool.submit(sbn_detector_module.load_detector, detector_name,
                                lbnf=flag) for flag in lbnf_flags]
         models = [future.result(timeout=30) for future in pending]
+
+    if detector_name == "MiniBooNE":
+        assert tank_writers_met.is_set(), "Cold-cache tank writers did not synchronize"
 
     for lbnf, model in zip(lbnf_flags, models):
         assert any("lbnf_fixture_world" in s.name for s in model.Sectors) == lbnf
