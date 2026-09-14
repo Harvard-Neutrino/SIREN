@@ -206,3 +206,202 @@ def test_zero_density_is_not_accepted_at_zero_uniform_draw():
     physics._matel_sq = lambda *args: 0
     with pytest.raises(RuntimeError, match='exhausted 10000'):
         tb.sample_energies(physics, 1, ZeroRandom())
+
+
+class UnusedRandom:
+    def Uniform(self, low, high):
+        pytest.fail('invalid inputs must be rejected before drawing randomness')
+
+
+@pytest.mark.parametrize('masses', [
+    (0, 0.2, 0.15), (-1, 0.2, 0.15),
+    (1, -0.2, 0.15), (1, 0.2, -0.15),
+    (1, 0.5, 0.5), (1, 0.7, 0.5), (1, 0, 0),
+    (math.nan, 0.2, 0.15), (1, math.nan, 0.15), (1, 0.2, math.nan),
+    (math.inf, 0.2, 0.15), (1, math.inf, 0.15), (1, 0.2, math.inf),
+    (-math.inf, 0.2, 0.15),
+])
+@pytest.mark.parametrize('operation', [
+    lambda d: tb.dalitz_band(d.m_M, d.m_l, d.m_phi, 0.2),
+    lambda d: tb.dalitz_width(d),
+    lambda d: tb.find_max_weight(d),
+    lambda d: tb.sample_energies(d, 1, UnusedRandom()),
+    lambda d: tb.build_rest_momenta(d, 0.2, 0.3, UnusedRandom()),
+    lambda d: tb.final_state_probability(d, 0, 14, 22, None),
+], ids=['band', 'width', 'envelope', 'energies', 'momenta', 'density'])
+def test_unsupported_masses_fail_consistently(masses, operation):
+    physics = FlatDecay()
+    physics.m_M, physics.m_l, physics.m_phi = masses
+    with pytest.raises(ValueError, match='masses'):
+        operation(physics)
+
+
+@pytest.mark.parametrize('energy', [math.nan, math.inf, -math.inf])
+def test_band_rejects_nonfinite_energy(energy):
+    with pytest.raises(ValueError, match='finite'):
+        tb.dalitz_band(1, 0.2, 0.15, energy)
+
+
+@pytest.mark.parametrize('energy', [-0.01, 0.5])
+def test_band_returns_no_support_for_finite_outside_energy(energy):
+    assert tb.dalitz_band(1, 0.2, 0.15, energy) == (None, None)
+
+
+@pytest.mark.parametrize('energies', [
+    (0.2, 0.7), (0.2, 0.1), (-0.1, 0.3), (0.5, 0.3),
+    (math.nan, 0.3), (math.inf, 0.3), (-math.inf, 0.3),
+    (0.2, math.nan), (0.2, math.inf), (0.2, -math.inf),
+])
+def test_momenta_reject_invalid_energies_before_sampling(energies):
+    with pytest.raises(ValueError, match='energ'):
+        tb.build_rest_momenta(FlatDecay(), *energies, UnusedRandom())
+
+
+def _decimal_band(masses, fraction):
+    """Resolve boundary energies independently at higher precision."""
+    from decimal import Decimal, localcontext
+    with localcontext() as ctx:
+        ctx.prec = 80
+        M, a, b = map(Decimal.from_float, masses)
+        energy = Decimal.from_float(fraction) * (M*M - (a+b)**2) / (2*M)
+        energy = float(energy)
+    return energy, *_decimal_band_at_energy(masses, energy)
+
+
+def _decimal_band_at_energy(masses, energy):
+    """Evaluate at the exact supplied float, not its unrounded precursor."""
+    from decimal import Decimal, localcontext
+    with localcontext() as ctx:
+        ctx.prec = 80
+        M, a, b = map(Decimal.from_float, masses)
+        limit = (M*M - (a+b)**2) / (2*M)
+        energy = min(Decimal.from_float(energy), limit)
+        s = M*M - 2*M*energy
+        center = (M-energy) * (s+b*b-a*a) / (2*s)
+        half_band = energy * max(Decimal(0), (s-(a+b)**2)*(s-(a-b)**2)).sqrt() / (2*s)
+        return float(center-half_band), float(center+half_band)
+
+
+@pytest.mark.parametrize('masses', [
+    (1., 0.2, 0.15), (1., 0.2, 0.), (1., 0., 0.15),
+    (0.13957039, 0.10565837, 0.017), (0.49368, 0.000511, 0.020),
+    (1., 0.4, 0.6-1e-10), (1e-6, 2e-7, 1.5e-7), (1e6, 2e5, 1.5e5),
+])
+@pytest.mark.parametrize('fraction', [0., 1e-12, 0.4, 1-1e-12, 1.])
+def test_physical_boundaries_preserve_mass_shells(masses, fraction):
+    physics = FlatDecay()
+    physics.m_M, physics.m_l, physics.m_phi = masses
+    e_nu, low, high = _decimal_band(masses, fraction)
+    band = tb.dalitz_band(*masses, e_nu)
+    assert band[0] is not None
+    # Away from the precision fallback, small invariant-mass roundoff is
+    # amplified in a nearly collapsed band. Also check its mass shells.
+    if fraction in (0., 0.4, 1.):
+        np.testing.assert_allclose(band, [low, high], rtol=0, atol=2e-14*masses[0])
+    for e_phi in (low, (low+high)/2, high, *band):
+        rest = np.array(tb.build_rest_momenta(
+            physics, e_nu, e_phi, siren.utilities.SIREN_random(219))) / masses[0]
+        np.testing.assert_allclose(rest.sum(axis=0), [1, 0, 0, 0], rtol=0, atol=3e-15)
+        np.testing.assert_allclose(
+            rest[:, 0]**2 - np.sum(rest[:, 1:]**2, axis=1),
+            [0, (masses[1]/masses[0])**2, (masses[2]/masses[0])**2],
+            rtol=0, atol=3e-14)
+        assert np.all(rest[:, 0] >= 0)
+
+
+@pytest.mark.parametrize('fraction', [0., 0.4, 1.])
+@pytest.mark.parametrize('direction', [-math.inf, math.inf])
+def test_boundary_roundoff_is_tolerated_but_material_violations_raise(fraction, direction):
+    physics = FlatDecay()
+    energy, low, high = _decimal_band((physics.m_M, physics.m_l, physics.m_phi), fraction)
+    for e_phi in [low, high]:
+        rest = np.array(tb.build_rest_momenta(
+            physics, np.nextafter(energy, direction), np.nextafter(e_phi, direction),
+            siren.utilities.SIREN_random(32)))
+        np.testing.assert_allclose(rest.sum(axis=0), [1, 0, 0, 0], atol=1e-15)
+        np.testing.assert_allclose(rest[:, 0]**2-np.sum(rest[:, 1:]**2, axis=1),
+                                   [0, 0.04, 0.0225], rtol=0, atol=3e-14)
+    # At a collapsed endpoint the mass-shell violation is quadratic in
+    # this displacement; choose a violation well above floating roundoff.
+    outside = low - 1e-5 if direction < 0 else high + 1e-5
+    with pytest.raises(ValueError, match='energ'):
+        tb.build_rest_momenta(physics, energy, outside, UnusedRandom())
+
+
+def test_original_endpoint_support_witness():
+    energy = 0.49999999999999484
+    expected = _decimal_band_at_energy((1., 1e-7, 0.), energy)
+    actual = tb.dalitz_band(1., 1e-7, 0., energy)
+    np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-17)
+    assert actual[1] > 0.015
+
+
+@pytest.mark.parametrize('masses', [
+    (1., 1e-7, 0.), (1., 0., 1e-7), (1., 1e-7, 2e-7), (1., .2, .15),
+])
+def test_adjacent_interior_energies_keep_resolved_band_width(masses):
+    energy, _, _ = _decimal_band(masses, 1.)
+    for _ in range(33):
+        low, high = _decimal_band_at_energy(masses, energy)
+        actual = tb.dalitz_band(*masses, energy)
+        np.testing.assert_allclose(actual, [low, high], rtol=0,
+                                   atol=4*math.ulp(masses[0]))
+        if high-low > 4*math.ulp(masses[0]):
+            assert actual[1] > actual[0]
+        energy = math.nextafter(energy, 0.)
+
+
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.asarray])
+@pytest.mark.parametrize('masses', [(1., .2, .15), (1., .4, .59999)])
+def test_numpy_masses_use_the_same_precision_as_python_floats(dtype, masses):
+    physics, promoted = FlatDecay(), FlatDecay()
+    values = tuple(dtype(m) for m in masses)
+    physics.m_M, physics.m_l, physics.m_phi = values
+    exact = tuple(float(m) for m in values)
+    promoted.m_M, promoted.m_l, promoted.m_phi = exact
+    for fraction in (0., .4, 1.):
+        energy, low, high = _decimal_band(exact, fraction)
+        assert tb.dalitz_band(*values, energy) == tb.dalitz_band(*exact, energy)
+        for e_phi in (low, (low+high)/2, high):
+            actual = np.array(tb.build_rest_momenta(
+                physics, energy, e_phi, siren.utilities.SIREN_random(219)))
+            expected = np.array(tb.build_rest_momenta(
+                promoted, energy, e_phi, siren.utilities.SIREN_random(219)))
+            np.testing.assert_array_equal(actual, expected)
+            np.testing.assert_allclose(actual[:, 0]**2-np.sum(actual[:, 1:]**2, axis=1),
+                                       [0, exact[1]**2, exact[2]**2], rtol=0, atol=3e-14)
+
+
+@pytest.mark.parametrize('dtype', [np.float32, np.float64, np.asarray])
+def test_numpy_energy_scalars_are_promoted_before_arithmetic(dtype):
+    energies = dtype(.2), dtype(.4)
+    actual = tb.build_rest_momenta(FlatDecay(), *energies, siren.utilities.SIREN_random(219))
+    expected = tb.build_rest_momenta(FlatDecay(), *map(float, energies),
+                                     siren.utilities.SIREN_random(219))
+    np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize('energy', [.4015659375, .43875*.914, .43875*.915])
+def test_returned_band_edges_preserve_shells_at_phi_turning_point(energy):
+    physics = FlatDecay()
+    expected = _decimal_band_at_energy((1., .2, .15), energy)
+    band = tb.dalitz_band(1., .2, .15, energy)
+    np.testing.assert_allclose(band, expected, rtol=0, atol=2e-16)
+    for e_phi in band:
+        p = np.array(tb.build_rest_momenta(
+            physics, energy, e_phi, siren.utilities.SIREN_random(219)))
+        np.testing.assert_allclose(p[:, 0]**2-np.sum(p[:, 1:]**2, axis=1),
+                                   [0, .04, .0225], rtol=0, atol=3e-14)
+
+
+def test_turning_point_repair_does_not_relax_the_invariant_bound():
+    # This was the old band helper's output. Its shell error exceeds the
+    # tolerance, so accepting it unchanged would conceal the band defect.
+    with pytest.raises(ValueError, match='energ'):
+        tb.build_rest_momenta(FlatDecay(), .4015659375, .15000013605343188,
+                              UnusedRandom())
+    energy = .4*FlatDecay.E_nu_max
+    low, high = _decimal_band_at_energy((1., .2, .15), energy)
+    for outside in (low-1e-12, high+1e-12):
+        with pytest.raises(ValueError, match='energ'):
+            tb.build_rest_momenta(FlatDecay(), energy, outside, UnusedRandom())

@@ -12,6 +12,9 @@ or `(None, None)` outside support. The matrix element is the spin-summed/average
 squared amplitude in the model's convention. It must be nonnegative and
 independent of orientation. The supported masses satisfy
 `m_M > m_l + m_phi > 0`, with both daughter masses nonnegative.
+The Dalitz and physics-object functions reject nonfinite masses and masses
+outside that domain with `ValueError`, including a closed channel or two
+massless `l, phi` daughters. Either one of those daughters may be massless.
 
 | Function | Purpose |
 | --- | --- |
@@ -54,6 +57,24 @@ proof that this weight is bounded; a model with narrow structure should supply
 its own envelope. Invalid bounds raise `ValueError`. Invalid acceptance weights,
 observed envelope overruns, and exhaustion of 10,000 proposals raise `RuntimeError`.
 No substitute event is returned on rejection exhaustion.
+
+`dalitz_band` rejects nonfinite energy with `ValueError` and returns
+`(None, None)` for finite energy outside support. `build_rest_momenta` rejects
+nonfinite or materially unphysical energies before consuming random numbers.
+It checks the daughter energy bounds and the squared momentum-triangle
+relation, including zero-momentum endpoints, before constructing an orientation.
+
+Boundary checks allow `64 * ulp(m_M)` in energy and `m_M` times that tolerance
+in the squared relation; only roundoff-sized violations are clamped. Near a
+collapsed band, energy-coordinate errors can be amplified, so the squared
+relation controls the allowed mass-shell error. The band calculation treats
+each representable interior energy separately, including energies adjacent to
+the neutrino endpoint. Near threshold, or when a rounded band edge violates
+the momentum triangle, it resolves the band in higher precision and rounds
+resolved edges inward. It does not enlarge the mass-shell tolerance.
+These tolerances scale with the parent mass; they introduce no fixed GeV floor.
+Mass and energy scalars are converted to Python floats before kinematic
+arithmetic, so NumPy scalar inputs use the same precision as these tolerances.
 
 These utilities do not provide a general three-massive-body sampler or a spin
 density. BeamDecays' muon model adds its polarization-dependent orientation and
