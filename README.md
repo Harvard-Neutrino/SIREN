@@ -85,6 +85,9 @@ Weighting corrects for the difference between those sampling distributions and
 the physical flux and interaction probabilities. A generated sample can then
 be reweighted for different physical models without regenerating events.
 
+For beam-parent injection, see [beam tables](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/beam_tables.md) for dk2nu
+mass resolution, coordinate transforms, source metadata, and importance weights.
+
 ## Installation
 
 For optional BSM support via DarkNews:

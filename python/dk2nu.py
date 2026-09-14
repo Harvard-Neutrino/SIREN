@@ -33,10 +33,14 @@ called; the rest of the module has no optional dependencies.
 """
 
 import math
+from collections.abc import Mapping
+from numbers import Integral
 
 import numpy as np
 
 from . import distributions as _distributions
+from . import particles
+from .dataclasses import ParticleType
 from .detector import GeometryPosition, GeometryDirection
 from .errors import ConfigurationError
 from .math import Vector3D
@@ -355,7 +359,7 @@ def read_dk2nu(
     -------
     dict with keys:
         ptype      : int array, parent PDG code
-        E          : float array, parent energy [GeV]
+        E          : float array, parent energy at production [GeV]
         px, py, pz : float arrays, parent momentum components [GeV]
         vx, vy, vz : float arrays, decay vertex [cm]
         nimpwt     : float array, importance weight
@@ -565,12 +569,123 @@ def dk2nu_to_tabulated_flux(
     )
 
 
+# Retain the beam simulation masses used by existing dk2nu conversions.
+_PARENT_MASSES = {
+    111: 0.1349768,
+    211: 0.13957039, -211: 0.13957039,
+    321: 0.49368,    -321: 0.49368,
+    130: 0.49761,
+    13: 0.10566,     -13: 0.10566,
+}
+
+
+def _parent_masses(ptype, masses):
+    """Resolve selected PDGs without changing conventional beam masses."""
+    known = dict(_PARENT_MASSES)
+    if masses is not None:
+        if not isinstance(masses, Mapping):
+            raise ConfigurationError("masses must map integer PDG codes to masses in GeV")
+        for pdg, value in masses.items():
+            if isinstance(pdg, bool) or not isinstance(pdg, Integral):
+                raise ConfigurationError("masses keys must be integer PDG codes")
+            try:
+                value = float(value)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ConfigurationError(f"Invalid mass for PDG {pdg}") from exc
+            if not math.isfinite(value) or value < 0:
+                raise ConfigurationError(f"Mass for PDG {pdg} must be finite and non-negative")
+            known[int(pdg)] = value
+    result = np.empty(len(ptype), dtype=float)
+    for value in np.unique(ptype):
+        if not np.isfinite(value) or value != int(value):
+            raise ConfigurationError(f"Parent PDG must be a finite integer, got {value!r}")
+        pdg = int(value)
+        if pdg not in known:
+            try:
+                known[pdg] = particles.mass(ParticleType(pdg))
+            except (ValueError, TypeError, OverflowError, ConfigurationError) as exc:
+                raise ConfigurationError(
+                    f"No mass for parent PDG {pdg}; supply masses={{PDG: mass_in_GeV}} "
+                    "or register it with particles.define().") from exc
+        result[ptype == value] = known[pdg]
+    return result
+
+
+def _parent_mask(data, parent_pdg):
+    """Apply the same species and importance-weight selection to both exports."""
+    ptype = np.asarray(data["ptype"])
+    mask = (np.ones(len(ptype), dtype=bool) if parent_pdg is None
+            else np.isin(ptype, parent_pdg))
+    weights = np.asarray(data["nimpwt"])
+    bad = ~np.isfinite(weights) | (weights < 0)
+    if np.any(bad & mask):
+        print("  dropping %d row(s) with negative or non-finite nimpwt "
+              "(importance-reweighting bookkeeping artifacts)"
+              % int(np.sum(bad & mask)))
+        mask &= ~bad
+    return mask
+
+
+def _extra_columns(columns, mask):
+    """Validate metadata before the native table converts it to doubles."""
+    if columns is None:
+        return {}
+    if not isinstance(columns, Mapping):
+        raise ConfigurationError("extra_columns must map column names to full-length arrays")
+    reserved = {"E", "px", "py", "pz", "x", "y", "z", "x0", "y0", "z0",
+                "m", "weight", "nimpwt", "t0", "pol_x", "pol_y", "pol_z"}
+    result = {}
+    for name, values in columns.items():
+        if (not isinstance(name, str) or not name or name.strip() != name
+                or any(c in name for c in ",\r\n") or name in reserved
+                or name.startswith("PrimaryExternalDistribution_")):
+            raise ConfigurationError(f"Invalid or reserved extra column name {name!r}")
+        supplied = values
+        values = np.asarray(values)
+        if values.shape != mask.shape or values.dtype.kind not in "biuf":
+            raise ConfigurationError(f"extra_columns[{name!r}] must be a real numeric array "
+                                     f"of shape {mask.shape}")
+        if (np.ma.isMaskedArray(supplied)
+                and np.any(np.ma.getmaskarray(supplied)[mask])):
+            raise ConfigurationError(f"extra_columns[{name!r}] contains masked values "
+                                     "in selected rows")
+        values = values[mask]
+        # Check integer arrays regardless of the original container. Compare
+        # bounds directly so abs(int64_min) cannot overflow.
+        invalid_integer = values.dtype.kind in "iu" and (
+            np.any(values > 2**53)
+            or (values.dtype.kind == "i" and np.any(values < -(2**53))))
+        # A sequence mixing signed/unsigned integers or integers/floats can
+        # become float64 in np.asarray before its integer IDs are checked.
+        # Inspect the supplied elements without that lossy promotion, including
+        # zero-dimensional arrays used as scalar elements.
+        if not isinstance(supplied, np.ndarray):
+            originals = np.asarray(supplied, dtype=object)[mask]
+            for value in originals:
+                if isinstance(value, np.ndarray) and value.ndim == 0:
+                    value = value.item()
+                if isinstance(value, Integral) and abs(int(value)) > 2**53:
+                    invalid_integer = True
+                    break
+        if invalid_integer:
+            raise ConfigurationError(f"Integer extra column {name!r} exceeds the exact "
+                                     "double-precision ID range [-2**53, 2**53]")
+        values = values.astype(float)
+        if not np.all(np.isfinite(values)):
+            raise ConfigurationError(f"extra_columns[{name!r}] must contain finite values")
+        result[name] = values
+    return result
+
+
 def dk2nu_to_primary_distribution(
     dk2nu_data,
     detector_model,
     parent_pdg=None,
     sampling_bias=None,
     frame=None,
+    *,
+    masses=None,
+    extra_columns=None,
 ):
     """
     Build a PrimaryExternalDistribution directly from dk2nu data.
@@ -600,7 +715,9 @@ def dk2nu_to_primary_distribution(
     Parameters
     ----------
     dk2nu_data : dict
-        Output of read_dk2nu().
+        Output of read_dk2nu(), or equivalent plain, unmasked NumPy arrays.
+        Masked raw kinematics and weights are unsupported; only extra_columns
+        receives explicit selected-row mask validation.
     detector_model : siren.detector.DetectorModel
         Detector model (provides the geometry-to-detector transform).
         May be None when ``frame`` targets detector coordinates directly.
@@ -621,7 +738,9 @@ def dk2nu_to_primary_distribution(
         the physical row density stays proportional to nimpwt, so event
         weights remain correct even when one instance is shared between
         the injection and physical sides.  When None (default), rows are
-        selected uniformly.
+        selected uniformly. Biases must be finite and non-negative and
+        retain positive support for every row with positive physical weight.
+        Callable E is the stored production energy for compatibility.
     frame : optional
         Coordinate system of the dk2nu file.  None or "geometry": the
         file frame is the detector model's geometry frame.  "detector":
@@ -632,6 +751,17 @@ def dk2nu_to_primary_distribution(
         (a FrameTransform may instead target the detector frame).  For
         transforms that are not rigid, transform the arrays in
         ``dk2nu_data`` before calling.
+
+    masses : mapping of int to float, optional
+        PDG-to-mass overrides in GeV. Otherwise use the conventional beam
+        masses, then particles.mass (including particles.define registrations).
+        Unknown masses raise ConfigurationError.
+    extra_columns : mapping of str to array-like, optional
+        Numeric metadata aligned with the full input rows, filtered alongside
+        them and copied by name into interaction_parameters. Reserved native
+        columns cannot be overridden. Integer IDs must lie within [-2**53, 2**53].
+        Inclusion probabilities are metadata only: nimpwt must already include
+        any source-subsampling correction. No additional weight is applied.
 
     Returns
     -------
@@ -645,37 +775,19 @@ def dk2nu_to_primary_distribution(
             "targets 'detector' if the file coordinates are already "
             "detector-local.")
 
-    ptype = dk2nu_data["ptype"]
-    if parent_pdg is not None:
-        if not hasattr(parent_pdg, "__iter__"):
-            parent_pdg = [parent_pdg]
-        mask = np.isin(ptype, parent_pdg)
-    else:
-        mask = np.ones(len(ptype), dtype=bool)
+    ptype = np.asarray(dk2nu_data["ptype"])
+    mask = _parent_mask(dk2nu_data, parent_pdg)
 
     simulated_pot = dk2nu_data["pot"]
     # Per-POT weights are meaningless without a positive POT. read_dk2nu leaves
     # pot at 0.0 when a file has no dkmetaTree/pots branch; dividing by it would
     # emit inf/nan weights silently. Fail loud at the point the weights are
     # formed rather than propagate a corrupt distribution.
-    if not (simulated_pot > 0):
+    if not (math.isfinite(simulated_pot) and simulated_pot > 0):
         raise ConfigurationError(
             "dk2nu_data['pot'] is %r; a positive simulated POT is required to "
             "compute per-POT weights. The input file(s) carried no POT metadata "
             "(no dkmetaTree/pots branch)." % (simulated_pot,))
-
-    # G4BNB EXP importance reweighting occasionally emits rows with a
-    # negative nimpwt (a bookkeeping artifact of the reweighting, not a
-    # physical parent count). The engine rejects negative physical row
-    # weights loudly, so drop such rows here with a notice; their weight
-    # total is negligible by construction.
-    all_nimpwt = dk2nu_data["nimpwt"]
-    bad = ~np.isfinite(all_nimpwt) | (all_nimpwt < 0)
-    if np.any(bad & mask):
-        print("  dropping %d row(s) with negative or non-finite nimpwt "
-              "(importance-reweighting bookkeeping artifacts)"
-              % int(np.sum(bad & mask)))
-        mask = mask & ~bad
 
     E = dk2nu_data["E"][mask]
     px = dk2nu_data["px"][mask]
@@ -684,7 +796,8 @@ def dk2nu_to_primary_distribution(
     vx = dk2nu_data["vx"][mask]
     vy = dk2nu_data["vy"][mask]
     vz = dk2nu_data["vz"][mask]
-    nimpwt = dk2nu_data["nimpwt"][mask]
+    # Normalize in binary64 even when the beam input stores float32 weights.
+    nimpwt = np.asarray(dk2nu_data["nimpwt"], dtype=float)[mask]
     pt = ptype[mask]
     t0 = dk2nu_data["t0"][mask] if "t0" in dk2nu_data else None
 
@@ -701,12 +814,8 @@ def dk2nu_to_primary_distribution(
 
     weight = nimpwt / simulated_pot
 
-    mass_map = {
-        211: 0.13957039, -211: 0.13957039,
-        321: 0.49368,    -321: 0.49368,
-        130: 0.49761,
-        13: 0.10566,     -13: 0.10566,
-    }
+    row_masses = _parent_masses(pt, masses)
+    metadata = _extra_columns(extra_columns, mask)
 
     # Map the file's coordinates into the frame the transform targets:
     # positions (after cm -> m) pick up the rotation and translation,
@@ -728,6 +837,7 @@ def dk2nu_to_primary_distribution(
         keys.append("t0")
     if pol is not None:
         keys += ["pol_x", "pol_y", "pol_z"]
+    keys += list(metadata)
     data = []
     for i in range(len(E)):
         # Convert position from geometry to detector coordinates, unless
@@ -757,7 +867,7 @@ def dk2nu_to_primary_distribution(
             py_det = det_dir.GetY() * p_mag
             pz_det = det_dir.GetZ() * p_mag
 
-        m = mass_map.get(int(pt[i]), 0.13957)
+        m = row_masses[i]
         # dk2nu stores momentum at decay (pdpx/pdpy/pdpz) but energy
         # at production (ppenergy). Compute on-shell energy from the
         # decay-point momentum and known mass.
@@ -782,6 +892,7 @@ def dk2nu_to_primary_distribution(
                 det_ax = detector_model.GeoDirectionToDetDirection(geo_ax).get()
                 row += [det_ax.GetX() * norm, det_ax.GetY() * norm,
                         det_ax.GetZ() * norm]
+        row += [float(values[i]) for values in metadata.values()]
         data.append(row)
 
     if sampling_bias is not None:
@@ -797,14 +908,21 @@ def dk2nu_to_primary_distribution(
                 sw = np.broadcast_to(sw, E.shape).astype(float).copy()
         else:
             sw = np.asarray(sampling_bias, dtype=float)
-            if len(sw) != len(dk2nu_data["E"]):
+            if sw.shape != np.shape(dk2nu_data["E"]):
                 raise ConfigurationError(
                     "array-like sampling_bias must align with the arrays in "
-                    "dk2nu_data (%d entries), got %d"
-                    % (len(dk2nu_data["E"]), len(sw)))
+                    "dk2nu_data (shape %r), got %r"
+                    % (np.shape(dk2nu_data["E"]), sw.shape))
             sw = sw[mask]
         sw = np.array(sw, dtype=float)
-        np.maximum(sw, 0.0, out=sw)
+        if not np.all(np.isfinite(sw)) or np.any(sw < 0):
+            raise ConfigurationError("sampling_bias must be finite and non-negative")
+        with np.errstate(over="ignore"):
+            total_bias = float(np.sum(sw))
+        if not math.isfinite(total_bias) or total_bias <= 0:
+            raise ConfigurationError("sampling_bias must have a finite positive sum")
+        if np.any((weight > 0) & (sw == 0)):
+            raise ConfigurationError("sampling_bias has missing physical support")
         return _distributions.PrimaryExternalDistribution(
             keys, data, sw.tolist()
         )
@@ -818,51 +936,71 @@ def dk2nu_to_csv(
     parent_pdg=None,
     position_transform=None,
     units_cm=True,
+    *,
+    masses=None,
+    extra_columns=None,
 ):
     """
     Write dk2nu parent meson kinematics to a CSV file suitable for
     SIREN's PrimaryExternalDistribution.
 
-    The CSV has columns: E, px, py, pz, x0, y0, z0, m, nimpwt
+    Energies use the decay-point momentum and resolved mass. Columns include
+    E, px, py, pz, x, y, z, m, nimpwt, and weight=nimpwt/POT, plus available
+    time, polarization, and explicit metadata. Use units_cm=False when loading
+    the file directly into PrimaryExternalDistribution, which expects metres.
 
     Parameters
     ----------
     dk2nu_data : dict
-        Output of read_dk2nu().
-    output_path : str
-        Path to write the CSV file.
+        Output of read_dk2nu(), or equivalent plain, unmasked NumPy arrays.
+        Masked raw kinematics and weights are unsupported; only extra_columns
+        receives explicit selected-row mask validation.
+    output_path : str or os.PathLike
+        Filesystem path to write plain UTF-8 CSV with LF newlines, regardless
+        of the filename suffix. File-like objects are unsupported.
     parent_pdg : int or list of int, optional
         Filter to specific parent PDG code(s).  Default: use all entries
         in dk2nu_data (which may already be filtered).
     position_transform : callable, optional
-        Function that takes (vx, vy, vz) arrays in dk2nu coordinates
-        and returns (x0, y0, z0) arrays in detector coordinates.
+        Function that maps (vx, vy, vz) position arrays, in centimeters.
+        It does not rotate momenta or polarization; transform those input
+        arrays as well when changing the spatial basis.
         dk2nu positions are in cm.  If None, positions are used as-is.
     units_cm : bool
         If True (default), positions in the CSV are in cm.
         If False, positions are converted to meters.
+
+    masses : mapping of int to float, optional
+        PDG-to-mass overrides in GeV. Otherwise use the conventional beam
+        masses, then particles.mass (including particles.define registrations).
+        Unknown masses raise ConfigurationError.
+    extra_columns : mapping of str to array-like, optional
+        Numeric metadata aligned with the full input rows, filtered alongside
+        them and copied by name into interaction_parameters. Reserved native
+        columns cannot be overridden. Integer IDs must lie within [-2**53, 2**53].
+        Inclusion probabilities are metadata only: nimpwt must already include
+        any source-subsampling correction. No additional weight is applied.
 
     Returns
     -------
     int
         Number of rows written.
     """
-    ptype = dk2nu_data["ptype"]
-    if parent_pdg is not None:
-        if not hasattr(parent_pdg, "__iter__"):
-            parent_pdg = [parent_pdg]
-        mask = np.isin(ptype, parent_pdg)
-    else:
-        mask = np.ones(len(ptype), dtype=bool)
+    ptype = np.asarray(dk2nu_data["ptype"])
+    mask = _parent_mask(dk2nu_data, parent_pdg)
+    simulated_pot = dk2nu_data["pot"]
+    if not (math.isfinite(simulated_pot) and simulated_pot > 0):
+        raise ConfigurationError("A finite positive simulated POT is required for CSV weights")
 
-    E = dk2nu_data["E"][mask]
-    px = dk2nu_data["px"][mask]
-    py = dk2nu_data["py"][mask]
-    pz = dk2nu_data["pz"][mask]
+    px = np.asarray(dk2nu_data["px"], dtype=float)[mask]
+    py = np.asarray(dk2nu_data["py"], dtype=float)[mask]
+    pz = np.asarray(dk2nu_data["pz"], dtype=float)[mask]
     vx = dk2nu_data["vx"][mask]
     vy = dk2nu_data["vy"][mask]
     vz = dk2nu_data["vz"][mask]
-    nimpwt = dk2nu_data["nimpwt"][mask]
+    # Promote before POT division so small positive weights do not underflow
+    # in the input array's precision.
+    nimpwt = np.asarray(dk2nu_data["nimpwt"], dtype=float)[mask]
     pt = ptype[mask]
 
     if position_transform is not None:
@@ -870,22 +1008,26 @@ def dk2nu_to_csv(
 
     scale = 1.0 if units_cm else 0.01
 
-    mass_map = {
-        211: 0.13957039, -211: 0.13957039,
-        321: 0.49368,    -321: 0.49368,
-        130: 0.49761,
-        13: 0.10566,     -13: 0.10566,
-    }
-
-    with open(output_path, "w") as f:
-        f.write("E,px,py,pz,x,y,z,m,nimpwt\n")
-        for i in range(len(E)):
-            m = mass_map.get(int(pt[i]), 0.13957)
-            f.write(
-                f"{E[i]:.8e},{px[i]:.8e},{py[i]:.8e},{pz[i]:.8e},"
-                f"{vx[i]*scale:.8e},{vy[i]*scale:.8e},{vz[i]*scale:.8e},"
-                f"{m:.8e},{nimpwt[i]:.8e}\n"
-            )
+    row_masses = _parent_masses(pt, masses)
+    metadata = _extra_columns(extra_columns, mask)
+    # ppenergy describes production, while px/py/pz describe the decay point.
+    energy = np.sqrt(px**2 + py**2 + pz**2 + row_masses**2)
+    keys = ["E", "px", "py", "pz", "x", "y", "z", "m", "nimpwt", "weight"]
+    columns = [energy, px, py, pz, vx * scale, vy * scale, vz * scale,
+               row_masses, nimpwt, nimpwt / simulated_pot]
+    for name in ("t0", "pol_x", "pol_y", "pol_z"):
+        if name in dk2nu_data:
+            keys.append(name)
+            columns.append(dk2nu_data[name][mask])
+    keys += list(metadata)
+    columns += list(metadata.values())
+    # Round-trip all binary64 values, including large but exactly representable IDs.
+    # The native loader reads plain text. Passing a filename to savetxt would
+    # implicitly compress .gz/.bz2 paths and break the native round trip.
+    table = np.column_stack(columns)
+    with open(output_path, "w", encoding="utf-8", newline="\n") as output:
+        np.savetxt(output, table, delimiter=",",
+                   header=",".join(keys), comments="", fmt="%.17g")
 
     return int(np.sum(mask))
 
@@ -899,7 +1041,7 @@ def print_summary(dk2nu_data):
 
     print(f"Total entries: {n_total}")
     print(f"Total POT: {pot:.3e}")
-    print(f"Parent breakdown:")
+    print("Parent breakdown:")
     for pdg, count in sorted(zip(unique, counts), key=lambda x: -x[1]):
         name = _PARENT_NAMES.get(int(pdg), str(int(pdg)))
         frac = 100.0 * count / n_total if n_total > 0 else 0
