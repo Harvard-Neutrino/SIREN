@@ -268,6 +268,9 @@ class Simulation:
 
         # ---- Resolve interactions ----
         self._secondary_processes = {}
+        self._primary_decay_channels = (
+            primary_vertex.decay_channels if primary_vertex is not None else None)
+        self._secondary_decay_channels = {}
         if primary_vertex is not None:
             if interactions is not None:
                 raise TypeError(
@@ -658,6 +661,7 @@ class Simulation:
                 raise ConfigurationError(
                     f"two secondary vertices resolve to the same particle type {sec_type}")
             self._secondary_processes[sec_type] = list(vertex.interactions)
+            self._secondary_decay_channels[sec_type] = vertex.decay_channels
             self._secondary_physical_interactions[sec_type] = list(
                 vertex.physical_interactions if vertex.physical_interactions is not None
                 else vertex.interactions)
@@ -701,7 +705,9 @@ class Simulation:
         if phase_spaces is None:
             phase_spaces = self._secondary_phase_spaces
         compiled = _compile_phase_spaces(
-            biasing, models, detector=self._detector_model, primary_type=primary_type)
+            biasing, models, detector=self._detector_model, primary_type=primary_type,
+            decay_channels=(self._secondary_decay_channels.get(primary_type)
+                            if primary_type is not None else self._primary_decay_channels))
         self._register_phase_spaces(phase_spaces, compiled)
 
     @staticmethod
@@ -938,7 +944,9 @@ class Simulation:
         # Propagated(), so the engine configuration is unchanged.
         injector = _injection.Injector(
             primary_weighting_mode=self._weighting_mode,
-            secondary_weighting_modes=self._secondary_weighting_modes)
+            secondary_weighting_modes=self._secondary_weighting_modes,
+            primary_decay_channels=self._primary_decay_channels,
+            secondary_decay_channels=self._secondary_decay_channels)
         injector.number_of_events = self._events
         injector.detector_model = self._detector_model
         injector.primary_type = self._primary_type

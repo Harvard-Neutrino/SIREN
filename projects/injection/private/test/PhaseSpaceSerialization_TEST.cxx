@@ -36,6 +36,53 @@
 #include <utility>
 #include <vector>
 
+TEST(DecayChannelSerialization, ReadsOldAndCurrentCollectionBodies) {
+    using siren::dataclasses::ParticleType;
+    using siren::interactions::Decay;
+    using siren::interactions::CharmMesonDecay;
+    using siren::interactions::InteractionCollection;
+    auto decay = std::make_shared<CharmMesonDecay>(ParticleType::D0);
+    auto signature = decay->GetPossibleSignaturesFromParent(ParticleType::D0).front();
+    InteractionCollection original(ParticleType::D0, std::vector<std::shared_ptr<Decay>>{decay});
+    original.SetDecayChannels(std::vector<siren::dataclasses::InteractionSignature>{signature});
+    for(std::uint32_t version : {0u, 1u}) {
+        std::stringstream stream;
+        int sentinel = 714;
+        {
+            cereal::BinaryOutputArchive archive(stream);
+            original.save(archive, version);
+            archive(sentinel);
+        }
+        // Loading v0 must clear any selection already on the destination.
+        auto loaded = original;
+        {
+            cereal::BinaryInputArchive archive(stream);
+            loaded.load(archive, version);
+            sentinel = 0;
+            archive(sentinel);
+        }
+        EXPECT_EQ(sentinel, 714);
+        EXPECT_EQ(loaded.GetPrimaryType(), ParticleType::D0);
+        ASSERT_EQ(loaded.GetDecays().size(), 1u);
+        EXPECT_EQ(loaded.HasDecayChannels(), version == 1);
+        if(version == 1) EXPECT_EQ(loaded.GetDecayChannels(), original.GetDecayChannels());
+    }
+}
+
+TEST(DecayChannelSerialization, EqualityIncludesSelection) {
+    using siren::dataclasses::ParticleType;
+    using siren::interactions::Decay;
+    using siren::interactions::InteractionCollection;
+    auto decay = std::make_shared<siren::interactions::CharmMesonDecay>(ParticleType::D0);
+    InteractionCollection all(ParticleType::D0, std::vector<std::shared_ptr<Decay>>{decay});
+    auto selected = all;
+    auto signature = decay->GetPossibleSignaturesFromParent(ParticleType::D0).front();
+    selected.SetDecayChannels(std::vector<siren::dataclasses::InteractionSignature>{signature});
+    EXPECT_FALSE(all == selected);
+    selected.SetDecayChannels(std::nullopt);
+    EXPECT_TRUE(all == selected);
+}
+
 namespace {
 
 using siren::dataclasses::InteractionRecord;

@@ -496,7 +496,7 @@ def _process_config(process):
     """Compare full process declarations, including the sampled mixture weights."""
     models = process.interactions
     mode = process.GetWeightingMode()
-    return (process.primary_type,
+    return (process.primary_type, models.GetDecayChannels(),
             tuple(_model_config(m) for m in
                   list(models.GetCrossSections()) + list(models.GetDecays())),
             tuple(_distribution_config(d) for d in process.distributions),
