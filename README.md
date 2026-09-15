@@ -290,9 +290,9 @@ it does not silently continue after a failed Python installation.
 
 Local wheels still require their external native dependencies, such as CFITSIO
 and HepMC3. Before distributing a wheel, bundle those dependencies with
-`delocate-wheel` on macOS, `auditwheel repair` on Linux, or `delvewheel repair`
-on Windows. The cibuildwheel configuration performs that repair for release
-wheels. It replaces the former optional `PACKAGE_SHARED_DEPS` copy step, which
+`delocate-wheel` on macOS or `auditwheel repair` on Linux. The cibuildwheel
+configuration performs that repair for release wheels. It replaces the former
+optional `PACKAGE_SHARED_DEPS` copy step, which
 did not repair dependent-library references.
 
 Validate the installed wheel from a fresh environment outside the checkout,
@@ -331,8 +331,7 @@ An override that substitutes native photospline or another bundled dependency
 fails this diagnostic with a nonzero exit status; that failure is expected for
 a prefix containing competing libraries. This is not a required acceptance
 step. Clear that override before running the wheel.
-The release workflow covers Linux and macOS. The Windows repair
-configuration is experimental and has no Windows CI acceptance job.
+SIREN supports Linux and macOS. Windows is not supported.
 
 ### C++ library
 

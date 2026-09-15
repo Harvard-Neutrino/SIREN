@@ -40,15 +40,25 @@ def library_identity(path):
     return re.sub(r"(?<=\.so)(\.[0-9]+)(?:\.[0-9]+)*$", r"\1", name)
 
 
+def verified_library_paths(paths):
+    """Never interpret loader tokens or relative image names against cwd."""
+    paths = set(paths)
+    unverifiable = {path for path in paths if not path.is_absolute()}
+    assert not unverifiable, (
+        f"Cannot verify loaded library origins from non-absolute image names: {unverifiable}"
+    )
+    return {path.resolve() for path in paths}
+
+
 def verify_bundled_libraries(wheel, libraries):
     packaged = {library_identity(path) for path in wheel.files
                 if path.name.endswith((".dylib", ".dll")) or (
                     ".so" in path.name and ".cpython-" not in path.name
                     and ".abi3." not in path.name)}
     installed = {wheel.locate_file(path).resolve() for path in wheel.files}
-    libraries = {path.resolve() for path in libraries}
-    foreign = {path.resolve() for path in libraries
-               if library_identity(path) in packaged and path.resolve() not in installed}
+    libraries = verified_library_paths(
+        path for path in libraries if library_identity(path) in packaged)
+    foreign = libraries - installed
     if foreign:
         # Other wheels (e.g. SciPy on macOS) can load independent copies with
         # the same SONAME. Accept those only if SIREN's copy is also loaded.
@@ -103,7 +113,7 @@ def main():
     from siren._native import loaded_libraries
     libraries = loaded_libraries()
 
-    core = {path.resolve() for path in libraries if is_core_library(path)}
+    core = verified_library_paths(path for path in libraries if is_core_library(path))
     assert len(core) == 1, core
     installed_files = {wheel.locate_file(path).resolve() for path in wheel.files}
     assert core <= installed_files, f"Core library is not from this wheel: {core}"

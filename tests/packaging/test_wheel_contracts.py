@@ -1,6 +1,7 @@
 """Packaging regressions; run with CMake, pip, and scikit-build-core installed."""
 
 import importlib.util
+from importlib import metadata as importlib_metadata
 import os
 from pathlib import Path
 import shutil
@@ -11,6 +12,7 @@ from types import SimpleNamespace
 import zipfile
 
 import pytest
+from packaging.version import Version
 
 
 REPO = Path(__file__).resolve().parents[2]
@@ -80,6 +82,26 @@ def test_rejects_foreign_versioned_dependency(tmp_path, name):
         smoke.verify_bundled_libraries(wheel, [tmp_path / "native" / name])
 
 
+@pytest.mark.parametrize("name", ["@rpath/libSIREN_python.dylib", "libSIREN_python.dylib"])
+def test_nonabsolute_core_name_is_not_resolved_against_cwd(tmp_path, monkeypatch, name):
+    monkeypatch.chdir(tmp_path)
+    # A coincidentally named cwd file cannot establish loaded-image provenance.
+    path = Path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch()
+    with pytest.raises(AssertionError, match="non-absolute image names"):
+        smoke.verified_library_paths([path])
+
+
+def test_nonabsolute_bundled_name_is_not_ignored(tmp_path):
+    own = Path("siren.libs/libphotospline.2.dylib")
+    wheel = SimpleNamespace(files=[own], locate_file=lambda path: tmp_path / path)
+    with pytest.raises(AssertionError, match="non-absolute image names"):
+        smoke.verify_bundled_libraries(wheel, [tmp_path / own, Path("@rpath") / own.name])
+    # Unrelated images are outside the bundled-dependency provenance contract.
+    smoke.verify_bundled_libraries(wheel, [tmp_path / own, Path("@rpath/libunrelated.dylib")])
+
+
 def test_stripped_loader_override_fails(monkeypatch):
     monkeypatch.delenv("DYLD_LIBRARY_PATH", raising=False)
     with pytest.raises(AssertionError, match="did not reach"):
@@ -146,6 +168,20 @@ def test_required_packaging_prerequisites_cannot_skip(tmp_path, monkeypatch, mis
         test_wheel_tags_relocation_and_incremental_contents(tmp_path, "siren.libs")
 
 
+@pytest.mark.parametrize("required", [False, True])
+@pytest.mark.parametrize("version", ["0.9.10", "0.10.0rc1"])
+def test_old_backend_is_reported_before_building(tmp_path, monkeypatch, required, version):
+    monkeypatch.setenv("SIREN_TEST_REQUIRE_WHEEL_REPAIR", "1" if required else "0")
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: True)
+    monkeypatch.setattr(importlib_metadata, "version", lambda name: version)
+    monkeypatch.setattr(shutil, "which", lambda name: name)
+    exception = pytest.fail.Exception if required else pytest.skip.Exception
+    with pytest.raises(exception, match=f"scikit-build-core>=0.10 .*found {version}"):
+        test_wheel_tags_relocation_and_incremental_contents(tmp_path, "siren.libs")
+    assert not list(tmp_path.iterdir())
+
+
 @pytest.mark.parametrize("name", ["libSIREN.dylib", "libSIREN.so", "SIREN.dll"])
 def test_standalone_core_rejected_before_extensions(monkeypatch, name):
     monkeypatch.setattr(native, "loaded_libraries", lambda: [Path("/native") / name])
@@ -162,6 +198,15 @@ def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
         missing.append("POSIX native fixture platform")
     if importlib.util.find_spec("scikit_build_core") is None:
         missing.append("scikit-build-core")
+    else:
+        try:
+            version = importlib_metadata.version("scikit-build-core")
+        except importlib_metadata.PackageNotFoundError:
+            missing.append("scikit-build-core version metadata")
+        else:
+            # Match the backend floor in pyproject.toml's build-system.requires.
+            if Version(version) < Version("0.10"):
+                missing.append(f"scikit-build-core>=0.10 (found {version})")
     for tool in ("cmake", repair):
         if not shutil.which(tool) and (tool == "cmake" or required):
             missing.append(tool)
