@@ -4,6 +4,7 @@
 
 ### Breaking (loud-by-design)
 
+- InteractionCollection archives now use version 1 to preserve decay selections. Current readers accept version 0; older readers cannot read version 1.
 - dk2nu converters reject unresolved parent masses instead of assigning the pion mass. Supply `masses={pdg: mass_in_GeV}` or register the particle. Sampling biases must be finite, non-negative, and retain support for positive-weight rows.
 - Model authors must implement `sample(record, random)`; declaring a measure no longer silently selects isotropic sampling. Isotropic two-body decays can explicitly call `sample_isotropic`.
 - Misconfigured primary/secondary processes now raise AddProcessFailure instead of terminating the interpreter with exit(0).
@@ -25,6 +26,9 @@
 
 ### Fixed
 
+- Forced decay selections validate unselected models' partial and all-final-state widths and retain checks for invalid scattering rates and rate-sum overflow. Zero-width channels remain valid.
+- Pure decays of a stationary parent use width ratios for channel sampling and physical channel probabilities in every collection, with or without a selection and in either weighting mode. Competing channels at rest previously failed with a non-finite channel-selection probability; a stationary parent whose only open channel has zero width now fails at generation with no support instead of at weighting. Moving parents keep their inverse-flight-length arithmetic.
+- Secondary interaction replacement validates all collections before changing any process. Decay selection order is canonicalized, including when reading earlier version-1 archives; equivalent selections can be merged. Vertex selection reassignment uses constructor validation. The record-only native generation-density overload now includes registered phase-space proposals in unrestricted configurations too.
 - Closure refuses certification when densities depend on sampler-written parameters unavailable to the reference, sizes missing reference storage, uses independent sample variances and a joint covariance test in angular comparisons, and omits unmeasured worst-bin diagnostics.
 - DarkNews native and legacy defaults compare by identity, matching authoring models. Sampler audits accept bound instance methods and lambdas while rejecting the default; isotropic mass errors name the model and `SecondaryMasses` hook.
 - Authoring models use identity equality by default; the override audit checks `equal`, and DarkNews trampolines forward explicit Python equality overrides.
@@ -39,6 +43,7 @@
 ### Added
 
 - `Vertex(decay_channels=...)` restricts generated decay signatures while retaining all models for propagation and physical weights. Native collections, Injector, Simulation, and supported archives preserve the selection. See docs/decay_channels.md.
+- `DecayModel.total_width()` denotes the partial width of its declared final state. Competing models supply their own partial widths; supplying the shared full width for each model double-counts the propagation width.
 - dk2nu converters accept explicit parent masses and an `extra_columns` mapping for source IDs, inclusion probabilities, and other numeric metadata. Columns follow row filtering without changing physical or sampling weights; reserved columns, masked metadata on selected rows, and integer IDs outside the exact double-precision range are rejected. Integer checks preserve identities in mixed numeric sequences, including zero-dimensional array elements. CSV export writes plain UTF-8 text with LF newlines even for `.gz`/`.bz2` filenames so the native loader can read it. See docs/beam_tables.md.
 - `siren.three_body` exposes the shared Dalitz band and width, rejection sampling, isotropic momentum construction, boosts, and Recursive2Body density for a decay with one massless daughter. Existing physics objects need no base class. See docs/three_body.md.
 - Weighter accepts an optional event_factor(tree) for whole-event physical corrections, with scalar/batch/explain agreement, in-memory copying, and explicit serialization guards.

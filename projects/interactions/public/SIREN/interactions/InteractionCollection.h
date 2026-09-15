@@ -102,7 +102,8 @@ public:
             if(version >= 1) archive(cereal::make_nvp("DecayChannels", decay_channels));
             InitializeTargetTypes();
             if(version == 0) decay_channels.reset();
-            ValidateDecayChannels();
+            // Earlier v1 writers preserved input order; normalize on load too.
+            SetDecayChannels(decay_channels);
         } else {
             throw std::runtime_error("InteractionCollection only supports version <= 1!");
         }

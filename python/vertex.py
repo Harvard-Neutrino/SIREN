@@ -182,7 +182,7 @@ class Vertex:
         "particle",
         "_resolved_particle",
         "interactions",
-        "decay_channels",
+        "_decay_channels",
         "distributions",
         "physical",
         "physical_interactions",
@@ -204,8 +204,7 @@ class Vertex:
                 "Vertex(particle={!r}): interactions must be a Decay/"
                 "CrossSection or a non-empty list thereof".format(particle))
 
-        self.decay_channels = _resolve_decay_channels(
-            decay_channels, self.interactions, self._resolved_particle)
+        self.decay_channels = decay_channels
 
         dists = list(distributions) if distributions is not None else []
         if position is not None:
@@ -242,6 +241,15 @@ class Vertex:
     def is_secondary(self, *, is_primary):
         """Return whether this Vertex would compile as a secondary process."""
         return not is_primary
+
+    @property
+    def decay_channels(self):
+        return self._decay_channels
+
+    @decay_channels.setter
+    def decay_channels(self, channels):
+        self._decay_channels = _resolve_decay_channels(
+            channels, self.interactions, self._resolved_particle)
 
     def _all_signatures(self):
         """(model, signature) pairs for every model's possible signatures."""

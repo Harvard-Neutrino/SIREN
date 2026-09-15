@@ -78,6 +78,8 @@ During **weighting**, SIREN computes a physical weight for each injected event. 
 
 For beam-parent injection, see [beam tables](docs/beam_tables.md) for dk2nu
 mass resolution, coordinate transforms, source metadata, and importance weights.
+For forced final states, see [decay channels and propagation](docs/decay_channels.md)
+for partial widths, branching fractions, lifetime weighting, and archive support.
 
 ## HepMC3 / NuHepMC output
 
