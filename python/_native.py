@@ -15,6 +15,10 @@ def linux_mapped_paths(maps):
     return paths
 
 
+class NativeInspectionUnavailable(RuntimeError):
+    """This platform does not provide a supported loaded-image probe."""
+
+
 def loaded_libraries():
     if sys.platform == "darwin":
         loader = ctypes.CDLL(None)
@@ -51,13 +55,19 @@ def loaded_libraries():
                 raise ctypes.WinError(ctypes.get_last_error())
             paths.append(Path(path.value))
         return paths
-    raise RuntimeError("Native runtime checks are unavailable on " + sys.platform)
+    raise NativeInspectionUnavailable("Native runtime checks are unavailable on " + sys.platform)
 
 
 def reject_standalone_runtime():
     """A native core and a wheel core must not mint independent particle IDs."""
     standalone = re.compile(r"^(lib)?siren(?:\.[0-9]+)*\.(dylib|so(?:\.[0-9]+)*|dll)$", re.I)
-    conflicts = [str(path) for path in loaded_libraries()
+    try:
+        libraries = loaded_libraries()
+    except (NativeInspectionUnavailable, OSError):
+        # Import remains usable on other Unix platforms and without procfs.
+        # Acceptance calls loaded_libraries directly and requires this evidence.
+        return
+    conflicts = [str(path) for path in libraries
                  if standalone.fullmatch(path.name[:-10] if path.name.endswith(" (deleted)") else path.name)]
     if conflicts:
         raise ImportError(

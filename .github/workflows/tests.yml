@@ -84,7 +84,7 @@ jobs:
             -DSIREN_PYTHON_PACKAGE=OFF -DSIREN_REQUIRE_HEPMC3=ON \
             -DSIREN_WITH_MARLEY=OFF -DSIREN_WITH_PYTHIA8=OFF
           cmake --build native-build --parallel 2
-          ctest --test-dir native-build --output-on-failure \
+          ctest --test-dir native-build --output-on-failure --no-tests=error \
             -R '^UnitTest_(StandaloneLoad|Vector3D|Weighter|HepMC3Writer|HepMC3RoundTrip)$'
           python -c 'import ctypes; ctypes.CDLL("native-build/libSIREN.so"); import siren' \
             > native-import.log 2>&1 && exit 1
@@ -121,4 +121,10 @@ jobs:
       - name: Test both wheel entry points and repair
         env:
           SIREN_TEST_REQUIRE_WHEEL_REPAIR: '1'
-        run: python -m pytest tests/packaging -v
+        run: python -m pytest tests/packaging -v --basetemp=packaging-test-output
+      - name: Preserve packaging diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaging-diagnostics-${{ matrix.os }}
+          path: packaging-test-output/**/command-*.log

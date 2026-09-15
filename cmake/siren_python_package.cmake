@@ -33,7 +33,8 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
 set(wheel_input_files ${PYTHON_PACKAGE_FILES}
     "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
     "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
-    "${PROJECT_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py")
+    "${PROJECT_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
+    "${CMAKE_CURRENT_LIST_DIR}/wheel_rpath.py")
 foreach(target IN LISTS SIREN_WHEEL_LIBRARIES SIREN_PYTHON_MODULES)
     list(APPEND wheel_input_files "$<TARGET_FILE:${target}>")
 endforeach()
@@ -41,8 +42,9 @@ list(JOIN wheel_input_files "\n" wheel_input_manifest)
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
     CONTENT "${wheel_input_manifest}\n")
 
-add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel"
+# Check contents on every invocation, including mtime-preserving restores.
+# The driver only stages/packages when its recorded inputs actually change.
+add_custom_target(python_package ALL
     COMMAND ${CMAKE_COMMAND} -E env ${SIREN_WHEEL_ENV}
         ${Python_EXECUTABLE} "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
         --source "${PROJECT_SOURCE_DIR}" --build "${CMAKE_BINARY_DIR}"
@@ -59,7 +61,6 @@ add_custom_command(
         "${PROJECT_SOURCE_DIR}/LICENSE"
     COMMENT "Building a native wheel from the CMake-installed package"
     VERBATIM)
-add_custom_target(python_package ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel")
 
 install(CODE "
     file(GLOB WHEELS \"${WHEELS_DIR}/*.whl\")
@@ -75,4 +76,4 @@ install(CODE "
     if(NOT WHEEL_INSTALL_RESULT EQUAL 0)
         message(FATAL_ERROR \"SIREN wheel installation failed\")
     endif()
-")
+" COMPONENT PythonPackage)

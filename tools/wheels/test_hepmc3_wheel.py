@@ -46,8 +46,23 @@ def verify_bundled_libraries(wheel, libraries):
                     ".so" in path.name and ".cpython-" not in path.name
                     and ".abi3." not in path.name)}
     installed = {wheel.locate_file(path).resolve() for path in wheel.files}
+    libraries = {path.resolve() for path in libraries}
     foreign = {path.resolve() for path in libraries
                if library_identity(path) in packaged and path.resolve() not in installed}
+    if foreign:
+        # Other wheels (e.g. SciPy on macOS) can load independent copies with
+        # the same SONAME. Accept those only if SIREN's copy is also loaded.
+        # An actual replacement, an unowned native-prefix copy, or a stale
+        # SIREN installation still fails this check.
+        own_loaded = {library_identity(path) for path in libraries & installed}
+        other_files = set()
+        for distribution in metadata.distributions():
+            if distribution.metadata["Name"].lower() == "siren":
+                continue
+            other_files.update(distribution.locate_file(path).resolve()
+                               for path in (distribution.files or ())
+                               if library_identity(path) in own_loaded)
+        foreign = {path for path in foreign if path not in other_files}
     assert not foreign, f"Bundled libraries loaded from outside this wheel: {foreign}"
 
 

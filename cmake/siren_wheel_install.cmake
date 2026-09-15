@@ -33,6 +33,18 @@ function(siren_install_wheel_libraries)
                                 \"\${wheel_directory}/\${soname}\")
                 endif()
             " COMPONENT PythonWheel EXCLUDE_FROM_ALL)
+            if(APPLE)
+                install(CODE "
+                    execute_process(
+                        COMMAND \"${Python_EXECUTABLE}\"
+                            \"${CMAKE_CURRENT_FUNCTION_LIST_DIR}/wheel_rpath.py\"
+                            \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${SIREN_WHEEL_LIBRARY_DIR}/$<TARGET_SONAME_FILE_NAME:${library}>\"
+                        RESULT_VARIABLE rpath_result)
+                    if(NOT rpath_result EQUAL 0)
+                        message(FATAL_ERROR \"Could not order wheel dependency RPATHs\")
+                    endif()
+                " COMPONENT PythonWheel EXCLUDE_FROM_ALL)
+            endif()
         endforeach()
     endif()
 endfunction()

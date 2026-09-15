@@ -97,6 +97,55 @@ def test_distinct_dependency_abis_are_not_aliases():
         Path("libHepMC3.5.dylib"))
 
 
+def test_other_wheel_copy_is_not_a_substitution(tmp_path, monkeypatch):
+    own = Path("siren/.dylibs/libgfortran.5.dylib")
+    scipy = Path("scipy/.dylibs/libgfortran.5.dylib")
+    wheel = SimpleNamespace(files=[own], locate_file=lambda path: tmp_path / path)
+    other = SimpleNamespace(files=[scipy], locate_file=wheel.locate_file,
+                            metadata={"Name": "scipy"})
+    monkeypatch.setattr(smoke.metadata, "distributions", lambda: [other])
+    smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / scipy])
+    # Owning a file is not sufficient: SIREN's own copy must also be loaded.
+    with pytest.raises(AssertionError, match="outside this wheel"):
+        smoke.verify_bundled_libraries(wheel, [tmp_path / scipy])
+    with pytest.raises(AssertionError, match="outside this wheel"):
+        smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / "libgfortran.5.dylib"])
+    other.metadata = {"Name": "siren"}
+    with pytest.raises(AssertionError, match="outside this wheel"):
+        smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / scipy])
+
+
+def test_repair_hash_is_part_of_loader_name(tmp_path):
+    own = Path("siren.libs/libcfitsio-a1b2c3d4.so.4")
+    wheel = SimpleNamespace(files=[own], locate_file=lambda path: tmp_path / path)
+    # The loader requests the hashed name: an unhashed library cannot replace it.
+    smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / "native/libcfitsio.so.4"])
+    with pytest.raises(AssertionError, match="outside this wheel"):
+        smoke.verify_bundled_libraries(wheel, [tmp_path / "native" / own.name])
+
+
+@pytest.mark.parametrize("platform", ["freebsd14", "linux"])
+def test_import_guard_allows_unavailable_probe_but_acceptance_does_not(monkeypatch, platform):
+    monkeypatch.setattr(native.sys, "platform", platform)
+    def no_procfs(path):
+        raise FileNotFoundError("procfs is not mounted")
+    monkeypatch.setattr(native.Path, "read_text", no_procfs)
+    native.reject_standalone_runtime()
+    with pytest.raises((native.NativeInspectionUnavailable, FileNotFoundError)):
+        native.loaded_libraries()
+
+
+@pytest.mark.parametrize("missing", ["platform", "backend", "cmake", "repair"])
+def test_required_packaging_prerequisites_cannot_skip(tmp_path, monkeypatch, missing):
+    monkeypatch.setenv("SIREN_TEST_REQUIRE_WHEEL_REPAIR", "1")
+    monkeypatch.setattr(sys, "platform", "freebsd14" if missing == "platform" else "linux")
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None if missing == "backend" else True)
+    missing_tool = {"cmake": "cmake", "repair": "auditwheel"}.get(missing)
+    monkeypatch.setattr(shutil, "which", lambda name: None if name == missing_tool else name)
+    with pytest.raises(pytest.fail.Exception, match="prerequisites missing"):
+        test_wheel_tags_relocation_and_incremental_contents(tmp_path, "siren.libs")
+
+
 @pytest.mark.parametrize("name", ["libSIREN.dylib", "libSIREN.so", "SIREN.dll"])
 def test_standalone_core_rejected_before_extensions(monkeypatch, name):
     monkeypatch.setattr(native, "loaded_libraries", lambda: [Path("/native") / name])
@@ -104,14 +153,23 @@ def test_standalone_core_rejected_before_extensions(monkeypatch, name):
         native.reject_standalone_runtime()
 
 
-@pytest.mark.skipif(
-    sys.platform not in ("darwin", "linux"), reason="POSIX native fixture"
-)
 @pytest.mark.parametrize("library_dir", ["siren.libs", "siren.native"])
 def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
-    pytest.importorskip("scikit_build_core")
-    if not shutil.which("cmake"):
-        pytest.skip("CMake is required")
+    required = os.environ.get("SIREN_TEST_REQUIRE_WHEEL_REPAIR") == "1"
+    repair = "delocate-wheel" if sys.platform == "darwin" else "auditwheel"
+    missing = []
+    if sys.platform not in ("darwin", "linux"):
+        missing.append("POSIX native fixture platform")
+    if importlib.util.find_spec("scikit_build_core") is None:
+        missing.append("scikit-build-core")
+    for tool in ("cmake", repair):
+        if not shutil.which(tool) and (tool == "cmake" or required):
+            missing.append(tool)
+    if missing:
+        message = "Required packaging prerequisites missing: " + ", ".join(missing)
+        if required:
+            pytest.fail(message)
+        pytest.skip(message)
     source = tmp_path / "native package"
     build = tmp_path / "native build"
     source.mkdir()
@@ -124,6 +182,7 @@ def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
         "cmake/siren_python_package.cmake",
         "cmake/siren_wheel_install.cmake",
         "cmake/build_wheel.py",
+        "cmake/wheel_rpath.py",
         "package/CMakeLists.txt",
     ):
         shutil.copy2(REPO / name, source / name)
@@ -167,7 +226,7 @@ set_target_properties(external PROPERTIES IMPORTED_LOCATION "@external@")
 add_library(spglam SHARED spglam.cpp)
 set_target_properties(spglam PROPERTIES VERSION 2.4.1 SOVERSION 2)
 target_link_libraries(spglam PRIVATE external)
-target_link_libraries(photospline PRIVATE spglam)
+target_link_libraries(photospline PRIVATE spglam external)
 get_filename_component(external_directory "@external@" DIRECTORY)
 set_target_properties(spglam PROPERTIES
     INSTALL_RPATH "${external_directory}" INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -267,19 +326,31 @@ include(cmake/siren_python_package.cmake)
         "2",
     ]
     run(build_command)
-    run(["cmake", "--install", str(build), "--component", "Unspecified"])
+    # A native component must never invoke pip in the active interpreter.
+    # Block it before it can uninstall a developer's existing SIREN package.
+    pip_blocker = tmp_path / "pip blocker"
+    pip_blocker.mkdir()
+    (pip_blocker / "pip.py").write_text(
+        'raise RuntimeError("Native component install must not invoke pip")\n')
+    run(["cmake", "--install", str(build), "--component", "Unspecified"],
+        dict(env, PYTHONPATH=str(pip_blocker)))
+    # Model an external prefix that also contains native photospline/spglam.
+    # Its link-derived RPATH must not win during wheel staging or repair.
+    for binary in (tmp_path / "native install/lib").iterdir():
+        if binary.is_file():
+            shutil.copy2(binary, tmp_path / "external install/lib" / binary.name)
     native_spline = tmp_path / "native install/lib" / (
         "libphotospline.2.dylib" if sys.platform == "darwin" else "libphotospline.so.2")
     run([sys.executable, "-c", "import ctypes,sys; "
          "assert ctypes.CDLL(sys.argv[1]).spline_probe() == 40", str(native_spline)])
     cmake_wheel = next((build / "dist_wheels").glob("*.whl"))
     original_stamp = cmake_wheel.stat().st_mtime_ns
-    run(build_command)
-    assert cmake_wheel.stat().st_mtime_ns == original_stamp
+    unchanged = run(build_command)
+    assert cmake_wheel.stat().st_mtime_ns == original_stamp, unchanged.stdout + unchanged.stderr
     time.sleep(1.05)
     run(configure)
-    run(build_command)
-    assert cmake_wheel.stat().st_mtime_ns == original_stamp
+    unchanged = run(build_command)
+    assert cmake_wheel.stat().st_mtime_ns == original_stamp, unchanged.stdout + unchanged.stderr
 
     # An install-only change must invalidate the wheel even with identical
     # target binaries and package source files.
@@ -291,6 +362,15 @@ include(cmake/siren_python_package.cmake)
     run(build_command)
     with zipfile.ZipFile(cmake_wheel) as archive:
         assert archive.read("siren/extra/probe.txt") == b"resource\n"
+
+    # Detect an equal-size restore even when its timestamp is preserved.
+    resource = source / "resources/probe.txt"
+    resource_stat = resource.stat()
+    resource.write_text("replaced\n")
+    os.utime(resource, ns=(resource_stat.st_atime_ns, resource_stat.st_mtime_ns))
+    run(build_command)
+    with zipfile.ZipFile(cmake_wheel) as archive:
+        assert archive.read("siren/resources/probe.txt") == b"replaced\n"
 
     probe = source / "python/added.py"
     for content in ("first = 1\n", "changed = 2\n", None):
@@ -357,6 +437,13 @@ include(cmake/siren_python_package.cmake)
                 assert "macosx_11_0_universal2" in metadata
             archive.extractall(installed)
         if sys.platform == "darwin":
+            if index < 2:
+                for relative in [cores[0], libraries[0], spglam[0]]:
+                    load_commands = run(["otool", "-l", str(installed / relative)]).stdout
+                    rpaths = smoke.re.findall(
+                        r"cmd LC_RPATH\n\s+cmdsize \d+\n\s+path (.*?) \(offset \d+\)",
+                        load_commands)
+                    assert rpaths[0] == "@loader_path", rpaths
             archs = run(
                 ["lipo", "-archs", str(core_path)]
             )

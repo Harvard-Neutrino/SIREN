@@ -10,6 +10,25 @@ import subprocess
 import sys
 
 
+def file_digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def changed_inputs(previous, current):
+    for group in sorted(current.keys() | previous.keys()):
+        before, after = previous.get(group, {}), current.get(group, {})
+        if isinstance(before, dict) and isinstance(after, dict):
+            for name in sorted(before.keys() | after.keys()):
+                if before.get(name) != after.get(name):
+                    yield f"{group}: {name} ({before.get(name)} -> {after.get(name)})"
+        elif before != after:
+            yield f"{group}: {before} -> {after}"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
@@ -22,29 +41,32 @@ def main():
     args = parser.parse_args()
     staging = args.build / "python_staging"
     wheels = args.build / "dist_wheels"
-    state = args.build / ".wheel_inputs.sha256"
-    stamp = args.build / ".build_wheel"
+    state = args.build / ".wheel_inputs.json"
 
     # CMake rewrites install scripts on every generate, even without a change.
-    # Compare their contents, including subdirectory install rules. Payload
-    # mtimes remain build-system inputs; additions/removals are in the manifest.
-    inputs = []
-    for name in args.inputs.read_text().splitlines():
-        path = Path(name)
-        stat = path.stat()
-        inputs.append((name, stat.st_size, stat.st_mtime_ns))
-    rules = [(str(path), hashlib.sha256(path.read_bytes()).hexdigest())
-             for path in sorted(args.build.rglob("cmake_install.cmake"))
-             if staging not in path.parents]
-    signature = hashlib.sha256(json.dumps([
-        vars(args), inputs, rules, sys.executable,
-        {key: os.environ.get(key) for key in ("ARCHFLAGS", "MACOSX_DEPLOYMENT_TARGET")},
-    ], default=str, sort_keys=True).encode()).hexdigest()
-    if (state.is_file() and state.read_text() == signature
-            and len(list(wheels.glob("*.whl"))) == 1):
+    # Compare contents, including subdirectory install rules and payload files.
+    # A content-preserving relink should not rebuild a wheel, while a restore
+    # with unchanged size/mtime must not leave stale Python/resources in it.
+    current = {
+        "arguments": {key: str(value) for key, value in vars(args).items()},
+        "payload": {name: file_digest(Path(name))
+                    for name in args.inputs.read_text().splitlines()},
+        "install rules": {str(path): file_digest(path)
+                          for path in sorted(args.build.rglob("cmake_install.cmake"))
+                          if staging not in path.parents},
+        "interpreter": sys.executable,
+        "environment": {key: os.environ.get(key)
+                        for key in ("ARCHFLAGS", "MACOSX_DEPLOYMENT_TARGET")},
+    }
+    previous = json.loads(state.read_text()) if state.is_file() else {}
+    wheel_files = list(wheels.glob("*.whl"))
+    if previous == current and len(wheel_files) == 1:
         print("Wheel payload and install rules unchanged")
-        stamp.touch()
         return
+    for change in changed_inputs(previous, current):
+        print("Wheel rebuild: " + change, flush=True)
+    if len(wheel_files) != 1:
+        print(f"Wheel rebuild: expected one output wheel, found {len(wheel_files)}", flush=True)
 
     for path in (staging, wheels):
         if path.exists():
@@ -59,8 +81,7 @@ def main():
     subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", *isolation,
                     "--config-settings=cmake.define.SIREN_WHEEL_LIBRARY_DIR=" + args.library_dir,
                     "--wheel-dir", str(wheels), str(staging)], check=True)
-    state.write_text(signature)
-    stamp.touch()
+    state.write_text(json.dumps(current, indent=2, sort_keys=True) + "\n")
 
 
 if __name__ == "__main__":

@@ -249,9 +249,12 @@ The wheel must not bundle another Python runtime.
 Use the native library and the Python wheel in **separate processes**. Loading
 both cores into one process duplicates internal state, including particle-ID
 allocation. This restriction applies in either loading order, even to binaries
-from the same build. Importing `siren` checks for an already loaded standalone
-core and raises `ImportError`; do not load the native core after importing the
-wheel or bypass this check by importing extension files directly.
+from the same build. On platforms where loaded-library inspection is available,
+importing `siren` checks for an already loaded standalone core and raises
+`ImportError`. The guard is best effort; the separate-process requirement still
+applies when inspection is unavailable (for example, Linux without `/proc`).
+Do not load the native core after importing the wheel or bypass this check by
+importing extension files directly. Wheel acceptance requires library inspection.
 The CMake target uses its configured Python interpreter to package the binaries;
 build it with the interpreter and architecture that will run the wheel.
 On macOS, configure `CMAKE_OSX_DEPLOYMENT_TARGET` and, when needed,
@@ -280,7 +283,9 @@ first provision the configured interpreter with the requirements in
 `[build-system]` (currently `scikit-build-core>=0.10`) and its dependencies,
 then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
 route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
-dependencies must already be available too. Installation reports wheel failures;
+dependencies must already be available too. The CMake Python installer belongs to the `PythonPackage` component; native
+component installs do not invoke pip. A full install still includes Python when
+`SIREN_PYTHON_PACKAGE=ON`. Installation reports wheel failures;
 it does not silently continue after a failed Python installation.
 
 Local wheels still require their external native dependencies, such as CFITSIO
@@ -306,7 +311,12 @@ The test checks wheel tags, rejects multiple core-library files, verifies that
 the core and loaded bundled dependencies belong to the installed wheel, and exercises native
 sampling plus plain/gzip HepMC3 round trips. Build with
 `SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
-explicitly. Also check a standalone installation on the loader search path:
+explicitly.
+
+#### Optional competing-library diagnostic
+
+After the clean acceptance check passes, use the following command to diagnose
+conflicting libraries in an existing native installation:
 
 ```bash
 python /path/to/test_hepmc3_wheel.py --standalone-library /native/prefix/lib/libSIREN.dylib
@@ -318,7 +328,9 @@ This repeats the check in a fresh interpreter with `DYLD_LIBRARY_PATH` or
 It verifies that the override reached the child interpreter. It does not load
 the standalone core: the directory is a competing dependency search path.
 An override that substitutes native photospline or another bundled dependency
-now fails this diagnostic. Clear that override before running the wheel.
+fails this diagnostic with a nonzero exit status; that failure is expected for
+a prefix containing competing libraries. This is not a required acceptance
+step. Clear that override before running the wheel.
 The release workflow covers Linux and macOS. The Windows repair
 configuration is experimental and has no Windows CI acceptance job.
 
