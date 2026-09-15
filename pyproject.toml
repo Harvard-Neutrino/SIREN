@@ -5,10 +5,12 @@ build-dir = "build"
 experimental = true
 
 [build-system]
-requires = ["scikit-build-core"]
+requires = ["scikit-build-core>=0.10"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
+minimum-version = "build-system.requires"
+install.components = ["PythonWheel"]
 wheel.packages = []
 cmake.build-type = "Release"
 
@@ -20,7 +22,9 @@ SIREN_PYTHON_PACKAGE = {env="SIREN_PYTHON_PACKAGE", default="OFF"}
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 skip = "pp*"
 # Confirm the built wheel actually bundles HepMC3 and siren.hepmc3 imports.
-test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py"
+test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py --clean-environment"
+test-requires = ["packaging"]
+config-settings = { "cmake.define.SIREN_REQUIRE_HEPMC3" = "ON" }
 # Importing siren pulls numpy/scipy; those have no binary wheels for musllinux
 # cp38/cp39 or aarch64 cp38 and cannot source-build in the isolated test env
 # (scipy needs OpenBLAS). The wheels still build and bundle HepMC3 on these
@@ -29,12 +33,12 @@ test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py"
 test-skip = "cp38-musllinux* cp39-musllinux* cp38-manylinux_aarch64"
 
 [tool.cibuildwheel.windows]
-environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
-repair-wheel-command = "delvewheel repair --add-path $LD_LIBRARY_PATH"
+environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CMAKE_PREFIX_PATH="$CI_INSTALL_PREFIX", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
+repair-wheel-command = 'delvewheel repair --add-path "%LD_LIBRARY_PATH%" -w {dest_dir} {wheel}'
 
 [tool.cibuildwheel.linux]
 environment = { RUNNER_OS="Linux", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64:$LD_LIBRARY_PATH" }
-repair-wheel-command = "auditwheel repair --exclude photospline -w {dest_dir} {wheel}"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
 environment = { RUNNER_OS="macOS", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/SIREN/SIREN", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
@@ -73,6 +77,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: POSIX",
     "Operating System :: Unix",

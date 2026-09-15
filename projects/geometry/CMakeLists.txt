@@ -62,11 +62,8 @@ package_add_test(UnitTest_Containment ${PROJECT_SOURCE_DIR}/projects/geometry/pr
 package_add_test(UnitTest_ShapeInvariants ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ShapeInvariants_TEST.cxx)
 package_add_test(UnitTest_Serialization ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Serialization_TEST.cxx)
 
-pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
-target_link_libraries(geometry PRIVATE SIREN)
-siren_strip_module(geometry)
-if(DEFINED SKBUILD)
-set_target_properties(geometry PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
+    target_link_libraries(geometry PRIVATE SIREN_python)
+    siren_strip_module(geometry)
 endif()

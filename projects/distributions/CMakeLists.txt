@@ -65,7 +65,7 @@ target_include_directories(SIREN_distributions PUBLIC
 target_link_libraries(SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        pybind11::embed
+        pybind11::module
     PUBLIC
         photospline
         SIREN_utilities
@@ -94,11 +94,8 @@ package_add_test(UnitTest_SphereVolumePositionDistribution ${PROJECT_SOURCE_DIR}
 package_add_test(UnitTest_CylinderVolumePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/CylinderVolumePositionDistribution_TEST.cxx)
 package_add_test(UnitTest_Tabulated2DFluxDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/Tabulated2DFluxDistribution_TEST.cxx)
 
-pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
-target_link_libraries(distributions PRIVATE SIREN)
-siren_strip_module(distributions)
-if(DEFINED SKBUILD)
-set_target_properties(distributions PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
+    target_link_libraries(distributions PRIVATE SIREN_python)
+    siren_strip_module(distributions)
 endif()

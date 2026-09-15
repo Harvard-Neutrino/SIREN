@@ -232,6 +232,96 @@ cd SIREN
 pip install . --config-settings='build-dir=build'
 ```
 
+### Building wheels
+
+The source build and the CMake `python_package` target both use scikit-build-core.
+Wheels have native Python ABI/platform tags and install the SIREN core and
+photospline next to the extensions, with relative library lookup paths.
+Extensions use the host Python interpreter. A separate standalone library links
+Python for native applications, including plugin hosts using `dlopen`. Both
+libraries reuse the same compiled components, and a CMake build can produce both.
+The wheel core is named `libSIREN_python.dylib` on macOS and
+`libSIREN_python.so` on Linux, while the standalone core retains `libSIREN`.
+Distinct library names
+prevent a native installation on the loader search path from replacing the
+wheel core.
+The wheel must not bundle another Python runtime.
+Use the native library and the Python wheel in **separate processes**. Loading
+both cores into one process duplicates internal state, including particle-ID
+allocation. This restriction applies in either loading order, even to binaries
+from the same build. Importing `siren` checks for an already loaded standalone
+core and raises `ImportError`; do not load the native core after importing the
+wheel or bypass this check by importing extension files directly.
+The CMake target uses its configured Python interpreter to package the binaries;
+build it with the interpreter and architecture that will run the wheel.
+On macOS, configure `CMAKE_OSX_DEPLOYMENT_TARGET` and, when needed,
+`CMAKE_OSX_ARCHITECTURES` in the outer CMake build; the wheel target forwards
+them to its metadata backend. Relocation does not imply compatibility with
+macOS versions older than the binary deployment target or its dependencies.
+
+```bash
+python -m pip wheel . --no-deps --wheel-dir dist
+# Or, after configuring a CMake build with SIREN_PYTHON_PACKAGE=ON:
+cmake --build build --target python_package --parallel
+# The CMake wheel is in <build-dir>/dist_wheels/.
+```
+
+Wheels contain the Python package, resources, extensions, and their native
+runtime libraries. They no longer include C++ headers or CMake exports from
+the source-wheel installation. For C++ development, use the standalone CMake
+installation below, with `SIREN_PYTHON_PACKAGE=OFF` if no wheel is needed.
+That option omits SIREN's Python extensions and Python core from a plain CMake
+build. Source-wheel builds still build them, without starting a nested wheel build.
+The exported native targets retain the existing requirement that consumers
+provide their dependency targets; the wheel is not a C++ development SDK.
+
+The CMake wheel target uses build isolation by default. To build offline,
+first provision the configured interpreter with the requirements in
+`[build-system]` (currently `scikit-build-core>=0.10`) and its dependencies,
+then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
+route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
+dependencies must already be available too. Installation reports wheel failures;
+it does not silently continue after a failed Python installation.
+
+Local wheels still require their external native dependencies, such as CFITSIO
+and HepMC3. Before distributing a wheel, bundle those dependencies with
+`delocate-wheel` on macOS, `auditwheel repair` on Linux, or `delvewheel repair`
+on Windows. The cibuildwheel configuration performs that repair for release
+wheels. It replaces the former optional `PACKAGE_SHARED_DEPS` copy step, which
+did not repair dependent-library references.
+
+Validate the installed wheel from a fresh environment outside the checkout,
+with the original source/build directories unavailable and library-search
+path overrides cleared:
+
+```bash
+python -m pip install /path/to/repaired/siren-*.whl packaging
+python /path/to/test_hepmc3_wheel.py
+```
+
+Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
+`--clean-environment` starts that check in a child with Python and library search
+overrides cleared; cibuildwheel uses this mode to exclude its build/repair paths.
+The test checks wheel tags, rejects multiple core-library files, verifies that
+the core and loaded bundled dependencies belong to the installed wheel, and exercises native
+sampling plus plain/gzip HepMC3 round trips. Build with
+`SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
+explicitly. Also check a standalone installation on the loader search path:
+
+```bash
+python /path/to/test_hepmc3_wheel.py --standalone-library /native/prefix/lib/libSIREN.dylib
+# On Linux, use /native/prefix/lib/libSIREN.so (or the installation's lib64 path).
+```
+
+This repeats the check in a fresh interpreter with `DYLD_LIBRARY_PATH` or
+`LD_LIBRARY_PATH` pointing at the standalone library directory.
+It verifies that the override reached the child interpreter. It does not load
+the standalone core: the directory is a competing dependency search path.
+An override that substitutes native photospline or another bundled dependency
+now fails this diagnostic. Clear that override before running the wheel.
+The release workflow covers Linux and macOS. The Windows repair
+configuration is experimental and has no Windows CI acceptance job.
+
 ### C++ library
 
 SIREN can also be built and installed as a standalone C++ shared library using CMake. This is useful when integrating SIREN into a larger C++ project.
