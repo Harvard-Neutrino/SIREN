@@ -53,6 +53,8 @@ package_add_test(UnitTest_CCM_HNL ${PROJECT_SOURCE_DIR}/projects/injection/priva
 target_link_libraries(UnitTest_CCM_HNL pybind11::embed)
 endif()
 
-pybind11_add_module(injection ${PROJECT_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
-target_link_libraries(injection PRIVATE SIREN_python photospline pybind11::module)
-siren_strip_module(injection)
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(injection ${PROJECT_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
+    target_link_libraries(injection PRIVATE SIREN_python photospline pybind11::module)
+    siren_strip_module(injection)
+endif()

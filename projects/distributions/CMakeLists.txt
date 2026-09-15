@@ -94,6 +94,8 @@ package_add_test(UnitTest_SphereVolumePositionDistribution ${PROJECT_SOURCE_DIR}
 package_add_test(UnitTest_CylinderVolumePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/CylinderVolumePositionDistribution_TEST.cxx)
 package_add_test(UnitTest_Tabulated2DFluxDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/Tabulated2DFluxDistribution_TEST.cxx)
 
-pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
-target_link_libraries(distributions PRIVATE SIREN_python)
-siren_strip_module(distributions)
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
+    target_link_libraries(distributions PRIVATE SIREN_python)
+    siren_strip_module(distributions)
+endif()

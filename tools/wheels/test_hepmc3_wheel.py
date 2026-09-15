@@ -8,31 +8,17 @@ installation on the loader search path, in a fresh interpreter.
 """
 
 import argparse
-import ctypes
 from email.parser import Parser
 import hashlib
 from importlib import metadata
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 
 from packaging.tags import parse_tag, sys_tags
-
-
-def linux_mapped_paths(maps):
-    r"""Preserve pathnames after the five fixed /proc/self/maps fields.
-
-    Linux escapes newlines as \012. Keep any " (deleted)" marker: such a core
-    cannot establish the identity of a file currently present in the wheel.
-    """
-    paths = []
-    for line in maps.splitlines():
-        fields = line.split(None, 5)
-        if len(fields) == 6 and fields[5].startswith("/"):
-            paths.append(Path(fields[5].replace(r"\012", "\n")))
-    return paths
 
 
 def is_core_library(path):
@@ -42,6 +28,34 @@ def is_core_library(path):
     return (
         name.startswith("libsiren") and (name.endswith(".dylib") or ".so" in name)
     ) or (name.startswith("siren") and name.endswith(".dll"))
+
+
+def library_identity(path):
+    """Match version aliases without conflating distinct repair-tool hashes."""
+    name = path.name.lower()
+    if name.endswith(" (deleted)"):
+        name = name[:-10]
+    if name.endswith(".dylib"):
+        return re.sub(r"(\.[0-9]+)(?:\.[0-9]+)*(?=\.dylib$)", r"\1", name)
+    return re.sub(r"(?<=\.so)(\.[0-9]+)(?:\.[0-9]+)*$", r"\1", name)
+
+
+def verify_bundled_libraries(wheel, libraries):
+    packaged = {library_identity(path) for path in wheel.files
+                if path.name.endswith((".dylib", ".dll")) or (
+                    ".so" in path.name and ".cpython-" not in path.name
+                    and ".abi3." not in path.name)}
+    installed = {wheel.locate_file(path).resolve() for path in wheel.files}
+    foreign = {path.resolve() for path in libraries
+               if library_identity(path) in packaged and path.resolve() not in installed}
+    assert not foreign, f"Bundled libraries loaded from outside this wheel: {foreign}"
+
+
+def check_loader_override(variable, expected):
+    assert os.environ.get(variable) == expected, (
+        f"{variable} did not reach the child interpreter; "
+        "this interpreter cannot validate the requested loader override"
+    )
 
 
 def main():
@@ -71,50 +85,14 @@ def main():
     from siren import hepmc3
     from siren import dataclasses as d
 
-    if sys.platform == "darwin":
-        loader = ctypes.CDLL(None)
-        loader._dyld_image_count.restype = ctypes.c_uint32
-        loader._dyld_get_image_name.argtypes = [ctypes.c_uint32]
-        loader._dyld_get_image_name.restype = ctypes.c_char_p
-        libraries = [
-            Path(loader._dyld_get_image_name(i).decode())
-            for i in range(loader._dyld_image_count())
-        ]
-    elif sys.platform.startswith("linux"):
-        libraries = linux_mapped_paths(Path("/proc/self/maps").read_text())
-    elif sys.platform == "win32":
-        loader = ctypes.WinDLL("kernel32", use_last_error=True)
-        loader.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
-        loader.GetModuleHandleW.restype = ctypes.c_void_p
-        loader.GetModuleFileNameW.argtypes = [
-            ctypes.c_void_p,
-            ctypes.c_wchar_p,
-            ctypes.c_uint32,
-        ]
-        loader.GetModuleFileNameW.restype = ctypes.c_uint32
-        libraries = []
-        for name in {
-            path.name
-            for path in wheel.files
-            if path.name.lower().startswith(("siren", "libsiren"))
-            and path.suffix.lower() == ".dll"
-        }:
-            handle = loader.GetModuleHandleW(name)
-            if handle:
-                path = ctypes.create_unicode_buffer(32768)
-                assert loader.GetModuleFileNameW(handle, path, len(path)), (
-                    ctypes.get_last_error()
-                )
-                libraries.append(Path(path.value))
-    else:
-        raise AssertionError(
-            f"Loaded-library verification is not implemented on {sys.platform}"
-        )
+    from siren._native import loaded_libraries
+    libraries = loaded_libraries()
 
     core = {path.resolve() for path in libraries if is_core_library(path)}
     assert len(core) == 1, core
     installed_files = {wheel.locate_file(path).resolve() for path in wheel.files}
     assert core <= installed_files, f"Core library is not from this wheel: {core}"
+    verify_bundled_libraries(wheel, libraries)
     for path in core:
         print(f"Loaded {path}: sha256={hashlib.sha256(path.read_bytes()).hexdigest()}")
 
@@ -148,13 +126,28 @@ def main():
                 rec.primary_momentum
             )
 
-    print("Native wheel tags, packaged core library, and HepMC3 round trips OK")
+    print("Native wheel tags, bundled library origins, and HepMC3 round trips OK")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--standalone-library", type=Path)
+    parser.add_argument("--clean-environment", action="store_true",
+                        help="Run in a child without build/repair loader search paths")
+    parser.add_argument("--expect-loader-override", nargs=2, metavar=("VARIABLE", "VALUE"),
+                        help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.clean_environment:
+        if args.expect_loader_override is not None:
+            parser.error("Cannot clear an override that this child is meant to check")
+        env = {key: value for key, value in os.environ.items() if key not in (
+            "PYTHONPATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "LD_LIBRARY_PATH")}
+        command = [sys.executable, str(Path(__file__).resolve())]
+        if args.standalone_library is not None:
+            command.extend(["--standalone-library", str(args.standalone_library)])
+        sys.exit(subprocess.run(command, env=env).returncode)
+    if args.expect_loader_override is not None:
+        check_loader_override(*args.expect_loader_override)
     main()
     if args.standalone_library is not None:
         library = args.standalone_library.resolve()
@@ -171,5 +164,6 @@ if __name__ == "__main__":
         )
         print(f"Checking with {variable}={env[variable]}", flush=True)
         subprocess.run(
-            [sys.executable, str(Path(__file__).resolve())], env=env, check=True
+            [sys.executable, str(Path(__file__).resolve()),
+             "--expect-loader-override", variable, env[variable]], env=env, check=True
         )

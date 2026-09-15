@@ -71,6 +71,8 @@ package_add_test(UnitTest_Path ${PROJECT_SOURCE_DIR}/projects/detector/private/t
 package_add_test(UnitTest_GDMLParser ${PROJECT_SOURCE_DIR}/projects/detector/private/test/GDMLParser_TEST.cxx)
 package_add_test(UnitTest_BVH ${PROJECT_SOURCE_DIR}/projects/detector/private/test/BVH_TEST.cxx)
 
-pybind11_add_module(detector ${PROJECT_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
-target_link_libraries(detector PRIVATE SIREN_python)
-siren_strip_module(detector)
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(detector ${PROJECT_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
+    target_link_libraries(detector PRIVATE SIREN_python)
+    siren_strip_module(detector)
+endif()

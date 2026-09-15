@@ -3,7 +3,6 @@ if(NOT SIREN_PYTHON_PACKAGE OR DEFINED SKBUILD)
     return()
 endif()
 
-set(PACKAGE_STAGING_DIR "${CMAKE_BINARY_DIR}/python_staging")
 set(WHEELS_DIR "${CMAKE_BINARY_DIR}/dist_wheels")
 option(SIREN_WHEEL_BUILD_ISOLATION
     "Install wheel backend requirements in an isolated environment" ON)
@@ -31,25 +30,30 @@ file(GLOB_RECURSE PYTHON_PACKAGE_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS
 # A removed input must invalidate the wheel as well as an added/edited input.
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
     CONTENT "${PYTHON_PACKAGE_FILES}\n")
+set(wheel_input_files ${PYTHON_PACKAGE_FILES}
+    "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
+    "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
+    "${PROJECT_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py")
+foreach(target IN LISTS SIREN_WHEEL_LIBRARIES SIREN_PYTHON_MODULES)
+    list(APPEND wheel_input_files "$<TARGET_FILE:${target}>")
+endforeach()
+list(JOIN wheel_input_files "\n" wheel_input_manifest)
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
+    CONTENT "${wheel_input_manifest}\n")
 
 add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel"
-    COMMAND ${CMAKE_COMMAND} -E rm -rf "${PACKAGE_STAGING_DIR}" "${WHEELS_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${PACKAGE_STAGING_DIR}" "${WHEELS_DIR}"
-    COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}"
-        --config $<CONFIG> --prefix "${PACKAGE_STAGING_DIR}" --component PythonWheel
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
-        "${PROJECT_SOURCE_DIR}/LICENSE" "${PACKAGE_STAGING_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E copy "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
-        "${PACKAGE_STAGING_DIR}/CMakeLists.txt"
     COMMAND ${CMAKE_COMMAND} -E env ${SIREN_WHEEL_ENV}
-        ${Python_EXECUTABLE} -m pip wheel --no-deps ${SIREN_WHEEL_PIP_OPTIONS}
-        --wheel-dir "${WHEELS_DIR}" "${PACKAGE_STAGING_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_BINARY_DIR}/.build_wheel"
+        ${Python_EXECUTABLE} "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
+        --source "${PROJECT_SOURCE_DIR}" --build "${CMAKE_BINARY_DIR}"
+        --library-dir "${SIREN_WHEEL_LIBRARY_DIR}"
+        --inputs "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
+        --config $<CONFIG> --cmake "${CMAKE_COMMAND}" ${SIREN_WHEEL_PIP_OPTIONS}
     DEPENDS ${SIREN_WHEEL_LIBRARIES} ${SIREN_PYTHON_MODULES} ${PYTHON_PACKAGE_FILES}
         "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
         "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
+        "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
         "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
         "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
         "${PROJECT_SOURCE_DIR}/LICENSE"

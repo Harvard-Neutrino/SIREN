@@ -28,6 +28,11 @@ option(SIREN_PYTHON_PACKAGE
     "Build and install the SIREN Python package"
     ON  # default ON, or OFF if you prefer
 )
+# scikit-build builds a wheel even when the nested CMake wheel target is off.
+set(SIREN_BUILD_PYTHON_BINDINGS OFF)
+if(SIREN_PYTHON_PACKAGE OR DEFINED SKBUILD)
+    set(SIREN_BUILD_PYTHON_BINDINGS ON)
+endif()
 option(SIREN_WITH_MARLEY "Enable MARLEY support if available" ON)
 option(SIREN_REQUIRE_MARLEY "Fail configure if MARLEY requested but not found" OFF)
 option(SIREN_WITH_PYTHIA8 "Enable Pythia8 support if available" OFF)
@@ -219,14 +224,16 @@ function(siren_add_core target)
     siren_strip_module(${target})
 endfunction()
 
-siren_add_core(SIREN_python)
-target_link_libraries(SIREN_python PRIVATE pybind11::module)
-# Retain the distinct target name on disk: loader-path overrides may contain
-# the standalone libSIREN, which links an embedding Python runtime.
-set_target_properties(SIREN_python PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python")
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    siren_add_core(SIREN_python)
+    target_link_libraries(SIREN_python PRIVATE pybind11::module)
+    # Retain the distinct target name on disk: loader-path overrides may contain
+    # the standalone libSIREN, which links an embedding Python runtime.
+    set_target_properties(SIREN_python PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python")
+endif()
 
 if(NOT DEFINED SKBUILD)
     siren_add_core(SIREN)
@@ -265,33 +272,27 @@ endif()
 
 # Both wheel entry points install the targets, allowing CMake to replace build
 # RPATHs. The core library and photospline share a package-local directory.
-set(SIREN_PYTHON_MODULES utilities math dataclasses geometry detector
-    interactions distributions injection hepmc3)
-set(SIREN_WHEEL_LIBRARIES SIREN_python photospline)
-if(TARGET spglam)
-    list(APPEND SIREN_WHEEL_LIBRARIES spglam)
-endif()
-include(siren_wheel_install)
-siren_install_wheel_libraries(${SIREN_WHEEL_LIBRARIES})
-foreach(module IN LISTS SIREN_PYTHON_MODULES)
-    set_target_properties(${module} PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        INSTALL_RPATH "${SIREN_RPATH_ORIGIN}/../siren.libs"
-        INSTALL_RPATH_USE_LINK_PATH FALSE)
-endforeach()
-install(TARGETS ${SIREN_PYTHON_MODULES}
-    LIBRARY DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    RUNTIME DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL)
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/python/
-    DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
-    PATTERN ".git*" EXCLUDE)
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/resources
-    DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
-    PATTERN ".git*" EXCLUDE)
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    set(SIREN_PYTHON_MODULES utilities math dataclasses geometry detector
+        interactions distributions injection hepmc3)
+    set(SIREN_WHEEL_LIBRARIES SIREN_python photospline)
+    if(TARGET spglam)
+        list(APPEND SIREN_WHEEL_LIBRARIES spglam)
+    endif()
+    include(siren_wheel_install)
+    siren_install_wheel_libraries(${SIREN_WHEEL_LIBRARIES})
+    siren_install_wheel_modules(${SIREN_PYTHON_MODULES})
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/python/
+        DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
+        PATTERN ".git*" EXCLUDE)
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/resources
+        DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
+        PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
+        PATTERN ".git*" EXCLUDE)
 
-include(siren_python_package)
+    include(siren_python_package)
+endif()
 
 
 # Export targets for use in downstream CMake projects

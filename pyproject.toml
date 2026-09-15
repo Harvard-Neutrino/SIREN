@@ -22,7 +22,7 @@ SIREN_PYTHON_PACKAGE = {env="SIREN_PYTHON_PACKAGE", default="OFF"}
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 skip = "pp*"
 # Confirm the built wheel actually bundles HepMC3 and siren.hepmc3 imports.
-test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py"
+test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py --clean-environment"
 test-requires = ["packaging"]
 config-settings = { "cmake.define.SIREN_REQUIRE_HEPMC3" = "ON" }
 # Importing siren pulls numpy/scipy; those have no binary wheels for musllinux
@@ -33,7 +33,7 @@ config-settings = { "cmake.define.SIREN_REQUIRE_HEPMC3" = "ON" }
 test-skip = "cp38-musllinux* cp39-musllinux* cp38-manylinux_aarch64"
 
 [tool.cibuildwheel.windows]
-environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
+environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CMAKE_PREFIX_PATH="$CI_INSTALL_PREFIX", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
 repair-wheel-command = 'delvewheel repair --add-path "%LD_LIBRARY_PATH%" -w {dest_dir} {wheel}'
 
 [tool.cibuildwheel.linux]
