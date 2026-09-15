@@ -76,6 +76,9 @@ During **injection**, SIREN samples interaction vertices inside a detector geome
 
 During **weighting**, SIREN computes a physical weight for each injected event. The `Weighter` takes the injection configuration and a set of *physical* distributions (the true flux and cross sections) and returns a weight that corrects for the difference between the injection and physical distributions. This importance-sampling approach allows a single injection run to be reweighted against different physical models without regenerating events.
 
+For beam-parent injection, see [beam tables](docs/beam_tables.md) for dk2nu
+mass resolution, coordinate transforms, source metadata, and importance weights.
+
 ## HepMC3 / NuHepMC output
 
 SIREN can write events as [HepMC3](https://gitlab.cern.ch/hepmc/HepMC3) ASCII, following the [NuHepMC](https://github.com/NuHepMC/Spec) conventions for neutrino generators, so events can be read by any HepMC3-aware tool. This requires HepMC3 >= 3.3 (the writer uses attribute types absent from 3.2.x); with an older or missing HepMC3 the package still builds and every other output format works, but the HepMC3 path raises at call time.
