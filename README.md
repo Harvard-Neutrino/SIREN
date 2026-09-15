@@ -237,17 +237,43 @@ pip install . --config-settings='build-dir=build'
 The source build and the CMake `python_package` target both use scikit-build-core.
 Wheels have native Python ABI/platform tags and install the SIREN core and
 photospline next to the extensions, with relative library lookup paths.
-Extensions use the host Python interpreter; C++ executables retain Python
-embedding linkage. The wheel must not bundle another Python runtime.
+Extensions use the host Python interpreter. A separate standalone library links
+Python for native applications, including plugin hosts using `dlopen`. Both
+libraries reuse the same compiled components, and a CMake build can produce both.
+The wheel core is named `libSIREN_python.dylib` on macOS and
+`libSIREN_python.so` on Linux, while the standalone core retains `libSIREN`.
+Distinct library names
+prevent a native installation on the loader search path from replacing the
+wheel core.
+The wheel must not bundle another Python runtime.
 The CMake target uses its configured Python interpreter to package the binaries;
 build it with the interpreter and architecture that will run the wheel.
+On macOS, configure `CMAKE_OSX_DEPLOYMENT_TARGET` and, when needed,
+`CMAKE_OSX_ARCHITECTURES` in the outer CMake build; the wheel target forwards
+them to its metadata backend. Relocation does not imply compatibility with
+macOS versions older than the binary deployment target or its dependencies.
 
 ```bash
 python -m pip wheel . --no-deps --wheel-dir dist
 # Or, after configuring a CMake build with SIREN_PYTHON_PACKAGE=ON:
 cmake --build build --target python_package --parallel
-# The CMake wheel is in build/dist_wheels/.
+# The CMake wheel is in <build-dir>/dist_wheels/.
 ```
+
+Wheels contain the Python package, resources, extensions, and their native
+runtime libraries. They no longer include C++ headers or CMake exports from
+the source-wheel installation. For C++ development, use the standalone CMake
+installation below, with `SIREN_PYTHON_PACKAGE=OFF` if no wheel is needed.
+The exported native targets retain the existing requirement that consumers
+provide their dependency targets; the wheel is not a C++ development SDK.
+
+The CMake wheel target uses build isolation by default. To build offline,
+first provision the configured interpreter with the requirements in
+`[build-system]` (currently `scikit-build-core>=0.10`) and its dependencies,
+then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
+route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
+dependencies must already be available too. Installation reports wheel failures;
+it does not silently continue after a failed Python installation.
 
 Local wheels still require their external native dependencies, such as CFITSIO
 and HepMC3. Before distributing a wheel, bundle those dependencies with
@@ -266,9 +292,21 @@ python /path/to/test_hepmc3_wheel.py
 ```
 
 Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
-The test checks wheel tags, verifies that the loaded core library belongs to
-the installed wheel, and exercises native sampling plus plain/gzip HepMC3
-round trips. Build with `SIREN_REQUIRE_HEPMC3=ON` for this acceptance check.
+The test checks wheel tags, rejects multiple core-library files, verifies that
+the loaded core library belongs to the installed wheel, and exercises native
+sampling plus plain/gzip HepMC3 round trips. Build with
+`SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
+explicitly. Also check a standalone installation on the loader search path:
+
+```bash
+python /path/to/test_hepmc3_wheel.py --standalone-library /native/prefix/lib/libSIREN.dylib
+# On Linux, use /native/prefix/lib/libSIREN.so (or the installation's lib64 path).
+```
+
+This repeats the check in a fresh interpreter with `DYLD_LIBRARY_PATH` or
+`LD_LIBRARY_PATH` pointing at the standalone library directory.
+The release workflow covers Linux and macOS. The Windows repair
+configuration is experimental and has no Windows CI acceptance job.
 
 ### C++ library
 

@@ -63,5 +63,5 @@ package_add_test(UnitTest_ShapeInvariants ${PROJECT_SOURCE_DIR}/projects/geometr
 package_add_test(UnitTest_Serialization ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Serialization_TEST.cxx)
 
 pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
-target_link_libraries(geometry PRIVATE SIREN)
+target_link_libraries(geometry PRIVATE SIREN_python)
 siren_strip_module(geometry)

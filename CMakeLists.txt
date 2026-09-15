@@ -17,10 +17,6 @@ message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
 set(CIBUILDWHEEL "$ENV{CIBUILDWHEEL}")
 message(STATUS "CIBUILDWHEEL: ${CIBUILDWHEEL}")
-if(CIBUILDWHEEL STREQUAL "1")
-    set(CI_INSTALL_PREFIX "$ENV{CI_INSTALL_PREFIX}")
-    message(STATUS "CI_INSTALL_PREFIX: ${CI_INSTALL_PREFIX}")
-endif()
 
 
 # parse pyproject.toml for the version
@@ -134,19 +130,6 @@ function(siren_strip_module target)
 endfunction()
 
 
-# override install locations when building python extensions
-if(DEFINED SKBUILD_PLATLIB_DIR)
-    cmake_path(RELATIVE_PATH SKBUILD_HEADERS_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_INCLUDEDIR)
-    cmake_path(RELATIVE_PATH SKBUILD_PLATLIB_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_LIBDIR)
-    message(STATUS "Setting include dir to: ${CMAKE_INSTALL_INCLUDEDIR}")
-    message(STATUS "Setting lib dir to: ${CMAKE_INSTALL_LIBDIR}")
-    set(SIREN_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
-    set(SIREN_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
-else()
-    set(SIREN_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
-    set(SIREN_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
-endif()
-
 # load python and pybind11
 include(Python)
 include(pybind11)
@@ -221,49 +204,49 @@ add_subdirectory(projects/distributions)
 add_subdirectory(projects/injection)
 add_subdirectory(projects/io)
 
-# define the target library
-add_library(SIREN SHARED)
-set_property(TARGET SIREN PROPERTY POSITION_INDEPENDENT_CODE ON)
-apply_siren_compile_options(SIREN)
-siren_strip_module(SIREN)
+# Compile the components once, but link separate native and Python libraries.
+# A native dlopen host needs libpython in the library's dependencies; a Python
+# wheel must resolve those symbols in its host interpreter instead.
+set(SIREN_COMPONENTS
+    SIREN_utilities SIREN_serialization SIREN_math SIREN_dataclasses
+    SIREN_geometry SIREN_detector SIREN_interactions SIREN_distributions
+    SIREN_injection SIREN_io)
+function(siren_add_core target)
+    add_library(${target} SHARED)
+    set_property(TARGET ${target} PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(${target} PUBLIC photospline ${SIREN_COMPONENTS})
+    apply_siren_compile_options(${target})
+    siren_strip_module(${target})
+endfunction()
 
-if(DEFINED MACOSX AND MACOSX)
-if(CMAKE_VERSION VERSION_LESS 3.13)
-    target_link_libraries(SIREN PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
-else()
-    target_link_options(SIREN PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
-endif()
-target_link_libraries(SIREN
-    PRIVATE
-    PUBLIC
-        photospline
-        SIREN_utilities
-        SIREN_serialization
-        SIREN_math
-        SIREN_dataclasses
-        SIREN_geometry
-        SIREN_detector
-        SIREN_interactions
-        SIREN_distributions
-        SIREN_injection
-        SIREN_io
-)
-else()
-target_link_libraries(SIREN
-    PRIVATE
-    PUBLIC
-        photospline
-        SIREN_utilities
-        SIREN_serialization
-        SIREN_math
-        SIREN_dataclasses
-        SIREN_geometry
-        SIREN_detector
-        SIREN_interactions
-        SIREN_distributions
-        SIREN_injection
-        SIREN_io
-)
+siren_add_core(SIREN_python)
+target_link_libraries(SIREN_python PRIVATE pybind11::module)
+# Retain the distinct target name on disk: loader-path overrides may contain
+# the standalone libSIREN, which links an embedding Python runtime.
+set_target_properties(SIREN_python PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python")
+
+if(NOT DEFINED SKBUILD)
+    siren_add_core(SIREN)
+    target_link_libraries(SIREN PUBLIC pybind11::embed)
+    set_target_properties(SIREN PROPERTIES
+        INSTALL_RPATH "${SIREN_RPATH_ORIGIN}"
+        INSTALL_RPATH_USE_LINK_PATH TRUE)
+    if(APPLE)
+        set_target_properties(SIREN PROPERTIES INSTALL_NAME_DIR "@rpath")
+    endif()
+
+    # This host deliberately links neither SIREN nor Python. The normal test
+    # helper links SIREN and would mask a missing native Python dependency.
+    if(UNIX AND NOT CIBUILDWHEEL)
+        add_executable(UnitTest_StandaloneLoad tests/native/StandaloneLoad_TEST.cxx)
+        target_link_libraries(UnitTest_StandaloneLoad PRIVATE ${CMAKE_DL_LIBS})
+        add_dependencies(UnitTest_StandaloneLoad SIREN)
+        add_test(NAME UnitTest_StandaloneLoad
+            COMMAND UnitTest_StandaloneLoad $<TARGET_FILE:SIREN>)
+    endif()
 endif()
 
 if(PACKAGE_SHARED_DEPS)
@@ -272,82 +255,69 @@ if(PACKAGE_SHARED_DEPS)
         "auditwheel repair, or delvewheel repair as in the cibuildwheel configuration.")
 endif()
 
-# Extension modules resolve Python through their host interpreter. Only C++
-# executables embed Python; linking libpython into the wheel can load a second
-# interpreter when wheel repair bundles that library.
-target_link_libraries(SIREN INTERFACE
-    "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:pybind11::embed>")
-
 # Native development installation. Wheel builds select only PythonWheel.
-install(TARGETS SIREN
-    SIREN_utilities SIREN_serialization SIREN_math SIREN_dataclasses
-    SIREN_geometry SIREN_detector SIREN_interactions SIREN_distributions
-    SIREN_injection SIREN_io
-    EXPORT ${PROJECT_NAME}Config
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+if(TARGET SIREN)
+    install(TARGETS SIREN ${SIREN_COMPONENTS}
+        EXPORT ${PROJECT_NAME}Config
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 # Both wheel entry points install the targets, allowing CMake to replace build
 # RPATHs. The core library and photospline share a package-local directory.
 set(SIREN_PYTHON_MODULES utilities math dataclasses geometry detector
     interactions distributions injection hepmc3)
-set(SIREN_WHEEL_LIBRARIES SIREN photospline)
+set(SIREN_WHEEL_LIBRARIES SIREN_python photospline)
 if(TARGET spglam)
     list(APPEND SIREN_WHEEL_LIBRARIES spglam)
 endif()
-set_target_properties(${SIREN_WHEEL_LIBRARIES} PROPERTIES
-    BUILD_WITH_INSTALL_RPATH FALSE
-    INSTALL_RPATH "${SIREN_RPATH_ORIGIN}"
-    INSTALL_RPATH_USE_LINK_PATH FALSE)
-if(APPLE)
-    set_target_properties(${SIREN_WHEEL_LIBRARIES} PROPERTIES
-        INSTALL_NAME_DIR "@rpath"
-        BUILD_WITH_INSTALL_NAME_DIR TRUE)
-endif()
+include(siren_wheel_install)
+siren_install_wheel_libraries(${SIREN_WHEEL_LIBRARIES})
 foreach(module IN LISTS SIREN_PYTHON_MODULES)
     set_target_properties(${module} PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
         INSTALL_RPATH "${SIREN_RPATH_ORIGIN}/../siren.libs"
         INSTALL_RPATH_USE_LINK_PATH FALSE)
 endforeach()
-install(TARGETS ${SIREN_WHEEL_LIBRARIES}
-    LIBRARY DESTINATION siren.libs COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    RUNTIME DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL)
 install(TARGETS ${SIREN_PYTHON_MODULES}
     LIBRARY DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
     RUNTIME DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/python/
     DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
+    PATTERN ".git*" EXCLUDE)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/resources
     DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE
+    PATTERN ".git*" EXCLUDE)
 
 include(siren_python_package)
 
 
 # Export targets for use in downstream CMake projects
 # -----------------------------------------------------------------------------
-include(CMakePackageConfigHelpers)
-# Make importable from build directory
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY AnyNewerVersion
-)
-export(EXPORT ${PROJECT_NAME}Config FILE "${PROJECT_NAME}Config.cmake"
-       NAMESPACE ${PROJECT_NAME}::)
+if(TARGET SIREN)
+    include(CMakePackageConfigHelpers)
+    # Make importable from build directory
+    write_basic_package_version_file(
+      "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+      VERSION ${PROJECT_VERSION}
+      COMPATIBILITY AnyNewerVersion
+    )
+    export(EXPORT ${PROJECT_NAME}Config FILE "${PROJECT_NAME}Config.cmake"
+           NAMESPACE ${PROJECT_NAME}::)
 
-# Make importable from install location
-set(_config_dir share/${PROJECT_NAME}/cmake)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-  DESTINATION ${_config_dir}
-)
-install(EXPORT ${PROJECT_NAME}Config
-  FILE "${PROJECT_NAME}Config.cmake"
-  NAMESPACE ${PROJECT_NAME}::
-  DESTINATION "${_config_dir}"
-)
+    # Make importable from install location
+    set(_config_dir share/${PROJECT_NAME}/cmake)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+      DESTINATION ${_config_dir}
+    )
+    install(EXPORT ${PROJECT_NAME}Config
+      FILE "${PROJECT_NAME}Config.cmake"
+      NAMESPACE ${PROJECT_NAME}::
+      DESTINATION "${_config_dir}"
+    )
+endif()
 
 MESSAGE("")
 MESSAGE("Done!")

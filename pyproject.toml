@@ -24,6 +24,7 @@ skip = "pp*"
 # Confirm the built wheel actually bundles HepMC3 and siren.hepmc3 imports.
 test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py"
 test-requires = ["packaging"]
+config-settings = { "cmake.define.SIREN_REQUIRE_HEPMC3" = "ON" }
 # Importing siren pulls numpy/scipy; those have no binary wheels for musllinux
 # cp38/cp39 or aarch64 cp38 and cannot source-build in the isolated test env
 # (scipy needs OpenBLAS). The wheels still build and bundle HepMC3 on these
@@ -76,6 +77,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
     "Operating System :: POSIX",
     "Operating System :: Unix",

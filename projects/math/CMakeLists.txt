@@ -58,5 +58,5 @@ package_add_test(UnitTest_Indexing ${PROJECT_SOURCE_DIR}/projects/math/private/t
 package_add_test(UnitTest_Interpolator ${PROJECT_SOURCE_DIR}/projects/math/private/test/Interpolator_TEST.cxx)
 
 pybind11_add_module(math ${PROJECT_SOURCE_DIR}/projects/math/private/pybindings/math.cxx)
-target_link_libraries(math PRIVATE SIREN)
+target_link_libraries(math PRIVATE SIREN_python)
 siren_strip_module(math)

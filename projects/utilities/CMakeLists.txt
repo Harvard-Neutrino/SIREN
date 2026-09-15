@@ -23,5 +23,5 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
 )
 
 pybind11_add_module(utilities ${PROJECT_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
-target_link_libraries(utilities PRIVATE SIREN rk_static)
+target_link_libraries(utilities PRIVATE SIREN_python rk_static)
 siren_strip_module(utilities)

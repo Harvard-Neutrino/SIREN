@@ -81,7 +81,7 @@ package_add_test(UnitTest_HNLDecay ${PROJECT_SOURCE_DIR}/projects/interactions/p
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
-target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::module GSL::gsl GSL::gslcblas)
+target_link_libraries(interactions PRIVATE SIREN_python photospline rk_static crundec_static pybind11::module GSL::gsl GSL::gslcblas)
 if(TARGET PYTHIA8)
     target_link_libraries(interactions PRIVATE PYTHIA8)
     target_compile_definitions(interactions PRIVATE SIREN_HAS_PYTHIA8)
@@ -120,7 +120,7 @@ package_add_test(UnitTest_InteractionSerialization ${PROJECT_SOURCE_DIR}/project
 # Real PythiaDISCrossSection charm-DIS closure/normalization regression test.
 # Only built with Pythia8 support; needs charm-DIS spline files via env vars
 # (SIREN_PYTHIA_TEST_DSDXDY, SIREN_PYTHIA_TEST_SIGMA), otherwise it SKIPs.
-if(TARGET PYTHIA8)
+if(TARGET PYTHIA8 AND NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
     package_add_test(UnitTest_PythiaDISCharmClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/PythiaDISCharmClosure_TEST.cxx)
     target_compile_definitions(UnitTest_PythiaDISCharmClosure PRIVATE SIREN_HAS_PYTHIA8)
     target_link_libraries(UnitTest_PythiaDISCharmClosure PYTHIA8)
