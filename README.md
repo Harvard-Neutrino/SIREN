@@ -88,6 +88,9 @@ be reweighted for different physical models without regenerating events.
 For beam-parent injection, see [beam tables](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/beam_tables.md) for dk2nu
 mass resolution, coordinate transforms, source metadata, and importance weights.
 
+For forced final states, see [decay channels and propagation](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/decay_channels.md)
+for partial widths, branching fractions, lifetime weighting, and archive support.
+
 ## Installation
 
 For optional BSM support via DarkNews:

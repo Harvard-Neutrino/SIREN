@@ -840,11 +840,16 @@ class Injector:
             new_secondary_types = sorted(list(secondary_interactions.keys()))
             if current_secondary_types != new_secondary_types:
                 raise ValueError("Cannot change the secondary types after initialization")
+            collections = {}
             for secondary_type, secondary_process in secondary_processes.items():
                 collection = _interactions.InteractionCollection(
                     secondary_type, secondary_interactions[secondary_type])
                 collection.SetDecayChannels(self.__secondary_decay_channels.get(secondary_type))
-                secondary_process.interactions = collection
+                collections[secondary_type] = collection
+            # A rejected update must leave every native process and the Python
+            # model references unchanged, even when a later selection is bad.
+            for secondary_type, secondary_process in secondary_processes.items():
+                secondary_process.interactions = collections[secondary_type]
         self.__secondary_interactions = secondary_interactions
 
     @property

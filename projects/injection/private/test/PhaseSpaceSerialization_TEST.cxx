@@ -24,12 +24,15 @@
 #include "SIREN/injection/PhysicalChannelAdapters.h"
 #include "SIREN/injection/Process.h"
 #include "SIREN/interactions/CharmMesonDecay.h"
+#include "SIREN/interactions/HNLDipoleDecay.h"
 #include "SIREN/interactions/DummyCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Random.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -81,6 +84,43 @@ TEST(DecayChannelSerialization, EqualityIncludesSelection) {
     EXPECT_FALSE(all == selected);
     selected.SetDecayChannels(std::nullopt);
     EXPECT_TRUE(all == selected);
+}
+
+TEST(DecayChannelSerialization, CanonicalizesOldVersionOneSelectionOrder) {
+    using siren::dataclasses::ParticleType;
+    using siren::interactions::Decay;
+    using siren::interactions::HNLDipoleDecay;
+    using siren::interactions::InteractionCollection;
+    auto decay = std::make_shared<HNLDipoleDecay>(
+        1.0, std::vector<double>{1e-7, 2e-7, 3e-7}, HNLDipoleDecay::Majorana);
+    auto signatures = decay->GetPossibleSignaturesFromParent(ParticleType::N4);
+    ASSERT_GT(signatures.size(), 1u);
+    std::sort(signatures.begin(), signatures.end());
+    InteractionCollection expected(ParticleType::N4, std::vector<std::shared_ptr<Decay>>{decay});
+    expected.SetDecayChannels(signatures);
+    std::reverse(signatures.begin(), signatures.end());
+    InteractionCollection reversed = expected;
+    reversed.SetDecayChannels(signatures);
+    EXPECT_TRUE(expected == reversed);
+
+    // Write the original v1 body explicitly: its selection retained input order.
+    std::stringstream stream;
+    {
+        cereal::BinaryOutputArchive archive(stream);
+        archive(expected.GetPrimaryType(), expected.TargetTypes(),
+                expected.GetCrossSections(), expected.GetDecays(),
+                std::optional<std::vector<siren::dataclasses::InteractionSignature>>(signatures),
+                714);
+    }
+    InteractionCollection loaded;
+    int sentinel = 0;
+    {
+        cereal::BinaryInputArchive archive(stream);
+        loaded.load(archive, 1);
+        archive(sentinel);
+    }
+    EXPECT_EQ(sentinel, 714);
+    EXPECT_EQ(loaded.GetDecayChannels(), expected.GetDecayChannels());
 }
 
 namespace {
