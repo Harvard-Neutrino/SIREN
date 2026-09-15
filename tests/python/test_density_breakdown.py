@@ -73,10 +73,15 @@ def test_density_breakdown_sums_to_density():
 # cancelled on the diagnostics path (EventWeightWithBreakdown): the former is  #
 # keyed from the injection process's MultiChannelPhaseSpace.DensityBreakdown  #
 # when one is attached for the vertex's signature, and the latter lists the   #
-# distribution Name()s shared by value between the injection and physical     #
-# distribution lists. The DummyCrossSection assembly below attaches no phase  #
-# space and shares no value-equal distributions, so both fields are wired but #
-# stay empty for every vertex in this assembly specifically.                  #
+# distribution Name()s that cancel between the injection and physical          #
+# distribution lists. Cancellation is by value equality (operator==), not      #
+# shared_ptr identity: a distribution present in both lists cancels even when  #
+# the two lists hold distinct but value-equal instances. The DummyCrossSection #
+# assembly below attaches no phase space, so channel_densities stays empty,    #
+# but its injection and physical lists share value-equal PrimaryMass,          #
+# PrimaryNeutrinoHelicityDistribution, IsotropicDirection (primary vertex) and #
+# SecondaryPhysicalVertexDistribution (secondary vertex) instances, so those   #
+# names appear in cancelled.                                                   #
 # --------------------------------------------------------------------------- #
 
 def _skip_unless_ccm_data():
@@ -147,8 +152,18 @@ def _build_chain(detector_model, n_inject, seed):
     return inj, weighter, keepalive
 
 
-def test_vertex_channel_densities_and_cancelled_are_wired_but_empty_for_this_assembly():
-    """channel_densities/cancelled are wired but empty for a vertex with no attached mixture and no value-shared distributions."""
+def test_vertex_cancelled_matches_value_equal_distributions():
+    """cancelled lists the value-equal distributions shared by the injection and
+    physical lists; channel_densities stays empty with no mixture attached.
+
+    Cancellation is by value equality (WeightableDistribution::operator==), not
+    shared_ptr identity: the injection and physical lists here hold distinct but
+    value-equal instances, and they cancel exactly as literally shared instances
+    would. The primary vertex shares PrimaryMass, PrimaryNeutrinoHelicity-
+    Distribution, and IsotropicDirection; the secondary vertex shares
+    SecondaryPhysicalVertexDistribution. PowerLaw and the position
+    distributions live on only one side, so they do not cancel.
+    """
     _skip_unless_ccm_data()
     detector_model = _load_ccm_detector()
     inj, weighter, _keepalive = _build_chain(detector_model, 2000, 2468)
@@ -168,19 +183,24 @@ def test_vertex_channel_densities_and_cancelled_are_wired_but_empty_for_this_ass
         events.append(ev)
     assert len(events) == 20
 
+    primary_cancelled = {"PrimaryMass", "PrimaryNeutrinoHelicityDistribution",
+                         "IsotropicDirection"}
+    secondary_cancelled = {"SecondaryPhysicalVertexDistribution"}
+    seen_cancelled = set()
     for ev in events:
         bd = weighter.EventWeightWithBreakdown(ev)
         for v in bd.vertices:
             cd = v.channel_densities
-            cancelled = v.cancelled
+            cancelled = set(v.cancelled)
             assert isinstance(cd, dict)
-            assert isinstance(cancelled, list)
+            assert isinstance(v.cancelled, list)
             assert all(math.isfinite(x) for x in cd.values())
-            # This assembly attaches no MultiChannelPhaseSpace and shares no
-            # value-equal distributions between injection and physical, so
-            # both fields stay empty for every vertex here.
+            # No MultiChannelPhaseSpace is attached, so channel_densities stays
+            # empty; cancelled names the value-equal shared distributions.
             assert cd == {}
-            assert cancelled == []
+            assert cancelled in (primary_cancelled, secondary_cancelled)
+            seen_cancelled |= cancelled
+    assert seen_cancelled == primary_cancelled | secondary_cancelled
 
 
 def test_channel_densities_contract_matches_density_breakdown():

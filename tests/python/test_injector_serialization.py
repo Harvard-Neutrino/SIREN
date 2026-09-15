@@ -79,8 +79,7 @@ def test_save_load_preserves_counters_and_weighting_mode(tmp_path):
     path = str(tmp_path / "injector_roundtrip")
     inj.SaveInjector(path)
 
-    reloaded = injection._Injector.__new__(injection._Injector)
-    reloaded.LoadInjector(path)
+    reloaded = injection._Injector(1, path, utilities.SIREN_random(0))
 
     assert reloaded.InjectionAttempts() == inj.InjectionAttempts()
     assert reloaded.InjectedEvents() == inj.InjectedEvents()
@@ -100,13 +99,41 @@ def test_failed_events_default_when_not_yet_generated(tmp_path):
         events=3, seed=1, weighting_mode=injection.VertexWeightingMode.Propagated())
     path = str(tmp_path / "injector_fresh")
     inj.SaveInjector(path)
-    reloaded = injection._Injector.__new__(injection._Injector)
-    reloaded.LoadInjector(path)
+    reloaded = injection._Injector(1, path, utilities.SIREN_random(0))
     assert reloaded.InjectionAttempts() == 0
     assert reloaded.InjectedEvents() == 0
     assert reloaded.FailedEvents() == 0
     assert reloaded.GetPrimaryProcess().GetWeightingMode() == (
         injection.VertexWeightingMode.Propagated())
+
+
+def test_save_load_resumes_the_rng_stream(tmp_path):
+    """A version-2 archive restores the RNG engine state, so a reloaded injector
+    RESUMES its generation stream where the saved one left off -- it does not
+    restart from the seed, and the fallback engine handed to the loading
+    constructor is discarded. The saved seed survives only as a label."""
+    inj = _raw_forced_failure_injector(
+        events=10, seed=13, weighting_mode=injection.VertexWeightingMode.Fixed())
+    engine = inj.GetRandom()
+    # Advance the engine, then snapshot the injector mid-stream.
+    for _ in range(20):
+        engine.Uniform(0.0, 1.0)
+    path = str(tmp_path / "injector_rng")
+    inj.SaveInjector(path)
+    # What the original engine produces next is the continuation to reproduce.
+    continuation = [engine.Uniform(0.0, 1.0) for _ in range(8)]
+
+    # Reload with a DIFFERENT fallback seed; a version-2 archive ignores it.
+    reloaded = injection._Injector(1, path, utilities.SIREN_random(999))
+    resumed = [reloaded.GetRandom().Uniform(0.0, 1.0) for _ in range(8)]
+    assert resumed == continuation
+
+    # It is a resume, not a restart-from-seed: seed 13 replayed from the start
+    # gives the pre-snapshot draws, which must not match the continuation.
+    restart = [utilities.SIREN_random(13).Uniform(0.0, 1.0) for _ in range(8)]
+    assert resumed != restart
+    # The originating seed is preserved as a label (not the fallback 999).
+    assert reloaded.GetRandom().get_seed() == 13
 
 
 # ------------------------------------------------------------------ #
