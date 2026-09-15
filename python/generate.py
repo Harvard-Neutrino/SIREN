@@ -32,4 +32,5 @@ def generate(injector, weighter, *, events, on_shortfall="warn",
     weights = [_checked_weight(weight, "Event {} weight", index)
                for index, weight in enumerate(weights)]
     gen_times = [0.0] * len(trees)
-    return Results(list(trees), list(weights), gen_times, weighter, injector)
+    return Results(list(trees), list(weights), gen_times, weighter, injector,
+                   requested=events)

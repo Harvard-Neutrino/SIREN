@@ -529,27 +529,8 @@ class Weighter:
 
     def _copy_state(self, memo=None):
         """Copy in-memory state without invoking the weighter's pickle guard."""
-        from copy import deepcopy
-        from types import MemberDescriptorType
-
-        cls = type(self)
-        result = object.__new__(cls)
-        if memo is not None:
-            memo[id(self)] = result
-            result.__dict__ = deepcopy(self.__dict__, memo)
-        else:
-            result.__dict__ = self.__dict__.copy()
-        # Slots can be inherited or name-mangled; their descriptors handle both.
-        for base in cls.__mro__:
-            for member in vars(base).values():
-                if isinstance(member, MemberDescriptorType):
-                    try:
-                        value = member.__get__(self, cls)
-                    except AttributeError:
-                        continue
-                    member.__set__(result, value if memo is None
-                                   else deepcopy(value, memo))
-        return result
+        from ._copy import copy_state
+        return copy_state(self, memo)
 
     def _guard_serializable(self, _errors):
         """Reject configurations the native archive cannot preserve."""

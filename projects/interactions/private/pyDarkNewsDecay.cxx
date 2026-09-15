@@ -153,5 +153,15 @@ double pyDarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord con
         )
     }
 
+std::vector<double> pyDarkNewsDecay::SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const {
+    SELF_OVERRIDE(self, DarkNewsDecay, std::vector<double>,
+                  SecondaryMasses, "SecondaryMasses", secondary_types)
+}
+
+std::vector<double> pyDarkNewsDecay::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    SELF_OVERRIDE(self, DarkNewsDecay, std::vector<double>,
+                  SecondaryHelicities, "SecondaryHelicities", record)
+}
+
 } // namespace interactions
 } // namespace siren

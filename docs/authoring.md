@@ -13,6 +13,13 @@ indices, for every signature the model advertises through
 count. Signatures outside that set resolve to `Unspecified`.
 `DensityVariables()` labels do not override the declaration.
 
+Daughter masses default to `particles.mass(type)`: values registered with
+`particles.define(name, pdg, mass)` take precedence over the built-in mass table.
+Masses are in GeV and must be finite and non-negative. Unknown masses raise a
+configuration error. Override `SecondaryMasses(types)` for masses controlled by
+model parameters; explicit mass and helicity hooks remain authoritative, including
+through the DarkNews trampolines. Registration does not change the native mass table.
+
 The differential hook receives an `InteractionRecord`. The sampler receives a
 `CrossSectionDistributionRecord` and writes its secondary particle records.
 Sampling must follow the normalized differential rate in the declared measure;
