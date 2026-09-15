@@ -17,6 +17,7 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElectroweakDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/TrivialCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay.cxx
@@ -130,3 +131,7 @@ if(TARGET PYTHIA8)
     target_compile_definitions(UnitTest_PythiaDISCharmClosure PRIVATE SIREN_HAS_PYTHIA8)
     target_link_libraries(UnitTest_PythiaDISCharmClosure PYTHIA8)
 endif()
+
+# Pass-through cross section with tabulated totals (generation stand-in /
+# generator-deferred physical totals).
+package_add_test(UnitTest_TrivialCrossSection ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/TrivialCrossSection_TEST.cxx)
