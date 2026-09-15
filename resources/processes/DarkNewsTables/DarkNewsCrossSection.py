@@ -1,4 +1,5 @@
 import os
+import logging
 import numpy as np
 import functools
 from scipy.interpolate import LinearNDInterpolator, PchipInterpolator
@@ -17,6 +18,31 @@ from siren.dataclasses import Particle
 
 # DarkNews methods
 from DarkNews import phase_space
+
+logger = logging.getLogger(__name__)
+
+
+def _finite_nonnegative(value, quantity):
+    """Return a physical scalar density, clipping numerical undershoots.
+
+    DarkNews occasionally returns tiny negative values at a kinematic boundary,
+    and interpolation can reproduce those undershoots.  Cross sections are
+    probability densities, so a negative value has no signed interpretation in
+    SIREN.  Non-finite values are different: they indicate a broken model
+    evaluation and must fail loudly rather than being turned into zero.
+    """
+    if hasattr(value, "item"):
+        value = value.item()
+    value = float(value)
+    if not np.isfinite(value):
+        raise ValueError("Non-finite %s cross section: %r" % (quantity, value))
+    if value < 0.0:
+        logger.warning(
+            "Negative %s cross section (%g); clamping to 0",
+            quantity,
+            value,
+        )
+    return max(0.0, value)
 
 
 # A class representing a single ups_case DarkNews class
@@ -151,8 +177,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         elif mode == "differential":
             interp_table = self.differential_cross_section_table
         else:
-            print("Invalid interpolation table mode %s" % mode)
-            exit(0)
+            raise ValueError("invalid interpolation table mode %s" % mode)
 
         # first check if we have saved table points already
         if len(interp_table) == 0:
@@ -196,47 +221,49 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             interp_table = self.differential_cross_section_table
             interpolator = self.differential_cross_section_interpolator
         else:
-            print("Invalid interpolation table mode %s" % mode)
-            exit(0)
+            raise ValueError("invalid interpolation table mode %s" % mode)
 
         if self.always_interpolate:
             # check if energy is within table range
 
             if interpolator is None or inputs[0] > interp_table[-1, 0]:
-                print(
-                    "Requested interpolation at %2.2f GeV. Either this is above the table boundary or the interpolator doesn't yet exist. Filling %s table"
-                    % (inputs[0], mode)
+                logger.info(
+                    "Extending %s cross-section interpolation table up to %.2f GeV"
+                    % (mode, inputs[0])
                 )
                 n = self.FillInterpolationTables(
                     total=(mode == "total"),
                     diff=(mode == "differential"),
                     Emax=(1 + self.interp_tolerance) * inputs[0],
                 )
-                print("Added %d points" % n)
+                logger.info("Added %d point(s) to the %s table" % (n, mode))
                 if mode == "total":
                     interpolator = self.total_cross_section_interpolator
                 elif mode == "differential":
                     interpolator = self.differential_cross_section_interpolator
+                if interpolator is None:
+                    return -1
             elif inputs[0] < interp_table[0, 0]:
-                print(
-                    "Requested interpolation at %2.2f GeV below table boundary. Requring calculation"
-                    % inputs[0]
+                logger.debug(
+                    "Energy %.2f GeV is below the %s interpolation range; cross section is 0"
+                    % (inputs[0], mode)
                 )
                 return 0
-            val = max(0, interpolator(inputs))
+            val = interpolator(inputs)
             if hasattr(val, "item"):
                 val = val.item()
-            if val < 0:
-                print(
-                    "WARNING: negative interpolated value for %s-%s %s cross section at,"
-                    % (
-                        self.ups_case.nuclear_target.name,
-                        self.ups_case.scattering_regime,
-                        mode,
-                    ),
-                    inputs,
+            # LinearNDInterpolator returns NaN outside its convex hull (the
+            # differential grid intentionally stops just short of z=1).  That
+            # is a cache miss, not a model value; let the caller evaluate the
+            # exact DarkNews expression.  Infinite values remain hard errors
+            # in _finite_nonnegative below.
+            if np.isnan(val):
+                logger.debug(
+                    "%s cross-section interpolation has no support at %s; "
+                    "using exact evaluation" % (mode, inputs)
                 )
-            return val
+                return -1
+            return _finite_nonnegative(val, mode)
 
         UseSinglePoint, Interpolate, closest_idx = self._interpolation_flags(
             inputs, mode
@@ -244,16 +271,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         if UseSinglePoint:
             if closest_idx < 0:
-                print(
-                    "Trying to use a single table point, but no closest idx found. Exiting..."
-                )
-                exit(0)
-            return interp_table[closest_idx, -1]
-        elif Interpolate:
+                raise RuntimeError("no closest interpolation-table index found for a single-point lookup")
+            return _finite_nonnegative(interp_table[closest_idx, -1], mode)
+        elif Interpolate and interpolator is not None:
             val = interpolator(inputs)
             if hasattr(val, "item"):
                 val = val.item()
-            return val
+            if np.isnan(val):
+                return -1
+            return _finite_nonnegative(val, mode)
         else:
             return -1
 
@@ -265,7 +291,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         new_diff_points: List[Tuple[float, float, float]] = []
 
         if total:
-            xsec = self.ups_case.total_xsec(E)
+            xsec = _finite_nonnegative(
+                self.ups_case.total_xsec(E), "total table entry")
             new_total_points.append((E, xsec))
             num_added_points += 1
 
@@ -281,7 +308,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             z = zmin
             while z < zmax:
                 Q2 = Q2min + z * (Q2max - Q2min)
-                dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
+                dxsec = _finite_nonnegative(
+                    self.ups_case.diff_xsec_Q2(E, Q2),
+                    "differential table entry",
+                )
                 new_diff_points.append((E, z, dxsec))
                 num_added_points += 1
                 z *= 1 + factor * self.interp_tolerance
@@ -424,16 +454,19 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return 0
         z = (Q2 - Q2min) / (Q2max - Q2min)
 
-        if self.always_interpolate:
-            # Check if we can interpolate
-            val = self._query_interpolation_table([energy, z], mode="differential")
-            if val >= 0:
-                # we have recovered the differential cross section from the interpolation table
-                return val
+        # Check if the configured interpolation policy can answer this point.
+        # In non-always mode _query_interpolation_table returns -1 when the
+        # nearby table is insufficient and the exact DarkNews calculation is
+        # required.
+        val = self._query_interpolation_table([energy, z], mode="differential")
+        if val >= 0:
+            return val
 
         # If we have reached this block, we must compute the differential cross section using DarkNews
-        dxsec = self.ups_case.diff_xsec_Q2(energy, Q2).item()
-        return dxsec
+        return _finite_nonnegative(
+            self.ups_case.diff_xsec_Q2(energy, Q2),
+            "differential exact evaluation",
+        )
 
     def TargetMass(self, target_type):
         target_mass = self.ups_case.MA
@@ -464,8 +497,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         elif energy is not None and target is not None:
             primary = arg1
         else:
-            print("Incorrect function call to TotalCrossSection!")
-            exit(0)
+            raise TypeError("TotalCrossSection expects an InteractionRecord or (energy, target)")
         if int(primary) != self.ups_case.nu_projectile:
             return 0
         interaction = dataclasses.InteractionRecord()
@@ -483,9 +515,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return val
 
         # If we have reached this block, we must compute the cross section using DarkNews
-        xsec = self.ups_case.total_xsec(energy)
-        if hasattr(xsec, "item"):
-            xsec = xsec.item()
+        xsec = _finite_nonnegative(
+            self.ups_case.total_xsec(energy), "total exact evaluation")
         self.total_cross_section_table = np.vstack(
             (self.total_cross_section_table, [[energy, xsec]])
         )
