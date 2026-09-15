@@ -38,15 +38,30 @@ all-final-state width must count precisely the physical channels it owns.
 
 `None` leaves generation unrestricted. Empty lists, duplicates, foreign parents,
 and signatures missing from the decay models raise `ConfigurationError`.
+Selection order has no effect: equivalent lists compare equal and are stored
+in canonical signature order. Assigning `Vertex.decay_channels` uses the same
+validation as construction; a rejected assignment keeps the old selection.
 Closed selected channels have zero generation density and are never sampled;
 if no interaction remains, strict generation reports the failed attempt.
-Cross-section candidates are unaffected by the decay restriction. With competing
-scattering, channel probabilities use the combined allowed interaction rates.
+Every model's all-final-state width and every advertised partial width must be
+finite and nonnegative, including unselected channels used for propagation.
+Their total must remain finite. Zero widths remain valid closed channels.
+Cross-section candidates remain eligible under a decay restriction. With
+competing scattering, channel probabilities use the combined allowed interaction
+rates. Selected collections also reject negative or nonfinite scattering rates
+and an overflowing sum of rates; zero-rate candidates are never sampled.
 
 The same declaration works for primary and secondary vertices, including
 `Simulation`. Phase-space biasing compiles only the selected decay signatures;
 its density is still included in the weight. `Fixed()` omits flight probabilities
-but retains channel branching. For lifetime reweighting, supply the full physical
+but retains channel branching. Pure decays of a stationary parent use finite
+width ratios for both channel sampling and physical channel probabilities, with
+or without a selection and including when several channels compete; `Fixed()`
+is the meaningful mode there. The final-state proposal density is still
+included. Moving parents keep inverse flight lengths, whose common boost factor
+cancels from the ratios. A parent moving so slowly that an inverse flight length
+overflows is rejected with `ConfigurationError` rather than treated as stationary.
+For lifetime reweighting, supply the full physical
 model set at the new parameters through `physical_interactions` or a Weighter
 override; leave the generation models unchanged.
 
@@ -55,13 +70,22 @@ For direct process construction, call
 Python `Injector` constructor accepts signature lists through
 `primary_decay_channels` and a particle-keyed `secondary_decay_channels` mapping.
 `GetDecayChannels()` returns a copy; use the setter to change the collection.
+Replacing `Injector.secondary_interactions` validates every replacement before
+changing any native process, so a rejected replacement preserves all processes.
 
 Selections survive native save/load and supported pickle paths. Older
 InteractionCollection archives load with unrestricted generation. The existing
 serialization restrictions on Python models, callbacks, and distributions still
-apply. `Results.merge` requires matching selections, as part of its requirement
+apply. Readers predating archive version 1 cannot read the new collections.
+Version-1 collections written before selection-order normalization still load;
+their selections are canonicalized on read.
+`Results.merge` requires matching selections, as part of its requirement
 that pooled runs have the same configuration. A Weighter combining injectors
 still requires each injector to support the events being weighted.
+For truly disjoint channel selections with consistent physical normalization,
+sum the independently normalized per-run channel estimates. Keep those results
+separate from `Results.merge` or pooled Weighter operations. Overlapping channel
+selections cannot be added this way without counting their overlap twice.
 
 This feature controls the channels of a process. Secondary routing still allows
 one process per particle type; it does not choose different channel restrictions

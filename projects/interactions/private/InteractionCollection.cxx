@@ -99,6 +99,7 @@ std::vector<std::shared_ptr<CrossSection>> const & InteractionCollection::GetCro
 
 void InteractionCollection::SetDecayChannels(
         std::optional<std::vector<dataclasses::InteractionSignature>> channels) {
+    if(channels) std::sort(channels->begin(), channels->end());
     auto previous = decay_channels;
     decay_channels = std::move(channels);
     try {

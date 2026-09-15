@@ -623,9 +623,17 @@ double Injector::GenerationProbability(siren::dataclasses::InteractionRecord con
         probability *= prob;
     }
     auto phase_space = process->GetPhaseSpace(record.signature);
-    double prob = process->GetInteractions()->HasDecayChannels()
-        ? siren::injection::DecayChannelGenerationProbability(detector_model, process->GetInteractions(), record, phase_space.get())
-        : siren::injection::CrossSectionProbability(detector_model, process->GetInteractions(), record);
+    double prob;
+    if(process->GetInteractions()->HasDecayChannels()) {
+        prob = siren::injection::DecayChannelGenerationProbability(
+            detector_model, process->GetInteractions(), record, phase_space.get());
+    } else if(phase_space) {
+        prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
+            detector_model, process->GetInteractions(), record, *phase_space);
+    } else {
+        prob = siren::injection::CrossSectionProbability(
+            detector_model, process->GetInteractions(), record);
+    }
     probability *= prob;
     return probability;
 }

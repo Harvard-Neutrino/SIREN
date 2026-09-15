@@ -90,27 +90,69 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
         }
     }
 
+    // Python models can change their advertised signatures after configuration.
+    // Revalidate at use so a stale selection cannot silently lose support.
     if (for_generation) interactions->ValidateDecayChannels();
+    // Pure decays share the same boost factor in every inverse flight length.
+    // At rest that factor is singular: use widths for the discrete competition
+    // on BOTH the generation and physical sides instead. Moving-parent rates
+    // retain their historical arithmetic and sampling order.
+    bool const rest_decay_rates = !interactions->HasCrossSections()
+        && record.primary_mass > 0.0
+        && record.primary_momentum[1] == 0.0
+        && record.primary_momentum[2] == 0.0
+        && record.primary_momentum[3] == 0.0;
+    bool const validate_widths = interactions->HasDecayChannels() || rest_decay_rates;
+    auto check_width = [](double width) {
+        if (!std::isfinite(width) || width < 0.0) {
+            throw siren::utilities::ConfigurationError(
+                "Decay-channel rates require finite nonnegative decay widths");
+        }
+    };
     if (interactions->HasDecays()) {
         double decay_target_mass = detector_model->GetTargetMass(
             siren::dataclasses::ParticleType::Decay);
+        double total_width = 0.0;
         for (auto const & decay : interactions->GetDecays()) {
+            if (validate_widths) {
+                // All models contribute to propagation, including models whose
+                // generated signatures are excluded by the selection.
+                double width = decay->TotalDecayWidthAllFinalStates(record);
+                check_width(width);
+                total_width += width;
+                check_width(total_width); // finite terms can overflow in sum
+            }
             for (auto const & signature :
                  decay->GetPossibleSignaturesFromParent(
                      record.signature.primary_type)) {
-                if (for_generation && !interactions->AllowsDecay(signature)) continue;
                 candidate_record.signature = signature;
+                double width = 0.0;
+                if (validate_widths) {
+                    width = decay->TotalDecayWidth(candidate_record);
+                    check_width(width);
+                }
+                if (for_generation && !interactions->AllowsDecay(signature)) continue;
                 candidates.push_back(InteractionCandidate{
                     signature,
                     decay_target_mass,
-                    1.0 / (decay->TotalDecayLength(candidate_record)
-                           / siren::utilities::Constants::cm),
+                    rest_decay_rates ? width
+                        : 1.0 / (decay->TotalDecayLength(candidate_record)
+                                 / siren::utilities::Constants::cm),
                     decay});
             }
         }
     }
 
-    if (for_generation && interactions->HasDecayChannels()) {
+    if (rest_decay_rates) {
+        // Only ratios enter this competition. Rescale before multiplying by
+        // final-state densities so tiny but finite widths do not underflow.
+        double scale = 0.0;
+        for (auto const & candidate : candidates) scale = std::max(scale, candidate.rate);
+        if (scale > 0.0) {
+            for (auto & candidate : candidates) candidate.rate /= scale;
+        }
+    }
+    if (for_generation && (interactions->HasDecayChannels() || rest_decay_rates)) {
         for (auto const & candidate : candidates) {
             if (!std::isfinite(candidate.rate) || candidate.rate < 0.0) {
                 throw siren::utilities::ConfigurationError("Selected decay generation requires finite nonnegative interaction rates");
