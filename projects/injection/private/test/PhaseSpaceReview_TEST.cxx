@@ -526,13 +526,14 @@ siren::dataclasses::InteractionSignature SharedCrossSectionSignature() {
 
 class TaggedDecay final : public siren::interactions::Decay {
 public:
-    TaggedDecay(int tag, double rate, double density)
-        : tag_(tag), rate_(rate), density_(density) {}
+    TaggedDecay(int tag, double rate, double density,
+                siren::dataclasses::InteractionSignature signature = SharedDecaySignature())
+        : tag_(tag), rate_(rate), density_(density), signature_(std::move(signature)) {}
 
     bool equal(siren::interactions::Decay const & other) const override {
         auto const * tagged = dynamic_cast<TaggedDecay const *>(&other);
         return tagged && tagged->tag_ == tag_ && tagged->rate_ == rate_
-            && tagged->density_ == density_;
+            && tagged->density_ == density_ && tagged->signature_ == signature_;
     }
     double TotalDecayWidthAllFinalStates(InteractionRecord const &) const override {
         return rate_;
@@ -587,15 +588,15 @@ public:
     }
     std::vector<siren::dataclasses::InteractionSignature>
     GetPossibleSignatures() const override {
-        return {SharedDecaySignature()};
+        return {signature_};
     }
     std::vector<siren::dataclasses::InteractionSignature>
     GetPossibleSignaturesFromParent(
         siren::dataclasses::ParticleType primary) const override
     {
-        return primary == SharedDecaySignature().primary_type
+        return primary == signature_.primary_type
             ? std::vector<siren::dataclasses::InteractionSignature>{
-                  SharedDecaySignature()}
+                  signature_}
             : std::vector<siren::dataclasses::InteractionSignature>{};
     }
     double FinalStateProbability(InteractionRecord const &) const override {
@@ -616,6 +617,7 @@ private:
     int tag_;
     double rate_;
     double density_;
+    siren::dataclasses::InteractionSignature signature_;
 };
 
 class TaggedCrossSection final : public siren::interactions::CrossSection {
@@ -1053,6 +1055,131 @@ TEST(ConcreteInteractionSelection, FixedDensityIsRateConditionalAndOrderIndepend
             siren::injection::FixedVertexChannelSelectionProbability(
                 detector, interactions, record),
             1.0);
+    }
+}
+
+TEST(DecayChannelReview, RecordAndDatumGenerationDensitiesAgree) {
+    auto detector = SelectionDetector();
+    auto decay = std::make_shared<TaggedDecay>(1, 2.0, 5.0);
+    for (bool selected : {false, true}) {
+        for (bool biased : {false, true}) {
+            auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+                siren::dataclasses::ParticleType::NuMu,
+                std::vector<std::shared_ptr<siren::interactions::Decay>>{decay});
+            if (selected) interactions->SetDecayChannels(
+            std::vector<siren::dataclasses::InteractionSignature>{SharedDecaySignature()});
+            auto process = SelectionProcess(interactions);
+            if (biased) {
+                auto ps = std::make_shared<MultiChannelPhaseSpace>();
+                ps->channels = {std::make_shared<ConstantChannel>(3.0)};
+                ps->weights = {1.0};
+                process->SetPhaseSpace(SharedDecaySignature(), ps);
+            }
+            siren::injection::Injector injector(7, detector, process,
+                std::make_shared<siren::utilities::SIREN_random>(71));
+            auto record = SelectionRecord();
+            record.signature = SharedDecaySignature();
+            auto datum = std::make_shared<siren::dataclasses::InteractionTreeDatum>(record);
+            for (bool explicit_process : {false, true}) {
+                auto requested = explicit_process ? process : nullptr;
+                double expected = (biased ? 3.0 : 5.0) * (explicit_process ? 1.0 : 7.0);
+                EXPECT_DOUBLE_EQ(injector.GenerationProbability(record, requested), expected);
+                EXPECT_DOUBLE_EQ(injector.GenerationProbability(datum, requested), expected);
+            }
+        }
+    }
+}
+
+TEST(DecayChannelReview, TinyRestWidthsRetainTheirConditionalDensity) {
+    auto detector = SelectionDetector();
+    double width = std::numeric_limits<double>::denorm_min();
+    auto first = std::make_shared<TaggedDecay>(1, width, 0.25);
+    auto second = std::make_shared<TaggedDecay>(2, width, 0.25);
+    auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+        siren::dataclasses::ParticleType::NuMu,
+        std::vector<std::shared_ptr<siren::interactions::Decay>>{first, second});
+    auto record = SelectionRecord();
+    record.primary_mass = 1.0;
+    record.primary_momentum = {1.0, 0.0, 0.0, 0.0};
+    record.signature = SharedDecaySignature();
+    EXPECT_DOUBLE_EQ(siren::injection::SelectedFinalStateProbability(detector, interactions, record), 0.25);
+    EXPECT_DOUBLE_EQ(siren::injection::CrossSectionProbability(detector, interactions, record), 0.25);
+    interactions->SetDecayChannels(
+        std::vector<siren::dataclasses::InteractionSignature>{SharedDecaySignature()});
+    EXPECT_DOUBLE_EQ(siren::injection::DecayChannelGenerationProbability(detector, interactions, record), 0.25);
+}
+
+TEST(DecayChannelReview, MixedRatesRetainScatteringAndClosedDecaySupport) {
+    auto detector = SelectionDetector();
+    auto other_signature = SharedDecaySignature();
+    other_signature.secondary_types = {siren::dataclasses::ParticleType::Gamma,
+                                       siren::dataclasses::ParticleType::Gamma};
+    auto record = SelectionRecord();
+    auto position = siren::detector::DetectorPosition(record.interaction_vertex);
+    double density = detector->GetParticleDensity(position, siren::dataclasses::ParticleType::Nucleon);
+    ASSERT_GT(density, 0.0);
+    for (double decay_rate : {0.0, 2.0}) {
+        auto scatter = std::make_shared<TaggedCrossSection>(1, 3.0 / density, 7.0);
+        auto decay = std::make_shared<TaggedDecay>(2, decay_rate, 5.0);
+        auto excluded = std::make_shared<TaggedDecay>(3, 8.0, 11.0, other_signature);
+        auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+            siren::dataclasses::ParticleType::NuMu,
+            std::vector<std::shared_ptr<siren::interactions::CrossSection>>{scatter},
+            std::vector<std::shared_ptr<siren::interactions::Decay>>{decay, excluded});
+        interactions->SetDecayChannels(
+            std::vector<siren::dataclasses::InteractionSignature>{SharedDecaySignature()});
+        record.signature = SharedCrossSectionSignature();
+        EXPECT_NEAR(siren::injection::DecayChannelGenerationProbability(detector, interactions, record),
+                    3.0 / (3.0 + decay_rate) * 7.0, 1e-14);
+        record.signature = SharedDecaySignature();
+        EXPECT_NEAR(siren::injection::DecayChannelGenerationProbability(detector, interactions, record),
+                    decay_rate / (3.0 + decay_rate) * 5.0, 1e-14);
+        record.signature = other_signature;
+        EXPECT_DOUBLE_EQ(siren::injection::DecayChannelGenerationProbability(detector, interactions, record), 0.0);
+        siren::injection::Injector injector(1, detector, SelectionProcess(interactions),
+            std::make_shared<siren::utilities::SIREN_random>(71));
+        int scatters = 0;
+        for (int i = 0; i < 100; ++i) {
+            record = SelectionRecord();
+            auto selected = injector.SelectChannel(record, interactions);
+            EXPECT_NE(selected.get(), excluded.get());
+            scatters += selected.get() == scatter.get();
+        }
+        EXPECT_GT(scatters, 0);
+        if (decay_rate == 0.0) EXPECT_EQ(scatters, 100);
+        else EXPECT_LT(scatters, 100);
+    }
+}
+
+TEST(DecayChannelReview, MixedInvalidRatesAndAccumulationOverflowStillFail) {
+    auto detector = SelectionDetector();
+    auto record = SelectionRecord();
+    double density = detector->GetParticleDensity(
+        siren::detector::DetectorPosition(record.interaction_vertex),
+        siren::dataclasses::ParticleType::Nucleon);
+    auto decay = std::make_shared<TaggedDecay>(1, 0.0, 1.0);
+    for (double rate : {-1.0, std::numeric_limits<double>::infinity(),
+                        std::numeric_limits<double>::quiet_NaN(),
+                        0.75 * std::numeric_limits<double>::max() / density}) {
+        auto first = std::make_shared<TaggedCrossSection>(2, rate, 1.0);
+        auto second = std::make_shared<TaggedCrossSection>(3, rate, 1.0);
+        auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+            siren::dataclasses::ParticleType::NuMu,
+            std::vector<std::shared_ptr<siren::interactions::CrossSection>>{first, second},
+            std::vector<std::shared_ptr<siren::interactions::Decay>>{decay});
+        interactions->SetDecayChannels(
+            std::vector<siren::dataclasses::InteractionSignature>{SharedDecaySignature()});
+        siren::injection::Injector injector(1, detector, SelectionProcess(interactions),
+            std::make_shared<siren::utilities::SIREN_random>(71));
+        EXPECT_THROW(injector.SelectChannel(record, interactions), siren::utilities::ConfigurationError);
+        if (std::isfinite(rate) && rate > 0.0) {
+            ASSERT_TRUE(std::isfinite(rate * density));
+            EXPECT_THROW(siren::injection::DecayChannelGenerationProbability(detector, interactions, record),
+                         siren::utilities::WeightCalculationError);
+        } else {
+            EXPECT_THROW(siren::injection::DecayChannelGenerationProbability(detector, interactions, record),
+                         siren::utilities::ConfigurationError);
+        }
     }
 }
 

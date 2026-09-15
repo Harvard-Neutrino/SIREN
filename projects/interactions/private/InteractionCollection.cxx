@@ -1,5 +1,8 @@
 #include "SIREN/interactions/InteractionCollection.h"
 
+#include <algorithm>
+#include "SIREN/utilities/Errors.h"
+
 #include <map>                                                // for map
 #include <set>                                                // for operator==
 #include <tuple>                                              // for tie
@@ -80,9 +83,9 @@ InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType pr
 
 bool InteractionCollection::operator==(InteractionCollection const & other) const {
     return
-        std::tie(primary_type, target_types, cross_sections, decays)
+        std::tie(primary_type, target_types, cross_sections, decays, decay_channels)
         ==
-        std::tie(other.primary_type, other.target_types, other.cross_sections, other.decays);
+        std::tie(other.primary_type, other.target_types, other.cross_sections, other.decays, other.decay_channels);
 }
 
 std::vector<std::shared_ptr<CrossSection>> const & InteractionCollection::GetCrossSectionsForTarget(siren::dataclasses::ParticleType p) const {
@@ -91,6 +94,43 @@ std::vector<std::shared_ptr<CrossSection>> const & InteractionCollection::GetCro
         return it->second;
     } else {
         return empty;
+    }
+}
+
+void InteractionCollection::SetDecayChannels(
+        std::optional<std::vector<dataclasses::InteractionSignature>> channels) {
+    if(channels) std::sort(channels->begin(), channels->end());
+    auto previous = decay_channels;
+    decay_channels = std::move(channels);
+    try {
+        ValidateDecayChannels();
+    } catch(...) {
+        decay_channels = std::move(previous);
+        throw;
+    }
+}
+
+bool InteractionCollection::AllowsDecay(dataclasses::InteractionSignature const & signature) const {
+    return !decay_channels || std::find(decay_channels->begin(), decay_channels->end(), signature) != decay_channels->end();
+}
+
+void InteractionCollection::ValidateDecayChannels() const {
+    if(!decay_channels) return;
+    if(decay_channels->empty()) {
+        throw siren::utilities::ConfigurationError("decay_channels must be non-empty; use None for all decays");
+    }
+    std::set<dataclasses::InteractionSignature> available;
+    for(auto const & decay : decays) {
+        for(auto const & signature : decay->GetPossibleSignaturesFromParent(primary_type)) available.insert(signature);
+    }
+    std::set<dataclasses::InteractionSignature> seen;
+    for(auto const & signature : *decay_channels) {
+        if(signature.primary_type != primary_type || signature.target_type != dataclasses::ParticleType::Decay || !available.count(signature)) {
+            throw siren::utilities::ConfigurationError("decay_channels contains a signature absent from this parent's decay models");
+        }
+        if(!seen.insert(signature).second) {
+            throw siren::utilities::ConfigurationError("decay_channels contains a duplicate signature");
+        }
     }
 }
 
@@ -122,7 +162,14 @@ siren::dataclasses::ParticleType InteractionCollection::GetPrimaryType() const {
 }
 
 void InteractionCollection::SetPrimaryType(siren::dataclasses::ParticleType primary_type) {
+    auto previous = this->primary_type;
     this->primary_type = primary_type;
+    try {
+        ValidateDecayChannels();
+    } catch(...) {
+        this->primary_type = previous;
+        throw;
+    }
 }
 
 std::map<siren::dataclasses::ParticleType, double> InteractionCollection::TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const {
