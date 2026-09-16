@@ -259,6 +259,7 @@ def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
     )
     (source / "CMakeLists.txt").write_text("""cmake_minimum_required(VERSION 3.20)
 project(siren LANGUAGES CXX)
+file(APPEND "${CMAKE_BINARY_DIR}/configure-count.txt" "configured\n")
 set(SIREN_PYTHON_PACKAGE ON)
 if(APPLE)
     set(SIREN_RPATH_ORIGIN "@loader_path")
@@ -290,9 +291,9 @@ include(cmake/siren_wheel_install.cmake)
 siren_install_wheel_libraries(${SIREN_WHEEL_LIBRARIES})
 siren_install_wheel_modules(${SIREN_PYTHON_MODULES})
 install(DIRECTORY python/ DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE PATTERN ".git*" EXCLUDE)
 install(DIRECTORY resources DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
-    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE PATTERN ".git*" EXCLUDE)
 include(cmake/siren_python_package.cmake)
 """.replace("@external@", str(tmp_path / "external install/lib" / (
         "libexternal.dylib" if sys.platform == "darwin" else "libexternal.so"))))
@@ -402,17 +403,22 @@ include(cmake/siren_python_package.cmake)
 
     # Local imports create bytecode which the installed payload excludes.
     # Creating, rewriting, or removing these files must not rebuild a wheel.
+    configure_count = (build / "configure-count.txt").read_bytes()
     run([sys.executable, "-c", "import py_compile,sys; py_compile.compile(sys.argv[1])",
          str(source / "python/__init__.py")])
     bytecode = source / "resources/unused.pyc"
+    ignored_git = source / "resources/.gitignore"
     for value in (b"first", b"changed", None):
         if value is None:
             bytecode.unlink()
+            ignored_git.unlink()
             shutil.rmtree(source / "python/__pycache__")
         else:
             bytecode.write_bytes(value)
+            ignored_git.write_bytes(value)
         unchanged = run(build_command)
         assert cmake_wheel.stat().st_mtime_ns == original_stamp, unchanged.stdout + unchanged.stderr
+        assert (build / "configure-count.txt").read_bytes() == configure_count
 
     # A truncated cache must recover through an actual stage/backend rebuild.
     (build / ".wheel_inputs.json").write_text('{"payload":')

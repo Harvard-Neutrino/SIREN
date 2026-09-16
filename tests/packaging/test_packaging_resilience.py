@@ -419,3 +419,185 @@ def test_directory_at_cache_path_does_not_prevent_build(tmp_path, monkeypatch, c
     assert sentinel.read_text() == "do not remove unrelated directory contents"
     assert "input cache could not be saved" in capsys.readouterr().out
     assert not list(build.glob(".wheel-build-*"))
+
+
+@pytest.mark.parametrize("kind", ["root", "nested"])
+@pytest.mark.parametrize("tree", ["python", "resources"])
+def test_removed_payload_under_symlinked_directory(tmp_path, kind, tree):
+    source, external = tmp_path / "source", tmp_path / "external"
+    source.mkdir()
+    external.mkdir()
+    alias = source / tree
+    if kind == "nested":
+        alias.mkdir()
+        alias = alias / "nested"
+    alias.symlink_to(external, target_is_directory=True)
+    assert driver.payload_digest(alias / "removed.txt", source) is None
+    if kind == "root":
+        assert driver.payload_digest(external / "removed.txt", source) is None
+    with pytest.raises(FileNotFoundError):
+        driver.payload_digest(tmp_path / "required.so", source)
+
+
+@pytest.mark.parametrize("root_style", ["concatenated", "slash"])
+def test_destdir_cannot_replace_live_environment(tmp_path, prefix_installation, root_style):
+    install = prefix_installation
+    root = str(tmp_path) if root_style == "concatenated" else "/"
+    prefix = "/interpreter" if root_style == "concatenated" else str(install.environment)
+    tiny_wheel(install.build / "dist_wheels", "0.0.2")
+    before = {path: path.read_bytes() for path in install.site.rglob("*")
+              if path.is_file() and "siren" in str(path.relative_to(install.site))}
+    result = subprocess.run(["cmake", "--install", str(install.build), "--prefix", prefix],
+                            env=dict(install.env, DESTDIR=root), text=True, capture_output=True)
+    assert result.returncode != 0 and "staging overlaps" in result.stderr, result
+    assert all(path.read_bytes() == value for path, value in before.items())
+
+
+def test_destination_venv_uses_its_own_interpreter(tmp_path, prefix_installation):
+    destination = prefix_installation
+    builder = tmp_path / "builder"
+    run([sys.executable, "-m", "venv", str(builder)])
+    python = builder / "bin/python"
+    sentinel = tiny_wheel(tmp_path / "builder wheel", "0.0.9")
+    run([str(python), "-m", "pip", "install", "--no-deps", str(sentinel)], env=destination.env)
+    run(["cmake", "-S", str(tmp_path / "source"), "-B", str(destination.build),
+         f"-DPython_EXECUTABLE={python}"], env=destination.env)
+    tiny_wheel(destination.build / "dist_wheels", "0.0.2")
+    run(["cmake", "--install", str(destination.build), "--prefix", str(destination.environment)],
+        env=destination.env)
+    assert not (destination.site / "siren/obsolete.py").exists()
+    assert len(list(destination.site.glob("siren-*.dist-info"))) == 1
+    assert "0.0.2" in run([str(destination.python), "-c", "import siren; print(siren.marker)"], env=destination.env)
+    assert "0.0.9" in run([str(python), "-c", "import siren; print(siren.marker)"], env=destination.env)
+
+
+def test_pythonpath_cannot_redirect_replacement(tmp_path, prefix_installation):
+    install = prefix_installation
+    shadow = tmp_path / "foreign site"
+    foreign = tiny_wheel(tmp_path / "foreign", "0.0.9")
+    with zipfile.ZipFile(foreign) as archive:
+        archive.extractall(shadow)
+    before = {path: path.read_bytes() for path in shadow.rglob("*") if path.is_file()}
+    tiny_wheel(install.build / "dist_wheels", "0.0.2")
+    run(["cmake", "--install", str(install.build), "--prefix", str(install.environment)],
+        env=dict(install.env, PYTHONPATH=str(shadow)))
+    assert not (install.site / "siren/obsolete.py").exists()
+    assert len(list(install.site.glob("siren-*.dist-info"))) == 1
+    assert all(path.read_bytes() == value for path, value in before.items())
+
+
+def test_divergent_pip_scheme_cannot_uninstall_live_copy(tmp_path, monkeypatch):
+    installer = helper("scheme_installer", "cmake/install_wheel.py")
+    prefix = tmp_path / "prefix"
+    active, target = prefix / "dist-packages", prefix / "site-packages"
+    active.mkdir(parents=True)
+    target.mkdir()
+    layout = dict(prefix=str(prefix), active=[str(active)] * 2, target=[str(target)] * 2,
+                  version=list(sys.version_info[:2]), implementation=sys.implementation.name,
+                  local=[], destination=[], selected=None)
+    import json
+    monkeypatch.setattr(installer.subprocess, "check_output", lambda *a, **k: json.dumps(layout))
+    monkeypatch.setattr(installer.sys, "prefix", str(prefix))
+    monkeypatch.setattr(sys, "argv", ["install_wheel", "--prefix", str(prefix), "siren.whl"])
+    calls = []
+    monkeypatch.setattr(installer.subprocess, "run", lambda *a, **k: calls.append(a))
+    with pytest.raises(RuntimeError, match="different package directories"):
+        installer.main()
+    assert not calls
+
+
+def test_directory_identity_selects_replacement(tmp_path, monkeypatch):
+    installer = helper("alias_installer", "cmake/install_wheel.py")
+    active, alias = tmp_path / "active site", tmp_path / "automount alias"
+    active.mkdir()
+    alias.mkdir()
+    prefix = tmp_path / "prefix"
+    prefix.mkdir()
+    wheel = tiny_wheel(tmp_path / "wheel", "0.0.2")
+    layout = dict(prefix=str(tmp_path), active=[str(active)] * 2, target=[str(alias)] * 2,
+                  version=list(sys.version_info[:2]), implementation=sys.implementation.name,
+                  local=[], destination=[], selected=None)
+    import json
+    responses = iter([layout, dict(layout, destination=[dict(version="0.0.2", files=[])])])
+    monkeypatch.setattr(installer.subprocess, "check_output", lambda *a, **k: json.dumps(next(responses)))
+    # Model an automount/case alias with different path strings but equal inodes.
+    monkeypatch.setattr(installer.os.path, "samefile", lambda a, b: {str(a), str(b)} == {str(active), str(alias)})
+    monkeypatch.setattr(sys, "argv", ["install_wheel", "--prefix", str(prefix), str(wheel)])
+    calls = []
+    monkeypatch.setattr(installer.subprocess, "run", lambda command, **k: calls.append(command))
+    installer.main()
+    assert "--force-reinstall" in calls[0]
+
+
+def test_different_destination_python_version_fails_before_install(tmp_path, monkeypatch):
+    installer = helper("version_installer", "cmake/install_wheel.py")
+    prefix = tmp_path / "destination"
+    (prefix / "bin").mkdir(parents=True)
+    (prefix / "bin/python").touch()
+    source = dict(prefix=str(tmp_path / "build"), active=["/build/site"] * 2,
+                  target=[str(prefix / "site")] * 2, version=[3, 12], implementation="cpython",
+                  local=[], destination=[], selected=None)
+    target = dict(source, version=[3, 13])
+    import json
+    responses = iter([source, target])
+    monkeypatch.setattr(installer.subprocess, "check_output", lambda *a, **k: json.dumps(next(responses)))
+    monkeypatch.setattr(sys, "argv", ["install_wheel", "--prefix", str(prefix), "siren.whl"])
+    calls = []
+    monkeypatch.setattr(installer.subprocess, "run", lambda *a, **k: calls.append(a))
+    with pytest.raises(RuntimeError, match="Python version differs"):
+        installer.main()
+    assert not calls
+
+
+@pytest.mark.parametrize("local_copy", [False, True])
+def test_pth_shadow_fails_before_replacement(tmp_path, prefix_installation, local_copy):
+    install = prefix_installation
+    if not local_copy:
+        run([str(install.python), "-m", "pip", "uninstall", "-y", "siren"], env=install.env)
+    shadow = tmp_path / "foreign site"
+    with zipfile.ZipFile(tiny_wheel(tmp_path / "foreign", "0.0.9")) as archive:
+        archive.extractall(shadow)
+    # Unlike PYTHONPATH, .pth startup hooks also run with Python's -I option.
+    (install.site / "foreign.pth").write_text(f"import sys; sys.path.insert(0, {str(shadow)!r})\n")
+    before = {path: path.read_bytes() for root in (shadow, install.site)
+              for path in root.rglob("*") if path.is_file() and "siren" in str(path.relative_to(root))}
+    tiny_wheel(install.build / "dist_wheels", "0.0.2")
+    result = subprocess.run(["cmake", "--install", str(install.build), "--prefix", str(install.environment)],
+                            env=install.env, text=True, capture_output=True)
+    assert result.returncode != 0 and "shadows the destination" in result.stderr, result
+    assert all(path.read_bytes() == value for path, value in before.items())
+    assert not (install.site / "siren-0.0.2.dist-info").exists()
+
+
+@pytest.mark.parametrize("remnant", ["metadata", "file", "dangling-symlink"])
+def test_pip_success_cannot_hide_incomplete_replacement(tmp_path, monkeypatch, remnant):
+    installer = helper("incomplete_installer", "cmake/install_wheel.py")
+    site = tmp_path / "site"
+    site.mkdir()
+    obsolete = site / "obsolete.py"
+    if remnant == "dangling-symlink":
+        obsolete.symlink_to(site / "absent.py")
+    else:
+        obsolete.write_text("old payload")
+    old = dict(version="0.0.1", files=[str(obsolete)])
+    new = dict(version="0.0.2", files=[])
+    layout = dict(active=[str(site)] * 2, selected=str(site), destination=[old])
+    monkeypatch.setattr(installer, "select_interpreter", lambda *a: (sys.executable, layout, True))
+    monkeypatch.setattr(installer.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(installer, "probe", lambda *a: dict(destination=[old, new] if remnant == "metadata" else [new]))
+    wheel = tiny_wheel(tmp_path / "wheel", "0.0.2")
+    with pytest.raises(RuntimeError, match="exactly the requested|obsolete SIREN files"):
+        installer.install(tmp_path, wheel, None)
+
+
+def test_record_tracks_symlink_itself(tmp_path):
+    installer = helper("record_installer", "cmake/install_wheel.py")
+    site = tmp_path / "site"
+    with zipfile.ZipFile(tiny_wheel(tmp_path / "wheel", "0.0.1", {"siren/obsolete.py": "old"})) as archive:
+        archive.extractall(site)
+    obsolete = site / "siren/obsolete.py"
+    obsolete.unlink()
+    obsolete.symlink_to(tmp_path / "absent.py")
+    files = installer.installed_distributions([str(site)])[0]["files"]
+    assert str(obsolete) in files
+    assert str(tmp_path / "absent.py") not in files

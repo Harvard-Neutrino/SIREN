@@ -50,10 +50,33 @@ def payload_digest(path, source):
         # A stale glob manifest can still list a removed Python/resource file.
         # Directory installation will omit it; a missing binary or build input
         # must remain a failure, never yield an incomplete but cached wheel.
-        source, path = source.resolve(), path.resolve()
-        if any(source / name in path.parents for name in ("python", "resources")):
+        source = source.resolve()
+        lexical = Path(os.path.abspath(path))
+        if any(source / name in lexical.parents for name in ("python", "resources")):
+            return None
+        path = path.resolve()
+        if any((source / name).resolve() in path.parents for name in ("python", "resources")):
             return None
         raise FileNotFoundError(f"Required wheel input missing: {path}; rebuild its CMake target")
+
+
+def source_payload(source):
+    """Match directory-install exclusions without CMake glob reconfiguration."""
+    def walk(directory, ancestors):
+        resolved = directory.resolve()
+        if resolved in ancestors:
+            raise RuntimeError(f"Symlink cycle in wheel inputs: {directory}")
+        for path in sorted(directory.iterdir()):
+            if path.name == "__pycache__" or path.name.endswith(".pyc") or path.name.startswith(".git"):
+                continue
+            if path.is_dir():
+                yield from walk(path, ancestors | {resolved})
+            else:
+                yield path
+    for name in ("python", "resources"):
+        directory = source / name
+        if directory.is_dir():
+            yield from walk(directory, set())
 
 
 def main():
@@ -72,6 +95,8 @@ def main():
     staging = args.build / "python_staging"
     wheels = args.build / "dist_wheels"
     state = args.build / ".wheel_inputs.json"
+    payload = {Path(name) for name in args.inputs.read_text().splitlines()}
+    payload.update(source_payload(args.source))
 
     # CMake rewrites install scripts on every generate, even without a change.
     # Compare contents, including subdirectory install rules and payload files.
@@ -79,8 +104,7 @@ def main():
     # with unchanged size/mtime must not leave stale Python/resources in it.
     current = {
         "arguments": {key: str(value) for key, value in vars(args).items()},
-        "payload": {name: payload_digest(Path(name), args.source)
-                    for name in args.inputs.read_text().splitlines()},
+        "payload": {str(path): payload_digest(path, args.source) for path in sorted(payload)},
         "install rules": {str(path): file_digest(path)
                           for path in sorted(args.build.rglob("cmake_install.cmake"))
                           if staging not in path.parents},

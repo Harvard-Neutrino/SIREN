@@ -25,15 +25,9 @@ if(APPLE)
         list(APPEND SIREN_WHEEL_ENV "ARCHFLAGS=${wheel_archflags}")
     endif()
 endif()
-file(GLOB_RECURSE PYTHON_PACKAGE_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/python/*" "${PROJECT_SOURCE_DIR}/resources/*")
-# Match the PythonWheel directory-install exclusions. Local imports must not
-# invalidate a wheel whose payload excludes Python bytecode.
-list(FILTER PYTHON_PACKAGE_FILES EXCLUDE REGEX "/__pycache__(/|$)|\\.pyc$")
-# A removed input must invalidate the wheel as well as an added/edited input.
-file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
-    CONTENT "${PYTHON_PACKAGE_FILES}\n")
-set(wheel_input_files ${PYTHON_PACKAGE_FILES}
+# The always-run driver discovers Python/resources and applies the directory
+# install exclusions. Ignored-file churn must not trigger CMake reconfiguration.
+set(wheel_input_files
     "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
     "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
     "${PROJECT_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
@@ -54,8 +48,7 @@ add_custom_target(python_package ALL
         --library-dir "${SIREN_WHEEL_LIBRARY_DIR}"
         --inputs "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
         --config $<CONFIG> --cmake "${CMAKE_COMMAND}" ${SIREN_WHEEL_PIP_OPTIONS}
-    DEPENDS ${SIREN_WHEEL_LIBRARIES} ${SIREN_PYTHON_MODULES} ${PYTHON_PACKAGE_FILES}
-        "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
+    DEPENDS ${SIREN_WHEEL_LIBRARIES} ${SIREN_PYTHON_MODULES}
         "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
         "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"

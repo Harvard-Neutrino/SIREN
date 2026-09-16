@@ -285,11 +285,18 @@ then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
 route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
 dependencies must already be available too. The CMake Python installer belongs to the `PythonPackage` component; native
 component installs do not invoke pip. A full install still includes Python when
-`SIREN_PYTHON_PACKAGE=ON`. Installing to a different prefix leaves packages in
-the build interpreter's environment intact. Installing into that interpreter's
-own prefix replaces the previous wheel, including removed files and metadata.
+`SIREN_PYTHON_PACKAGE=ON`. The installer checks pip's actual package directories.
+For a destination virtual environment, it uses that environment's Python and
+requires the build's Python implementation and minor version. The destination
+interpreter must have pip. Replacement removes old files and metadata; a fresh
+prefix without its own interpreter can receive an isolated installation.
+An existing installation in such a prefix requires its matching interpreter
+instead of layering another wheel over it. Shadowed or mismatched installations
+fail explicitly before replacement.
 `DESTDIR=/staging/root cmake --install build` stages Python under the same root
-as the native install. Installation reports wheel failures;
+as the native install, without uninstalling from any interpreter. Use a fresh
+staging destination; an overlap with the live Python installation is rejected.
+Installation reports wheel failures;
 it does not silently continue after a failed Python installation.
 
 Local wheels still require their external native dependencies, such as CFITSIO
