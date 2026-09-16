@@ -283,21 +283,40 @@ first provision the configured interpreter with the requirements in
 `[build-system]` (currently `scikit-build-core>=0.10`) and its dependencies,
 then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
 route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
-dependencies must already be available too. The CMake Python installer belongs to the `PythonPackage` component; native
-component installs do not invoke pip. A full install still includes Python when
-`SIREN_PYTHON_PACKAGE=ON`. The installer checks pip's actual package directories.
-For a destination virtual environment, it uses that environment's Python and
-requires the build's Python implementation and minor version. The destination
-interpreter must have pip. Replacement removes old files and metadata; a fresh
-prefix without its own interpreter can receive an isolated installation.
-An existing installation in such a prefix requires its matching interpreter
-instead of layering another wheel over it. Shadowed or mismatched installations
-fail explicitly before replacement.
-`DESTDIR=/staging/root cmake --install build` stages Python under the same root
-as the native install, without uninstalling from any interpreter. Use a fresh
-staging destination; an overlap with the live Python installation is rejected.
-Installation reports wheel failures;
-it does not silently continue after a failed Python installation.
+dependencies must already be available too.
+
+#### Installing the wheel
+
+The build produces the wheel; installing it is a separate step, owned by the
+Python interpreter you choose:
+
+```bash
+cmake --build build --target python_package --parallel
+python -m pip install build/dist_wheels/siren-*.whl
+```
+
+`cmake --install` installs the native library, headers, and CMake exports
+only. No install component invokes pip, and `DESTDIR` stages those native
+files without touching any Python installation. Running the same command again
+is a no-op while the wheel is unchanged. After a rebuild, the wheel keeps the
+same version number, so pip refuses it as already installed; reinstall it with
+
+```bash
+python -m pip install --force-reinstall --no-deps build/dist_wheels/siren-*.whl
+```
+
+which replaces the previous installation, including files the new wheel no
+longer contains. It assumes the dependencies are already installed and
+satisfied by the first install; it does not touch them. Use the interpreter that will
+import SIREN (a virtual environment's `python`, for example); the wheel's ABI
+and platform tags must match it, so configure CMake's `Python_EXECUTABLE` with
+that interpreter. Packagers staging the wheel under a root use pip's own
+`--root` and `--prefix` options.
+
+Native installs are unchanged: `CMAKE_INSTALL_PREFIX` and `DESTDIR` work as
+for any CMake project. Where the wheel goes is decided by pip and the
+interpreter you run it with, not by CMake. Unsupported: Windows, and installing
+the wheel through CMake.
 
 Local wheels still require their external native dependencies, such as CFITSIO
 and HepMC3. Before distributing a wheel, bundle those dependencies with
@@ -318,13 +337,16 @@ python /path/to/test_hepmc3_wheel.py
 Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
 `--clean-environment` starts that check in a child with Python and library search
 overrides cleared; cibuildwheel uses this mode to exclude its build/repair paths.
-The test checks wheel tags, rejects multiple core-library files, verifies that
-the core and vendored photospline/spglam belong to the installed wheel, and checks
-other bundled dependencies. Third-party copies loaded before the check, or
-recorded by another Python distribution, may coexist if the wheel's copy also
-loads. Other external copies, including libraries first loaded during import
-without distribution ownership, require identical file contents. The check
-also exercises native sampling plus plain/gzip HepMC3 round trips. Build with
+The test checks wheel tags, rejects multiple core-library files and a bundled
+Python runtime, and verifies that the loaded core and the vendored
+photospline/spglam belong to the installed wheel. Any other bundled dependency
+that the process loaded from outside the wheel is printed for inspection, not
+classified: in a fresh environment that list should be empty, and a nonempty
+one names the library and where it came from. `--foreign-prefix DIR`
+(repeatable) additionally fails if any loaded library comes from under that
+directory; release validation names the checkout and the build's dependency
+prefix, which shows the repaired wheel running without them. The check also
+exercises native sampling plus plain/gzip HepMC3 round trips. Build with
 `SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
 explicitly.
 
@@ -414,16 +436,17 @@ git submodule update --init
 mkdir -p build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX
 cmake --build . --parallel && cmake --install .
+python -m pip install dist_wheels/siren-*.whl
 ```
 
-After the initial build, only the last line (`cmake --build . --parallel && cmake --install .`) needs to be rerun when source files change. Rerun the first `cmake` step if `CMakeLists.txt` files change or new source files are added.
+When source files change, rerun the build/install line and then reinstall the rebuilt wheel with `python -m pip install --force-reinstall --no-deps dist_wheels/siren-*.whl` (see "Installing the wheel": pip refuses a rebuilt wheel of the same version without `--force-reinstall`). Rerun the first `cmake` step if `CMakeLists.txt` files change or new source files are added.
 
 #### CMake options
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `CMAKE_INSTALL_PREFIX` | — | Install destination for libraries, headers, and binaries |
-| `SIREN_PYTHON_PACKAGE` | `ON` | Build and install the Python package |
+| `SIREN_PYTHON_PACKAGE` | `ON` | Build the Python wheel (`python_package` target); install it with pip |
 | `SIREN_WITH_MARLEY` | `ON` | Enable MARLEY support (used if found) |
 | `SIREN_REQUIRE_MARLEY` | `OFF` | Fail the build if MARLEY is not found |
 

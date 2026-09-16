@@ -3,7 +3,6 @@ if(NOT SIREN_PYTHON_PACKAGE OR DEFINED SKBUILD)
     return()
 endif()
 
-set(WHEELS_DIR "${CMAKE_BINARY_DIR}/dist_wheels")
 option(SIREN_WHEEL_BUILD_ISOLATION
     "Install wheel backend requirements in an isolated environment" ON)
 set(SIREN_WHEEL_PIP_OPTIONS)
@@ -25,52 +24,18 @@ if(APPLE)
         list(APPEND SIREN_WHEEL_ENV "ARCHFLAGS=${wheel_archflags}")
     endif()
 endif()
-# The always-run driver discovers Python/resources and applies the directory
-# install exclusions. Ignored-file churn must not trigger CMake reconfiguration.
-set(wheel_input_files
-    "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
-    "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
-    "${PROJECT_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
-    "${CMAKE_CURRENT_LIST_DIR}/wheel_rpath.py")
-foreach(target IN LISTS SIREN_WHEEL_LIBRARIES SIREN_PYTHON_MODULES)
-    list(APPEND wheel_input_files "$<TARGET_FILE:${target}>")
-endforeach()
-list(JOIN wheel_input_files "\n" wheel_input_manifest)
-file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
-    CONTENT "${wheel_input_manifest}\n")
 
-# Check contents on every invocation, including mtime-preserving restores.
-# The driver only stages/packages when its recorded inputs actually change.
+# The driver installs the PythonWheel component into a fresh staging tree on
+# every build, so CMake's install rules are the only definition of the wheel
+# contents, and rebuilds the wheel only when that staged tree or the packaging
+# inputs change. Installing the wheel is a separate, explicit pip step; no
+# CMake install component invokes pip (see README, "Installing the wheel").
 add_custom_target(python_package ALL
     COMMAND ${CMAKE_COMMAND} -E env ${SIREN_WHEEL_ENV}
         ${Python_EXECUTABLE} "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
         --source "${PROJECT_SOURCE_DIR}" --build "${CMAKE_BINARY_DIR}"
         --library-dir "${SIREN_WHEEL_LIBRARY_DIR}"
-        --inputs "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
         --config $<CONFIG> --cmake "${CMAKE_COMMAND}" ${SIREN_WHEEL_PIP_OPTIONS}
     DEPENDS ${SIREN_WHEEL_LIBRARIES} ${SIREN_PYTHON_MODULES}
-        "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/wheel_inputs-$<CONFIG>.txt"
-        "${CMAKE_CURRENT_LIST_DIR}/build_wheel.py"
-        "${PROJECT_SOURCE_DIR}/package/CMakeLists.txt"
-        "${PROJECT_SOURCE_DIR}/pyproject.toml" "${PROJECT_SOURCE_DIR}/README.md"
-        "${PROJECT_SOURCE_DIR}/LICENSE"
     COMMENT "Building a native wheel from the CMake-installed package"
     VERBATIM)
-
-# Select replacement/isolation using the actual destination, including DESTDIR.
-install(CODE "
-    file(GLOB WHEELS \"${WHEELS_DIR}/*.whl\")
-    list(LENGTH WHEELS WHEEL_COUNT)
-    if(NOT WHEEL_COUNT EQUAL 1)
-        message(FATAL_ERROR \"Build the python_package target before installing SIREN, or configure -DSIREN_PYTHON_PACKAGE=OFF for a native-only install\")
-    endif()
-    execute_process(
-        COMMAND \"${Python_EXECUTABLE}\" \"${CMAKE_CURRENT_LIST_DIR}/install_wheel.py\"
-            --prefix \"\$\{CMAKE_INSTALL_PREFIX\}\" \$\{WHEELS\}
-        RESULT_VARIABLE WHEEL_INSTALL_RESULT
-        COMMAND_ECHO STDOUT)
-    if(NOT WHEEL_INSTALL_RESULT EQUAL 0)
-        message(FATAL_ERROR \"SIREN wheel installation failed\")
-    endif()
-" COMPONENT PythonPackage)

@@ -23,7 +23,7 @@ before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 # Supported wheel platforms are Linux and macOS.
 skip = "pp* *-win*"
 # Confirm the built wheel actually bundles HepMC3 and siren.hepmc3 imports.
-test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py --clean-environment"
+test-command = "python {project}/tools/wheels/test_hepmc3_wheel.py --clean-environment --foreign-prefix {project} --foreign-prefix \"$CI_INSTALL_PREFIX\""
 test-requires = ["packaging"]
 config-settings = { "cmake.define.SIREN_REQUIRE_HEPMC3" = "ON" }
 # Importing siren pulls numpy/scipy; those have no binary wheels for musllinux

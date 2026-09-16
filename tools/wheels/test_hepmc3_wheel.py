@@ -10,7 +10,6 @@ installation on the loader search path, in a fresh interpreter.
 import argparse
 from email.parser import Parser
 import hashlib
-import importlib.util
 from importlib import metadata
 import os
 import re
@@ -29,6 +28,12 @@ def is_core_library(path):
     return (
         name.startswith("libsiren") and (name.endswith(".dylib") or ".so" in name)
     ) or (name.startswith("siren") and name.endswith(".dll"))
+
+
+def is_project_library(path):
+    """Libraries SIREN builds itself, including vendored photospline/spglam."""
+    return is_core_library(path) or re.match(
+        r"^lib(?:photospline|spglam)(?:[.-]|$)", path.name.lower()) is not None
 
 
 def library_identity(path):
@@ -51,67 +56,37 @@ def verified_library_paths(paths):
     return {path.resolve() for path in paths}
 
 
-def library_digest(path):
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.digest()
-
-
-def is_project_library(path):
-    """Libraries built by SIREN must come from this wheel, including vendors."""
-    return is_core_library(path) or re.match(
-        r"^lib(?:photospline|spglam)(?:[.-]|$)", path.name.lower()) is not None
-
-
-def verify_bundled_libraries(wheel, libraries, preexisting=()):
+def loaded_outside_wheel(wheel, libraries):
+    """Loaded images sharing a packaged library's name but not installed by the wheel."""
     packaged = {library_identity(path) for path in wheel.files
                 if path.name.endswith((".dylib", ".dll")) or (
                     ".so" in path.name and ".cpython-" not in path.name
                     and ".abi3." not in path.name)}
     installed = {wheel.locate_file(path).resolve() for path in wheel.files}
-    libraries = verified_library_paths(
+    loaded = verified_library_paths(
         path for path in libraries if library_identity(path) in packaged)
-    foreign = libraries - installed
-    if foreign:
-        # Unrelated packages can have already loaded same-name dependencies,
-        # including copies managed by conda or Homebrew with no wheel RECORD.
-        # They cannot replace SIREN's copy: that identity must also map here.
-        own_loaded = {library_identity(path) for path in libraries & installed
-                      if not is_project_library(path)}
-        other_files = {path.resolve() for path in preexisting
-                       if path.is_absolute() and library_identity(path) in own_loaded}
-        for distribution in metadata.distributions():
-            name = distribution.metadata.get("Name")
-            if not name or name.lower() == "siren":
-                continue
-            other_files.update(distribution.locate_file(path).resolve()
-                               for path in (distribution.files or ())
-                               if library_identity(path) in own_loaded)
-        foreign = {path for path in foreign if path not in other_files}
-        # ELF loaders may reuse an already mapped SONAME from another wheel,
-        # even when its identical bundled copy would have been found via RPATH.
-        # A name/hash in the SONAME alone is insufficient: compare all bytes.
-        expected = {}
-        foreign_identities = {library_identity(path) for path in foreign
-                              if not is_project_library(path)}
-        for path in installed:
-            identity = library_identity(path)
-            if identity in foreign_identities:
-                try:
-                    expected.setdefault(identity, set()).add(library_digest(path))
-                except OSError:
-                    pass
-        equivalents = set()
-        for path in foreign:
-            try:
-                if library_digest(path) in expected.get(library_identity(path), set()):
-                    equivalents.add(path)
-            except OSError:
-                pass  # A deleted/unreadable image cannot prove equivalence.
-        foreign -= equivalents
-    assert not foreign, f"Bundled libraries loaded from outside this wheel: {foreign}"
+    return sorted(loaded - installed)
+
+
+def check_library_origins(wheel, libraries, foreign_prefixes=()):
+    """SIREN's own libraries must come from this wheel; report the rest.
+
+    Other bundled dependencies may legitimately be reused from elsewhere in the
+    process (another wheel, a conda or Homebrew copy the loader saw first).
+    They are printed for a reader, not classified. A prefix named as foreign
+    must not supply any loaded library at all: release validation names the
+    build's dependency prefix and checkout there.
+    """
+    outside = loaded_outside_wheel(wheel, libraries)
+    project = [path for path in outside if is_project_library(path)]
+    assert not project, f"SIREN libraries loaded from outside this wheel: {project}"
+    for path in outside:
+        print(f"Loaded outside the wheel: {path}")
+    prefixes = [Path(prefix).resolve() for prefix in foreign_prefixes]
+    from_prefix = sorted(
+        path.resolve() for path in libraries if path.is_absolute()
+        and any(prefix in path.resolve().parents for prefix in prefixes))
+    assert not from_prefix, f"Libraries loaded from a foreign prefix: {from_prefix}"
 
 
 def check_loader_override(variable, expected):
@@ -121,7 +96,7 @@ def check_loader_override(variable, expected):
     )
 
 
-def main():
+def main(foreign_prefixes=()):
     wheel = metadata.distribution("siren")
     headers = Parser().parsestr(wheel.read_text("WHEEL"))
     assert headers["Root-Is-Purelib"] == "false", headers
@@ -144,14 +119,6 @@ def main():
         f"Expected one core library in the wheel: {packaged_core}"
     )
 
-    # Inspect images before importing any extension, without running siren's
-    # __init__. This establishes which non-pip dependencies were preloaded.
-    probe_path = wheel.locate_file("siren/_native.py")
-    probe_spec = importlib.util.spec_from_file_location("_siren_wheel_probe", probe_path)
-    probe = importlib.util.module_from_spec(probe_spec)
-    probe_spec.loader.exec_module(probe)
-    preexisting = probe.loaded_libraries()
-
     import siren
     from siren import hepmc3
     from siren import dataclasses as d
@@ -163,7 +130,7 @@ def main():
     assert len(core) == 1, core
     installed_files = {wheel.locate_file(path).resolve() for path in wheel.files}
     assert core <= installed_files, f"Core library is not from this wheel: {core}"
-    verify_bundled_libraries(wheel, libraries, preexisting)
+    check_library_origins(wheel, libraries, foreign_prefixes)
     for path in core:
         print(f"Loaded {path}: sha256={hashlib.sha256(path.read_bytes()).hexdigest()}")
 
@@ -197,7 +164,7 @@ def main():
                 rec.primary_momentum
             )
 
-    print("Native wheel tags, bundled library origins, and HepMC3 round trips OK")
+    print("Native wheel tags, loaded core library, and HepMC3 round trips OK")
 
 
 if __name__ == "__main__":
@@ -205,21 +172,24 @@ if __name__ == "__main__":
     parser.add_argument("--standalone-library", type=Path)
     parser.add_argument("--clean-environment", action="store_true",
                         help="Run in a child without build/repair loader search paths")
+    parser.add_argument("--foreign-prefix", action="append", default=[], metavar="PATH",
+                        help="Fail if any loaded library comes from under this directory")
     parser.add_argument("--expect-loader-override", nargs=2, metavar=("VARIABLE", "VALUE"),
                         help=argparse.SUPPRESS)
     args = parser.parse_args()
+    forwarded = [option for prefix in args.foreign_prefix for option in ("--foreign-prefix", prefix)]
     if args.clean_environment:
         if args.expect_loader_override is not None:
             parser.error("Cannot clear an override that this child is meant to check")
         env = {key: value for key, value in os.environ.items() if key not in (
             "PYTHONPATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "LD_LIBRARY_PATH")}
-        command = [sys.executable, str(Path(__file__).resolve())]
+        command = [sys.executable, str(Path(__file__).resolve()), *forwarded]
         if args.standalone_library is not None:
             command.extend(["--standalone-library", str(args.standalone_library)])
         sys.exit(subprocess.run(command, env=env).returncode)
     if args.expect_loader_override is not None:
         check_loader_override(*args.expect_loader_override)
-    main()
+    main(args.foreign_prefix)
     if args.standalone_library is not None:
         library = args.standalone_library.resolve()
         if not library.is_file():
@@ -235,6 +205,6 @@ if __name__ == "__main__":
         )
         print(f"Checking with {variable}={env[variable]}", flush=True)
         subprocess.run(
-            [sys.executable, str(Path(__file__).resolve()),
+            [sys.executable, str(Path(__file__).resolve()), *forwarded,
              "--expect-loader-override", variable, env[variable]], env=env, check=True
         )

@@ -72,16 +72,6 @@ def test_rejects_second_packaged_core(monkeypatch):
         smoke.main()
 
 
-@pytest.mark.parametrize("name", ["libphotospline.2.4.1.dylib", "libphotospline.so.2.4.1"])
-def test_rejects_foreign_versioned_dependency(tmp_path, name):
-    soname = "libphotospline.2.dylib" if name.endswith("dylib") else "libphotospline.so.2"
-    relative = Path("siren.libs") / soname
-    wheel = SimpleNamespace(files=[relative], locate_file=lambda path: tmp_path / path)
-    smoke.verify_bundled_libraries(wheel, [tmp_path / relative])
-    with pytest.raises(AssertionError, match="outside this wheel"):
-        smoke.verify_bundled_libraries(wheel, [tmp_path / "native" / name])
-
-
 @pytest.mark.parametrize("name", ["@rpath/libSIREN_python.dylib", "libSIREN_python.dylib"])
 def test_nonabsolute_core_name_is_not_resolved_against_cwd(tmp_path, monkeypatch, name):
     monkeypatch.chdir(tmp_path)
@@ -97,9 +87,53 @@ def test_nonabsolute_bundled_name_is_not_ignored(tmp_path):
     own = Path("siren.libs/libphotospline.2.dylib")
     wheel = SimpleNamespace(files=[own], locate_file=lambda path: tmp_path / path)
     with pytest.raises(AssertionError, match="non-absolute image names"):
-        smoke.verify_bundled_libraries(wheel, [tmp_path / own, Path("@rpath") / own.name])
-    # Unrelated images are outside the bundled-dependency provenance contract.
-    smoke.verify_bundled_libraries(wheel, [tmp_path / own, Path("@rpath/libunrelated.dylib")])
+        smoke.check_library_origins(wheel, [tmp_path / own, Path("@rpath") / own.name])
+    # Unrelated images are outside the packaged-library origin contract.
+    smoke.check_library_origins(wheel, [tmp_path / own, Path("@rpath/libunrelated.dylib")])
+
+
+@pytest.mark.parametrize("packaged, loaded", [
+    ("libphotospline.2.dylib", "libphotospline.2.4.1.dylib"),
+    ("libphotospline.so.2", "libphotospline.so.2.4.1"),
+    ("libspglam.so.2", "libspglam.so.2"),
+    ("libphotospline-abcd.so.2", "libphotospline-abcd.so.2"),
+])
+def test_project_library_outside_wheel_fails_without_exemption(tmp_path, packaged, loaded):
+    own = tmp_path / "siren.libs" / packaged
+    foreign = tmp_path / "native" / loaded
+    for path in (own, foreign):
+        path.parent.mkdir(exist_ok=True)
+        path.write_bytes(b"same bytes in both copies")
+    wheel = SimpleNamespace(files=[Path("siren.libs") / packaged], locate_file=lambda path: tmp_path / path)
+    smoke.check_library_origins(wheel, [own])
+    # Identical contents, a preloaded copy, or another distribution owning the
+    # file are not exemptions: SIREN builds these libraries, nobody else ships them.
+    with pytest.raises(AssertionError, match="SIREN libraries loaded from outside"):
+        smoke.check_library_origins(wheel, [own, foreign])
+    with pytest.raises(AssertionError, match="SIREN libraries loaded from outside"):
+        smoke.check_library_origins(wheel, [foreign])
+
+
+def test_other_bundled_dependency_outside_wheel_is_reported_not_classified(tmp_path, capsys):
+    own = tmp_path / "siren.libs/libgfortran.5.dylib"
+    scipy = tmp_path / "scipy/.dylibs/libgfortran.5.dylib"
+    wheel = SimpleNamespace(files=[Path("siren.libs/libgfortran.5.dylib")],
+                            locate_file=lambda path: tmp_path / path)
+    smoke.check_library_origins(wheel, [scipy])
+    assert f"Loaded outside the wheel: {scipy}" in capsys.readouterr().out
+    smoke.check_library_origins(wheel, [own])
+    assert "Loaded outside the wheel" not in capsys.readouterr().out
+
+
+def test_foreign_prefix_must_not_supply_any_library(tmp_path):
+    wheel = SimpleNamespace(files=[], locate_file=lambda path: tmp_path / path)
+    prefix = tmp_path / "dependency prefix"
+    loaded = [prefix / "lib/libHepMC3.4.dylib", tmp_path / "elsewhere/libz.1.dylib"]
+    smoke.check_library_origins(wheel, loaded, foreign_prefixes=[tmp_path / "unrelated prefix"])
+    with pytest.raises(AssertionError, match="foreign prefix"):
+        smoke.check_library_origins(wheel, loaded, foreign_prefixes=[prefix])
+    with pytest.raises(AssertionError, match="foreign prefix"):
+        smoke.check_library_origins(wheel, loaded, foreign_prefixes=[str(prefix / "lib/..")])
 
 
 def test_stripped_loader_override_fails(monkeypatch):
@@ -111,39 +145,12 @@ def test_stripped_loader_override_fails(monkeypatch):
 def test_extension_names_can_match_the_standard_library(tmp_path):
     relative = Path("siren/math.cpython-313-darwin.so")
     wheel = SimpleNamespace(files=[relative], locate_file=lambda path: tmp_path / path)
-    smoke.verify_bundled_libraries(wheel, [tmp_path / "lib-dynload" / relative.name])
+    assert smoke.loaded_outside_wheel(wheel, [tmp_path / "lib-dynload" / relative.name]) == []
 
 
 def test_distinct_dependency_abis_are_not_aliases():
     assert smoke.library_identity(Path("libHepMC3.4.dylib")) != smoke.library_identity(
         Path("libHepMC3.5.dylib"))
-
-
-def test_other_wheel_copy_is_not_a_substitution(tmp_path, monkeypatch):
-    own = Path("siren/.dylibs/libgfortran.5.dylib")
-    scipy = Path("scipy/.dylibs/libgfortran.5.dylib")
-    wheel = SimpleNamespace(files=[own], locate_file=lambda path: tmp_path / path)
-    other = SimpleNamespace(files=[scipy], locate_file=wheel.locate_file,
-                            metadata={"Name": "scipy"})
-    monkeypatch.setattr(smoke.metadata, "distributions", lambda: [other])
-    smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / scipy])
-    # Owning a file is not sufficient: SIREN's own copy must also be loaded.
-    with pytest.raises(AssertionError, match="outside this wheel"):
-        smoke.verify_bundled_libraries(wheel, [tmp_path / scipy])
-    with pytest.raises(AssertionError, match="outside this wheel"):
-        smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / "libgfortran.5.dylib"])
-    other.metadata = {"Name": "siren"}
-    with pytest.raises(AssertionError, match="outside this wheel"):
-        smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / scipy])
-
-
-def test_repair_hash_is_part_of_loader_name(tmp_path):
-    own = Path("siren.libs/libcfitsio-a1b2c3d4.so.4")
-    wheel = SimpleNamespace(files=[own], locate_file=lambda path: tmp_path / path)
-    # The loader requests the hashed name: an unhashed library cannot replace it.
-    smoke.verify_bundled_libraries(wheel, [tmp_path / own, tmp_path / "native/libcfitsio.so.4"])
-    with pytest.raises(AssertionError, match="outside this wheel"):
-        smoke.verify_bundled_libraries(wheel, [tmp_path / "native" / own.name])
 
 
 @pytest.mark.parametrize("platform", ["freebsd14", "linux"])
@@ -227,7 +234,6 @@ def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
         "cmake/siren_python_package.cmake",
         "cmake/siren_wheel_install.cmake",
         "cmake/build_wheel.py",
-        "cmake/install_wheel.py",
         "cmake/wheel_rpath.py",
         "package/CMakeLists.txt",
     ):
@@ -375,14 +381,16 @@ include(cmake/siren_python_package.cmake)
         "2",
     ]
     run(build_command)
-    # A native component must never invoke pip in the active interpreter.
-    # Block it before it can uninstall a developer's existing SIREN package.
+    # Installing the build never invokes pip and never installs Python: the
+    # wheel is installed separately by the interpreter the user selects.
     pip_blocker = tmp_path / "pip blocker"
     pip_blocker.mkdir()
     (pip_blocker / "pip.py").write_text(
-        'raise RuntimeError("Native component install must not invoke pip")\n')
-    run(["cmake", "--install", str(build), "--component", "Unspecified"],
-        dict(env, PYTHONPATH=str(pip_blocker)))
+        'raise RuntimeError("CMake installation must not invoke pip")\n')
+    run(["cmake", "--install", str(build)], dict(env, PYTHONPATH=str(pip_blocker)))
+    native_prefix = tmp_path / "native install"
+    assert not list(native_prefix.rglob("siren")) and not list(native_prefix.rglob("*.dist-info"))
+    assert not list(native_prefix.rglob("*.whl"))
     # Model an external prefix that also contains native photospline/spglam.
     # Its link-derived RPATH must not win during wheel staging or repair.
     for binary in (tmp_path / "native install/lib").iterdir():
@@ -463,22 +471,6 @@ include(cmake/siren_python_package.cmake)
             else:
                 assert archive.read("siren/added.py").decode() == content
 
-    # A caller can invoke the driver directly with a stale glob manifest. A
-    # removed source file should invalidate/stage the wheel, not wedge it.
-    probe.write_text("stale_manifest = True\n")
-    run(build_command)
-    probe.unlink()
-    source_alias = tmp_path / "source alias"
-    source_alias.symlink_to(source, target_is_directory=True)
-    run([sys.executable, str(source / "cmake/build_wheel.py"), "--source", "source alias/../source alias",
-         "--build", str(build), "--inputs", str(build / "wheel_inputs-Release.txt"),
-         "--library-dir", library_dir, "--config", "Release", "--cmake", shutil.which("cmake"),
-         "--no-build-isolation"], dict(env, **({"MACOSX_DEPLOYMENT_TARGET": "11.0",
-                                             "ARCHFLAGS": "-arch arm64 -arch x86_64"}
-                                            if sys.platform == "darwin" else {})))
-    with zipfile.ZipFile(cmake_wheel) as archive:
-        assert "siren/added.py" not in archive.namelist()
-
     source_env = dict(env)
     if sys.platform == "darwin":
         source_env["MACOSX_DEPLOYMENT_TARGET"] = "11.0"
@@ -499,6 +491,62 @@ include(cmake/siren_python_package.cmake)
         source_env,
     )
     wheels = [cmake_wheel, next(source_wheels.glob("*.whl"))]
+
+    # The documented workflow: the selected interpreter installs the wheel.
+    # Fresh install, repeat install, and reinstall after a rebuild each leave
+    # one installation that imports with the source and build trees unavailable.
+    venv = tmp_path / "workflow venv"
+    run([sys.executable, "-m", "venv", str(venv)])
+    venv_python = venv / "bin/python"
+    venv_env = dict(env, PIP_DISABLE_PIP_VERSION_CHECK="1", PIP_CONFIG_FILE=os.devnull)
+    site = Path(run([str(venv_python), "-c",
+                     "import sysconfig; print(sysconfig.get_path('purelib'))"]).stdout.strip())
+
+    def install_wheel(wheel, rebuilt=False):
+        # A rebuilt wheel keeps its version, so pip needs --force-reinstall.
+        options = ["--force-reinstall"] if rebuilt else []
+        result = run([str(venv_python), "-m", "pip", "install", *options, "--no-deps", str(wheel)],
+                     venv_env)
+        assert [path.name for path in site.glob("siren-*.dist-info")] == ["siren-0.1.0.dist-info"]
+        return result.stdout
+
+    def import_with_hidden_trees(extra=()):
+        hidden = []
+        try:
+            for path in [source, build, *extra]:
+                destination = path.with_name(path.name + " hidden")
+                path.rename(destination)
+                hidden.append((path, destination))
+            run([str(venv_python), "-c", "from siren.probe import probe; assert probe() == 42"],
+                venv_env)
+        finally:
+            for original, destination in reversed(hidden):
+                destination.rename(original)
+
+    stale = source / "python/stale.py"
+    stale.write_text("stale = True\n")
+    run(build_command)
+    install_wheel(cmake_wheel)
+    assert (site / "siren/stale.py").is_file()
+    import_with_hidden_trees()
+    repeated = install_wheel(cmake_wheel)  # repeat: the same command is a no-op
+    assert "already installed with the same version" in repeated
+    assert (site / "siren/stale.py").is_file()
+    import_with_hidden_trees()
+    stale.unlink()
+    (source / "python/upgraded.py").write_text("upgraded = True\n")
+    run(build_command)
+    install_wheel(cmake_wheel, rebuilt=True)  # obsolete files go, new ones arrive
+    assert (site / "siren/upgraded.py").is_file() and not (site / "siren/stale.py").exists()
+    import_with_hidden_trees()
+
+    # Native staging with DESTDIR stages libraries only; Python is not touched.
+    staging_root = tmp_path / "package root"
+    run(["cmake", "--install", str(build)], dict(env, DESTDIR=str(staging_root)))
+    staged_native = staging_root / native_prefix.relative_to(native_prefix.anchor)
+    assert list(staged_native.rglob("libphotospline*"))
+    assert not list(staging_root.rglob("siren")) and not list(staging_root.rglob("*.dist-info"))
+    assert (site / "siren/upgraded.py").is_file()
     repair = "delocate-wheel" if sys.platform == "darwin" else "auditwheel"
     if shutil.which(repair):
         for index, wheel in enumerate(list(wheels)):
@@ -508,6 +556,11 @@ include(cmake/siren_python_package.cmake)
             wheels.append(next(repaired.glob("*.whl")))
     elif os.environ.get("SIREN_TEST_REQUIRE_WHEEL_REPAIR") == "1":
         pytest.fail(f"Required repair tool missing: {repair}")
+    if len(wheels) > 2:
+        # A repaired wheel installs with the same command and runs with the
+        # source, build, and dependency prefixes all unavailable.
+        install_wheel(wheels[-1], rebuilt=True)
+        import_with_hidden_trees([tmp_path / "external install"])
     for index, wheel in enumerate(wheels):
         installed = tmp_path / f"installed-{index}"
         with zipfile.ZipFile(wheel) as archive:
