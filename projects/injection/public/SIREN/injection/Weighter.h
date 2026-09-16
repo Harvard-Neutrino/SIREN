@@ -133,6 +133,11 @@ private:
     > secondary_process_weighter_maps;
 
     void Initialize();
+    // Every PrimaryExternalDistribution in this weighter (each injector's
+    // injection side and the primary physical side) must share one row
+    // layout, because records carry a cached row INDEX that each table reads
+    // as an index into itself. Raises ConfigurationError otherwise.
+    void CheckExternalTableLayouts() const;
     // with_diagnostics fills the observation-only interaction_prob/position_prob
     // fields; EventWeight leaves it false so it computes only the physical and
     // generation factors it consumes.

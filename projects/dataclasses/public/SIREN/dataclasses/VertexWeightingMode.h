@@ -67,8 +67,13 @@ struct VertexWeightingMode {
         return {false, false, BoundSource::None};
     }
 
-    // External bounds: interaction probability computed but within
-    // bounds provided by the distribution (e.g., gamma-ray segments).
+    // External bounds: interaction and position probabilities computed
+    // within bounds provided by the primary vertex distribution itself, e.g.
+    // a PrimaryExternalDistribution in segment mode ("length" column: gamma
+    // steps in a production target). Injection bounds always come from the
+    // vertex distribution's InjectionBounds; the Injector requires this mode
+    // for distributions whose ProvidesExternalBounds() is true and rejects
+    // it for all others.
     static VertexWeightingMode ExternalBounds() {
         return {true, true, BoundSource::Distribution};
     }
