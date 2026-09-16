@@ -1,3 +1,7 @@
+from ._native import reject_standalone_runtime as _reject_standalone_runtime
+_reject_standalone_runtime()
+del _reject_standalone_runtime
+
 from . import utilities
 from . import math
 from . import dataclasses
@@ -64,4 +68,3 @@ def darknews_version():
         print("WARNING: DarkNews is not available (not installed, or installed version lacks required APIs)")
         return None
 utilities.darknews_version = darknews_version
-

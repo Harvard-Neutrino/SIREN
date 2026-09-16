@@ -57,11 +57,8 @@ package_add_test(UnitTest_InterpolationOperators ${PROJECT_SOURCE_DIR}/projects/
 package_add_test(UnitTest_Indexing ${PROJECT_SOURCE_DIR}/projects/math/private/test/Indexing_TEST.cxx)
 package_add_test(UnitTest_Interpolator ${PROJECT_SOURCE_DIR}/projects/math/private/test/Interpolator_TEST.cxx)
 
-pybind11_add_module(math ${PROJECT_SOURCE_DIR}/projects/math/private/pybindings/math.cxx)
-target_link_libraries(math PRIVATE SIREN)
-siren_strip_module(math)
-if(DEFINED SKBUILD)
-set_target_properties(math PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(math ${PROJECT_SOURCE_DIR}/projects/math/private/pybindings/math.cxx)
+    target_link_libraries(math PRIVATE SIREN_python)
+    siren_strip_module(math)
 endif()

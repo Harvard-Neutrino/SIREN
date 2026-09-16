@@ -22,11 +22,8 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
     PATTERN "*.tcc"
 )
 
-pybind11_add_module(utilities ${PROJECT_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
-target_link_libraries(utilities PRIVATE SIREN rk_static)
-siren_strip_module(utilities)
-if(DEFINED SKBUILD)
-set_target_properties(utilities PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}/../siren.libs/")
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(utilities ${PROJECT_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
+    target_link_libraries(utilities PRIVATE SIREN_python rk_static)
+    siren_strip_module(utilities)
 endif()

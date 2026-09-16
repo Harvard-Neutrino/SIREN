@@ -25,28 +25,3 @@ set(TEMP_CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_POLICY_VERSION_MINIMUM})
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline)
 set(CMAKE_POLICY_VERSION_MINIMUM ${TEMP_CMAKE_POLICY_VERSION_MINIMUM})
-if(DEFINED SKBUILD)
-    if(${CIBUILDWHEEL})
-        message(STATUS "Setting photospline install lib dir to: ${CI_INSTALL_PREFIX}/lib")
-        message(STATUS "Setting photospline install include dir to: ${CI_INSTALL_PREFIX}/include")
-        install(TARGETS photospline
-            LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
-            PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
-    else()
-        set_target_properties(photospline PROPERTIES
-                BUILD_WITH_INSTALL_RPATH FALSE
-                LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}")
-        install(TARGETS photospline
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
-            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    endif()
-    #set_target_properties(spglam PROPERTIES
-    #        BUILD_WITH_INSTALL_RPATH FALSE
-    #        LINK_FLAGS "-Wl,-rpath,${SIREN_RPATH_ORIGIN}")
-    #install(TARGETS spglam
-    #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
-    #    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-else()
-    #install(TARGETS photospline DESTINATION ${CMAKE_INSTALL_LIBDIR})
-    #install(TARGETS spglam DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif()

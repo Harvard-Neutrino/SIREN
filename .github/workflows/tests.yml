@@ -73,7 +73,22 @@ jobs:
         env:
           # apt-installed gsl/cfitsio from /usr, plus the from-source HepMC3 3.3.1 prefix
           CMAKE_PREFIX_PATH: /usr:${{ env.HEPMC3_PREFIX }}
-        run: pip install -v .
+        run: pip install -v . --config-settings=cmake.define.SIREN_REQUIRE_HEPMC3=ON
+
+      - name: Build native library and test executables
+        run: |
+          cmake -S . -B native-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPython_EXECUTABLE="$(command -v python)" \
+            -DCMAKE_PREFIX_PATH="/usr;$HEPMC3_PREFIX" \
+            -DSIREN_PYTHON_PACKAGE=OFF -DSIREN_REQUIRE_HEPMC3=ON \
+            -DSIREN_WITH_MARLEY=OFF -DSIREN_WITH_PYTHIA8=OFF
+          cmake --build native-build --parallel 2
+          ctest --test-dir native-build --output-on-failure --no-tests=error \
+            -R '^UnitTest_(StandaloneLoad|Vector3D|Weighter|HepMC3Writer|HepMC3RoundTrip)$'
+          python -c 'import ctypes; ctypes.CDLL("native-build/libSIREN.so"); import siren' \
+            > native-import.log 2>&1 && exit 1
+          grep -q 'use separate processes' native-import.log
 
       - name: Run pytest
         env:
@@ -82,3 +97,34 @@ jobs:
           # stub must fail the job instead of letting the HepMC3 suite skip.
           SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes
+
+  packaging:
+    name: Wheel contracts on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install packaging tools
+        run: python -m pip install cmake scikit-build-core pytest packaging
+      - name: Install Linux wheel repair
+        if: runner.os == 'Linux'
+        run: python -m pip install auditwheel patchelf
+      - name: Install macOS wheel repair
+        if: runner.os == 'macOS'
+        run: python -m pip install delocate
+      - name: Test both wheel entry points and repair
+        env:
+          SIREN_TEST_REQUIRE_WHEEL_REPAIR: '1'
+        run: python -m pytest tests/packaging -v --basetemp=packaging-test-output
+      - name: Preserve packaging diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaging-diagnostics-${{ matrix.os }}
+          path: packaging-test-output/**/command-*.log
