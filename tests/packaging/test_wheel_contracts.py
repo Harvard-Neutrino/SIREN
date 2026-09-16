@@ -26,6 +26,11 @@ native = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native)
 
 
+def sysconfig_purelib():
+    import sysconfig
+    return sysconfig.get_path("purelib")
+
+
 def test_linux_maps_preserves_spaces_and_escaped_newline():
     maps = (
         "1000-2000 r-xp 00000000 08:01 123 /tmp/wheel env/siren.libs/libSIREN.so\n"
@@ -234,6 +239,7 @@ def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
         "cmake/siren_python_package.cmake",
         "cmake/siren_wheel_install.cmake",
         "cmake/build_wheel.py",
+        "cmake/install_wheel.cmake",
         "cmake/wheel_rpath.py",
         "package/CMakeLists.txt",
     ):
@@ -501,6 +507,9 @@ include(cmake/siren_python_package.cmake)
     venv_env = dict(env, PIP_DISABLE_PIP_VERSION_CHECK="1", PIP_CONFIG_FILE=os.devnull)
     site = Path(run([str(venv_python), "-c",
                      "import sysconfig; print(sysconfig.get_path('purelib'))"]).stdout.strip())
+    # Expose the runner's build backend to the venv (installs still land in
+    # the venv) so CMake can rebuild the wheel with the venv interpreter.
+    (site / "runner-site.pth").write_text(sysconfig_purelib() + "\n")
 
     def install_wheel(wheel, rebuilt=False):
         # A rebuilt wheel keeps its version, so pip needs --force-reinstall.
@@ -540,13 +549,25 @@ include(cmake/siren_python_package.cmake)
     assert (site / "siren/upgraded.py").is_file() and not (site / "siren/stale.py").exists()
     import_with_hidden_trees()
 
+    # The install_wheel target rebuilds the wheel and runs the same pip command
+    # with the configured interpreter. Change the payload first and invoke only
+    # the target, so a target that skipped pip would leave the old state behind.
+    (source / "python/upgraded.py").unlink()
+    (source / "python/target_only.py").write_text("target_only = True\n")
+    run(configure + [f"-DPython_EXECUTABLE={venv_python}"])
+    run(["cmake", "--build", str(build), "--target", "install_wheel", "-j", "2"], venv_env)
+    assert [path.name for path in site.glob("siren-*.dist-info")] == ["siren-0.1.0.dist-info"]
+    assert (site / "siren/target_only.py").is_file() and not (site / "siren/upgraded.py").exists()
+    import_with_hidden_trees()
+    run(configure)  # back to the runner interpreter for the remaining checks
+
     # Native staging with DESTDIR stages libraries only; Python is not touched.
     staging_root = tmp_path / "package root"
     run(["cmake", "--install", str(build)], dict(env, DESTDIR=str(staging_root)))
     staged_native = staging_root / native_prefix.relative_to(native_prefix.anchor)
     assert list(staged_native.rglob("libphotospline*"))
     assert not list(staging_root.rglob("siren")) and not list(staging_root.rglob("*.dist-info"))
-    assert (site / "siren/upgraded.py").is_file()
+    assert (site / "siren/target_only.py").is_file()
     repair = "delocate-wheel" if sys.platform == "darwin" else "auditwheel"
     if shutil.which(repair):
         for index, wheel in enumerate(list(wheels)):

@@ -39,3 +39,16 @@ add_custom_target(python_package ALL
     DEPENDS ${SIREN_WHEEL_LIBRARIES} ${SIREN_PYTHON_MODULES}
     COMMENT "Building a native wheel from the CMake-installed package"
     VERBATIM)
+
+# Developer convenience: install the wheel into the configured interpreter with
+# the same command the README documents. This is a build target, not an install
+# component, so CMAKE_INSTALL_PREFIX, DESTDIR, and root installs never reach
+# pip. Dependencies must already be installed (--no-deps).
+add_custom_target(install_wheel
+    COMMAND ${CMAKE_COMMAND}
+        "-DPYTHON_EXECUTABLE=${Python_EXECUTABLE}"
+        "-DWHEEL_DIR=${CMAKE_BINARY_DIR}/dist_wheels"
+        -P "${CMAKE_CURRENT_LIST_DIR}/install_wheel.cmake"
+    DEPENDS python_package
+    COMMENT "Installing the SIREN wheel into ${Python_EXECUTABLE}"
+    VERBATIM)

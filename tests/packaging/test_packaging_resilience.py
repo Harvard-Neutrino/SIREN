@@ -98,6 +98,17 @@ def test_cmake_install_never_invokes_pip_or_installs_python(tmp_path, component)
     assert list((build / "dist_wheels").glob("*.whl"))
 
 
+@pytest.mark.parametrize("wheels", [0, 2])
+def test_install_wheel_script_requires_exactly_one_wheel(tmp_path, wheels):
+    directory = tmp_path / "dist_wheels"
+    for index in range(wheels):
+        tiny_wheel(directory, f"0.0.{index + 1}")
+    result = subprocess.run(["cmake", f"-DPYTHON_EXECUTABLE={sys.executable}",
+                             f"-DWHEEL_DIR={directory}", "-P", str(REPO / "cmake/install_wheel.cmake")],
+                            text=True, capture_output=True)
+    assert result.returncode != 0 and "Expected one wheel" in result.stderr, result
+
+
 def test_staged_tree_digest_hashes_what_the_backend_packages(tmp_path):
     # The wheel backend reads through links, so the cache key must too:
     # changed bytes behind an unchanged link are a content change.

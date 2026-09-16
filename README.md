@@ -2,17 +2,26 @@
 
 # SIREN
 
-SIREN (**S**ampling and **I**njection for **R**are **E**ve**N**ts) is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. SIREN is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. SIREN grew out of [LeptonInjector](https://github.com/icecube/LeptonInjector), a neutrino injection code developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
+SIREN (**S**ampling and **I**njection for **R**are **E**ve**N**ts) generates and
+weights particle interactions in detector geometries. It supports neutrino
+and beyond-Standard-Model processes, including interaction chains with
+secondary decays, through Python and C++ interfaces.
 
-SIREN provides a generic interface for user-defined BSM processes (and includes several pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process.
+SIREN grew out of [LeptonInjector](https://github.com/icecube/LeptonInjector)
+and supports atmospheric, accelerator, and decay-at-rest neutrino experiments.
+Users can supply their own processes, fluxes, and detector geometries alongside
+the models included below.
 
 ## Quick start
 
 ```bash
-pip install siren
+python -m pip install siren
 ```
 
-See [Installation](#installation) for other options, including building from source or as a C++ library.
+SIREN supports Linux and macOS and requires Python >= 3.8. Python dependencies
+are installed automatically. Download the [datasets](#dataset-download) needed
+by your simulation before running the example. For source builds and C++ use,
+see [Installation](#installation).
 
 The following example injects 1e4 muon-neutrino DIS events in IceCube and computes their physical weights:
 
@@ -66,96 +75,120 @@ weights = [weighter(event) for event in events]
 SaveEvents(events, weighter, gen_times, output_filename="my_output")
 ```
 
-More examples — including BSM dipole-portal injection and MARLEY low-energy interactions — are in [`resources/examples/`](resources/examples/).
+More examples — including BSM dipole-portal injection and MARLEY low-energy interactions — are in [`resources/examples/`](https://github.com/Harvard-Neutrino/SIREN/tree/main/resources/examples/).
 
 ## How it works
 
-A SIREN workflow has two phases: **injection** and **weighting**.
+SIREN separates **injection** from **weighting**. Injection samples vertices,
+energies, directions, and secondary processes to produce an interaction tree.
+Weighting corrects for the difference between those sampling distributions and
+the physical flux and interaction probabilities. A generated sample can then
+be reweighted for different physical models without regenerating events.
 
-During **injection**, SIREN samples interaction vertices inside a detector geometry according to user-specified distributions (energy spectrum, direction, position). Each call to `injector.generate_event()` produces an interaction tree — a primary interaction and any secondary processes (e.g. the decay of a BSM particle produced in the primary interaction).
+## Installation
 
-During **weighting**, SIREN computes a physical weight for each injected event. The `Weighter` takes the injection configuration and a set of *physical* distributions (the true flux and cross sections) and returns a weight that corrects for the difference between the injection and physical distributions. This importance-sampling approach allows a single injection run to be reweighted against different physical models without regenerating events.
+For optional BSM support via DarkNews:
+
+```bash
+python -m pip install "siren[DarkNews]"
+```
+
+### From source
+
+Source builds require a C++17 compiler, CMake >= 3.20, Python development
+headers/libraries, [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/), and
+[SuiteSparse](http://faculty.cse.tamu.edu/davis/suitesparse.html).
+
+```bash
+git clone --recurse-submodules https://github.com/Harvard-Neutrino/SIREN.git
+cd SIREN
+python -m pip install . --config-settings='build-dir=build-pip'
+```
+
+### Building wheels
+
+From the source checkout, build a wheel with pip:
+
+```bash
+python -m pip wheel . --no-deps --wheel-dir dist
+```
+
+Or use CMake, selecting the interpreter that will import SIREN:
+
+```bash
+cmake -S . -B build -DSIREN_PYTHON_PACKAGE=ON \
+  -DPython_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')"
+cmake --build build --target python_package --parallel
+```
+
+#### Installing the wheel
+
+Install the CMake-built wheel explicitly with that interpreter:
+
+```bash
+python -m pip install build/dist_wheels/siren-*.whl
+```
+
+Repeating this command leaves an unchanged installation in place. After
+rebuilding a wheel with the same version, reinstall it with:
+
+```bash
+python -m pip install --force-reinstall --no-deps build/dist_wheels/siren-*.whl
+```
+
+This assumes the dependencies from the first install are still satisfied.
+For the pip-built wheel, use `dist/siren-*.whl` instead. The `install_wheel`
+target runs that same reinstall command with the configured interpreter after
+rebuilding the wheel:
+
+```bash
+cmake --build build --target install_wheel
+```
+
+`cmake --install` installs native artifacts only; it never invokes pip.
+The Python interpreter and pip determine where the wheel is installed.
+Before distributing locally built wheels, repair their native dependencies
+with `delocate-wheel` on macOS or `auditwheel repair` on Linux, as release CI
+does. See the [packaging guide](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/packaging.md) for offline builds,
+platform settings, staging, and validation.
+
+### C++ library
+
+From the same source checkout, build and install the standalone library:
+
+```bash
+cmake -S . -B build-native -DSIREN_PYTHON_PACKAGE=OFF \
+  -DCMAKE_INSTALL_PREFIX="$PWD/install"
+cmake --build build-native --parallel
+cmake --install build-native
+```
+
+Choose your destination with `CMAKE_INSTALL_PREFIX`; `DESTDIR` supports staged
+native installations. Set `SIREN_PYTHON_PACKAGE=ON` if this build should also
+produce a wheel, then install that wheel separately with pip.
+
+**Use the standalone native library and Python wheel in separate processes.**
+Importing SIREN checks for an already loaded standalone core where library
+inspection is available; the restriction applies in either loading order.
+See [native library layout and loading](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/packaging.md#native-library-layout-and-loading)
+for details and CMake consumer requirements.
 
 ## HepMC3 / NuHepMC output
 
-SIREN can write events as [HepMC3](https://gitlab.cern.ch/hepmc/HepMC3) ASCII, following the [NuHepMC](https://github.com/NuHepMC/Spec) conventions for neutrino generators, so events can be read by any HepMC3-aware tool. This requires HepMC3 >= 3.3 (the writer uses attribute types absent from 3.2.x); with an older or missing HepMC3 the package still builds and every other output format works, but the HepMC3 path raises at call time.
-
-### Enabling it
-
-Pass `save_hepmc3=True` to `SaveEvents` (or `hepmc3=True` to `SIREN_Controller.SaveEvents`). This writes `<output_filename>.hepmc3` alongside the usual HDF5/Parquet/`.siren_events` files. Add `hepmc3_gzip=True` to gzip the output (the `.gz` suffix is added automatically).
+With HepMC3 >= 3.3 available at build time, SIREN can export weighted events
+using the NuHepMC conventions:
 
 ```python
 from siren._util import SaveEvents
 SaveEvents(events, weighter, gen_times, output_filename="my_output", save_hepmc3=True)
 ```
 
-### Weight policy
+Add `hepmc3_gzip=True` for compressed output. The [HepMC3 guide](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/hepmc3.md)
+explains weight policies, deferred weighting, combining simulation sets, and
+reading the output. To require this capability in a source build, configure
+CMake with `SIREN_REQUIRE_HEPMC3=ON`.
 
-The central-value weight written into each event's header is controlled by `hepmc3_weights` (default `"auto"`), and the resolved policy is recorded in the run-level `siren.weights_state` attribute:
-
-| `hepmc3_weights` | `siren.weights_state` | Meaning |
-|------------------|-----------------------|---------|
-| `"auto"` (default) | `"computed"` | If a weighter is available, every event weight is computed once and written to the headers. |
-| `"auto"` (no weighter) | `"header"` or `"unweighted"` | Existing header weights are trusted if present, else headers are left untouched. |
-| a `Weighter` or callable | `"computed"` | Weights are computed the same as `"auto"`-with-weighter. |
-| a sequence of floats | `"header"` | One central value per event, written to the headers (length must equal `len(events)`). |
-| `"header"` | `"header"` | Existing header weights are trusted as-is. |
-| `"none"` / `None` | `"unweighted"` | Headers are left untouched; no weights are claimed. |
-
-An `"unweighted"` export is a **plain HepMC3 file**: it carries the `siren.*` provenance attributes but **no `NuHepMC.*` attributes** (no flux-averaged cross section, no status registries), because those metadata are only meaningful for weighted output.
-
-### Workflows
-
-**1. Weight at save time (eager).** Give `SaveEvents` a weighter and the CVs are computed and written in one pass:
-
-```python
-SaveEvents(events, weighter, gen_times, output_filename="my_output", save_hepmc3=True)
-```
-
-**2. Generate now, weight later.** Save without a weighter, then convert the native `.siren_events` file with the converter, passing the (in-memory) `weighter` object to recompute the CV. Reweighting reads the native file, **not** a HepMC3 round trip (the HepMC3 reader is run-level-lossy by design). `convert_siren_events_to_hepmc3` does not read a `.siren_weighter` companion file itself -- you build or load the `Weighter` and pass it in directly:
-
-```python
-from siren._util import convert_siren_events_to_hepmc3
-convert_siren_events_to_hepmc3("my_output.siren_events", weighter=weighter)
-```
-
-or from the shell, without weights (the CLI has no `weighter` option, so the CVs are left as whatever the native file already carries):
-
-```bash
-python -m siren.hepmc3_convert my_output.siren_events -o my_output.hepmc3
-```
-
-**3. Factorized analysis.** The `Weighter` exposes the per-vertex probability factors behind the central value — `interaction_probabilities`, `survival_probabilities`, and the finer generation/physical terms on the bound `PrimaryProcessWeighter` / `SecondaryProcessWeighter` — so downstream analyses can recombine the partial factors themselves instead of consuming a single scalar.
-
-**4. Combining simulation sets.** To pool several independent runs into one correctly-normalized HepMC3 file, use `combine_and_export_hepmc3` on the native `.siren_events` + `.siren_weighter` pairs. Pooling rebuilds one `Weighter` over the union of injectors and recomputes every weight; there is no valid shortcut through per-set stored weights, and combining via HepMC3 round-trips is **not** supported:
-
-```python
-from siren._util import combine_and_export_hepmc3
-combine_and_export_hepmc3(["run_a", "run_b"], out_path="combined.hepmc3")
-```
-
-Each set entry is a shared base path (`<base>.siren_events` + `<base>.siren_weighter`), an `(events, weighter)` path pair, or a dict; every set needs a usable `.siren_weighter` and must share the same physical configuration.
-
-### Reading the output
-
-Any HepMC3 reader works. To read back into SIREN interaction trees:
-
-```python
-from siren._util import LoadEventsFromHepMC3
-events = LoadEventsFromHepMC3("my_output.hepmc3")
-```
-
-Or with [pyhepmc](https://github.com/scikit-hep/pyhepmc) for a generator-agnostic view:
-
-```python
-import pyhepmc
-with pyhepmc.open("my_output.hepmc3") as f:
-    events = [evt for evt in f]
-weights_state = str(events[0].run_info.attributes["siren.weights_state"])
-central_value = events[0].weights[0]
-```
-
-## Supported detectors
+## Built-in detectors
 
 SIREN includes detector geometry definitions for the following experiments:
 
@@ -182,17 +215,17 @@ detector_model = siren.utilities.load_detector("IceCube")
 
 Contributions of new detector geometries are welcome.
 
-## Supported process models
+## Built-in process models
 
 | Model | Description |
 |-------|-------------|
 | `CSMSDISSplines` | Deep inelastic scattering (CC and NC) on nucleons, using photospline cross-section tables |
 | `MarleyCrossSection` | Low-energy neutrino interactions via [MARLEY](https://www.marleygen.org/) |
-| `DarkNewsTables` | BSM processes (dark photons, dipole portal, HNLs) via [DarkNews](https://github.com/mhostert/DarkNews-generator) — see [example2](resources/examples/example2/) |
+| `DarkNewsTables` | BSM processes (dark photons, dipole portal, HNLs) via [DarkNews](https://github.com/mhostert/DarkNews-generator) — see [example2](https://github.com/Harvard-Neutrino/SIREN/tree/main/resources/examples/example2/) |
 | `HNLDISSplines` | Heavy neutral lepton (HNL) production via neutrino neutral current deep inelastic scattering on nucleons, using photospline cross-section tables |
 | `DipoleHNLDISSplines` | Heavy neutral lepton (HNL) production via neutrino dipole-portal (i.e., via a transition magnetic moment) deep inelastic scattering on nucleons, using photospline cross-section tables |
 
-## Supported flux models
+## Built-in flux models
 
 | Model | Description |
 |-------|-------------|
@@ -208,289 +241,24 @@ To load a flux model:
 flux = siren.utilities.load_flux("BNB", tag="FHC_numu")
 ```
 
-## Installation
-
-### Python (pip)
-
-```bash
-pip install siren
-```
-
-Requires Python >= 3.8. Dependencies (`numpy`, `scipy`, `awkward`, `pyarrow`, `h5py`) are installed automatically.
-
-For optional BSM support via DarkNews:
-
-```bash
-pip install siren DarkNews>=0.4.2
-```
-
-### Python (from source)
-
-```bash
-git clone https://github.com/Harvard-Neutrino/SIREN.git
-cd SIREN
-pip install . --config-settings='build-dir=build'
-```
-
-### Building wheels
-
-The source build and the CMake `python_package` target both use scikit-build-core.
-Wheels have native Python ABI/platform tags and install the SIREN core and
-photospline next to the extensions, with relative library lookup paths.
-Extensions use the host Python interpreter. A separate standalone library links
-Python for native applications, including plugin hosts using `dlopen`. Both
-libraries reuse the same compiled components, and a CMake build can produce both.
-The wheel core is named `libSIREN_python.dylib` on macOS and
-`libSIREN_python.so` on Linux, while the standalone core retains `libSIREN`.
-Distinct library names
-prevent a native installation on the loader search path from replacing the
-wheel core.
-The wheel must not bundle another Python runtime.
-Use the native library and the Python wheel in **separate processes**. Loading
-both cores into one process duplicates internal state, including particle-ID
-allocation. This restriction applies in either loading order, even to binaries
-from the same build. On platforms where loaded-library inspection is available,
-importing `siren` checks for an already loaded standalone core and raises
-`ImportError`. The guard is best effort; the separate-process requirement still
-applies when inspection is unavailable (for example, Linux without `/proc`).
-Do not load the native core after importing the wheel or bypass this check by
-importing extension files directly. Wheel acceptance requires library inspection.
-The CMake target uses its configured Python interpreter to package the binaries;
-build it with the interpreter and architecture that will run the wheel.
-On macOS, configure `CMAKE_OSX_DEPLOYMENT_TARGET` and, when needed,
-`CMAKE_OSX_ARCHITECTURES` in the outer CMake build; the wheel target forwards
-them to its metadata backend. Relocation does not imply compatibility with
-macOS versions older than the binary deployment target or its dependencies.
-
-```bash
-python -m pip wheel . --no-deps --wheel-dir dist
-# Or, after configuring a CMake build with SIREN_PYTHON_PACKAGE=ON:
-cmake --build build --target python_package --parallel
-# The CMake wheel is in <build-dir>/dist_wheels/.
-```
-
-Wheels contain the Python package, resources, extensions, and their native
-runtime libraries. They no longer include C++ headers or CMake exports from
-the source-wheel installation. For C++ development, use the standalone CMake
-installation below, with `SIREN_PYTHON_PACKAGE=OFF` if no wheel is needed.
-That option omits SIREN's Python extensions and Python core from a plain CMake
-build. Source-wheel builds still build them, without starting a nested wheel build.
-The exported native targets retain the existing requirement that consumers
-provide their dependency targets; the wheel is not a C++ development SDK.
-
-The CMake wheel target uses build isolation by default. To build offline,
-first provision the configured interpreter with the requirements in
-`[build-system]` (currently `scikit-build-core>=0.10`) and its dependencies,
-then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
-route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
-dependencies must already be available too.
-
-#### Installing the wheel
-
-The build produces the wheel; installing it is a separate step, owned by the
-Python interpreter you choose:
-
-```bash
-cmake --build build --target python_package --parallel
-python -m pip install build/dist_wheels/siren-*.whl
-```
-
-`cmake --install` installs the native library, headers, and CMake exports
-only. No install component invokes pip, and `DESTDIR` stages those native
-files without touching any Python installation. Running the same command again
-is a no-op while the wheel is unchanged. After a rebuild, the wheel keeps the
-same version number, so pip refuses it as already installed; reinstall it with
-
-```bash
-python -m pip install --force-reinstall --no-deps build/dist_wheels/siren-*.whl
-```
-
-which replaces the previous installation, including files the new wheel no
-longer contains. It assumes the dependencies are already installed and
-satisfied by the first install; it does not touch them. Use the interpreter that will
-import SIREN (a virtual environment's `python`, for example); the wheel's ABI
-and platform tags must match it, so configure CMake's `Python_EXECUTABLE` with
-that interpreter. Packagers staging the wheel under a root use pip's own
-`--root` and `--prefix` options.
-
-Native installs are unchanged: `CMAKE_INSTALL_PREFIX` and `DESTDIR` work as
-for any CMake project. Where the wheel goes is decided by pip and the
-interpreter you run it with, not by CMake. Unsupported: Windows, and installing
-the wheel through CMake.
-
-Local wheels still require their external native dependencies, such as CFITSIO
-and HepMC3. Before distributing a wheel, bundle those dependencies with
-`delocate-wheel` on macOS or `auditwheel repair` on Linux. The cibuildwheel
-configuration performs that repair for release wheels. It replaces the former
-optional `PACKAGE_SHARED_DEPS` copy step, which
-did not repair dependent-library references.
-
-Validate the installed wheel from a fresh environment outside the checkout,
-with the original source/build directories unavailable and library-search
-path overrides cleared:
-
-```bash
-python -m pip install /path/to/repaired/siren-*.whl packaging
-python /path/to/test_hepmc3_wheel.py
-```
-
-Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
-`--clean-environment` starts that check in a child with Python and library search
-overrides cleared; cibuildwheel uses this mode to exclude its build/repair paths.
-The test checks wheel tags, rejects multiple core-library files and a bundled
-Python runtime, and verifies that the loaded core and the vendored
-photospline/spglam belong to the installed wheel. Any other bundled dependency
-that the process loaded from outside the wheel is printed for inspection, not
-classified: in a fresh environment that list should be empty, and a nonempty
-one names the library and where it came from. `--foreign-prefix DIR`
-(repeatable) additionally fails if any loaded library comes from under that
-directory; release validation names the checkout and the build's dependency
-prefix, which shows the repaired wheel running without them. The check also
-exercises native sampling plus plain/gzip HepMC3 round trips. Build with
-`SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
-explicitly.
-
-#### Optional competing-library diagnostic
-
-After the clean acceptance check passes, use the following command to diagnose
-conflicting libraries in an existing native installation:
-
-```bash
-python /path/to/test_hepmc3_wheel.py --standalone-library /native/prefix/lib/libSIREN.dylib
-# On Linux, use /native/prefix/lib/libSIREN.so (or the installation's lib64 path).
-```
-
-This repeats the check in a fresh interpreter with `DYLD_LIBRARY_PATH` or
-`LD_LIBRARY_PATH` pointing at the standalone library directory.
-It verifies that the override reached the child interpreter. It does not load
-the standalone core: the directory is a competing dependency search path.
-An override that substitutes native photospline or another bundled dependency
-fails this diagnostic with a nonzero exit status; that failure is expected for
-a prefix containing competing libraries. This is not a required acceptance
-step. Clear that override before running the wheel.
-SIREN supports Linux and macOS. Windows is not supported.
-
-### C++ library
-
-SIREN can also be built and installed as a standalone C++ shared library using CMake. This is useful when integrating SIREN into a larger C++ project.
-
-#### Prerequisites
-
-* A C++ compiler with C++17 support
-* CMake >= 3.20
-* [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/)
-* [SuiteSparse](http://faculty.cse.tamu.edu/davis/suitesparse.html)
-
-CFITSIO and SuiteSparse are required by photospline for reading cross-section spline tables.
-
-#### Workspace layout
-
-We recommend keeping source, build, and install directories separate. A typical workspace looks like:
-
-```
-workspace/
-├── env.sh              # environment setup script
-├── local/              # install prefix
-│   ├── bin/
-│   ├── include/
-│   └── lib/
-└── sources/
-    ├── SIREN/
-    │   └── build/      # out-of-source build directory
-    └── (other projects that depend on SIREN)
-```
-
-#### Environment setup
-
-Create an `env.sh` script that configures your compiler and paths. This script should be sourced before building or running anything in the workspace.
-
-```bash
-#!/bin/bash
-
-export WORKSPACE=/path/to/workspace
-export PREFIX=$WORKSPACE/local
-
-export CC=gcc
-export CXX=g++
-
-export PATH=$PREFIX/bin:$PATH
-export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
-export C_INCLUDE_PATH=$PREFIX/include:$C_INCLUDE_PATH
-export CPLUS_INCLUDE_PATH=$PREFIX/include:$CPLUS_INCLUDE_PATH
-export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
-PY_SITE_DIR="$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
-export PYTHONPATH="$PY_SITE_DIR${PYTHONPATH:+:$PYTHONPATH}"
-```
-
-On macOS, use `DYLD_FALLBACK_LIBRARY_PATH` instead of `LD_LIBRARY_PATH`.
-
-#### Build and install
-
-```bash
-source env.sh
-
-git clone https://github.com/Harvard-Neutrino/SIREN.git $WORKSPACE/sources/SIREN
-cd $WORKSPACE/sources/SIREN
-git submodule update --init
-
-mkdir -p build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX
-cmake --build . --parallel && cmake --install .
-python -m pip install dist_wheels/siren-*.whl
-```
-
-When source files change, rerun the build/install line and then reinstall the rebuilt wheel with `python -m pip install --force-reinstall --no-deps dist_wheels/siren-*.whl` (see "Installing the wheel": pip refuses a rebuilt wheel of the same version without `--force-reinstall`). Rerun the first `cmake` step if `CMakeLists.txt` files change or new source files are added.
-
-#### CMake options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `CMAKE_INSTALL_PREFIX` | — | Install destination for libraries, headers, and binaries |
-| `SIREN_PYTHON_PACKAGE` | `ON` | Build the Python wheel (`python_package` target); install it with pip |
-| `SIREN_WITH_MARLEY` | `ON` | Enable MARLEY support (used if found) |
-| `SIREN_REQUIRE_MARLEY` | `OFF` | Fail the build if MARLEY is not found |
-
 ## Dataset download
 
-SIREN uses external datasets that need to be downloaded separately, including neutrino flux models and cross-section tables. To do this, after installing SIREN , run the following commands:
+Download process tables and flux models after installing SIREN:
 
 ```bash
 siren-download --processes
 siren-download --flux
 ```
 
-These commands will download the necessary datasets to the `resources/processes` and `resources/fluxes` directories in the SIREN installation.
+The data are stored under `resources/processes` and `resources/fluxes` in the
+SIREN installation.
 
 ## Project structure
 
-```
-SIREN/
-├── projects/              # C++ source modules
-│   ├── utilities/         # Interpolation, random numbers, string utilities
-│   ├── serialization/     # Serialization support
-│   ├── math/              # Vector3D, Matrix3D, Quaternion, interpolation
-│   ├── dataclasses/       # Particle, InteractionRecord, InteractionTree
-│   ├── geometry/          # Geometric primitives and operations
-│   ├── detector/          # Detector geometry and density profiles
-│   ├── interactions/      # Cross section and decay implementations
-│   ├── distributions/     # Probability distributions for sampling
-│   └── injection/         # Injector and Weighter
-├── python/                # Python API (Injector, Weighter, utilities)
-├── vendor/                # Vendored dependencies (git submodules)
-│   ├── cereal             # Serialization
-│   ├── delabella          # Delaunay triangulation
-│   ├── googletest         # Unit testing
-│   ├── pybind11           # Python bindings
-│   ├── rk                 # Relativistic kinematics
-│   ├── photospline        # B-spline cross-section tables
-│   └── NamedType          # Type-safe wrappers
-├── resources/
-│   ├── detectors/         # Detector geometry definitions
-│   ├── fluxes/            # Neutrino flux models
-│   ├── processes/         # Cross-section and decay data
-│   └── examples/          # Example scripts and notebooks
-└── cmake/Packages/        # CMake find-modules for dependencies
-```
+The [Python API](https://github.com/Harvard-Neutrino/SIREN/tree/main/python/), [C++ modules](https://github.com/Harvard-Neutrino/SIREN/tree/main/projects/), and
+[detectors, fluxes, processes, and examples](https://github.com/Harvard-Neutrino/SIREN/tree/main/resources/) live in separate
+directories. [CMake support](https://github.com/Harvard-Neutrino/SIREN/tree/main/cmake/) and [wheel tooling](https://github.com/Harvard-Neutrino/SIREN/tree/main/tools/wheels/) handle
+builds and packaging.
 
 ## Contributing
 
