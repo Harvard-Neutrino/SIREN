@@ -62,6 +62,7 @@ add_custom_target(python_package ALL
     COMMENT "Building a native wheel from the CMake-installed package"
     VERBATIM)
 
+# --prefix must not uninstall an existing package in the build interpreter.
 install(CODE "
     file(GLOB WHEELS \"${WHEELS_DIR}/*.whl\")
     list(LENGTH WHEELS WHEEL_COUNT)
@@ -69,7 +70,7 @@ install(CODE "
         message(FATAL_ERROR \"Build the python_package target before installing SIREN, or configure -DSIREN_PYTHON_PACKAGE=OFF for a native-only install\")
     endif()
     execute_process(
-        COMMAND \"${Python_EXECUTABLE}\" -m pip install --no-deps --force-reinstall
+        COMMAND \"${Python_EXECUTABLE}\" -m pip install --no-deps --ignore-installed
             \$\{WHEELS\} --prefix=\$\{CMAKE_INSTALL_PREFIX\}
         RESULT_VARIABLE WHEEL_INSTALL_RESULT
         COMMAND_ECHO STDOUT)

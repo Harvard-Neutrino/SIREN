@@ -285,7 +285,8 @@ then configure `-DSIREN_WHEEL_BUILD_ISOLATION=OFF`. For the direct source-wheel
 route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
 dependencies must already be available too. The CMake Python installer belongs to the `PythonPackage` component; native
 component installs do not invoke pip. A full install still includes Python when
-`SIREN_PYTHON_PACKAGE=ON`. Installation reports wheel failures;
+`SIREN_PYTHON_PACKAGE=ON`. Installing to a different prefix leaves packages in
+the build interpreter's environment intact. Installation reports wheel failures;
 it does not silently continue after a failed Python installation.
 
 Local wheels still require their external native dependencies, such as CFITSIO
@@ -308,8 +309,10 @@ Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
 `--clean-environment` starts that check in a child with Python and library search
 overrides cleared; cibuildwheel uses this mode to exclude its build/repair paths.
 The test checks wheel tags, rejects multiple core-library files, verifies that
-the core and loaded bundled dependencies belong to the installed wheel, and exercises native
-sampling plus plain/gzip HepMC3 round trips. Build with
+the core belongs to the installed wheel, and checks loaded bundled dependencies.
+Preloaded independent dependencies may coexist if the wheel's copy also loads;
+loader reuse of an external copy requires identical file contents. The check
+also exercises native sampling plus plain/gzip HepMC3 round trips. Build with
 `SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
 explicitly.
 

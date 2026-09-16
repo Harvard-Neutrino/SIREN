@@ -151,7 +151,7 @@ def test_import_guard_allows_unavailable_probe_but_acceptance_does_not(monkeypat
     monkeypatch.setattr(native.sys, "platform", platform)
     def no_procfs(path):
         raise FileNotFoundError("procfs is not mounted")
-    monkeypatch.setattr(native.Path, "read_text", no_procfs)
+    monkeypatch.setattr(native.Path, "read_bytes", no_procfs)
     native.reject_standalone_runtime()
     with pytest.raises((native.NativeInspectionUnavailable, FileNotFoundError)):
         native.loaded_libraries()
@@ -397,6 +397,14 @@ include(cmake/siren_python_package.cmake)
     unchanged = run(build_command)
     assert cmake_wheel.stat().st_mtime_ns == original_stamp, unchanged.stdout + unchanged.stderr
 
+    # A truncated cache must recover through an actual stage/backend rebuild.
+    (build / ".wheel_inputs.json").write_text('{"payload":')
+    recovered = run(build_command)
+    assert "ignoring invalid cache" in recovered.stdout
+    recovered_stamp = cmake_wheel.stat().st_mtime_ns
+    run(build_command)
+    assert cmake_wheel.stat().st_mtime_ns == recovered_stamp
+
     # An install-only change must invalidate the wheel even with identical
     # target binaries and package source files.
     time.sleep(1.05)
@@ -431,6 +439,20 @@ include(cmake/siren_python_package.cmake)
                 assert "siren/added.py" not in archive.namelist()
             else:
                 assert archive.read("siren/added.py").decode() == content
+
+    # A caller can invoke the driver directly with a stale glob manifest. A
+    # removed source file should invalidate/stage the wheel, not wedge it.
+    probe.write_text("stale_manifest = True\n")
+    run(build_command)
+    probe.unlink()
+    run([sys.executable, str(source / "cmake/build_wheel.py"), "--source", str(source),
+         "--build", str(build), "--inputs", str(build / "wheel_inputs-Release.txt"),
+         "--library-dir", library_dir, "--config", "Release", "--cmake", shutil.which("cmake"),
+         "--no-build-isolation"], dict(env, **({"MACOSX_DEPLOYMENT_TARGET": "11.0",
+                                             "ARCHFLAGS": "-arch arm64 -arch x86_64"}
+                                            if sys.platform == "darwin" else {})))
+    with zipfile.ZipFile(cmake_wheel) as archive:
+        assert "siren/added.py" not in archive.namelist()
 
     source_env = dict(env)
     if sys.platform == "darwin":

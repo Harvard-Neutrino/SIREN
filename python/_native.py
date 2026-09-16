@@ -1,6 +1,7 @@
 """Native runtime identity checks, without importing extension modules."""
 
 import ctypes
+import os
 from pathlib import Path
 import re
 import sys
@@ -25,10 +26,10 @@ def loaded_libraries():
         loader._dyld_image_count.restype = ctypes.c_uint32
         loader._dyld_get_image_name.argtypes = [ctypes.c_uint32]
         loader._dyld_get_image_name.restype = ctypes.c_char_p
-        return [Path(loader._dyld_get_image_name(i).decode())
+        return [Path(os.fsdecode(loader._dyld_get_image_name(i)))
                 for i in range(loader._dyld_image_count())]
     if sys.platform.startswith("linux"):
-        return linux_mapped_paths(Path("/proc/self/maps").read_text())
+        return linux_mapped_paths(os.fsdecode(Path("/proc/self/maps").read_bytes()))
     if sys.platform == "win32":
         loader = ctypes.WinDLL("kernel32", use_last_error=True)
         loader.GetCurrentProcess.restype = ctypes.c_void_p

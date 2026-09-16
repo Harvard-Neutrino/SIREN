@@ -259,7 +259,7 @@ endif()
 if(PACKAGE_SHARED_DEPS)
     message(FATAL_ERROR
         "PACKAGE_SHARED_DEPS cannot produce a relocatable wheel. Use delocate-wheel, "
-        "auditwheel repair, or delvewheel repair as in the cibuildwheel configuration.")
+            "or auditwheel repair as in the cibuildwheel configuration.")
 endif()
 
 # Native development installation. Wheel builds select only PythonWheel.

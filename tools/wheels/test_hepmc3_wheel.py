@@ -10,6 +10,7 @@ installation on the loader search path, in a fresh interpreter.
 import argparse
 from email.parser import Parser
 import hashlib
+import importlib.util
 from importlib import metadata
 import os
 import re
@@ -50,7 +51,15 @@ def verified_library_paths(paths):
     return {path.resolve() for path in paths}
 
 
-def verify_bundled_libraries(wheel, libraries):
+def library_digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.digest()
+
+
+def verify_bundled_libraries(wheel, libraries, preexisting=()):
     packaged = {library_identity(path) for path in wheel.files
                 if path.name.endswith((".dylib", ".dll")) or (
                     ".so" in path.name and ".cpython-" not in path.name
@@ -60,19 +69,40 @@ def verify_bundled_libraries(wheel, libraries):
         path for path in libraries if library_identity(path) in packaged)
     foreign = libraries - installed
     if foreign:
-        # Other wheels (e.g. SciPy on macOS) can load independent copies with
-        # the same SONAME. Accept those only if SIREN's copy is also loaded.
-        # An actual replacement, an unowned native-prefix copy, or a stale
-        # SIREN installation still fails this check.
+        # Unrelated packages can have already loaded same-name dependencies,
+        # including copies managed by conda or Homebrew with no wheel RECORD.
+        # They cannot replace SIREN's copy: that identity must also map here.
         own_loaded = {library_identity(path) for path in libraries & installed}
-        other_files = set()
+        other_files = {path.resolve() for path in preexisting
+                       if path.is_absolute() and library_identity(path) in own_loaded}
         for distribution in metadata.distributions():
-            if distribution.metadata["Name"].lower() == "siren":
+            name = distribution.metadata.get("Name")
+            if not name or name.lower() == "siren":
                 continue
             other_files.update(distribution.locate_file(path).resolve()
                                for path in (distribution.files or ())
                                if library_identity(path) in own_loaded)
         foreign = {path for path in foreign if path not in other_files}
+        # ELF loaders may reuse an already mapped SONAME from another wheel,
+        # even when its identical bundled copy would have been found via RPATH.
+        # A name/hash in the SONAME alone is insufficient: compare all bytes.
+        expected = {}
+        foreign_identities = {library_identity(path) for path in foreign}
+        for path in installed:
+            identity = library_identity(path)
+            if identity in foreign_identities:
+                try:
+                    expected.setdefault(identity, set()).add(library_digest(path))
+                except OSError:
+                    pass
+        equivalents = set()
+        for path in foreign:
+            try:
+                if library_digest(path) in expected.get(library_identity(path), set()):
+                    equivalents.add(path)
+            except OSError:
+                pass  # A deleted/unreadable image cannot prove equivalence.
+        foreign -= equivalents
     assert not foreign, f"Bundled libraries loaded from outside this wheel: {foreign}"
 
 
@@ -106,6 +136,14 @@ def main():
         f"Expected one core library in the wheel: {packaged_core}"
     )
 
+    # Inspect images before importing any extension, without running siren's
+    # __init__. This establishes which non-pip dependencies were preloaded.
+    probe_path = wheel.locate_file("siren/_native.py")
+    probe_spec = importlib.util.spec_from_file_location("_siren_wheel_probe", probe_path)
+    probe = importlib.util.module_from_spec(probe_spec)
+    probe_spec.loader.exec_module(probe)
+    preexisting = probe.loaded_libraries()
+
     import siren
     from siren import hepmc3
     from siren import dataclasses as d
@@ -117,7 +155,7 @@ def main():
     assert len(core) == 1, core
     installed_files = {wheel.locate_file(path).resolve() for path in wheel.files}
     assert core <= installed_files, f"Core library is not from this wheel: {core}"
-    verify_bundled_libraries(wheel, libraries)
+    verify_bundled_libraries(wheel, libraries, preexisting)
     for path in core:
         print(f"Loaded {path}: sha256={hashlib.sha256(path.read_bytes()).hexdigest()}")
 
