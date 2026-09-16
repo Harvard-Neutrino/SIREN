@@ -286,7 +286,10 @@ route, use `python -m pip wheel . --no-build-isolation --no-deps`. Native
 dependencies must already be available too. The CMake Python installer belongs to the `PythonPackage` component; native
 component installs do not invoke pip. A full install still includes Python when
 `SIREN_PYTHON_PACKAGE=ON`. Installing to a different prefix leaves packages in
-the build interpreter's environment intact. Installation reports wheel failures;
+the build interpreter's environment intact. Installing into that interpreter's
+own prefix replaces the previous wheel, including removed files and metadata.
+`DESTDIR=/staging/root cmake --install build` stages Python under the same root
+as the native install. Installation reports wheel failures;
 it does not silently continue after a failed Python installation.
 
 Local wheels still require their external native dependencies, such as CFITSIO
@@ -309,9 +312,11 @@ Use a copy of `tools/wheels/test_hepmc3_wheel.py` outside the hidden checkout.
 `--clean-environment` starts that check in a child with Python and library search
 overrides cleared; cibuildwheel uses this mode to exclude its build/repair paths.
 The test checks wheel tags, rejects multiple core-library files, verifies that
-the core belongs to the installed wheel, and checks loaded bundled dependencies.
-Preloaded independent dependencies may coexist if the wheel's copy also loads;
-loader reuse of an external copy requires identical file contents. The check
+the core and vendored photospline/spglam belong to the installed wheel, and checks
+other bundled dependencies. Third-party copies loaded before the check, or
+recorded by another Python distribution, may coexist if the wheel's copy also
+loads. Other external copies, including libraries first loaded during import
+without distribution ownership, require identical file contents. The check
 also exercises native sampling plus plain/gzip HepMC3 round trips. Build with
 `SIREN_REQUIRE_HEPMC3=ON` for this acceptance check; cibuildwheel sets it
 explicitly.

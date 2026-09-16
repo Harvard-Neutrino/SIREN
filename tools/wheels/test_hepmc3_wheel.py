@@ -59,6 +59,12 @@ def library_digest(path):
     return digest.digest()
 
 
+def is_project_library(path):
+    """Libraries built by SIREN must come from this wheel, including vendors."""
+    return is_core_library(path) or re.match(
+        r"^lib(?:photospline|spglam)(?:[.-]|$)", path.name.lower()) is not None
+
+
 def verify_bundled_libraries(wheel, libraries, preexisting=()):
     packaged = {library_identity(path) for path in wheel.files
                 if path.name.endswith((".dylib", ".dll")) or (
@@ -72,7 +78,8 @@ def verify_bundled_libraries(wheel, libraries, preexisting=()):
         # Unrelated packages can have already loaded same-name dependencies,
         # including copies managed by conda or Homebrew with no wheel RECORD.
         # They cannot replace SIREN's copy: that identity must also map here.
-        own_loaded = {library_identity(path) for path in libraries & installed}
+        own_loaded = {library_identity(path) for path in libraries & installed
+                      if not is_project_library(path)}
         other_files = {path.resolve() for path in preexisting
                        if path.is_absolute() and library_identity(path) in own_loaded}
         for distribution in metadata.distributions():
@@ -87,7 +94,8 @@ def verify_bundled_libraries(wheel, libraries, preexisting=()):
         # even when its identical bundled copy would have been found via RPATH.
         # A name/hash in the SONAME alone is insufficient: compare all bytes.
         expected = {}
-        foreign_identities = {library_identity(path) for path in foreign}
+        foreign_identities = {library_identity(path) for path in foreign
+                              if not is_project_library(path)}
         for path in installed:
             identity = library_identity(path)
             if identity in foreign_identities:

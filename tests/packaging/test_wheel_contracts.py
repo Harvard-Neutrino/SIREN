@@ -227,6 +227,7 @@ def test_wheel_tags_relocation_and_incremental_contents(tmp_path, library_dir):
         "cmake/siren_python_package.cmake",
         "cmake/siren_wheel_install.cmake",
         "cmake/build_wheel.py",
+        "cmake/install_wheel.py",
         "cmake/wheel_rpath.py",
         "package/CMakeLists.txt",
     ):
@@ -288,8 +289,10 @@ set(SIREN_WHEEL_LIBRARIES SIREN_python photospline spglam)
 include(cmake/siren_wheel_install.cmake)
 siren_install_wheel_libraries(${SIREN_WHEEL_LIBRARIES})
 siren_install_wheel_modules(${SIREN_PYTHON_MODULES})
-install(DIRECTORY python/ DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL)
-install(DIRECTORY resources DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL)
+install(DIRECTORY python/ DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
+    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+install(DIRECTORY resources DESTINATION siren COMPONENT PythonWheel EXCLUDE_FROM_ALL
+    PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
 include(cmake/siren_python_package.cmake)
 """.replace("@external@", str(tmp_path / "external install/lib" / (
         "libexternal.dylib" if sys.platform == "darwin" else "libexternal.so"))))
@@ -397,6 +400,20 @@ include(cmake/siren_python_package.cmake)
     unchanged = run(build_command)
     assert cmake_wheel.stat().st_mtime_ns == original_stamp, unchanged.stdout + unchanged.stderr
 
+    # Local imports create bytecode which the installed payload excludes.
+    # Creating, rewriting, or removing these files must not rebuild a wheel.
+    run([sys.executable, "-c", "import py_compile,sys; py_compile.compile(sys.argv[1])",
+         str(source / "python/__init__.py")])
+    bytecode = source / "resources/unused.pyc"
+    for value in (b"first", b"changed", None):
+        if value is None:
+            bytecode.unlink()
+            shutil.rmtree(source / "python/__pycache__")
+        else:
+            bytecode.write_bytes(value)
+        unchanged = run(build_command)
+        assert cmake_wheel.stat().st_mtime_ns == original_stamp, unchanged.stdout + unchanged.stderr
+
     # A truncated cache must recover through an actual stage/backend rebuild.
     (build / ".wheel_inputs.json").write_text('{"payload":')
     recovered = run(build_command)
@@ -445,7 +462,9 @@ include(cmake/siren_python_package.cmake)
     probe.write_text("stale_manifest = True\n")
     run(build_command)
     probe.unlink()
-    run([sys.executable, str(source / "cmake/build_wheel.py"), "--source", str(source),
+    source_alias = tmp_path / "source alias"
+    source_alias.symlink_to(source, target_is_directory=True)
+    run([sys.executable, str(source / "cmake/build_wheel.py"), "--source", "source alias/../source alias",
          "--build", str(build), "--inputs", str(build / "wheel_inputs-Release.txt"),
          "--library-dir", library_dir, "--config", "Release", "--cmake", shutil.which("cmake"),
          "--no-build-isolation"], dict(env, **({"MACOSX_DEPLOYMENT_TARGET": "11.0",

@@ -38,7 +38,7 @@ def read_state(path):
         return state
     except FileNotFoundError:
         return {}
-    except (ValueError, UnicodeError) as error:
+    except (OSError, ValueError) as error:
         print(f"Wheel rebuild: ignoring invalid cache {path}: {error}", flush=True)
         return {}
 
@@ -50,6 +50,7 @@ def payload_digest(path, source):
         # A stale glob manifest can still list a removed Python/resource file.
         # Directory installation will omit it; a missing binary or build input
         # must remain a failure, never yield an incomplete but cached wheel.
+        source, path = source.resolve(), path.resolve()
         if any(source / name in path.parents for name in ("python", "resources")):
             return None
         raise FileNotFoundError(f"Required wheel input missing: {path}; rebuild its CMake target")
@@ -65,6 +66,9 @@ def main():
     parser.add_argument("--cmake", required=True)
     parser.add_argument("--no-build-isolation", action="store_true")
     args = parser.parse_args()
+    args.source = args.source.resolve()
+    args.build = args.build.resolve()
+    args.inputs = args.inputs.resolve()
     staging = args.build / "python_staging"
     wheels = args.build / "dist_wheels"
     state = args.build / ".wheel_inputs.json"
@@ -118,9 +122,15 @@ def main():
         for obsolete in wheel_files:
             if obsolete.name != outputs[0].name:
                 obsolete.unlink()
-        new_state = pending / state.name
-        new_state.write_text(json.dumps(current, indent=2, sort_keys=True) + "\n")
-        new_state.replace(state)
+        try:
+            new_state = pending / state.name
+            new_state.write_text(json.dumps(current, indent=2, sort_keys=True) + "\n")
+            new_state.replace(state)
+        except OSError as error:
+            # The wheel is complete. An unwritable cache (including a directory
+            # at this filename) must not turn a successful package into failure.
+            print(f"Wheel built, but input cache could not be saved: {error}; "
+                  "the next invocation will rebuild", flush=True)
 
 
 if __name__ == "__main__":

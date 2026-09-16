@@ -27,6 +27,9 @@ if(APPLE)
 endif()
 file(GLOB_RECURSE PYTHON_PACKAGE_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS
     "${PROJECT_SOURCE_DIR}/python/*" "${PROJECT_SOURCE_DIR}/resources/*")
+# Match the PythonWheel directory-install exclusions. Local imports must not
+# invalidate a wheel whose payload excludes Python bytecode.
+list(FILTER PYTHON_PACKAGE_FILES EXCLUDE REGEX "/__pycache__(/|$)|\\.pyc$")
 # A removed input must invalidate the wheel as well as an added/edited input.
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/python_package_files.txt"
     CONTENT "${PYTHON_PACKAGE_FILES}\n")
@@ -62,7 +65,7 @@ add_custom_target(python_package ALL
     COMMENT "Building a native wheel from the CMake-installed package"
     VERBATIM)
 
-# --prefix must not uninstall an existing package in the build interpreter.
+# Select replacement/isolation using the actual destination, including DESTDIR.
 install(CODE "
     file(GLOB WHEELS \"${WHEELS_DIR}/*.whl\")
     list(LENGTH WHEELS WHEEL_COUNT)
@@ -70,8 +73,8 @@ install(CODE "
         message(FATAL_ERROR \"Build the python_package target before installing SIREN, or configure -DSIREN_PYTHON_PACKAGE=OFF for a native-only install\")
     endif()
     execute_process(
-        COMMAND \"${Python_EXECUTABLE}\" -m pip install --no-deps --ignore-installed
-            \$\{WHEELS\} --prefix=\$\{CMAKE_INSTALL_PREFIX\}
+        COMMAND \"${Python_EXECUTABLE}\" \"${CMAKE_CURRENT_LIST_DIR}/install_wheel.py\"
+            --prefix \"\$\{CMAKE_INSTALL_PREFIX\}\" \$\{WHEELS\}
         RESULT_VARIABLE WHEEL_INSTALL_RESULT
         COMMAND_ECHO STDOUT)
     if(NOT WHEEL_INSTALL_RESULT EQUAL 0)
