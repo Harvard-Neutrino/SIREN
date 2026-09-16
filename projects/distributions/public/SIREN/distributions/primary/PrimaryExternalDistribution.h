@@ -53,6 +53,35 @@ namespace distributions {
 // therefore exact for uniform sampling and for any explicit sampling bias.
 // Tables without a "weight" column keep the legacy semantics: flat physical
 // density, no normalization, injection/physical cancellation as usual.
+//
+// SEGMENT MODE (explicit opt-in via SetSegmentColumn / the segment_column
+// constructor argument): the named column (metres) turns each row from a
+// point primary into a straight track segment starting at x0/y0/z0 along the
+// momentum direction (Geant4 photon steps, for example). The table must then
+// carry x0/y0/z0 and px/py/pz and must not carry x/y/z: the interaction
+// vertex is sampled uniformly along the segment, this distribution declares
+// InteractionVertex and therefore owns the injection bounds, and
+// InjectionBounds returns the segment end points so the weighter integrates
+// the interaction probability and the normalized position density along the
+// segment. GenerationProbability carries the extra factor 1/length (the
+// sampled longitudinal density) and is evaluated on THIS table's support:
+// zero for a record whose initial position, direction or vertex is not on
+// the row's segment, so pooled proposals over overlapping segments combine
+// correctly. DensityVariables then also reports
+// "PrimaryPositionLongitudinal" while PhysicalDensityVariables does not,
+// because the physical longitudinal density comes from the weighter's
+// normalized position factor. The owning process must use
+// VertexWeightingMode::ExternalBounds(); the Injector rejects any other mode,
+// and rejects ExternalBounds() for point tables. A column merely named
+// "length" is ordinary metadata unless opted in, and archives written before
+// segment mode existed (versions 0 and 1) always load as point tables.
+//
+// ROW LAYOUT: records cache the sampled row index, and every table asked to
+// evaluate a record reads that index into its own rows, with row densities
+// relative to its own uniform-over-rows measure. Tables pooled in one Weighter
+// or paired across its injection/physical sides must therefore share a row
+// layout (RowLayoutMismatch): the same primaries at the same indices. The
+// Weighter rejects other combinations at configuration.
 class PrimaryExternalDistribution : virtual public VertexPositionDistribution,
                                     virtual public PhysicallyNormalizedDistribution {
 friend cereal::access;
@@ -74,12 +103,23 @@ private:
     bool init_pos_set = false;
     bool vertex_set = false;
     bool mom_set = false;
+    // Segment mode: the opted-in column name is archived (version 2); the
+    // flag and index are derived from it and the keys on construction and
+    // deserialization.
+    std::string segment_column_;
+    bool length_set = false;
+    size_t length_index_ = 0;
     double emin = 0;
     std::set<DistributionVariable> set_variables_;
     mutable std::array<double, 3> _cached_position = {0.0, 0.0, 0.0};
+    void DeriveColumnFlags();
     void ComputeSetVariables();
     void BuildSamplingCDF();
     void DerivePhysicalRowWeights();
+    void ValidateSegmentLengths() const;
+    double SegmentLength(siren::dataclasses::InteractionRecord const & record) const;
+    double RowSamplingDensity(siren::dataclasses::InteractionRecord const & record) const;
+    bool OnOwnSegment(siren::dataclasses::InteractionRecord const & record, double & length) const;
 public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
@@ -93,6 +133,19 @@ public:
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual double PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual bool PhysicalDensityDiffers() const override;
+    virtual bool ProvidesExternalBounds() const override;
+    virtual std::vector<std::string> PhysicalDensityVariables() const override;
+    // Opt into segment mode using the named length column (metres); an empty
+    // name returns to point semantics. Re-derives declared variables and
+    // validates the table.
+    void SetSegmentColumn(std::string const & column);
+    std::string const & GetSegmentColumn() const { return segment_column_; }
+    // Empty when the two tables may evaluate each other's records (same row
+    // count and the same primary at every row index, ignoring the "weight"
+    // column and either table's segment length column); otherwise a
+    // description of the first difference. Weighter requires this of every
+    // external table it pools or pairs across the injection/physical sides.
+    std::string RowLayoutMismatch(PrimaryExternalDistribution const & other) const;
     virtual std::set<DistributionVariable> SetVariables() const override;
     virtual std::set<DistributionVariable> RequiredVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
@@ -118,8 +171,18 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+        } else if(version == 2) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
+            archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            archive(::cereal::make_nvp("SegmentColumn", segment_column_));
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 1!");
+            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 2!");
         }
     }
     template<typename Archive>
@@ -132,6 +195,7 @@ public:
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
+            segment_column_.clear();
             ComputeSetVariables();
             DerivePhysicalRowWeights();
         } else if(version == 1) {
@@ -143,11 +207,27 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            // Segment mode did not exist: a column named "length" is metadata.
+            segment_column_.clear();
             ComputeSetVariables();
             DerivePhysicalRowWeights();
             BuildSamplingCDF();
+        } else if(version == 2) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
+            archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            archive(::cereal::make_nvp("SegmentColumn", segment_column_));
+            ComputeSetVariables();
+            DerivePhysicalRowWeights();
+            BuildSamplingCDF();
+            ValidateSegmentLengths();
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 1!");
+            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 2!");
         }
     }
 private:
@@ -160,7 +240,7 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 1);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 2);
 CEREAL_REGISTER_TYPE(siren::distributions::PrimaryExternalDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PrimaryExternalDistribution);
 

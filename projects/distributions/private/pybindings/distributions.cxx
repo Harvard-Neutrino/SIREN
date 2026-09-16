@@ -93,6 +93,9 @@ PYBIND11_MODULE(distributions,m) {
          "with importance weights).")
     .def("PhysicalDensityDiffers",&WeightableDistribution::PhysicalDensityDiffers)
     .def("DensityVariables",&WeightableDistribution::DensityVariables)
+    .def("PhysicalDensityVariables",&WeightableDistribution::PhysicalDensityVariables,
+        "Differential variables of PhysicalDensity; DensityVariables() unless\n"
+        "the physical density is a different function of the record.")
     .def("Name",&WeightableDistribution::Name)
     .def("AreEquivalent",&WeightableDistribution::AreEquivalent)
     TrampolinePickleMethods(pyWeightableDistribution);
@@ -255,6 +258,9 @@ PYBIND11_MODULE(distributions,m) {
     "GenerationProbability.")
     .def(init<>())
     .def("DensityVariables",&VertexPositionDistribution::DensityVariables)
+    .def("ProvidesExternalBounds",&VertexPositionDistribution::ProvidesExternalBounds,
+        "True when the distribution supplies its own injection bounds (e.g. a\n"
+        "track segment from a table); such a process must use ExternalBounds().")
     .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&VertexPositionDistribution::InjectionBounds, const_))
     .def("AreEquivalent",&VertexPositionDistribution::AreEquivalent)
     TrampolinePickleMethods(pyVertexPositionDistribution);
@@ -391,6 +397,12 @@ PYBIND11_MODULE(distributions,m) {
     "              the weight total is the distribution's physical\n"
     "              normalization, so absolute rates are correct with one\n"
     "              instance shared between the injection and physical sides.\n"
+    "Segment mode (opt-in with segment_column=<name> or SetSegmentColumn):\n"
+    "the named column holds a segment length (metres) and each row becomes a\n"
+    "straight track segment from x0/y0/z0 along the momentum; requires\n"
+    "x0/y0/z0 and px/py/pz, forbids x/y/z. The vertex is sampled uniformly\n"
+    "along the segment, InjectionBounds are its end points, and the process\n"
+    "must use ExternalBounds(). Without the opt-in the column is metadata.\n"
     "Any other column is stored as a named interaction parameter. Each of\n"
     "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
     "omitted entirely.")
@@ -404,7 +416,30 @@ PYBIND11_MODULE(distributions,m) {
          arg("keys"), arg("data"), arg("sampling_weights"), arg("emin"))
     .def("Sample",&PrimaryExternalDistribution::Sample)
     .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def(init([](std::string filename, double emin, std::string segment_column) {
+            auto dist = std::make_shared<PrimaryExternalDistribution>(filename, emin);
+            dist->SetSegmentColumn(segment_column);
+            return dist;
+        }), arg("filename"), arg("emin") = 0.0, arg("segment_column"))
+    .def(init([](std::vector<std::string> keys, std::vector<std::vector<double>> data,
+                 std::vector<double> sampling_weights, double emin, std::string segment_column) {
+            auto dist = std::make_shared<PrimaryExternalDistribution>(
+                std::move(keys), std::move(data), std::move(sampling_weights), emin);
+            dist->SetSegmentColumn(segment_column);
+            return dist;
+        }), arg("keys"), arg("data"), arg("sampling_weights") = std::vector<double>{},
+        arg("emin") = 0.0, arg("segment_column"))
+    .def("SetSegmentColumn",&PrimaryExternalDistribution::SetSegmentColumn,
+        "Opt into segment mode with the named length column (metres); an empty\n"
+        "name restores point semantics.")
+    .def("GetSegmentColumn",&PrimaryExternalDistribution::GetSegmentColumn)
+    .def("RowLayoutMismatch",&PrimaryExternalDistribution::RowLayoutMismatch, arg("other"),
+        "Empty string when this table and `other` list the same primaries at\n"
+        "the same row indices (ignoring the weight column and either table's\n"
+        "segment length column), which pooled or injection/physical-paired\n"
+        "tables must; otherwise the first difference found.")
     .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("PhysicalDensityVariables",&PrimaryExternalDistribution::PhysicalDensityVariables)
     .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
     .def("Name",&PrimaryExternalDistribution::Name);
 

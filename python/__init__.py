@@ -94,6 +94,7 @@ from .closure import check_closure, ClosureReport
 # Weighting-mode presets re-exported at the top level.
 Propagated = injection.VertexWeightingMode.Propagated
 Fixed = injection.VertexWeightingMode.Fixed
+ExternalBounds = injection.VertexWeightingMode.ExternalBounds
 
 # Deprecation aliases in this package should surface once by default; set
 # SIREN_STRICT=1 to escalate them to errors.

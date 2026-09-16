@@ -141,6 +141,28 @@ std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::Fi
 
 void Injector::SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary) {
     std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist = FindPrimaryVertexDistribution(primary);
+    // A distribution that supplies its own injection bounds (a track segment
+    // read from a table) must be weighted with ExternalBounds(): Fixed() would
+    // drop the interaction and position factors integrated along the segment,
+    // and Propagated() documents geometry-derived bounds. Conversely
+    // ExternalBounds() without such a distribution would silently reduce to
+    // Propagated() over a zero-length interval.
+    using siren::dataclasses::VertexWeightingMode;
+    bool external = vtx_dist->ProvidesExternalBounds();
+    bool mode_external = primary->GetWeightingMode().bound_source == VertexWeightingMode::BoundSource::Distribution;
+    if(external && !mode_external) {
+        throw(siren::utilities::AddProcessFailure(
+            "Primary vertex distribution \"" + vtx_dist->Name() + "\" supplies its own "
+            "injection bounds (segment table); the primary process must use "
+            "VertexWeightingMode::ExternalBounds() [siren-docs: errors#configuration]"));
+    }
+    if(!external && mode_external) {
+        throw(siren::utilities::AddProcessFailure(
+            "VertexWeightingMode::ExternalBounds() requires a primary vertex distribution "
+            "that supplies its own injection bounds (a segment table, see "
+            "PrimaryExternalDistribution::SetSegmentColumn); \"" +
+            vtx_dist->Name() + "\" does not [siren-docs: errors#configuration]"));
+    }
     primary_process = primary;
     primary_position_distribution = vtx_dist;
 }
@@ -217,6 +239,14 @@ std::shared_ptr<siren::interactions::Interaction> Injector::SelectChannel(
 
     if(interactions->HasDecayChannels() && !std::isfinite(total_prob))
         throw siren::utilities::ConfigurationError("Non-finite selected decay generation rate");
+    if(candidates.empty() && interactions->HasCrossSections()) {
+        // The sampled vertex lies in material containing none of the
+        // configured scattering targets (a track segment leaving the target
+        // block, for example): an ordinary miss that counts as an attempt.
+        throw(siren::utilities::InjectionFailure(
+            siren::utilities::FailureReason::NoTargetsOnPath,
+            "No configured scattering target in the material at the sampled vertex"));
+    }
     if(total_prob == 0)
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
 

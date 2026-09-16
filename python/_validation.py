@@ -172,11 +172,20 @@ def validate_physical_distributions(distributions):
         )
 
 
-def _effective_density_variables(distributions):
-    """Return differential components, preserving repeated factors."""
+def _effective_density_variables(distributions, physical=False):
+    """Return differential components, preserving repeated factors.
+
+    On the physical side a distribution's ``PhysicalDensityVariables`` are
+    used when it exposes them (a segment-mode external table samples a
+    longitudinal position on the injection side only; its physical density
+    leaves that factor to the weighter's normalized position density).
+    """
     result = Counter()
     for distribution in distributions:
-        for variable in distribution.DensityVariables():
+        getter = distribution.DensityVariables
+        if physical:
+            getter = getattr(distribution, "PhysicalDensityVariables", getter)
+        for variable in getter():
             if variable == _PRIMARY_VERTEX_DENSITY:
                 result.update(_PRIMARY_TRANSVERSE_DENSITIES)
                 result[_PRIMARY_LONGITUDINAL_DENSITY] += 1
@@ -239,7 +248,7 @@ def validate_reweighting_compatibility(
         injection distributions don't cover.
     """
     inj_density = _effective_density_variables(injection_distributions)
-    phys_density = _effective_density_variables(physical_distributions)
+    phys_density = _effective_density_variables(physical_distributions, physical=True)
 
     if compute_position_probability:
         phys_density[_PRIMARY_LONGITUDINAL_DENSITY] += 1
