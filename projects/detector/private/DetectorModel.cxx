@@ -1235,9 +1235,22 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
       return distance / total_decay_length; // m / m --> dimensionless
     }
     if(distance <= distance_threshold) {
-        return distance / total_decay_length;
+        // p1 - p0 cannot be normalized reliably at this separation (it
+        // cancels catastrophically at large coordinates), but the path lies
+        // on the intersection list's trajectory, so its direction is that
+        // trajectory's, oriented by the sign of the raw difference. The
+        // ordinary sector integration below then resolves every portion of
+        // the path, including a material boundary inside it. Formerly the
+        // scattering part was dropped for such paths, which left a
+        // scattering-only process with zero depth over a short but
+        // material-filled path.
+        direction = intersections.direction;
+        if((p1 - p0) * intersections.direction < 0) {
+            direction = intersections.direction * -1.0;
+        }
+    } else {
+        direction.normalize();
     }
-    direction.normalize();
 
     double dot = intersections.direction * direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);

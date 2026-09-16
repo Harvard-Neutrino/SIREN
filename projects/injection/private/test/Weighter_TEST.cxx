@@ -3,6 +3,7 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 #include "SIREN/detector/ConstantDensityDistribution.h"
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "SIREN/distributions/primary/vertex/SphereVolumePositionDistribution.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/injection/Injector.h"
@@ -434,4 +436,105 @@ TEST(WeighterBreakdown, EmptyPoolHasNaNTotal) {
     Weighter empty({}, fixture.weighter->GetDetectorModel(),
                    fixture.weighter->GetPrimaryPhysicalProcess());
     EXPECT_TRUE(std::isnan(empty.EventWeightWithBreakdown(fixture.tree).total));
+}
+
+// ---------------------------------------------------------------------------
+// External tables in one weighter must share a row layout.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+struct TableFixture {
+    std::shared_ptr<siren::distributions::PrimaryExternalDistribution> table;
+    std::shared_ptr<siren::injection::Injector> injector;
+    std::shared_ptr<siren::injection::PhysicalProcess> physical;
+    std::shared_ptr<siren::detector::DetectorModel> detector_model;
+};
+
+TableFixture BuildTableFixture(std::vector<std::string> keys,
+                               std::vector<std::vector<double>> rows,
+                               std::string const & segment_column = "",
+                               std::vector<double> sampling_weights = {}) {
+    // Same world and process as the guard fixture, with the table as the
+    // vertex distribution on both sides (a point table under Fixed()).
+    WeighterGuardFixture guard = BuildWeighterGuardFixture(1);
+    TableFixture fixture;
+    fixture.detector_model = guard.weighter->GetDetectorModel();
+    fixture.table = std::make_shared<siren::distributions::PrimaryExternalDistribution>(
+        std::move(keys), std::move(rows), std::move(sampling_weights));
+    if(!segment_column.empty()) fixture.table->SetSegmentColumn(segment_column);
+    auto interactions = guard.injector->GetPrimaryProcess()->GetInteractions();
+    siren::dataclasses::ParticleType primary_type = guard.injector->GetPrimaryProcess()->GetPrimaryType();
+    auto injection_process = std::make_shared<siren::injection::PrimaryInjectionProcess>(primary_type, interactions);
+    injection_process->SetWeightingMode(segment_column.empty()
+        ? siren::dataclasses::VertexWeightingMode::Fixed()
+        : siren::dataclasses::VertexWeightingMode::ExternalBounds());
+    injection_process->AddPrimaryInjectionDistribution(fixture.table);
+    fixture.physical = std::make_shared<siren::injection::PhysicalProcess>(primary_type, interactions);
+    fixture.physical->SetWeightingMode(injection_process->GetWeightingMode());
+    fixture.physical->AddPhysicalDistribution(fixture.table);
+    fixture.injector = std::make_shared<siren::injection::Injector>(
+        1, fixture.detector_model, injection_process,
+        std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>>{},
+        std::make_shared<siren::utilities::SIREN_random>(7));
+    return fixture;
+}
+
+std::vector<std::string> const kPointKeys = {"E", "px", "py", "pz", "x", "y", "z", "m", "weight"};
+std::vector<std::vector<double>> const kPointRows = {
+    {2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 10.0, 0.0, 1.0},
+    {2.0, 0.0, 0.0, 2.0, 0.0, 0.5, 10.0, 0.0, 1.0}};
+
+} // namespace
+
+TEST(WeighterTableLayout, ReorderedTablesAreRejectedAtConfiguration) {
+    auto first = BuildTableFixture(kPointKeys, kPointRows);
+    auto second = BuildTableFixture(kPointKeys, {kPointRows[1], kPointRows[0]});
+    EXPECT_THROW(Weighter({first.injector, second.injector}, first.detector_model, first.physical),
+                 siren::utilities::ConfigurationError);
+    // The physical side is checked against the injection side as well.
+    EXPECT_THROW(Weighter({first.injector}, first.detector_model, second.physical),
+                 siren::utilities::ConfigurationError);
+}
+
+TEST(WeighterTableLayout, SubsetTablesAreRejectedAtConfiguration) {
+    auto full = BuildTableFixture(kPointKeys, kPointRows);
+    auto subset = BuildTableFixture(kPointKeys, {kPointRows[0]});
+    EXPECT_THROW(Weighter({subset.injector, full.injector}, full.detector_model, full.physical),
+                 siren::utilities::ConfigurationError);
+}
+
+TEST(WeighterTableLayout, CompatibleTablesAreAccepted) {
+    // Same primaries at the same indices: different physical weights,
+    // sampling weights, and a table without the weight column all pool.
+    auto first = BuildTableFixture(kPointKeys, kPointRows);
+    std::vector<std::vector<double>> reweighted = kPointRows;
+    reweighted[0].back() = 3.0;
+    auto second = BuildTableFixture(kPointKeys, reweighted, "", {1.0, 9.0});
+    std::vector<std::string> unweighted_keys(kPointKeys.begin(), kPointKeys.end() - 1);
+    std::vector<std::vector<double>> unweighted_rows;
+    for(auto row : kPointRows) { row.pop_back(); unweighted_rows.push_back(row); }
+    auto third = BuildTableFixture(unweighted_keys, unweighted_rows);
+    EXPECT_NO_THROW(Weighter({first.injector, second.injector, third.injector},
+                             first.detector_model, first.physical));
+    EXPECT_NO_THROW(Weighter({first.injector}, first.detector_model, second.physical));
+}
+
+TEST(WeighterTableLayout, SegmentTablesMayDifferInLengthsAndColumnNames) {
+    std::vector<std::string> keys = {"E", "px", "py", "pz", "x0", "y0", "z0", "m", "length", "weight"};
+    std::vector<std::vector<double>> rows = {{2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 10.0, 0.0, 0.12, 1.0}};
+    auto first = BuildTableFixture(keys, rows, "length");
+    std::vector<std::string> renamed = keys;
+    renamed[8] = "step_length";
+    std::vector<std::vector<double>> shorter = rows;
+    shorter[0][8] = 0.06;
+    auto second = BuildTableFixture(renamed, shorter, "step_length");
+    EXPECT_NO_THROW(Weighter({first.injector, second.injector}, first.detector_model, first.physical));
+    // A second row on only one side is a different layout.
+    std::vector<std::vector<double>> two_rows = rows;
+    two_rows.push_back(rows[0]);
+    two_rows[1][5] = 0.5;
+    auto third = BuildTableFixture(keys, two_rows, "length");
+    EXPECT_THROW(Weighter({first.injector, third.injector}, first.detector_model, first.physical),
+                 siren::utilities::ConfigurationError);
 }

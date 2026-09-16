@@ -11,6 +11,7 @@
 #include <set>                                                    // for set
 #include <stdexcept>
 #include <sstream>
+#include <utility>
 #include <tuple>
 #include <cassert>
 #include <fstream>
@@ -23,6 +24,7 @@
 #include "SIREN/detector/DetectorModel.h"                   // for Ear...
 #include "SIREN/detector/Coordinates.h"
 #include "SIREN/distributions/Distributions.h"           // for Inj...
+#include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "SIREN/geometry/Geometry.h"                     // for Geo...
 #include "SIREN/injection/Injector.h"                // for Inj...
 #include "SIREN/injection/Process.h"                     // for Phy...
@@ -114,6 +116,46 @@ void Weighter::Initialize() {
         }
         secondary_process_weighter_maps.push_back(injector_sec_process_weighter_map);
         ++i;
+    }
+    CheckExternalTableLayouts();
+}
+
+void Weighter::CheckExternalTableLayouts() const {
+    using siren::distributions::PrimaryExternalDistribution;
+    // Every external table that can see a record's cached row index: the
+    // injection side of each pooled injector and the shared physical side.
+    // Two instances over one table (a biased sampler paired with a physically
+    // weighted evaluator, tables differing only in segment lengths or in the
+    // name of the length column) are compatible; a reordered table, a subset
+    // or superset of rows, or different kinematics at one index is not, and
+    // would silently bias the pooled weights (see
+    // PrimaryExternalDistribution::RowLayoutMismatch).
+    std::vector<std::pair<std::string, std::shared_ptr<PrimaryExternalDistribution const>>> tables;
+    for(size_t idx = 0; idx < injectors.size(); ++idx) {
+        for(auto const & dist : injectors[idx]->GetPrimaryProcess()->GetPrimaryInjectionDistributions()) {
+            auto table = std::dynamic_pointer_cast<PrimaryExternalDistribution const>(dist);
+            if(table) tables.emplace_back("injector " + std::to_string(idx), table);
+        }
+    }
+    if(primary_physical_process) {
+        for(auto const & dist : primary_physical_process->GetPhysicalDistributions()) {
+            auto table = std::dynamic_pointer_cast<PrimaryExternalDistribution const>(dist);
+            if(table) tables.emplace_back("the primary physical process", table);
+        }
+    }
+    for(size_t j = 1; j < tables.size(); ++j) {
+        if(tables[j].second == tables[0].second) continue;
+        std::string mismatch = tables[0].second->RowLayoutMismatch(*tables[j].second);
+        if(mismatch.empty()) continue;
+        std::ostringstream oss;
+        oss << "Weighter::Initialize: the PrimaryExternalDistribution of " << tables[j].first
+            << " does not share the row layout of the one of " << tables[0].first
+            << " (" << mismatch << "); records cache a row index that every "
+            << "table in a weighter reads as an index into itself, so pooled or "
+            << "physical-side tables must list the same primaries in the same "
+            << "order (segment lengths, physical weights, sampling weights and "
+            << "the length column's name may differ) [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
     }
 }
 
@@ -214,9 +256,15 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
 
     double inv_weight = 0;
     bool zero_weight = false;
+    // Pooled proposals may have disjoint support (track segments of different
+    // lengths, disjoint fiducial volumes): an injector whose generation
+    // density is exactly zero for this event simply does not contribute to
+    // the mixture. It is an error only when NO injector covers the event.
+    bool const pooled = injectors.size() > 1;
+    bool covered = false;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
         auto check_probabilities = [&](double generation, double physical) {
-            if(generation <= 0.0 || !std::isfinite(generation)
+            if((generation < 0.0 || (generation == 0.0 && !pooled)) || !std::isfinite(generation)
                || physical < 0.0 || !std::isfinite(physical)) {
                 std::ostringstream oss;
                 oss << "Weighter::EventWeight: unusable probabilities for injector " << idx;
@@ -243,19 +291,60 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         if(injectors[idx]->InjectionAttempts() == 0) {
             generation_probability = injectors[idx]->EventsToInject();
         }
+        // The attempt-count seed must be positive for every pooled injector;
+        // only the per-vertex proposal DENSITY may legitimately be zero.
+        if(generation_probability <= 0.0 || !std::isfinite(generation_probability)) {
+            std::ostringstream oss;
+            oss << "Weighter::EventWeight: unusable probabilities for injector " << idx
+                << ": generation attempt count=" << generation_probability
+                << " [siren-docs: errors#weight-calc]";
+            throw siren::utilities::WeightCalculationError(oss.str());
+        }
+        // A product of strictly positive factors that reaches zero is
+        // multiplication underflow, not zero support: the weight it implies is
+        // not representable, so it must be reported rather than returned as 0.
+        bool zero_generation_factor = false;
+        bool zero_physical_factor = false;
+        bool off_support = false;
         for(auto const & datum : tree.tree) {
             VertexWeightFactors factors = ComputeVertexFactors(idx, datum);
+            if(pooled && factors.generation == 0.0 && std::isfinite(factors.generation)) {
+                // This proposal does not cover the event, so its physical
+                // factors (evaluated over an empty interval) are meaningless
+                // and must not be validated or multiplied in.
+                off_support = true;
+                break;
+            }
             // Invalid vertex factors must not cancel or hide behind a zero.
             check_probabilities(factors.generation, factors.physical);
+            if(factors.generation == 0.0) zero_generation_factor = true;
+            if(factors.physical == 0.0) zero_physical_factor = true;
             physical_probability *= factors.physical;
             generation_probability *= factors.generation;
         }
+        if(off_support) continue;
+        auto check_underflow = [&](double product, bool had_zero_factor, char const * side) {
+            if(product == 0.0 && !had_zero_factor) {
+                std::ostringstream oss;
+                oss << "Weighter::EventWeight: " << side << " probability underflowed to zero "
+                    << "for injector " << idx << " while every factor was positive "
+                    << "[siren-docs: errors#weight-calc]";
+                throw siren::utilities::WeightCalculationError(oss.str());
+            }
+        };
+        check_underflow(generation_probability, zero_generation_factor, "generation");
+        check_underflow(physical_probability, zero_physical_factor, "physical");
         check_probabilities(generation_probability, physical_probability);
         if(physical_probability == 0.0) {
             // Preserve zero support, but still validate every other injector.
             zero_weight = true;
             continue;
         }
+        if(generation_probability == 0.0) {
+            // Outside this injector's proposal support (pooled case only).
+            continue;
+        }
+        covered = true;
         inv_weight += generation_probability / physical_probability;
         if(!std::isfinite(inv_weight)) {
             std::ostringstream oss;
@@ -265,6 +354,12 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                 << " [siren-docs: errors#weight-calc]";
             throw siren::utilities::WeightCalculationError(oss.str());
         }
+    }
+    if(!zero_weight && !covered) {
+        throw siren::utilities::WeightCalculationError(
+            "Weighter::EventWeight: unusable probabilities: no injector's generation "
+            "density covers this event (all generation probabilities are zero) "
+            "[siren-docs: errors#weight-calc]");
     }
     double weight = zero_weight ? 0.0 : 1.0 / inv_weight;
     if(!std::isfinite(weight) || weight < 0.0) {
@@ -285,6 +380,8 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
     double inv_weight = 0;
     bool usable = true;
     bool zero_weight = false;
+    bool const pooled = injectors.size() > 1;
+    bool covered = false;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
         double physical_probability = 1.0;
         // Attempts, not successes; see EventWeight.
@@ -292,17 +389,30 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
         if(injectors[idx]->InjectionAttempts() == 0) {
             generation_probability = injectors[idx]->EventsToInject();
         }
+        bool const seed_usable = generation_probability > 0.0 && std::isfinite(generation_probability);
+        if(!seed_usable) usable = false;
+        bool zero_generation_factor = false;
+        bool zero_physical_factor = false;
+        bool off_support = false;
         for(auto const & datum : tree.tree) {
             VertexWeightFactors factors = ComputeVertexFactors(idx, datum, true);
             if(!datum->is_root()) {
                 factors.depth = static_cast<int>(datum->depth(tree));
             }
+            if(pooled && factors.generation == 0.0) {
+                factors.flags.push_back("outside this injector's generation support");
+                breakdown.vertices.push_back(std::move(factors));
+                off_support = true;
+                break;
+            }
             if(!std::isfinite(factors.generation)) {
                 factors.flags.push_back("generation density non-finite");
                 usable = false;
-            } else if(factors.generation <= 0.0) {
-                factors.flags.push_back(factors.generation == 0.0
-                    ? "generation density zero" : "generation density negative");
+            } else if(factors.generation < 0.0) {
+                factors.flags.push_back("generation density negative");
+                usable = false;
+            } else if(factors.generation == 0.0) {
+                factors.flags.push_back("generation density zero");
                 usable = false;
             }
             if(!std::isfinite(factors.physical)) {
@@ -314,11 +424,24 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
             } else if(factors.physical == 0.0) {
                 factors.flags.push_back("outside physical support (weight 0)");
             }
+            if(factors.generation == 0.0) zero_generation_factor = true;
+            if(factors.physical == 0.0) zero_physical_factor = true;
             physical_probability *= factors.physical;
             generation_probability *= factors.generation;
             breakdown.vertices.push_back(std::move(factors));
         }
-        if(generation_probability <= 0.0 || !std::isfinite(generation_probability)
+        if(off_support) continue;
+        for(auto const & product : {std::make_pair(generation_probability, zero_generation_factor),
+                                    std::make_pair(physical_probability, zero_physical_factor)}) {
+            if(product.first == 0.0 && !product.second) {
+                usable = false;
+                if(!breakdown.vertices.empty()) {
+                    breakdown.vertices.back().flags.push_back("probability underflowed to zero");
+                }
+            }
+        }
+        if(!seed_usable || generation_probability < 0.0 || (generation_probability == 0.0 && !pooled)
+           || !std::isfinite(generation_probability)
            || physical_probability < 0.0 || !std::isfinite(physical_probability)) {
             usable = false;
             if(!tree.tree.empty()) {
@@ -330,12 +453,22 @@ EventWeightBreakdown Weighter::EventWeightWithBreakdown(
             zero_weight = true;
             continue;
         }
+        if(generation_probability == 0.0) {
+            continue;
+        }
+        covered = true;
         inv_weight += generation_probability / physical_probability;
         if(!std::isfinite(inv_weight)) {
             usable = false;
             if(!tree.tree.empty()) {
                 breakdown.vertices.back().flags.push_back("inverse weight overflow");
             }
+        }
+    }
+    if(!zero_weight && !covered && usable) {
+        usable = false;
+        if(!breakdown.vertices.empty()) {
+            breakdown.vertices.back().flags.push_back("no injector covers this event");
         }
     }
     double weight = zero_weight ? 0.0 : 1.0 / inv_weight;

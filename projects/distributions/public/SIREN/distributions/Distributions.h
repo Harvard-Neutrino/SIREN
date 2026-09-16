@@ -98,6 +98,13 @@ public:
     }
     virtual bool PhysicalDensityDiffers() const { return false; }
     virtual std::vector<std::string> DensityVariables() const;
+    // Differential variables of PhysicalDensity. Equal to DensityVariables()
+    // unless the physical density is a different function of the record than
+    // the generation density (PrimaryExternalDistribution in segment mode:
+    // the generation side samples a longitudinal position along the segment,
+    // the physical side leaves that density to the weighter's normalized
+    // position factor).
+    virtual std::vector<std::string> PhysicalDensityVariables() const { return DensityVariables(); }
     virtual std::string Name() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {

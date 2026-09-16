@@ -44,6 +44,12 @@ public:
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override = 0;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const = 0;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionTreeDatum const & datum) const;
+    // True when this distribution supplies its own injection bounds (for
+    // example a track segment read from a table) rather than deriving them
+    // from the detector geometry. The Injector requires
+    // VertexWeightingMode::ExternalBounds() for such distributions and
+    // rejects it for all others.
+    virtual bool ProvidesExternalBounds() const { return false; }
     virtual bool AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
