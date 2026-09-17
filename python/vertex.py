@@ -34,8 +34,8 @@ def _resolve_weighting_mode(weighting):
 
     Accepts an already-built VertexWeightingMode (from either
     siren.injection.VertexWeightingMode -- where it actually lives -- or
-    the siren.Propagated / siren.Fixed shorthand), or None (defaults to
-    Propagated()).
+    the siren.Propagated / siren.Fixed / siren.ExternalBounds shorthand),
+    or None (defaults to Propagated()).
     """
     siren = _siren()
     if weighting is None:
@@ -162,7 +162,10 @@ class Vertex:
     weighting : VertexWeightingMode, optional
         Defaults to Propagated(). Accepts the engine enum value however
         it is exposed as siren.injection.VertexWeightingMode, or the
-        siren.Propagated / siren.Fixed shorthand.
+        siren.Propagated / siren.Fixed / siren.ExternalBounds shorthand.
+        ExternalBounds() is required for (and only for) a primary position
+        distribution that supplies its own injection bounds, such as a
+        PrimaryExternalDistribution segment table (``segment_column`` opt-in).
     expand : tuple, optional
         Expansion rules from expand.child() / expand.depth_below().
     continue_if : callable, optional

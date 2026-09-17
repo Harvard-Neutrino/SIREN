@@ -17,6 +17,13 @@ raised as `ConfigurationError`:
 - the injector's secondary processes and the weighter's secondary processes
   are not in one-to-one correspondence ("no one-to-one mapping between
   injection ... and physical ... secondary processes");
+- two `PrimaryExternalDistribution` tables in one weighter (pooled injectors,
+  or the injection and physical sides) do not list the same primaries at the
+  same row indices ("does not share the row layout"): records cache a row
+  index that every table reads as an index into itself, so a reordered table,
+  a subset of rows, or different kinematics at one index would bias the
+  weights. Segment lengths, physical weights, sampling weights and the length
+  column's name may differ; see `docs/beam_tables.md`;
 - a `MultiChannelPhaseSpace` has a `weights` list whose size does not match
   its `channels` list, has a weight that is not finite and non-negative, has
   weights that do not sum to 1, or has no channels at all
@@ -86,6 +93,15 @@ An event with `physical_probability == 0` (out-of-physical-support kinematics)
 is NOT an error: it weights to exactly `0.0` by design, since that drives the
 weight reciprocal to `+inf` correctly. Only a non-finite or non-positive
 generation probability, or a non-finite physical probability, raises.
+
+The weighter works in plain double arithmetic. Its supported range is the
+physical one: per-vertex densities, distribution densities and normalizations
+of moderate magnitude whose products stay far from the double limits. A
+product of positive factors that underflows to zero is reported as such for
+a single injector; for pooled injectors a zero per-vertex generation product
+is read as that proposal not covering the event, which is only correct when
+some factor is genuinely zero. Inputs with factors near 1e-200 are outside the
+supported range and are not handled specially.
 
 **The fix.** If you see this for an event that should be in-support, check
 the offending injector's distributions and the event's kinematics: a

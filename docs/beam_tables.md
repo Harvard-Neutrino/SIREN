@@ -81,3 +81,76 @@ builder's `sampling_bias`, not an inert extra CSV column.
 Tables and sampling weights persist through native injector archives. Direct
 Python pickling of a native distribution is explicitly unsupported. No live
 Python metadata or new event-record fields are introduced by these converters.
+
+## Track-segment tables
+
+Segment mode is an explicit opt-in: `PrimaryExternalDistribution(...,
+segment_column="length")` or `SetSegmentColumn("length")` names the column
+(metres) that turns each row into a straight track segment starting at
+`x0/y0/z0` along the `px/py/pz` direction, such as a Geant4 step of a photon
+inside a production target. Without the opt-in a column of any name, including
+`length`, remains ordinary metadata, and archives written before segment mode
+existed always load as point tables. Segment tables require `x0/y0/z0` and
+`px/py/pz`, must not carry `x/y/z`, and every length must be finite and
+positive; segments shorter than the detector model's 10 micrometre direction
+threshold are integrated along the trajectory direction with the ordinary
+sector integration, so micrometre steps, including ones crossing a material
+boundary, weight to their closed form like longer ones. The
+generation density is evaluated on the table's own segment to within a few
+ulps of the coordinates, never a fixed absolute distance, so a nanometre
+proposal does not claim records beyond its own end point. The other columns
+keep their meaning: `E`, `m`, `t0`, `weight`
+(physical primaries per exposure on the segment, for example the Geant4 step
+weight per POT), and explicit sampling weights for biased row selection.
+Unrecognised columns remain interaction parameters, and the length column is
+written to each record's parameters so saved events reweight without the table.
+
+The primary process is a scattering (a `CrossSection` on the nuclei the
+detector model assigns along the segment) and must use
+`weighting=siren.ExternalBounds()`; the Injector rejects `Fixed()` and
+`Propagated()` for segment tables and rejects `ExternalBounds()` for point
+tables. The interaction vertex is sampled uniformly along the segment
+(generation density `1/length` per metre, declared as
+`PrimaryPositionLongitudinal`), `InjectionBounds` are the segment end points,
+and the weighter supplies the interaction probability and the normalised
+position density integrated along the segment. The generation density is
+evaluated on the table's own support: it is zero for a record whose start,
+direction or vertex is not on the row's segment, so several injectors over
+overlapping segments of different lengths pool correctly (an injector whose
+proposal does not cover an event is skipped entirely; it is an error only when
+no injector covers it). Lengths and bounds come from the table's own row
+rather than from the record's column name, so pooled tables may use different
+segment-column names. `SetSegmentColumn` is transactional: a rejected update
+leaves the distribution exactly as it was.
+
+Pooled tables must share a **row layout**. Records cache the sampled row
+index, every table asked to evaluate a record reads that index into its own
+rows, and each table's row densities are relative to the uniform measure over
+its own rows. The `Weighter` therefore requires every
+`PrimaryExternalDistribution` it sees (each injector's injection side and the
+primary physical side) to list the same primaries at the same indices: the
+same row count, the same columns other than `weight` and either table's
+segment-length column, and equal values in those columns row by row
+(`RowLayoutMismatch` reports the first difference). Segment lengths, physical
+weights, sampling weights and the length column's name may differ, so a
+biased sampler paired with a physically weighted evaluator, or overlapping
+proposals of different lengths, pool as before. A reordered table, a subset
+or superset of rows, or different kinematics at one index raises
+`ConfigurationError` when the weighter is configured; pooling such tables
+would count only the generating proposal (a factor-of-two bias for a reversed
+copy) or mix row measures (an asymptotic 25% excess for a one-row subset of a
+two-row table). Disjoint chunks of one table are weighted separately, each
+against its own chunk as the physical table. The event weights sum to
+
+    sum_i w_i (1 - exp(-int_i n sigma dl)),
+
+the physical primaries per exposure times their interaction probability on
+each segment, evaluated with the **detector model's** materials, not those of
+the simulation that produced the table. Targets are chosen at the sampled
+vertex from the detector model; a vertex drawn in material without any
+configured target is an ordinary `NoTargetsOnPath` miss that counts as an
+attempt and is retried, as for a ray missing the fiducial volume. The uniform
+proposal is unbiased for any material profile along a segment; only the
+variance depends on it. Energy or direction biasing of the injected primaries
+is a sampling-weight choice, e.g. `s_i = length_i * b(E_i, angle_i)`; the
+`weight` column returns to the physical ensemble automatically.
