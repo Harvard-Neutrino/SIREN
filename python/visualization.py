@@ -29,6 +29,7 @@ Units/conventions: SIREN geometry is in metres; ``Cylinder``/``Cone`` store the
 SIREN's own hand-written sub-GDMLs, whose parser treats ``<tube>`` z as a half.
 """
 import math
+from contextlib import contextmanager
 
 __all__ = ["plot_cross_sections", "to_gdml", "view", "view_pv", "to_web",
            "describe", "at", "list_volumes"]
@@ -542,6 +543,75 @@ _HELP_TEXT = (
     "  h                 toggle this help")
 
 
+@contextmanager
+def _cached_solid_meshes(registry):
+    """Reuse shared CSG meshes for one immutable GDML structure read.
+
+    pyg4ometry recursively calls ``solid.mesh()`` for Boolean operands, even
+    when several logical volumes share those solids. Its MultiUnion transforms
+    the returned meshes in place, so each caller must own a separate mesh.
+    Restore the instance methods afterwards: later geometry/define edits and
+    explicit re-meshing must never see a stale cached result.
+    """
+    originals = []
+    cached = {}
+    seen = set()
+    missing = object()
+
+    def wrap(solid, original):
+        def mesh(*args, **kwargs):
+            # Only the normal, argument-free mesh contract is memoized.
+            if args or kwargs:
+                return original(*args, **kwargs)
+            key = id(solid)
+            if key in cached:
+                return cached[key].clone()
+            result = original()
+            # Keep a private snapshot before a parent can transform the result.
+            # Failed meshing is never cached; retain the backend's error path.
+            if result is not None and callable(getattr(result, "clone", None)):
+                cached[key] = result.clone()
+            return result
+        return mesh
+
+    try:
+        for solid in registry.solidDict.values():
+            if id(solid) in seen:
+                continue
+            seen.add(id(solid))
+            original = getattr(solid, "mesh", None)
+            if not callable(original):
+                continue
+            originals.append((solid, vars(solid).get("mesh", missing)))
+            solid.mesh = wrap(solid, original)
+        yield
+    finally:
+        for solid, original in reversed(originals):
+            if original is missing:
+                del solid.mesh
+            else:
+                solid.mesh = original
+        cached.clear()
+
+
+def _read_pyg4ometry_registry(path, pyg4ometry):
+    # Preserve the reader's normal eager meshing order. In particular, replica
+    # and division constructors can need an already-meshed logical volume.
+    # Only this reader's solid instances are wrapped; no global classes or
+    # pyg4ometry.config.doMeshing state are changed.
+    class CachedReader(pyg4ometry.gdml.Reader):
+        def parseStructure(self, xmldoc, *args, **kwargs):
+            # DivisionVolume can mutate shared dimension expressions while
+            # constructing slices. Those reads are not immutable; preserve the
+            # ordinary reader's behavior instead of caching stale dimensions.
+            if xmldoc.getElementsByTagName("divisionvol"):
+                return super().parseStructure(xmldoc, *args, **kwargs)
+            with _cached_solid_meshes(self.getRegistry()):
+                return super().parseStructure(xmldoc, *args, **kwargs)
+
+    return CachedReader(path).getRegistry()
+
+
 def _load_registry(model, gdml_path, skip_geo_types=("TriangularMesh",)):
     """(vis module, registry, world LV, gdml path) for *model* (or a GDML str).
 
@@ -558,7 +628,7 @@ def _load_registry(model, gdml_path, skip_geo_types=("TriangularMesh",)):
         path = gdml_path or tempfile.NamedTemporaryFile(
             suffix=".gdml", delete=False).name
         to_gdml(model, path, skip_geo_types=skip_geo_types)
-    reg = pyg4ometry.gdml.Reader(path).getRegistry()
+    reg = _read_pyg4ometry_registry(path, pyg4ometry)
     return vis, reg, reg.getWorldVolume(), path
 
 
@@ -659,6 +729,8 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
         a = vtk.vtkActor()
         a.SetMapper(mapper)
         a.GetProperty().SetColor(*colour_for(mat, max(_sector_density(s), 1e-30)))
+        a._siren_material = mat
+        a._siren_density = _sector_density(s)
         renderer.AddActor(a)
         actors["mesh__%s" % _sanitize(s.name)] = a
     return len(items)
@@ -732,7 +804,7 @@ def _legend_actor(vtk, reg, mvo, max_entries=18):
     leg.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
     leg.GetPositionCoordinate().SetValue(0.8, 0.05)
     leg.GetPosition2Coordinate().SetCoordinateSystemToNormalizedViewport()
-    leg.GetPosition2Coordinate().SetValue(0.2, 0.92)
+    leg.GetPosition2Coordinate().SetValue(0.2, min(0.8, 0.03 + 0.035 * len(items)))
     leg.UseBackgroundOn()
     leg.SetBackgroundColor(0.12, 0.12, 0.12)
     leg.SetBackgroundOpacity(0.6)
@@ -798,7 +870,7 @@ def _world_to_sector(model, wx_mm, wy_mm, wz_mm, inward=None):
 
 def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                       legend=True, bounding_box=False, clipper_widget=None,
-                      near_frac=_NEAR_DIST_FRAC):
+                      near_frac=_NEAR_DIST_FRAC, gas_visible=True):
     """Attach overlays + a robust interactor style to an already-built *viewer*.
 
     Installs a custom ``vtkInteractorStyleTrackballCamera`` that (a) replaces
@@ -859,11 +931,16 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         for name, vo in mvo.items():
             if name == "WORLD_VAC":
                 continue
-            act = viewer.actors.get(str(vo))
-            if act is None:
+            actors = getattr(viewer, "material_actors", {}).get(name)
+            if actors is None:
+                act = viewer.actors.get(str(vo))
+                actors = [] if act is None else [act]
+            if not actors:
                 continue
-            mat_actors[name] = act
-            if id(act) not in seen:
+            mat_actors[name] = actors
+            for act in actors:
+                if id(act) in seen:
+                    continue
                 seen.add(id(act))
                 body_actors.append(act)
                 orig_opacity[act] = act.GetProperty().GetOpacity()
@@ -879,7 +956,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
 
     legend_actor = None
     if legend and mvo is not None:
-        legend_actor = _legend_actor(vtk, reg, mvo)
+        legend_actor = _legend_actor(vtk, getattr(viewer, 'legend_registry', reg),
+                                     getattr(viewer, 'legend_options', mvo))
         if legend_actor is not None:
             ren.AddViewProp(legend_actor)
 
@@ -896,8 +974,48 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                  bbox=bbox_actor, cutters=cutter_actors, mat_actors=mat_actors,
                  body_actors=body_actors, gas_actors=gas_actors,
                  orig_opacity=orig_opacity, hidden=set(), opacity=1.0,
-                 gas_visible=True, cutters_visible=True, picker=picker,
+                 gas_visible=gas_visible, cutters_visible=True, picker=picker,
                  clipper_widget=clipper_widget)
+
+    def refresh_materials():
+        """Newly refined/deferred actors inherit current user display state."""
+        groups = getattr(viewer, "material_actors", None)
+        if groups is None:
+            return
+        nonlocal _scene_R
+        current = _scene_bounds(viewer)
+        if current is not None:
+            _scene_R = max(current[1] - current[0], current[3] - current[2],
+                           current[5] - current[4]) * 0.5
+        mat_actors.clear()
+        body_actors.clear()
+        gas_actors.clear()
+        previous_opacity = dict(orig_opacity)
+        orig_opacity.clear()
+        seen = set()
+        for material, actors in groups.items():
+            mat_actors[material] = actors
+            gas = float(reg.materialDict[material].density) <= _LOW_DENSITY
+            for actor in actors:
+                if id(actor) in seen:
+                    continue
+                seen.add(id(actor))
+                body_actors.append(actor)
+                orig_opacity[actor] = (previous_opacity[actor] if actor in previous_opacity
+                                       else actor.GetProperty().GetOpacity())
+                if gas:
+                    gas_actors.append(actor)
+                actor.SetVisibility(material not in state["hidden"] and
+                                    (not gas or state["gas_visible"]))
+                if state["opacity"] != 1.0:
+                    actor.GetProperty().SetOpacity(state["opacity"])
+        cutter_actors[:] = [a for k, a in viewer.actors.items()
+                           if k.endswith(("_yz", "_xz", "_xy"))]
+        for actor in cutter_actors:
+            actor.SetVisibility(state["cutters_visible"])
+        _update_clip()
+
+    state["refresh"] = refresh_materials
 
     def render():
         ren.GetRenderWindow().Render()
@@ -939,19 +1057,35 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             return False
         cam.SetPosition(*(pos[i] + d[i] * step for i in range(3)))
         cam.SetFocalPoint(*(fp[i] + d[i] * step for i in range(3)))
+        if hasattr(viewer, "camera_moved"):
+            viewer.camera_moved()
         _update_clip()
         return True
 
     def on_right(obj, event):
         x, y = iren.GetEventPosition()
-        if not state["picker"].Pick(x, y, 0, ren) or state["picker"].GetActor() is None:
+        pick_scene = getattr(viewer, "pick_scene", None)
+        picked = pick_scene(x, y) if pick_scene else None
+        if pick_scene:
+            valid = picked is not None
+        else:
+            valid = state["picker"].Pick(x, y, 0, ren) and state["picker"].GetActor() is not None
+        if not valid:
             pick_txt.SetInput("(nothing under cursor)")
             render()
             return
-        wx, wy, wz = state["picker"].GetPickPosition()
+        wx, wy, wz = picked["position"] if picked else state["picker"].GetPickPosition()
         if model is None:
-            pick_txt.SetInput("point  (%.2f, %.2f, %.2f) m\n(no model: identify unavailable)"
-                              % (wx / _GDML_MM_PER_M, wy / _GDML_MM_PER_M, wz / _GDML_MM_PER_M))
+            label = "point  (%.2f, %.2f, %.2f) m" % (wx / _GDML_MM_PER_M, wy / _GDML_MM_PER_M, wz / _GDML_MM_PER_M)
+            if picked and "name" in picked:
+                label += "\n%s\n%s" % (picked["name"], picked["material"])
+                if iren.GetShiftKey():
+                    state["hidden"].add(picked["material"])
+                    for actor in mat_actors.get(picked["material"], []):
+                        actor.SetVisibility(False)
+            else:
+                label += "\n(no model: identify unavailable)"
+            pick_txt.SetInput(label)
             render()
             return
         # The pick lands exactly on a surface (a sector boundary). Pass the view
@@ -973,7 +1107,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         pick_txt.SetInput("picked  (%.2f, %.2f, %.2f) m\nvolume    %s\nmaterial  %s\n"
                           "density   %.4g g/cm^3" % (gx, gy, gz, name, material, density))
         if iren.GetShiftKey() and material in mat_actors:
-            mat_actors[material].SetVisibility(False)
+            for actor in mat_actors[material]:
+                actor.SetVisibility(False)
             state["hidden"].add(material)
         render()
 
@@ -992,6 +1127,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                 a.SetVisibility(state["cutters_visible"])
         elif key == "g":
             state["gas_visible"] = not state["gas_visible"]
+            if state["gas_visible"] and hasattr(viewer, "request_geometry"):
+                viewer.request_geometry("gas")
             for a in gas_actors:
                 a.SetVisibility(state["gas_visible"])
         elif key in ("n", "m"):
@@ -999,6 +1136,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             for a in body_actors:
                 a.GetProperty().SetOpacity(state["opacity"])
         elif key == "v":
+            if hasattr(viewer, "request_geometry"):
+                viewer.request_geometry("all")
             for a in body_actors:
                 a.SetVisibility(True)
                 a.GetProperty().SetOpacity(orig_opacity.get(a, 1.0))
@@ -1008,9 +1147,10 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             w = getattr(viewer, "axesWidget", None)
             if w is not None:
                 w.EnabledOff() if w.GetEnabled() else w.EnabledOn()
-        elif key == "k" and clipper_widget is not None:
+        elif key == "k" and state["clipper_widget"] is not None:
             try:
-                clipper_widget.Off() if clipper_widget.GetEnabled() else clipper_widget.On()
+                widget = state["clipper_widget"]
+                widget.Off() if widget.GetEnabled() else widget.On()
             except Exception:
                 pass
         elif key in ("up", "down", "left", "right"):
@@ -1047,131 +1187,59 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
          cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
          clip_normal=(1.0, 0.0, 0.0), legend=True, bounding_box=False,
          picker=True, interactive=True, mesh_slices=_MESH_SLICES,
-         near_frac=_NEAR_DIST_FRAC, backend="pyg4ometry"):
-    """Render *model* in 3-D with pyg4ometry, coloured by material.
+         near_frac=_NEAR_DIST_FRAC, backend="pyg4ometry", *,
+         cache=True, cache_dir=None, progressive=True, preview_slices=12,
+         instancing=True, display="full", show_gas=False, hidden_volumes=(),
+         timings=None, progress=True):
+    """Open a responsive detector viewer with reusable display meshes.
 
-    Exports to a temporary (or *gdml_path*) standard GDML, loads it, builds the
-    append pipeline, and opens an interactive window with a SIREN-backed picker
-    and keyboard controls (see :func:`_install_controls` / ``_HELP_TEXT``).
+    ``model`` is a DetectorModel or a GDML path. The pyg4ometry backend opens a
+    loading window, displays a coarse preview, then refines to ``mesh_slices``.
+    Set ``progressive=False`` for synchronous loading. Screenshots and
+    ``interactive=False`` always wait for full detail. Return the GDML path
+    (or screenshot path), as before.
 
-    Right-click identifies the volume under the cursor by querying SIREN's own
-    geometry (segfault-free for every volume, unlike pyg4ometry's built-in
-    picker); shift+right-click hides the clicked material. Keys toggle the
-    legend, bounding box, section outlines, gas visibility, and opacity; the
-    arrow keys pan and fly through the scene (press 'h' for the full list).
+    ``cache`` enables a content-validated numeric mesh cache under
+    ``~/.cache/siren/meshes`` (or XDG_CACHE_HOME). ``cache_dir`` overrides that
+    location; ``cache=False`` disables persistent reads and writes. Effective
+    meshing defaults are restored after each load, including failed loads.
 
-    :param model: a ``DetectorModel`` (or a str path to an existing GDML).
-    :param coloured: colour by material; else a plain single-colour viewer.
-    :param axes: add an orientation axis triad (auto-scaled to the scene).
-    :param cutter: add an interactive cutting-plane (section) widget.
-    :param clipper: add an interactive clipping-plane widget to slice the scene
-        open; plane given by *clip_origin* / *clip_normal*. Toggle with 'k'.
-    :param legend: show an in-window material colour legend (toggle with 'l').
-    :param bounding_box: start with the world bounding box shown (toggle 'b').
-    :param picker: enable the right-click SIREN identification (needs a model,
-        not a bare GDML path); the custom interactor -- which also replaces
-        pyg4ometry's crash-prone built-in picker -- is installed regardless. The
-        clicked surface is disambiguated by the view direction (the front volume
-        is reported, not the one just outside it).
-    :param mesh_slices: angular slices/stacks for curved solids (spheres, tubes).
-        pyg4ometry's default for a sphere is only 10, which looks faceted; higher
-        is smoother but adds polygons. 0/None keeps the library default.
-    :param near_frac: near clip plane as a fraction of the camera's distance to
-        its focal point (default 1e-3), set dynamically on every camera move.
-        Decoupled from the scene's total size, so you can zoom into metre- and
-        mm-scale features even in an Earth-sized model (where VTK's scene-extent
-        default leaves the near plane kilometres out). Smaller lets the camera
-        approach closer before clipping; larger gives more depth precision. Set
-        0/None to keep VTK's default scene-extent clipping.
-    :param screenshot: write an off-screen PNG instead of opening a window
-        (uses the legacy coloured viewer, which supports ``exportScreenShot``;
-        needs a display-capable VTK). On a headless box prefer
-        :func:`plot_cross_sections` or :func:`to_gdml` + an external viewer.
+    ``show_gas=False`` defers low-density volumes; press 'g' to load/show them.
+    ``hidden_volumes`` contains logical-volume name glob patterns to defer;
+    'v' restores them. Hidden parents' children retain their placements.
+    Replicas/divisions/parameterised placements use eager meshing compatibility.
+
+    ``instancing=True`` shares GPU prototypes for repeated placements. Sheared
+    or reflected placements use exact matrix actors. Sections (``cutter``) and
+    clipping (``clipper``, ``clip_origin``, ``clip_normal``) use expanded meshes.
+    ``display='exterior'`` shows only outer faces of annotated CCM PMT shells,
+    with surface-region colours and no PMT vacuum. These open display surfaces
+    never alter GDML; sections/clipping automatically select ``display='full'``.
+
+    Supply a dictionary as ``timings`` to receive phase times, actual first-frame
+    times, cache counts and prototype/placement statistics; True prints them.
+    ``progress`` controls the loading overlay. ``preview_slices`` sets preview
+    resolution (None disables the preview). ``coloured``, ``axes``, ``legend``,
+    ``bounding_box``, ``picker`` and ``near_frac`` control the usual display.
+    Right-click identifies placed GDML volumes or queries a supplied SIREN
+    model; shift-right-click hides that material. 'h' shows keyboard controls.
+
+    These loading/rendering options apply to the pyg4ometry backend. The
+    existing ``backend='pyvista'`` path uses view_pv's own meshing and controls.
     """
-    if backend == "pyvista":                         # pure-pyvista path (no pyg4ometry)
-        return view_pv(model, screenshot=screenshot, axes=axes, legend=legend,
-                       picker=picker)
-    import vtk
-    import pyg4ometry
-    # Smooth the curved solids before anything is meshed: pyg4ometry meshes a
-    # <sphere> with only 10x10 slices/stacks by default, so the MiniBooNE oil
-    # shells look faceted and their intersections are hard to read. Must precede
-    # buildPipelinesAppend (meshing reads the global config).
-    if mesh_slices:
-        try:
-            pyg4ometry.config.setGlobalMeshSliceAndStack(int(mesh_slices))
-        except Exception:
-            pass
-    vis, reg, world, path = _load_registry(model, gdml_path)
-    mvo = _material_vis_options(reg, vis.VisualisationOptions) if coloured else None
-    model_obj = None if isinstance(model, str) else model
-
-    # Off-screen PNG: the "New" pipeline has no exportScreenShot, so use the
-    # legacy coloured viewer (which also honours our material->colour map).
-    if screenshot:
-        lv = vis.VtkViewerColoured(materialVisOptions=mvo) if coloured else vis.VtkViewer()
-        lv.addLogicalVolume(world)
-        if model_obj is not None:
-            try:
-                _add_mesh_actors(vtk, lv.ren, getattr(lv, "actors", {}), model_obj, mvo, reg)
-            except Exception:
-                pass
-        if axes:
-            try:
-                lv.addAxes(20.0)
-            except Exception:
-                pass
-        lv.exportScreenShot(screenshot)
-        return screenshot
-
-    # Supply our own material->colour map; the predefined-material viewer leaves
-    # custom names (MINERAL_OIL, env_GlacialTill, ...) grey.
-    if coloured:
-        v = vis.VtkViewerColouredNew(materialVisOptions=mvo,
-                                     defaultColour=[0.6, 0.6, 0.6])
-    else:
-        v = vis.VtkViewerNew()
-    v.addLogicalVolume(world)
-    if clipper:
-        v.addClipper(list(clip_origin), list(clip_normal), True)  # before build
-    v.buildPipelinesAppend()
-
-    if model_obj is not None:                        # mesh sectors -> direct VTK
-        try:
-            _add_mesh_actors(vtk, v.ren, v.actors, model_obj, mvo, reg)
-        except Exception:
-            pass
-
-    bounds = _scene_bounds(v)
-    clipper_widget = None
-    if clipper:
-        try:
-            v.addClipperWidget()
-            clipper_widget = v.clipperPlaneWidget
-        except Exception:
-            pass
-    if axes:
-        try:
-            if bounds is not None:
-                span = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
-                origin = ((bounds[0] + bounds[1]) / 2, (bounds[2] + bounds[3]) / 2,
-                          (bounds[4] + bounds[5]) / 2)
-                v.addAxes(length=0.12 * span, origin=origin)
-            else:
-                v.addAxes(length=20.0)
-        except Exception:
-            pass
-    if cutter:
-        try:
-            v.addCutterWidget()
-        except Exception:
-            pass
-
-    _install_controls(vtk, v, reg, mvo, model_obj if picker else None, bounds,
-                       legend=legend, bounding_box=bounding_box,
-                       clipper_widget=clipper_widget, near_frac=near_frac)
-    v.view(interactive=interactive)
-    return path
+    if backend == "pyvista":
+        return view_pv(model, screenshot=screenshot, axes=axes, legend=legend, picker=picker)
+    if backend != "pyg4ometry":
+        raise ValueError("unknown viewer backend: %s" % backend)
+    from ._visualization_view import ViewSession
+    return ViewSession(model, gdml_path, screenshot=screenshot, coloured=coloured,
+        axes=axes, cutter=cutter, clipper=clipper, clip_origin=clip_origin,
+        clip_normal=clip_normal, legend=legend, bounding_box=bounding_box,
+        picker=picker, interactive=interactive, mesh_slices=mesh_slices,
+        near_frac=near_frac, cache=cache, cache_dir=cache_dir, progressive=progressive,
+        preview_slices=preview_slices, instancing=instancing, display=display,
+        show_gas=show_gas, hidden_volumes=hidden_volumes, timings=timings,
+        progress=progress).run()
 
 
 # ---------------------------------------------------------------------------
