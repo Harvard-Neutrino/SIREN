@@ -1,0 +1,4 @@
+# Fiducial metadata only. Load transport with load_detector('CCM-v3').
+# The complete transport model is ccm-facility.gdml.
+detector 10.494900000000008 19.86074 0.29380000000000006 0 0 0.43017060669479124
+fiducial detector_coords cylinder 0 0 0 0 0 0 1.0338499999999999 0 1.2396

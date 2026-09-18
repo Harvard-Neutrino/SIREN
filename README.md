@@ -207,11 +207,18 @@ SIREN includes detector geometry definitions for the following experiments:
 | [SINE](https://journals.aps.org/prd/abstract/10.1103/z4f4-wdc3) | `SINE` |
 | [UNDINE](https://journals.aps.org/prd/abstract/10.1103/z4f4-wdc3) | `UNDINE` |
 
-Each detector is defined by a materials file and a density profile. To load one:
+Detectors use either materials/density files or a Python loader for a GDML
+geometry. To load one:
 
 ```python
 detector_model = siren.utilities.load_detector("IceCube")
 ```
+
+`CCM` now selects [CCM-v3](resources/detectors/CCM/CCM-v3/README.md): the
+corrected target_sim facility with the existing simple cylindrical detector,
+placed on the floor at the CAD cryostat axis. Use `CCM-v2` explicitly for the
+historical approximate facility. CCM-v3's placement remains provisional; its
+README specifies the detector/world coordinate transform and omitted details.
 
 Contributions of new detector geometries are welcome.
 

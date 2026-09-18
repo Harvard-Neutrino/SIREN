@@ -1,0 +1,111 @@
+{
+  "schema": "siren-ccm-simple-facility-v1",
+  "facility_sha256": "b543bc7431f92965d985d4e8ebd85c77ddf2ee73f6922c75767286cde65665e4",
+  "legacy_density_sha256": "e63cb84ab6a2f9a5cfa4c8b3ed3ac3c3d7161aecdd1f8996b13adad9398610f4",
+  "legacy_materials_sha256": "ec146ab9eb2f5b1ffee6179ec18fdb3c7135c3633b1958253522ad5f257dd6fb",
+  "placement": {
+    "center_facility_m": [
+      10.494900000000008,
+      19.86074,
+      0.29380000000000006
+    ],
+    "floor_z_m": -1.0162,
+    "detector_to_facility_yaw_rad": 0.43017060669479124,
+    "legacy_darcy_yaw_rad": 0.654498,
+    "status": "Provisional: CAD horizontal axis; simple outer-cylinder bottom at floor; Darcy target-relative horizontal orientation."
+  },
+  "layers": [
+    {
+      "name": "ccm_outer_cryogen",
+      "radius_m": 1.38,
+      "height_m": 2.62,
+      "material": "STEEL",
+      "density_g_cm3": 7.83
+    },
+    {
+      "name": "ccm_vacuum_jacket",
+      "radius_m": 1.35,
+      "height_m": 2.52,
+      "material": "AIR",
+      "density_g_cm3": 0.0
+    },
+    {
+      "name": "ccm_inner_cryogen",
+      "radius_m": 1.25,
+      "height_m": 2.4,
+      "material": "STEEL",
+      "density_g_cm3": 7.83
+    },
+    {
+      "name": "ccm_outer_argon",
+      "radius_m": 1.2,
+      "height_m": 2.3,
+      "material": "ARGON",
+      "density_g_cm3": 1.3954
+    },
+    {
+      "name": "ccm_pmt_frame",
+      "radius_m": 1.130076,
+      "height_m": 1.24261,
+      "material": "ALUMINUM",
+      "density_g_cm3": 2.7
+    },
+    {
+      "name": "ccm_inner_argon",
+      "radius_m": 1.12776,
+      "height_m": 1.2396,
+      "material": "ARGON",
+      "density_g_cm3": 1.3954
+    }
+  ],
+  "fiducial": {
+    "radius_m": 1.03385,
+    "height_m": 1.2396
+  },
+  "materials": {
+    "ARGON": {
+      "fractions": {
+        "1000180400": 1.0
+      },
+      "legacy_fraction_sum": 1.0
+    },
+    "STEEL": {
+      "fractions": {
+        "1000060120": 0.0012996101169649105,
+        "1000140280": 0.001999400179946016,
+        "1000250550": 0.009997000899730081,
+        "1000260560": 0.986703988803359
+      },
+      "legacy_fraction_sum": 1.0003
+    },
+    "ALUMINUM": {
+      "fractions": {
+        "1000130270": 1.0
+      },
+      "legacy_fraction_sum": 1.0
+    },
+    "AIR": {
+      "fractions": {
+        "1000070140": 0.7562326,
+        "1000080160": 0.2437674
+      },
+      "legacy_fraction_sum": 1.0
+    }
+  },
+  "isotope_molar_masses_g_mol": {
+    "1000060120": 12.0,
+    "1000070140": 14.00307400425,
+    "1000080160": 15.99491461926,
+    "1000130270": 26.981538408,
+    "1000140280": 27.97692653442,
+    "1000180400": 39.96238312204,
+    "1000250550": 54.93804304,
+    "1000260560": 55.934935537
+  },
+  "vacuum_density_g_cm3": 1e-25,
+  "omissions": [
+    "Detailed CAD cryostat and supports",
+    "Finite steel trench covers (dimensions unresolved)",
+    "PMT solids and optical response"
+  ]
+}
