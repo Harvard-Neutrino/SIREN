@@ -307,3 +307,38 @@ class TestSBNDGold:
                     f"Expected LAr near detector center "
                     f"({label}{'+' if sign > 0 else '-'}10cm), "
                     f"got {rho:.4f}")
+
+
+def test_numi_me_asset_target_placement(sbn, tmp_path):
+    """The pinned ME asset places all 48 fins upstream of horn 1."""
+    import xml.etree.ElementTree as ET
+
+    _, loader, det = sbn
+    source = next(s for s in det._beamline_sources(numi_config="ME")
+                  if s["prefix"] == "numi")
+    loader._ensure_gdml_files(str(tmp_path), [source])
+    path = tmp_path / source["file"]
+    root = ET.parse(path).getroot()
+    volumes = {v.get("name"): v for v in root.find("structure")}
+    positions = []
+
+    def walk(volume, offset):
+        for pv in volume.findall("physvol"):
+            position = pv.find("position")
+            local = [float(position.get(axis, "0")) if position is not None else 0.
+                     for axis in "xyz"]
+            world = offset + np.array(local)
+            child = volumes[pv.find("volumeref").get("ref")]
+            if pv.get("name", "").startswith("TGT10x"):
+                positions.append(world / 1000.)
+            walk(child, world)
+
+    # This pinned export's target and ancestors have identity rotations and mm units.
+    walk(volumes[root.find("setup/world").get("ref")], np.zeros(3))
+    assert len(positions) == 48
+    np.testing.assert_allclose(sorted(p[2] for p in positions),
+                               (-1363.5 + 24.5*np.arange(48))/1000., atol=1e-10)
+    model = DetectorModel()
+    model.LoadGDML(str(path), True)
+    for point in positions:
+        assert model.GetMassDensity(DetectorPosition(Vector3D(*point))) == pytest.approx(1.78)
