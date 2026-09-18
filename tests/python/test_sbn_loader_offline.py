@@ -159,7 +159,7 @@ def offline_sbn_cache(tmp_path):
         tmp_path, "gdml/BooNE_50m.gdml",
         _beamline_fixture_gdml("bnb_fixture", "BNBFixtureAir"))
     _write_fixture_file(
-        tmp_path, "gdml/numi_g4export_2026-05-19.gdml",
+        tmp_path, "gdml/numi_ME_g4export_2026-09-17.gdml",
         _beamline_fixture_gdml("numi_fixture", "NuMIFixtureAir"))
     _write_fixture_file(
         tmp_path, "gdml/g4lbnf.gdml",
@@ -310,8 +310,9 @@ def test_composition_identity_includes_site_geometry(
     assert second.read_bytes() != contents
 
 
+@pytest.mark.parametrize("numi_options", [{}, {"numi_config": "ME"}, {"numi_config": "me"}])
 def test_public_load_detector_with_preseeded_gdml_offline(
-        offline_sbn_cache, monkeypatch):
+        offline_sbn_cache, monkeypatch, numi_options):
     import siren.download as download
     from siren import _util
 
@@ -326,15 +327,43 @@ def test_public_load_detector_with_preseeded_gdml_offline(
     monkeypatch.setattr(_util, "resource_package_dir", lambda: resources_root)
 
     try:
-        model = _util.load_detector("SBN", detector="ICARUS")
+        model = _util.load_detector("SBN", detector="ICARUS", **numi_options)
         rho = model.GetMassDensity(DetectorPosition(Vector3D(0, 0, 0)))
         assert abs(rho - LAR_DENSITY) < 1e-12
+        composite, = offline_sbn_cache.glob("composite_icarus_*.gdml")
+        assert 'name="gdml/numi_ME_g4export_2026-09-17.gdml"' in composite.read_text()
+        assert "numi_g4export_2026-05-19.gdml" not in composite.read_text()
     finally:
         for name in module_names:
             sys.modules.pop(name, None)
         for name, module in previous_modules.items():
             if module is not None:
                 sys.modules[name] = module
+
+
+# ---------------------------------------------------------------------------
+# NuMI configuration selection
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("config", ["LE", "HE", "me000z200i", "", None])
+def test_unsupported_numi_configuration_has_no_geometry_side_effects(
+        sbn_detector_module, monkeypatch, tmp_path, config):
+    monkeypatch.setattr(sbn_detector_module, "_ABS_DIR", str(tmp_path))
+    monkeypatch.setattr(sbn_detector_module.sbn_loader, "_ensure_gdml_files", _forbid_download)
+    monkeypatch.setattr(sbn_detector_module.sbn_loader, "ensure_miniboone_gdml", _forbid_download)
+    with pytest.raises(ValueError, match="Unsupported NuMI configuration.*Supported configurations: ME"):
+        sbn_detector_module.load_detector("MiniBooNE", numi_config=config)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_numi_me_selection_preserves_other_beamlines(sbn_detector_module):
+    ordinary = sbn_detector_module._beamline_sources()
+    explicit = sbn_detector_module._beamline_sources(numi_config="me")
+    assert ordinary == explicit
+    extended = sbn_detector_module._beamline_sources(lbnf=True, numi_config="ME")
+    assert extended[:2] == ordinary
+    assert [s["prefix"] for s in extended] == ["bnb", "numi", "lbnf"]
+    assert ordinary[1]["sha256"] == "730466f287196d65a7fee074203014471faee6be0fbfa3da4769046d92355ed7"
 
 
 # ---------------------------------------------------------------------------

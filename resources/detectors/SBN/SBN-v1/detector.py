@@ -54,13 +54,31 @@ _DATA_BASE = (
 )
 
 
-def _beamline_sources(lbnf=False):
+_NUMI_CONFIGS = {
+    "ME": {
+        "file": "gdml/numi_ME_g4export_2026-09-17.gdml",
+        # Immutable data revision, usable before or after the data PR merges.
+        "url": ("https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
+                "328413f691b33052a77b1955c7de0820a17cb7a4/"
+                "detectors/SBN/v1/NuMI/numi_ME_g4export_2026-09-17.gdml"),
+        "sha256": "730466f287196d65a7fee074203014471faee6be0fbfa3da4769046d92355ed7",
+    },
+}
+
+
+def _beamline_sources(lbnf=False, numi_config="ME"):
     """Beamline GDML sources placed in the BNB world.
 
     Always includes the BNB and NuMI beamlines. The DUNE LBNF beam (g4lbnf)
     is appended only when ``lbnf=True`` -- it is the DUNE beamline (~700 KB /
     911 volumes), off by default so SBN-only loads stay lean.
     """
+    numi_config = str(numi_config).upper()
+    if numi_config not in _NUMI_CONFIGS:
+        raise ValueError(
+            f'Unsupported NuMI configuration "{numi_config}". '
+            f'Supported configurations: {", ".join(_NUMI_CONFIGS)}')
+    numi_spec = _NUMI_CONFIGS[numi_config]
     T_numi = geo.transform("NuMI", "BNB")
     numi_origin_bnb = T_numi.apply([0.0, 0.0, 0.0])
     numi_rx, numi_ry, numi_rz = geo.gdml_rotation_angles(T_numi.R.T)
@@ -75,13 +93,11 @@ def _beamline_sources(lbnf=False):
             "sha256": "70d3a5ef55062b8bfc3c94cc7ddc559dce09dec03d670dddd5286518d80f12da",
         },
         {
-            "file": "gdml/numi_g4export_2026-05-19.gdml",
+            **numi_spec,
             "prefix": "numi",
             "position": tuple(numi_origin_bnb),
             "rotation": (numi_rx, numi_ry, numi_rz),
             "unwrap": False,
-            "url": f"{_DATA_BASE}/NuMI/numi_g4export_2026-05-19.gdml",
-            "sha256": "39670d52a6181352a8ae7c798387a9c58de950462c634e57da7d39fb23abe30a",
         },
     ]
     if lbnf:
@@ -162,7 +178,7 @@ def fetch_data():
     sbn_loader._ensure_gdml_files(_ABS_DIR, all_sources)
 
 
-def load_detector(detector=None, earth_model=False, lbnf=False):
+def load_detector(detector=None, earth_model=False, lbnf=False, numi_config="ME"):
     """Load an SBN detector model.
 
     Parameters
@@ -189,6 +205,12 @@ def load_detector(detector=None, earth_model=False, lbnf=False):
         ~263 m west of the BNB target).  Off by default: it is the DUNE
         beam (~700 KB / 911 volumes), not part of an SBN-only model.
 
+    numi_config : str, optional
+        NuMI beamline geometry configuration, case-insensitive. Only "ME"
+        (medium energy / NOvA) is currently supported and is the default.
+        Other values raise ValueError before downloading or composing geometry.
+        This selects mechanical geometry, not a neutrino flux or horn polarity.
+
     Returns
     -------
     DetectorModel
@@ -205,6 +227,8 @@ def load_detector(detector=None, earth_model=False, lbnf=False):
             f'Choose from: {", ".join(_DETECTOR_SPECS.keys())}')
 
     spec = _DETECTOR_SPECS[detector]
+    # Reject unsupported configurations before generating files or downloading.
+    sources = list(_beamline_sources(lbnf=lbnf, numi_config=numi_config))
 
     # MiniBooNE's placeholder tank GDML is generated locally (no download).
     if detector == "MiniBooNE":
@@ -235,7 +259,6 @@ def load_detector(detector=None, earth_model=False, lbnf=False):
         rx, ry, rz = geo.gdml_rotation_angles(T_det_to_bnb.R.T)
         det_rotation = (rx, ry, rz)
 
-    sources = list(_beamline_sources(lbnf=lbnf))
     if spec["file"] is not None:
         sources.append({
             "file": spec["file"],
