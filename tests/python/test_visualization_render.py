@@ -374,3 +374,30 @@ def test_native_plain_viewer_has_no_legend_and_point_only_picking(tmp_path):
         assert session.viewer.pick_scene is None
     finally:
         session.viewer.renWin.Finalize()
+
+
+def test_pick_orders_hits_by_world_distance_across_scaled_placements():
+    viewer = SimpleNamespace(ren=vtk.vtkRenderer(), actors={}, cutterOrigins={}, bClipper=False)
+    renderer = SceneRenderer(viewer)
+    near, far = np.eye(4), np.eye(4)
+    near[2, 3] = 20                      # unit box centred at z=20
+    far[:3, :3] = np.diag([1, 1, 10])    # stretched box centred at z=0, top at z=+30
+    proto = {'box': dict(name='box', material='Steel', density=7.8, role='')}
+    renderer.set_structure(dict(prototypes=proto, instances=[
+        dict(prototype='box', name='far', matrix=far.tolist()),
+        dict(prototype='box', name='near', matrix=near.tolist())]))
+    reg = pg.geant4.Registry()
+    renderer.add_mesh('box', *mesh_arrays(pg.geant4.solid.Box('b', 2, 2, 6, reg).mesh()))
+    hit = renderer.pick_ray([0, 0, 100], [0, 0, -100])
+    assert hit['name'] == 'far' and hit['position'] == pytest.approx([0, 0, 30])
+    hit = renderer.pick_ray([0, 0, 25], [0, 0, -100])
+    assert hit['name'] == 'near' and hit['position'] == pytest.approx([0, 0, 23])
+
+
+def test_session_surfaces_worker_warnings(monkeypatch):
+    from siren import _visualization_view as view
+    session = view.ViewSession.__new__(view.ViewSession)
+    session.metrics, session._closing = {}, lambda: False
+    with pytest.warns(RuntimeWarning, match='cache disabled'):
+        session.receive(dict(kind='warning', message='mesh cache disabled: test'))
+    assert session.metrics['warnings'] == ['mesh cache disabled: test']

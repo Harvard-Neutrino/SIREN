@@ -328,11 +328,16 @@ class SceneRenderer:
             hit, coords = [0., 0., 0.], [0., 0., 0.]
             found = self.locators[key].IntersectWithLine(
                 p0, p1, 1e-8, t, hit, coords, sub_id, cell_id, vtk.vtkGenericCell())
-            if found and float(t) < best:
-                best = float(t)
-                p = self.scene['prototypes'][name]
-                result = dict(position=(matrix @ np.r_[hit, 1.])[:3].tolist(),
-                              name=row['name'], material=p['material'], density=p['density'])
+            if not found:
+                continue
+            # Rank every hit by world-space distance from the ray origin. (The
+            # local parameter t is affine-invariant too, but this is explicit.)
+            world = (matrix @ np.r_[hit, 1.])[:3]
+            distance = float(np.linalg.norm(world - start))
+            if distance < best:
+                best = distance
+                result = dict(position=world.tolist(), name=row['name'],
+                              material=p['material'], density=p['density'])
         for name, actor in self.external_actors.items():
             if not actor.GetVisibility() or actor.GetProperty().GetOpacity() <= 0:
                 continue
@@ -346,7 +351,7 @@ class SceneRenderer:
             hit, coords = [0., 0., 0.], [0., 0., 0.]
             found = self.locators[key].IntersectWithLine(
                 start, end, 1e-8, t, hit, coords, sub_id, cell_id, vtk.vtkGenericCell())
-            if found and float(t) < best:
-                best = float(t)
-                result = dict(position=hit)
+            if found and float(np.linalg.norm(np.asarray(hit) - start)) < best:
+                best = float(np.linalg.norm(np.asarray(hit) - start))
+                result = dict(position=list(hit))
         return result

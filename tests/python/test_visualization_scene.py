@@ -291,6 +291,10 @@ def test_partial_cache_files_are_removed_on_failure_and_when_stale(tmp_path, mon
     stale.write_bytes(b'x'); os.utime(stale, (old, old))
     prepare(path, tmp_path)
     assert not stale.exists() and list(key_dir.glob('*.npz'))
+    # A warm load (all hits, nothing pending) sweeps too.
+    stale.write_bytes(b'x'); os.utime(stale, (old, old))
+    _, stats, _ = prepare(path, tmp_path)
+    assert stats['cache_misses'] == 0 and not stale.exists()
     assert scene.write_mesh(cache / 'ok.npz', v, f) is None and (cache / 'ok.npz').exists()
 
 
@@ -312,7 +316,25 @@ def test_input_change_during_cache_write_discards_staged_files(tmp_path, monkeyp
             path.write_text(path.read_text().replace('name="cube_s" x="2"', 'name="cube_s" x="3"'))
         return original(disk, v, f)
     monkeypatch.setattr(scene, 'stage_mesh', stage)
-    with pytest.warns(RuntimeWarning, match='not published'):
-        _, stats, meshes = prepare(path, tmp_path)
+    events = []
+    _, stats = scene.prepare_scene(path, tmp_path / 'out', emit=events.append, cache_dir=tmp_path / 'cache')
+    meshes = {e['prototype']: scene.read_mesh(e['path']) for e in events if e['kind'] == 'mesh'}
+    # With a consumer, warnings travel as events (the worker's stderr is not shown).
+    assert [e['message'] for e in events if e['kind'] == 'warning'] == \
+        ['GDML inputs changed while loading; cache not published']
     assert stats['cache_misses'] == 1 and volume(*meshes['cube']) == pytest.approx(48)
     assert all(not any(d.iterdir()) for d in (tmp_path / 'cache').iterdir())
+
+
+def test_entity_gdml_loads_uncached_and_warns_through_events(tmp_path, monkeypatch):
+    path = fixture_gdml(tmp_path / 'a.gdml')
+    path.write_text(path.read_text().replace('<gdml', '<!DOCTYPE gdml>\n<gdml', 1))
+    events = []
+    scene.prepare_scene(path, tmp_path / 'out', emit=events.append, cache_dir=tmp_path / 'cache')
+    assert any(e['kind'] == 'mesh' for e in events)
+    assert [e['message'] for e in events if e['kind'] == 'warning'] == \
+        ['mesh cache disabled: GDML uses DOCTYPE/entity declarations']
+    assert not (tmp_path / 'cache').exists()
+    with pytest.warns(RuntimeWarning, match='DOCTYPE'):
+        scene.prepare_scene(path, tmp_path / 'out2', cache_dir=tmp_path / 'cache')  # direct caller
+    assert not scene.cached_scene_available(path, cache_dir=tmp_path / 'cache')

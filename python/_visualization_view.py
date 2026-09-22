@@ -258,6 +258,11 @@ class ViewSession:
                 self.status.SetInput("Ready")
                 self.status.SetVisibility(False)
             self._render(event["stage"])
+        elif kind == "warning":
+            # Worker stderr goes to its log; cache/input warnings reach the caller here.
+            import warnings
+            self.metrics.setdefault("warnings", []).append(event["message"])
+            warnings.warn(event["message"], RuntimeWarning)
         elif kind == "failed":
             if self.detail_ready:
                 # An on-demand ('g'/'v') job failed after the scene was ready:

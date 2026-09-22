@@ -393,14 +393,20 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
     if display == "exterior" and regions is None:
         raise ValueError("display='exterior' requires a regions mapping")
     from .visualization import _cached_solid_meshes, _read_pyg4ometry_registry
-    emit = (lambda event: None) if emit is None else emit
+    if emit is None:
+        emit = lambda event: None  # noqa: E731
+        # Direct callers get Python warnings; a worker's stderr is not shown
+        # to the viewer, so warnings travel as events when there is a consumer.
+        warn = lambda message: warnings.warn(message, RuntimeWarning)  # noqa: E731
+    else:
+        warn = lambda message: emit(dict(kind="warning", message=message))  # noqa: E731
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     timings = {}
     start = time.perf_counter()
     manifest = input_manifest(path, strict=False)
     if cache and not manifest["cacheable"]:
-        warnings.warn("mesh cache disabled: GDML uses DOCTYPE/entity declarations", RuntimeWarning)
+        warn("mesh cache disabled: GDML uses DOCTYPE/entity declarations")
         cache = False
     timings["input_hash_seconds"] = time.perf_counter() - start
 
@@ -476,8 +482,9 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
         if not inputs_unchanged(manifest):
             raise RuntimeError("GDML inputs changed while loading; retry with stable inputs")
         start = time.perf_counter()
-        for directory in {disk.parent for disk, _ in pending_cache}:
-            sweep_partial_files(directory)
+        if cache:
+            # Also on warm loads: a killed worker's partials must not survive.
+            sweep_partial_files((Path(cache_dir) if cache_dir is not None else default_cache_dir()) / key)
         # Stage every file, re-check the inputs, then publish atomically. An
         # input edited during a long write must not be reused under the old key.
         staged = []
@@ -486,14 +493,13 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
                 try:
                     staged.append((stage_mesh(disk, *arrays), disk))
                 except OSError as exc:
-                    warnings.warn("mesh cache unavailable: %s" % exc, RuntimeWarning)
+                    warn("mesh cache unavailable: %s" % exc)
                     break
             if staged and inputs_unchanged(manifest):
                 for tmp, disk in staged:
                     os.replace(tmp, disk)
             elif staged:
-                warnings.warn("GDML inputs changed while loading; cache not published",
-                              RuntimeWarning)
+                warn("GDML inputs changed while loading; cache not published")
         finally:
             for tmp, _ in staged:
                 tmp.unlink(missing_ok=True)
