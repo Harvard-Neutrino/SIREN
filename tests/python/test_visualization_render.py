@@ -401,3 +401,31 @@ def test_session_surfaces_worker_warnings(monkeypatch):
     with pytest.warns(RuntimeWarning, match='cache disabled'):
         session.receive(dict(kind='warning', message='mesh cache disabled: test'))
     assert session.metrics['warnings'] == ['mesh cache disabled: test']
+
+
+def test_refinement_releases_preview_polydata():
+    renderer, _ = renderer_fixture()
+    preview = renderer.meshes['box']
+    assert len(renderer._source_data) == 1
+    renderer.add_mesh('box', *(a.copy() for a in preview))
+    assert len(renderer._source_data) == 1
+    assert (id(preview[0]), id(preview[1])) not in renderer._source_data
+    # Redelivering the same arrays is a no-op and keeps one live source.
+    renderer.add_mesh('box', *renderer.meshes['box'])
+    assert len(renderer._source_data) == 1 and renderer._source_users[next(iter(renderer._source_data))] == 1
+
+
+def test_finish_stage_does_not_accumulate_pipeline_bookkeeping():
+    from pyg4ometry.visualisation import VtkViewerNew
+    viewer = VtkViewerNew(defaultCutters=True, axisCubeWidget=False)
+    renderer = SceneRenderer(viewer)
+    reg = pg.geant4.Registry()
+    arrays = mesh_arrays(pg.geant4.solid.Box('b', 2, 4, 6, reg).mesh())
+    renderer.set_structure(dict(prototypes={'box': dict(name='box', material='Steel', density=7.8, role='')},
+                                instances=[dict(prototype='box', name='c%d' % i, matrix=np.eye(4).tolist()) for i in range(3)]))
+    for _ in range(3):  # preview, detail, deferred load
+        renderer.add_mesh('box', *(a.copy() for a in arrays))
+        renderer.finish_stage()
+    assert len(viewer.instanceNameDict) == 3 and len(viewer.polydata) == 1
+    assert len(renderer.material_actors['Steel']) == 1
+    viewer.renWin.Finalize()

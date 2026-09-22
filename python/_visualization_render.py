@@ -67,6 +67,7 @@ class SceneRenderer:
         self._group_representatives = {}
         self._group_loaded = {}
         self._source_data = {}
+        self._source_users = defaultdict(int)  # groups drawing each polydata
         self.material_actors = defaultdict(list)
         self.viewer.material_actors = self.material_actors
         self.viewer.pick_scene = self.pick
@@ -90,6 +91,7 @@ class SceneRenderer:
         self._stats_dirty = True
         self._groups.clear()
         self._source_data.clear()
+        self._source_users.clear()
         active = set(scene.get('selected', scene['prototypes'])) | set(self.meshes)
         for name, p in scene['prototypes'].items():
             if name in active:
@@ -179,6 +181,17 @@ class SceneRenderer:
         if source_key not in self._source_data:
             self._source_data[source_key] = (vertices, faces, polydata(vertices, faces))
         source = self._source_data[source_key][2]
+        if previous is not None:
+            # Release the preview polydata once no group draws it any more.
+            old_key = (id(previous[0]), id(previous[1]))
+            if old_key != source_key:
+                self._source_users[old_key] -= 1
+                if self._source_users[old_key] <= 0:
+                    self._source_users.pop(old_key, None)
+                    self._source_data.pop(old_key, None)
+                self._source_users[source_key] += 1
+        else:
+            self._source_users[source_key] += 1
         glyphs, matrices = [], []
         for instance in (row for alias in aliases for row in self.placements[alias]):
             components = glyph_components(instance["matrix"]) if self.instancing else None
@@ -236,6 +249,10 @@ class SceneRenderer:
         for actor in list(v.actors.values()):
             v.ren.RemoveActor(actor)
         v.actors.clear()
+        # pyg4ometry never clears these; without this every preview rebuild's
+        # transform filters and polydata would stay referenced for the session.
+        v.instanceNameDict.clear()
+        v.polydata.clear()
         if v.clippers:
             # The widget callback moves the live clip functions only; carry the
             # current plane into the attributes buildPipelinesAppend rebuilds from.
