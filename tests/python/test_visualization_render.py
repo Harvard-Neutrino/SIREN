@@ -359,3 +359,18 @@ def test_native_direct_mesh_failure_keeps_viewer(tmp_path, detectors_dir, monkey
                                     legend=False, cache_dir=tmp_path / 'cache', timings=stats)
     assert result == tmp_path / 'model.png' and stats['prototype_faces'] > 0
     assert 'pyvista' in stats['direct_mesh_error']
+
+
+@native_window
+def test_native_plain_viewer_has_no_legend_and_point_only_picking(tmp_path):
+    from siren._visualization_view import ViewSession
+    from siren._visualization_scene import prepare_scene
+    session = ViewSession(fixture_gdml(tmp_path / 'a.gdml'), axes=False, legend=True,
+                          interactive=False, coloured=False, picker=False,
+                          cache_dir=tmp_path / 'cache')
+    try:
+        prepare_scene(session.path, tmp_path / 'out', emit=session.receive, **session.options)
+        assert session.controls['legend'] is None
+        assert session.viewer.pick_scene is None
+    finally:
+        session.viewer.renWin.Finalize()

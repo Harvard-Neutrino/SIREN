@@ -186,17 +186,27 @@ def sweep_partial_files(directory, now=None):
     return removed
 
 
-def write_mesh(path, vertices, faces):
+def stage_mesh(path, vertices, faces):
+    """Write a partial file beside ``path``; publish it with ``os.replace``."""
     import numpy as np
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     v, f = np.asarray(vertices, dtype="<f8"), np.asarray(faces, dtype="<i8")
+    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=_PARTIAL_PREFIX,
+                                     suffix=".npz", delete=False) as out:
+        tmp = Path(out.name)
+        try:
+            np.savez_compressed(out, vertices=v, faces=f, sha256=_digest(v, f))
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+    return tmp
+
+
+def write_mesh(path, vertices, faces):
     tmp = None
     try:
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=_PARTIAL_PREFIX,
-                                         suffix=".npz", delete=False) as out:
-            tmp = Path(out.name)
-            np.savez_compressed(out, vertices=v, faces=f, sha256=_digest(v, f))
+        tmp = stage_mesh(path, vertices, faces)
         os.replace(tmp, path)
     finally:
         if tmp is not None:
@@ -357,14 +367,13 @@ def cached_scene_available(path, *, mesh_slices=48, cache=True, cache_dir=None,
         keys = {metadata['prototypes'][name]['mesh_key'] for name in
                 selected_prototypes(metadata, show_gas, hidden_volumes, display, only,
                                     regions["hidden"] if regions else ())}
-        # Existence is enough to decide whether to skip the preview; the full
-        # content check happens once when prepare_scene reads the meshes.
+        # Validate content: a truncated or corrupt entry is a miss, so the
+        # preview still runs instead of waiting for full-detail recovery.
         for mesh_key in keys:
             token = hashlib.sha256(mesh_key.encode()).hexdigest()
             try:
-                if (directory / (token + '.npz')).stat().st_size == 0:
-                    return False
-            except OSError:
+                read_mesh(directory / (token + '.npz'))
+            except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile):
                 return False
     return inputs_unchanged(manifest)
 
@@ -469,11 +478,25 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
         start = time.perf_counter()
         for directory in {disk.parent for disk, _ in pending_cache}:
             sweep_partial_files(directory)
-        for disk, arrays in pending_cache:
-            try:
-                write_mesh(disk, *arrays)
-            except OSError as exc:
-                warnings.warn("mesh cache unavailable: %s" % exc, RuntimeWarning)
+        # Stage every file, re-check the inputs, then publish atomically. An
+        # input edited during a long write must not be reused under the old key.
+        staged = []
+        try:
+            for disk, arrays in pending_cache:
+                try:
+                    staged.append((stage_mesh(disk, *arrays), disk))
+                except OSError as exc:
+                    warnings.warn("mesh cache unavailable: %s" % exc, RuntimeWarning)
+                    break
+            if staged and inputs_unchanged(manifest):
+                for tmp, disk in staged:
+                    os.replace(tmp, disk)
+            elif staged:
+                warnings.warn("GDML inputs changed while loading; cache not published",
+                              RuntimeWarning)
+        finally:
+            for tmp, _ in staged:
+                tmp.unlink(missing_ok=True)
         timings["cache_write_seconds"] = time.perf_counter() - start
     stats = dict(kind="stage_done", stage=stage, timings=timings, cache_hits=hits,
                  cache_misses=misses, shared_mesh_reuses=reuses,

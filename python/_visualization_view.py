@@ -76,8 +76,12 @@ class ViewSession:
         self.viewer.iren.SetInteractorStyle(style)
         if clipper:
             self.viewer.addClipper(list(clip_origin), list(clip_normal), True)
+        self.coloured = bool(coloured)
         self.renderer = SceneRenderer(self.viewer, coloured=coloured, instancing=instancing,
                                       display=self.options["display"], regions=regions)
+        if not picker:
+            # picker=False keeps the point-only right-click of the plain viewer.
+            self.viewer.pick_scene = None
         self.status = vis._text_actor(vtk, "Loading geometry...", .02, .96, size=18, anchor="tl")
         self.status.SetVisibility(bool(progress))
         self.viewer.ren.AddViewProp(self.status)
@@ -173,7 +177,8 @@ class ViewSession:
             self.direct_meshes_added = True
             try:
                 self.vis._add_mesh_actors(self.vtk, v.ren, v.actors, self.model,
-                                          self.renderer.options, self.renderer.registry)
+                                          self.renderer.options if self.coloured else None,
+                                          self.renderer.registry)
             except Exception as exc:
                 # TriangularMesh sectors need the optional pyvista dependency. The
                 # GDML scene is complete without their direct actors, so report
@@ -203,8 +208,10 @@ class ViewSession:
                 caption.GetCaptionTextProperty().SetColor(.15, .15, .15)
             self.axes_added = True
         if self.controls is None:
+            # coloured=False is the plain single-colour viewer: no material legend.
             self.controls = self.vis._install_controls(
-                self.vtk, v, self.renderer.registry, self.renderer.options,
+                self.vtk, v, self.renderer.registry,
+                self.renderer.options if self.coloured else None,
                 self.model if self.picker else None, bounds, legend=self.legend,
                 bounding_box=self.bounding_box, near_frac=self.near_frac,
                 gas_visible=self.show_gas)
@@ -234,7 +241,9 @@ class ViewSession:
                 self.loaded.add(event["prototype"])
             self.status.SetInput("%s: %d / %d shapes" % (event["stage"].capitalize(), event["completed"], event["total"]))
             if not self.camera_fitted and self.viewer.actors:
-                self.viewer.ren.ResetCamera()
+                # Input on the loading window already placed the camera; keep it.
+                if not self.camera_dirty:
+                    self.viewer.ren.ResetCamera()
                 self.camera_fitted = True
         elif kind == "stage_done":
             before = time.perf_counter()

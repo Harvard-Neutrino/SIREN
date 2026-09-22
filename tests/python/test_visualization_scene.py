@@ -1,6 +1,7 @@
 """Independent geometry/cache witnesses for selective viewer preparation."""
 import hashlib
 import os
+from pathlib import Path
 import time
 
 import numpy as np
@@ -291,3 +292,27 @@ def test_partial_cache_files_are_removed_on_failure_and_when_stale(tmp_path, mon
     prepare(path, tmp_path)
     assert not stale.exists() and list(key_dir.glob('*.npz'))
     assert scene.write_mesh(cache / 'ok.npz', v, f) is None and (cache / 'ok.npz').exists()
+
+
+def test_corrupt_cache_entry_does_not_skip_preview(tmp_path):
+    path = fixture_gdml(tmp_path / 'a.gdml')
+    s, _, _ = prepare(path, tmp_path)
+    assert scene.cached_scene_available(path, cache_dir=tmp_path / 'cache')
+    token = s['prototypes']['cube']['mesh_key'].encode()
+    disk = tmp_path / 'cache' / s['cache_key'] / (hashlib.sha256(token).hexdigest() + '.npz')
+    disk.write_bytes(b'PK broken archive')
+    assert not scene.cached_scene_available(path, cache_dir=tmp_path / 'cache')
+
+
+def test_input_change_during_cache_write_discards_staged_files(tmp_path, monkeypatch):
+    path = fixture_gdml(tmp_path / 'a.gdml')
+    original = scene.stage_mesh
+    def stage(disk, v, f):
+        if 'cache' in Path(disk).parts:  # only the persistent cache, not transfer files
+            path.write_text(path.read_text().replace('name="cube_s" x="2"', 'name="cube_s" x="3"'))
+        return original(disk, v, f)
+    monkeypatch.setattr(scene, 'stage_mesh', stage)
+    with pytest.warns(RuntimeWarning, match='not published'):
+        _, stats, meshes = prepare(path, tmp_path)
+    assert stats['cache_misses'] == 1 and volume(*meshes['cube']) == pytest.approx(48)
+    assert all(not any(d.iterdir()) for d in (tmp_path / 'cache').iterdir())
