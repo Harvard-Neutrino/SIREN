@@ -668,10 +668,14 @@ def _apply_placement(tris, geo):
 def _mesh_sector_polydata(model, top_only=False):
     """Yield (sector, material_name, pyvista.PolyData) for each TriangularMesh sector."""
     import numpy as np
-    import pyvista as pv
+    pv = None
     for s in _sectors(model):
         if type(s.geo).__name__ != "TriangularMesh":
             continue
+        if pv is None:
+            # Optional dependency: only models with mesh sectors need pyvista;
+            # view() itself must keep working with pyg4ometry alone.
+            import pyvista as pv
         tris = np.asarray(s.geo.GetTriangles(), dtype=float)        # (N, 3, 3)
         if tris.size == 0:
             continue
@@ -971,7 +975,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     picker.SetTolerance(0.0005)
 
     state = dict(pick=pick_txt, help=help_txt, hint=hint_txt, legend=legend_actor,
-                 bbox=bbox_actor, cutters=cutter_actors, mat_actors=mat_actors,
+                 bbox=bbox_actor, bbox_bounds=bounds, cutters=cutter_actors, mat_actors=mat_actors,
                  body_actors=body_actors, gas_actors=gas_actors,
                  orig_opacity=orig_opacity, hidden=set(), opacity=1.0,
                  gas_visible=gas_visible, cutters_visible=True, picker=picker,
@@ -987,6 +991,16 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         if current is not None:
             _scene_R = max(current[1] - current[0], current[3] - current[2],
                            current[5] - current[4]) * 0.5
+            if current != state["bbox_bounds"]:
+                # Deferred/refined geometry changes the extent: rebuild the box.
+                visible = (state["bbox"].GetVisibility() if state["bbox"] is not None
+                           else bool(bounding_box))
+                if state["bbox"] is not None:
+                    ren.RemoveViewProp(state["bbox"])
+                state["bbox"] = _bbox_actor(vtk, current)
+                state["bbox"].SetVisibility(visible)
+                ren.AddViewProp(state["bbox"])
+                state["bbox_bounds"] = current
         mat_actors.clear()
         body_actors.clear()
         gas_actors.clear()
@@ -1117,8 +1131,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         changed = True
         if key == "h":
             help_txt.SetVisibility(not help_txt.GetVisibility())
-        elif key == "b" and bbox_actor is not None:
-            bbox_actor.SetVisibility(not bbox_actor.GetVisibility())
+        elif key == "b" and state["bbox"] is not None:
+            state["bbox"].SetVisibility(not state["bbox"].GetVisibility())
         elif key == "l" and legend_actor is not None:
             legend_actor.SetVisibility(not legend_actor.GetVisibility())
         elif key == "c" and cutter_actors:
@@ -1189,8 +1203,8 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
          picker=True, interactive=True, mesh_slices=_MESH_SLICES,
          near_frac=_NEAR_DIST_FRAC, backend="pyg4ometry", *,
          cache=True, cache_dir=None, progressive=True, preview_slices=12,
-         instancing=True, display="full", show_gas=False, hidden_volumes=(),
-         timings=None, progress=True):
+         instancing=True, display="full", regions=None, show_gas=False,
+         hidden_volumes=(), timings=None, progress=True):
     """Open a responsive detector viewer with reusable display meshes.
 
     ``model`` is a DetectorModel or a GDML path. The pyg4ometry backend opens a
@@ -1212,9 +1226,12 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     ``instancing=True`` shares GPU prototypes for repeated placements. Sheared
     or reflected placements use exact matrix actors. Sections (``cutter``) and
     clipping (``clipper``, ``clip_origin``, ``clip_normal``) use expanded meshes.
-    ``display='exterior'`` shows only outer faces of annotated CCM PMT shells,
-    with surface-region colours and no PMT vacuum. These open display surfaces
-    never alter GDML; sections/clipping automatically select ``display='full'``.
+    ``display='exterior'`` shows only the outer faces of annotated region shells
+    and needs ``regions``: a mapping with ``auxtype`` (the GDML auxiliary key
+    naming a volume's region), ``styles`` (region -> ``label``/``colour``/``alpha``
+    for shells of revolution about local z) and optional ``hidden`` regions.
+    Detector-specific region names are supplied by the caller. These open
+    display surfaces never alter GDML; sections/clipping select ``display='full'``.
 
     Supply a dictionary as ``timings`` to receive phase times, actual first-frame
     times, cache counts and prototype/placement statistics; True prints them.
@@ -1238,8 +1255,8 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
         picker=picker, interactive=interactive, mesh_slices=mesh_slices,
         near_frac=near_frac, cache=cache, cache_dir=cache_dir, progressive=progressive,
         preview_slices=preview_slices, instancing=instancing, display=display,
-        show_gas=show_gas, hidden_volumes=hidden_volumes, timings=timings,
-        progress=progress).run()
+        regions=regions, show_gas=show_gas, hidden_volumes=hidden_volumes,
+        timings=timings, progress=progress).run()
 
 
 # ---------------------------------------------------------------------------

@@ -27,36 +27,30 @@ class MeshJob:
             self.directory.cleanup()
             raise
 
-    def poll(self):
-        if self.finished:
-            return []
+    def _read_new_events(self):
+        """Parse complete JSON lines appended since the last read."""
         path = Path(self.directory.name) / "events.jsonl"
         try:
             with path.open("rb") as stream:
                 stream.seek(self.offset)
                 data = stream.read()
-                self.offset += len(data)
         except FileNotFoundError:
-            data = b""
+            return []
+        self.offset += len(data)
         lines = (self.pending + data).split(b"\n")
         self.pending = lines.pop()
-        events = [json.loads(line) for line in lines if line]
+        return [json.loads(line) for line in lines if line]
+
+    def poll(self):
+        if self.finished:
+            return []
+        events = self._read_new_events()
         if any(e["kind"] in ("done", "failed") for e in events):
             self.finished = True
         elif self.process.poll() is not None:
             # Read once more after exit; the worker may have appended between
             # the read and poll. EOF must not erase a just-written result.
-            with path.open("rb") if path.exists() else open(self.log.name, "rb") as stream:
-                if path.exists():
-                    stream.seek(self.offset)
-                    tail = stream.read()
-                else:
-                    tail = b""
-            if tail:
-                self.offset += len(tail)
-                lines = (self.pending + tail).split(b"\n")
-                self.pending = lines.pop()
-                events.extend(json.loads(line) for line in lines if line)
+            events.extend(self._read_new_events())
             self.finished = True
             if not any(e["kind"] in ("done", "failed") for e in events):
                 message = Path(self.log.name).read_text(errors="replace")[-8000:]

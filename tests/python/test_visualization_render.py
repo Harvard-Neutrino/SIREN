@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from siren._visualization_render import SceneRenderer, glyph_components
-from siren._visualization_scene import mesh_arrays
-from test_visualization_scene import fixture_gdml
+from siren._visualization_scene import mesh_arrays, normalize_regions
+from test_visualization_scene import fixture_gdml, REGIONS
 
 pg = pytest.importorskip('pyg4ometry')
 vtk = pytest.importorskip('vtk')
@@ -178,7 +178,7 @@ def test_direct_mesh_actor_is_pickable_without_expanding_prototypes():
 
 def test_exterior_legend_matches_region_colours():
     viewer = SimpleNamespace(ren=vtk.vtkRenderer(), actors={}, cutterOrigins={}, bClipper=False)
-    renderer = SceneRenderer(viewer, display='exterior')
+    renderer = SceneRenderer(viewer, display='exterior', regions=normalize_regions(REGIONS))
     renderer.set_structure(dict(prototypes={
         'front': dict(name='front', material='Glass', density=2.2, role='photocathode_inner_surface'),
         'rear': dict(name='rear', material='Glass', density=2.2, role='reflector_inner_surface'),
@@ -235,7 +235,7 @@ def test_native_sections_and_clipping_use_full_meshes(tmp_path, cutter, clipper)
     from siren._visualization_scene import prepare_scene
     session = ViewSession(fixture_gdml(tmp_path / 'a.gdml'), axes=False, legend=False,
                           interactive=False, cutter=cutter, clipper=clipper,
-                          display='exterior', cache_dir=tmp_path / 'cache')
+                          display='exterior', regions=REGIONS, cache_dir=tmp_path / 'cache')
     try:
         prepare_scene(session.path, tmp_path / 'out', emit=session.receive, **session.options)
         assert session.options['display'] == 'full'
@@ -273,9 +273,11 @@ def test_native_progress_refinement_deferred_loading_and_camera(tmp_path):
             assert session.camera_dirty
             witness['camera'] = session.viewer.ren.GetActiveCamera().GetPosition()
     session.receive = event
-    started = time.monotonic()
+    # Each worker process pays the pyg4ometry import (several seconds on some
+    # installations), so the budget is per phase rather than per test.
+    deadline = [time.monotonic() + 20]
     def stop(*args):
-        if time.monotonic() - started > 20:
+        if time.monotonic() > deadline[0]:
             witness['timeout'] = True
             session.viewer.iren.TerminateApp()
         elif session.detail_ready and 'gas' not in witness:
@@ -283,6 +285,7 @@ def test_native_progress_refinement_deferred_loading_and_camera(tmp_path):
             session.controls['gas_visible'] = True
             session.request_geometry('gas')
             witness['gas'] = True
+            deadline[0] = time.monotonic() + 20
         elif session.detail_ready and session.job is None and {'world', 'parent'} <= session.loaded:
             session.viewer.iren.TerminateApp()
     session.viewer.iren.AddObserver('TimerEvent', stop)
@@ -329,3 +332,30 @@ def test_native_siren_model_and_temporary_export_cache(tmp_path, detectors_dir):
     assert first['stages'][0]['cache_misses'] > 0
     assert second['stages'][0]['cache_misses'] == 0
     assert second['stages'][0]['cache_hits'] == first['stages'][0]['cache_misses']
+
+
+def test_direct_mesh_actors_do_not_need_pyvista_without_mesh_sectors(monkeypatch):
+    import sys
+    from siren.visualization import _add_mesh_actors
+    monkeypatch.setitem(sys.modules, 'pyvista', None)  # import raises ImportError
+    model = SimpleNamespace(Sectors=[SimpleNamespace(geo=SimpleNamespace(), material_id=0)])
+    assert _add_mesh_actors(vtk, vtk.vtkRenderer(), {}, model, None, SimpleNamespace(materialDict={})) == 0
+
+
+@native_window
+def test_native_direct_mesh_failure_keeps_viewer(tmp_path, detectors_dir, monkeypatch):
+    from siren.detector import DetectorModel
+    from siren import visualization
+    model = DetectorModel()
+    base = detectors_dir / 'CCM' / 'CCM-v1'
+    model.LoadMaterialModel(str(base / 'materials.dat'))
+    model.LoadDetectorModel(str(base / 'densities.dat'))
+    def broken(*args, **kwargs):
+        raise ImportError("No module named 'pyvista'")
+    monkeypatch.setattr(visualization, '_add_mesh_actors', broken)
+    stats = {}
+    with pytest.warns(RuntimeWarning, match='pyvista'):
+        result = visualization.view(model, screenshot=tmp_path / 'model.png', axes=False,
+                                    legend=False, cache_dir=tmp_path / 'cache', timings=stats)
+    assert result == tmp_path / 'model.png' and stats['prototype_faces'] > 0
+    assert 'pyvista' in stats['direct_mesh_error']

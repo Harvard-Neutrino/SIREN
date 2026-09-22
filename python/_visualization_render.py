@@ -47,11 +47,13 @@ class ArrayMesh:
 
 
 class SceneRenderer:
-    def __init__(self, viewer, *, coloured=True, instancing=True, display="full"):
+    def __init__(self, viewer, *, coloured=True, instancing=True, display="full", regions=None):
         self.viewer = viewer
         self.coloured = coloured
         self.instancing = instancing
         self.display = display
+        # Normalized surface-region mapping (see _visualization_scene.normalize_regions).
+        self.regions = regions
         self.scene = None
         self.meshes = {}
         self.placements = defaultdict(list)
@@ -102,18 +104,15 @@ class SceneRenderer:
         self.registry = SimpleNamespace(materialDict=materials)
         self.options = _material_vis_options(self.registry, VisualisationOptions)
         legend_options, legend_materials = dict(self.options), dict(materials)
-        if self.display == 'exterior':
-            labels = {'external_tpb': 'PMT TPB',
-                      'photocathode_inner_surface': 'PMT photocathode',
-                      'reflector_inner_surface': 'PMT reflector',
-                      'bare_transparent_glass': 'PMT bare glass'}
+        styles = self.regions['styles'] if self.display == 'exterior' and self.regions else {}
+        if styles:
             for material in materials:
                 roles = {p['role'] for p in scene['prototypes'].values() if p['material'] == material}
-                if roles and roles <= labels.keys():
+                if roles and roles <= styles.keys():
                     legend_options.pop(material, None)
             for name, p in scene['prototypes'].items():
-                if p['role'] in labels:
-                    label = labels[p['role']]
+                if p['role'] in styles:
+                    label = styles[p['role']]['label']
                     legend_options[label] = self.vis_option(name)
                     legend_materials[label] = SimpleNamespace(density=p['density'])
         self.viewer.legend_options = legend_options
@@ -124,17 +123,12 @@ class SceneRenderer:
         from pyg4ometry.visualisation import VisualisationOptions
         p = self.scene["prototypes"][name]
         vo = copy.copy(self.options[p["material"]]) if self.coloured else VisualisationOptions(colour=[.6, .6, .6])
-        if self.display == "exterior":
-            # These are display colours, not measured optical coefficients.
-            styles = {"external_tpb": ([.95, .94, .82], 1.),
-                      "photocathode_inner_surface": ([.65, .42, .16], 1.),
-                      "reflector_inner_surface": ([.8, .82, .85], 1.),
-                      "bare_transparent_glass": ([.72, .88, .94], .25)}
-            if p["role"] in styles:
-                colour, alpha = styles[p["role"]]
-                if self.coloured:
-                    vo.colour = colour
-                vo.alpha = alpha
+        if self.display == "exterior" and self.regions and p["role"] in self.regions["styles"]:
+            # Caller-supplied display colours, not measured optical coefficients.
+            style = self.regions["styles"][p["role"]]
+            if self.coloured:
+                vo.colour = list(style["colour"])
+            vo.alpha = style["alpha"]
         return vo
 
     def _remember(self, actor, name, instances, glyph=False):
@@ -242,6 +236,11 @@ class SceneRenderer:
         for actor in list(v.actors.values()):
             v.ren.RemoveActor(actor)
         v.actors.clear()
+        if v.clippers:
+            # The widget callback moves the live clip functions only; carry the
+            # current plane into the attributes buildPipelinesAppend rebuilds from.
+            plane = v.clippers[0].GetClipFunction()
+            v.clipperOrigin, v.clipperNormal = list(plane.GetOrigin()), list(plane.GetNormal())
         v.clippers.clear()
         v.cutters.clear()
         self.material_actors.clear()

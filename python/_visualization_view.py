@@ -7,7 +7,8 @@ import time
 
 from ._visualization_job import MeshJob
 from ._visualization_render import SceneRenderer
-from ._visualization_scene import prepare_scene, read_mesh
+from ._visualization_scene import normalize_regions, prepare_scene, read_mesh
+from .visualization import _LOW_DENSITY
 
 
 class ViewSession:
@@ -16,8 +17,8 @@ class ViewSession:
                  clip_normal=(1., 0., 0.), legend=True, bounding_box=False,
                  picker=True, interactive=True, mesh_slices=48, near_frac=1e-3,
                  cache=True, cache_dir=None, progressive=True, preview_slices=12,
-                 instancing=True, display="full", show_gas=False, hidden_volumes=(),
-                 timings=None, progress=True):
+                 instancing=True, display="full", regions=None, show_gas=False,
+                 hidden_volumes=(), timings=None, progress=True):
         self.started = time.perf_counter()
         self.metrics = {"stages": []}
         self.timings = timings
@@ -45,6 +46,9 @@ class ViewSession:
         self.direct_meshes_added = False
         if display not in ("full", "exterior"):
             raise ValueError("display must be 'full' or 'exterior'")
+        regions = normalize_regions(regions)
+        if display == "exterior" and regions is None:
+            raise ValueError("display='exterior' requires a regions mapping")
         if preview_slices is not None and (isinstance(preview_slices, bool) or
                 int(preview_slices) != preview_slices or preview_slices < 4):
             raise ValueError("preview_slices must be an integer >= 4 or None")
@@ -53,7 +57,8 @@ class ViewSession:
         self.options = dict(mesh_slices=mesh_slices, cache=bool(cache),
                             cache_dir=None if cache_dir is None else str(cache_dir),
                             display="full" if cutter or clipper else display,
-                            show_gas=show_gas, hidden_volumes=list(hidden_volumes))
+                            regions=regions, show_gas=show_gas,
+                            hidden_volumes=list(hidden_volumes))
         self.metrics["display"] = self.options["display"]
         self.metrics["cutaway_full_detail"] = bool((cutter or clipper) and display != "full")
         import vtk
@@ -63,33 +68,41 @@ class ViewSession:
         self.vis = vis
         self.metrics["imports_seconds"] = time.perf_counter() - self.started
         self.viewer = VtkViewerNew(defaultCutters=bool(cutter), axisCubeWidget=bool(axes))
+        # pyg4ometry's default style has a crash-prone right-click picker; a
+        # plain trackball style guards the loading phase until _install_controls
+        # replaces it. Each style carries its own camera observer while live.
         style = vtk.vtkInteractorStyleTrackballCamera()
         style.AddObserver('StartInteractionEvent', self._camera_changed)
         self.viewer.iren.SetInteractorStyle(style)
         if clipper:
             self.viewer.addClipper(list(clip_origin), list(clip_normal), True)
         self.renderer = SceneRenderer(self.viewer, coloured=coloured, instancing=instancing,
-                                      display=self.options["display"])
+                                      display=self.options["display"], regions=regions)
         self.status = vis._text_actor(vtk, "Loading geometry...", .02, .96, size=18, anchor="tl")
         self.status.SetVisibility(bool(progress))
         self.viewer.ren.AddViewProp(self.status)
         self.viewer.request_geometry = self.request_geometry
         self.viewer.camera_moved = self._camera_changed
-        self.viewer.iren.AddObserver("StartInteractionEvent", self._camera_changed)
         self.viewer.iren.AddObserver("ExitEvent", self._exited)
         self.viewer.iren.Initialize()
         if self.progressive:
             self.viewer.renWin.Render()
             self.metrics["window_frame_seconds"] = time.perf_counter() - self.started
         before = time.perf_counter()
-        if self.model is None:
-            self.path = str(Path(model).resolve())
-        else:
-            if gdml_path is None:
-                with tempfile.NamedTemporaryFile(suffix=".gdml", delete=False) as out:
-                    gdml_path = out.name
-            self.path = str(Path(gdml_path).resolve())
-            vis.to_gdml(model, self.path, skip_geo_types=("TriangularMesh",))
+        try:
+            if self.model is None:
+                self.path = str(Path(model).resolve())
+            else:
+                if gdml_path is None:
+                    with tempfile.NamedTemporaryFile(suffix=".gdml", delete=False) as out:
+                        gdml_path = out.name
+                self.path = str(Path(gdml_path).resolve())
+                vis.to_gdml(model, self.path, skip_geo_types=("TriangularMesh",))
+        except BaseException:
+            # run() never starts, so its window teardown must happen here.
+            self.closed = True
+            self._release_window()
+            raise
         self.metrics["export_seconds"] = time.perf_counter() - before
 
     def _camera_changed(self, *args):
@@ -106,6 +119,28 @@ class ViewSession:
         if self.viewer.iren.GetDone():
             self.closed = True
         return self.closed
+
+    def _release_window(self):
+        # These objects and callbacks belong to this one viewer window.
+        # Detach widgets/styles before releasing the native window so a
+        # later GC pass or another view() cannot dispatch stale callbacks.
+        v = self.viewer
+        v.iren.Disable()
+        v.iren.EnableRenderOff()
+        for name in ("axesWidget", "clipperPlaneWidget"):
+            widget = getattr(v, name, None)
+            if widget is not None:
+                widget.SetEnabled(0)
+                widget.SetInteractor(None)
+        style = v.iren.GetInteractorStyle()
+        if style is not None:
+            style.RemoveAllObservers()
+        v.iren.RemoveAllObservers()
+        v.iren.SetInteractorStyle(None)
+        v.request_geometry = v.camera_moved = None
+        v.renWin.Finalize()
+        v.iren.SetRenderWindow(None)
+        v.renWin.SetInteractor(None)
 
     def _publish_metrics(self):
         self.metrics.update(self.renderer.stats)
@@ -135,9 +170,17 @@ class ViewSession:
         from pyg4ometry.visualisation import VisualisationOptions
         v = self.viewer
         if not self.direct_meshes_added and self.model is not None:
-            self.vis._add_mesh_actors(self.vtk, v.ren, v.actors, self.model,
-                                      self.renderer.options, self.renderer.registry)
             self.direct_meshes_added = True
+            try:
+                self.vis._add_mesh_actors(self.vtk, v.ren, v.actors, self.model,
+                                          self.renderer.options, self.renderer.registry)
+            except Exception as exc:
+                # TriangularMesh sectors need the optional pyvista dependency. The
+                # GDML scene is complete without their direct actors, so report
+                # the omission instead of failing the whole viewer.
+                import warnings
+                self.metrics["direct_mesh_error"] = str(exc)
+                warnings.warn("direct mesh sectors were not rendered: %s" % exc, RuntimeWarning)
         for key, actor in v.actors.items():
             if key.startswith('mesh__'):
                 self.renderer.external_actors[key] = actor
@@ -207,6 +250,17 @@ class ViewSession:
                 self.status.SetVisibility(False)
             self._render(event["stage"])
         elif kind == "failed":
+            if self.detail_ready:
+                # An on-demand ('g'/'v') job failed after the scene was ready:
+                # keep the loaded viewer open and report it instead of exiting.
+                import warnings
+                self.metrics.setdefault("request_errors", []).append(event["message"])
+                warnings.warn("requested volumes failed to load: %s" % event["message"],
+                              RuntimeWarning)
+                self.status.SetInput("Requested volumes failed to load; see the Python warning.")
+                self.status.SetVisibility(True)
+                self._render()
+                return
             self.error = event["message"]
             self.status.SetInput("Geometry loading failed; see the Python error.")
             self.status.SetVisibility(True)
@@ -228,9 +282,11 @@ class ViewSession:
         if self._closing() or self.renderer.scene is None:
             return
         prototypes = self.renderer.scene["prototypes"]
+        hidden_roles = (set(self.options["regions"]["hidden"])
+                        if self.options["display"] == "exterior" and self.options["regions"] else set())
         needed = {name for name, p in prototypes.items()
-                  if (group == "all" or p["density"] <= .05) and
-                  not (self.options["display"] == "exterior" and p["role"] == "vacuum")}
+                  if (group == "all" or p["density"] <= _LOW_DENSITY) and
+                  p["role"] not in hidden_roles}
         self.pending.update(needed - self.loaded)
         if not self.pending and self.job is None:
             self.status.SetVisibility(False)
@@ -250,7 +306,10 @@ class ViewSession:
             processed = False
             # Leave time for native close/input events even when a fast worker
             # has queued thousands of meshes. Keep its files until consumed.
-            while self._events and (not processed or time.perf_counter() < deadline):
+            # A trailing 'done' carries no work; consume it now so a close in
+            # the next timer slot does not report a finished load as cancelled.
+            while self._events and (not processed or time.perf_counter() < deadline or
+                                    self._events[0]["kind"] == "done"):
                 if self._closing():
                     break
                 self.receive(self._events.popleft())
@@ -297,7 +356,7 @@ class ViewSession:
             raise
         finally:
             self.closed = True
-            unfinished = bool(self.pending or self._events or
+            unfinished = bool(self.pending or any(e["kind"] != "done" for e in self._events) or
                               (self.job is not None and not self.job.finished))
             if self.timer is not None:
                 self.viewer.iren.DestroyTimer(self.timer)
@@ -316,23 +375,4 @@ class ViewSession:
             if self.timings is True:
                 import json
                 print("[siren.view] " + json.dumps(self.metrics, sort_keys=True))
-            # These objects and callbacks belong to this one viewer window.
-            # Detach widgets/styles before releasing the native window so a
-            # later GC pass or another view() cannot dispatch stale callbacks.
-            v = self.viewer
-            v.iren.Disable()
-            v.iren.EnableRenderOff()
-            for name in ("axesWidget", "clipperPlaneWidget"):
-                widget = getattr(v, name, None)
-                if widget is not None:
-                    widget.SetEnabled(0)
-                    widget.SetInteractor(None)
-            style = v.iren.GetInteractorStyle()
-            if style is not None:
-                style.RemoveAllObservers()
-            v.iren.RemoveAllObservers()
-            v.iren.SetInteractorStyle(None)
-            v.request_geometry = v.camera_moved = None
-            v.renWin.Finalize()
-            v.iren.SetRenderWindow(None)
-            v.renWin.SetInteractor(None)
+            self._release_window()

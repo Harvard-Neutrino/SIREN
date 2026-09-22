@@ -94,3 +94,16 @@ def test_worker_cancel_removes_child_and_temporary_files(tmp_path):
     job.close()
     assert job.process.poll() is not None
     assert not Path(directory).exists()
+
+
+def test_worker_terminate_raises_so_partial_writes_are_cleaned():
+    import os, signal
+    from siren._visualization_worker import exit_on_terminate
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        exit_on_terminate()
+        with pytest.raises(SystemExit) as info:
+            os.kill(os.getpid(), signal.SIGTERM)
+        assert info.value.code == 128 + signal.SIGTERM
+    finally:
+        signal.signal(signal.SIGTERM, previous)

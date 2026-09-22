@@ -19,8 +19,35 @@ import zipfile
 
 _FORMAT = 2
 _CONFIG_LOCK = threading.RLock()
-_PMT_SURFACES = {"external_tpb", "photocathode_inner_surface",
-                 "reflector_inner_surface", "bare_transparent_glass"}
+
+
+def normalize_regions(regions):
+    """Validate the surface-region mapping used by ``display='exterior'``.
+
+    ``regions`` is a mapping with ``auxtype`` (the GDML ``<auxiliary auxtype=...>``
+    key whose value names a logical volume's region), ``styles`` (region name ->
+    ``{"label", "colour", "alpha"}``; these regions must be shells of revolution
+    about their local z axis, of which only outward faces are displayed) and an
+    optional ``hidden`` list of region names dropped from the exterior display.
+    Detector-specific names belong to the caller, not to this module. Returns a
+    JSON-compatible dict, or None.
+    """
+    if regions is None:
+        return None
+    try:
+        auxtype = str(regions["auxtype"])
+        styles = dict(regions["styles"])
+    except (KeyError, TypeError) as exc:
+        raise ValueError("regions needs 'auxtype' and 'styles' entries") from exc
+    out = {"auxtype": auxtype, "styles": {},
+           "hidden": [str(role) for role in regions.get("hidden", ())]}
+    for role, style in styles.items():
+        colour = [float(c) for c in style["colour"]]
+        if len(colour) != 3:
+            raise ValueError("region %r colour must have three components" % role)
+        out["styles"][str(role)] = {"label": str(style.get("label", role)),
+                                    "colour": colour, "alpha": float(style.get("alpha", 1.0))}
+    return out
 
 
 @contextmanager
@@ -49,18 +76,27 @@ def mesh_settings(pg, slices=None, meshing=None):
             pg.config.doMeshing = old_meshing
 
 
-def input_manifest(path, seen=None):
-    """Hash GDML plus recursively included files; reject dependency cycles."""
+def input_manifest(path, seen=None, strict=True):
+    """Hash GDML plus recursively included files; reject dependency cycles.
+
+    With ``strict=False`` an entity-based file yields an uncacheable manifest
+    (``cacheable=False``) instead of raising, so it can still be displayed.
+    """
     path = Path(path).resolve()
     seen = set() if seen is None else seen
     if path in seen:
         raise ValueError("cyclic GDML file dependency: %s" % path)
     data = path.read_bytes()
-    root = ET.fromstring(data)
     # External entity resolution belongs to the GDML reader. It cannot safely
     # participate in a content cache whose full dependency set is unknown.
-    if b"<!ENTITY" in data.upper() or b"<!DOCTYPE" in data.upper():
-        raise ValueError("GDML with external entities is not supported by the scene loader")
+    upper = data.upper()
+    if b"<!ENTITY" in upper or b"<!DOCTYPE" in upper:
+        if strict:
+            raise ValueError("GDML with external entities is not supported by the scene loader")
+        return {"path": str(path), "sha256": hashlib.sha256(data).hexdigest(),
+                "dependencies": [], "cacheable": False,
+                "eager": any(tag in data for tag in (b"<replicavol", b"<divisionvol", b"<paramvol"))}
+    root = ET.fromstring(data)
     dependencies = []
     for ref in root.iter("file"):
         name = ref.get("name")
@@ -70,9 +106,20 @@ def input_manifest(path, seen=None):
             # Use the same path, rather than hashing a different relative file.
             dependencies.append(input_manifest(child, seen | {path}))
     return {"path": str(path), "sha256": hashlib.sha256(data).hexdigest(),
-            "dependencies": dependencies,
+            "dependencies": dependencies, "cacheable": True,
             "eager": any(n.tag in ("replicavol", "divisionvol", "paramvol")
                          for n in root.iter())}
+
+
+def inputs_unchanged(manifest):
+    """Re-hash the manifest's files without re-parsing any XML."""
+    def check(m):
+        try:
+            digest = hashlib.sha256(Path(m["path"]).read_bytes()).hexdigest()
+        except OSError:
+            return False
+        return digest == m["sha256"] and all(check(d) for d in m["dependencies"])
+    return check(manifest)
 
 
 def cache_key(manifest, pg):
@@ -112,6 +159,33 @@ def read_mesh(path):
     return v, f
 
 
+_PARTIAL_PREFIX = ".partial-"
+_STALE_PARTIAL_SECONDS = 3600
+
+
+def sweep_partial_files(directory, now=None):
+    """Remove abandoned partial writes left in a cache directory.
+
+    ``write_mesh`` publishes atomically, but a worker killed mid-write (window
+    closed during the cache flush) cannot run its cleanup. Only files older than
+    an hour are removed so a concurrent writer's live temporary is untouched.
+    """
+    cutoff = (time.time() if now is None else now) - _STALE_PARTIAL_SECONDS
+    removed = 0
+    try:
+        entries = list(Path(directory).glob(_PARTIAL_PREFIX + "*"))
+    except OSError:
+        return 0
+    for entry in entries:
+        try:
+            if entry.stat().st_mtime < cutoff:
+                entry.unlink()
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def write_mesh(path, vertices, faces):
     import numpy as np
     path = Path(path)
@@ -119,7 +193,8 @@ def write_mesh(path, vertices, faces):
     v, f = np.asarray(vertices, dtype="<f8"), np.asarray(faces, dtype="<i8")
     tmp = None
     try:
-        with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".npz", delete=False) as out:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=_PARTIAL_PREFIX,
+                                         suffix=".npz", delete=False) as out:
             tmp = Path(out.name)
             np.savez_compressed(out, vertices=v, faces=f, sha256=_digest(v, f))
         os.replace(tmp, path)
@@ -155,15 +230,15 @@ def mesh_arrays(mesh):
             vtk_to_numpy(result.GetPolys().GetData()).reshape(-1, 4)[:, 1:].astype("<i8"))
 
 
-def exterior_faces(vertices, faces, role):
-    """Outer faces of annotated CCM PMT shells of revolution about local z.
+def exterior_faces(vertices, faces, role, regions):
+    """Outer faces of a region shell of revolution about its local z axis.
 
     Positive radial normal selects the outer wall; negative radial normal is
-    the glass/vacuum interface, and axial faces close artificial region cuts.
-    Unknown roles keep all faces. These open surfaces are display-only.
+    the inner interface, and axial faces close artificial region cuts. Roles
+    absent from ``regions['styles']`` keep all faces. Display-only surfaces.
     """
     import numpy as np
-    if role not in _PMT_SURFACES:
+    if regions is None or role not in regions["styles"]:
         return faces
     tri = vertices[faces]
     normals = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
@@ -172,7 +247,7 @@ def exterior_faces(vertices, faces, role):
     tolerance = np.linalg.norm(normals, axis=1) * np.linalg.norm(centres[:, :2], axis=1) * 1e-10
     result = faces[radial > tolerance]
     if not len(result):
-        raise ValueError("annotated PMT shell has no outward radial faces")
+        raise ValueError("region shell %r has no outward radial faces" % role)
     return result
 
 
@@ -180,8 +255,12 @@ def _auxiliary(lv):
     return {str(a.auxtype): str(a.auxvalue) for a in getattr(lv, "auxiliary", [])}
 
 
-def scene_structure(reg, pg):
-    """Traverse hidden parents too. Mesh-free for ordinary placements."""
+def scene_structure(reg, pg, region_auxtype=None):
+    """Traverse hidden parents too. Mesh-free for ordinary placements.
+
+    ``region_auxtype`` names the auxiliary key that classifies a logical volume's
+    surface region; without it every prototype's role is empty.
+    """
     import numpy as np
     prototypes, instances, sources = {}, [], {}
     solid_keys = {}
@@ -198,7 +277,8 @@ def scene_structure(reg, pg):
                 # if separately included GDML registries reuse a solid name.
                 solid_keys[id(lv.solid)] = 'solid:%d:%s' % (len(solid_keys), lv.solid.name)
             prototypes[key] = dict(name=lv.name, material=lv.material.name, density=density,
-                                   role=aux.get("ccm_pmt_region", ""), auxiliary=aux,
+                                   role=aux.get(region_auxtype, "") if region_auxtype else "",
+                                   auxiliary=aux,
                                    mesh_key=("logical:" + key if mesh is not None
                                              else solid_keys[id(lv.solid)]))
             sources[key] = (lv, mesh)
@@ -237,7 +317,9 @@ def scene_structure(reg, pg):
     return dict(prototypes=prototypes, instances=instances, world=world.name), sources
 
 
-def selected_prototypes(scene, show_gas=False, hidden_volumes=(), display="full", only=None):
+def selected_prototypes(scene, show_gas=False, hidden_volumes=(), display="full", only=None,
+                        hidden_roles=()):
+    from .visualization import _LOW_DENSITY
     if display not in ("full", "exterior"):
         raise ValueError("display must be 'full' or 'exterior'")
     selected = []
@@ -246,58 +328,71 @@ def selected_prototypes(scene, show_gas=False, hidden_volumes=(), display="full"
             continue
         if any(fnmatch.fnmatchcase(p["name"], pattern) for pattern in hidden_volumes):
             continue
-        if not show_gas and p["density"] <= 0.05:
+        if not show_gas and p["density"] <= _LOW_DENSITY:
             continue
-        if display == "exterior" and p["role"] == "vacuum":
+        if display == "exterior" and p["role"] in hidden_roles:
             continue
         selected.append(key)
     return selected
 
 
 def cached_scene_available(path, *, mesh_slices=48, cache=True, cache_dir=None,
-                           show_gas=False, hidden_volumes=(), display="full", only=None):
+                           show_gas=False, hidden_volumes=(), display="full", only=None,
+                           regions=None):
     """Skip preview work when all requested full-detail prototypes are cached."""
     if not cache:
         return False
+    regions = normalize_regions(regions)
     import pyg4ometry as pg
-    manifest = input_manifest(path)
+    manifest = input_manifest(path, strict=False)
     def eager(m):
         return m['eager'] or any(eager(d) for d in m['dependencies'])
-    if eager(manifest):
+    if eager(manifest) or not manifest["cacheable"]:
         return False
     with mesh_settings(pg, mesh_slices, meshing=False):
         key = cache_key(manifest, pg)
         registry = pg.gdml.Reader(str(path)).getRegistry()
-        metadata, _ = scene_structure(registry, pg)
+        metadata, _ = scene_structure(registry, pg, regions and regions["auxtype"])
         directory = (Path(cache_dir) if cache_dir is not None else default_cache_dir()) / key
         keys = {metadata['prototypes'][name]['mesh_key'] for name in
-                selected_prototypes(metadata, show_gas, hidden_volumes, display, only)}
+                selected_prototypes(metadata, show_gas, hidden_volumes, display, only,
+                                    regions["hidden"] if regions else ())}
+        # Existence is enough to decide whether to skip the preview; the full
+        # content check happens once when prepare_scene reads the meshes.
         for mesh_key in keys:
             token = hashlib.sha256(mesh_key.encode()).hexdigest()
             try:
-                read_mesh(directory / (token + '.npz'))
-            except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile):
+                if (directory / (token + '.npz')).stat().st_size == 0:
+                    return False
+            except OSError:
                 return False
-    return input_manifest(path) == manifest
+    return inputs_unchanged(manifest)
 
 
 def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=None,
                   show_gas=False, hidden_volumes=(), display="full", only=None,
-                  emit=None, stage="detail"):
+                  regions=None, emit=None, stage="detail"):
     """Prepare selected meshes and emit small JSON events plus numeric files.
 
     Ordinary hidden volumes are never meshed merely to traverse their children.
     Required CSG operands still have to be evaluated. Complex placement files
     use eager meshing for compatibility, reported explicitly in the metadata.
+    ``display='exterior'`` needs a ``regions`` mapping (see normalize_regions).
     """
     import pyg4ometry as pg
+    regions = normalize_regions(regions)
+    if display == "exterior" and regions is None:
+        raise ValueError("display='exterior' requires a regions mapping")
     from .visualization import _cached_solid_meshes, _read_pyg4ometry_registry
     emit = (lambda event: None) if emit is None else emit
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     timings = {}
     start = time.perf_counter()
-    manifest = input_manifest(path)
+    manifest = input_manifest(path, strict=False)
+    if cache and not manifest["cacheable"]:
+        warnings.warn("mesh cache disabled: GDML uses DOCTYPE/entity declarations", RuntimeWarning)
+        cache = False
     timings["input_hash_seconds"] = time.perf_counter() - start
 
     def eager_input(m):
@@ -310,13 +405,14 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
         reg = (_read_pyg4ometry_registry(str(path), pg) if eager
                else pg.gdml.Reader(str(path)).getRegistry())
         timings["parse_seconds"] = time.perf_counter() - start
-        scene, sources = scene_structure(reg, pg)
+        scene, sources = scene_structure(reg, pg, regions and regions["auxtype"])
         if eager:
             # Division parameters can mutate a shared solid; only their eager
             # per-volume mesh snapshots are safe to reuse.
             for name, prototype in scene['prototypes'].items():
                 prototype['mesh_key'] = 'logical:' + name
-        selected = selected_prototypes(scene, show_gas, hidden_volumes, display, only)
+        selected = selected_prototypes(scene, show_gas, hidden_volumes, display, only,
+                                       regions["hidden"] if regions else ())
         scene.update(selected=selected, eager_fallback=eager, cache_key=key, stage=stage)
         emit(dict(kind="structure", scene=scene))
         hits, misses, failed = 0, 0, []
@@ -354,7 +450,7 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
                     variant = (mesh_key, role)
                     if variant not in outputs:
                         if display == "exterior":
-                            f = exterior_faces(v, f, role)
+                            f = exterior_faces(v, f, role, regions)
                         suffix = hashlib.sha256(json.dumps(variant).encode()).hexdigest()
                         dest = output_dir / (stage + "-" + suffix + ".npz")
                         write_mesh(dest, v, f)
@@ -368,9 +464,11 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
                     failed.append(name)
                     emit(dict(kind="preview_skip", prototype=name, message=str(exc)))
         timings["mesh_seconds"] = time.perf_counter() - start
-        if input_manifest(path) != manifest:
+        if not inputs_unchanged(manifest):
             raise RuntimeError("GDML inputs changed while loading; retry with stable inputs")
         start = time.perf_counter()
+        for directory in {disk.parent for disk, _ in pending_cache}:
+            sweep_partial_files(directory)
         for disk, arrays in pending_cache:
             try:
                 write_mesh(disk, *arrays)

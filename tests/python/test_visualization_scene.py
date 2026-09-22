@@ -1,5 +1,7 @@
 """Independent geometry/cache witnesses for selective viewer preparation."""
 import hashlib
+import os
+import time
 
 import numpy as np
 import pytest
@@ -7,6 +9,19 @@ import pytest
 from siren import _visualization_scene as scene
 
 pg = pytest.importorskip("pyg4ometry")
+
+# Example surface-region mapping for display='exterior' (CCM's PMT shells).
+# SIREN itself carries no detector-specific region names; callers supply them.
+REGIONS = {
+    "auxtype": "pmt_region",
+    "styles": {
+        "external_tpb": {"label": "PMT TPB", "colour": [.95, .94, .82], "alpha": 1.},
+        "photocathode_inner_surface": {"label": "PMT photocathode", "colour": [.65, .42, .16], "alpha": 1.},
+        "reflector_inner_surface": {"label": "PMT reflector", "colour": [.8, .82, .85], "alpha": 1.},
+        "bare_transparent_glass": {"label": "PMT bare glass", "colour": [.72, .88, .94], "alpha": .25},
+    },
+    "hidden": ["vacuum"],
+}
 
 
 def fixture_gdml(path, body=None):
@@ -195,17 +210,39 @@ def test_input_change_during_load_does_not_publish_cache(tmp_path, monkeypatch):
     assert not (tmp_path / 'cache').exists()
 
 
-def test_pmt_outer_faces_exclude_inner_wall_and_region_endcaps():
+def test_region_outer_faces_exclude_inner_wall_and_region_endcaps():
+    regions = scene.normalize_regions(REGIONS)
     reg = pg.geant4.Registry()
     tube = pg.geant4.solid.Tubs('glass', 9, 10, 20, 0, 2 * np.pi, reg, nslice=24)
     v, f = scene.mesh_arrays(tube.mesh())
-    outer = scene.exterior_faces(v, f, 'bare_transparent_glass')
+    outer = scene.exterior_faces(v, f, 'bare_transparent_glass', regions)
     assert 0 < len(outer) < len(f)
     assert np.linalg.norm(v[outer][:, :, :2], axis=2) == pytest.approx(np.full((len(outer), 3), 10))
-    assert np.array_equal(scene.exterior_faces(v, f, 'unknown'), f)
+    assert np.array_equal(scene.exterior_faces(v, f, 'unknown', regions), f)
+    assert np.array_equal(scene.exterior_faces(v, f, 'bare_transparent_glass', None), f)
     metadata = dict(prototypes={'tube':dict(name='tube', density=2, role='bare_transparent_glass'),
                                'vacuum':dict(name='vacuum', density=0, role='vacuum')})
-    assert scene.selected_prototypes(metadata, show_gas=True, display='exterior') == ['tube']
+    assert scene.selected_prototypes(metadata, show_gas=True, display='exterior',
+                                     hidden_roles=regions['hidden']) == ['tube']
+    assert scene.selected_prototypes(metadata, show_gas=True, display='exterior') == ['tube', 'vacuum']
+
+
+def test_exterior_display_reads_caller_regions_from_auxiliary(tmp_path):
+    path = fixture_gdml(tmp_path / 'regions.gdml', '''
+      <volume name="cube"><materialref ref="Steel"/><solidref ref="cube_s"/>
+       <auxiliary auxtype="pmt_region" auxvalue="vacuum"/></volume>
+      <volume name="world"><materialref ref="Air"/><solidref ref="world_s"/>
+       <physvol name="placed"><volumeref ref="cube"/></physvol></volume>''')
+    with pytest.raises(ValueError, match='regions'):
+        scene.prepare_scene(path, tmp_path / 'out', cache=False, display='exterior')
+    with pytest.raises(ValueError, match='regions'):
+        scene.normalize_regions({'styles': {}})
+    s, _, meshes = prepare(path, tmp_path, cache=False, display='exterior', regions=REGIONS)
+    assert s['prototypes']['cube']['role'] == 'vacuum' and not meshes
+    _, _, meshes = prepare(path, tmp_path, cache=False, display='full', regions=REGIONS)
+    assert set(meshes) == {'cube'}
+    s, _, _ = prepare(path, tmp_path, cache=False)
+    assert s['prototypes']['cube']['role'] == ''
 
 
 def test_replica_and_division_compatibility(tmp_path):
@@ -223,3 +260,34 @@ def test_replica_and_division_compatibility(tmp_path):
         assert [np.asarray(i['matrix'])[0, 3] for i in copies] == [-25, 25]
         expected = 48 if kind == 'replica' else 50 * 100 * 100
         assert all(volume(*meshes[i['prototype']]) == pytest.approx(expected) for i in copies)
+
+
+def test_partial_cache_files_are_removed_on_failure_and_when_stale(tmp_path, monkeypatch):
+    cache = tmp_path / 'cache'
+    cache.mkdir()
+    v = np.zeros((3, 3)); f = np.array([[0, 1, 2]], dtype=np.int64)
+    # An exception during the write never leaves the temporary behind.
+    monkeypatch.setattr(np, 'savez_compressed', lambda *a, **k: (_ for _ in ()).throw(OSError('disk full')))
+    with pytest.raises(OSError):
+        scene.write_mesh(cache / 'a.npz', v, f)
+    assert list(cache.iterdir()) == []
+    monkeypatch.undo()
+    # A worker killed mid-write leaves one; it is swept once it is clearly abandoned.
+    stale, fresh = cache / (scene._PARTIAL_PREFIX + 'old.npz'), cache / (scene._PARTIAL_PREFIX + 'new.npz')
+    stale.write_bytes(b'x'); fresh.write_bytes(b'x')
+    old = time.time() - 2 * scene._STALE_PARTIAL_SECONDS
+    os.utime(stale, (old, old))
+    assert scene.sweep_partial_files(cache) == 1
+    assert not stale.exists() and fresh.exists()
+    fresh.unlink()
+    # prepare_scene sweeps the per-key directory it is about to write into.
+    path = fixture_gdml(tmp_path / 'a.gdml')
+    prepare(path, tmp_path)  # prepare() uses tmp_path / 'cache'
+    key_dir, = cache.iterdir()
+    for cached in key_dir.glob('*.npz'):
+        cached.unlink()  # force a rewrite
+    stale = key_dir / (scene._PARTIAL_PREFIX + 'old.npz')
+    stale.write_bytes(b'x'); os.utime(stale, (old, old))
+    prepare(path, tmp_path)
+    assert not stale.exists() and list(key_dir.glob('*.npz'))
+    assert scene.write_mesh(cache / 'ok.npz', v, f) is None and (cache / 'ok.npz').exists()
