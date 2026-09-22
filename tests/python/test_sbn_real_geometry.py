@@ -403,7 +403,8 @@ class TestMicroBooNEGold:
         np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
 
     def test_detector_origin_is_in_lar(self, microboone_model):
-        """The detector origin is the TPC-box centre, inside the active LAr."""
+        """The detector origin is the active-volume centre, so it and the
+        points around it are liquid argon."""
         dm, _ = microboone_model
         for dx in [-0.1, 0.1]:
             rho = dm.GetMassDensity(DetectorPosition(Vector3D(dx, 0, 0)))
