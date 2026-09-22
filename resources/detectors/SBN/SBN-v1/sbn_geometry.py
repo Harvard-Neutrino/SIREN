@@ -390,17 +390,16 @@ def _build_detectors() -> dict[str, Detector]:
         np.array([-5.19, -3.50, -1.39]),
         np.array([+5.19, +2.32, +7.22]))
 
-    # MicroBooNE: center_native is the TPC-box centre (128.175, 0, 518.5) cm
-    # of the LArSoft world. volTPCActive is offset (-1.55, +0.97, 0) cm from
-    # it, so the bounds are explicit rather than symmetric half-widths.
-    _ub_center = np.array([1.28175, 0.0, 5.185])
-    _ub_active_center = _ub_center + np.array([-0.0155, 0.0097, 0.0])
-    _ub_active_half = np.array([1.28175, 1.165, 5.184])
+    # MicroBooNE: the TPC box is centred at (128.175, 0, 518.5) cm in the
+    # LArSoft world and volTPCActive is offset (-1.55, +0.97, 0) cm from it.
+    # center_native is the active-volume centre, as for ICARUS and SBND; the
+    # two share a z, so the baseline is the same either way.
+    _ub_tpc_center = np.array([1.28175, 0.0, 5.185])
+    _ub_center = _ub_tpc_center + np.array([-0.0155, 0.0097, 0.0])
+    _ub_half = np.array([1.28175, 1.165, 5.184])
     detectors["MicroBooNE"] = Detector(
         "MicroBooNE", "MicroBooNE_LArSoft",
-        _ub_center,
-        _ub_active_center - _ub_active_half,
-        _ub_active_center + _ub_active_half)
+        _ub_center, _ub_center - _ub_half, _ub_center + _ub_half)
 
     # MiniBooNE: spherical mineral-oil tank, inner radius 6.1 m. The native
     # frame is MiniBooNE_local (origin at the tank center); the tank position

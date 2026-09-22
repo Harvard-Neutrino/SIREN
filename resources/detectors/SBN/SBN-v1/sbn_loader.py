@@ -443,10 +443,10 @@ def ensure_microboone_gdml(abs_dir: str,
                            filename: str = "gdml/microboonev12_nowires_siren.gdml") -> str:
     """Fetch the uboonecode geometry and write the SIREN copy.
 
-    Downloads ``microboonev12_nowires.gdml`` if it is not present (SHA-256
-    verified), then writes *filename* with the LArSoft vacuum box removed.
-    Must run before ``_ensure_gdml_files`` sees the MicroBooNE spec, which
-    carries no URL of its own. Returns the relative *filename*.
+    Downloads ``microboonev12_nowires.gdml`` if it is not present, verifies
+    its SHA-256 on every call, then writes *filename* with the LArSoft vacuum
+    box removed. Must run before ``_ensure_gdml_files`` sees the MicroBooNE
+    spec, which carries no URL of its own. Returns the relative *filename*.
     """
     from siren.download import ensure_files, atomic_output_path
 
@@ -454,7 +454,25 @@ def ensure_microboone_gdml(abs_dir: str,
     ensure_files([{"path": raw_path, "url": _MICROBOONE_SOURCE["url"],
                    "sha256": _MICROBOONE_SOURCE["sha256"]}])
 
+    # ensure_files verifies the digest only on a fresh download and skips a
+    # file that is already there, so check it here: this one is rewritten and
+    # composed into the detector, and a stale cache must not slip through.
+    expected = _MICROBOONE_SOURCE["sha256"]
+    with open(raw_path, "rb") as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    if digest != expected:
+        raise RuntimeError(
+            f"SHA-256 mismatch for {raw_path}:\n"
+            f"  expected: {expected}\n  got:      {digest}")
+
     path = os.path.join(abs_dir, filename)
+    # Rebuild a derived copy that does not record the current source digest,
+    # so one left by an earlier, unverified raw file is not reused.
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as f:
+            f.readline()
+            if expected not in f.readline():
+                os.remove(path)
     if not os.path.isfile(path):
         with open(raw_path, encoding="utf-8") as f:
             text = f.read()

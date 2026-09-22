@@ -314,15 +314,17 @@ class TestSBNDGold:
 # MicroBooNE
 # ======================================================================
 
-# The TPC box is centred at (1.28175, 0, 5.185) m in the LArSoft world.
-# Gold goes half a metre from that centre, well inside volTPCActive.
-MICROBOONE_CENTER = np.array([1.28175, 0.0, 5.185])
+# Active-volume centre in the LArSoft world: the TPC box is centred at
+# (1.28175, 0, 5.185) m and volTPCActive is offset (-1.55, 0.97, 0) cm from
+# it. Gold goes half a metre away, well inside volTPCActive.
+MICROBOONE_CENTER = np.array([1.28175 - 0.0155, 0.0097, 5.185])
 MICROBOONE_GOLD_POS = MICROBOONE_CENTER + np.array([0.5, 0.0, 0.0])
 
 # Detector coordinates and the density the production geometry puts there:
-# steel vessel, foam, LArTF concrete, ground ring.
+# steel vessel (an 11 mm wall, so the probe sits in the middle of it), foam,
+# LArTF concrete, ground ring.
 MICROBOONE_MATERIALS = [
-    ((0.0, 1.91, 0.0), 7.93),
+    ((0.0, 1.90, 0.0), 7.93),
     ((0.0, 2.10, 0.0), 0.0384),
     ((7.6, 0.0, 0.0), 2.3),
     ((10.0, 0.0, 0.0), 1.7),
@@ -409,11 +411,11 @@ class TestMicroBooNEGold:
                 f"Expected LAr near detector origin (dx={dx}), got {rho:.4f}")
 
     def test_baseline_to_the_bnb_target(self, microboone_model):
-        """The TPC-box centre is the published 468.5 m from the BNB target."""
+        """The active volume is the published 468.5 m from the BNB target."""
         dm, _ = microboone_model
         origin = _vec(dm.GetDetectorOrigin())
         np.testing.assert_allclose(
-            origin, [0.0385, 0.0093, 468.548525], atol=1e-6)
+            origin, [0.023, 0.0190, 468.548525], atol=1e-6)
 
     @pytest.mark.parametrize("point,density", MICROBOONE_MATERIALS,
                              ids=["steel", "foam", "concrete", "ground"])

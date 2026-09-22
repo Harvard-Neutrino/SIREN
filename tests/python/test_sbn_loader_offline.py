@@ -5,6 +5,7 @@ pre-seeded at the same relative paths as the downloadable SBN data.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import sys
@@ -245,6 +246,16 @@ def _forbid_download(*args, **kwargs):
     raise AssertionError("offline SBN fixture test attempted a network download")
 
 
+@pytest.fixture
+def microboone_pin(sbn_detector_module, monkeypatch):
+    """Pin the loader's digest to the stand-in the offline fixture seeds."""
+    digest = hashlib.sha256(
+        _microboone_fixture_gdml().encode("utf-8")).hexdigest()
+    monkeypatch.setitem(
+        sbn_detector_module.sbn_loader._MICROBOONE_SOURCE, "sha256", digest)
+    return digest
+
+
 @pytest.mark.parametrize("detector_name", ["ICARUS", "SBND"])
 def test_load_detector_with_preseeded_gdml_offline(
         sbn_detector_module, offline_sbn_cache, monkeypatch, detector_name):
@@ -271,7 +282,7 @@ def test_load_detector_with_preseeded_gdml_offline(
 
 
 def test_load_microboone_with_preseeded_gdml_offline(
-        sbn_detector_module, offline_sbn_cache, monkeypatch):
+        sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
     """MicroBooNE derives its SIREN GDML from the pre-seeded uboonecode file
     without downloading, drops the LArSoft vacuum box, and places the TPC
     centre at the surveyed baseline."""
@@ -313,6 +324,42 @@ def test_load_microboone_with_preseeded_gdml_offline(
     assert (raw.stat().st_mtime_ns, derived.stat().st_mtime_ns) == stamp
 
 
+def test_microboone_rejects_a_cached_file_with_the_wrong_digest(
+        sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
+    """ensure_files skips a file that is already on disk without hashing it,
+    so the loader checks the pin itself before rewriting and composing."""
+    import siren.download as download
+
+    monkeypatch.setattr(download, "download_file", _forbid_download)
+    monkeypatch.setattr(sbn_detector_module, "_ABS_DIR", str(offline_sbn_cache))
+    raw = offline_sbn_cache / "gdml" / "microboonev12_nowires.gdml"
+    raw.write_text(
+        _microboone_fixture_gdml().replace("volTPCActive", "volTampered"))
+
+    with pytest.raises(RuntimeError, match="SHA-256 mismatch"):
+        sbn_detector_module.load_detector("MicroBooNE")
+
+
+def test_microboone_rebuilds_a_derived_copy_from_another_source(
+        sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
+    """A derived copy that does not record the current source digest is
+    rebuilt, not reused."""
+    loader = sbn_detector_module.sbn_loader
+    loader.ensure_microboone_gdml(str(offline_sbn_cache))
+    derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
+    assert microboone_pin in derived.read_text().splitlines()[1]
+
+    derived.write_text(
+        '<?xml version="1.0"?>\n'
+        "<!-- Derived by SIREN from microboonev12_nowires.gdml "
+        "(uboone/ubcore microboonev12, sha256 " + "0" * 64 + "): stale. -->\n"
+        "<gdml/>\n")
+    loader.ensure_microboone_gdml(str(offline_sbn_cache))
+    text = derived.read_text()
+    assert microboone_pin in text.splitlines()[1]
+    assert 'volumeref ref="volTPCActive"' in text
+
+
 def test_strip_physvols_removes_only_named_placements(sbn_detector_module):
     loader = sbn_detector_module.sbn_loader
     text = _microboone_fixture_gdml()
@@ -325,7 +372,7 @@ def test_strip_physvols_removes_only_named_placements(sbn_detector_module):
 
 
 def test_fetch_data_uses_preseeded_gdml_offline(
-        sbn_detector_module, offline_sbn_cache, monkeypatch):
+        sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
     import siren.download as download
 
     monkeypatch.setattr(download, "download_file", _forbid_download)

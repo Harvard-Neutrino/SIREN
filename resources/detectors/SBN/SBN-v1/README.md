@@ -45,16 +45,20 @@ MicroBooNE uses the uboonecode production geometry
 hall and local ground. The byte-identical upstream file from `uboone/ubcore`
 `03c0bb06` is hosted with its provenance README in
 [SIREN-data](https://github.com/SIREN-Generator/SIREN-data/tree/df2d5a77fedfacafca0a913203609d17b8521f4e/detectors/SBN/v1/MicroBooNE),
-fetched from that pinned revision and verified by SHA-256
-`a33e1d1d…d0215c`. The SIREN copy `microboonev12_nowires_siren.gdml` differs
-only by dropping the LArSoft `volVacuumSpace` placement, a 1.5 km vacuum box
-above grade that would otherwise replace the composite's atmosphere.
+fetched from that pinned revision. Its SHA-256 `a33e1d1d…d0215c` is checked on
+every load, not only on download, because the file is rewritten before it is
+composed. The SIREN copy `microboonev12_nowires_siren.gdml` differs only by
+dropping the LArSoft `volVacuumSpace` placement, a 1.5 km vacuum box above
+grade that would otherwise replace the composite's atmosphere; it records the
+source digest, and is rebuilt if that digest changes.
 
 The LArSoft world origin sits at BNB `(-1.24325, 0.0093, 463.363525)` m,
 inverted from the beam origin in MicroBooNE's own beam-to-detector transform
 (`ubsim` `FluxReaderBNB.cxx`). The TPC centre is then 468.55 m from the beam
-origin, the published 468.5 m baseline (MICROBOONE-NOTE-1031), and the active
-volume is the sector `volTPCActive`. G4BNB's nominal `(0, 0, 470)` m is 1.45 m
+origin, the published 468.5 m baseline (MICROBOONE-NOTE-1031). The active
+volume is the sector `volTPCActive`, offset `(-1.55, +0.97, 0)` cm from the
+TPC-box centre; as for ICARUS and SBND the detector origin is its centre, so
+the two share a z and the baseline is the same either way. G4BNB's nominal `(0, 0, 470)` m is 1.45 m
 downstream of that centre and is not used. The edge is a pure translation, as
 in MicroBooNE's production flux conversion (`BooNEtoGSimple.cxx`); the
 mrad-scale rotation `FluxReaderBNB.cxx` also carries is not a beam-axis
