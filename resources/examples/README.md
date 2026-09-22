@@ -15,6 +15,7 @@ Layer-2 `Injector` and `Weighter` from the vertices and returns a
 | `example1/` | `DIS_IceCube.py`, `DIS_DUNE.py`, `DIS_ATLAS.py`: muon-neutrino CC DIS with the CSMS splines | `siren.Simulation` over one primary `Vertex` |
 | `example1/` | `DIS_IceCube_charm.py`: charm DIS with per-D-meson energy-loss and decay vertices (needs external splines, see `README_charm.md`) | Layer 2: `siren.injection.Injector`, `siren.injection.Weighter`, `siren.generate` |
 | `example2/` | `DipolePortal_{CCM,MiniBooNE,MINERvA,ND280UPGRD}.py`: DarkNews dipole-portal upscattering followed by the N4 decay | `siren.Simulation` with a primary and a secondary `Vertex` |
+| `example2/` | `DarkNeutrino_SBN_dk2nu.py`: dark-neutrino e+e- chain of the MicroBooNE search, with pi+/K+/mu- parents read from G4BNB dk2nu files, decayed by the `BeamDecays` models, and upscattered by DarkNews where the N4 can decay in the active volume (`DecayRangeVertex`; `--all-targets` adds the site nuclei) | `siren.Simulation` with a Fixed-weighted external-table primary `Vertex` and two secondary `Vertex` objects |
 | `example3/` | `CC_MARLEY_CCM.py`: MARLEY CC interactions from pi-DAR neutrinos; `plot_energy_and_vertex.py` reads the Parquet output | `siren.Simulation` over one primary `Vertex` |
 
 `docs/quickstart.md` and `docs/simulation.md` describe the interface; the
