@@ -147,6 +147,67 @@ def _detector_fixture_gdml(prefix):
 """
 
 
+MICROBOONE_LAR_DENSITY = 1.40
+
+
+def _microboone_fixture_gdml():
+    """Stand-in for the uboonecode export: a LAr box at the TPC-box centre
+    and, as in the real file, a volVacuumSpace placement to drop."""
+    return f"""\
+<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <isotope N="40" Z="18" name="ub_fixture_Ar40">
+      <atom unit="g/mole" value="39.95"/>
+    </isotope>
+    <element name="ub_fixture_Ar">
+      <fraction n="1.0" ref="ub_fixture_Ar40"/>
+    </element>
+    <material name="ub_fixture_LAr" state="liquid">
+      <D value="{MICROBOONE_LAR_DENSITY}" unit="g/cm3"/>
+      <fraction n="1.0" ref="ub_fixture_Ar"/>
+    </material>
+    <material name="ub_fixture_Vacuum" state="gas">
+      <D value="1e-25" unit="g/cm3"/>
+      <fraction n="1.0" ref="ub_fixture_Ar"/>
+    </material>
+{_material_block("ub_fixture_Air", 0.001205)}
+  </materials>
+  <solids>
+    <box name="ub_fixture_world_box" lunit="m" x="80" y="80" z="80"/>
+    <box name="ub_fixture_lar_box" lunit="m" x="3" y="3" z="12"/>
+    <box name="ub_fixture_vacuum_box" lunit="m" x="60" y="20" z="60"/>
+  </solids>
+  <structure>
+    <volume name="volTPCActive">
+      <materialref ref="ub_fixture_LAr"/>
+      <solidref ref="ub_fixture_lar_box"/>
+    </volume>
+    <volume name="volVacuumSpace">
+      <materialref ref="ub_fixture_Vacuum"/>
+      <solidref ref="ub_fixture_vacuum_box"/>
+    </volume>
+    <volume name="volWorld">
+      <materialref ref="ub_fixture_Air"/>
+      <solidref ref="ub_fixture_world_box"/>
+      <physvol name="pv_ub_fixture_vacuum">
+        <volumeref ref="volVacuumSpace"/>
+        <position unit="m" x="0" y="16.25" z="0"/>
+      </physvol>
+      <physvol name="pv_ub_fixture_lar">
+        <volumeref ref="volTPCActive"/>
+        <position unit="m" x="1.28175" y="0" z="5.185"/>
+      </physvol>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="volWorld"/>
+  </setup>
+</gdml>
+"""
+
+
 def _write_fixture_file(root, rel_path, content):
     path = root / rel_path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -173,6 +234,10 @@ def offline_sbn_cache(tmp_path):
     _write_fixture_file(
         tmp_path, "gdml/nd_hall_with_lar_tms_sand.gdml",
         _detector_fixture_gdml("dune_nd_fixture"))
+    # The raw uboonecode download; the loader derives its SIREN copy from it.
+    _write_fixture_file(
+        tmp_path, "gdml/microboonev12_nowires.gdml",
+        _microboone_fixture_gdml())
     return tmp_path
 
 
@@ -203,6 +268,60 @@ def test_load_detector_with_preseeded_gdml_offline(
 
     composites = list(offline_sbn_cache.glob(f"composite_{detector_name.lower()}_*.gdml"))
     assert len(composites) == 1
+
+
+def test_load_microboone_with_preseeded_gdml_offline(
+        sbn_detector_module, offline_sbn_cache, monkeypatch):
+    """MicroBooNE derives its SIREN GDML from the pre-seeded uboonecode file
+    without downloading, drops the LArSoft vacuum box, and places the TPC
+    centre at the surveyed baseline."""
+    import siren.download as download
+
+    monkeypatch.setattr(download, "download_file", _forbid_download)
+    monkeypatch.setattr(sbn_detector_module, "_ABS_DIR", str(offline_sbn_cache))
+
+    model = sbn_detector_module.load_detector("MicroBooNE")
+
+    derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
+    assert derived.is_file()
+    text = derived.read_text()
+    assert 'volumeref ref="volVacuumSpace"' not in text
+    assert 'volumeref ref="volTPCActive"' in text
+    assert '<volume name="volVacuumSpace">' in text  # definition kept, unplaced
+    assert text.startswith("<?xml")
+    assert "<!-- Derived by SIREN from microboonev12_nowires.gdml" in text.splitlines()[1]
+
+    rho = model.GetMassDensity(DetectorPosition(Vector3D(0, 0, 0)))
+    assert rho == pytest.approx(MICROBOONE_LAR_DENSITY, rel=1e-12, abs=0)
+    assert model.GetContainingSector(DetectorPosition(Vector3D(0, 0, 0))).name == "volTPCActive"
+
+    origin = model.GetDetectorOrigin().get()
+    geo = sbn_detector_module.geo
+    expected = geo.detector_center("MicroBooNE", "BNB")
+    np.testing.assert_allclose(
+        [origin.GetX(), origin.GetY(), origin.GetZ()], expected, atol=1e-12)
+    assert abs(expected[2] - 468.5) < 0.1  # the published MicroBooNE baseline
+
+    # Where the fixture's vacuum box would sit, the composite atmosphere remains.
+    assert _geo_density(model, 0.0, 12.0, expected[2]) == pytest.approx(0.001225, rel=1e-12, abs=0)
+    assert _geo_sector_name(model, 0.0, 12.0, expected[2]) == "vol_atmosphere"
+
+    # A second load reuses the derived file without touching the raw one.
+    raw = offline_sbn_cache / "gdml" / "microboonev12_nowires.gdml"
+    stamp = (raw.stat().st_mtime_ns, derived.stat().st_mtime_ns)
+    sbn_detector_module.load_detector("MicroBooNE")
+    assert (raw.stat().st_mtime_ns, derived.stat().st_mtime_ns) == stamp
+
+
+def test_strip_physvols_removes_only_named_placements(sbn_detector_module):
+    loader = sbn_detector_module.sbn_loader
+    text = _microboone_fixture_gdml()
+    stripped, removed = loader._strip_physvols(text, ("volVacuumSpace",))
+    assert removed == 1
+    assert 'volumeref ref="volVacuumSpace"' not in stripped
+    assert stripped.count("<physvol") == text.count("<physvol") - 1
+    same, none = loader._strip_physvols(text, ("volNotPlaced",))
+    assert none == 0 and same == text
 
 
 def test_fetch_data_uses_preseeded_gdml_offline(

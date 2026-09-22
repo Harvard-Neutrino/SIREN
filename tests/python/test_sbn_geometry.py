@@ -53,6 +53,7 @@ def test_sbn_resource_loader_imports_from_source_tree(monkeypatch):
         assert "ICARUS" in loader._DETECTOR_SPECS
         assert "SBND" in loader._DETECTOR_SPECS
         assert "MiniBooNE" in loader._DETECTOR_SPECS
+        assert "MicroBooNE" in loader._DETECTOR_SPECS
     finally:
         for name in module_names:
             sys.modules.pop(name, None)
@@ -309,6 +310,25 @@ class TestFrameGraph:
         np.testing.assert_allclose(T.R, np.eye(3), atol=1e-15)
         c = geo.detector_center("MiniBooNE", "BNB")
         np.testing.assert_allclose(c, [0.0, 1.89614, 541.34], atol=1e-10)
+
+    def test_microboone_position(self, geo):
+        """MicroBooNE LArSoft origin in the BNB frame: the inverse of the beam
+        origin (1.24325, -0.0093, -463.363525) m of MicroBooNE's own
+        FluxReaderBNB transform, a pure translation. The TPC-box centre
+        (1.28175, 0, 5.185) m of the microboonev12 GDML then lies 468.55 m
+        from the beam origin (the published 468.5 m baseline), and the active
+        volume is the 256.35 x 233 x 1036.8 cm box offset (-1.55, 0.97, 0) cm
+        from that centre."""
+        T = geo.transform("MicroBooNE_LArSoft", "BNB")
+        np.testing.assert_allclose(T.t, [-1.24325, 0.0093, 463.363525], atol=1e-10)
+        np.testing.assert_allclose(T.R, np.eye(3), atol=1e-15)
+        c = geo.detector_center("MicroBooNE", "BNB")
+        np.testing.assert_allclose(c, [0.0385, 0.0093, 468.548525], atol=1e-9)
+        assert abs(c[2] - 468.5) < 0.1
+        d = geo.DETECTORS["MicroBooNE"]
+        np.testing.assert_allclose(d.active_size(), [2.5635, 2.33, 10.368], atol=1e-9)
+        active_center_bnb = T.apply(0.5 * (d.active_min + d.active_max))
+        np.testing.assert_allclose(active_center_bnb, [0.023, 0.019, 468.548525], atol=1e-9)
 
     def test_convert_origin(self, geo):
         origin_bnb = geo.convert([0, 0, 0], "ICARUS_LArSoft", "BNB")

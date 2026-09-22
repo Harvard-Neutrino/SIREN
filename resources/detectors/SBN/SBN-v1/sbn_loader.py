@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from typing import Any
 
 import numpy as np
@@ -396,6 +397,83 @@ def ensure_miniboone_gdml(abs_dir: str,
                 f.write(_MINIBOONE_GDML)
     return filename
 
+
+# MicroBooNE detector + LArTF building, from the uboonecode microboonev12
+# `_nowires` export. SIREN-data hosts the byte-identical upstream file
+# (uboone/ubcore 03c0bb06, tag v10_26_00) with its provenance README; the URL
+# pins an immutable revision and the SHA-256 below fixes the contents.
+#
+# The SIREN copy differs by one placement: the LArSoft world puts a
+# 1483 x 512 x 1483 m vacuum box above grade (volVacuumSpace, a
+# cosmic-generation convenience) that would otherwise replace the composite's
+# atmosphere over the whole SBN site. See the README for the placement and
+# the published detector descriptions.
+_UB_DATA_COMMIT = "df2d5a77fedfacafca0a913203609d17b8521f4e"
+_MICROBOONE_SOURCE = {
+    "file": "gdml/microboonev12_nowires.gdml",
+    "url": ("https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
+            f"{_UB_DATA_COMMIT}/detectors/SBN/v1/MicroBooNE/microboonev12_nowires.gdml"),
+    "sha256": "a33e1d1d17b148bd2ecffe5fd79e7fdbb4b904f7b4e636258fa562caa7d0215c",
+}
+_UB_DROPPED_VOLUMES = ("volVacuumSpace",)
+_UB_PHYSVOL = re.compile(
+    r'\s*<physvol[^>]*>(?:(?!</physvol>).)*?<volumeref\s+ref="(?P<ref>[^"]+)"'
+    r'(?:(?!</physvol>).)*?</physvol>', re.S)
+
+
+def _strip_physvols(gdml_text: str, dropped: tuple[str, ...]) -> tuple[str, int]:
+    """Remove every <physvol> placing one of *dropped* volumes.
+
+    Returns the edited text and the number of placements removed. Volume
+    definitions are untouched, so an unplaced volume simply stays unused.
+    """
+    count = 0
+
+    def _replace(match):
+        nonlocal count
+        if match.group("ref") in dropped:
+            count += 1
+            return ""
+        return match.group(0)
+
+    return _UB_PHYSVOL.sub(_replace, gdml_text), count
+
+
+def ensure_microboone_gdml(abs_dir: str,
+                           filename: str = "gdml/microboonev12_nowires_siren.gdml") -> str:
+    """Fetch the uboonecode geometry and write the SIREN copy.
+
+    Downloads ``microboonev12_nowires.gdml`` if it is not present (SHA-256
+    verified), then writes *filename* with the LArSoft vacuum box removed.
+    Must run before ``_ensure_gdml_files`` sees the MicroBooNE spec, which
+    carries no URL of its own. Returns the relative *filename*.
+    """
+    from siren.download import ensure_files, atomic_output_path
+
+    raw_path = os.path.join(abs_dir, _MICROBOONE_SOURCE["file"])
+    ensure_files([{"path": raw_path, "url": _MICROBOONE_SOURCE["url"],
+                   "sha256": _MICROBOONE_SOURCE["sha256"]}])
+
+    path = os.path.join(abs_dir, filename)
+    if not os.path.isfile(path):
+        with open(raw_path, encoding="utf-8") as f:
+            text = f.read()
+        text, removed = _strip_physvols(text, _UB_DROPPED_VOLUMES)
+        if removed > len(_UB_DROPPED_VOLUMES):
+            raise ValueError(
+                f"{raw_path}: expected at most one placement of each of "
+                f"{_UB_DROPPED_VOLUMES}, removed {removed}")
+        # Apache-2.0 asks that modified copies be marked: say so in the file.
+        marker = ("<!-- Derived by SIREN from " + _MICROBOONE_SOURCE["file"].split("/")[-1]
+                  + " (uboone/ubcore microboonev12, sha256 " + _MICROBOONE_SOURCE["sha256"]
+                  + "): the placements of " + ", ".join(_UB_DROPPED_VOLUMES)
+                  + " were removed. -->\n")
+        head, sep, tail = text.partition("?>\n")
+        text = head + sep + marker + tail if sep else marker + text
+        with atomic_output_path(path) as tmp:
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(text)
+    return filename
 
 def build_composite(
     abs_dir: str,
