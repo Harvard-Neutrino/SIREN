@@ -7,7 +7,8 @@ the real detector geometry plus a 1cm gold cube, then verifies:
   - Gold found via BNB (GeometryCoordinates)
   - Gold found via NuMI coordinates
   - LAr (not air/rock/steel) found 2cm away in every direction
-  - DetectorPosition(0,0,0) maps to the LAr volume center
+  - DetectorPosition(0,0,0) maps to the LAr volume center (for ICARUS,
+    to the air gap between its two cold vessels)
   - All coordinate transforms are consistent across frames
 
 Requires --run-network to download GDML files (~5 MB total).
@@ -28,6 +29,7 @@ pytestmark = pytest.mark.network
 
 GOLD_DENSITY = 19.3
 LAR_DENSITY = 1.39
+AIR_DENSITY = 0.001205   # LArSoft "Air"
 GOLD_SIZE_M = 0.01
 
 _SBN_DIR = os.path.join(
@@ -157,8 +159,11 @@ def _vec(v):
 # ICARUS
 # ======================================================================
 
-# ICARUS center is all LAr (verified by probing the real GDML)
-ICARUS_GOLD_POS = np.array([0.0, -0.202, 0.0])
+# The T600 is two separate cold vessels, so ICARUS' centre is the air gap
+# between them: argon starts at |x| = 0.29 m and volTPCActive runs
+# 0.62 - 3.585 m either side of a cathode at |x| = 2.10215 m. Put the
+# nugget mid-drift in the +x module (ICARUS_C1).
+ICARUS_GOLD_POS = np.array([1.5, -0.202, 0.0])
 
 
 @pytest.fixture(scope="module")
@@ -215,13 +220,22 @@ class TestICARUSGold:
             DetectorPosition(Vector3D(*gold_det))))
         np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
 
-    def test_detector_origin_is_in_lar(self, icarus_model):
-        """A point near DetectorPosition(0,0,0) should be in LAr."""
+    def test_detector_origin_is_between_the_cryostats(self, icarus_model):
+        """DetectorPosition(0,0,0) is the T600 centre: the inter-module gap.
+
+        Pin air at the origin and LAr inside either module, so a shift in
+        the detector placement fails here rather than passing quietly.
+        """
         dm, _ = icarus_model
-        for dx in [-0.1, 0.1]:
-            rho = dm.GetMassDensity(DetectorPosition(Vector3D(dx, 0, 0)))
+        rho = dm.GetMassDensity(DetectorPosition(Vector3D(0, 0, 0)))
+        assert abs(rho - AIR_DENSITY) < 1e-5, (
+            f"Expected the inter-cryostat air gap at the detector origin, "
+            f"got {rho:.4f}")
+        # z=1m avoids the nugget at z=0 in the +x module.
+        for dx in [-1.5, 1.5]:
+            rho = dm.GetMassDensity(DetectorPosition(Vector3D(dx, 0, 1.0)))
             assert abs(rho - LAR_DENSITY) < 0.01, (
-                f"Expected LAr near detector origin (dx={dx}), got {rho:.4f}")
+                f"Expected LAr inside the module at dx={dx}, got {rho:.4f}")
 
 
 # ======================================================================
