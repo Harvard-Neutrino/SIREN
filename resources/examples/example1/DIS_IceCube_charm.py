@@ -13,8 +13,8 @@ Demonstrates the full charm chain as spec-form vertices:
       DMesonELoss  (propagation energy loss, re-emits the same D)
       CharmMesonDecay  (decay into leptons + K/pi)
 
-10,000 events on IceCube, seed=1, volume injection inside the icecube sector,
-astrophysical power-law weighting.
+10,000 events on IceCube by default (--events/--seed/--output), volume
+injection inside the icecube sector, astrophysical power-law weighting.
 
 The chain is built from ``siren.Vertex`` objects and driven directly through
 ``siren.injection.Injector``, ``siren.injection.Weighter`` and
@@ -29,7 +29,9 @@ Usage:
     python3 DIS_IceCube_charm.py
 """
 
+import argparse
 import os
+
 import numpy as np
 
 import siren
@@ -38,6 +40,12 @@ import siren
 # ----------------------------------------------------------------------------
 # Config (edit for your setup)
 # ----------------------------------------------------------------------------
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--events", type=int, default=10_000)
+parser.add_argument("--seed", type=int, default=1)
+parser.add_argument("--output", default="output/charm_example")
+args = parser.parse_args()
 
 # Spline directory: read from the SIREN_CHARM_SPLINE_DIR environment variable.
 # These QuarkDIS charm-target .fits splines are large and machine-specific, so
@@ -53,12 +61,9 @@ if not SPLINES_DIR:
     )
 EXPERIMENT        = "IceCube"
 PRIMARY_TYPE      = siren.particles.NuE
-NUMBER_OF_EVENTS  = 10_000
-SEED              = 1
 GEN_EMIN, GEN_EMAX = 1e2, 1e6  # generation energy range [GeV]
 OXYGEN_PDF        = "EPPS21nlo_CT18Anlo_O16_central"
 HYDROGEN_PDF      = "HERAPDF20_NLO_EIG_central"
-OUTPUT_PREFIX     = "output/charm_example"
 
 PT = siren.particles
 
@@ -174,15 +179,15 @@ injector = siren.injection.Injector(
     detector=detector_model,
     primary=primary,
     secondaries=secondaries,
-    events=NUMBER_OF_EVENTS,
-    seed=SEED,
+    events=args.events,
+    seed=args.seed,
 )
 
 # The spec-form Weighter inherits the detector, the interaction models, and
 # each vertex's `physical` declarations from the injector.
 weighter = siren.injection.Weighter(injector)
 
-results = siren.generate(injector, weighter, events=NUMBER_OF_EVENTS)
+results = siren.generate(injector, weighter, events=args.events)
 print(f"Generated {len(results)} events")
 # Secondaries pruned by the expand rules (leptons, Hadrons, K/pi) appear in
 # the ledger as unregistered secondary types; that is the declared pruning,
@@ -196,5 +201,5 @@ results.summary()
 # ----------------------------------------------------------------------------
 
 fid_vol = siren.get_fiducial_volume(EXPERIMENT)
-results.save(OUTPUT_PREFIX, fid_vol=fid_vol)
-print(f"Saved output to {OUTPUT_PREFIX}.*")
+results.save(args.output, fid_vol=fid_vol)
+print(f"Saved output to {args.output}.*")
