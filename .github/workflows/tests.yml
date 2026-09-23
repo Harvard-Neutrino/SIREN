@@ -110,10 +110,9 @@ jobs:
           SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes
 
-      # Asset-cache entries are keyed by their contents, so restore the newest
-      # and save a new entry only when a run added files to it.
+      # Restore the newest asset-cache entry, and save a new one only when a
+      # run changed its files: added an asset or repaired a corrupt one.
       - name: Restore pinned SBN test assets
-        id: restore-assets
         uses: actions/cache/restore@v5
         with:
           path: .sbn-test-assets
@@ -121,23 +120,27 @@ jobs:
           restore-keys: sbn-test-assets-
 
       - name: Run real-geometry tests
+        id: real-geometry
         # The step above skips network-marked tests. These load the pinned
-        # detector and beamline GDML from the asset cache, and download from
-        # SIREN-data only what it lacks (about 7 MB when empty).
-        run: >-
-          pytest tests/python/test_sbn_real_geometry.py --run-network
-          --download-cache .sbn-test-assets -v --color=yes
-
-      - name: Key the asset cache by its contents
-        id: assets
-        run: echo "key=sbn-test-assets-$(ls .sbn-test-assets | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        # detector and beamline GDML from the asset cache, which downloads from
+        # SIREN-data only what it lacks or holds corrupt (about 7 MB when empty).
+        run: |
+          fingerprint() {
+            mkdir -p .sbn-test-assets
+            (cd .sbn-test-assets && find . -type f -exec sha256sum {} + | sort) | sha256sum | cut -c1-16
+          }
+          echo "before=$(fingerprint)" >> "$GITHUB_OUTPUT"
+          pytest tests/python/test_sbn_real_geometry.py --run-network \
+            --download-cache .sbn-test-assets -v --color=yes
+          echo "after=$(fingerprint)" >> "$GITHUB_OUTPUT"
 
       - name: Save pinned SBN test assets
-        if: steps.assets.outputs.key != steps.restore-assets.outputs.cache-matched-key
+        # Cache keys are immutable, so a changed set gets a new key.
+        if: steps.real-geometry.outputs.after != steps.real-geometry.outputs.before
         uses: actions/cache/save@v5
         with:
           path: .sbn-test-assets
-          key: ${{ steps.assets.outputs.key }}
+          key: sbn-test-assets-${{ steps.real-geometry.outputs.after }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   packaging:
     name: Wheel contracts on ${{ matrix.os }}
