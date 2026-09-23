@@ -360,6 +360,29 @@ def test_microboone_rebuilds_a_derived_copy_from_another_source(
     assert 'volumeref ref="volTPCActive"' in text
 
 
+def test_microboone_concurrent_rebuild_of_a_stale_copy(
+        sbn_detector_module, offline_sbn_cache, microboone_pin):
+    """Concurrent loads that find a stale derived copy all rebuild it, and
+    none fails because another caller replaced the file first."""
+    loader = sbn_detector_module.sbn_loader
+    derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
+    stale = ('<?xml version="1.0"?>\n<!-- Derived by SIREN (sha256 '
+             + "0" * 64 + "): stale. -->\n<gdml/>\n")
+    workers = 8
+    for _ in range(20):
+        derived.write_text(stale)
+        barrier = Barrier(workers)
+
+        def load(_):
+            barrier.wait()
+            return loader.ensure_microboone_gdml(str(offline_sbn_cache))
+
+        with ThreadPoolExecutor(workers) as pool:
+            results = list(pool.map(load, range(workers)))
+        assert set(results) == {"gdml/microboonev12_nowires_siren.gdml"}
+        assert microboone_pin in derived.read_text().splitlines()[1]
+
+
 def test_strip_physvols_removes_only_named_placements(sbn_detector_module):
     loader = sbn_detector_module.sbn_loader
     text = _microboone_fixture_gdml()

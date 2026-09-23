@@ -467,13 +467,16 @@ def ensure_microboone_gdml(abs_dir: str,
 
     path = os.path.join(abs_dir, filename)
     # Rebuild a derived copy that does not record the current source digest,
-    # so one left by an earlier, unverified raw file is not reused.
-    if os.path.isfile(path):
+    # so one left by an earlier, unverified raw file is not reused. It is
+    # replaced atomically rather than deleted, so concurrent callers never
+    # find it missing.
+    try:
         with open(path, encoding="utf-8") as f:
             f.readline()
-            if expected not in f.readline():
-                os.remove(path)
-    if not os.path.isfile(path):
+            rebuild = expected not in f.readline()
+    except FileNotFoundError:
+        rebuild = True
+    if rebuild:
         with open(raw_path, encoding="utf-8") as f:
             text = f.read()
         text, removed = _strip_physvols(text, _UB_DROPPED_VOLUMES)
