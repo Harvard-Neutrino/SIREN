@@ -5,99 +5,72 @@ on:
   workflow_dispatch:
 
 jobs:
-  populate_cfitsio_cache:
-    name: Populate cfitsio cache
+  populate_caches:
+    name: Populate dependency caches
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.cfitsio.outputs.version }}
+      cfitsio: ${{ steps.versions.outputs.cfitsio }}
+      gsl: ${{ steps.versions.outputs.gsl }}
+      hepmc3: ${{ steps.versions.outputs.hepmc3 }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: Read cfitsio version
-        id: cfitsio
+      - name: Read dependency versions
+        id: versions
         shell: bash
         run: |
-          ver=$(grep '^CFITSIO_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          version() { grep "^$1_VERSION=" tools/wheels/cibw_before_all.sh | cut -d'"' -f2; }
+          echo "cfitsio=$(version CFITSIO)" >> "$GITHUB_OUTPUT"
+          echo "gsl=$(version GSL)" >> "$GITHUB_OUTPUT"
+          echo "hepmc3=$(version HEPMC3)" >> "$GITHUB_OUTPUT"
 
+      # One cache entry per tarball, so bumping one version re-downloads only
+      # that one. Keys and paths match the restores below and tests.yml.
       - name: Cache cfitsio source tarball
-        id: cache
+        id: cfitsio
         uses: actions/cache@v5
         with:
           path: .cfitsio-cache
-          key: cfitsio-${{ steps.cfitsio.outputs.version }}-v1
+          key: cfitsio-${{ steps.versions.outputs.cfitsio }}-v1
 
       - name: Download cfitsio if not cached
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cfitsio.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          bash tools/wheels/fetch_cfitsio.sh \
-            "${{ steps.cfitsio.outputs.version }}" \
-            ".cfitsio-cache/cfitsio-${{ steps.cfitsio.outputs.version }}.tar.gz"
-
-  populate_gsl_cache:
-    name: Populate GSL cache
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.gsl.outputs.version }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Read GSL version
-        id: gsl
-        shell: bash
-        run: |
-          ver=$(grep '^GSL_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          bash tools/wheels/fetch_cfitsio.sh "${{ steps.versions.outputs.cfitsio }}" \
+            ".cfitsio-cache/cfitsio-${{ steps.versions.outputs.cfitsio }}.tar.gz"
 
       - name: Cache GSL source tarball
-        id: cache
+        id: gsl
         uses: actions/cache@v5
         with:
           path: .gsl-cache
-          key: gsl-${{ steps.gsl.outputs.version }}-v1
+          key: gsl-${{ steps.versions.outputs.gsl }}-v1
 
       - name: Download GSL if not cached
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.gsl.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          bash tools/wheels/fetch_gsl.sh \
-            "${{ steps.gsl.outputs.version }}" \
-            ".gsl-cache/gsl-${{ steps.gsl.outputs.version }}.tar.gz"
-
-  populate_hepmc3_cache:
-    name: Populate HepMC3 cache
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.hepmc3.outputs.version }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Read HepMC3 version
-        id: hepmc3
-        shell: bash
-        run: |
-          ver=$(grep '^HEPMC3_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          bash tools/wheels/fetch_gsl.sh "${{ steps.versions.outputs.gsl }}" \
+            ".gsl-cache/gsl-${{ steps.versions.outputs.gsl }}.tar.gz"
 
       - name: Cache HepMC3 source tarball
-        id: cache
+        id: hepmc3
         uses: actions/cache@v5
         with:
           path: .hepmc3-cache
-          key: hepmc3-${{ steps.hepmc3.outputs.version }}-v1
+          key: hepmc3-${{ steps.versions.outputs.hepmc3 }}-v1
 
       - name: Download HepMC3 if not cached
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.hepmc3.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          bash tools/wheels/fetch_hepmc3.sh \
-            "${{ steps.hepmc3.outputs.version }}" \
-            ".hepmc3-cache/HepMC3-${{ steps.hepmc3.outputs.version }}.tar.gz"
+          bash tools/wheels/fetch_hepmc3.sh "${{ steps.versions.outputs.hepmc3 }}" \
+            ".hepmc3-cache/HepMC3-${{ steps.versions.outputs.hepmc3 }}.tar.gz"
 
   build_wheels_macos:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }}) - ${{ matrix.py }}
-    needs: [populate_cfitsio_cache, populate_gsl_cache, populate_hepmc3_cache]
+    needs: [populate_caches]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -132,19 +105,19 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .cfitsio-cache
-          key: cfitsio-${{ needs.populate_cfitsio_cache.outputs.version }}-v1
+          key: cfitsio-${{ needs.populate_caches.outputs.cfitsio }}-v1
 
       - name: Restore GSL source tarball
         uses: actions/cache/restore@v5
         with:
           path: .gsl-cache
-          key: gsl-${{ needs.populate_gsl_cache.outputs.version }}-v1
+          key: gsl-${{ needs.populate_caches.outputs.gsl }}-v1
 
       - name: Restore HepMC3 source tarball
         uses: actions/cache/restore@v5
         with:
           path: .hepmc3-cache
-          key: hepmc3-${{ needs.populate_hepmc3_cache.outputs.version }}-v1
+          key: hepmc3-${{ needs.populate_caches.outputs.hepmc3 }}-v1
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1
@@ -159,7 +132,7 @@ jobs:
 
   build_wheels_linux:
     name: Build wheels on ${{ matrix.os }} - ${{ matrix.py }} - ${{ matrix.image }}_${{ matrix.arch }}
-    needs: [populate_cfitsio_cache, populate_hepmc3_cache]
+    needs: [populate_caches]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -183,13 +156,13 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .cfitsio-cache
-          key: cfitsio-${{ needs.populate_cfitsio_cache.outputs.version }}-v1
+          key: cfitsio-${{ needs.populate_caches.outputs.cfitsio }}-v1
 
       - name: Restore HepMC3 source tarball
         uses: actions/cache/restore@v5
         with:
           path: .hepmc3-cache
-          key: hepmc3-${{ needs.populate_hepmc3_cache.outputs.version }}-v1
+          key: hepmc3-${{ needs.populate_caches.outputs.hepmc3 }}-v1
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1

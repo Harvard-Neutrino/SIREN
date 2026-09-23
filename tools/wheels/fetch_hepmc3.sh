@@ -1,6 +1,6 @@
 #!/bin/bash
 # Download the HepMC3 source tarball with mirror fallback.
-#  Used both by the GitHub Actions populate_cache job and as a
+#  Used both by the GitHub Actions populate_caches job and as a
 # defensive backstop inside cibw_before_all.sh when the cache misses.
 #
 # Usage: fetch_hepmc3.sh <version> <output-path>
