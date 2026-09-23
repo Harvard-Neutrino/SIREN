@@ -360,6 +360,25 @@ def test_microboone_rebuilds_a_derived_copy_from_another_source(
     assert 'volumeref ref="volTPCActive"' in text
 
 
+def test_microboone_rebuilds_an_edited_copy_with_a_current_marker(
+        sbn_detector_module, offline_sbn_cache, microboone_pin):
+    """The derived copy is checked in full, not by its marker line: one that
+    still places the vacuum box is rebuilt although its marker is current."""
+    loader = sbn_detector_module.sbn_loader
+    loader.ensure_microboone_gdml(str(offline_sbn_cache))
+    derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
+    good = derived.read_bytes()
+    marker = good.decode("utf-8").splitlines(keepends=True)[1]
+    assert microboone_pin in marker
+
+    head, sep, rest = _microboone_fixture_gdml().partition("?>\n")
+    derived.write_text(head + sep + marker + rest)  # vacuum placement back
+    assert 'volumeref ref="volVacuumSpace"' in derived.read_text()
+
+    loader.ensure_microboone_gdml(str(offline_sbn_cache))
+    assert derived.read_bytes() == good
+
+
 def test_microboone_concurrent_rebuild_of_a_stale_copy(
         sbn_detector_module, offline_sbn_cache, microboone_pin):
     """Concurrent loads that find a stale derived copy all rebuild it, and

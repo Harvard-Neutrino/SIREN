@@ -49,8 +49,9 @@ fetched from that pinned revision. Its SHA-256 `a33e1d1d…d0215c` is checked on
 every load, not only on download, because the file is rewritten before it is
 composed. The SIREN copy `microboonev12_nowires_siren.gdml` differs only by
 dropping the LArSoft `volVacuumSpace` placement, a 1.5 km vacuum box above
-grade that would otherwise replace the composite's atmosphere; it records the
-source digest, and is rebuilt if that digest changes.
+grade that would otherwise replace the composite's atmosphere. The copy is
+rebuilt on every load and rewritten only when it differs, so an edited or
+stale copy is never used.
 
 The LArSoft world origin sits at BNB `(-1.24325, 0.0093, 463.363525)` m,
 inverted from the beam origin in MicroBooNE's own beam-to-detector transform

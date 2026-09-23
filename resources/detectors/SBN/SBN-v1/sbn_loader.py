@@ -443,10 +443,12 @@ def ensure_microboone_gdml(abs_dir: str,
                            filename: str = "gdml/microboonev12_nowires_siren.gdml") -> str:
     """Fetch the uboonecode geometry and write the SIREN copy.
 
-    Downloads ``microboonev12_nowires.gdml`` if it is not present, verifies
-    its SHA-256 on every call, then writes *filename* with the LArSoft vacuum
-    box removed. Must run before ``_ensure_gdml_files`` sees the MicroBooNE
-    spec, which carries no URL of its own. Returns the relative *filename*.
+    Downloads ``microboonev12_nowires.gdml`` if it is not present and verifies
+    its SHA-256 on every call. The copy without the LArSoft vacuum box is then
+    rebuilt in memory and *filename* rewritten only if it differs, so a stale,
+    edited or truncated copy is never used. Must run before
+    ``_ensure_gdml_files`` sees the MicroBooNE spec, which carries no URL of
+    its own. Returns the relative *filename*.
     """
     from siren.download import ensure_files, atomic_output_path
 
@@ -459,41 +461,38 @@ def ensure_microboone_gdml(abs_dir: str,
     # composed into the detector, and a stale cache must not slip through.
     expected = _MICROBOONE_SOURCE["sha256"]
     with open(raw_path, "rb") as f:
-        digest = hashlib.sha256(f.read()).hexdigest()
+        raw = f.read()
+    digest = hashlib.sha256(raw).hexdigest()
     if digest != expected:
         raise RuntimeError(
             f"SHA-256 mismatch for {raw_path}:\n"
             f"  expected: {expected}\n  got:      {digest}")
 
+    text, removed = _strip_physvols(raw.decode("utf-8"), _UB_DROPPED_VOLUMES)
+    if removed > len(_UB_DROPPED_VOLUMES):
+        raise ValueError(
+            f"{raw_path}: expected at most one placement of each of "
+            f"{_UB_DROPPED_VOLUMES}, removed {removed}")
+    # Apache-2.0 asks that modified copies be marked: say so in the file.
+    marker = ("<!-- Derived by SIREN from " + _MICROBOONE_SOURCE["file"].split("/")[-1]
+              + " (uboone/ubcore microboonev12, sha256 " + expected
+              + "): the placements of " + ", ".join(_UB_DROPPED_VOLUMES)
+              + " were removed. -->\n")
+    head, sep, tail = text.partition("?>\n")
+    derived = (head + sep + marker + tail if sep else marker + text).encode("utf-8")
+
+    # Rebuilding costs about 25 ms. Replacing atomically, rather than deleting
+    # first, means concurrent callers never find the file missing.
     path = os.path.join(abs_dir, filename)
-    # Rebuild a derived copy that does not record the current source digest,
-    # so one left by an earlier, unverified raw file is not reused. It is
-    # replaced atomically rather than deleted, so concurrent callers never
-    # find it missing.
     try:
-        with open(path, encoding="utf-8") as f:
-            f.readline()
-            rebuild = expected not in f.readline()
+        with open(path, "rb") as f:
+            current = f.read()
     except FileNotFoundError:
-        rebuild = True
-    if rebuild:
-        with open(raw_path, encoding="utf-8") as f:
-            text = f.read()
-        text, removed = _strip_physvols(text, _UB_DROPPED_VOLUMES)
-        if removed > len(_UB_DROPPED_VOLUMES):
-            raise ValueError(
-                f"{raw_path}: expected at most one placement of each of "
-                f"{_UB_DROPPED_VOLUMES}, removed {removed}")
-        # Apache-2.0 asks that modified copies be marked: say so in the file.
-        marker = ("<!-- Derived by SIREN from " + _MICROBOONE_SOURCE["file"].split("/")[-1]
-                  + " (uboone/ubcore microboonev12, sha256 " + _MICROBOONE_SOURCE["sha256"]
-                  + "): the placements of " + ", ".join(_UB_DROPPED_VOLUMES)
-                  + " were removed. -->\n")
-        head, sep, tail = text.partition("?>\n")
-        text = head + sep + marker + tail if sep else marker + text
+        current = None
+    if current != derived:
         with atomic_output_path(path) as tmp:
-            with open(tmp, "w", encoding="utf-8") as f:
-                f.write(text)
+            with open(tmp, "wb") as f:
+                f.write(derived)
     return filename
 
 def build_composite(
