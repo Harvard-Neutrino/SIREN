@@ -431,3 +431,46 @@ TEST(GDMLParser, UnresolvedBooleanOperandWarns) {
     EXPECT_TRUE(found_warning)
         << "Should warn about unresolved operand in boolean solid 'bad_sub'";
 }
+
+
+TEST(GDMLParser, MultiUnionFoldsPlacedMembers) {
+    // Three 10 mm cubes along x, the first placed too: the compound stays in
+    // the multiUnion's frame, so every member is where its node put it.
+    // Probes are in metres.
+    TestContainment(R"(
+    <box name="cube" x="10" y="10" z="10" lunit="mm"/>
+    <multiUnion name="row">
+      <multiUnionNode name="n0">
+        <solid ref="cube"/>
+        <position name="p0" unit="mm" x="-20" y="0" z="0"/>
+      </multiUnionNode>
+      <multiUnionNode name="n1">
+        <solid ref="cube"/>
+      </multiUnionNode>
+      <multiUnionNode name="n2">
+        <solid ref="cube"/>
+        <position name="p2" unit="mm" x="20" y="0" z="0"/>
+        <rotation name="r2" unit="deg" x="0" y="0" z="45"/>
+      </multiUnionNode>
+    </multiUnion>
+)", "row", {
+        {-0.020, 0, 0, true}, {0, 0, 0, true}, {0.020, 0, 0, true},
+        {-0.010, 0, 0, false}, {0.010, 0, 0, false},        // gaps between members
+        {0.020, 0.0065, 0, true}, {0.020, 0.0065, 0.006, false},  // the turned cube reaches past 5 mm in y, not in z
+        {-0.024, 0.004, 0.004, true}, {-0.026, 0, 0, false},
+    });
+}
+
+TEST(GDMLParser, MultiUnionWithMissingMemberIsSkipped) {
+    GDMLData data = ParseGDMLWithSolids(R"(
+    <box name="cube" x="10" y="10" z="10" lunit="mm"/>
+    <multiUnion name="broken">
+      <multiUnionNode name="n0"><solid ref="cube"/></multiUnionNode>
+      <multiUnionNode name="n1"><solid ref="nowhere"/></multiUnionNode>
+    </multiUnion>
+)", "cube");
+    EXPECT_EQ(data.solids.count("broken"), 0u);
+    bool warned = false;
+    for(auto const & w : data.warnings) warned = warned || w.find("broken") != std::string::npos;
+    EXPECT_TRUE(warned);
+}

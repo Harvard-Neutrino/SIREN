@@ -1028,3 +1028,29 @@ TEST(GDMLParser, SolidHalfLengthConventions) {
     EXPECT_TRUE(IsInside(poly, 0.9, 0, 0));
     EXPECT_FALSE(IsInside(poly, 1.1, 0, 0));
 }
+
+
+TEST(GDMLParser, PolyhedraOneSideUnderPhiCutIsAPlate) {
+    // One flat side spanning 15 degrees about +x between apothems 100 and
+    // 110 mm: a plate 10 mm thick whose faces are at x = 100 and x = 110 mm,
+    // ending on the radial planes at +-7.5 degrees. Probes are in metres.
+    TestContainment(R"(
+    <polyhedra name="facet" startphi="-7.5" deltaphi="15" numsides="1" aunit="deg" lunit="mm">
+      <zplane z="-50" rmin="100" rmax="110"/>
+      <zplane z="50" rmin="100" rmax="110"/>
+    </polyhedra>
+)", "facet", {
+        {0.105, 0, 0, true}, {0.105, 0, 0.045, true}, {0.105, 0.012, 0, true},
+        {0.099, 0, 0, false}, {0.111, 0, 0, false}, {0.105, 0, 0.051, false},
+        {0.105, 0.015, 0, false},  // beyond the 7.5 degree radial plane (105 * tan 7.5 = 13.8 mm)
+    });
+    // A full circle still needs three sides.
+    GDMLData data = ParseGDMLWithSolids(R"(
+    <polyhedra name="degenerate" startphi="0" deltaphi="360" numsides="1" aunit="deg" lunit="mm">
+      <zplane z="-50" rmin="0" rmax="110"/>
+      <zplane z="50" rmin="0" rmax="110"/>
+    </polyhedra>
+    <box name="w" x="1" y="1" z="1" lunit="mm"/>
+)", "w");
+    EXPECT_EQ(data.solids.count("degenerate"), 0u);
+}

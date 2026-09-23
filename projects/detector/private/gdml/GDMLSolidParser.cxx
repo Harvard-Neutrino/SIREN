@@ -188,7 +188,12 @@ std::shared_ptr<Geometry> ParsePolyhedra(SolidContext const & ctx) {
 
     GDMLPhiRange phi = ReadPhiRange(ctx.node, ctx.ascale, ctx.data.constants);
     GDMLZPlanes planes = ReadZPlanes(ctx.node, ctx.lscale, ctx.data);
-    if(planes.z.size() < 2 || numSide < 3) return nullptr;
+    // A full-circle polyhedra needs three sides to enclose anything; under a
+    // phi cut the two radial planes close the section, so one side is a
+    // flat plate and Geant4 accepts it (a faceted barrel exports one facet
+    // per sector this way).
+    int const min_sides = HasPhiCut(phi) ? 1 : 3;
+    if(planes.z.size() < 2 || numSide < min_sides) return nullptr;
 
     if(!ValidateZPlaneMonotonicity(planes)) {
         throw std::runtime_error("polyhedra '" + ctx.name + "' has non-monotonic z-planes");
@@ -465,6 +470,41 @@ void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDMLParseO
             if(name.empty()) continue;
 
             bool is_boolean = (tag == "subtraction" || tag == "union" || tag == "intersection");
+
+            if(tag == "multiUnion") {
+                // A union of any number of solids, each placed in the
+                // multiUnion's own frame. Fold it into nested binary unions
+                // whose operands carry their own placements; the compound
+                // stays in that frame. Operands must already be defined,
+                // as Geant4 exports them.
+                std::shared_ptr<Geometry> compound;
+                bool complete = true;
+                for(auto* member = node->first_node("multiUnionNode"); member; member = member->next_sibling("multiUnionNode")) {
+                    auto* solid_ref = member->first_node("solid");
+                    auto operand = solid_ref ? lookupSolid(SafeAttrVal(solid_ref, "ref")) : nullptr;
+                    if(!operand) { complete = false; break; }
+                    GDMLPlacement placement = ReadPlacement(
+                        member, "position", "positionref", "rotation", "rotationref", data);
+                    if(!compound) {
+                        if(placement.specified) {
+                            auto placed = operand->create();
+                            placed->SetPlacement(Placement(placement.position, placement.rotation));
+                            compound = placed;
+                        } else {
+                            compound = operand;
+                        }
+                        continue;
+                    }
+                    compound = BuildBooleanGeometry(BooleanOperation::UNION, compound, operand,
+                                                    GDMLPlacement(), placement);
+                }
+                if(complete && compound) {
+                    storeSolid(name, compound);
+                } else {
+                    EmitWarning(data, options, "multiUnion solid '" + name + "' has unresolved or missing member solids; skipping");
+                }
+                continue;
+            }
 
             if(!is_boolean) {
                 auto geo = ParsePrimitiveSolid(MakeSolidContext(node, data, options));

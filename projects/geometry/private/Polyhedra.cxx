@@ -28,8 +28,11 @@ void Polyhedra::validate() {
         delta_phi_ = 2.0 * M_PI;
         has_phi_cut_ = false;
     }
-    if(num_sides_ < 3) {
-        throw std::runtime_error("Polyhedra requires at least 3 sides!");
+    // Under a phi cut the two radial planes close the section, so a single
+    // flat side is a valid plate; a full circle needs three sides to enclose
+    // anything.
+    if(num_sides_ < (has_phi_cut_ ? 1 : 3)) {
+        throw std::runtime_error("Polyhedra requires at least 3 sides, or 1 with a phi cut!");
     }
     if(num_sides_ > POLYHEDRA_MAX_SIDES) {
         throw std::runtime_error("Polyhedra supports at most 64 sides!");
@@ -69,7 +72,7 @@ void Polyhedra::validate() {
 }
 
 void Polyhedra::precompute_trig() {
-    if(num_sides_ < 3) {
+    if(num_sides_ < (has_phi_cut_ ? 1 : 3)) {
         cos_phi_.clear();
         sin_phi_.clear();
         return;
@@ -264,7 +267,7 @@ static bool PointInConvexFace3D(double qx, double qy, double qz,
 
 std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
 
-    if(z_planes_.size() < 2 || num_sides_ < 3) {
+    if(z_planes_.size() < 2 || num_sides_ < (has_phi_cut_ ? 1 : 3)) {
         return {};
     }
 
