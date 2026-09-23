@@ -31,6 +31,17 @@ jobs:
             libgsl-dev \
             libcfitsio-dev
 
+      - name: Read HepMC3 version
+        id: hepmc3
+        run: echo "version=$(grep '^HEPMC3_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache HepMC3 source tarball
+        # Same key and path as build_wheels.yml, so the two workflows share it.
+        uses: actions/cache@v5
+        with:
+          path: .hepmc3-cache
+          key: hepmc3-${{ steps.hepmc3.outputs.version }}-v1
+
       - name: Build and install HepMC3 (ROOT-free, from source)
         # Ubuntu's libhepmc3-dev is 3.2.x, which lacks the Vector*Attribute types
         # the NuHepMC writer uses. Build the same 3.3.1 the wheels use (version
@@ -38,13 +49,14 @@ jobs:
         # fetch_hepmc3.sh) so the distro and wheel builds stay identical.
         run: |
           set -euo pipefail
-          HEPMC3_VERSION=$(grep -oP 'HEPMC3_VERSION="\K[^"]+' tools/wheels/cibw_before_all.sh)
+          HEPMC3_VERSION="${{ steps.hepmc3.outputs.version }}"
+          TARBALL=".hepmc3-cache/HepMC3-$HEPMC3_VERSION.tar.gz"
           echo "Building HepMC3 $HEPMC3_VERSION from source"
           PREFIX="$RUNNER_TEMP/hepmc3-install"
           SRC="$RUNNER_TEMP/hepmc3-src"
           mkdir -p "$SRC"
-          bash tools/wheels/fetch_hepmc3.sh "$HEPMC3_VERSION" "$RUNNER_TEMP/HepMC3.tar.gz"
-          tar -xzf "$RUNNER_TEMP/HepMC3.tar.gz" -C "$SRC" --strip-components=1
+          [ -f "$TARBALL" ] || bash tools/wheels/fetch_hepmc3.sh "$HEPMC3_VERSION" "$TARBALL"
+          tar -xzf "$TARBALL" -C "$SRC" --strip-components=1
           cmake -S "$SRC" -B "$SRC/build" \
             -DCMAKE_INSTALL_PREFIX="$PREFIX" \
             -DHEPMC3_ENABLE_ROOTIO=OFF \

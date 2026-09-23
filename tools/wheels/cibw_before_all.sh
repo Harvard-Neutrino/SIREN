@@ -74,7 +74,7 @@ pip install scikit-build-core
 pip install tomli-w
 
 CFITSIO_TARBALL="cfitsio-$CFITSIO_VERSION.tar.gz"
-# Cache dir lives under the project tree so the workflow's populate_cache
+# Cache dir lives under the project tree so the workflow's populate_caches
 # job can populate it before this script runs and restore it for every
 # matrix job. The fetch is delegated to fetch_cfitsio.sh (also called
 # directly by the workflow) so the mirror list and retry logic live in
@@ -113,7 +113,7 @@ fi
 
 # HepMC3 (ROOT-free) for the optional siren.io HepMC3 export module. Built from
 # source with cmake on every platform; the tarball is cached under the project
-# tree by the workflow's populate_hepmc3_cache job (fetch logic in
+# tree by the workflow's populate_caches job (fetch logic in
 # fetch_hepmc3.sh). ROOT/protobuf/python/tests/examples are all disabled so the
 # build has no third-party dependencies (C1: never link ROOT).
 HEPMC3_TARBALL="HepMC3-$HEPMC3_VERSION.tar.gz"

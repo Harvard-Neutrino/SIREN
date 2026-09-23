@@ -1,6 +1,6 @@
 #!/bin/bash
 # Download the cfitsio source tarball with mirror fallback and integrity
-# validation. Used both by the GitHub Actions populate_cache job and as a
+# validation. Used both by the GitHub Actions populate_caches job and as a
 # defensive backstop inside cibw_before_all.sh when the cache misses.
 #
 # Usage: fetch_cfitsio.sh <version> <output-path>
