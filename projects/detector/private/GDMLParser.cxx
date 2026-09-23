@@ -1,4 +1,5 @@
 #include "SIREN/detector/GDMLParser.h"
+#include <functional>
 
 #include <cstring>
 #include <fstream>
@@ -241,6 +242,25 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
     // Parse all <setup> sections (last wins)
     for(auto* node = gdml_node->first_node("setup"); node; node = node->next_sibling("setup")) {
         gdml::ParseSetup(node, data, options);
+    }
+    // Keep every <userinfo> auxiliary, nested as written.
+    std::function<GDMLAuxiliary(rapidxml::xml_node<>*)> auxiliary = [&](rapidxml::xml_node<>* node) {
+        GDMLAuxiliary out;
+        for(auto* attr = node->first_attribute(); attr; attr = attr->next_attribute()) {
+            std::string name(attr->name(), attr->name_size()), value(attr->value(), attr->value_size());
+            if(name == "auxtype") out.type = value;
+            else if(name == "auxvalue") out.value = value;
+            else if(name == "auxunit") out.unit = value;
+        }
+        for(auto* child = node->first_node("auxiliary"); child; child = child->next_sibling("auxiliary")) {
+            out.children.push_back(auxiliary(child));
+        }
+        return out;
+    };
+    for(auto* node = gdml_node->first_node("userinfo"); node; node = node->next_sibling("userinfo")) {
+        for(auto* child = node->first_node("auxiliary"); child; child = child->next_sibling("auxiliary")) {
+            data.userinfo.push_back(auxiliary(child));
+        }
     }
 
     // Warn if no <setup> section was found (world volume undefined)

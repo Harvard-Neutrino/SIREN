@@ -65,6 +65,15 @@ struct GDMLParseOptions {
     bool strip_pointer_suffixes = true;
 };
 
+// A <userinfo> auxiliary: what a producer says about the file, kept as it
+// was written, nested as it was written.
+struct GDMLAuxiliary {
+    std::string type;
+    std::string value;
+    std::string unit;
+    std::vector<GDMLAuxiliary> children;
+};
+
 struct GDMLData {
     // Defined positions and rotations (resolved to SIREN units)
     std::unordered_map<std::string, math::Vector3D> positions;
@@ -92,6 +101,9 @@ struct GDMLData {
 
     // World volume name (from <setup>)
     std::string world_volume;
+
+    // <userinfo> auxiliaries, in file order
+    std::vector<GDMLAuxiliary> userinfo;
 
     // Base directory of the GDML file, for resolving relative <file> paths.
     std::string base_dir;

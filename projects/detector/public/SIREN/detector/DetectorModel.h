@@ -28,6 +28,7 @@
 
 #include "SIREN/dataclasses/Particle.h"    // for Particle
 #include "SIREN/detector/MaterialModel.h"  // for MaterialModel
+#include "SIREN/detector/GDMLParser.h"     // for GDMLAuxiliary
 #include "SIREN/geometry/Geometry.h"       // for Geometry
 #include "SIREN/geometry/AABB.h"           // for AABB, RayAABBIntersect
 #include "SIREN/math/Vector3D.h"           // for Vector3D
@@ -66,6 +67,7 @@ struct DetectorSector {
 
 class DetectorModel {
 private:
+    std::vector<GDMLAuxiliary> gdml_userinfo_;
 friend siren::detector::Path;
     std::string path_;
     MaterialModel materials_;
@@ -327,6 +329,8 @@ private:
     void LoadDefaultSectors();
 public:
     std::vector<std::string> LoadGDML(std::string const & filename, bool strict = false);
+    // The <userinfo> auxiliaries of the last GDML loaded, nested as written.
+    std::vector<GDMLAuxiliary> const & GetGDMLUserinfo() const { return gdml_userinfo_; }
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 
     double GetTargetMass(siren::dataclasses::ParticleType target) const;

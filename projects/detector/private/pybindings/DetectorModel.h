@@ -13,6 +13,12 @@ void register_DetectorModel(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace siren::detector;
 
+    class_<GDMLAuxiliary>(m, "GDMLAuxiliary")
+        .def_readonly("type", &GDMLAuxiliary::type)
+        .def_readonly("value", &GDMLAuxiliary::value)
+        .def_readonly("unit", &GDMLAuxiliary::unit)
+        .def_readonly("children", &GDMLAuxiliary::children);
+
     class_<DetectorModel, std::shared_ptr<DetectorModel>>(m, "DetectorModel")
         .def(init<>())
         .def(init<std::string const &, std::string const &>())
@@ -20,6 +26,7 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel, arg("detector_model"))
         .def("LoadMaterialModel",&DetectorModel::LoadMaterialModel)
         .def("LoadGDML",&DetectorModel::LoadGDML, arg("filename"), arg("strict") = false)
+        .def("GetGDMLUserinfo",&DetectorModel::GetGDMLUserinfo)
         .def("GetMassDensity", (
                     double (DetectorModel::*)(siren::geometry::Geometry::IntersectionList const &, DetectorPosition const &) const
                     )(&DetectorModel::GetMassDensity))

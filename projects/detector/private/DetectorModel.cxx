@@ -637,6 +637,7 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
     GDMLParseOptions options;
     options.strict = strict;
     GDMLData data = ParseGDML(filename, options);
+    gdml_userinfo_ = data.userinfo;
 
     ClearSectors();
     LoadDefaultMaterials();
