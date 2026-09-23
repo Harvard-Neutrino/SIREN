@@ -98,21 +98,34 @@ jobs:
           SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes
 
-      - name: Cache pinned SBN test assets
-        uses: actions/cache@v5
+      # Asset-cache entries are keyed by their contents, so restore the newest
+      # and save a new entry only when a run added files to it.
+      - name: Restore pinned SBN test assets
+        id: restore-assets
+        uses: actions/cache/restore@v5
         with:
           path: .sbn-test-assets
-          key: sbn-test-assets-${{ hashFiles('resources/detectors/SBN/SBN-v1/detector.py', 'resources/detectors/SBN/SBN-v1/sbn_loader.py') }}
+          key: sbn-test-assets
           restore-keys: sbn-test-assets-
 
-      - name: Run MicroBooNE production-geometry tests
-        # The step above skips network-marked tests. These need the pinned
-        # MicroBooNE GDML and beamlines; files are kept by digest, so only a
-        # cold cache downloads them (about 2 MB) from SIREN-data.
+      - name: Run real-geometry tests
+        # The step above skips network-marked tests. These load the pinned
+        # detector and beamline GDML from the asset cache, and download from
+        # SIREN-data only what it lacks (about 7 MB when empty).
         run: >-
           pytest tests/python/test_sbn_real_geometry.py --run-network
-          --download-cache .sbn-test-assets
-          -k "MicroBooNE or microboone" -v --color=yes
+          --download-cache .sbn-test-assets -v --color=yes
+
+      - name: Key the asset cache by its contents
+        id: assets
+        run: echo "key=sbn-test-assets-$(ls .sbn-test-assets | sort | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Save pinned SBN test assets
+        if: steps.assets.outputs.key != steps.restore-assets.outputs.cache-matched-key
+        uses: actions/cache/save@v5
+        with:
+          path: .sbn-test-assets
+          key: ${{ steps.assets.outputs.key }}
 
   packaging:
     name: Wheel contracts on ${{ matrix.os }}
