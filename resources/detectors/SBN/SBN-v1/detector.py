@@ -149,11 +149,10 @@ _DETECTOR_SPECS = {
         "url": None,
         "sha256": "",
     },
-    # MicroBooNE: the uboonecode production geometry (microboonev12, no
-    # wires), rewritten without the LArSoft vacuum box by
-    # sbn_loader.ensure_microboone_gdml, so this entry carries no URL itself.
-    # The MicroBooNE_LArSoft frame puts the TPC-box centre 468.55 m from the
-    # target, the published baseline.
+    # MicroBooNE: the uboonecode production geometry without wires, derived by
+    # sbn_loader.ensure_microboone_gdml, which drops the LArSoft vacuum box;
+    # the entry therefore has no URL. Its frame puts the TPC centre 468.55 m
+    # from the target, the published baseline.
     # unwrap=True: the LArSoft Air world box is dropped (as_assembly) so the
     # building and its ground sit directly in the site geology.
     "MicroBooNE": {
@@ -210,10 +209,9 @@ def load_detector(detector=None, earth_model=False, lbnf=False, numi_config="ME"
     ----------
     detector : str
         Which detector to load: "ICARUS", "SBND", "MicroBooNE", "MiniBooNE",
-        or "DUNE_ND"
-        (the aggregated DUNE near-detector hall, placed on the LBNF beam axis
-        ~555 m downstream of the LBNF target; pair with lbnf=True to also place
-        the LBNF beamline).
+        or "DUNE_ND" (the aggregated DUNE near-detector hall, placed on the
+        LBNF beam axis ~555 m downstream of the LBNF target; pair with
+        lbnf=True to also place the LBNF beamline).
     earth_model : bool, optional
         If *False* (default), only load the GDML site-geology volume
         (beamlines, detector, local stratigraphy within ~500 m).

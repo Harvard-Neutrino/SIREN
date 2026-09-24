@@ -1,10 +1,9 @@
-"""Keep pinned test downloads in a local directory between runs.
+"""Keep pinned test downloads between runs.
 
-``pytest --download-cache DIR`` wraps ``siren.download.ensure_files`` so that a
-file with a ``sha256`` pin is copied from ``DIR/<sha256>`` instead of being
-downloaded, and is stored there after a download. Entries are named by their
-digest and checked against it in both directions, so a stale or corrupt entry
-is never used and a cache shared between branches cannot serve the wrong file.
+``pytest --download-cache DIR`` wraps ``siren.download.ensure_files``: a file
+with a ``sha256`` pin is copied from ``DIR/<sha256>`` instead of downloaded,
+and stored there after a download. Entries are checked against their digest
+when read and when written, so a corrupt entry is never served or kept.
 Unpinned files bypass the cache.
 """
 from __future__ import annotations

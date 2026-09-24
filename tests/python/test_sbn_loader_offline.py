@@ -284,8 +284,8 @@ def test_load_detector_with_preseeded_gdml_offline(
 def test_load_microboone_with_preseeded_gdml_offline(
         sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
     """MicroBooNE derives its SIREN GDML from the pre-seeded uboonecode file
-    without downloading, drops the LArSoft vacuum box, and places the TPC
-    centre at the surveyed baseline."""
+    without downloading, drops the LArSoft vacuum box, and sits at the
+    surveyed baseline."""
     import siren.download as download
 
     monkeypatch.setattr(download, "download_file", _forbid_download)
@@ -326,8 +326,8 @@ def test_load_microboone_with_preseeded_gdml_offline(
 
 def test_microboone_rejects_a_cached_file_with_the_wrong_digest(
         sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
-    """ensure_files skips a file that is already on disk without hashing it,
-    so the loader checks the pin itself before rewriting and composing."""
+    """The loader checks the pin itself: ensure_files trusts any file
+    already on disk."""
     import siren.download as download
 
     monkeypatch.setattr(download, "download_file", _forbid_download)
@@ -342,8 +342,7 @@ def test_microboone_rejects_a_cached_file_with_the_wrong_digest(
 
 def test_microboone_rebuilds_a_derived_copy_from_another_source(
         sbn_detector_module, offline_sbn_cache, monkeypatch, microboone_pin):
-    """A derived copy that does not record the current source digest is
-    rebuilt, not reused."""
+    """A derived copy made from a different source file is replaced."""
     loader = sbn_detector_module.sbn_loader
     loader.ensure_microboone_gdml(str(offline_sbn_cache))
     derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
@@ -362,8 +361,8 @@ def test_microboone_rebuilds_a_derived_copy_from_another_source(
 
 def test_microboone_rebuilds_an_edited_copy_with_a_current_marker(
         sbn_detector_module, offline_sbn_cache, microboone_pin):
-    """The derived copy is checked in full, not by its marker line: one that
-    still places the vacuum box is rebuilt although its marker is current."""
+    """A copy that still places the vacuum box is replaced even though its
+    marker line is current."""
     loader = sbn_detector_module.sbn_loader
     loader.ensure_microboone_gdml(str(offline_sbn_cache))
     derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
@@ -381,8 +380,8 @@ def test_microboone_rebuilds_an_edited_copy_with_a_current_marker(
 
 def test_microboone_concurrent_rebuild_of_a_stale_copy(
         sbn_detector_module, offline_sbn_cache, microboone_pin):
-    """Concurrent loads that find a stale derived copy all rebuild it, and
-    none fails because another caller replaced the file first."""
+    """Concurrent loads that find a stale copy all succeed; none finds the
+    file missing while another replaces it."""
     loader = sbn_detector_module.sbn_loader
     derived = offline_sbn_cache / "gdml" / "microboonev12_nowires_siren.gdml"
     stale = ('<?xml version="1.0"?>\n<!-- Derived by SIREN (sha256 '

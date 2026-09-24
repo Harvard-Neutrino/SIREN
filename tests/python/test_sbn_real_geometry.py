@@ -328,15 +328,14 @@ class TestSBNDGold:
 # MicroBooNE
 # ======================================================================
 
-# Active-volume centre in the LArSoft world: the TPC box is centred at
-# (1.28175, 0, 5.185) m and volTPCActive is offset (-1.55, 0.97, 0) cm from
-# it. Gold goes half a metre away, well inside volTPCActive.
+# Active-volume centre in the LArSoft world: volTPCActive sits
+# (-1.55, 0.97, 0) cm from the TPC-box centre (1.28175, 0, 5.185) m. Gold goes
+# half a metre from it, well inside.
 MICROBOONE_CENTER = np.array([1.28175 - 0.0155, 0.0097, 5.185])
 MICROBOONE_GOLD_POS = MICROBOONE_CENTER + np.array([0.5, 0.0, 0.0])
 
-# Detector coordinates and the density the production geometry puts there:
-# steel vessel (an 11 mm wall, so the probe sits in the middle of it), foam,
-# LArTF concrete, ground ring.
+# Detector coordinates and the density there: steel vessel (an 11 mm wall,
+# probed at its middle), foam, LArTF concrete, ground ring.
 MICROBOONE_MATERIALS = [
     ((0.0, 1.90, 0.0), 7.93),
     ((0.0, 2.10, 0.0), 0.0384),

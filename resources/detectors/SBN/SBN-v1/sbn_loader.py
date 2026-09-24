@@ -398,16 +398,14 @@ def ensure_miniboone_gdml(abs_dir: str,
     return filename
 
 
-# MicroBooNE detector + LArTF building, from the uboonecode microboonev12
+# MicroBooNE detector and LArTF building, from the uboonecode microboonev12
 # `_nowires` export. SIREN-data hosts the byte-identical upstream file
-# (uboone/ubcore 03c0bb06, tag v10_26_00) with its provenance README; the URL
-# pins an immutable revision and the SHA-256 below fixes the contents.
+# (uboone/ubcore 03c0bb06, tag v10_26_00); the URL pins an immutable revision
+# and the SHA-256 fixes the contents.
 #
-# The SIREN copy differs by one placement: the LArSoft world puts a
-# 1483 x 512 x 1483 m vacuum box above grade (volVacuumSpace, a
-# cosmic-generation convenience) that would otherwise replace the composite's
-# atmosphere over the whole SBN site. See the README for the placement and
-# the published detector descriptions.
+# The SIREN copy drops one placement: volVacuumSpace, a 1483 x 512 x 1483 m
+# vacuum box above grade (a cosmic-generation convenience) that would
+# otherwise replace the composite's atmosphere over the whole site.
 _UB_DATA_COMMIT = "df2d5a77fedfacafca0a913203609d17b8521f4e"
 _MICROBOONE_SOURCE = {
     "file": "gdml/microboonev12_nowires.gdml",
@@ -443,12 +441,11 @@ def ensure_microboone_gdml(abs_dir: str,
                            filename: str = "gdml/microboonev12_nowires_siren.gdml") -> str:
     """Fetch the uboonecode geometry and write the SIREN copy.
 
-    Downloads ``microboonev12_nowires.gdml`` if it is not present and verifies
-    its SHA-256 on every call. The copy without the LArSoft vacuum box is then
-    rebuilt in memory and *filename* rewritten only if it differs, so a stale,
-    edited or truncated copy is never used. Must run before
-    ``_ensure_gdml_files`` sees the MicroBooNE spec, which carries no URL of
-    its own. Returns the relative *filename*.
+    Downloads ``microboonev12_nowires.gdml`` if absent and checks its SHA-256
+    on every call, then rebuilds the copy without the LArSoft vacuum box and
+    rewrites *filename* if it differs. Must run before ``_ensure_gdml_files``
+    sees the MicroBooNE spec, which has no URL. Returns the relative
+    *filename*.
     """
     from siren.download import ensure_files, atomic_output_path
 
@@ -456,9 +453,8 @@ def ensure_microboone_gdml(abs_dir: str,
     ensure_files([{"path": raw_path, "url": _MICROBOONE_SOURCE["url"],
                    "sha256": _MICROBOONE_SOURCE["sha256"]}])
 
-    # ensure_files verifies the digest only on a fresh download and skips a
-    # file that is already there, so check it here: this one is rewritten and
-    # composed into the detector, and a stale cache must not slip through.
+    # ensure_files checks the digest only when it downloads, so check it here:
+    # a stale or corrupt cached file must not be composed.
     expected = _MICROBOONE_SOURCE["sha256"]
     with open(raw_path, "rb") as f:
         raw = f.read()
@@ -481,8 +477,8 @@ def ensure_microboone_gdml(abs_dir: str,
     head, sep, tail = text.partition("?>\n")
     derived = (head + sep + marker + tail if sep else marker + text).encode("utf-8")
 
-    # Rebuilding costs about 25 ms. Replacing atomically, rather than deleting
-    # first, means concurrent callers never find the file missing.
+    # Rebuilt on every call (about 25 ms), so an edited or stale copy is never
+    # reused; the atomic replace means concurrent callers never find it missing.
     path = os.path.join(abs_dir, filename)
     try:
         with open(path, "rb") as f:

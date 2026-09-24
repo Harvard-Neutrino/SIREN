@@ -110,8 +110,8 @@ jobs:
           SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes
 
-      # Restore the newest asset-cache entry, and save a new one only when a
-      # run changed its files: added an asset or repaired a corrupt one.
+      # Restore the newest asset-cache entry; save a new one only when the run
+      # changed it by adding an asset or repairing a corrupt one.
       - name: Restore pinned SBN test assets
         uses: actions/cache/restore@v5
         with:
@@ -121,9 +121,9 @@ jobs:
 
       - name: Run real-geometry tests
         id: real-geometry
-        # The step above skips network-marked tests. These load the pinned
-        # detector and beamline GDML from the asset cache, which downloads from
-        # SIREN-data only what it lacks or holds corrupt (about 7 MB when empty).
+        # The step above skips network-marked tests. These read the pinned GDML
+        # through the asset cache, which fetches from SIREN-data only what is
+        # missing or corrupt (about 7 MB when empty).
         run: |
           fingerprint() {
             mkdir -p .sbn-test-assets
@@ -135,7 +135,7 @@ jobs:
           echo "after=$(fingerprint)" >> "$GITHUB_OUTPUT"
 
       - name: Save pinned SBN test assets
-        # Cache keys are immutable, so a changed set gets a new key.
+        # Cache keys are immutable, so a changed cache gets a new key.
         if: steps.real-geometry.outputs.after != steps.real-geometry.outputs.before
         uses: actions/cache/save@v5
         with:

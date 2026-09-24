@@ -202,14 +202,12 @@ def _build_graph() -> FrameGraph:
         "SBND_LArSoft", "BNB", [0.7378, 0.0, 110.0],
         "G4BNB SBND Location (73.78, 0, 11000) cm"))
 
-    # MicroBooNE LArSoft -> BNB, inverted from the beam origin in MicroBooNE's
-    # own beam-to-detector transform (ubsim FluxReaderBNB.cxx). The TPC-box
-    # centre then lands 468.55 m from the beam origin, the published baseline
-    # (MICROBOONE-NOTE-1031); G4BNB's rounded (0, 0, 470) m is 1.45 m
-    # downstream of it and is not used. Translation only, as in MicroBooNE's
-    # production flux conversion (BooNEtoGSimple.cxx, momenta unrotated); the
-    # mrad-scale rotation FluxReaderBNB also carries is not a beam-axis
-    # correction and is at most 3.6 cm across the TPC.
+    # MicroBooNE LArSoft -> BNB: the inverse of the beam origin in MicroBooNE's
+    # own beam-to-detector transform (ubsim FluxReaderBNB.cxx). The TPC centre
+    # lands 468.55 m from the beam origin, the published baseline
+    # (MICROBOONE-NOTE-1031); G4BNB's rounded (0, 0, 470) m is not used. A pure
+    # translation, as in MicroBooNE's flux conversion (BooNEtoGSimple.cxx);
+    # FluxReaderBNB's mrad-scale rotation is not a beam-axis correction.
     g.add_transform(Transform.translation(
         "MicroBooNE_LArSoft", "BNB", [-1.24325, 0.0093, 463.363525],
         "MicroBooNE FluxReaderBNB beam origin (1.24325, -0.0093, -463.363525) m "
@@ -390,10 +388,9 @@ def _build_detectors() -> dict[str, Detector]:
         np.array([-5.19, -3.50, -1.39]),
         np.array([+5.19, +2.32, +7.22]))
 
-    # MicroBooNE: the TPC box is centred at (128.175, 0, 518.5) cm in the
-    # LArSoft world and volTPCActive is offset (-1.55, +0.97, 0) cm from it.
-    # center_native is the active-volume centre, as for ICARUS and SBND; the
-    # two share a z, so the baseline is the same either way.
+    # MicroBooNE: center_native is the centre of volTPCActive, which sits
+    # (-1.55, +0.97, 0) cm from the TPC-box centre (128.175, 0, 518.5) cm.
+    # The two share a z, so the baseline is the same for both.
     _ub_tpc_center = np.array([1.28175, 0.0, 5.185])
     _ub_center = _ub_tpc_center + np.array([-0.0155, 0.0097, 0.0])
     _ub_half = np.array([1.28175, 1.165, 5.184])

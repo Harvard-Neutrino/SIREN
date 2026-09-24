@@ -313,24 +313,18 @@ class TestFrameGraph:
 
     def test_center_native_is_the_active_volume_centre(self, geo):
         """detector_center() is documented as the active-volume centre, so
-        center_native must be the midpoint of the active bounds.
-
-        The tolerance is 1 cm because the entries are quoted at the precision
-        of the measurement behind them: SBND's z is 2.92 m against a midpoint
-        of 2.915 m.
-        """
+        center_native must be the midpoint of the active bounds. The 1 cm
+        tolerance allows for rounding in the quoted values (SBND: z = 2.92 m,
+        midpoint 2.915 m)."""
         for name, d in geo.DETECTORS.items():
             np.testing.assert_allclose(
                 d.center_native, (d.active_min + d.active_max) / 2.0,
                 atol=1e-2, err_msg=f"{name} center_native is off-centre")
 
     def test_microboone_position(self, geo):
-        """MicroBooNE LArSoft origin in the BNB frame: the inverse of the beam
-        origin (1.24325, -0.0093, -463.363525) m of MicroBooNE's own
-        FluxReaderBNB transform, a pure translation. The 256.35 x 233 x
-        1036.8 cm active volume, offset (-1.55, 0.97, 0) cm from the TPC-box
-        centre (1.28175, 0, 5.185) m, then lies 468.55 m from the beam origin:
-        the published 468.5 m baseline."""
+        """The LArSoft origin is the inverse of MicroBooNE's FluxReaderBNB
+        beam origin, a pure translation, which puts the active volume 468.55 m
+        from the beam origin: the published 468.5 m baseline."""
         T = geo.transform("MicroBooNE_LArSoft", "BNB")
         np.testing.assert_allclose(T.t, [-1.24325, 0.0093, 463.363525], atol=1e-10)
         np.testing.assert_allclose(T.R, np.eye(3), atol=1e-15)
