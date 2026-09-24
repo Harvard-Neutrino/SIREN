@@ -176,7 +176,8 @@ def _build_graph() -> FrameGraph:
         "horizontal west", "up", "along BNB beam axis"))
 
     g.add_frame(Frame("MicroBooNE_LArSoft",
-        "MicroBooNE detector LArSoft World frame (axes assumed = BNB axes).",
+        "MicroBooNE detector LArSoft World frame (axes assumed = BNB axes): "
+        "origin at the anode plane, TPC mid-height and upstream TPC face.",
         "MicroBooNE LArSoft World origin",
         "horizontal west", "up", "along BNB beam axis"))
 
@@ -201,10 +202,16 @@ def _build_graph() -> FrameGraph:
         "SBND_LArSoft", "BNB", [0.7378, 0.0, 110.0],
         "G4BNB SBND Location (73.78, 0, 11000) cm"))
 
-    # MicroBooNE LArSoft -> BNB (G4BNB bsim::Location)
+    # MicroBooNE LArSoft -> BNB: the inverse of the beam origin in MicroBooNE's
+    # own beam-to-detector transform (ubsim FluxReaderBNB.cxx). The TPC centre
+    # lands 468.55 m from the beam origin, the published baseline
+    # (MICROBOONE-NOTE-1031); G4BNB's rounded (0, 0, 470) m is not used. A pure
+    # translation, as in MicroBooNE's flux conversion (BooNEtoGSimple.cxx);
+    # FluxReaderBNB's mrad-scale rotation is not a beam-axis correction.
     g.add_transform(Transform.translation(
-        "MicroBooNE_LArSoft", "BNB", [0.0, 0.0, 470.0],
-        "G4BNB MicroBooNE Location (0, 0, 47000) cm"))
+        "MicroBooNE_LArSoft", "BNB", [-1.24325, 0.0093, 463.363525],
+        "MicroBooNE FluxReaderBNB beam origin (1.24325, -0.0093, -463.363525) m "
+        "in LArSoft coordinates; TPC centre at 468.55 m (MICROBOONE-NOTE-1031)"))
 
     # MiniBooNE tank center -> BNB (G4BNB bsim::Location, refined survey).
     # From G4BNB NuBeamOutput.cc:136:
@@ -381,11 +388,15 @@ def _build_detectors() -> dict[str, Detector]:
         np.array([-5.19, -3.50, -1.39]),
         np.array([+5.19, +2.32, +7.22]))
 
+    # MicroBooNE: center_native is the centre of volTPCActive, which sits
+    # (-1.55, +0.97, 0) cm from the TPC-box centre (128.175, 0, 518.5) cm.
+    # The two share a z, so the baseline is the same for both.
+    _ub_tpc_center = np.array([1.28175, 0.0, 5.185])
+    _ub_center = _ub_tpc_center + np.array([-0.0155, 0.0097, 0.0])
+    _ub_half = np.array([1.28175, 1.165, 5.184])
     detectors["MicroBooNE"] = Detector(
         "MicroBooNE", "MicroBooNE_LArSoft",
-        np.array([0.0, 0.0, 0.0]),
-        np.array([-1.281750, -1.165, -5.184]),
-        np.array([+1.281750, +1.165, +5.184]))
+        _ub_center, _ub_center - _ub_half, _ub_center + _ub_half)
 
     # MiniBooNE: spherical mineral-oil tank, inner radius 6.1 m. The native
     # frame is MiniBooNE_local (origin at the tank center); the tank position

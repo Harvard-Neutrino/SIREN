@@ -33,3 +33,34 @@ available for reproducing older work.
 The data provenance documents residual horn-envelope and downstream shielding/
 containment findings. Correcting the ME placement does not establish that the
 complete beamline is overlap-free.
+
+## Detectors
+
+`detector` selects `"ICARUS"`, `"SBND"`, `"MicroBooNE"`, `"MiniBooNE"` or
+`"DUNE_ND"`. ICARUS, SBND and DUNE_ND load their GDML exports from SIREN-data;
+MiniBooNE is a placeholder tank generated locally by `sbn_loader`.
+
+MicroBooNE uses the uboonecode production geometry
+`microboonev12_nowires.gdml`: the cryostat, TPC, PMTs, CRT and the LArTF pit,
+hall and local ground. The loader downloads it from a
+[pinned SIREN-data revision](https://github.com/SIREN-Generator/SIREN-data/tree/df2d5a77fedfacafca0a913203609d17b8521f4e/detectors/SBN/v1/MicroBooNE),
+which hosts the byte-identical file from `uboone/ubcore` `03c0bb06` with a
+provenance README. It checks the SHA-256 (`a33e1d1d…d0215c`) on every load and
+writes a copy, `microboonev12_nowires_siren.gdml`, without the LArSoft
+`volVacuumSpace` placement: a 1.5 km vacuum box above grade that would
+otherwise replace the composite's atmosphere. The copy is rebuilt on every
+load, so an edited or stale one is never used.
+
+The LArSoft world origin sits at BNB `(-1.24325, 0.0093, 463.363525)` m, the
+inverse of the beam origin in MicroBooNE's own beam-to-detector transform
+(`ubsim` `FluxReaderBNB.cxx`). This puts the TPC centre 468.55 m from the beam
+origin, the published 468.5 m baseline (MICROBOONE-NOTE-1031). G4BNB's nominal
+`(0, 0, 470)` m lies 1.45 m further downstream and is not used. As for ICARUS
+and SBND, the detector origin is the centre of the active volume,
+`volTPCActive`, which is offset `(-1.55, +0.97, 0)` cm from the TPC centre.
+
+The transform is a pure translation, as in MicroBooNE's production flux
+conversion (`BooNEtoGSimple.cxx`). `FluxReaderBNB.cxx` also applies a
+mrad-scale rotation; it is not a beam-axis correction, shifts points by at most
+3.6 cm across the TPC, and is omitted. JINST 12 (2017) P02017 and JINST 16
+(2021) P04004 describe the detector and the building.

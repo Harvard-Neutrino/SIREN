@@ -110,6 +110,38 @@ jobs:
           SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes
 
+      # Restore the newest asset-cache entry; save a new one only when the run
+      # changed it by adding an asset or repairing a corrupt one.
+      - name: Restore pinned SBN test assets
+        uses: actions/cache/restore@v5
+        with:
+          path: .sbn-test-assets
+          key: sbn-test-assets
+          restore-keys: sbn-test-assets-
+
+      - name: Run real-geometry tests
+        id: real-geometry
+        # The step above skips network-marked tests. These read the pinned GDML
+        # through the asset cache, which fetches from SIREN-data only what is
+        # missing or corrupt (about 7 MB when empty).
+        run: |
+          fingerprint() {
+            mkdir -p .sbn-test-assets
+            (cd .sbn-test-assets && find . -type f -exec sha256sum {} + | sort) | sha256sum | cut -c1-16
+          }
+          echo "before=$(fingerprint)" >> "$GITHUB_OUTPUT"
+          pytest tests/python/test_sbn_real_geometry.py --run-network \
+            --download-cache .sbn-test-assets -v --color=yes
+          echo "after=$(fingerprint)" >> "$GITHUB_OUTPUT"
+
+      - name: Save pinned SBN test assets
+        # Cache keys are immutable, so a changed cache gets a new key.
+        if: steps.real-geometry.outputs.after != steps.real-geometry.outputs.before
+        uses: actions/cache/save@v5
+        with:
+          path: .sbn-test-assets
+          key: sbn-test-assets-${{ steps.real-geometry.outputs.after }}-${{ github.run_id }}-${{ github.run_attempt }}
+
   packaging:
     name: Wheel contracts on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

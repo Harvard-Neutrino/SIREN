@@ -53,6 +53,7 @@ def test_sbn_resource_loader_imports_from_source_tree(monkeypatch):
         assert "ICARUS" in loader._DETECTOR_SPECS
         assert "SBND" in loader._DETECTOR_SPECS
         assert "MiniBooNE" in loader._DETECTOR_SPECS
+        assert "MicroBooNE" in loader._DETECTOR_SPECS
     finally:
         for name in module_names:
             sys.modules.pop(name, None)
@@ -309,6 +310,31 @@ class TestFrameGraph:
         np.testing.assert_allclose(T.R, np.eye(3), atol=1e-15)
         c = geo.detector_center("MiniBooNE", "BNB")
         np.testing.assert_allclose(c, [0.0, 1.89614, 541.34], atol=1e-10)
+
+    def test_center_native_is_the_active_volume_centre(self, geo):
+        """detector_center() is documented as the active-volume centre, so
+        center_native must be the midpoint of the active bounds. The 1 cm
+        tolerance allows for rounding in the quoted values (SBND: z = 2.92 m,
+        midpoint 2.915 m)."""
+        for name, d in geo.DETECTORS.items():
+            np.testing.assert_allclose(
+                d.center_native, (d.active_min + d.active_max) / 2.0,
+                atol=1e-2, err_msg=f"{name} center_native is off-centre")
+
+    def test_microboone_position(self, geo):
+        """The LArSoft origin is the inverse of MicroBooNE's FluxReaderBNB
+        beam origin, a pure translation, which puts the active volume 468.55 m
+        from the beam origin: the published 468.5 m baseline."""
+        T = geo.transform("MicroBooNE_LArSoft", "BNB")
+        np.testing.assert_allclose(T.t, [-1.24325, 0.0093, 463.363525], atol=1e-10)
+        np.testing.assert_allclose(T.R, np.eye(3), atol=1e-15)
+        c = geo.detector_center("MicroBooNE", "BNB")
+        np.testing.assert_allclose(c, [0.023, 0.0190, 468.548525], atol=1e-9)
+        assert abs(c[2] - 468.5) < 0.1
+        d = geo.DETECTORS["MicroBooNE"]
+        np.testing.assert_allclose(d.active_size(), [2.5635, 2.33, 10.368], atol=1e-9)
+        active_center_bnb = T.apply(0.5 * (d.active_min + d.active_max))
+        np.testing.assert_allclose(active_center_bnb, [0.023, 0.019, 468.548525], atol=1e-9)
 
     def test_convert_origin(self, geo):
         origin_bnb = geo.convert([0, 0, 0], "ICARUS_LArSoft", "BNB")

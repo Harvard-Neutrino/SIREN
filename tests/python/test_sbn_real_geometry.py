@@ -15,6 +15,7 @@ Requires --run-network to download GDML files (~5 MB total).
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import sys
@@ -321,6 +322,163 @@ class TestSBNDGold:
                     f"Expected LAr near detector center "
                     f"({label}{'+' if sign > 0 else '-'}10cm), "
                     f"got {rho:.4f}")
+
+
+# ======================================================================
+# MicroBooNE
+# ======================================================================
+
+# Active-volume centre in the LArSoft world: volTPCActive sits
+# (-1.55, 0.97, 0) cm from the TPC-box centre (1.28175, 0, 5.185) m. Gold goes
+# half a metre from it, well inside.
+MICROBOONE_CENTER = np.array([1.28175 - 0.0155, 0.0097, 5.185])
+MICROBOONE_GOLD_POS = MICROBOONE_CENTER + np.array([0.5, 0.0, 0.0])
+
+# Detector coordinates and the density there: steel vessel (an 11 mm wall,
+# probed at its middle), foam, LArTF concrete, ground ring.
+MICROBOONE_MATERIALS = [
+    ((0.0, 1.90, 0.0), 7.93),
+    ((0.0, 2.10, 0.0), 0.0384),
+    ((7.6, 0.0, 0.0), 2.3),
+    ((10.0, 0.0, 0.0), 1.7),
+]
+
+# The composite's atmosphere, as opposed to the 0.001205 LArSoft Air inside
+# volDetEnclosure. uboonecode's LAr is 1.4, not the 1.39 ICARUS and SBND use.
+ATMOSPHERE_DENSITY = 0.001225
+MICROBOONE_LAR_DENSITY = 1.4
+
+
+@pytest.fixture(scope="module")
+def microboone_dir(sbn, tmp_path_factory):
+    """Derive the SIREN copy of the production GDML, as load_detector does."""
+    tmpdir = str(tmp_path_factory.mktemp("microboone"))
+    _, _, det = sbn
+    det._GENERATED_GDML["MicroBooNE"](tmpdir)
+    return tmpdir
+
+
+@pytest.fixture(scope="module")
+def microboone_model(sbn, microboone_dir):
+    return _build_model_with_gold(
+        sbn, "MicroBooNE", MICROBOONE_GOLD_POS, microboone_dir)
+
+
+class TestMicroBooNEGold:
+
+    def test_gold_in_det_coords(self, microboone_model):
+        dm, center = microboone_model
+        gold_det = MICROBOONE_GOLD_POS - center
+        rho = dm.GetMassDensity(DetectorPosition(Vector3D(*gold_det)))
+        assert abs(rho - GOLD_DENSITY) < 0.5
+
+    def test_lar_2cm_away_all_directions(self, microboone_model):
+        dm, center = microboone_model
+        gold_det = MICROBOONE_GOLD_POS - center
+        for axis in range(3):
+            for sign in [-1, 1]:
+                offset = np.zeros(3)
+                offset[axis] = sign * 0.02
+                rho = dm.GetMassDensity(
+                    DetectorPosition(Vector3D(*(gold_det + offset))))
+                label = "xyz"[axis]
+                assert abs(rho - MICROBOONE_LAR_DENSITY) < 0.01, (
+                    f"Expected LAr at {label}{'+' if sign > 0 else '-'}2cm, "
+                    f"got {rho:.4f}")
+
+    def test_gold_via_bnb(self, microboone_model, sbn):
+        dm, _ = microboone_model
+        geo = sbn[0]
+        gold_bnb = geo.transform("MicroBooNE_LArSoft", "BNB").apply(
+            MICROBOONE_GOLD_POS)
+        p_det = dm.GeoPositionToDetPosition(GeometryPosition(Vector3D(*gold_bnb)))
+        rho = dm.GetMassDensity(p_det)
+        assert abs(rho - GOLD_DENSITY) < 0.5
+
+    def test_gold_via_numi(self, microboone_model, sbn):
+        dm, _ = microboone_model
+        geo = sbn[0]
+        gold_numi = geo.transform("MicroBooNE_LArSoft", "NuMI").apply(
+            MICROBOONE_GOLD_POS)
+        gold_bnb = geo.transform("NuMI", "BNB").apply(gold_numi)
+        p_det = dm.GeoPositionToDetPosition(GeometryPosition(Vector3D(*gold_bnb)))
+        rho = dm.GetMassDensity(p_det)
+        assert abs(rho - GOLD_DENSITY) < 0.5
+
+    def test_det_to_geo_matches_frame_graph(self, microboone_model, sbn):
+        dm, center = microboone_model
+        geo = sbn[0]
+        gold_det = MICROBOONE_GOLD_POS - center
+        expected_bnb = geo.transform("MicroBooNE_LArSoft", "BNB").apply(
+            MICROBOONE_GOLD_POS)
+        actual_bnb = _vec(dm.DetPositionToGeoPosition(
+            DetectorPosition(Vector3D(*gold_det))))
+        np.testing.assert_allclose(actual_bnb, expected_bnb, atol=1e-10)
+
+    def test_detector_origin_is_in_lar(self, microboone_model):
+        """The detector origin is the active-volume centre, so it and the
+        points around it are liquid argon."""
+        dm, _ = microboone_model
+        for dx in [-0.1, 0.1]:
+            rho = dm.GetMassDensity(DetectorPosition(Vector3D(dx, 0, 0)))
+            assert abs(rho - MICROBOONE_LAR_DENSITY) < 0.01, (
+                f"Expected LAr near detector origin (dx={dx}), got {rho:.4f}")
+
+    def test_baseline_to_the_bnb_target(self, microboone_model):
+        """The active volume is the published 468.5 m from the BNB target."""
+        dm, _ = microboone_model
+        origin = _vec(dm.GetDetectorOrigin())
+        np.testing.assert_allclose(
+            origin, [0.023, 0.0190, 468.548525], atol=1e-6)
+
+    @pytest.mark.parametrize("point,density", MICROBOONE_MATERIALS,
+                             ids=["steel", "foam", "concrete", "ground"])
+    def test_building_materials(self, microboone_model, point, density):
+        """Boolean-solid volumes of the production file parse and place."""
+        dm, _ = microboone_model
+        rho = dm.GetMassDensity(DetectorPosition(Vector3D(*point)))
+        assert rho == pytest.approx(density, rel=2e-2)
+
+    def test_vacuum_box_is_replaced_by_the_site_atmosphere(self,
+                                                           microboone_model):
+        """Left in place, LArSoft's vacuum box would own everything above
+        grade, including the air over SBND 358.5 m upstream."""
+        dm, _ = microboone_model
+        for point in [(0.0, 20.0, 0.0), (0.0, 30.0, -358.5)]:
+            rho = dm.GetMassDensity(DetectorPosition(Vector3D(*point)))
+            assert rho == pytest.approx(ATMOSPHERE_DENSITY, rel=1e-3), (
+                f"Expected the composite atmosphere at {point}, got {rho:.6f}")
+
+
+def test_microboone_derives_from_the_pinned_production_asset(sbn,
+                                                             microboone_dir):
+    """The parsed file is the pinned asset, stripped of one placement."""
+    _, loader, _ = sbn
+    raw = os.path.join(microboone_dir, loader._MICROBOONE_SOURCE["file"])
+    with open(raw, "rb") as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    assert digest == loader._MICROBOONE_SOURCE["sha256"]
+
+    derived = os.path.join(
+        microboone_dir, "gdml", "microboonev12_nowires_siren.gdml")
+    with open(derived, encoding="utf-8") as f:
+        text = f.read()
+    assert "volVacuumSpace" in text, "the volume definition is kept"
+    assert "Derived by SIREN" in text.splitlines()[1]
+
+    # Count as XML: a text search finds one more, because the geometry also
+    # carries a commented-out volOverburden placement.
+    def placements(path):
+        import xml.etree.ElementTree as ET
+        found = ET.parse(path).getroot().findall(".//physvol")
+        refs = [p.find("volumeref").get("ref") for p in found
+                if p.find("volumeref") is not None]
+        return len(found), refs.count("volVacuumSpace")
+
+    raw_total, raw_vacuum = placements(raw)
+    derived_total, derived_vacuum = placements(derived)
+    assert (raw_total, raw_vacuum) == (3945, 1)
+    assert (derived_total, derived_vacuum) == (raw_total - 1, 0)
 
 
 def test_numi_me_asset_target_placement(sbn, tmp_path):

@@ -149,6 +149,19 @@ _DETECTOR_SPECS = {
         "url": None,
         "sha256": "",
     },
+    # MicroBooNE: the uboonecode production geometry without wires, derived by
+    # sbn_loader.ensure_microboone_gdml, which drops the LArSoft vacuum box;
+    # the entry therefore has no URL. Its frame puts the TPC centre 468.55 m
+    # from the target, the published baseline.
+    # unwrap=True: the LArSoft Air world box is dropped (as_assembly) so the
+    # building and its ground sit directly in the site geology.
+    "MicroBooNE": {
+        "file": "gdml/microboonev12_nowires_siren.gdml",
+        "prefix": "microboone",
+        "unwrap": True,
+        "url": None,
+        "sha256": "",
+    },
     # DUNE near-detector hall (ND-LAr + TMS + SAND), material-aggregated from
     # dunendggd @ TDR_Production_geometry_v_1.2.0 with DUNENDGGD_AGGREGATE=1
     # (fine readout/straws/slabs collapsed to homogenized blocks; active LAr
@@ -166,11 +179,22 @@ _DETECTOR_SPECS = {
 }
 
 
+# Detectors whose GDML is produced locally by sbn_loader (generated for
+# MiniBooNE, derived from the pinned uboonecode download for MicroBooNE)
+# rather than downloaded through the spec entry.
+_GENERATED_GDML = {
+    "MiniBooNE": sbn_loader.ensure_miniboone_gdml,
+    "MicroBooNE": sbn_loader.ensure_microboone_gdml,
+}
+
+
 def fetch_data():
     """Download GDML files for all detectors (called by siren-download --fetch)."""
-    # MiniBooNE's tank GDML has no remote URL; generate it locally first so
-    # _ensure_gdml_files finds it present rather than failing to download.
-    sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
+    # The MiniBooNE and MicroBooNE spec entries carry no URL; produce their
+    # files first so _ensure_gdml_files finds them present rather than
+    # failing to download.
+    for ensure_gdml in _GENERATED_GDML.values():
+        ensure_gdml(_ABS_DIR)
     all_sources = list(_beamline_sources(lbnf=True))
     for spec in _DETECTOR_SPECS.values():
         if spec.get("file"):
@@ -184,10 +208,10 @@ def load_detector(detector=None, earth_model=False, lbnf=False, numi_config="ME"
     Parameters
     ----------
     detector : str
-        Which detector to load: "ICARUS", "SBND", "MiniBooNE", or "DUNE_ND"
-        (the aggregated DUNE near-detector hall, placed on the LBNF beam axis
-        ~555 m downstream of the LBNF target; pair with lbnf=True to also place
-        the LBNF beamline).
+        Which detector to load: "ICARUS", "SBND", "MicroBooNE", "MiniBooNE",
+        or "DUNE_ND" (the aggregated DUNE near-detector hall, placed on the
+        LBNF beam axis ~555 m downstream of the LBNF target; pair with
+        lbnf=True to also place the LBNF beamline).
     earth_model : bool, optional
         If *False* (default), only load the GDML site-geology volume
         (beamlines, detector, local stratigraphy within ~500 m).
@@ -230,9 +254,10 @@ def load_detector(detector=None, earth_model=False, lbnf=False, numi_config="ME"
     # Reject unsupported configurations before generating files or downloading.
     sources = list(_beamline_sources(lbnf=lbnf, numi_config=numi_config))
 
-    # MiniBooNE's placeholder tank GDML is generated locally (no download).
-    if detector == "MiniBooNE":
-        sbn_loader.ensure_miniboone_gdml(_ABS_DIR)
+    # The MiniBooNE tank is generated and the MicroBooNE geometry is derived
+    # from its pinned download before the composite is built.
+    if detector in _GENERATED_GDML:
+        _GENERATED_GDML[detector](_ABS_DIR)
 
     from siren.detector import DetectorModel, GeometryPosition
     from siren.math import Vector3D, Quaternion, Matrix3D
