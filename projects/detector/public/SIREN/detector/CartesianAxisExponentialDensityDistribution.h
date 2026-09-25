@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_CartesianAxisDensityDistribution_H
-#define SIREN_CartesianAxisDensityDistribution_H
+#ifndef SIREN_CartesianAxisExponentialDensityDistribution_H
+#define SIREN_CartesianAxisExponentialDensityDistribution_H
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
