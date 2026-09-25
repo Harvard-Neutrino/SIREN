@@ -36,6 +36,10 @@ public:
     virtual ~Decay() {};
     bool operator==(Decay const & other) const;
     virtual bool equal(Decay const & other) const = 0;
+    // Optional whole-parent lifetime width. Zero keeps the legacy additive
+    // contract; positive declarations in one collection must agree. Owned
+    // partial widths remain additive through TotalDecayWidthAllFinalStates.
+    virtual double ParentDecayWidth(dataclasses::InteractionRecord const &) const { return 0; }
     virtual double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const &) const = 0;
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const = 0;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const = 0;

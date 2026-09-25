@@ -1,4 +1,5 @@
 import os
+import warnings
 import h5py
 import numpy as np
 import awkward as ak
@@ -770,7 +771,19 @@ class SIREN_Controller:
         # the .siren_weighter suffix). Both are optional: a load-then-save flow
         # (LoadEvents / LoadEventsFromHepMC3 without Initialize) has neither.
         if getattr(self, "injector", None) is not None:
-            self.injector.SaveInjector(filename + ".siren_injector")
+            # The archive cannot hold a Python stopping condition. Keep the
+            # legacy save working, but say so: without the callback a loaded
+            # injector stops every chain at the primary.
+            has_callback = getattr(self.injector, "HasStoppingCondition", None)
+            if has_callback is not None and has_callback():
+                warnings.warn(
+                    "The injector archive does not store the stopping condition "
+                    "set by SetInjectorStoppingCondition; set it again after "
+                    "loading, or chains stop at the primary.",
+                    RuntimeWarning, stacklevel=2)
+                self.injector.SaveInjector(filename + ".siren_injector", True)
+            else:
+                self.injector.SaveInjector(filename + ".siren_injector")
         if getattr(self, "weighter", None) is not None:
             self.weighter.SaveWeighter(filename)
 

@@ -71,6 +71,7 @@ public:
     std::set<siren::dataclasses::ParticleType> const & TargetTypes() const {
         return target_types;
     };
+    double ParentDecayWidth(siren::dataclasses::InteractionRecord const & record) const;
     double TotalDecayWidthAllFinalStates(siren::dataclasses::InteractionRecord const & record) const;
     double TotalDecayLengthAllFinalStates(siren::dataclasses::InteractionRecord const & record) const;
     siren::dataclasses::ParticleType GetPrimaryType() const;

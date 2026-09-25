@@ -38,6 +38,7 @@ public:
     bool equal(Decay const & other) const override;
     double TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayLength(dataclasses::InteractionRecord const & interaction) const override;
+    double ParentDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;

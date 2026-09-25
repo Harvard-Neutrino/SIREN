@@ -453,7 +453,8 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                 unregistered_secondary_count_ += 1;
                 continue;
             }
-            if(stopping_condition(tree, parent, i)) {
+            if(secondary_expansion_ ? secondary_expansion_->ShouldStop(tree, parent, i)
+                                    : (!stopping_condition || stopping_condition(tree, parent, i))) {
                 continue;
             }
             secondaries.emplace_back(
@@ -784,7 +785,17 @@ namespace {
 constexpr std::uint32_t kInjectorArchiveMagic = 0x53494E4A; // "SINJ"
 } // anonymous namespace
 
-void Injector::SaveInjector(std::string const & filename) const {
+void Injector::SaveInjector(std::string const & filename, bool allow_unarchived_callback) const {
+    // The archive owns the expansion policy but can hold only native rules.
+    // Writing it without a live callback would silently cut the chains when
+    // the file is loaded, so refuse instead.
+    if (stopping_condition && !allow_unarchived_callback) {
+        throw std::runtime_error(
+            "SaveInjector cannot archive a stopping-condition callback; use "
+            "native SecondaryExpansion rules, or pickle the siren.Injector "
+            "facade, which carries the callback. Pass "
+            "allow_unarchived_callback=True only if the callback is set again after loading");
+    }
     std::ofstream os(filename, std::ios::binary);
     if(!os) {
         throw std::runtime_error(
@@ -808,14 +819,14 @@ void Injector::LoadInjector(std::string const & filename) {
                 "Failed to load injector archive '" + filename + "': cannot open file");
         }
     }
-    // The stopping condition is never archived, and version-0/1 archives omit
-    // the RNG as well, so preserve the ones this injector already holds. A
-    // version-2 archive DOES restore the RNG (temp.random is then non-null after
-    // the swap), so the RNG is preserved only when the archive left it null;
-    // otherwise the temp-and-move would overwrite them with the temporary's
-    // defaults and a null RNG would segfault the next GenerateEvent.
+    // Versions 0/1 omit the RNG, so preserve the current engine when loading
+    // those archives. Versions 0/1/2 also lack an expansion policy and retain
+    // the caller's current policy. Version 3 owns the policy, including an
+    // empty/default state, and must not inherit a callback from this object.
     auto preserved_random = random;
     auto preserved_stopping_condition = stopping_condition;
+    auto preserved_expansion = secondary_expansion_;
+    auto next_stopping_revision = stopping_condition_revision_ + 1;
     // Headered archive: magic word, then version, then the version-stamped
     // payload. Parse into a TEMPORARY and move-assign so a failed parse cannot
     // leave *this half-mutated. The polymorphic processes (and the cross
@@ -832,11 +843,12 @@ void Injector::LoadInjector(std::string const & filename) {
             magic = 0;
         }
         if(magic == kInjectorArchiveMagic) {
+            std::uint32_t version = 0;
             try {
-                std::uint32_t version = 0;
                 archive(version);
                 Injector temp;
                 temp.load(archive, version);
+                if(version < 3) temp.secondary_expansion_ = preserved_expansion;
                 *this = std::move(temp);
             } catch(std::exception const & e) {
                 throw std::runtime_error(
@@ -846,7 +858,10 @@ void Injector::LoadInjector(std::string const & filename) {
             // Version 2 restored the RNG into `random`; keep it. Older archives
             // left it null, so fall back to the pre-load engine.
             if(!random) random = preserved_random;
-            stopping_condition = preserved_stopping_condition;
+            // Version 3 owns the expansion policy, including its empty/default
+            // state. Only legacy archives preserve a caller-supplied callback.
+            if(version < 3) stopping_condition = preserved_stopping_condition;
+            stopping_condition_revision_ = next_stopping_revision;
             return;
         }
     }
@@ -869,6 +884,8 @@ void Injector::LoadInjector(std::string const & filename) {
     // pre-load engine.
     if(!random) random = preserved_random;
     stopping_condition = preserved_stopping_condition;
+    secondary_expansion_ = preserved_expansion;
+    stopping_condition_revision_ = next_stopping_revision;
 }
 
 } // namespace injection

@@ -1,3 +1,6 @@
+#include <sstream>
+#include <cereal/archives/binary.hpp>
+#include "SIREN/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include <memory>
 #include <vector>
 
@@ -245,4 +248,26 @@ TEST(InjectorHardening, PrimaryFailureRecordsLedgerAndPartialTree) {
 
     injector.ResetInjectedEvents();
     EXPECT_TRUE(injector.GetFailureLedger().entries.empty());
+}
+
+TEST(InjectorSerialization, InjectorVersionTwoPayloadLoadsWithoutExpansion) {
+    auto dm = std::make_shared<siren::detector::DetectorModel>();
+    auto xs = std::make_shared<DummyCrossSection>();
+    auto collection = std::make_shared<InteractionCollection>(ParticleType::NuMu,
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>>{xs});
+    auto process = std::make_shared<siren::injection::PrimaryInjectionProcess>(ParticleType::NuMu, collection);
+    process->AddPrimaryInjectionDistribution(std::make_shared<siren::distributions::PointSourcePositionDistribution>(
+        siren::math::Vector3D(0, 0, 0), 10.));
+    auto rng = std::make_shared<siren::utilities::SIREN_random>(913);
+    siren::injection::Injector original(10, dm, process, rng);
+    original.SetSecondaryExpansion(std::make_shared<siren::injection::SecondaryExpansion>(
+        std::vector<siren::injection::SecondaryExpansion::Rule>{{14, 14, -1, 1}}));
+    std::stringstream stream;
+    { cereal::BinaryOutputArchive archive(stream); original.save(archive, 2); }
+    siren::injection::Injector loaded(1, dm, process,
+        std::make_shared<siren::utilities::SIREN_random>(1));
+    { cereal::BinaryInputArchive archive(stream); loaded.load(archive, 2); }
+    EXPECT_EQ(loaded.GetSecondaryExpansion(), nullptr);
+    EXPECT_EQ(loaded.GetPrimaryProcess()->GetPrimaryType(), ParticleType::NuMu);
+    EXPECT_EQ(loaded.GetRandom()->Uniform(0., 1.), rng->Uniform(0., 1.));
 }

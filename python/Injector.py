@@ -87,6 +87,7 @@ class Injector:
         self.__primary_weighting_mode = None
         self.__secondary_weighting_modes = {}
         self.__stopping_condition = None
+        self.__stopping_revision = None
 
         self.__injector = None
 
@@ -238,7 +239,7 @@ class Injector:
         )
 
         if self.__stopping_condition is not None:
-            self.__injector.SetStoppingCondition(self.__stopping_condition)
+            self.stopping_condition = self.__stopping_condition
 
     def _compile_from_vertices(self, _validation, _expand):
         """Translate spec Vertices into the legacy field storage.
@@ -565,7 +566,8 @@ class Injector:
         """Serialize the injector, refusing configurations that cannot survive.
 
         The engine archives processes, including weighting modes and phase-space
-        maps, but not a stopping condition, and it cannot serialize Python
+        maps and declarative expansion rules, but not Python stopping predicates.
+        It cannot serialize Python
         trampoline-derived interactions/distributions or vertex physical
         declarations. Save the Weighter to archive its physical processes.
         Unsupported state raises NotSerializableError. Pickle preserves the stopping
@@ -592,7 +594,7 @@ class Injector:
                         .format(vertex.particle))
         # The stopping condition rides along in the pickle state tuple, so
         # pickle preserves it; the standalone C++ archive cannot.
-        if self.__stopping_condition is not None and not for_pickle:
+        if self.stopping_condition is not None and not for_pickle and not _is_native_expansion(self.stopping_condition):
             offenders.append(
                 "a stopping condition is set (not archived; use pickle, which "
                 "preserves it)")
@@ -630,11 +632,11 @@ class Injector:
     def load(cls, filename):
         """Construct an Injector from a saved archive.
 
-        A version-2 archive carries the RNG engine state, so the reloaded
+        A version-2 or newer archive carries the RNG engine state, so the reloaded
         injector RESUMES its generation stream where the saved one left off.
         Older (version 0/1) archives omit the engine; the reloaded injector then
-        starts a fresh unseeded stream. (save() drops any stopping condition;
-        pickle a chain that needs one.)
+        starts a fresh unseeded stream. Version 3 also preserves native
+        declarative expansion. Arbitrary Python predicates require pickle.
         """
         obj = cls()
         # Construct the engine through the archive-loading constructor rather
@@ -650,27 +652,8 @@ class Injector:
         # Read the seed back from whichever engine is now installed (the
         # restored one after a resume, or the fresh fallback otherwise).
         obj.__seed = obj.__injector.GetRandom().get_seed()
-        obj.__number_of_events = obj.__injector.EventsToInject()
-        obj.__detector_model = obj.__injector.GetDetectorModel()
-        primary_process = obj.__injector.GetPrimaryProcess()
-        obj.__primary_type = primary_process.primary_type
-        obj.__primary_interactions = list(
-            primary_process.interactions.GetCrossSections()) + list(
-            primary_process.interactions.GetDecays())
-        obj.__primary_injection_distributions = list(primary_process.distributions)
-        obj.__primary_phase_spaces = primary_process.GetPhaseSpaceMap()
-        obj.__primary_decay_channels = primary_process.interactions.GetDecayChannels()
-        obj.__secondary_decay_channels = {}
-        obj.__secondary_interactions = {}
-        obj.__secondary_injection_distributions = {}
-        obj.__secondary_phase_spaces = {}
-        for stype, sproc in obj.__injector.GetSecondaryProcessMap().items():
-            obj.__secondary_interactions[stype] = list(
-                sproc.interactions.GetCrossSections()) + list(
-                sproc.interactions.GetDecays())
-            obj.__secondary_injection_distributions[stype] = list(sproc.distributions)
-            obj.__secondary_phase_spaces[stype] = sproc.GetPhaseSpaceMap()
-            obj.__secondary_decay_channels[stype] = sproc.interactions.GetDecayChannels()
+        obj.__stopping_condition = obj.__injector.GetSecondaryExpansion()
+        obj._restore_engine_configuration()
         return obj
 
     # ------------------------------------------------------------------ #
@@ -687,8 +670,23 @@ class Injector:
         if self.__injector is None:
             self._build()
         self._guard_serializable(_errors, for_pickle=True)
-        return (self.__seed, self.__stopping_condition,
-                self.__injector.__getstate__())
+        condition = self.stopping_condition
+        if condition is not None and not _is_native_expansion(condition):
+            # A callback set directly on the engine comes back as a pybind
+            # wrapper, whose pickle error ("cannot pickle 'PyCapsule'") does
+            # not say what to change.
+            import pickle
+            try:
+                pickle.dumps(condition)
+            except Exception as error:
+                raise _errors.NotSerializableError(
+                    "the stopping condition cannot be pickled ({}: {}). A callback "
+                    "set directly with injector.engine.SetStoppingCondition loses "
+                    "its Python identity; set it through Injector.stopping_condition "
+                    "with a picklable function, or use native expansion rules."
+                    .format(type(error).__name__, error),
+                    offenders=["stopping condition is not picklable"]) from error
+        return (self.__seed, condition, self.__injector.__getstate__())
 
     def __setstate__(self, state):
         self.__seed, self.__stopping_condition, injector_state = state
@@ -696,6 +694,20 @@ class Injector:
         if self.__injector is None:
             raise TypeError("Failed to create C++ Injector object")
         self.__injector.__setstate__(injector_state)
+        self._restore_engine_configuration()
+        # The version-2 archive carried the RNG engine state, so the C++
+        # __setstate__ above already restored it: generation RESUMES where the
+        # pickled injector left off, and no re-seed is needed. self.__seed (from
+        # the state tuple) still labels the originating seed.
+        # The stopping condition rode along in the state tuple but must be
+        # re-attached to the engine; otherwise the engine default prunes every
+        # secondary and silently truncates chains.
+        if self.__stopping_condition is not None:
+            self.stopping_condition = self.__stopping_condition
+
+    def _restore_engine_configuration(self):
+        """Restore the shared facade caches after either archive or pickle load."""
+        self.__stopping_revision = self.__injector.GetStoppingConditionRevision()
         self.__number_of_events = self.__injector.EventsToInject()
         self.__detector_model = self.__injector.GetDetectorModel()
         primary_process = self.__injector.GetPrimaryProcess()
@@ -719,15 +731,6 @@ class Injector:
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
             self.__secondary_phase_spaces[secondary_type] = secondary_process.GetPhaseSpaceMap()
             self.__secondary_decay_channels[secondary_type] = secondary_process.interactions.GetDecayChannels()
-        # The version-2 archive carried the RNG engine state, so the C++
-        # __setstate__ above already restored it: generation RESUMES where the
-        # pickled injector left off, and no re-seed is needed. self.__seed (from
-        # the state tuple) still labels the originating seed.
-        # The stopping condition rode along in the state tuple but must be
-        # re-attached to the engine; otherwise the engine default prunes every
-        # secondary and silently truncates chains.
-        if self.__stopping_condition is not None:
-            self.__injector.SetStoppingCondition(self.__stopping_condition)
 
     # ------------------------------------------------------------------ #
     #  Properties (legacy surface, retained)                              #
@@ -885,12 +888,21 @@ class Injector:
 
     @property
     def stopping_condition(self):
+        if self.__injector is not None:
+            revision = self.__injector.GetStoppingConditionRevision()
+            if revision != self.__stopping_revision:
+                condition = self.__injector.GetSecondaryExpansion()
+                if condition is None and self.__injector.HasStoppingCondition():
+                    condition = self.__injector.GetStoppingCondition()
+                self.__stopping_condition = condition
+                self.__stopping_revision = revision
         return self.__stopping_condition
 
     @stopping_condition.setter
     def stopping_condition(self, stopping_condition):
         if self.__injector is not None:
-            self.__injector.SetStoppingCondition(stopping_condition)
+            _set_stopping_condition(self.__injector, stopping_condition)
+            self.__stopping_revision = self.__injector.GetStoppingConditionRevision()
         self.__stopping_condition = stopping_condition
 
     @wraps(_Injector.NewRecord)
@@ -965,6 +977,18 @@ def _typed_siren_errors():
                 and issubclass(obj, RuntimeError):
             classes.append(obj)
     return tuple(classes)
+
+
+def _is_native_expansion(condition):
+    from . import injection
+    return isinstance(condition, injection.SecondaryExpansion)
+
+
+def _set_stopping_condition(engine, condition):
+    if _is_native_expansion(condition):
+        engine.SetSecondaryExpansion(condition)
+    else:
+        engine.SetStoppingCondition(condition)
 
 
 def _is_trampoline(obj):

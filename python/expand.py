@@ -47,6 +47,7 @@ from Vertex objects itself.
 from __future__ import annotations
 
 from collections import namedtuple
+import math
 
 from . import particles as _particles
 
@@ -166,6 +167,29 @@ def compile_expansion(vertices):
         constructor argument.
     """
     by_particle = _index_vertices_by_particle(vertices)
+
+    # Pure declarative rules run and persist inside the native injector. Keep
+    # the existing callback route for arbitrary user predicates.
+    if all(v.continue_if is None for v in by_particle.values()):
+        from . import injection
+        rules = []
+        for parent, vertex in by_particle.items():
+            for rule in vertex.expand:
+                if isinstance(rule, _ChildRule):
+                    index = rule.index
+                    if index is not None:
+                        if not 0 <= index < 2**63 or index != int(index):
+                            continue  # no possible child index matches this rule
+                        index = int(index)
+                    rules.append((int(parent), int(_particles.resolve(rule.name)),
+                                  -1 if index is None else index, -1, 0))
+                elif isinstance(rule, _DepthBelowRule):
+                    n = rule.n
+                    if not n > 0:  # includes NaN, matching depth < NaN == False
+                        continue
+                    limit = -1 if n >= 2**63 else math.ceil(n)
+                    rules.append((int(parent), 0, -1, limit, 1))
+        return injection.SecondaryExpansion(rules)
 
     def stopping_condition(tree, parent, i):
         primary_type = parent.record.signature.primary_type

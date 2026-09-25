@@ -1,6 +1,8 @@
 #include "SIREN/interactions/InteractionCollection.h"
 
+#include <cmath>
 #include <algorithm>
+#include "SIREN/utilities/Constants.h"
 #include "SIREN/utilities/Errors.h"
 
 #include <map>                                                // for map
@@ -134,8 +136,35 @@ void InteractionCollection::ValidateDecayChannels() const {
     }
 }
 
+double InteractionCollection::ParentDecayWidth(dataclasses::InteractionRecord const & record) const {
+    double total = 0, owned = 0;
+    for (auto const & decay : decays) {
+        double declared = decay->ParentDecayWidth(record);
+        if (!std::isfinite(declared) || declared < 0)
+            throw std::invalid_argument("Parent decay width must be finite and nonnegative");
+        if (declared > 0) {
+            if (total > 0 && std::abs(total-declared) > 1e-12*std::max(total,declared))
+                throw std::invalid_argument("Conflicting parent decay widths in one InteractionCollection");
+            total = declared;
+        }
+    }
+    // Preserve legacy Fixed workflows that never queried all-state widths.
+    // Only an explicit parent declaration enables this validation contract.
+    if (total == 0) return 0;
+    for (auto const & decay : decays) {
+        double width = decay->TotalDecayWidthAllFinalStates(record);
+        if (!std::isfinite(width) || width < 0)
+            throw std::invalid_argument("Owned decay widths must be finite and nonnegative");
+        owned += width;
+    }
+    if (!std::isfinite(owned) || owned > total*(1+1e-12))
+        throw std::invalid_argument("Owned decay widths exceed the declared parent width");
+    return total;
+}
+
 double InteractionCollection::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
-  double width = 0;
+  double width = ParentDecayWidth(record);
+  if(width > 0) return width;
   if(!HasDecays()) return width;
   for(auto dec : decays) {
     width += dec->TotalDecayWidthAllFinalStates(record);
@@ -144,6 +173,13 @@ double InteractionCollection::TotalDecayWidthAllFinalStates(dataclasses::Interac
 }
 
 double InteractionCollection::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & record) const {
+  double parent_width = ParentDecayWidth(record);
+  if (parent_width > 0) {
+    auto const & p = record.primary_momentum;
+    double momentum = std::hypot(p[1],p[2],p[3]);
+    if (!(record.primary_mass > 0)) throw std::invalid_argument("Decaying parent needs positive mass");
+    return momentum / record.primary_mass * siren::utilities::Constants::hbarc / parent_width;
+  }
   double inv_length = 0;
   if(!HasDecays()) return std::numeric_limits<double>::infinity();
   for(auto dec : decays) {
