@@ -183,6 +183,9 @@ std::shared_ptr<Geometry const> MakeTarget() {
     return Sphere(Placement(Vector3D(0.0, 0.0, 0.0)), 10.0, 0.0).create();
 }
 
+// A supplied volume must agree with the target's analytic volume.
+constexpr double kTargetVolume = 4.0 / 3.0 * M_PI * 10.0 * 10.0 * 10.0;
+
 InteractionSignature DummySignature(ParticleType primary) {
     InteractionSignature signature;
     signature.primary_type = primary;
@@ -229,7 +232,7 @@ std::vector<std::pair<std::string, ChannelPtr>> MakeConcreteChannels() {
     channels.emplace_back(
         "DetectorDirected2Body",
         std::make_shared<DetectorDirected2BodyChannel>(
-            target, 1, DetectorDirected2BodyChannel::Mode::Volume, 100.0));
+            target, 1, DetectorDirected2BodyChannel::Mode::Volume, kTargetVolume));
     channels.emplace_back(
         "DetectorDirectedAngularSector",
         std::make_shared<DetectorDirectedAngularSectorChannel>(
@@ -248,7 +251,7 @@ std::vector<std::pair<std::string, ChannelPtr>> MakeConcreteChannels() {
             PhaseSpaceTopology::Decay3Body,
             std::vector<double>{0.0, 1.0, 2.0},
             std::vector<double>{0.0, 0.25, 1.0},
-            100.0));
+            kTargetVolume));
     channels.emplace_back(
         "DetectorDirectedScattering",
         std::make_shared<DetectorDirectedScatteringChannel>(
@@ -260,7 +263,7 @@ std::vector<std::pair<std::string, ChannelPtr>> MakeConcreteChannels() {
             0.0,
             std::vector<double>{0.0, 1.0, 2.0},
             std::vector<double>{0.0, 0.5, 1.0},
-            100.0));
+            kTargetVolume));
     channels.emplace_back("NestedMixture", nested);
     return channels;
 }
@@ -301,6 +304,16 @@ void ExpectThreeBodyDensityPreserved(
 }
 
 } // namespace
+
+TEST(PhaseSpaceSerialization, VersionZeroMeasureLoadsWithoutPairMass) {
+    std::stringstream stream(R"({"value0":{"cereal_class_version":0,
+        "Type":2,"Spectator":0,"PairFirst":1,"PairSecond":2}})");
+    siren::dataclasses::PhaseSpaceMeasure measure;
+    cereal::JSONInputArchive archive(stream);
+    archive(measure);
+    EXPECT_EQ(measure, siren::dataclasses::PhaseSpaceMeasure::Recursive2Body());
+    EXPECT_EQ(measure.pair_mass, 0.0);
+}
 
 TEST(PhaseSpaceSerialization, ConcreteChannelsRoundTripInJsonAndBinary) {
     auto channels = MakeConcreteChannels();
@@ -576,7 +589,7 @@ TEST(PhaseSpaceSerialization, ThreeBodyFactorizationsRestoreDensity) {
         PhaseSpaceTopology::Decay3Body,
         std::vector<double>{},
         std::vector<double>{},
-        100.0);
+        kTargetVolume);
     auto recursive = std::make_shared<DetectorDirected3BodyChannel>(
         target,
         0,
@@ -592,7 +605,7 @@ TEST(PhaseSpaceSerialization, ThreeBodyFactorizationsRestoreDensity) {
         PhaseSpaceTopology::Decay3Body,
         std::vector<double>{},
         std::vector<double>{},
-        100.0);
+        kTargetVolume);
 
     ExpectThreeBodyDensityPreserved(direct, 1201);
     ExpectThreeBodyDensityPreserved(recursive, 1202);
@@ -636,5 +649,29 @@ TEST(PhaseSpaceSerialization, OldDirectedDensityArchivesAreRejected) {
         ASSERT_NE(at,std::string::npos);
         bytes.replace(at,std::string("\"cereal_class_version\": 1").size(),"\"cereal_class_version\": 0");
         EXPECT_THROW((LoadFromString<cereal::JSONInputArchive,ChannelPtr>(bytes)),std::runtime_error);
+    }
+}
+
+TEST(PhaseSpaceSerialization, ArchivedVolumeIsCheckedOnLoad) {
+    // A volume-mode archive must hold a volume the constructor would accept;
+    // otherwise loading it would silently change the density.
+    for (auto const & [name, channel] : MakeConcreteChannels()) {
+        if (name != "DetectorDirected2Body" && name != "DetectorDirected3Body"
+            && name != "DetectorDirectedScattering") continue;
+        std::string bytes = SaveToString<cereal::JSONOutputArchive>(channel);
+        std::string const key = "\"TargetVolume\": ";
+        auto at = bytes.find(key);
+        ASSERT_NE(at, std::string::npos) << name;
+        at += key.size();
+        auto end = bytes.find_first_of(",\n}", at);
+        double stored = std::stod(bytes.substr(at, end - at));
+        EXPECT_NEAR(stored, kTargetVolume, 1e-9 * kTargetVolume) << name;
+        EXPECT_NO_THROW((LoadFromString<cereal::JSONInputArchive, ChannelPtr>(bytes))) << name;
+        std::ostringstream doubled;
+        doubled.precision(17);
+        doubled << 2.0 * stored;
+        bytes.replace(at, end - at, doubled.str());
+        EXPECT_THROW((LoadFromString<cereal::JSONInputArchive, ChannelPtr>(bytes)),
+                     std::runtime_error) << name;
     }
 }

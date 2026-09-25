@@ -254,9 +254,11 @@ class _ChainDecay(interactions.Decay):
 def test_native_sampling_failures_preserve_reason_and_attempt_accounting(depth, angular_sector):
     """Native failures reach the ledger unchanged through every generation path.
 
-    As in the C++ DirectedRejectionExhaustion tests, beta=1 with a finite supplied
-    mass deterministically exhausts the inverse solver. A subthreshold mass
-    instead has physical zero support; on-shell inputs succeed in the same run.
+    beta=1 with a finite supplied mass is off its mass shell, so the directed
+    channels reject it before sampling as KinematicallyForbidden. A subthreshold
+    mass is forbidden too, under the same key; on-shell inputs succeed in the
+    same run. (The solver-exhaustion path itself is covered by the C++
+    DirectedRejectionExhaustion tests, which call the step directly.)
     """
     source = _FixedPrimary()
     secondary_vertex = _FixedSecondary()
@@ -285,22 +287,21 @@ def test_native_sampling_failures_preserve_reason_and_attempt_accounting(depth, 
     # At secondary depths the key identifies the producing parent, which has
     # a different PDG from the particle whose sampler failed.
     parent_pdg = int(types[max(0, depth - 1)])
-    sampling_key = (depth, parent_pdg, reason.SamplingFailure)
     forbidden_key = (depth, parent_pdg, reason.KinematicallyForbidden)
 
     for attempt in (1, 2):
         assert len(inj.GenerateEvent().tree) == 0
         entries = inj.GetFailureLedger().entries()
-        assert set(entries) == {sampling_key}
-        assert entries[sampling_key][0] == attempt
+        assert set(entries) == {forbidden_key}
+        assert entries[forbidden_key][0] == attempt
         assert inj.InjectionAttempts() == inj.FailedEvents() == attempt
         assert inj.InjectedEvents() == 0
         assert len(inj.GetLastFailedTree().tree) == max(1, depth)
         if attempt == 1:
-            exemplar = entries[sampling_key][1]
-            assert exemplar
+            exemplar = entries[forbidden_key][1]
+            assert "mass shell" in exemplar
         else:
-            assert entries[sampling_key][1] == exemplar
+            assert entries[forbidden_key][1] == exemplar
         if depth:
             assert f"secondary pdg {int(types[depth])}" in exemplar
 
@@ -308,9 +309,8 @@ def test_native_sampling_failures_preserve_reason_and_attempt_accounting(depth, 
     source.momentum = [10.0, 0.0, 0.0, math.sqrt(100.0 - source.mass**2)]
     assert len(inj.GenerateEvent().tree) == 0
     entries = inj.GetFailureLedger().entries()
-    assert set(entries) == {sampling_key, forbidden_key}
-    assert entries[sampling_key] == (2, exemplar)
-    assert entries[forbidden_key][0] == 1
+    assert set(entries) == {forbidden_key}
+    assert entries[forbidden_key] == (3, exemplar)
     assert inj.GetLastFailureReason()
 
     source.mass = 2.0

@@ -3216,6 +3216,84 @@ TEST(DirectedGeometryVolume, ExactCallerVolumeBypassesUnresolvedEstimate) {
         0.0, {}, {}, exact_volume));
 }
 
+TEST(DirectedGeometryVolume, VolumeEstimateAgreesWithAnalyticVolume) {
+    // The chord-integration estimate that checks supplied volumes of
+    // non-analytic solids: a fixed ray sequence, and agreement with an exact
+    // volume within its error.
+    siren::geometry::Sphere sphere(
+        siren::geometry::Placement(siren::math::Vector3D(1.0, -2.0, 3.0)), 10.0, 0.0);
+    auto first = siren::injection::EstimateGeometryVolume(sphere);
+    auto second = siren::injection::EstimateGeometryVolume(sphere);
+    EXPECT_EQ(first.volume, second.volume);
+    double exact = siren::injection::ExactGeometryVolume(sphere);
+    EXPECT_LT(std::abs(first.volume - exact), 5.0 * first.standard_error);
+    EXPECT_LT(first.standard_error, 0.01 * exact);
+    EXPECT_TRUE(first.resolved);
+}
+
+namespace {
+// A 2 m cube whose every 97th intersection query is corrupted: the exit
+// distance becomes NaN (mode 0) or infinite (mode 1), or an unmatched entering
+// crossing is appended (mode 2). Codex's round-7 test double.
+class CorruptedCrossingsGeometry : public siren::geometry::Geometry {
+    int mode_;
+    mutable unsigned long calls_ = 0;
+    siren::geometry::Box box_;
+public:
+    explicit CorruptedCrossingsGeometry(int mode)
+        : Geometry("CorruptedCrossingsGeometry"), mode_(mode), box_(2, 2, 2) {}
+    std::shared_ptr<siren::geometry::Geometry> create() const override {
+        return std::make_shared<CorruptedCrossingsGeometry>(mode_);
+    }
+    siren::geometry::AABB GetBoundingBox() const override { return box_.GetBoundingBox(); }
+    std::vector<Intersection> ComputeIntersections(
+        siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const override {
+        auto hits = box_.ComputeIntersections(position, direction);
+        if (++calls_ % 97 == 0 && hits.size() == 2) {
+            if (mode_ == 0) hits.back().distance = std::numeric_limits<double>::quiet_NaN();
+            if (mode_ == 1) hits.back().distance = std::numeric_limits<double>::infinity();
+            if (mode_ == 2) {
+                auto extra = hits.back();
+                extra.distance += 1.0;
+                extra.entering = true;
+                hits.push_back(extra);
+            }
+        }
+        return hits;
+    }
+protected:
+    bool equal(Geometry const &) const override { return false; }
+    bool less(Geometry const &) const override { return false; }
+    void print(std::ostream & os) const override { os << "CorruptedCrossingsGeometry"; }
+};
+} // namespace
+
+TEST(DirectedGeometryVolume, CorruptedCrossingsCannotBeChecked) {
+    // NaN or infinite crossing distances, and crossings that do not alternate
+    // entering/exiting, make the estimate inconclusive; no supplied volume is
+    // then accepted (a NaN range used to accept every value).
+    for (int mode = 0; mode < 3; ++mode) {
+        CorruptedCrossingsGeometry geometry(mode);
+        auto estimate = siren::injection::EstimateGeometryVolume(geometry);
+        EXPECT_FALSE(estimate.resolved) << "mode " << mode;
+        EXPECT_FALSE(estimate.reason.empty()) << "mode " << mode;
+        for (double volume : {1e-6, 1.0, 4.0, 8.0}) {
+            try {
+                siren::injection::ResolveDetectorDirectedVolume(geometry, true, volume);
+                ADD_FAILURE() << "mode " << mode << " accepted volume " << volume;
+            } catch (std::runtime_error const & error) {
+                EXPECT_NE(std::string(error.what()).find("cannot be checked"), std::string::npos)
+                    << error.what();
+            }
+        }
+    }
+    // A well-formed composite with the same box is resolved and its volume accepted.
+    siren::geometry::BooleanGeometry same(
+        siren::geometry::BooleanOperation::UNION,
+        std::make_shared<siren::geometry::Box>(2, 2, 2), std::make_shared<siren::geometry::Box>(1, 1, 1));
+    EXPECT_NEAR(siren::injection::ResolveDetectorDirectedVolume(same, true, 8.0), 8.0, 0.0);
+}
+
 TEST(DirectedOverlapSampling, CoversLensExcludedByLegacyCap) {
     constexpr double beta = 0.9;
     constexpr double theta_kin = 0.4;

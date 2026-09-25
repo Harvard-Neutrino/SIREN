@@ -6,6 +6,8 @@
 #include "SIREN/injection/DetectorDirectedAngularSectorChannel.h"
 #include "SIREN/injection/DetectorDirectedScatteringChannel.h"
 #include "SIREN/injection/Injector.h"
+#include "SIREN/injection/RestFrameEnvelope2BodyChannel.h"
+#include "SIREN/injection/OnShellCascadeChannel.h"
 #include "SIREN/injection/Isotropic2BodyChannel.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/PhysicalChannelAdapters.h"

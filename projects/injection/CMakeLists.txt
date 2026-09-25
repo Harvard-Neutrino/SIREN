@@ -12,6 +12,8 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhysicalChannelAdapters.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected2BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/RestFrameEnvelope2BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/OnShellCascadeChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected3BodyChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirectedScatteringChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirectedAngularSectorChannel.cxx

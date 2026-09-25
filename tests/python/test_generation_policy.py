@@ -56,12 +56,12 @@ def _native_sampler(depth, source=None):
 @pytest.mark.parametrize("shortfall", ["warn", "raise", "ignore"])
 def test_strict_sampler_failure_stops_immediately_with_report(depth, shortfall):
     inj, source = _native_sampler(depth)
-    with pytest.raises(GenerationFailure, match="SamplingFailure") as exc:
+    with pytest.raises(GenerationFailure, match="KinematicallyForbidden") as exc:
         inj.generate(on_failure="raise", on_shortfall=shortfall)
     report = exc.value.report
     assert report.attempts == inj.engine.InjectionAttempts() == 1
     assert report.successes == 0
-    assert report.by_vertex[0].reason == injection.FailureReason.SamplingFailure
+    assert report.by_vertex[0].reason == injection.FailureReason.KinematicallyForbidden
     assert report.by_vertex[0].depth == depth
     assert len(report.last_failed_tree.tree) == max(1, depth)
     # A new run resets the ledger and succeeds with valid on-shell inputs.
@@ -75,7 +75,7 @@ def test_default_retry_policy_keeps_existing_behavior():
     inj, _ = _native_sampler(0)
     assert inj.generate(on_shortfall="ignore") == []
     assert inj.report().attempts == 3
-    assert inj.report().dominant().reason == injection.FailureReason.SamplingFailure
+    assert inj.report().dominant().reason == injection.FailureReason.KinematicallyForbidden
 
 
 def test_strict_policy_rejects_closed_kinematics_conservatively():
@@ -109,7 +109,7 @@ def test_generate_facade_propagates_strict_failure_before_weighting():
         def weight_all(self, trees):
             pytest.fail("weighting must not run after a strict failure")
     inj, _ = _native_sampler(1)
-    with pytest.raises(GenerationFailure, match="SamplingFailure"):
+    with pytest.raises(GenerationFailure, match="KinematicallyForbidden"):
         siren.generate(inj, NoWeighting(), events=1, on_failure="raise")
 
 

@@ -20,6 +20,7 @@
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "../../public/SIREN/injection/RestFrameEnvelope2BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirectedAngularSectorChannel.h"
 #include "../../public/SIREN/injection/DetectorDirected3BodyChannel.h"
 #include "../../public/SIREN/injection/DetectorDirectedScatteringChannel.h"
@@ -156,15 +157,27 @@ PYBIND11_MODULE(injection,m) {
            "Momentum-transfer Q^2 and y with a uniform azimuth integrated out.")
     .value("MandelstamQ2YPhi", PhaseSpaceMeasure::Type::MandelstamQ2YPhi,
            "Momentum-transfer Q^2, y, and explicit beam-axis azimuth.")
+    .value("OnShellCascade", PhaseSpaceMeasure::Type::OnShellCascade)
     .value("Unspecified", PhaseSpaceMeasure::Type::Unspecified,
            "No measure declared.");
 
   class_<PhaseSpaceMeasure>(m, "PhaseSpaceMeasure")
     .def(init<>())
-    .def_readwrite("type", &PhaseSpaceMeasure::type)
-    .def_readwrite("spectator", &PhaseSpaceMeasure::spectator)
-    .def_readwrite("pair_first", &PhaseSpaceMeasure::pair_first)
-    .def_readwrite("pair_second", &PhaseSpaceMeasure::pair_second)
+    // Read-only: the fields define equality and the hash, and only the
+    // factories validate them. Build a different measure with a factory.
+    .def_readonly("type", &PhaseSpaceMeasure::type)
+    .def_readonly("spectator", &PhaseSpaceMeasure::spectator)
+    .def_readonly("pair_first", &PhaseSpaceMeasure::pair_first)
+    .def_readonly("pair_second", &PhaseSpaceMeasure::pair_second)
+    .def_readonly("pair_mass", &PhaseSpaceMeasure::pair_mass)
+    .def(pybind11::pickle(
+        [](PhaseSpaceMeasure const & measure) {
+            return siren::serialization::pickle_save<PhaseSpaceMeasure>(
+                std::make_shared<PhaseSpaceMeasure>(measure));
+        },
+        [](pybind11::tuple state) {
+            return *siren::serialization::pickle_load<PhaseSpaceMeasure>(state);
+        }))
     .def("__eq__", &PhaseSpaceMeasure::operator==)
     .def("__ne__", &PhaseSpaceMeasure::operator!=)
     .def("__hash__", [](PhaseSpaceMeasure const & m) {
@@ -174,14 +187,19 @@ PYBIND11_MODULE(injection,m) {
         bool indices_relevant =
             m.type == PhaseSpaceMeasure::Type::Recursive2Body ||
             m.type == PhaseSpaceMeasure::Type::DalitzPair ||
-            m.type == PhaseSpaceMeasure::Type::HelicityAngles;
+            m.type == PhaseSpaceMeasure::Type::HelicityAngles ||
+            m.type == PhaseSpaceMeasure::Type::OnShellCascade;
         if (indices_relevant) {
             h ^= std::hash<int>()(m.spectator) + 0x9e3779b9 + (h << 6) + (h >> 2);
             h ^= std::hash<int>()(m.pair_first) + 0x9e3779b9 + (h << 6) + (h >> 2);
             h ^= std::hash<int>()(m.pair_second) + 0x9e3779b9 + (h << 6) + (h >> 2);
         }
+        if (m.type == PhaseSpaceMeasure::Type::OnShellCascade)
+            h ^= std::hash<double>()(m.pair_mass) + 0x9e3779b9 + (h << 6) + (h >> 2);
         return h;
     })
+    .def_static("OnShellCascade", &PhaseSpaceMeasure::OnShellCascade,
+         arg("pair_mass"), arg("spectator")=0, arg("pair_first")=1, arg("pair_second")=2)
     .def_static("SolidAngleRest", &PhaseSpaceMeasure::SolidAngleRest,
          "Rest-frame solid angle measure.")
     .def_static("SolidAngleLab", &PhaseSpaceMeasure::SolidAngleLab,
@@ -359,6 +377,22 @@ PYBIND11_MODULE(injection,m) {
         &(siren::serialization::pickle_load<Isotropic2BodyChannel>)
     ))
     ;
+
+  class_<RestFrameEnvelope2BodyChannel, std::shared_ptr<RestFrameEnvelope2BodyChannel>, PhaseSpaceChannel>(m, "RestFrameEnvelope2BodyChannel")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>,int>(), arg("target"), arg("daughter_index")=0)
+    .def("DirectingActive", &RestFrameEnvelope2BodyChannel::DirectingActive)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<RestFrameEnvelope2BodyChannel>),
+        &(siren::serialization::pickle_load<RestFrameEnvelope2BodyChannel>)));
+
+  class_<OnShellCascadeChannel, std::shared_ptr<OnShellCascadeChannel>, PhaseSpaceChannel>(m, "OnShellCascadeChannel")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>,double,double,std::array<double,3>,double,double>(),
+         arg("target"), arg("pair_mass"), arg("kappa")=0.,
+         arg("orientation_weights")=std::array<double,3>{0.1,0.45,0.45}, arg("first_daughter_probability")=0.5, arg("volume")=-1.0)
+    .def("InternalDensity", &OnShellCascadeChannel::InternalDensity)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<OnShellCascadeChannel>),
+        &(siren::serialization::pickle_load<OnShellCascadeChannel>)));
 
   enum_<DetectorDirected2BodyChannel::Mode>(m, "DirectedMode")
     .value("Cone", DetectorDirected2BodyChannel::Mode::Cone,

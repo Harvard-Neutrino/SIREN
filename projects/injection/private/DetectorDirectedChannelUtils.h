@@ -580,9 +580,11 @@ inline DirectedStepResult SampleDirectedStep(
                 parent_dir * (p_rest * cos_theta)
                 + perp1 * (p_rest * sin_theta * std::cos(phi))
                 + perp2 * (p_rest * sin_theta * std::sin(phi));
+            // Same frame as the directed branch below: gamma = E/parent_mass.
             auto lab = BoostRestFrameToLab(
                 parent_E, parent_px, parent_py, parent_pz,
-                E_rest, p_rest_vec.GetX(), p_rest_vec.GetY(), p_rest_vec.GetZ());
+                E_rest, p_rest_vec.GetX(), p_rest_vec.GetY(), p_rest_vec.GetZ(),
+                parent_mass);
             siren::math::Vector3D p_lab_vec(lab[1], lab[2], lab[3]);
             result.p_lab = p_lab_vec.magnitude();
             result.lab_dir = (result.p_lab > 1e-15) ? p_lab_vec / result.p_lab
@@ -896,7 +898,8 @@ inline DirectedStepResult IsotropicBoostStep(
             + perp2 * (p_rest * sin_theta * std::sin(phi));
         auto lab = BoostRestFrameToLab(
             parent_E, parent_px, parent_py, parent_pz,
-            E_rest, p_rest_vec.GetX(), p_rest_vec.GetY(), p_rest_vec.GetZ());
+            E_rest, p_rest_vec.GetX(), p_rest_vec.GetY(), p_rest_vec.GetZ(),
+            parent_mass);
         siren::math::Vector3D p_lab_vec(lab[1], lab[2], lab[3]);
         result.p_lab = p_lab_vec.magnitude();
         result.lab_dir = (result.p_lab > 1e-15) ? p_lab_vec / result.p_lab : parent_dir;
