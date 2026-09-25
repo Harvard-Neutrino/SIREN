@@ -116,6 +116,20 @@ class InjectionReport:
         buckets.sort(key=lambda b: b.count, reverse=True)
         return cls(attempts, successes, buckets, last_failed_tree)
 
+    def _raise_for_failure(self):
+        """Apply the strict policy after a failed generation attempt."""
+        from .injection import FailureReason
+        from .errors import GenerationFailure
+        allowed = (FailureReason.NoPathThroughVolume, FailureReason.NoTargetsOnPath)
+        failures = [bucket for bucket in self.by_vertex if bucket.reason not in allowed]
+        if failures or not self.by_vertex:
+            details = "\n".join(
+                "{} at depth {}, parent {}: {}".format(
+                    bucket.reason_name, bucket.depth, bucket.pdg, bucket.exemplar)
+                for bucket in failures)
+            raise GenerationFailure(
+                "injection failed: " + (details or "no failure diagnosis"), report=self)
+
     @property
     def failures(self) -> int:
         return sum(b.count for b in self.by_vertex)

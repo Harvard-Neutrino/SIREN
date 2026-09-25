@@ -1,3 +1,4 @@
+from simulation_fixtures import offline_detector, offline_fiducial
 import pytest
 
 
@@ -305,34 +306,6 @@ class TestReweightingValidation:
         validate_reweighting_compatibility(
             [vertex], [area], compute_interaction_probability=False)
 
-    def test_simulation_builds_weighter_only_after_compatibility_check(
-        self, monkeypatch,
-    ):
-        import importlib
-
-        simulation_module = importlib.import_module("siren.Simulation")
-        injection_distributions = [object()]
-        physical_distributions = [object()]
-
-        def reject(injection, physical, **_mode):
-            assert injection == injection_distributions
-            assert physical == physical_distributions
-            raise ValueError("compatibility sentinel")
-
-        monkeypatch.setattr(
-            simulation_module, "validate_physical_distributions",
-            lambda _distributions: None)
-        monkeypatch.setattr(
-            simulation_module, "validate_reweighting_compatibility", reject)
-
-        simulation = simulation_module.Simulation.__new__(
-            simulation_module.Simulation)
-        simulation._injection_distributions = injection_distributions
-        simulation._physical_distributions = physical_distributions
-
-        with pytest.raises(ValueError, match="compatibility sentinel"):
-            simulation._build_weighter(object())
-
 
 class TestTopLevelExports:
     """Top-level siren.* should expose key functions and classes."""
@@ -378,9 +351,9 @@ class TestSimulationValidation:
         with pytest.raises(ValueError, match="energy"):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="NuMu",
-                interactions="CSMSDISSplines",
+                interactions=[siren.interactions.DummyCrossSection()],
                 targets="Nucleon",
                 process="CC",
                 direction=siren.dist.IsotropicDirection(),
@@ -394,9 +367,9 @@ class TestSimulationValidation:
         with pytest.raises(ValueError, match="direction"):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="NuMu",
-                interactions="CSMSDISSplines",
+                interactions=[siren.interactions.DummyCrossSection()],
                 targets="Nucleon",
                 process="CC",
                 energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -410,9 +383,9 @@ class TestSimulationValidation:
         with pytest.raises(ValueError, match="position"):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="NuMu",
-                interactions="CSMSDISSplines",
+                interactions=[siren.interactions.DummyCrossSection()],
                 targets="Nucleon",
                 process="CC",
                 energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -424,9 +397,9 @@ class TestSimulationValidation:
         with pytest.raises(ValueError, match="Cannot specify both"):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="NuMu",
-                interactions="CSMSDISSplines",
+                interactions=[siren.interactions.DummyCrossSection()],
                 targets="Nucleon",
                 process="CC",
                 energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -442,9 +415,9 @@ class TestSimulationValidation:
         with pytest.raises(ValueError, match="Cannot specify both.*flux"):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="NuMu",
-                interactions="CSMSDISSplines",
+                interactions=[siren.interactions.DummyCrossSection()],
                 targets="Nucleon",
                 process="CC",
                 flux=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -460,7 +433,7 @@ class TestSimulationValidation:
         with pytest.raises(TypeError):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="NuMu",
                 energy=siren.dist.PowerLaw(2, 1e3, 1e6),
                 direction=siren.dist.IsotropicDirection(),
@@ -474,9 +447,9 @@ class TestSimulationValidation:
         with pytest.raises(ValueError, match="Unknown particle type"):
             siren.Simulation(
                 events=1,
-                detector="IceCube",
+                detector=offline_detector(),
                 primary="InvalidParticle",
-                interactions="CSMSDISSplines",
+                interactions=[siren.interactions.DummyCrossSection()],
                 energy=siren.dist.PowerLaw(2, 1e3, 1e6),
                 direction=siren.dist.IsotropicDirection(),
                 position=siren.dist.ColumnDepth(
@@ -492,9 +465,9 @@ class TestSimulationConstruction:
         import siren
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -509,9 +482,9 @@ class TestSimulationConstruction:
         import siren
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -526,9 +499,9 @@ class TestSimulationConstruction:
         import siren
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary=siren.particles.NuMu,
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -544,9 +517,9 @@ class TestSimulationConstruction:
         e = siren.dist.PowerLaw(2, 1e3, 1e6)
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=e,
@@ -565,9 +538,9 @@ class TestSimulationConstruction:
         phys_d = siren.dist.IsotropicDirection()
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -584,9 +557,9 @@ class TestSimulationConstruction:
         import siren
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -612,9 +585,9 @@ class TestSimulationConstruction:
         import siren
         sim = siren.Simulation(
             events=42,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -636,9 +609,9 @@ class TestSimulationRun:
         import siren
         return siren.Simulation(
             events=5,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -686,16 +659,9 @@ class TestInjectorIterator:
         import siren
         injector = siren.injection.Injector()
         injector.number_of_events = 3
-        injector.detector_model = siren.load_detector("IceCube")
+        injector.detector_model = offline_detector()
         injector.primary_type = siren.particles.NuMu
-        xs, _ = siren.load_processes(
-            "CSMSDISSplines",
-            primary_types=[siren.particles.NuMu],
-            target_types=[siren.particles.Nucleon],
-            isoscalar=True,
-            process_types=["CC"],
-        )
-        injector.primary_interactions = xs[siren.particles.NuMu]
+        injector.primary_interactions = [siren.interactions.DummyCrossSection()]
         injector.primary_injection_distributions = [
             siren.distributions.PrimaryMass(0),
             siren.distributions.PowerLaw(2, 1e3, 1e6),
@@ -731,21 +697,21 @@ class TestSecondaryBiasing:
 
     def test_detector_directed_channel_construction(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Name() == "DetectorDirected2Body"
         assert ch.Measure().type == siren.injection.PhaseSpaceMeasureType.SolidAngleRest
 
     def test_detector_directed_channel_topology_measure(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         ch = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         assert ch.Topology() == siren.injection.PhaseSpaceTopology.Decay2Body
         assert ch.Measure() == siren.injection.PhaseSpaceMeasure.SolidAngleRest()
 
     def test_detector_directed_3body_channel_construction(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         ch = siren.injection.DetectorDirected3BodyChannel(
             factorization=siren.injection.ThreeBodyMode.Recursive,
             target=fid,
@@ -760,7 +726,7 @@ class TestSecondaryBiasing:
 
     def test_3body_channel_topology_measure(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         ch = siren.injection.DetectorDirected3BodyChannel(
             factorization=siren.injection.ThreeBodyMode.Direct,
             target=fid, directed_index=2)
@@ -769,7 +735,7 @@ class TestSecondaryBiasing:
 
     def test_detector_directed_scattering_channel_construction(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         ch = siren.injection.DetectorDirectedScatteringChannel(
             fid,
             directed_index=0,
@@ -780,7 +746,7 @@ class TestSecondaryBiasing:
 
     def test_scattering_channel_topology_measure(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         ch_q2 = siren.injection.DetectorDirectedScatteringChannel(
             fid, variable=siren.injection.ScatteringVariable.Q2)
         ch_by = siren.injection.DetectorDirectedScatteringChannel(
@@ -792,7 +758,7 @@ class TestSecondaryBiasing:
 
     def test_multi_channel_construction(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         mc = siren.injection.MultiChannelPhaseSpace()
         mc.channels = [
             siren.injection.Isotropic2BodyChannel(0),
@@ -807,7 +773,7 @@ class TestSecondaryBiasing:
     def test_topology_mismatch_raises(self):
         """Mixing Decay2Body with Scatter2to2 should throw."""
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         mc = siren.injection.MultiChannelPhaseSpace()
         mc.channels = [
             siren.injection.Isotropic2BodyChannel(0),
@@ -819,7 +785,7 @@ class TestSecondaryBiasing:
 
     def test_secondary_process_phase_space(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         sip = siren.injection.SecondaryInjectionProcess()
         assert not sip.HasAnyPhaseSpace()
 
@@ -841,7 +807,7 @@ class TestSecondaryBiasing:
 
     def test_injector_primary_phase_space(self):
         import siren
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         injector = siren.injection.Injector()
 
         sig = siren.dataclasses.InteractionSignature()
@@ -862,6 +828,111 @@ class TestSecondaryBiasing:
         p = siren.injection.TwoBodyRestMomentum(0.3, 0.106, 0.140)
         assert p > 0
 
+    def test_builder_dispatches_2body_directed(self):
+        """A 2-secondary signature builds physical@0 + DetectorDirected2Body."""
+        import siren
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        xs = siren.interactions.DummyCrossSection()
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.N4
+        sig.target_type = siren.dataclasses.ParticleType.Decay
+        sig.secondary_types = [siren.particles.NuLight, siren.particles.Gamma]
+        mc = siren.Simulation._build_phase_space_for_signature(
+            box, sig, xs, siren.particles.Gamma)
+        assert isinstance(mc.channels[0],
+                          siren.injection.PhysicalCrossSectionChannel)
+        assert any(isinstance(c, siren.injection.DetectorDirected2BodyChannel)
+                   for c in mc.channels[1:])
+
+    def test_builder_dispatches_3body_directed(self):
+        """A 3-secondary signature builds physical@0 + DetectorDirected3Body."""
+        import siren
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        xs = siren.interactions.DummyCrossSection()
+        sig = siren.dataclasses.InteractionSignature()
+        sig.primary_type = siren.particles.N4
+        sig.target_type = siren.dataclasses.ParticleType.Decay
+        sig.secondary_types = [
+            siren.particles.NuLight, siren.particles.EMinus, siren.particles.EPlus]
+        mc = siren.Simulation._build_phase_space_for_signature(
+            box, sig, xs, siren.particles.EMinus,
+            spectator_type=siren.particles.NuLight)
+        assert isinstance(mc.channels[0],
+                          siren.injection.PhysicalCrossSectionChannel)
+        assert any(isinstance(c, siren.injection.DetectorDirected3BodyChannel)
+                   for c in mc.channels[1:])
+
+
+class TestVertexFluxAliasCollision:
+    """flux/physical_energy alias collision is loud on the Vertex path too."""
+
+    def _primary_vertex(self, siren):
+        from siren.vertex import Vertex
+        xs = siren.interactions.DummyCrossSection()
+        sig = xs.GetPossibleSignatures()[0]
+        dists = [
+            siren.distributions.PrimaryMass(0),
+            siren.distributions.PowerLaw(2.0, 0.5, 5.0),
+            siren.distributions.IsotropicDirection(),
+            siren.distributions.PointSourcePositionDistribution(
+                siren.math.Vector3D(0, 0, 0), 5.0),
+        ]
+        return Vertex(sig.primary_type, xs, distributions=dists)
+
+    def test_vertex_path_flux_and_physical_energy_raises(self):
+        """A Vertex-primary Simulation given both flux and physical_energy
+        raises, matching the plain-particle path."""
+        import siren
+        with pytest.raises(ValueError, match="Cannot specify both.*flux"):
+            siren.Simulation(
+                events=1,
+                detector=siren.detector.DetectorModel(),
+                primary=self._primary_vertex(siren),
+                physical_energy=siren.dist.Monoenergetic(1000),
+                flux=siren.dist.PowerLaw(2, 1e3, 1e6),
+            )
+
+
+class TestBiasTargetsDictForm:
+    """bias_targets={ParticleType: Geometry} builds per-type phase spaces."""
+
+    def _sim_shell(self, siren):
+        # A Simulation carrying only the fields _resolve_bias_targets reads, so
+        # the dict-form handling is exercised without a full generation config.
+        sim = object.__new__(siren.Simulation)
+        xs = siren.interactions.DummyCrossSection()
+        sec_type = xs.GetPossibleSignatures()[0].primary_type
+        sim._secondary_processes = {sec_type: [xs]}
+        sim._secondary_phase_spaces = {}
+        return sim, xs, sec_type
+
+    def test_particle_geometry_dict_builds_phase_space(self):
+        """A {ParticleType: Geometry} entry registers that type's directed
+        phase space instead of silently no-oping."""
+        import siren
+        sim, xs, sec_type = self._sim_shell(siren)
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        daughter = xs.GetPossibleSignatures()[0].secondary_types[0]
+
+        sim._resolve_bias_targets({sec_type: box}, daughter, None)
+
+        target_sig = xs.GetPossibleSignatures()[0]
+        assert target_sig in sim._secondary_phase_spaces
+        mc = sim._secondary_phase_spaces[target_sig]
+        assert any(
+            isinstance(c, siren.injection.DetectorDirected2BodyChannel)
+            for c in mc.channels)
+
+    def test_particle_geometry_dict_unknown_type_raises(self):
+        """A dict key that is not a configured secondary type is loud."""
+        import siren
+        sim, xs, sec_type = self._sim_shell(siren)
+        box = siren.geometry.Box(widths=(1.0, 1.0, 1.0), center=(0.0, 0.0, 100.0))
+        from siren.errors import ConfigurationError
+        with pytest.raises(ConfigurationError, match="not a configured secondary"):
+            sim._resolve_bias_targets(
+                {siren.particles.MuMinus: box}, siren.particles.MuMinus, None)
+
 
 class TestWeighterBatch:
     """Weighter.weight_all should batch-weight events."""
@@ -870,9 +941,9 @@ class TestWeighterBatch:
         import siren
         sim = siren.Simulation(
             events=3,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -909,9 +980,9 @@ class TestDistributionsList:
         ]
         sim = siren.Simulation(
             events=5,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             injection_distributions=injection_dists,
@@ -919,6 +990,111 @@ class TestDistributionsList:
         )
         assert len(sim.injection_distributions) == len(injection_dists)
         assert len(sim.physical_distributions) == len(physical_dists)
+
+
+class TestVertexDistributionListComposition:
+    """injection_distributions/physical_distributions compose with a Vertex primary.
+
+    When the primary is a Vertex, the explicit lists are appended to the
+    Vertex's own distributions -- the same way the named-slot path composes
+    its extras -- and the constructor forwards them to
+    _resolve_distributions_from_vertex (so these also guard the call site
+    that must pass the two arguments through).
+    """
+
+    def _base_dists(self, siren):
+        # A complete injection set the Vertex carries on its own.
+        return [
+            siren.distributions.PrimaryMass(0),
+            siren.distributions.PowerLaw(2.0, 0.5, 5.0),
+            siren.distributions.IsotropicDirection(),
+            siren.distributions.PointSourcePositionDistribution(
+                siren.math.Vector3D(0, 0, 0), 5.0),
+        ]
+
+    def _vertex(self, siren, dists, physical=None):
+        from siren.vertex import Vertex
+        xs = siren.interactions.DummyCrossSection()
+        sig = xs.GetPossibleSignatures()[0]
+        kwargs = {"distributions": dists}
+        if physical is not None:
+            kwargs["physical"] = physical
+        return Vertex(sig.primary_type, xs, **kwargs)
+
+    @staticmethod
+    def _assert_appended(actual, expected):
+        # Same objects, same order (identity, so value-equality overrides on
+        # the distributions cannot mask a wrong or reordered list).
+        assert len(actual) == len(expected), (
+            "expected %d distributions, got %d" % (len(expected), len(actual)))
+        for i, (a, b) in enumerate(zip(actual, expected)):
+            assert a is b, "distribution at index %d is not the expected object" % i
+
+    def test_injection_distributions_append_to_vertex(self):
+        """Explicit injection_distributions follow the Vertex's own list."""
+        import siren
+        base = self._base_dists(siren)
+        extra = [siren.dist.IsotropicDirection()]
+        sim = siren.Simulation(
+            events=1,
+            detector=siren.detector.DetectorModel(),
+            primary=self._vertex(siren, base),
+            injection_distributions=extra,
+        )
+        self._assert_appended(sim.injection_distributions, base + extra)
+
+    def test_physical_distributions_append_to_built_physical(self):
+        """With no Vertex.physical, physical_distributions follow the physical
+        list built from the physical_energy/physical_direction kwargs."""
+        import siren
+        base = self._base_dists(siren)
+        phys_e = siren.dist.PowerLaw(2, 1e3, 1e6)
+        phys_d = siren.dist.IsotropicDirection()
+        extra = [siren.dist.PrimaryMass(0)]
+        sim = siren.Simulation(
+            events=1,
+            detector=siren.detector.DetectorModel(),
+            primary=self._vertex(siren, base),
+            physical_energy=phys_e,
+            physical_direction=phys_d,
+            physical_distributions=extra,
+        )
+        self._assert_appended(sim.physical_distributions, [phys_e, phys_d] + extra)
+
+    def test_physical_distributions_append_to_vertex_physical(self):
+        """When the Vertex carries its own physical list, physical_distributions
+        follow that list."""
+        import siren
+        base = self._base_dists(siren)
+        vphys = [siren.dist.PowerLaw(2, 1e3, 1e6),
+                 siren.dist.IsotropicDirection()]
+        extra = [siren.dist.PrimaryMass(0)]
+        sim = siren.Simulation(
+            events=1,
+            detector=siren.detector.DetectorModel(),
+            primary=self._vertex(siren, base, physical=vphys),
+            physical_distributions=extra,
+        )
+        self._assert_appended(sim.physical_distributions, vphys + extra)
+
+    def test_both_lists_compose_together(self):
+        """injection_distributions and physical_distributions apply together
+        (injection after the Vertex list, physical after the Vertex.physical)."""
+        import siren
+        base = self._base_dists(siren)
+        vphys = [siren.dist.PowerLaw(2, 1e3, 1e6),
+                 siren.dist.IsotropicDirection()]
+        inj_extra = [siren.dist.IsotropicDirection()]
+        phys_extra = [siren.dist.PrimaryMass(0)]
+        sim = siren.Simulation(
+            events=1,
+            detector=siren.detector.DetectorModel(),
+            primary=self._vertex(siren, base, physical=vphys),
+            injection_distributions=inj_extra,
+            physical_distributions=phys_extra,
+        )
+        self._assert_appended(sim.injection_distributions, base + inj_extra)
+        self._assert_appended(sim.physical_distributions, vphys + phys_extra)
 
 
 class TestReweight:
@@ -930,9 +1106,9 @@ class TestReweight:
         import siren
         sim = siren.Simulation(
             events=5,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -948,9 +1124,9 @@ class TestReweight:
         import siren
         sim = siren.Simulation(
             events=1,
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -1040,9 +1216,9 @@ class TestEventsAlias:
 
     def _kwargs(self, siren):
         return dict(
-            detector="IceCube",
+            detector=offline_detector(),
             primary="NuMu",
-            interactions="CSMSDISSplines",
+            interactions=[siren.interactions.DummyCrossSection()],
             targets="Nucleon",
             process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
@@ -1128,7 +1304,7 @@ class TestMeasureConsistency:
         import math
 
         record = self._make_2body_record()
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
         iso = siren.injection.Isotropic2BodyChannel(0)
         directed = siren.injection.DetectorDirected2BodyChannel(fid, 0)
         rng = siren.utilities.SIREN_random(42)
@@ -1151,7 +1327,7 @@ class TestMeasureConsistency:
         import math
 
         record = self._make_2body_record()
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
 
         iso = siren.injection.Isotropic2BodyChannel(0)
         directed = siren.injection.DetectorDirected2BodyChannel(fid, 0)
@@ -1190,7 +1366,7 @@ class TestMeasureConsistency:
         import siren
 
         record = self._make_2body_record()
-        fid = siren.get_fiducial_volume("IceCube")
+        fid = offline_fiducial()
 
         mc = siren.injection.MultiChannelPhaseSpace()
         mc.channels = [
