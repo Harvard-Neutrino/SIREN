@@ -1,6 +1,7 @@
 #include "SIREN/injection/WeightingUtils.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "InteractionSelection.h"
+#include "SIREN/utilities/Constants.h"
 
 #include <vector>                                                 // for vector
 #include <cmath>                                                  // for isfinite
@@ -301,6 +302,43 @@ double SelectedFinalStateProbability(
             "non-finite");
     }
     return conditional_density;
+}
+
+double ModeledInteractionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record)
+{
+    double parent_width = interactions->ParentDecayWidth(record);
+    if (parent_width == 0) return 1.0;
+    double modeled_width = 0;
+    auto candidate = record;
+    for (auto const & decay : interactions->GetDecays()) {
+        for (auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+            candidate.signature = signature;
+            double width = decay->TotalDecayWidth(candidate);
+            if (!std::isfinite(width) || width < 0)
+                throw siren::utilities::WeightCalculationError("Invalid modeled decay width");
+            modeled_width += width;
+        }
+    }
+    if (modeled_width > parent_width*(1+1e-12))
+        throw siren::utilities::WeightCalculationError("Modeled decay widths exceed parent width");
+    double missing_width = std::max(0.0, parent_width-modeled_width);
+    if (missing_width == 0) return 1.0;
+    // With no material competition the common boost cancels exactly, including
+    // the stationary limit. This also avoids subtracting tiny rare branches.
+    if (!interactions->HasCrossSections()) return modeled_width / parent_width;
+    auto const & p = record.primary_momentum;
+    double momentum = std::hypot(p[1],p[2],p[3]);
+    if (momentum == 0) return modeled_width / parent_width;
+    double missing_rate = missing_width * record.primary_mass / momentum
+        * siren::utilities::Constants::cm / siren::utilities::Constants::hbarc;
+    double modeled_rate = AccumulateRates(detector_model, interactions, record).first;
+    double probability = modeled_rate / (modeled_rate+missing_rate);
+    if (!std::isfinite(probability))
+        throw siren::utilities::WeightCalculationError("Nonfinite modeled interaction probability");
+    return probability;
 }
 
 double ChannelSelectionProbability(

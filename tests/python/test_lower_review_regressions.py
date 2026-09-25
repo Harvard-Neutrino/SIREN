@@ -1,10 +1,70 @@
 """Control-state, constrained-measure and caller-metadata review regressions."""
+import math
 import pickle
 
 import pytest
 import siren
 
+from test_injector_api import _chain_injector, _depth_ge_1
 from test_on_shell_cascade import record, target
+from test_phase_space_decay import decay, make_record
+
+
+def _rules():
+    pt = siren.particles.NuMu
+    return siren.injection.SecondaryExpansion([[int(pt), int(pt), -1, 1, 0]])
+
+
+def test_none_resets_built_injector_to_primary_only():
+    inj = _chain_injector()
+    assert all(len(t.tree) == 2 for t in inj.generate(3, on_shortfall="raise"))
+    inj.stopping_condition = None
+    assert inj.stopping_condition is None
+    assert all(len(t.tree) == 1 for t in inj.generate(3, on_shortfall="raise"))
+
+
+def test_native_rules_discard_previous_callback_and_wrapper_tracks_clear():
+    inj = _chain_injector()
+    inj._build()
+    calls = []
+    inj.stopping_condition = lambda *args: calls.append(args) or False
+    inj.engine.SetSecondaryExpansion(_rules())
+    assert inj.stopping_condition == _rules()
+    assert all(len(t.tree) == 2 for t in inj.generate(3, on_shortfall="raise"))
+    inj.engine.SetSecondaryExpansion(None)
+    assert inj.stopping_condition is None
+    assert all(len(t.tree) == 1 for t in inj.generate(3, on_shortfall="raise"))
+    assert not calls
+    assert pickle.loads(pickle.dumps(inj)).stopping_condition is None
+
+
+@pytest.mark.parametrize("archived_rules", [False, True])
+def test_raw_v3_load_replaces_control_policy(tmp_path, archived_rules):
+    saved = _chain_injector()
+    saved._build()
+    saved.stopping_condition = _rules() if archived_rules else None
+    path = str(tmp_path / "policy")
+    saved.save(path)
+    inj = _chain_injector()
+    inj._build()
+    calls = []
+    inj.stopping_condition = lambda *args: calls.append(args) or False
+    inj.engine.LoadInjector(path)
+    assert inj.stopping_condition == (_rules() if archived_rules else None)
+    assert all(len(t.tree) == (2 if archived_rules else 1)
+               for t in inj.generate(3, on_shortfall="raise"))
+    assert not calls
+
+
+def test_raw_callback_replacement_is_visible_and_blocks_native_save(tmp_path):
+    inj = _chain_injector()
+    inj._build()
+    inj.stopping_condition = _rules()
+    inj.engine.SetStoppingCondition(_depth_ge_1)
+    assert not isinstance(inj.stopping_condition, siren.injection.SecondaryExpansion)
+    with pytest.raises(siren.errors.NotSerializableError):
+        inj.save(str(tmp_path / "callback"))
+    assert all(len(t.tree) == 2 for t in inj.generate(3, on_shortfall="raise"))
 
 
 @pytest.mark.parametrize("mass", [float('nan'), -0.1, float('inf')])
@@ -27,6 +87,27 @@ def test_measure_pickle_preserves_constraint_and_dictionary_identity(measure):
     assert hash(copy) == hash(measure)
     assert copy.pair_mass == measure.pair_mass
     assert {measure: 1}[copy] == 1
+
+
+def test_native_sampler_preserves_pending_caller_parameters():
+    model = decay()
+    r = make_record(model)
+    r.interaction_parameters = {"source": 8., "override": 1.}
+    output = siren.dataclasses.CrossSectionDistributionRecord(r)
+    output.interaction_parameters = {"source": 8., "override": 2., "caller": 17.}
+    model.SampleFinalState(output, siren.utilities.SIREN_random(31))
+    assert output.interaction_parameters == {"source": 8., "override": 2., "caller": 17.}
+
+
+def test_unequal_masses_are_configuration_errors_and_classified_direct_failures():
+    r = record()
+    r.secondary_masses = [0., .01, math.nextafter(.01, math.inf)]
+    channel = siren.injection.OnShellCascadeChannel(target(), .03)
+    with pytest.raises(ValueError, match="exactly equal pair masses"):
+        siren.injection.PhaseSpaceDecay(r.signature, r.secondary_masses, 1., 1., channel)
+    assert channel.Density(None, r) == 0
+    with pytest.raises(siren.utilities.InjectionFailure):
+        channel.Sample(siren.utilities.SIREN_random(3), None, r)
 
 
 class _CascadeModel(siren.DecayModel):

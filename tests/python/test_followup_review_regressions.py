@@ -13,6 +13,7 @@ import pytest
 import siren
 from siren.source_importance import SourceImportanceTable
 
+from test_injector_api import _chain_injector, _depth_ge_1
 from test_on_shell_cascade import record, target
 
 inj = siren.injection
@@ -603,6 +604,25 @@ def test_archived_volume_is_checked_on_load():
     assert pickle.loads(_with_archived_volume(cone, exact, 2.)) is not None
 
 
+def test_raw_archive_refuses_a_live_callback_unless_told_to_drop_it(tmp_path):
+    injector = _chain_injector()
+    injector._build()
+    with pytest.raises(RuntimeError, match='stopping-condition callback'):
+        injector.engine.SaveInjector(str(tmp_path / 'raw'))
+    injector.engine.SaveInjector(str(tmp_path / 'raw'), True)
+    assert (tmp_path / 'raw').exists()
+
+
+def test_raw_engine_callback_gives_a_clear_pickle_error():
+    injector = _chain_injector()
+    injector._build()
+    injector.engine.SetStoppingCondition(_depth_ge_1)
+    with pytest.raises(siren.errors.NotSerializableError, match='SetStoppingCondition'):
+        pickle.dumps(injector)
+    ordinary = _chain_injector()
+    assert pickle.loads(pickle.dumps(ordinary)).stopping_condition is _depth_ge_1
+
+
 def test_measure_fields_are_read_only():
     measure = siren.Measure.OnShellCascade(.03)
     for field, value in [('type', inj.PhaseSpaceMeasureType.SolidAngleRest),
@@ -647,7 +667,67 @@ def test_on_shell_rows_canonicalizes_rounded_tables_and_rejects_off_shell_rows()
     for name in ('weight', 't0', 'x0', 'PrimaryExternalDistribution_row', '', 3):
         with pytest.raises(ValueError, match='interprets|column name'):
             siren.dist.on_shell_rows(plain, [row[:5] for row in rows], keep_input_energy=name)
+    # The canonical source keeps each row's input energy with the event.
+    signature = siren.dataclasses.InteractionSignature()
+    signature.primary_type = pt.N4
+    signature.target_type = pt.Decay
+    signature.secondary_types = [pt.NuLight, pt.Gamma]
+    model = inj.PhaseSpaceDecay(signature, [.03, 0.], 1e-16, 1e-16, inj.Isotropic2BodyChannel(0))
+    source = siren.distributions.PrimaryExternalDistribution(new_keys, new_rows)
+    vertex = siren.Vertex('N4', model, distributions=[source], physical=[source], weighting=siren.Fixed())
+    result = siren.Simulation(detector=siren.detector.DetectorModel(), primary=vertex,
+                              events=30, seed=5).run(on_failure='raise', on_shortfall='raise')
+    by_energy = {row[0]: row[9] for row in new_rows}
+    for event in result.events:
+        rec = event.tree[0].record
+        assert rec.interaction_parameters['E_table'] == by_energy[rec.primary_momentum[0]]
+        assert np.sum(rec.secondary_momenta, axis=0)[0] == pytest.approx(rec.primary_momentum[0], rel=1e-14)
 
+
+_DETECTOR = siren.detector.DetectorModel()
+
+
+def _cascade_run(seed, pair_mass=.03):
+    keys = ['E', 'm', 'px', 'py', 'pz', 'x', 'y', 'z', 'weight']
+    source = siren.distributions.PrimaryExternalDistribution(
+        keys, [[math.hypot(M, .3), M, 0., 0., .3, 0., 0., 0., 1.]])
+    signature = siren.dataclasses.InteractionSignature()
+    signature.primary_type = pt.Pi0
+    signature.target_type = pt.Decay
+    signature.secondary_types = [pt.Gamma, pt.N4, pt.N5]
+    physical = inj.OnShellCascadeChannel(target(), pair_mass, 0., [1., 0., 0.])
+    model = inj.PhaseSpaceDecay(signature, [0., .01, .01], 7.8e-12, 7.8e-9, physical)
+    vertex = siren.Vertex('Pi0', model, distributions=[source], physical=[source], weighting=siren.Fixed(),
+                          kinematics=siren.channels.on_shell_cascade(target(), pair_mass, 0., (.1, .45, .45), .5))
+    return siren.Simulation(detector=_DETECTOR, primary=vertex, events=20, seed=seed).run(
+        on_failure='raise', on_shortfall='raise')
+
+
+def _envelope_run(seed, radius=8.):
+    keys = ['E', 'm', 'px', 'py', 'pz', 'x', 'y', 'z', 'weight']
+    source = siren.distributions.PrimaryExternalDistribution(
+        keys, [[math.hypot(M, .3), M, 0., 0., .3, 0., 0., 0., 1.]])
+    signature = siren.dataclasses.InteractionSignature()
+    signature.primary_type = pt.N4
+    signature.target_type = pt.Decay
+    signature.secondary_types = [pt.NuLight, pt.Gamma]
+    model = inj.PhaseSpaceDecay(signature, [.03, 0.], 1e-16, 1e-16, inj.Isotropic2BodyChannel(0))
+    shape = siren.geometry.Sphere(siren.geometry.Placement(siren.math.Vector3D(15, 0, 20)), radius, 0.)
+    kinematics = .5*siren.channels.rest_frame_envelope(0, shape) + .5*siren.channels.isotropic(0)
+    vertex = siren.Vertex('N4', model, distributions=[source], physical=[source], weighting=siren.Fixed(),
+                          kinematics=kinematics)
+    return siren.Simulation(detector=_DETECTOR, primary=vertex, events=20, seed=seed).run(
+        on_failure='raise', on_shortfall='raise')
+
+
+@pytest.mark.parametrize('run,different', [(_cascade_run, dict(pair_mass=.031)),
+                                           (_envelope_run, dict(radius=7.))])
+def test_results_merge_pools_identical_new_channel_runs_only(run, different):
+    first, second = run(1), run(2)
+    merged = siren.Results.merge([first, second])
+    assert len(merged) == len(first) + len(second)
+    with pytest.raises(siren.errors.ConfigurationError, match='differing config'):
+        siren.Results.merge([first, run(3, **different)])
 
 
 def _closure(sampler, density, reference, seed, n=250000, observable=None):

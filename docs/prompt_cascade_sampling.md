@@ -80,6 +80,49 @@ response, timing and cuts as applicable. A sampler-only change need not
 invalidate the physical pilot expectation. Freeze the pilot before production
 and use an independent random stream.
 
+## Native production and persistence
+
+`injection.PhaseSpaceDecay(signature, masses, partial_width, total_width,
+physical_channel)` is a native `Decay` for an explicitly normalized physical
+phase-space law. It owns its masses, widths and physical channel. Supply the
+biased proposal separately through `Vertex(kinematics=...)`; substituting that
+biased law as the physical channel changes the model. The adapter lives in
+injection because injection already depends on interactions and owns
+PhaseSpaceChannel. Placing this dependency in interactions would create a cycle.
+
+`TotalDecayWidthAllFinalStates` is the sum of widths owned by this model,
+which for this adapter is its partial width. `ParentDecayWidth` declares the
+whole-parent width, including omitted branches. Other `Decay` implementations
+opt in by overriding that method; its default zero preserves their additive
+contract. Python models reach it through both trampolines, `siren.DecayModel`
+and `decay_model_base(base=siren.interactions.DarkNewsDecay)`, and the authoring
+base rejects near-miss spellings of the name. A collection counts a declared parent width once, rejects inconsistent
+declarations or owned widths exceeding it, and uses it for the lifetime.
+The physical weighter includes omitted branches in both Fixed and Propagated
+probabilities. Forced generation remains conditional on modeled channels.
+For decay-only processes this supplies sum(modeled partial widths)/parent width;
+with material competition it supplies modeled rate/total rate. Do not add an
+external branching normalization for the same decay. Width declarations do not
+change the normalized final-state law.
+
+The adapter supports native save/load and pickle. A standard
+`Simulation(...).run(on_failure="raise", on_shortfall="raise")` returns weights
+normalized over all injection attempts, including geometric misses. `Results`
+and `Weighter.explain` use the same native weight path.
+
+Pure `expand.child(...)` and `expand.depth_below(...)` declarations compile to
+native `SecondaryExpansion` rules. Injector archive version 3 persists them;
+versions 0–2 remain readable. A terminal vertex can declare
+`expand=(expand.depth_below(0),)`. Arbitrary `continue_if` predicates retain the
+Python callback path and remain ineligible for native archives. Native event
+trees and weighters reload without importing a Python physics callback.
+
+For an inclusive expected number of daughter interactions, generate separate
+single-daughter chains and sum their estimates. Expanding two independently
+interacting daughters in one tree multiplies their probabilities and represents
+a coincidence. An at-least-one-event probability needs a separately specified
+observable including the overlap; it is not generally the sum of rates.
+
 ## Validation boundary
 
 Tests cover independent forward boosts, branch balance, angular coverage,
@@ -93,8 +136,10 @@ timing/selection remain unqualified.
 
 The three directed decay channel archive versions are now 1. Their version-0
 payloads fail explicitly; regenerate events because their generation density
-changed. OnShellCascade and RestFrameEnvelope2Body also use version 1 and reject
-their earlier development payloads. New archives preserve mixture
+changed. OnShellCascade, RestFrameEnvelope2Body, PhaseSpaceDecay and
+SecondaryExpansion also use version 1 and reject their earlier development
+payloads. The latter used ambiguous wildcard semantics and the decay adapter
+previously required an external branching factor. New archives preserve mixture
 weights bitwise without repeated normalization. Measure version-0 reading is
 unchanged: it does not authorize reading old directed samplers.
 
@@ -115,8 +160,8 @@ A physical model paired with these channels must rebuild the parent rest frame
 from the same on-shell parent, not from the recorded energy. The difference is
 not small at high boost: a float32 pi0 row at gamma 1000 has an invariant mass
 sqrt(E^2 - p^2) about 6% away from m, and at gamma 3000 the rounded row can be
-massless, because an energy error dE shifts E^2 - p^2 by 2 E dE. The BSM-beam `PromptPionCascade`
-follows this convention. A model that reads `primary_momentum[0]` directly gets
+massless, because an energy error dE shifts E^2 - p^2 by 2 E dE. `PhaseSpaceDecay` and the BSM-beam `PromptPionCascade`
+follow this convention. A model that reads `primary_momentum[0]` directly gets
 a wrong rest-frame angle for such rows. For parents that are exactly on shell
 the two conventions agree.
 
@@ -191,7 +236,8 @@ accuracy. Domain-specific high-boost and persistence regressions are separate.
 
 The current cascade channel supports spectator index 0 and pair indices 1, 2,
 with **exactly equal** pair masses. It does not round unequal masses into the
-same model. Direct sampling of a mismatched event remains a classified
+same model. `PhaseSpaceDecay` rejects an incompatible mass specification at
+construction. Direct sampling of a mismatched event remains a classified
 `KinematicallyForbidden` failure. The Python `on_shell_cascade` facade checks
 matching models' constrained measure, pair mass and daughter masses when it
 compiles a vertex. Its optional `spectator=` and `pair=` particle names make the
@@ -201,6 +247,16 @@ alone cannot establish which pair the model physically intends.
 Construct constrained measures through `Measure.OnShellCascade(...)`.
 `pair_mass` is read-only in Python, and measures now pickle through their
 validated native archive. This permits a Python model to retain its measure.
+`PhaseSpaceDecay.SampleFinalState` preserves parameters added to the mutable
+distribution record before sampling; the channel can still update its own keys.
+
+A built injector's `stopping_condition = None` resets to the native default,
+which stops all secondaries. Native rule and callback setters replace each other.
+Clearing rules cannot reactivate a prior callback. Version-3 injector archives
+own the expansion policy, including the default when no rules are stored;
+loading them replaces an existing callback. Older archives retain their legacy
+caller-policy behavior. The Python stopping-condition property follows direct
+engine changes; public Python callbacks retain their existing pickle path.
 
 ## Follow-up review fixes (2026-09-24)
 
@@ -234,7 +290,11 @@ mass discriminator.
 
 **Other contracts.** A parent at rest with cross sections in its collection raises
 `ConfigurationError` (material is located along the direction of motion) instead of
-crashing; decays at rest are unchanged. `PhaseSpaceMeasure` fields are read-only in Python; build
+crashing; decays at rest are unchanged. `Injector.SaveInjector(path)` refuses a live
+stopping callback, which the archive cannot hold; `SaveInjector(path, True)` writes it
+anyway, and the legacy controller does so with a `RuntimeWarning`. Pickling an
+`Injector` whose callback was set on the raw engine raises `NotSerializableError`
+with that explanation. `PhaseSpaceMeasure` fields are read-only in Python; build
 measures with the factories. `SourceImportanceTable.save`/`load` also accept binary
 file objects. Point-source, column-depth and range position distributions now give
 their decay-length query the parent's momentum; before, every decay of a decaying

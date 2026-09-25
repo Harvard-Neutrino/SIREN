@@ -22,6 +22,7 @@ void register_Decay(pybind11::module_ & m) {
         .def(init<>())
         .def("__eq__", [](const Decay &self, const Decay &other){ return self == other; })
         .def("equal", &Decay::equal)
+        .def("ParentDecayWidth", &Decay::ParentDecayWidth)
         .def("TotalDecayWidthAllFinalStates", &Decay::TotalDecayWidthAllFinalStates)
         .def("TotalDecayWidth", (double (Decay::*)(siren::dataclasses::ParticleType) const)(&Decay::TotalDecayWidth))
         .def("TotalDecayWidth", (double (Decay::*)(siren::dataclasses::InteractionRecord const &) const)(&Decay::TotalDecayWidth))

@@ -43,6 +43,13 @@ PhaseSpaceConvention ResolveCommonFinalStateConvention(
 // where rate = density * cross_section (for scattering) or
 // 1/decay_length (for decays).  This is independent of the
 // final-state kinematics.
+// Physical probability of entering the modeled channels when a decay declares
+// unmodeled parent branches. Generation remains conditioned on modeled channels.
+double ModeledInteractionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
 double ChannelSelectionProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
