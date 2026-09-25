@@ -4,7 +4,7 @@ SIREN can write events as [HepMC3](https://gitlab.cern.ch/hepmc/HepMC3) ASCII, f
 
 ## Enabling it
 
-Pass `save_hepmc3=True` to `SaveEvents` (or `hepmc3=True` to `SIREN_Controller.SaveEvents`). This writes `<output_filename>.hepmc3` alongside the usual HDF5/Parquet/`.siren_events` files. Add `hepmc3_gzip=True` to gzip the output (the `.gz` suffix is added automatically).
+Pass `save_hepmc3=True` to `Results.save` or to `SaveEvents` (or `hepmc3=True` to the deprecated `SIREN_Controller.SaveEvents`). This writes `<output_filename>.hepmc3` alongside the usual HDF5/Parquet/`.siren_events` files. Add `hepmc3_gzip=True` to gzip the output (the `.gz` suffix is added automatically).
 
 ```python
 from siren._util import SaveEvents

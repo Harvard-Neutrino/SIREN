@@ -28,52 +28,45 @@ The following example injects 1e4 muon-neutrino DIS events in IceCube and comput
 ```python
 import siren
 
-# Load detector geometry and interaction cross sections
-detector_model = siren.utilities.load_detector("IceCube")
-primary_type = siren.dataclasses.Particle.ParticleType.NuMu
-primary_processes, _ = siren.utilities.load_processes(
+NuMu = siren.particles.NuMu
+
+# CSMS DIS cross sections for NuMu charged-current scattering on nucleons
+interactions = siren.load_processes(
     "CSMSDISSplines",
-    primary_types=[primary_type],
-    target_types=[siren.dataclasses.Particle.ParticleType.Nucleon],
+    primary_types=[NuMu],
+    target_types=[siren.particles.Nucleon],
     isoscalar=True,
     process_types=["CC"],
+).primary[NuMu]
+
+# One vertex: `distributions` sample the injection, `physical` names the
+# flux and direction factors the weighter divides by
+energy = siren.dist.PowerLaw(2, 1e3, 1e6)
+direction = siren.dist.IsotropicDirection()
+primary = siren.Vertex(
+    NuMu, interactions,
+    distributions=[
+        siren.dist.PrimaryMass(0),
+        energy,
+        direction,
+        siren.dist.ColumnDepth(
+            600, 600.0, siren.distributions.LeptonDepthFunction()),
+    ],
+    physical=[energy, direction],
 )
 
-# Configure the injector: energy spectrum, direction, and position
-injector = siren.injection.Injector()
-injector.number_of_events = int(1e4)
-injector.detector_model = detector_model
-injector.primary_type = primary_type
-injector.primary_interactions = primary_processes[primary_type]
-injector.primary_injection_distributions = [
-    siren.distributions.PrimaryMass(0),
-    siren.distributions.PowerLaw(2, 1e3, 1e6),
-    siren.distributions.IsotropicDirection(),
-    siren.distributions.ColumnDepthPositionDistribution(
-        600, 600.0, siren.distributions.LeptonDepthFunction()
-    ),
-]
+# Generate and weight
+sim = siren.Simulation(events=int(1e4), detector="IceCube", primary=primary, seed=1)
+results = sim.run()
+results.summary()
+for event, weight in results:
+    pass  # event: InteractionTree, weight: float
 
-# Generate events
-from siren._util import GenerateEvents, SaveEvents
-events, gen_times = GenerateEvents(injector)
-
-# Weight events using physical distributions
-weighter = siren.injection.Weighter()
-weighter.injectors = [injector]
-weighter.detector_model = detector_model
-weighter.primary_type = primary_type
-weighter.primary_interactions = primary_processes[primary_type]
-weighter.primary_physical_distributions = [
-    siren.distributions.PowerLaw(2, 1e3, 1e6),
-    siren.distributions.IsotropicDirection(),
-]
-
-weights = [weighter(event) for event in events]
-
-# Save results to HDF5 and Parquet
-SaveEvents(events, weighter, gen_times, output_filename="my_output")
+# Save to HDF5, Parquet, and native .siren_events files
+results.save("my_output")
 ```
+
+`Simulation` builds a Layer-2 `Injector` and `Weighter` from the vertex and runs both phases. To drive them directly, construct `siren.injection.Injector(detector=..., primary=..., secondaries=..., events=...)`, wrap it in `siren.injection.Weighter(injector)`, and call `siren.generate(injector, weighter, events=...)`; [`resources/examples/example1/DIS_IceCube_charm.py`](https://github.com/Harvard-Neutrino/SIREN/blob/main/resources/examples/example1/DIS_IceCube_charm.py) shows a secondary chain written that way. See [`docs/quickstart.md`](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/quickstart.md) and [`docs/simulation.md`](https://github.com/Harvard-Neutrino/SIREN/blob/main/docs/simulation.md).
 
 More examples — including BSM dipole-portal injection and MARLEY low-energy interactions — are in [`resources/examples/`](https://github.com/Harvard-Neutrino/SIREN/tree/main/resources/examples/).
 
