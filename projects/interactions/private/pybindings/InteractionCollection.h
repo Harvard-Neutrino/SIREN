@@ -30,6 +30,11 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def("GetDecays",&InteractionCollection::GetDecays, return_value_policy::reference_internal)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)
         .def("HasDecays",&InteractionCollection::HasDecays)
+        .def("SetDecayChannels", &InteractionCollection::SetDecayChannels, arg("channels"),
+             "Restrict generated decay signatures; None selects all. Propagation and physical weights still use all models.")
+        .def("GetDecayChannels", &InteractionCollection::GetDecayChannels)
+        .def("HasDecayChannels", &InteractionCollection::HasDecayChannels)
+        .def("AllowsDecay", &InteractionCollection::AllowsDecay)
         .def("GetCrossSectionsForTarget",&InteractionCollection::GetCrossSectionsForTarget, return_value_policy::reference_internal)
         .def("GetCrossSectionsByTarget",&InteractionCollection::GetCrossSectionsByTarget, return_value_policy::reference_internal)
         .def("TotalCrossSectionByTarget",&InteractionCollection::TotalCrossSectionByTarget)

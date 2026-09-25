@@ -323,7 +323,12 @@ double ProcessWeighter<ProcessType>::GenerationProbability(
     double gen_probability;
     auto mode = inj_process->GetWeightingMode();
 
-    if (mode.compute_interaction_probability) {
+    if (inj_process->GetInteractions()->HasDecayChannels()) {
+        auto phase_space = inj_process->GetPhaseSpace(datum.record.signature);
+        gen_probability = siren::injection::DecayChannelGenerationProbability(
+            detector_model, inj_process->GetInteractions(), datum.record,
+            phase_space.get(), &convention);
+    } else if (mode.compute_interaction_probability) {
         // Standard: rate-weighted cross section probability
         if (inj_process->HasPhaseSpace(datum.record.signature)) {
             gen_probability = siren::injection::CrossSectionProbabilityWithPhaseSpace(

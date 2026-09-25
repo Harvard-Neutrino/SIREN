@@ -82,7 +82,7 @@ def _as_compilable(kinematics):
 
 
 def _compile_phase_spaces(kinematics, models, *, detector=None, particle=None,
-                          primary_type=None):
+                          primary_type=None, decay_channels=None):
     """Compile signatures, optionally scoped to a vertex's primary type.
 
     Only models advertising the same in-scope signature have ambiguous ownership.
@@ -92,6 +92,10 @@ def _compile_phase_spaces(kinematics, models, *, detector=None, particle=None,
     for model in models:
         for sig in _model_signatures(model):
             if primary_type is not None and sig.primary_type != primary_type:
+                continue
+            if (decay_channels is not None
+                    and sig.target_type == _siren().dataclasses.ParticleType.Decay
+                    and sig not in decay_channels):
                 continue
             if sig in seen:
                 raise ConfigurationError(
@@ -106,6 +110,26 @@ def _compile_phase_spaces(kinematics, models, *, detector=None, particle=None,
             for sig, model in seen.items()}
 
 
+def _resolve_decay_channels(channels, models, particle):
+    if channels is None:
+        return None
+    siren = _siren()
+    signatures = []
+    for channel in _as_list(channels):
+        if isinstance(channel, siren.interactions.Decay):
+            selected = channel.GetPossibleSignaturesFromParent(particle)
+            if not selected:
+                raise ConfigurationError("decay_channels model has no signatures for this particle")
+            signatures.extend(selected)
+        elif isinstance(channel, siren.dataclasses.InteractionSignature):
+            signatures.append(channel)
+        else:
+            raise ConfigurationError("decay_channels expects Decay models or InteractionSignatures")
+    collection = siren.interactions.InteractionCollection(particle, models)
+    collection.SetDecayChannels(signatures)
+    return collection.GetDecayChannels()
+
+
 class Vertex:
     """One chain node: particle, interactions, distributions, phase space.
 
@@ -116,6 +140,10 @@ class Vertex:
         root vertex, or the secondary type of a non-root vertex).
     interactions : Decay/CrossSection or list thereof
         The interaction model(s) used to sample this vertex.
+    decay_channels : Decay, InteractionSignature, or list thereof, optional
+        Restrict generated decays to these signatures. Keep all competing
+        decay models in `interactions` for propagation and physical weights.
+        None selects all decays; an empty selection is invalid.
     distributions : list, optional
         PrimaryInjectionDistribution / SecondaryInjectionDistribution
         objects sampling this vertex's free parameters.
@@ -154,6 +182,7 @@ class Vertex:
         "particle",
         "_resolved_particle",
         "interactions",
+        "_decay_channels",
         "distributions",
         "physical",
         "physical_interactions",
@@ -166,7 +195,7 @@ class Vertex:
 
     def __init__(self, particle, interactions, *, distributions=None,
                  position=None, physical=None, physical_interactions=None, kinematics=None,
-                 weighting=None, expand=(), continue_if=None, label=None):
+                 weighting=None, expand=(), continue_if=None, label=None, decay_channels=None):
         self.particle = particle
         self._resolved_particle = _particles.resolve(particle)
         self.interactions = _as_list(interactions)
@@ -174,6 +203,8 @@ class Vertex:
             raise ConfigurationError(
                 "Vertex(particle={!r}): interactions must be a Decay/"
                 "CrossSection or a non-empty list thereof".format(particle))
+
+        self.decay_channels = decay_channels
 
         dists = list(distributions) if distributions is not None else []
         if position is not None:
@@ -211,11 +242,24 @@ class Vertex:
         """Return whether this Vertex would compile as a secondary process."""
         return not is_primary
 
+    @property
+    def decay_channels(self):
+        return self._decay_channels
+
+    @decay_channels.setter
+    def decay_channels(self, channels):
+        self._decay_channels = _resolve_decay_channels(
+            channels, self.interactions, self._resolved_particle)
+
     def _all_signatures(self):
         """(model, signature) pairs for every model's possible signatures."""
         pairs = []
         for model in self.interactions:
             for sig in _model_signatures(model):
+                if (self.decay_channels is not None
+                        and sig.target_type == _siren().dataclasses.ParticleType.Decay
+                        and sig not in self.decay_channels):
+                    continue
                 pairs.append((model, sig))
         return pairs
 
@@ -257,6 +301,7 @@ class Vertex:
 
         interaction_collection = siren.interactions.InteractionCollection(
             self._resolved_particle, self.interactions)
+        interaction_collection.SetDecayChannels(self.decay_channels)
 
         if is_primary:
             process = siren.injection.PrimaryInjectionProcess(
@@ -270,7 +315,8 @@ class Vertex:
         if self.kinematics is not None:
             phase_spaces = _compile_phase_spaces(
                 self.kinematics, self.interactions,
-                detector=detector, particle=self.particle)
+                detector=detector, particle=self.particle,
+                decay_channels=self.decay_channels)
             for sig, mcps in phase_spaces.items():
                 process.SetPhaseSpace(sig, mcps)
 
