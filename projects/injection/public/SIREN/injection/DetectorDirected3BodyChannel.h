@@ -265,6 +265,9 @@ private:
             throw std::runtime_error(
                 "DetectorDirected3BodyChannel: invalid tabulated table state");
         }
+        ValidateArchivedDetectorDirectedVolume(
+            target_.get(), mode_ == DetectorDirected2BodyChannel::Mode::Volume,
+            target_volume_);
 
         Factorization factorization = static_cast<Factorization>(factorization_int);
         if (factorization == Factorization::Direct) {

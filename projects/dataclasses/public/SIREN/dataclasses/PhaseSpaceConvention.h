@@ -3,6 +3,7 @@
 #define SIREN_PhaseSpaceConvention_H
 
 #include <cstdint>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 
@@ -57,7 +58,8 @@ struct PhaseSpaceMeasure {
         BjorkenXYPhi,     // dx dy dphi
         MandelstamQ2Y,    // dQ^2 dy, azimuth integrated with a uniform conditional
         MandelstamQ2YPhi, // dQ^2 dy dphi
-        Unspecified       // model-specific, no auto-conversion
+        Unspecified,      // model-specific, no auto-conversion
+        OnShellCascade    // dOmega_pair dOmega_sub, at fixed pair_mass
     };
 
     Type type = Type::Unspecified;
@@ -69,26 +71,31 @@ struct PhaseSpaceMeasure {
     int spectator = 0;
     int pair_first = 1;
     int pair_second = 2;
+    double pair_mass = 0.0; // constraint identity for OnShellCascade only
 
     bool operator==(PhaseSpaceMeasure const & o) const;
     bool operator!=(PhaseSpaceMeasure const & o) const { return !(*this == o); }
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if (version == 0) {
+        // Refuse to write a constraint that load() would reject.
+        if (type == Type::OnShellCascade)
+            (void)OnShellCascade(pair_mass, spectator, pair_first, pair_second);
+        if (version <= 1) {
             archive(::cereal::make_nvp("Type", static_cast<int>(type)));
             archive(::cereal::make_nvp("Spectator", spectator));
             archive(::cereal::make_nvp("PairFirst", pair_first));
             archive(::cereal::make_nvp("PairSecond", pair_second));
+            if (version >= 1) archive(::cereal::make_nvp("PairMass", pair_mass));
         } else {
             throw std::runtime_error(
-                "PhaseSpaceMeasure only supports version <= 0!");
+                "PhaseSpaceMeasure only supports version <= 1!");
         }
     }
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if (version == 0) {
+        if (version <= 1) {
             int type_int;
             int loaded_spectator;
             int loaded_pair_first;
@@ -112,6 +119,7 @@ struct PhaseSpaceMeasure {
                 case Type::BjorkenXYPhi:
                 case Type::MandelstamQ2Y:
                 case Type::MandelstamQ2YPhi:
+                case Type::OnShellCascade:
                 case Type::Unspecified:
                     break;
                 default:
@@ -124,13 +132,19 @@ struct PhaseSpaceMeasure {
             spectator = loaded_spectator;
             pair_first = loaded_pair_first;
             pair_second = loaded_pair_second;
+            pair_mass = 0;
+            if (version >= 1) archive(::cereal::make_nvp("PairMass", pair_mass));
+            if (type == Type::OnShellCascade)
+                *this = OnShellCascade(pair_mass, spectator, pair_first, pair_second);
         } else {
             throw std::runtime_error(
-                "PhaseSpaceMeasure only supports version <= 0!");
+                "PhaseSpaceMeasure only supports version <= 1!");
         }
     }
 
     // Convenience factories
+    static PhaseSpaceMeasure OnShellCascade(double pair_mass, int spectator = 0,
+                                            int pair_first = 1, int pair_second = 2);
     static PhaseSpaceMeasure SolidAngleRest();
     static PhaseSpaceMeasure SolidAngleLab(int daughter_index = 0);
     static PhaseSpaceMeasure Recursive2Body(int spectator = 0,
@@ -209,6 +223,6 @@ bool PhaseSpaceDensityConvertible(PhaseSpaceTopology topology,
 } // namespace dataclasses
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::dataclasses::PhaseSpaceMeasure, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::PhaseSpaceMeasure, 1);
 
 #endif // SIREN_PhaseSpaceConvention_H

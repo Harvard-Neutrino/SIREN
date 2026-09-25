@@ -2,6 +2,7 @@
 
 #include "LorentzBoostUtils.h"
 #include "InteractionRecordUtils.h"
+#include "OnShellDecayKinematics.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
@@ -50,6 +51,7 @@ void Isotropic2BodyChannel::Sample(
     siren::dataclasses::InteractionRecord & record) const
 {
     detail::RequireSecondaryStorage(record, 2, "Isotropic2BodyChannel");
+    detail::RequireOnShellParent(record);
 
     double M_parent = record.primary_mass;
     double m_A = record.secondary_masses[daughter_index_];
@@ -74,11 +76,12 @@ void Isotropic2BodyChannel::Sample(
     double py_rest = p_rest * sin_theta * std::sin(phi);
     double pz_rest = p_rest * cos_theta;
 
-    // Boost to lab frame along parent direction
-    auto parent = detail::ReadPrimary(record);
+    // Boost to lab frame along parent direction. The frame comes from the
+    // declared mass and three-momentum; a tabulated energy may be rounded.
+    auto parent = detail::OnShellParent(record);
     auto lab = detail::BoostRestFrameToLab(
         parent.e, parent.p.GetX(), parent.p.GetY(), parent.p.GetZ(),
-        E_A_rest, px_rest, py_rest, pz_rest);
+        E_A_rest, px_rest, py_rest, pz_rest, M_parent);
     detail::FourVector daughter{
         lab[0], siren::math::Vector3D(lab[1], lab[2], lab[3])};
     detail::WriteSecondary(record, daughter_index_, daughter);
@@ -92,7 +95,8 @@ double Isotropic2BodyChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 2)) {
+    if (!detail::HasSecondaryStorage(record, 2)
+        || !detail::OnShellParentValid(record)) {
         return 0.0;
     }
     double M_parent = record.primary_mass;

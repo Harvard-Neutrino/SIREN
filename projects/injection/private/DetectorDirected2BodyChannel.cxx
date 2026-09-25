@@ -2,6 +2,7 @@
 
 #include "DetectorDirectedChannelUtils.h"
 #include "InteractionRecordUtils.h"
+#include "OnShellDecayKinematics.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/detector/DetectorModel.h"
@@ -37,18 +38,32 @@ DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
         *target_, mode_ == Mode::Volume, volume);
 }
 
+DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
+    std::shared_ptr<siren::geometry::Geometry const> target,
+    int daughter_index,
+    CheckedVolume volume)
+    : target_(std::move(target))
+    , daughter_index_(daughter_index)
+    , mode_(Mode::Volume)
+    , target_volume_(volume.value)
+{
+}
+
 void DetectorDirected2BodyChannel::SetVolume(double volume) {
-    target_volume_ = volume;
+    // Validated like the constructor argument.
+    target_volume_ = ResolveDetectorDirectedVolume(
+        *target_, mode_ == Mode::Volume, volume);
 }
 
 bool DetectorDirected2BodyChannel::DirectingActive(
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 2)) {
+    if (!detail::HasSecondaryStorage(record, 2)
+        || !detail::OnShellParentValid(record)) {
         return false;
     }
     siren::math::Vector3D decay_pos = detail::ReadVertex(record);
-    auto parent = detail::ReadPrimary(record);
+    auto parent = detail::OnShellParent(record);
     auto geo = detail::ClassifyDirectedRegime(
         parent.e, parent.p.GetX(), parent.p.GetY(), parent.p.GetZ(),
         record.primary_mass,
@@ -73,8 +88,10 @@ void DetectorDirected2BodyChannel::Sample(
 {
     detail::RequireSecondaryStorage(
         record, 2, "DetectorDirected2BodyChannel");
+    detail::RequireOnShellParent(record);
 
-    auto parent = detail::ReadPrimary(record);
+    // Decay frame from the declared mass and three-momentum.
+    auto parent = detail::OnShellParent(record);
     siren::math::Vector3D decay_pos = detail::ReadVertex(record);
 
     auto result = detail::SampleDirectedStep(
@@ -96,11 +113,12 @@ double DetectorDirected2BodyChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 2)) {
+    if (!detail::HasSecondaryStorage(record, 2)
+        || !detail::OnShellParentValid(record)) {
         return 0.0;
     }
 
-    auto parent = detail::ReadPrimary(record);
+    auto parent = detail::OnShellParent(record);
     auto daughter = detail::ReadSecondary(record, daughter_index_);
     siren::math::Vector3D decay_pos = detail::ReadVertex(record);
 

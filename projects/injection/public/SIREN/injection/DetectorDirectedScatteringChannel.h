@@ -180,6 +180,9 @@ private:
             throw std::runtime_error(
                 "DetectorDirectedScatteringChannel: invalid propagator mediator mass");
         }
+        ValidateArchivedDetectorDirectedVolume(
+            target_.get(), mode_ == DetectorDirected2BodyChannel::Mode::Volume,
+            target_volume_);
     }
 
     // Sample / evaluate Q2 directly from the configured 1-D mapping

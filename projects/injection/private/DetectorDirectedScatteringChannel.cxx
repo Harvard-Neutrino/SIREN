@@ -168,7 +168,9 @@ DetectorDirectedScatteringChannel::DetectorDirectedScatteringChannel(
 }
 
 void DetectorDirectedScatteringChannel::SetVolume(double volume) {
-    target_volume_ = volume;
+    // Validated like the constructor argument.
+    target_volume_ = ResolveDetectorDirectedVolume(
+        *target_, mode_ == DetectorDirected2BodyChannel::Mode::Volume, volume);
 }
 
 PhaseSpaceMeasure DetectorDirectedScatteringChannel::Measure() const {
