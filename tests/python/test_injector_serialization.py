@@ -1,0 +1,129 @@
+"""Fixed-vertex channel-factor pins.
+
+Data-free and fixed-seed throughout: FixedVertexChannelSelectionProbability
+returns exactly 1.0 for a single-channel process (an exact float no-op) and
+selected_rate/total_rate when multiple channels compete, so a Fixed vertex
+charges the same channel-selection factor the injector's rate selection
+applied.
+"""
+
+import math
+
+import pytest
+
+import siren
+from siren import dataclasses as dc
+from siren import injection
+from siren import interactions
+
+_NuMu = dc.Particle.ParticleType.NuMu
+
+
+# ------------------------------------------------------------------ #
+#  FixedVertexChannelSelectionProbability                         #
+# ------------------------------------------------------------------ #
+
+class _ConstWidthDecay(siren.interactions.Decay):
+    """Minimal data-free decay double with a single fixed signature and a
+    constant total width, so its selection rate is proportional to `width`.
+    The two secondary types choose the signature, so two instances with
+    different secondaries present as two competing channels."""
+
+    def __init__(self, secondary_types, width):
+        siren.interactions.Decay.__init__(self)
+        self._width = float(width)
+        self._sig = siren.dataclasses.InteractionSignature()
+        self._sig.primary_type = _NuMu
+        self._sig.target_type = dc.Particle.ParticleType.Decay
+        self._sig.secondary_types = list(secondary_types)
+
+    def equal(self, other):
+        return self is other
+
+    def TotalDecayWidthAllFinalStates(self, record):
+        return self._width
+
+    def TotalDecayWidth(self, arg):
+        # Both the (ParticleType) and (record) overloads dispatch here.
+        return self._width
+
+    def DifferentialDecayWidth(self, record):
+        return self._width
+
+    def SampleFinalState(self, csdr, random):
+        pass
+
+    def GetPossibleSignatures(self):
+        return [self._sig]
+
+    def GetPossibleSignaturesFromParent(self, primary_type):
+        return [self._sig]
+
+    def FinalStateProbability(self, record):
+        return 1.0
+
+    def DensityVariables(self):
+        return []
+
+
+def _moving_decay_record(signature, mass=0.1, energy=1.0):
+    record = siren.dataclasses.InteractionRecord()
+    record.signature = signature
+    record.primary_mass = mass
+    pz = math.sqrt(max(energy**2 - mass**2, 0.0))
+    record.primary_momentum = [energy, 0.0, 0.0, pz]
+    record.primary_initial_position = [0.0, 0.0, 0.0]
+    record.interaction_vertex = [0.0, 0.0, 0.0]
+    record.secondary_masses = []
+    record.secondary_momenta = []
+    return record
+
+
+def test_single_channel_fixed_factor_is_exactly_one():
+    """One candidate signature -> exact 1.0 (single-channel Fixed configs are
+    unaffected)."""
+    dm = siren.detector.DetectorModel()
+    decay = _ConstWidthDecay(
+        [dc.Particle.ParticleType.NuE, dc.Particle.ParticleType.Gamma], width=1.0)
+    collection = interactions.InteractionCollection(_NuMu, [decay])
+    record = _moving_decay_record(decay.GetPossibleSignatures()[0])
+
+    factor = injection.FixedVertexChannelSelectionProbability(dm, collection, record)
+    assert factor == 1.0
+
+
+def test_two_channel_fixed_factor_is_branching_fraction():
+    """Two equal-width channels -> the observed channel carries exactly 1/2,
+    matching the injector's rate selection; unequal widths give the width
+    fraction. The local decay references keep the python doubles alive for the
+    duration of the C++ calls."""
+    dm = siren.detector.DetectorModel()
+
+    decay_a = _ConstWidthDecay(
+        [dc.Particle.ParticleType.NuE, dc.Particle.ParticleType.Gamma], width=1.0)
+    decay_b = _ConstWidthDecay(
+        [dc.Particle.ParticleType.NuMu, dc.Particle.ParticleType.Gamma], width=1.0)
+    collection = interactions.InteractionCollection(_NuMu, [decay_a, decay_b])
+
+    # A record on channel A: equal widths -> selected/total = 1/2.
+    record_a = _moving_decay_record(decay_a.GetPossibleSignatures()[0])
+    factor_a = injection.FixedVertexChannelSelectionProbability(dm, collection, record_a)
+    assert factor_a == pytest.approx(0.5)
+
+    # The same record through the single-channel collection has factor 1.0, so
+    # the two-channel factor is a genuine 1/2 relative to the single-channel
+    # case.
+    single = interactions.InteractionCollection(_NuMu, [decay_a])
+    assert injection.FixedVertexChannelSelectionProbability(
+        dm, single, record_a) == 1.0
+
+    # Unequal widths (3 vs 1) -> width fraction 3/4 on the wider channel.
+    decay_wide = _ConstWidthDecay(
+        [dc.Particle.ParticleType.NuE, dc.Particle.ParticleType.Gamma], width=3.0)
+    decay_narrow = _ConstWidthDecay(
+        [dc.Particle.ParticleType.NuMu, dc.Particle.ParticleType.Gamma], width=1.0)
+    collection2 = interactions.InteractionCollection(_NuMu, [decay_wide, decay_narrow])
+    record_wide = _moving_decay_record(decay_wide.GetPossibleSignatures()[0])
+    factor_wide = injection.FixedVertexChannelSelectionProbability(
+        dm, collection2, record_wide)
+    assert factor_wide == pytest.approx(0.75)
