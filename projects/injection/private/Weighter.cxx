@@ -3,9 +3,10 @@
 #include <iterator>                                              // for ite...
 #include <array>                                                  // for array
 #include <cassert>                                                // for assert
-#include <cmath>                                                  // for exp
+#include <cmath>                                                  // for exp, isfinite
 #include <initializer_list>                                       // for ini...
 #include <iostream>                                               // for ope...
+#include <limits>                                                 // for quiet_NaN
 #include <set>                                                    // for set
 #include <stdexcept>
 #include <sstream>
@@ -115,6 +116,48 @@ void Weighter::Initialize() {
     }
 }
 
+// Computes one tree datum's physical and generation factors for injector idx,
+// via the same ProcessWeighter calls EventWeight consumes. depth is left at
+// its default for non-root data; the caller fills it in from the owning tree.
+// with_diagnostics adds the observation-only interaction_prob/position_prob.
+VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
+        bool with_diagnostics) const {
+    VertexWeightFactors factors;
+    factors.injector_index = static_cast<int>(idx);
+    factors.vertex_pdg = static_cast<int>(datum->record.signature.primary_type);
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+    if(datum->is_root()) {
+        factors.depth = 0;
+        bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
+        factors.physical = primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
+        factors.generation = primary_process_weighters[idx]->GenerationProbability(*datum);
+        if(with_diagnostics) {
+            factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
+            factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+        }
+    } else {
+        try {
+            bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
+            auto const & w = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type);
+            factors.physical = w->PhysicalProbability(bounds, datum->record);
+            factors.generation = w->GenerationProbability(*datum);
+            if(with_diagnostics) {
+                factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
+                factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+            }
+        } catch(const std::out_of_range& oor) {
+            std::ostringstream oss;
+            oss << "Weighter::ComputeVertexFactors: no secondary process weighter for secondary type "
+                << datum->record.signature.primary_type
+                << " in injector " << idx
+                << " (" << oor.what() << ") [siren-docs: errors#configuration]";
+            throw siren::utilities::ConfigurationError(oss.str());
+        }
+    }
+    return factors;
+}
+
 double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) const {
     // The weight is given by
     //
@@ -165,32 +208,11 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
             generation_probability = injectors[idx]->EventsToInject();
         }
         for(auto const & datum : tree.tree) {
-            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-            double phys_prob;
-            double gen_prob;
-            if(datum->is_root()) {
-                bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
-                phys_prob = primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
-                gen_prob = primary_process_weighters[idx]->GenerationProbability(*datum);
-            }
-            else {
-                try {
-                    bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
-                    phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
-                    gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
-                } catch(const std::out_of_range& oor) {
-                    std::ostringstream oss;
-                    oss << "Weighter::EventWeight: no secondary process weighter for secondary type "
-                        << datum->record.signature.primary_type
-                        << " in injector " << idx
-                        << " (" << oor.what() << ") [siren-docs: errors#configuration]";
-                    throw siren::utilities::ConfigurationError(oss.str());
-                }
-            }
+            VertexWeightFactors factors = ComputeVertexFactors(idx, datum);
             // Invalid vertex factors must not cancel or hide behind a zero.
-            check_probabilities(gen_prob, phys_prob);
-            physical_probability *= phys_prob;
-            generation_probability *= gen_prob;
+            check_probabilities(factors.generation, factors.physical);
+            physical_probability *= factors.physical;
+            generation_probability *= factors.generation;
         }
         check_probabilities(generation_probability, physical_probability);
         if(physical_probability == 0.0) {
@@ -217,6 +239,77 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         throw siren::utilities::WeightCalculationError(oss.str());
     }
     return weight;
+}
+
+// Report invalid probabilities or weight overflow with flags and a NaN total.
+// Valid zero physical support retains EventWeight's zero total.
+EventWeightBreakdown Weighter::EventWeightWithBreakdown(
+        siren::dataclasses::InteractionTree const & tree) const {
+    EventWeightBreakdown breakdown;
+    double inv_weight = 0;
+    bool usable = true;
+    bool zero_weight = false;
+    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        double physical_probability = 1.0;
+        double generation_probability = injectors[idx]->InjectedEvents();
+        if(injectors[idx]->InjectedEvents() == 0) {
+            generation_probability = injectors[idx]->EventsToInject();
+        }
+        for(auto const & datum : tree.tree) {
+            VertexWeightFactors factors = ComputeVertexFactors(idx, datum, true);
+            if(!datum->is_root()) {
+                factors.depth = static_cast<int>(datum->depth(tree));
+            }
+            if(!std::isfinite(factors.generation)) {
+                factors.flags.push_back("generation density non-finite");
+                usable = false;
+            } else if(factors.generation <= 0.0) {
+                factors.flags.push_back(factors.generation == 0.0
+                    ? "generation density zero" : "generation density negative");
+                usable = false;
+            }
+            if(!std::isfinite(factors.physical)) {
+                factors.flags.push_back("physical density non-finite");
+                usable = false;
+            } else if(factors.physical < 0.0) {
+                factors.flags.push_back("physical density negative");
+                usable = false;
+            } else if(factors.physical == 0.0) {
+                factors.flags.push_back("outside physical support (weight 0)");
+            }
+            physical_probability *= factors.physical;
+            generation_probability *= factors.generation;
+            breakdown.vertices.push_back(std::move(factors));
+        }
+        if(generation_probability <= 0.0 || !std::isfinite(generation_probability)
+           || physical_probability < 0.0 || !std::isfinite(physical_probability)) {
+            usable = false;
+            if(!tree.tree.empty()) {
+                breakdown.vertices.back().flags.push_back("unusable event probabilities");
+            }
+            continue;
+        }
+        if(physical_probability == 0.0) {
+            zero_weight = true;
+            continue;
+        }
+        inv_weight += generation_probability / physical_probability;
+        if(!std::isfinite(inv_weight)) {
+            usable = false;
+            if(!tree.tree.empty()) {
+                breakdown.vertices.back().flags.push_back("inverse weight overflow");
+            }
+        }
+    }
+    double weight = zero_weight ? 0.0 : 1.0 / inv_weight;
+    if(usable && (!std::isfinite(weight) || weight < 0.0)) {
+        usable = false;
+        if(!breakdown.vertices.empty()) {
+            breakdown.vertices.back().flags.push_back("unusable event weight");
+        }
+    }
+    breakdown.total = usable ? weight : std::numeric_limits<double>::quiet_NaN();
+    return breakdown;
 }
 
 std::vector<std::shared_ptr<Injector>> const & Weighter::GetInjectors() const {

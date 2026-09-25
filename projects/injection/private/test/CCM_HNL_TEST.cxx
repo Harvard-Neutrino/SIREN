@@ -37,6 +37,8 @@
 #include "SIREN/interactions/HNLDipoleDecay.h"
 #include "SIREN/interactions/Decay.h"
 
+#include "CCM_HNL_Fixture.h"
+
 using namespace siren::math;
 using namespace siren::geometry;
 using namespace siren::detector;
@@ -163,6 +165,9 @@ TEST(Injector, Generation)
 {
     using ParticleType = ParticleType;
 
+    if(!siren::injection::test::CCMHNLDataPresent()) {
+        GTEST_SKIP() << "CCM_HNL data files are not present in this environment";
+    }
 
     // Load the detector model
     std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
@@ -345,6 +350,32 @@ TEST(Injector, Generation)
         //std::cout << "Weight: " << weight << std::endl;
         ++i;
     }
+}
+
+// EventWeightWithBreakdown().total must equal EventWeight() for every
+// generated tree, across the full upper-injector CCM dipole-HNL chain.
+TEST(Injector, BreakdownInvariant)
+{
+    if(!siren::injection::test::CCMHNLDataPresent()) {
+        GTEST_SKIP() << "CCM_HNL data files are not present in this environment";
+    }
+    siren::injection::test::CCMHNLFixture fixture = siren::injection::test::MakeCCMHNLFixture();
+
+    unsigned int checked = 0;
+    // Bound on attempts, not accepted events, so GenerateEvent is never called
+    // once the attempt budget is spent (which would throw).
+    while(fixture.injector->InjectionAttempts() < fixture.injector->EventsToInject()
+          && checked < 10) {
+        InteractionTree tree = fixture.injector->GenerateEvent();
+        if(tree.tree.empty()) continue;
+
+        double weight = fixture.weighter->EventWeight(tree);
+        EventWeightBreakdown breakdown = fixture.weighter->EventWeightWithBreakdown(tree);
+
+        EXPECT_NEAR(breakdown.total, weight, 1e-12 * std::max(1.0, std::abs(weight)));
+        ++checked;
+    }
+    EXPECT_GT(checked, 0u) << "no accepted trees to check the breakdown invariant on";
 }
 
 int main(int argc, char** argv)
