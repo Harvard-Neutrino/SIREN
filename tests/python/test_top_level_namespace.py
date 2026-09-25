@@ -21,6 +21,9 @@ def test_top_level_count_reasonable():
     )
     out = subprocess.check_output([sys.executable, "-c", code], text=True)
     count = int(out.strip())
-    # The spec vocabulary (Vertex, Directed, channels, expand, errors,
-    # generate, Propagated, Fixed) is part of the intended public surface.
-    assert count < 45, f"Too many top-level names: {count}"
+    # The intended public surface: the spec vocabulary (Vertex, Directed,
+    # channels, expand, errors, generate, Propagated, Fixed), the authoring
+    # bases (DecayModel, CrossSectionModel, decay_model_base,
+    # cross_section_model_base, Measure, Topology), and the closure gauge
+    # (check_closure, ClosureReport).
+    assert count < 55, f"Too many top-level names: {count}"

@@ -397,6 +397,23 @@ def validate_secondary_keys(*dicts_with_labels):
                     ref_label, sorted(str(k) for k in ref_keys)))
 
 
+def model_secondary_masses(model, secondary_types):
+    """Resolve an author-supplied mass list with a named contract error."""
+    types = list(secondary_types)
+    label = type(model).__name__ + '.SecondaryMasses'
+    try:
+        masses = [float(mass) for mass in model.SecondaryMasses(types)]
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ConfigurationError(
+            '%s must return numeric masses for %d secondary types: %s'
+            % (label, len(types), exc)) from exc
+    if len(masses) != len(types):
+        raise ConfigurationError(
+            '%s returned %d masses for %d secondary types'
+            % (label, len(masses), len(types)))
+    return masses
+
+
 def build_template_record(signature, *, primary_mass=0.02, energy=0.05):
     """A minimal InteractionRecord for a signature, for config-time probes.
 
@@ -433,3 +450,186 @@ def probe_channel_densities(mcps, signature, detector_model, random,
     template = build_template_record(signature)
     return mcps.ValidateChannelDensities(
         random, detector_model, template, samples_per_channel)
+
+
+def _pybind_base_of(model):
+    """Return the pybind C++ interaction base a Python model derives from.
+
+    The authoring bases (and legacy direct subclasses) sit above one of
+    Decay/CrossSection/DarkNewsDecay/DarkNewsCrossSection; return the most
+    derived such base found on the MRO, or None if the model is not
+    trampoline-derived.
+    """
+    from . import interactions as _interactions
+    candidates = []
+    for name in ("DarkNewsDecay", "DarkNewsCrossSection", "Decay", "CrossSection"):
+        base = getattr(_interactions, name, None)
+        if base is not None and isinstance(model, base):
+            candidates.append((name, base))
+    if not candidates:
+        return None
+    # DarkNews bases derive from Decay/CrossSection, so prefer them when present.
+    for name in ("DarkNewsDecay", "DarkNewsCrossSection"):
+        for cand_name, base in candidates:
+            if cand_name == name:
+                return base
+    return candidates[0][1]
+
+
+# The required virtual method names per pybind base. A model whose MRO resolves
+# one of these only to the abstract pybind base (no Python override) would abort
+# in C++ with an opaque pure-virtual message; audit_overrides turns that into a
+# named ConfigurationError.
+_REQUIRED_DECAY_METHODS = (
+    "equal",
+    "GetPossibleSignatures", "GetPossibleSignaturesFromParent",
+    "TotalDecayWidth", "TotalDecayWidthAllFinalStates",
+    "DifferentialDecayWidth", "FinalStateProbability",
+    "DensityVariables", "SampleFinalState",
+)
+_REQUIRED_CROSS_SECTION_METHODS = (
+    "equal",
+    "GetPossiblePrimaries", "GetPossibleTargets",
+    "GetPossibleTargetsFromPrimary", "GetPossibleSignatures",
+    "GetPossibleSignaturesFromParents", "TotalCrossSection",
+    "DifferentialCrossSection", "InteractionThreshold",
+    "FinalStateProbability", "DensityVariables", "SampleFinalState",
+)
+
+
+def is_trampoline(obj):
+    """Whether an interaction or distribution has a Python-authored type.
+
+    Compare type identity with the native extension exports. Python subclasses
+    retain the pybind metaclass and may define no methods of their own.
+    """
+    from . import interactions as _interactions
+    return not any(type(obj) is value
+                   for module in (_interactions, _d)
+                   for value in vars(module).values())
+
+
+def _resolves_before_root(model, method_name, abstract_root):
+    """True if method_name is implemented above the abstract Decay/CrossSection.
+
+    Walks type(model).__mro__ and reports the method satisfied when any class
+    before the abstract root defines it -- a Python override or a concrete C++
+    intermediate (e.g. DarkNewsDecay, whose FinalStateProbability delegates to
+    the Python differential hook). Only a method resolving no earlier than the
+    abstract root, which is pure there, is unimplemented.
+    """
+    for klass in type(model).__mro__:
+        if klass is abstract_root:
+            return False
+        if method_name in vars(klass):
+            return True
+    return False
+
+
+def audit_overrides(interactions):
+    """Fail loudly on trampoline models with an unimplemented required virtual.
+
+    ``interactions`` is any iterable yielding interaction objects (or an
+    InteractionCollection). For every trampoline-derived model, walk its MRO
+    for the required virtuals of Decay/CrossSection; a method that resolves only
+    to the abstract root (pure there, with no override or concrete intermediate)
+    raises ConfigurationError naming the class and the missing method. Also
+    requires authoring models to supply a sampler matching their density.
+
+    For an authoring-base-derived model, also requires its declared physics
+    hook -- total_width/differential_width, or total_xs/differential_xs -- to
+    be overridden rather than left at the authoring base's own
+    NotImplementedError-raising default.
+    """
+    from . import interactions as _interactions
+
+    cross_section_root = getattr(_interactions, "CrossSection")
+    decay_root = getattr(_interactions, "Decay")
+
+    models = _collect_models(interactions)
+    for model in models:
+        pybind_base = _pybind_base_of(model)
+        if pybind_base is None:
+            continue
+        # C++-native models implement their virtuals in C++; only audit models
+        # authored in Python via the trampoline.
+        if not is_trampoline(model):
+            continue
+        if isinstance(model, cross_section_root):
+            required = _REQUIRED_CROSS_SECTION_METHODS
+            abstract_root = cross_section_root
+        else:
+            required = _REQUIRED_DECAY_METHODS
+            abstract_root = decay_root
+        for method_name in required:
+            if not _resolves_before_root(model, method_name, abstract_root):
+                raise ConfigurationError(
+                    "%s does not implement the required method '%s' of its "
+                    "interaction base; define or correctly spell it"
+                    % (type(model).__name__, method_name))
+        _audit_default_sampler(model)
+        _audit_required_physics_hooks(model)
+
+
+def _audit_default_sampler(model):
+    """Require an explicit sampler on authoring models."""
+    base_class = _models_base_sample(model)
+    if base_class is None:
+        return
+    for name in ('SampleFinalState', 'sample'):
+        implementation = getattr(model, name, None)
+        if (callable(implementation)
+                and getattr(implementation, '__func__', implementation)
+                is not getattr(base_class, name)):
+            return
+    raise ConfigurationError(
+        "%s must implement sample(record, random); a measure does not "
+        "determine the sampling density" % type(model).__name__)
+
+
+def _audit_required_physics_hooks(model):
+    """Fail loudly when an authoring-base subclass never supplies a physics hook.
+
+    ``total_width``/``differential_width`` (DecayModel) and ``total_xs``/
+    ``differential_xs`` (CrossSectionModel) default to a NotImplementedError-
+    raising stub on the authoring base itself. The required-virtual walk
+    above never catches their omission: TotalDecayWidth/TotalCrossSection and
+    the rest of the pybind virtual set are always implemented on the
+    authoring base, so they resolve before the abstract root regardless of
+    whether the subclass ever supplies a working physics hook. Walk the MRO
+    the same way ``_audit_default_sampler`` does via ``_models_base_sample``:
+    a hook resolving no earlier than the authoring base itself is still the
+    NotImplementedError stub. Skip models that are not authoring-base
+    derived.
+    """
+    base_class = _models_base_sample(model)
+    if base_class is None:
+        return
+    if base_class.__name__ == "DecayModel":
+        hook_names = ("total_width", "differential_width")
+    else:
+        hook_names = ("total_xs", "differential_xs")
+    for hook_name in hook_names:
+        if not _resolves_before_root(model, hook_name, base_class):
+            raise ConfigurationError(
+                "%s does not implement the required physics hook '%s'; "
+                "define it" % (type(model).__name__, hook_name))
+
+
+def _models_base_sample(model):
+    """Find the authoring-base class carrying the default SampleFinalState."""
+    from . import models as _models
+    for klass in type(model).__mro__:
+        if klass.__name__ in ("DecayModel", "CrossSectionModel") \
+                and klass.__module__ == _models.__name__:
+            return klass
+    return None
+
+
+def _collect_models(interactions):
+    """Yield the individual cross-section and decay models from a container."""
+    if interactions is None:
+        return []
+    if hasattr(interactions, "GetCrossSections") and hasattr(interactions, "GetDecays"):
+        return list(interactions.GetCrossSections()) + list(interactions.GetDecays())
+    return list(interactions)

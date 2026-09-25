@@ -211,6 +211,12 @@ class Injector:
                 "Provide stopping_condition=..., or (spec form) wire "
                 "Vertex(expand=[...]).".format(
                     sorted(str(k) for k in self.__secondary_interactions)))
+        # Every trampoline-derived model (authoring bases and legacy direct
+        # subclasses alike) must implement its base's required virtuals; a
+        # silent pure-virtual fall-through aborts opaquely in C++ otherwise.
+        _validation.audit_overrides(self.__primary_interactions)
+        for _models_list in self.__secondary_interactions.values():
+            _validation.audit_overrides(_models_list)
 
         primary_process = self._assemble_primary_process()
         secondary_processes = self._assemble_secondary_processes()
@@ -956,9 +962,7 @@ def _typed_siren_errors():
 def _is_trampoline(obj):
     """Whether `obj` is a Python subclass of a pybind base (a trampoline).
 
-    A C++-native pybind object's type is defined in an extension module; a
-    Python subclass is defined in a .py module, so its class __module__ does
-    not start with 'siren.'.
+    Uses the same native-type identity check as ``audit_overrides``.
     """
-    module = type(obj).__module__ or ""
-    return not module.startswith("siren.") and module not in ("builtins",)
+    from . import _validation
+    return _validation.is_trampoline(obj)
