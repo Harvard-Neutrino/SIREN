@@ -92,7 +92,7 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 0) {
+        if(version == 1) {
             archive(::cereal::make_nvp("Target", target_));
             archive(::cereal::make_nvp("ULower", u_lo_));
             archive(::cereal::make_nvp("UUpper", u_hi_));
@@ -102,13 +102,13 @@ private:
             archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
         } else {
             throw std::runtime_error(
-                "DetectorDirectedAngularSectorChannel only supports version <= 0!");
+                "DetectorDirectedAngularSectorChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
         }
     }
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
+        if(version == 1) {
             archive(::cereal::make_nvp("Target", target_));
             archive(::cereal::make_nvp("ULower", u_lo_));
             archive(::cereal::make_nvp("UUpper", u_hi_));
@@ -118,7 +118,7 @@ private:
             archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
         } else {
             throw std::runtime_error(
-                "DetectorDirectedAngularSectorChannel only supports version <= 0!");
+                "DetectorDirectedAngularSectorChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
         }
     }
 };
@@ -127,7 +127,7 @@ private:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(
-    siren::injection::DetectorDirectedAngularSectorChannel, 0);
+    siren::injection::DetectorDirectedAngularSectorChannel, 1);
 CEREAL_REGISTER_TYPE(
     siren::injection::DetectorDirectedAngularSectorChannel);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(

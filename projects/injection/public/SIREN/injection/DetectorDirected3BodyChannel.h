@@ -158,9 +158,9 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if (version != 0) {
+        if (version != 1) {
             throw std::runtime_error(
-                "DetectorDirected3BodyChannel only supports version <= 0!");
+                "DetectorDirected3BodyChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
         }
 
         // Archive the installed factorization, never method pointers.
@@ -199,9 +199,9 @@ private:
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if (version != 0) {
+        if (version != 1) {
             throw std::runtime_error(
-                "DetectorDirected3BodyChannel only supports version <= 0!");
+                "DetectorDirected3BodyChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
         }
 
         int factorization_int;
@@ -313,7 +313,7 @@ private:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::DetectorDirected3BodyChannel, 0);
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirected3BodyChannel, 1);
 CEREAL_REGISTER_TYPE(siren::injection::DetectorDirected3BodyChannel);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(
     siren::injection::PhaseSpaceChannel,
