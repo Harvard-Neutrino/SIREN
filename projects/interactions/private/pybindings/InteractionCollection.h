@@ -40,6 +40,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def("TotalCrossSectionByTarget",&InteractionCollection::TotalCrossSectionByTarget)
         .def("TotalCrossSectionByTargetAllFinalStates",&InteractionCollection::TotalCrossSectionByTargetAllFinalStates)
         .def("TargetTypes",&InteractionCollection::TargetTypes, return_value_policy::reference_internal)
+        .def("ParentDecayWidth",&InteractionCollection::ParentDecayWidth)
         .def("TotalDecayWidthAllFinalStates",&InteractionCollection::TotalDecayWidthAllFinalStates)
         .def("TotalDecayLengthAllFinalStates",&InteractionCollection::TotalDecayLengthAllFinalStates)
         .def("MatchesPrimary",&InteractionCollection::MatchesPrimary)

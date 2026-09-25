@@ -253,7 +253,8 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
         siren::dataclasses::InteractionRecord const & record,
         PhaseSpaceConvention const & convention) const {
 
-    double physical_probability = 1.0;
+    double physical_probability = siren::injection::ModeledInteractionProbability(
+        detector_model, phys_process->GetInteractions(), record);
     auto mode = phys_process->GetWeightingMode();
 
     if (mode.compute_interaction_probability) {

@@ -158,8 +158,11 @@ def decay_model_base(base=None):
         daughter_index = 0
 
         _virtual_names = _DECAY_VIRTUALS
+        # ParentDecayWidth is an optional C++ virtual with a default; naming it
+        # here lets the near-miss check reject misspellings of it.
         _hook_names = (
             "total_width", "differential_width", "density_variables", "sample",
+            "ParentDecayWidth",
         )
 
         def __init__(self, *args, **kwargs):

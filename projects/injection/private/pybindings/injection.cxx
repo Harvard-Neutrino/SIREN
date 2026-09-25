@@ -60,6 +60,27 @@ PYBIND11_MODULE(injection,m) {
 
   // Utils function
 
+  class_<SecondaryExpansion, std::shared_ptr<SecondaryExpansion>>(m, "SecondaryExpansion",
+      "Serializable native child/depth expansion rules; True means stop.")
+    .def(init<std::vector<SecondaryExpansion::Rule>>(), arg("rules"))
+    .def("__call__", &SecondaryExpansion::ShouldStop)
+    .def_property_readonly("rules", &SecondaryExpansion::GetRules)
+    .def("__eq__", &SecondaryExpansion::operator==, pybind11::is_operator())
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<SecondaryExpansion>),
+        &(siren::serialization::pickle_load<SecondaryExpansion>)));
+
+  class_<PhaseSpaceDecay, std::shared_ptr<PhaseSpaceDecay>, siren::interactions::Decay>(m, "PhaseSpaceDecay",
+      "Native decay with an explicitly declared normalized physical channel. "
+      "Injection bias belongs on the process, separately from this physical law.")
+    .def(init<siren::dataclasses::InteractionSignature, std::vector<double>, double, double,
+              std::shared_ptr<PhaseSpaceChannel>>(),
+         arg("signature"), arg("masses"), arg("partial_width"), arg("total_width"), arg("physical_channel"))
+    .def("GetPhysicalChannel", &PhaseSpaceDecay::GetPhysicalChannel)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<PhaseSpaceDecay>),
+        &(siren::serialization::pickle_load<PhaseSpaceDecay>)));
+
   m.def("CrossSectionProbability",
         overload_cast<
             std::shared_ptr<siren::detector::DetectorModel const>,
@@ -792,7 +813,11 @@ PYBIND11_MODULE(injection,m) {
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::SIREN_random>>(), keep_alive<1, 4>())
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>>(), keep_alive<1, 4>(), keep_alive<1, 5>())
     .def("SetStoppingCondition",&Injector::SetStoppingCondition)
+    .def("SetSecondaryExpansion", &Injector::SetSecondaryExpansion)
+    .def("GetSecondaryExpansion", &Injector::GetSecondaryExpansion)
     .def("GetStoppingCondition",&Injector::GetStoppingCondition)
+    .def("HasStoppingCondition", &Injector::HasStoppingCondition)
+    .def("GetStoppingConditionRevision", &Injector::GetStoppingConditionRevision)
     .def("SetPrimaryProcess",&Injector::SetPrimaryProcess, keep_alive<1, 2>())
     .def("AddSecondaryProcess",&Injector::AddSecondaryProcess, keep_alive<1, 2>())
     .def("GetPrimaryProcess",&Injector::GetPrimaryProcess)
@@ -827,7 +852,8 @@ PYBIND11_MODULE(injection,m) {
          arg("tree"), arg("failed"))
     .def("PrimaryInjectionBounds",&Injector::PrimaryInjectionBounds)
     .def("SecondaryInjectionBounds",&Injector::SecondaryInjectionBounds)
-    .def("SaveInjector",&Injector::SaveInjector)
+    .def("SaveInjector",&Injector::SaveInjector,
+         pybind11::arg("filename"), pybind11::arg("allow_unarchived_callback") = false)
     .def("LoadInjector",&Injector::LoadInjector)
     .def(pybind11::pickle(
         &(siren::serialization::pickle_save<Injector>),
