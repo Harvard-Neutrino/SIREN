@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "../DetectorDirectedChannelUtils.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/ParticleType.h"
@@ -38,6 +39,56 @@ using siren::injection::PhysicalDecayChannel;
 using siren::injection::TwoBodyRestMomentum;
 using siren::injection::TwoBodyRestEnergy;
 using siren::math::Vector3D;
+
+TEST(DirectedDecayBranches, ScaledInverseWeightsAndUniformScattering) {
+    using namespace siren::injection;
+    using namespace siren::injection::detail;
+    std::array<TwoBodyLabSolution, 2> solutions{};
+    for (auto & s : solutions) s.valid = true;
+    for (auto scale : {1e-290, 1.0, 1e290}) {
+        solutions[0].jacobian = scale;
+        solutions[1].jacobian = 100.0 * scale;
+        EXPECT_NEAR(InverseJacobianFirstProbability(scale, 100*scale), 100.0/101, 1e-15);
+        for (int branch = 0; branch < 2; ++branch) {
+            EXPECT_NEAR(DirectedRestJacobian(solutions, branch,
+                DirectedBranchSelection::InverseJacobianWeighted)/scale, 100.0/101, 1e-15);
+            EXPECT_DOUBLE_EQ(DirectedRestJacobian(solutions, branch,
+                DirectedBranchSelection::Uniform), solutions[branch].jacobian/2);
+        }
+    }
+    solutions[0].jacobian = solutions[1].jacobian = 0;
+    EXPECT_DOUBLE_EQ(InverseJacobianFirstProbability(0, 0), .5);
+    EXPECT_DOUBLE_EQ(DirectedRestJacobian(solutions, 0,
+        DirectedBranchSelection::InverseJacobianWeighted), 0);
+}
+
+TEST(DirectedDecayBranches, ForwardBoostDerivativeAndBranchBalance) {
+    using namespace siren::injection;
+    using namespace siren::injection::detail;
+    double gamma = 2, beta = std::sqrt(1-1/(gamma*gamma));
+    double p = std::sqrt(.015*.015-.010*.010), e = .015;
+    // Independent differentiation of the forward angular map. This checks
+    // the physical pushforward rather than comparing Sample with Density.
+    auto lab_cos = [&](double u) {
+        double z = gamma*(p*u+beta*e);
+        return z/std::sqrt(z*z+p*p*(1-u*u));
+    };
+    for (double c : {.9999, .99, .9, .8}) {
+        auto solutions = SolveLabAngle(beta, gamma, p, e, .010, c);
+        ASSERT_TRUE(solutions[0].valid);
+        ASSERT_TRUE(solutions[1].valid);
+        double q = DirectedRestJacobian(solutions, 0,
+            DirectedBranchSelection::InverseJacobianWeighted);
+        double branch0 = InverseJacobianFirstProbability(
+            solutions[0].jacobian, solutions[1].jacobian);
+        for (int i = 0; i < 2; ++i) {
+            double u = solutions[i].cos_theta_rest, h = 1e-6;
+            double derivative = std::abs((lab_cos(u+h)-lab_cos(u-h))/(2*h));
+            EXPECT_NEAR(derivative, solutions[i].jacobian, 1e-7*derivative);
+            EXPECT_NEAR(q/derivative, i == 0 ? branch0 : 1-branch0, 1e-7);
+        }
+    }
+}
 
 namespace {
 

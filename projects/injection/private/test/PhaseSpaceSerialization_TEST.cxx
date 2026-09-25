@@ -536,3 +536,18 @@ TEST(PhaseSpaceSerialization, TamperedMeasureIsRejected) {
     cereal::JSONInputArchive archive(stream);
     EXPECT_THROW(measure.load(archive, 0), std::runtime_error);
 }
+
+TEST(PhaseSpaceSerialization, OldDirectedDensityArchivesAreRejected) {
+    auto target = std::make_shared<Sphere>(Placement(Vector3D(0,0,20)), 1.0, 0.0);
+    std::vector<ChannelPtr> channels{
+        std::make_shared<DetectorDirected2BodyChannel>(target,0),
+        std::make_shared<DetectorDirected3BodyChannel>(target,0),
+        std::make_shared<DetectorDirectedAngularSectorChannel>(target,0.1,0.9,-0.5,0.5)};
+    for (auto const & channel : channels) {
+        std::string bytes = SaveToString<cereal::JSONOutputArchive>(channel);
+        auto at = bytes.find("\"cereal_class_version\": 1");
+        ASSERT_NE(at,std::string::npos);
+        bytes.replace(at,std::string("\"cereal_class_version\": 1").size(),"\"cereal_class_version\": 0");
+        EXPECT_THROW((LoadFromString<cereal::JSONInputArchive,ChannelPtr>(bytes)),std::runtime_error);
+    }
+}

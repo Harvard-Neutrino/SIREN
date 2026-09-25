@@ -25,6 +25,24 @@ namespace detail {
 static const double kTwoPi = 2.0 * M_PI;
 static const double kFourPi = 4.0 * M_PI;
 
+// Match an observed rest angle to the valid inverse-boost branch. Keep the
+// existing numerical tolerance shared by ordinary and angular-sector densities.
+inline int MatchDirectedSolution(std::array<TwoBodyLabSolution, 2> const & solutions,
+                                 double cos_rest_actual) {
+    int chosen = -1;
+    double best_dist = 1e30;
+    for (int index = 0; index < 2; ++index) {
+        auto const & sol = solutions[index];
+        if (!sol.valid) continue;
+        double distance = std::abs(sol.cos_theta_rest - cos_rest_actual);
+        if (distance < best_dist) {
+            best_dist = distance;
+            chosen = index;
+        }
+    }
+    return best_dist <= 0.1 ? chosen : -1;
+}
+
 // Deterministic orthonormal frame perpendicular to a unit axis. All directed
 // samplers use the same convention so their azimuth references cannot drift.
 inline void SectorPerpFrame(
@@ -475,9 +493,34 @@ struct DirectedStepResult {
 };
 
 enum class DirectedBranchSelection {
-    JacobianWeighted,
+    InverseJacobianWeighted,
     Uniform
 };
+
+// For two branches b0 = J1/(J0+J1). Scale before addition so neither
+// reciprocals nor a sum of large Jacobians overflows. At an exact merger
+// both Jacobians may vanish; the two labels then describe the same point.
+inline double InverseJacobianFirstProbability(double j0, double j1) {
+    double scale = std::max(j0, j1);
+    if (scale == 0.0) return 0.5;
+    return (j1 / scale) / (j0 / scale + j1 / scale);
+}
+
+inline double DirectedRestJacobian(
+    std::array<TwoBodyLabSolution, 2> const & solutions,
+    int chosen,
+    DirectedBranchSelection rule)
+{
+    int count = int(solutions[0].valid) + int(solutions[1].valid);
+    if (count == 0) return 0.0;
+    double j = solutions[chosen].jacobian;
+    if (rule == DirectedBranchSelection::Uniform) return j / count;
+    if (count == 1) return j;
+    double lo = std::min(solutions[0].jacobian, solutions[1].jacobian);
+    double hi = std::max(solutions[0].jacobian, solutions[1].jacobian);
+    // J0*J1/(J0+J1), evaluated without forming the product.
+    return hi == 0.0 ? 0.0 : lo / (1.0 + lo / hi);
+}
 
 // Sample one directed 2-body sub-step and return the lab direction,
 // momentum, and rest-frame density.  Handles all five regimes.
@@ -493,7 +536,7 @@ inline DirectedStepResult SampleDirectedStep(
     DetectorDirected2BodyChannel::Mode mode,
     std::shared_ptr<siren::utilities::SIREN_random> random,
     DirectedBranchSelection branch_selection =
-        DirectedBranchSelection::JacobianWeighted)
+        DirectedBranchSelection::InverseJacobianWeighted)
 {
     if (!HasTwoBodyStepPhaseSpace(parent_mass, daughter_mass, other_mass)) {
         throw siren::utilities::InjectionFailure(
@@ -648,7 +691,7 @@ inline DirectedStepResult SampleDirectedStep(
         } else {
             double w0 = solutions[0].jacobian;
             double w1 = solutions[1].jacobian;
-            chosen = (random->Uniform(0, 1) * (w0 + w1) < w0) ? 0 : 1;
+            chosen = random->Uniform(0, 1) < InverseJacobianFirstProbability(w0, w1) ? 0 : 1;
         }
     } else {
         chosen = solutions[0].valid ? 0 : 1;
@@ -659,12 +702,6 @@ inline DirectedStepResult SampleDirectedStep(
     result.E_lab = std::sqrt(result.p_lab * result.p_lab + daughter_mass * daughter_mass);
 
     // Compute rest-frame density
-    double J_chosen = solutions[chosen].jacobian;
-    double J_total = 0.0;
-    for (auto const & sol : solutions) {
-        if (sol.valid) J_total += sol.jacobian;
-    }
-
     double g_angular;
     if (geo.regime == DirectedRegime::Rest) {
         g_angular = 1.0 / geo.omega_bound;
@@ -679,11 +716,7 @@ inline DirectedStepResult SampleDirectedStep(
         } else {
             g_angular = (geo.omega_eff > 0.0) ? 1.0 / geo.omega_eff : 1.0 / kFourPi;
         }
-        double branch_probability =
-            branch_selection == DirectedBranchSelection::Uniform
-            ? 1.0 / n_valid
-            : J_chosen / J_total;
-        result.rest_density = g_angular * J_chosen * branch_probability;
+        result.rest_density = g_angular * DirectedRestJacobian(solutions, chosen, branch_selection);
     }
 
     return result;
@@ -705,7 +738,7 @@ inline double DensityDirectedStep(
     double target_volume,
     DetectorDirected2BodyChannel::Mode mode,
     DirectedBranchSelection branch_selection =
-        DirectedBranchSelection::JacobianWeighted)
+        DirectedBranchSelection::InverseJacobianWeighted)
 {
     if (!HasTwoBodyStepPhaseSpace(parent_mass, daughter_mass, other_mass)) {
         return 0.0;
@@ -758,27 +791,8 @@ inline double DensityDirectedStep(
     double p_par_rest = gamma * (p_par_lab - beta * daughter_E);
     double cos_rest_actual = p_par_rest / p_rest;
 
-    double J_total = 0.0;
-    int n_valid = 0;
-    for (auto const & sol : solutions) {
-        if (sol.valid) {
-            J_total += sol.jacobian;
-            ++n_valid;
-        }
-    }
-    if (J_total <= 0.0) return 0.0;
-
-    double J_chosen = 0.0;
-    double best_dist = 1e30;
-    for (auto const & sol : solutions) {
-        if (!sol.valid) continue;
-        double d = std::abs(sol.cos_theta_rest - cos_rest_actual);
-        if (d < best_dist) {
-            best_dist = d;
-            J_chosen = sol.jacobian;
-        }
-    }
-    if (best_dist > 0.1) return 0.0;
+    int chosen = MatchDirectedSolution(solutions, cos_rest_actual);
+    if (chosen < 0) return 0.0;
 
     double g_angular;
     if (geo.regime == DirectedRegime::BoundInKin &&
@@ -792,11 +806,7 @@ inline double DensityDirectedStep(
         g_angular = 1.0 / geo.omega_eff;
     }
 
-    double branch_probability =
-        branch_selection == DirectedBranchSelection::Uniform
-        ? 1.0 / n_valid
-        : J_chosen / J_total;
-    return g_angular * J_chosen * branch_probability;
+    return g_angular * DirectedRestJacobian(solutions, chosen, branch_selection);
 }
 
 // ================================================================ //
@@ -972,21 +982,15 @@ inline DirectedStepResult SampleAngularSectorStep(
     if (n_valid == 2) {
         double w0 = solutions[0].jacobian;
         double w1 = solutions[1].jacobian;
-        chosen = (random->Uniform(0, 1) * (w0 + w1) < w0) ? 0 : 1;
+        chosen = random->Uniform(0, 1) < InverseJacobianFirstProbability(w0, w1) ? 0 : 1;
     } else {
         chosen = solutions[0].valid ? 0 : 1;
-    }
-    double J_chosen = solutions[chosen].jacobian;
-    double J_total = 0.0;
-    for (auto const & sol : solutions) {
-        if (sol.valid) J_total += sol.jacobian;
     }
     result.lab_dir = lab_dir;
     result.p_lab = solutions[chosen].p_lab;
     result.E_lab = std::sqrt(result.p_lab * result.p_lab + daughter_mass * daughter_mass);
-    result.rest_density = (J_total > 0.0)
-        ? g_angular * J_chosen * J_chosen / J_total
-        : g_angular;
+    result.rest_density = g_angular * DirectedRestJacobian(
+        solutions, chosen, DirectedBranchSelection::InverseJacobianWeighted);
     return result;
 }
 
@@ -1060,25 +1064,11 @@ inline double DensityAngularSectorStep(
     double p_par_rest = gamma * (p_par_lab - beta * daughter_E);
     double cos_rest_actual = (p_rest > 0.0) ? p_par_rest / p_rest : 0.0;
 
-    double J_total = 0.0;
-    for (auto const & sol : solutions) {
-        if (sol.valid) J_total += sol.jacobian;
-    }
-    if (J_total <= 0.0) return 0.0;
+    int chosen = MatchDirectedSolution(solutions, cos_rest_actual);
+    if (chosen < 0) return 0.0;
 
-    double J_chosen = 0.0;
-    double best_dist = 1e30;
-    for (auto const & sol : solutions) {
-        if (!sol.valid) continue;
-        double d = std::abs(sol.cos_theta_rest - cos_rest_actual);
-        if (d < best_dist) {
-            best_dist = d;
-            J_chosen = sol.jacobian;
-        }
-    }
-    if (best_dist > 0.1) return 0.0;
-
-    return g_angular * J_chosen * J_chosen / J_total;
+    return g_angular * DirectedRestJacobian(
+        solutions, chosen, DirectedBranchSelection::InverseJacobianWeighted);
 }
 
 } // namespace detail
