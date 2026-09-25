@@ -50,6 +50,14 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
+        // Material is located along the direction of motion. A parent at rest
+        // has none; normalizing its zero momentum used to crash the geometry.
+        double speed = primary_direction.magnitude();
+        if (!(speed > 0) || !std::isfinite(speed))
+            throw siren::utilities::ConfigurationError(
+                "Material interactions need a finite, nonzero primary momentum; "
+                "a parent at rest supports decays only "
+                "[siren-docs: errors#configuration]");
         primary_direction.normalize();
         intersections = detector_model->GetIntersections(
             siren::detector::DetectorPosition(interaction_vertex),
