@@ -34,7 +34,7 @@ def test_solid_xml_box_emits_full_widths():
     from siren import visualization
     from siren.geometry import Box
 
-    box = Box(2.0, 4.0, 6.0)
+    box = Box(widths=(2.0, 4.0, 6.0))
     el = ET.fromstring(visualization._solid_xml(box, "TESTBOX"))
     assert el.tag == "box"
     assert float(el.get("x")) == pytest.approx(2.0)
