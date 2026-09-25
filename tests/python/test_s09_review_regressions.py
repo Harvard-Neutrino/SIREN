@@ -319,12 +319,12 @@ def test_failed_tuning_restores_quota_and_keeps_failure_report():
     mixture.channels = list(mixture.channels) * 2
     mixture.weights = [.5, .5]
     inj.engine.ResetInjectedEvents(99)
-    with pytest.raises(GenerationFailure, match='SamplingFailure') as exc:
+    with pytest.raises(GenerationFailure, match='KinematicallyForbidden') as exc:
         tune(inj, lambda tree: 1, rounds=1, events=7, on_failure='raise')
     assert inj.engine.EventsToInject() == 99
     assert inj.engine.InjectionAttempts() == 0
     assert exc.value.report.attempts == 1
-    assert exc.value.report.by_vertex[0].reason == injection.FailureReason.SamplingFailure
+    assert exc.value.report.by_vertex[0].reason == injection.FailureReason.KinematicallyForbidden
     assert len(exc.value.report.last_failed_tree.tree) == 1
 
 

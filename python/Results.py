@@ -542,7 +542,8 @@ def _channel_config(channel):
         return (cls, _model_config(model), channel.Topology(), channel.Measure())
     if cls in (inj.Isotropic2BodyChannel, inj.DetectorDirected2BodyChannel,
                inj.DetectorDirectedAngularSectorChannel, inj.DetectorDirected3BodyChannel,
-               inj.DetectorDirectedScatteringChannel):
+               inj.DetectorDirectedScatteringChannel, inj.OnShellCascadeChannel,
+               inj.RestFrameEnvelope2BodyChannel):
         try:
             # Native leaf-channel archives contain all proposal parameters
             # (geometry, indices, mappings, etc.), without runtime caches.

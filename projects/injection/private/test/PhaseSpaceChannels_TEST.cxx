@@ -2248,3 +2248,16 @@ TEST(ConvertDensityTopology, Scatter2to2SolidAngleLabThrowsUnconvertible) {
                "SolidAngleLab, got: " << msg;
     }
 }
+
+TEST(PhaseSpaceConventions, CacheTracksPairMassAtSameAddress) {
+    struct MutableMeasure : Isotropic2BodyChannel {
+        double mass = 0.03;
+        PhaseSpaceTopology Topology() const override { return PhaseSpaceTopology::Decay3Body; }
+        PhaseSpaceMeasure Measure() const override { return PhaseSpaceMeasure::OnShellCascade(mass); }
+    };
+    auto channel = std::make_shared<MutableMeasure>();
+    MultiChannelPhaseSpace mixture({channel}, {1.0});
+    EXPECT_EQ(mixture.CommonMeasure().pair_mass, 0.03);
+    channel->mass = 0.06;
+    EXPECT_EQ(mixture.CommonMeasure().pair_mass, 0.06);
+}

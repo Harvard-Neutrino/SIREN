@@ -14,11 +14,16 @@ namespace siren {
 namespace injection {
 namespace detail {
 
+// A positive parent_mass defines the frame: the parent is the on-shell
+// (sqrt(m^2 + |p|^2), p) and the boost uses that mass (parent_energy is then
+// not read). Otherwise the mass is rebuilt from E^2 - |p|^2, whose rounding
+// grows as eps*gamma^2 and moves every boosted component by that much.
 inline std::array<double, 4> BoostRestFrameToLab(
     double parent_energy,
     double parent_px, double parent_py, double parent_pz,
     double rest_energy,
-    double rest_px, double rest_py, double rest_pz)
+    double rest_px, double rest_py, double rest_pz,
+    double parent_mass = -1.0)
 {
     double parent_p2 = parent_px * parent_px
                      + parent_py * parent_py
@@ -27,8 +32,9 @@ inline std::array<double, 4> BoostRestFrameToLab(
         return {rest_energy, rest_px, rest_py, rest_pz};
     }
 
-    rk::P4 parent(
-        parent_energy, geom3::Vector3(parent_px, parent_py, parent_pz));
+    rk::P4 parent = parent_mass > 0.0
+        ? rk::P4(geom3::Vector3(parent_px, parent_py, parent_pz), parent_mass)
+        : rk::P4(parent_energy, geom3::Vector3(parent_px, parent_py, parent_pz));
     double rest_p2 = rest_px * rest_px + rest_py * rest_py + rest_pz * rest_pz;
     double rest_mass2 = rest_energy * rest_energy - rest_p2;
     double scale = rest_energy * rest_energy + rest_p2 + 1.0;

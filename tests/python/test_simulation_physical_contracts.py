@@ -130,7 +130,7 @@ def test_strict_policy_reaches_native_generation_and_tuning(optimize):
         kinematics=siren.channels.Channel(lambda signature, **kwargs: channel))
     sim = siren.Simulation(events=1, detector=inj.detector_model,
                            primary=primary, seed=331663)
-    with pytest.raises(GenerationFailure, match='SamplingFailure') as exc:
+    with pytest.raises(GenerationFailure, match='KinematicallyForbidden') as exc:
         sim.run(optimize=optimize, on_failure='raise')
     assert exc.value.report.attempts == 1
 
