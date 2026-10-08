@@ -107,6 +107,7 @@ PYBIND11_MODULE(injection,m) {
     .def("InjectedEvents",&Injector::InjectedEvents)
     .def("InjectionAttempts",&Injector::InjectionAttempts)
     .def("EventsToInject",&Injector::EventsToInject)
+    .def("__len__", &Injector::EventsToInject)
     .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
     .def("SaveInjector",&Injector::SaveInjector)
     .def("LoadInjector",&Injector::LoadInjector)

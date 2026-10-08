@@ -3,6 +3,7 @@
 #define SIREN_PrimaryExternalDistribution_H
 
 #include <memory>                                        // for shared_ptr
+#include <set>                                           // for set
 #include <string>                                        // for string
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
@@ -13,9 +14,11 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 
-#include "SIREN/distributions/Distributions.h"  // for WeightableDi...
+#include "SIREN/distributions/Distributions.h"       // for WeightableDi...
+#include "SIREN/distributions/DistributionVariable.h" // for DistributionVariable
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -39,6 +42,8 @@ private:
     bool vertex_set = false;
     bool mom_set = false;
     double emin = 0;
+    std::set<DistributionVariable> set_variables_;
+    void ComputeSetVariables();
 public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
@@ -46,6 +51,7 @@ public:
     size_t GetPhysicalNumEvents() const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
+    virtual std::set<DistributionVariable> SetVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
@@ -73,6 +79,7 @@ public:
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
+            ComputeSetVariables();
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
         }
