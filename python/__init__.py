@@ -76,6 +76,8 @@ from . import particles
 from . import dist
 from . import tune
 from . import metrics
+from . import dk2nu
+from . import three_body
 
 # ---- Spec vocabulary ----
 from . import errors

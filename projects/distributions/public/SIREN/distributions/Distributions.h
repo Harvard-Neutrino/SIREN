@@ -82,6 +82,21 @@ friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const = 0;
+    // Density this distribution contributes when it stands among a PHYSICAL
+    // process's distributions. For almost every distribution the physical
+    // density is the same function as the generation density, so the default
+    // forwards to GenerationProbability and the process weighter may cancel a
+    // value-equal injection/physical pair. A distribution whose two roles
+    // genuinely differ -- an external table whose rows are sampled uniformly
+    // (or by an explicit bias) while the rows represent importance-weighted
+    // physical parents -- overrides PhysicalDensity with the physical row
+    // density and returns true from PhysicalDensityDiffers so the pair is
+    // never cancelled. C++-side hook: Python-defined distributions always use
+    // the defaults.
+    virtual double PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+        return GenerationProbability(detector_model, interactions, record);
+    }
+    virtual bool PhysicalDensityDiffers() const { return false; }
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>

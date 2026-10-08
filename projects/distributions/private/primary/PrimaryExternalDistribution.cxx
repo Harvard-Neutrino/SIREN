@@ -2,6 +2,7 @@
 
 #include <algorithm>                                       // for min
 #include <array>                                           // for array
+#include <cmath>                                           // for isfinite, llround
 #include <fstream>                                         // for ifstream
 #include <sstream>                                         // for stringstream
 #include <string>                                          // for basic_string
@@ -106,6 +107,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
     }
 
     ComputeSetVariables();
+    DerivePhysicalRowWeights();
 }
 
 void PrimaryExternalDistribution::ComputeSetVariables() {
@@ -122,6 +124,39 @@ void PrimaryExternalDistribution::ComputeSetVariables() {
         else if (k == "x0" || k == "y0" || k == "z0") set_variables_.insert(DistributionVariable::InitialPosition);
         else set_variables_.insert(DistributionVariable::InteractionParameters);
     }
+}
+
+// A column named "weight" declares per-row physical weights (see the class
+// docstring). They never influence how rows are SAMPLED -- the supplied list
+// is the intended injection ensemble, drawn uniformly or by an explicit bias.
+// The weights only encode the return to the physical ensemble: the per-row
+// physical density is served by PhysicalDensity and the weight total becomes
+// the distribution's physical normalization. Must be re-run whenever
+// input_data changes (construction, emin filtering, deserialization).
+void PrimaryExternalDistribution::DerivePhysicalRowWeights() {
+    physical_weights_.clear();
+    physical_weights_sum_ = 0;
+    auto weight_it = std::find(keys.begin(), keys.end(), "weight");
+    if (weight_it == keys.end()) return;
+    size_t weight_index = static_cast<size_t>(
+        std::distance(keys.begin(), weight_it));
+    physical_weights_.reserve(input_data.size());
+    for (auto const & row : input_data) {
+        double w = row[weight_index];
+        if (!(w >= 0) || !std::isfinite(w)) {
+            throw std::runtime_error(
+                "PrimaryExternalDistribution: the \"weight\" column declares "
+                "physical row weights, which must be finite and non-negative");
+        }
+        physical_weights_.push_back(w);
+        physical_weights_sum_ += w;
+    }
+    if (!(physical_weights_sum_ > 0)) {
+        throw std::runtime_error(
+            "PrimaryExternalDistribution: physical row weights (the \"weight\" "
+            "column) must have a positive sum");
+    }
+    SetNormalization(physical_weights_sum_);
 }
 
 void PrimaryExternalDistribution::BuildSamplingCDF() {
@@ -195,6 +230,7 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string
         else if (k == "x0" || k == "y0" || k == "z0") set_variables_.insert(DistributionVariable::InitialPosition);
         else set_variables_.insert(DistributionVariable::InteractionParameters);
     }
+    DerivePhysicalRowWeights();
 }
 
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, double emin)
@@ -215,6 +251,9 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string
         if (input_data.empty()) {
             throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
         }
+        // The physical row weights and normalization derived by the delegated
+        // constructor refer to the unfiltered table; rebuild on the survivors.
+        DerivePhysicalRowWeights();
     }
 }
 
@@ -230,6 +269,11 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
                 "sampling_weights length (" + std::to_string(_sampling_weights.size()) +
                 ") must match data length (" + std::to_string(input_data.size()) + ")");
         }
+        // Explicit sampling weights bias the ROW SELECTION only. They are
+        // independent of the physical row weights from a "weight" column:
+        // GenerationProbability reports this biased sampling density while
+        // PhysicalDensity keeps reporting the physical row density, so one
+        // shared instance de-biases exactly.
         sampling_weights_ = std::move(_sampling_weights);
         BuildSamplingCDF();
     }
@@ -258,13 +302,15 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
             }
         }
         input_data = std::move(filtered_data);
+        if (input_data.empty()) {
+            throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
+        }
         if (!sampling_weights_.empty()) {
             sampling_weights_ = std::move(filtered_weights);
             BuildSamplingCDF();
         }
-        if (input_data.empty()) {
-            throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
-        }
+        // Physical row weights and normalization rebuild on the survivors.
+        DerivePhysicalRowWeights();
     }
 }
 
@@ -333,6 +379,12 @@ void PrimaryExternalDistribution::Sample(
             record.SetInteractionParameter(keys[i_key], value);
         }
     }
+    // Cache the sampled row so any evaluating instance over the same table
+    // can report its own density for this row (injection and physical
+    // instances may weight the rows differently, e.g. a biased sampler paired
+    // with a physically weighted evaluator).
+    record.SetInteractionParameter("PrimaryExternalDistribution_row",
+                                   static_cast<double>(i));
     if (!sampling_weights_.empty()) {
         double gen_prob = static_cast<double>(input_data.size()) * sampling_weights_[i] / sampling_weights_sum_;
         record.SetInteractionParameter("PrimaryExternalDistribution_gen_prob", gen_prob);
@@ -391,27 +443,88 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
                                                           std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
                                                           siren::dataclasses::InteractionRecord const & record) const {
     double energy = record.primary_momentum[0];
-    // Only a weighted instance biases its own samples, so only a weighted
-    // instance may read the cached biased density. An unweighted instance (for
-    // example the physical-side copy of a weighted generator) must report its
-    // own flat density even when the record it evaluates was cached by a
-    // weighted generator, so the de-biasing factor is preserved in the ratio.
+    // The SAMPLING density over the supplied rows, relative to the
+    // uniform-over-rows base measure: flat 1 without explicit sampling
+    // weights, N * s_i / sum(s) with them. Which row the record came from is
+    // read from the row index cached at sampling time. Physical row weights
+    // (the "weight" column) never appear here; they enter through
+    // PhysicalDensity on the physical side of the weight ratio. The legacy
+    // cached density is honored for records from before the row cache
+    // existed.
     if (!sampling_weights_.empty()) {
+        auto row_it = record.interaction_parameters.find("PrimaryExternalDistribution_row");
+        if (row_it != record.interaction_parameters.end()) {
+            size_t row = static_cast<size_t>(std::llround(row_it->second));
+            if (row < sampling_weights_.size()) {
+                if (energy < emin) return 0;
+                return static_cast<double>(input_data.size())
+                    * sampling_weights_[row] / sampling_weights_sum_;
+            }
+            throw siren::utilities::WeightCalculationError(
+                "PrimaryExternalDistribution: cached row index "
+                + std::to_string(row) + " is out of range for this table ("
+                + std::to_string(sampling_weights_.size()) + " rows); the "
+                "record was sampled from a different table");
+        }
         auto gp_it = record.interaction_parameters.find("PrimaryExternalDistribution_gen_prob");
         if (gp_it != record.interaction_parameters.end()) {
             if (energy >= emin) return gp_it->second;
             return 0;
         }
         // Records produced by this distribution's own Sample always carry the
-        // cached generation probability when sampling weights are in use; its
-        // absence means the record did not originate here, so the biased density
-        // cannot be recovered.
+        // cached row index (and, when sampling weights are in use, the cached
+        // generation probability); their absence means the record did not
+        // originate from this table, so the weighted density cannot be
+        // recovered.
         throw siren::utilities::WeightCalculationError(
             "PrimaryExternalDistribution: missing cached interaction parameter "
-            "\"PrimaryExternalDistribution_gen_prob\"");
+            "\"PrimaryExternalDistribution_row\" (or legacy "
+            "\"PrimaryExternalDistribution_gen_prob\")");
     }
     if (energy >= emin) return 1;
     return 0;
+}
+
+// The PHYSICAL row density N * w_i / sum(w) relative to the uniform-over-rows
+// base measure, from the "weight" column: the importance weights encode how
+// to return from the supplied (intentionally biased) parent ensemble to the
+// physical one, given the sampling density GenerationProbability reports.
+// Together with the sum(w) normalization this makes the event weight carry
+// exactly w_i / (sampling pdf of row i). Tables without a weight column fall
+// back to the sampling density, restoring the cancel-with-injection default.
+double PrimaryExternalDistribution::PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+                                                    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+                                                    siren::dataclasses::InteractionRecord const & record) const {
+    if (physical_weights_.empty()) {
+        return GenerationProbability(detector_model, interactions, record);
+    }
+    double energy = record.primary_momentum[0];
+    auto row_it = record.interaction_parameters.find("PrimaryExternalDistribution_row");
+    if (row_it == record.interaction_parameters.end()) {
+        // Records produced by any instance over this table always carry the
+        // cached row index; its absence means the record did not originate
+        // from an external table, so the physical row weight cannot be
+        // recovered.
+        throw siren::utilities::WeightCalculationError(
+            "PrimaryExternalDistribution: missing cached interaction parameter "
+            "\"PrimaryExternalDistribution_row\"; the physical row density "
+            "requires a record sampled from an external table");
+    }
+    size_t row = static_cast<size_t>(std::llround(row_it->second));
+    if (row >= physical_weights_.size()) {
+        throw siren::utilities::WeightCalculationError(
+            "PrimaryExternalDistribution: cached row index "
+            + std::to_string(row) + " is out of range for this table ("
+            + std::to_string(physical_weights_.size()) + " rows); the "
+            "record was sampled from a different table");
+    }
+    if (energy < emin) return 0;
+    return static_cast<double>(input_data.size())
+        * physical_weights_[row] / physical_weights_sum_;
+}
+
+bool PrimaryExternalDistribution::PhysicalDensityDiffers() const {
+    return !physical_weights_.empty();
 }
 
 std::shared_ptr<PrimaryInjectionDistribution> PrimaryExternalDistribution::clone() const {
