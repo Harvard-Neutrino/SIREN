@@ -23,6 +23,7 @@ import pytest
 
 siren = pytest.importorskip("siren")
 
+from siren import dataclasses
 from siren import injection
 from siren import interactions
 from siren import distributions
@@ -226,3 +227,87 @@ def test_negative_secondary_probability_cannot_cancel_or_hide(primary_normalizat
     assert event is not None and len(event.tree) >= 2
     with pytest.raises(utilities.WeightCalculationError, match="unusable probabilities"):
         weighter.EventWeight(event)
+
+
+def _two_vertex_pool(factor, physical):
+    """Two native vertices whose generation and physical factors are ``factor``
+    and ``physical``; the exact pooled weight is 0.5 (physical/factor)^2."""
+    dm = _load_ccm_detector()
+    P = dataclasses.Particle.ParticleType
+
+    class _PrimaryDensity(distributions.PrimaryInjectionDistribution):
+        def __init__(self, value):
+            super().__init__()
+            self.value = value
+
+        def Sample(self, *args):
+            pass
+
+        def GenerationProbability(self, *args):
+            return self.value
+
+        def SetVariables(self):
+            return set()
+
+        def RequiredVariables(self):
+            return set()
+
+        def DensityVariables(self):
+            return []
+
+    class _SecondaryDensity(distributions.SecondaryInjectionDistribution):
+        def __init__(self, value):
+            super().__init__()
+            self.value = value
+
+        def Sample(self, *args):
+            pass
+
+        def GenerationProbability(self, *args):
+            return self.value
+
+    xs = interactions.TrivialCrossSection(1e-30, [P.Gamma], [P.Nucleon])
+    coll = interactions.InteractionCollection(P.Gamma, [xs])
+    point = distributions.PrimaryExternalDistribution(
+        ["E", "px", "py", "pz", "x", "y", "z", "m"], [[0.05, 0, 0, 0.05, -23, 0, 0.35, 0]])
+    primary = injection.PrimaryInjectionProcess(P.Gamma, coll)
+    primary.weighting_mode = siren.Fixed()
+    primary.distributions = [point, _PrimaryDensity(factor)]
+    position = distributions.SecondaryPhysicalVertexDistribution()
+    secondary = injection.SecondaryInjectionProcess(P.Gamma, coll)
+    secondary.weighting_mode = siren.Fixed()
+    secondary.distributions = [position, _SecondaryDensity(factor)]
+    phys_primary = injection.PhysicalProcess(P.Gamma, coll)
+    phys_primary.weighting_mode = siren.Fixed()
+    phys_primary.distributions = [distributions.NormalizationConstant(physical)]
+    phys_secondary = injection.PhysicalProcess(P.Gamma, coll)
+    phys_secondary.weighting_mode = siren.Fixed()
+    phys_secondary.distributions = [position, distributions.NormalizationConstant(physical)]
+    injectors = [injection._Injector(1, dm, primary, [secondary],
+                                     utilities.SIREN_random(seed)) for seed in (11, 23)]
+    record = dataclasses.InteractionRecord()
+    record.signature = xs.GetPossibleSignatures()[0]
+    record.primary_momentum = [0.05, 0, 0, 0.05]
+    record.primary_mass = 0.0
+    record.primary_initial_position = [-23, 0, 0.35]
+    record.interaction_vertex = [-23, 0, 0.35]
+    tree = dataclasses.InteractionTree()
+    tree.add_entry(record, tree.add_entry(record, None))
+    return injection._Weighter(injectors, dm, phys_primary, [phys_secondary]), tree
+
+
+def test_representable_pooled_product_is_weighted():
+    weighter, tree = _two_vertex_pool(1e-100, 1e-100)
+    assert weighter.EventWeight(tree) == pytest.approx(0.5)
+    assert weighter.EventWeightWithBreakdown(tree).total == pytest.approx(0.5)
+
+
+def test_pooled_product_underflow_raises_instead_of_returning_zero():
+    # Every factor is positive but both products reach zero, so the implied
+    # weight (0.5) is not representable: report it, do not return 0.
+    weighter, tree = _two_vertex_pool(1e-200, 1e-200)
+    with pytest.raises(utilities.WeightCalculationError, match="underflow"):
+        weighter.EventWeight(tree)
+    breakdown = weighter.EventWeightWithBreakdown(tree)
+    assert math.isnan(breakdown.total)
+    assert any(flag for vertex in breakdown.vertices for flag in vertex.flags)

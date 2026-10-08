@@ -45,6 +45,7 @@ public:
     std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     using VertexPositionDistribution::InjectionBounds;
+    bool ProvidesExternalBounds() const override;
     bool AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const override;
     bool equal(WeightableDistribution const & distribution) const override;
     bool less(WeightableDistribution const & distribution) const override;

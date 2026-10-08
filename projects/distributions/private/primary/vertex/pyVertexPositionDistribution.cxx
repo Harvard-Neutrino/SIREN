@@ -136,6 +136,16 @@ bool pyVertexPositionDistribution::AreEquivalent(std::shared_ptr<siren::detector
     )
 }
 
+bool pyVertexPositionDistribution::ProvidesExternalBounds() const {
+    SELF_OVERRIDE(
+        self,
+        VertexPositionDistribution,
+        bool,
+        ProvidesExternalBounds,
+        "ProvidesExternalBounds"
+    )
+}
+
 bool pyVertexPositionDistribution::equal(WeightableDistribution const & distribution) const {
     SELF_OVERRIDE_EQUAL_IDENTITY_DEFAULT(
         self,

@@ -15,6 +15,8 @@
 #include <gtest/gtest.h>
 
 #include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Sphere.h"
+#include "SIREN/detector/ConstantDensityDistribution.h"
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/detector/Coordinates.h"
 #include "SIREN/math/Vector3D.h"
@@ -67,10 +69,93 @@ TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdWithTargets)
 
     EXPECT_TRUE(IsFinite(depth)) << "InteractionDepth must be finite, got " << depth;
 
-    // Sub-threshold result is the decay-only limit (continuous with targets.empty()).
-    double expected = distance / total_decay_length;
+    // Sub-threshold result is the local interaction density times the
+    // length: the decay hazard plus the scattering depth of the material at
+    // p0 (zero here, in vacuum), continuous with targets.empty().
+    double expected = distance * A.GetInteractionDensity(
+        DetectorPosition(p0), targets, total_cross_sections, total_decay_length);
     EXPECT_NEAR(expected, depth, std::abs(expected) * 1e-9 + 1e-30);
+    EXPECT_NEAR(distance / total_decay_length, depth, std::abs(depth) * 1e-9 + 1e-30);
     EXPECT_GE(depth, 0.0);
+}
+
+// In material, a sub-threshold scattering path keeps its scattering depth:
+// the result is continuous with the full integration just above the
+// threshold and equals the local density times the length.
+TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdKeepsScatteringInMaterial)
+{
+    DetectorModel A;
+    A.ClearSectors();
+    DetectorSector world;
+    world.name = "world";
+    world.material_id = 0;
+    world.level = 0;
+    world.geo = Sphere(100.0, 0.0).create();
+    world.density = ConstantDensityDistribution(1.0).create();
+    A.AddSector(world);
+    std::vector<ParticleType> targets = {ParticleType::Nucleon};
+    std::vector<double> total_cross_sections = {1.0e-27};
+    double total_decay_length = std::numeric_limits<double>::infinity();
+    Vector3D p0(1.0, 2.0, 3.0);
+    Vector3D direction(0.0, 0.0, 1.0);
+    double local = A.GetInteractionDensity(DetectorPosition(p0), targets,
+                                           total_cross_sections, total_decay_length);
+    ASSERT_GT(local, 0.0);
+    for(double length : {1e-7, 1e-6, 9e-6, 1e-5}) {
+        SCOPED_TRACE(length);
+        Vector3D p1 = p0 + direction * length;
+        // The engine sees the representable separation, which differs from
+        // `length` by ulps of the coordinates.
+        double separation = (p1 - p0).magnitude();
+        double depth = A.GetInteractionDepthInCGS(DetectorPosition(p0), DetectorPosition(p1),
+                                                  targets, total_cross_sections, total_decay_length);
+        EXPECT_NEAR(local * separation, depth, local * separation * 1e-12);
+    }
+    double above = A.GetInteractionDepthInCGS(DetectorPosition(p0), DetectorPosition(p0 + direction * 2e-5),
+                                              targets, total_cross_sections, total_decay_length);
+    double below = A.GetInteractionDepthInCGS(DetectorPosition(p0), DetectorPosition(p0 + direction * 1e-5),
+                                              targets, total_cross_sections, total_decay_length);
+    EXPECT_NEAR(above, 2.0 * below, above * 1e-9);
+}
+
+// A sub-threshold path across a sector boundary integrates each resolved
+// portion with its own material, in either direction of traversal.
+TEST(DetectorModelDegenerateDirection, InteractionDepthSubThresholdAcrossBoundary)
+{
+    DetectorModel A;
+    A.ClearSectors();
+    DetectorSector world;
+    world.name = "world";
+    world.material_id = 0;
+    world.level = 0;
+    world.geo = Sphere(100.0, 0.0).create();
+    world.density = ConstantDensityDistribution(1.0).create();
+    A.AddSector(world);
+    DetectorSector core;
+    core.name = "core";
+    core.material_id = 0;
+    core.level = 1;
+    core.geo = Sphere(1.0, 0.0).create();
+    core.density = ConstantDensityDistribution(3.0).create();
+    A.AddSector(core);
+    std::vector<ParticleType> targets = {ParticleType::Nucleon};
+    std::vector<double> total_cross_sections = {1.0e-27};
+    double total_decay_length = std::numeric_limits<double>::infinity();
+    Vector3D inside(1.0 - 4e-6, 0.0, 0.0);
+    Vector3D outside(1.0 + 4e-6, 0.0, 0.0);
+    double local_in = A.GetInteractionDensity(DetectorPosition(inside), targets,
+                                              total_cross_sections, total_decay_length);
+    double local_out = A.GetInteractionDensity(DetectorPosition(outside), targets,
+                                               total_cross_sections, total_decay_length);
+    ASSERT_GT(local_in, local_out);
+    double half = 0.5 * (outside - inside).magnitude();
+    double expected = half * (local_in + local_out);
+    double forward = A.GetInteractionDepthInCGS(DetectorPosition(inside), DetectorPosition(outside),
+                                                targets, total_cross_sections, total_decay_length);
+    double reverse = A.GetInteractionDepthInCGS(DetectorPosition(outside), DetectorPosition(inside),
+                                                targets, total_cross_sections, total_decay_length);
+    EXPECT_NEAR(forward, expected, expected * 1e-6);
+    EXPECT_NEAR(reverse, expected, expected * 1e-6);
 }
 
 // With empty targets, GetInteractionDepthInCGS takes the decay-only branch.
