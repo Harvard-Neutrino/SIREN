@@ -39,6 +39,10 @@ namespace interactions {
     }
     //pybind11::object self;
 
+bool pyDarkNewsDecay::equal(Decay const & other) const {
+    SELF_OVERRIDE(self, DarkNewsDecay, bool, equal, "equal", other)
+}
+
 double pyDarkNewsDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
         SELF_OVERRIDE(
             self,
@@ -151,4 +155,3 @@ double pyDarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord con
 
 } // namespace interactions
 } // namespace siren
-
