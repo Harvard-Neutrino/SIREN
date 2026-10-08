@@ -1,5 +1,6 @@
 
 #include <set>
+#include <limits>
 #include <vector>
 #include <string>
 
@@ -45,6 +46,7 @@
 #include "../../public/SIREN/distributions/secondary/vertex/pySecondaryVertexPositionDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
+#include "../../public/SIREN/distributions/secondary/vertex/SecondaryDecayRangePositionDistribution.h"
 
 #include "../../../utilities/public/SIREN/utilities/Random.h"
 #include "../../../detector/public/SIREN/detector/DetectorModel.h"
@@ -105,32 +107,10 @@ PYBIND11_MODULE(distributions,m) {
     .def("clone",&PrimaryInjectionDistribution::clone)
     TrampolinePickleMethods(pyPrimaryInjectionDistribution);
 
-  // External distribution
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution",
-    "Primary distribution driven by an external CSV file.\n\n"
-    "The first line is a comma-separated header naming each column and\n"
-    "each subsequent line is one candidate event. Recognized columns:\n"
-    "  x0, y0, z0  initial position of the primary\n"
-    "  x, y, z     interaction vertex (also used as the initial position\n"
-    "              when x0, y0, z0 are absent)\n"
-    "  px, py, pz  primary momentum\n"
-    "  E           primary energy; rows with E below emin are dropped\n"
-    "  m           primary mass\n"
-    "  t0          primary initial time, in SIREN time units where one\n"
-    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
-    "              propagated to the vertex by time of flight\n"
-    "Any other column is stored as a named interaction parameter. Each of\n"
-    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
-    "omitted entirely.")
-    .def(init<std::string>())
-    .def(init<std::string, double>())
-    .def("Sample",&PrimaryExternalDistribution::Sample)
-    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
-    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
-    .def("Name",&PrimaryExternalDistribution::Name);
+  // NOTE: PrimaryExternalDistribution is defined after VertexPositionDistribution
+  // because it inherits from VertexPositionDistribution.
 
-  // Direciton distributions
+  // Direction distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, pyPrimaryDirectionDistribution, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution",
     "Base class for primary direction distributions. Subclass in python and\n"
@@ -381,6 +361,37 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
     .def("Name",&FixedTargetPositionDistribution::Name);
 
+  // External distribution (inherits VertexPositionDistribution, must come after it)
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution>(m,"PrimaryExternalDistribution",
+    "Primary distribution driven by an external CSV file.\n\n"
+    "The first line is a comma-separated header naming each column and\n"
+    "each subsequent line is one candidate event. Recognized columns:\n"
+    "  x0, y0, z0  initial position of the primary\n"
+    "  x, y, z     interaction vertex (also used as the initial position\n"
+    "              when x0, y0, z0 are absent)\n"
+    "  px, py, pz  primary momentum\n"
+    "  E           primary energy; rows with E below emin are dropped\n"
+    "  m           primary mass\n"
+    "  t0          primary initial time, in SIREN time units where one\n"
+    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
+    "              propagated to the vertex by time of flight\n"
+    "Any other column is stored as a named interaction parameter. Each of\n"
+    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
+    "omitted entirely.")
+    .def(init<std::string>())
+    .def(init<std::string, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>>(),
+         arg("keys"), arg("data"), arg("sampling_weights"))
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>, double>(),
+         arg("keys"), arg("data"), arg("sampling_weights"), arg("emin"))
+    .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
+    .def("Name",&PrimaryExternalDistribution::Name);
+
   class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, pyPrimaryAreaDistribution, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution",
     "Base class for primary area distributions. Subclass in python and\n"
     "implement SamplePointOfClosestApproach(rand, detector_model,\n"
@@ -434,6 +445,21 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::GenerationProbability, const_))
     .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryBoundedVertexDistribution::Name);
+
+  class_<SecondaryDecayRangePositionDistribution, std::shared_ptr<SecondaryDecayRangePositionDistribution>, SecondaryVertexPositionDistribution>(m, "SecondaryDecayRangePositionDistribution",
+    "Bias a secondary interaction vertex by the probability that a collinear\n"
+    "proxy daughter subsequently interacts or decays inside a fiducial volume.\n"
+    "The current and daughter legs are evaluated in detector interaction depth,\n"
+    "including arbitrary material density profiles and decay lengths.")
+    .def(init<std::shared_ptr<siren::geometry::Geometry>,
+              std::shared_ptr<siren::interactions::InteractionCollection>,
+              double, double, double>(),
+         arg("fiducial_volume"), arg("daughter_interactions"),
+         arg("daughter_mass"), arg("daughter_energy_fraction") = 1.0,
+         arg("max_length") = std::numeric_limits<double>::infinity(),
+         keep_alive<1, 2>(), keep_alive<1, 3>())
+    .def("SampleVertex",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryDecayRangePositionDistribution::SampleVertex, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryDecayRangePositionDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryDecayRangePositionDistribution::InjectionBounds, const_))
+    .def("Name",&SecondaryDecayRangePositionDistribution::Name);
 }
-
-

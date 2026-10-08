@@ -197,6 +197,18 @@ TEST(PrimaryExternalDistribution, SampleWorksWithoutEColumn) {
     std::remove(path.c_str());
 }
 
+TEST(PrimaryExternalDistribution, ConstructFromInMemoryRows) {
+    PrimaryExternalDistribution dist(
+        {"E", "x0", "y0", "z0"},
+        {{10.0, 1.0, 2.0, 3.0}, {20.0, 4.0, 5.0, 6.0}},
+        15.0);
+
+    EXPECT_EQ(dist.GetPhysicalNumEvents(), 1u);
+    EXPECT_TRUE(dist.RequiredVariables().empty());
+    EXPECT_TRUE(dist.SetVariables().count(DistributionVariable::PrimaryEnergy));
+    EXPECT_TRUE(dist.SetVariables().count(DistributionVariable::InitialPosition));
+}
+
 TEST(PrimaryExternalDistribution, SampleCustomParameters) {
     std::string path = WriteTempCSV("E,Q2,x0,y0,z0,px,py,pz\n10.0,1.5,0,0,0,1,0,0\n");
     PrimaryExternalDistribution dist(path);
