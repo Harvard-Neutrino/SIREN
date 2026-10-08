@@ -13,6 +13,10 @@ on top.  The full enum remains available at
 ``siren.dataclasses.ParticleType``.
 """
 
+import math
+
+from .errors import ConfigurationError
+
 from . import dataclasses as _dc
 
 _PT = _dc.ParticleType
@@ -83,3 +87,109 @@ def resolve(name_or_type):
     raise TypeError(
         f"Expected a ParticleType enum or string name, got {type(name_or_type).__name__}"
     )
+
+
+# ------------------------------------------------------------------ #
+#  User-defined (BSM) particle registration                            #
+# ------------------------------------------------------------------ #
+
+# name -> pdg code and name -> mass (GeV) for particles added via define().
+_name_to_pdg = {}
+_name_to_mass = {}
+
+
+def mass(name_or_type):
+    """Mass in GeV from ``define()``, falling back to SIREN's built-in masses."""
+    ptype = resolve(name_or_type)
+    for name, value in _name_to_mass.items():
+        if _name_to_type[name] == ptype:
+            return value
+    try:
+        return _dc.GetParticleMass(ptype)
+    except ValueError as exc:
+        raise ConfigurationError(
+            f"No mass for particle {ptype} (PDG {int(ptype)}); register it "
+            "with particles.define() or override SecondaryMasses().") from exc
+
+
+def define(name, pdg, mass):
+    """Register a named particle so ``resolve(name)`` returns a ParticleType.
+
+    The C++ ``ParticleType`` enum is PDG-coded (its members are the PDG
+    integers themselves, e.g. ``N4 = 5914``), so a new BSM particle is
+    represented by constructing ``ParticleType(pdg)`` from its PDG code --
+    no new enum member is created. ``mass`` (GeV) supplies the default
+    daughter mass in Python authoring models. The C++ mass table is unchanged.
+
+    Registering ``name``/``pdg`` with the values already on file (the exact
+    same pdg and mass) is a no-op.  Registering ``name`` or ``pdg`` with a
+    DIFFERENT pdg/mass than already registered raises ConfigurationError --
+    this catches accidental redefinition rather than silently rebinding a
+    name or code already in use.
+
+    Parameters
+    ----------
+    name : str
+        The identifier to register (becomes ``siren.particles.<name>`` and
+        resolvable via ``resolve(name)``).
+    pdg : int
+        The PDG code identifying this particle's ParticleType.
+    mass : float
+        Mass in GeV, recorded in ``_name_to_mass``.
+
+    Returns
+    -------
+    ParticleType
+        The resolved (constructed-from-pdg) ParticleType, also stored at
+        ``siren.particles.<name>``.
+    """
+    if (not isinstance(name, str) or not name.isidentifier() or name.startswith("_")
+            or (name in globals() and name not in _name_to_type)):
+        raise ConfigurationError("particle name must be an unreserved public identifier")
+    pdg = int(pdg)
+    mass = float(mass)
+    if not math.isfinite(mass) or mass < 0:
+        raise ConfigurationError("particle mass must be finite and non-negative")
+    ptype = _PT(pdg)
+
+    for other_name, other_mass in _name_to_mass.items():
+        if _name_to_type[other_name] == ptype and other_mass != mass:
+            raise ConfigurationError(
+                f"pdg={pdg} already has mass={other_mass} under {other_name!r} "
+                f"(requested mass={mass})")
+
+    if name in _name_to_type:
+        existing = _name_to_type[name]
+        existing_pdg = _name_to_pdg.get(name, int(existing))
+        if name in _name_to_mass:
+            # A name carrying both pdg and mass: both must match for the
+            # re-registration to be an idempotent no-op.
+            same = existing_pdg == pdg and _name_to_mass[name] == mass
+        else:
+            # A built-in enum member's own name collides here on its first
+            # define(): its pdg (the bare enum value) must match. The supplied
+            # mass is recorded so a later mismatched mass is rejected.
+            same = existing_pdg == pdg
+        if not same:
+            raise ConfigurationError(
+                f"particle name {name!r} is already registered with "
+                f"pdg={existing_pdg}, mass={_name_to_mass.get(name)} "
+                f"(requested pdg={pdg}, mass={mass})")
+        if name not in _name_to_mass:
+            _name_to_mass[name] = mass
+        return existing
+
+    # A pdg code already in use -- under a different define()d name or a
+    # built-in enum member -- is a conflict.
+    for other_name, other_type in _name_to_type.items():
+        other_pdg = _name_to_pdg.get(other_name, int(other_type))
+        if other_pdg == pdg and other_name != name:
+            raise ConfigurationError(
+                f"pdg={pdg} is already registered under name {other_name!r} "
+                f"(requested name {name!r})")
+
+    _name_to_type[name] = ptype
+    _name_to_pdg[name] = pdg
+    _name_to_mass[name] = mass
+    globals()[name] = ptype
+    return ptype

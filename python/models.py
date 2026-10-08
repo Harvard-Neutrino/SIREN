@@ -172,6 +172,10 @@ def decay_model_base(base=None):
         def equal(self, other):
             return self is other
 
+        def SecondaryMasses(self, secondary_types):
+            """Registered or built-in daughter masses; override for model parameters."""
+            return [_particles.mass(ptype) for ptype in secondary_types]
+
         # ---- declared metadata -> signature methods ----
 
         def _signature(self):
@@ -337,6 +341,10 @@ def cross_section_model_base(base=None):
 
         def equal(self, other):
             return self is other
+
+        def SecondaryMasses(self, secondary_types):
+            """Registered or built-in daughter masses; override for model parameters."""
+            return [_particles.mass(ptype) for ptype in secondary_types]
 
         # ---- declared metadata -> target/signature methods ----
 

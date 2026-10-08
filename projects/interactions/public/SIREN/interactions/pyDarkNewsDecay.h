@@ -52,6 +52,8 @@ public:
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<std::string> DensityVariables() const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
+    std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const override;
+    std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const override;
 
     Pybind11TrampolineCerealMethods(DarkNewsDecay, pyDarkNewsDecay);
 
