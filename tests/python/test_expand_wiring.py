@@ -1,6 +1,7 @@
 """Tests for siren.expand vocabulary and expansion-wiring validation."""
 
 import pytest
+import pickle
 
 siren = pytest.importorskip("siren")
 
@@ -44,6 +45,10 @@ def test_listed_daughter_expands_unlisted_terminates():
 
     assert stopping_condition(tree, parent, 0) is False
     assert stopping_condition(tree, parent, 1) is True
+    assert isinstance(stopping_condition, siren.injection.SecondaryExpansion)
+    restored = pickle.loads(pickle.dumps(stopping_condition))
+    assert restored(tree, parent, 0) is False
+    assert restored(tree, parent, 1) is True
 
 
 def test_child_index_restricts_match():
@@ -149,3 +154,16 @@ def test_legacy_stopping_condition_with_expand_is_hard_error():
     check_expand_vs_legacy_stopping(True, False)
     check_expand_vs_legacy_stopping(False, True)
     check_expand_vs_legacy_stopping(False, False)
+
+
+@pytest.mark.parametrize('rule', [child('unknown'), depth_below(2.5), depth_below(float('inf')),
+    depth_below(2**40), depth_below(float('nan')), depth_below(-1), child('EMinus', 2**1000),
+    child('EMinus', 0.5), child('EMinus', float('inf'))])
+def test_native_rule_matches_callback_semantics(rule):
+    tree, parent = _tree_with_root(PT.N4, [PT.EMinus, PT.unknown])
+    native = compile_expansion([VertexSpec(PT.N4, (rule,), None)])
+    callback = compile_expansion([VertexSpec(PT.N4, (rule,), lambda *args: True)])
+    assert native == pickle.loads(pickle.dumps(native))
+    for depth in range(5):
+        assert [native(tree, parent, i) for i in range(2)] == [callback(tree, parent, i) for i in range(2)]
+        parent = tree.add_entry(_make_record(PT.N4, [PT.EMinus, PT.unknown]), parent)

@@ -513,8 +513,9 @@ def is_trampoline(obj):
     retain the pybind metaclass and may define no methods of their own.
     """
     from . import interactions as _interactions
+    from . import injection as _injection
     return not any(type(obj) is value
-                   for module in (_interactions, _d)
+                   for module in (_interactions, _d, _injection)
                    for value in vars(module).values())
 
 

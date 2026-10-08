@@ -10,6 +10,7 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/GeometryVolume.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhysicalChannelAdapters.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected2BodyChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/RestFrameEnvelope2BodyChannel.cxx

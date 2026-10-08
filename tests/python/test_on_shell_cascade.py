@@ -234,6 +234,38 @@ def test_tabulated_parent_keeps_its_energy_and_gross_mismatch_fails(weights):
         channel.Sample(rng,None,r)
 
 
+@pytest.mark.parametrize('proposal', [True, False])
+def test_parent_at_source_emin_keeps_its_energy_in_a_run(proposal):
+    # A row 1e-6 above its mass shell with the source's emin equal to its energy.
+    # Writing the projected (lower) energy back into the record would move the
+    # parent below emin and make the source density zero.
+    pt = siren.dataclasses.ParticleType
+    M, mA, m, pz = .1349768, .03, .01, .3
+    e = math.hypot(M,pz)*(1+1e-6)
+    rows = [[e,M,0.,0.,pz,0.,0.,0.,1.]]
+    source = siren.distributions.PrimaryExternalDistribution(
+        ['E','m','px','py','pz','x','y','z','weight'],rows,e)
+    signature = siren.dataclasses.InteractionSignature()
+    signature.primary_type = pt.Pi0
+    signature.target_type = pt.Decay
+    signature.secondary_types = [pt.Gamma,pt.N4,pt.N5]
+    physical = siren.injection.OnShellCascadeChannel(target(),mA,0.,[1.,0.,0.])
+    model = siren.injection.PhaseSpaceDecay(signature,[0.,m,m],1e-3*7.8e-9,7.8e-9,physical)
+    kinematics = {'kinematics':siren.channels.on_shell_cascade(target(),mA,0.,(.1,.45,.45),.5)} if proposal else {}
+    vertex = siren.Vertex('Pi0',model,distributions=[source],physical=[source],
+                          weighting=siren.Fixed(),**kinematics)
+    result = siren.Simulation(detector=siren.detector.DetectorModel(),primary=vertex,
+                              events=20,seed=7).run(on_failure='raise',on_shortfall='raise')
+    assert len(result.events)==20
+    weights = np.asarray(result.weights)
+    assert np.all(np.isfinite(weights)) and np.all(weights>0)
+    for tree in result.events:
+        rec = tree.tree[0].record
+        assert rec.primary_momentum[0]==e
+        assert 'decay_input_energy' not in rec.interaction_parameters
+        assert np.sum(rec.secondary_momenta,axis=0)[0]==pytest.approx(math.hypot(M,pz),rel=1e-12)
+
+
 def test_normalization_survives_repeated_archive_loads_bitwise():
     channel=siren.injection.OnShellCascadeChannel(target(),.03,.4,[.1,.1,.35])
     r=record()
@@ -241,6 +273,8 @@ def test_normalization_survives_repeated_archive_loads_bitwise():
     restored=channel
     for _ in range(10): restored=pickle.loads(pickle.dumps(restored))
     assert pickle.dumps(restored)==pickle.dumps(channel)
+    model=siren.injection.PhaseSpaceDecay(r.signature,r.secondary_masses,1.,1.,channel)
+    assert model==pickle.loads(pickle.dumps(model))
     for _ in range(100):
         channel.Sample(rng,None,r)
         assert channel.Density(None,r)==restored.Density(None,r)

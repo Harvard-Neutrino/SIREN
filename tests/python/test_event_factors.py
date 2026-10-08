@@ -302,6 +302,9 @@ def test_save_checks_lazy_injector_state_after_compilation(tmp_path, offender):
         inj.stopping_condition = None
         for vertex in [inj.primary, *inj.secondaries]:
             vertex.expand = [siren.expand.depth_below(1)]
+            # Pure declarative expansion is native and archived. An arbitrary
+            # Python predicate still cannot be preserved by a native archive.
+            vertex.continue_if = lambda tree, parent, i: True
         expected = "stopping condition"
     else:
         vertex = inj.secondaries[0] if chain else inj.primary
