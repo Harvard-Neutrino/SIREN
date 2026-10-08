@@ -1,4 +1,5 @@
 
+#include <array>
 #include <vector>
 
 #include "../../public/SIREN/geometry/Placement.h"
@@ -92,7 +93,21 @@ PYBIND11_MODULE(geometry,m) {
 
     class_<Box, std::shared_ptr<Box>, Geometry>(m, "Box")
         .def(init<>())
-        .def(init<double, double, double>())
+        // Positional Box(x, y, z) places the box at the ORIGIN, which reads as
+        // a size-only constructor and silently drops the intended center. Warn
+        // and keep the origin placement rather than raising, so positional
+        // callers are not broken immediately.
+        .def(init([](double x, double y, double z) {
+            PyErr_WarnEx(PyExc_DeprecationWarning,
+                "Box(x, y, z) places the box at the ORIGIN; pass "
+                "Box(widths=(x, y, z), center=(cx, cy, cz))",
+                1);
+            return std::make_shared<Box>(x, y, z);
+        }))
+        .def(init([](std::array<double, 3> widths, std::array<double, 3> center) {
+            Placement placement(siren::math::Vector3D(center[0], center[1], center[2]));
+            return std::make_shared<Box>(placement, widths[0], widths[1], widths[2]);
+        }), arg("widths"), arg("center") = std::array<double, 3>{0.0, 0.0, 0.0})
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double, double>())
         .def(init<const Box&>())

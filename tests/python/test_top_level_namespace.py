@@ -21,5 +21,6 @@ def test_top_level_count_reasonable():
     )
     out = subprocess.check_output([sys.executable, "-c", code], text=True)
     count = int(out.strip())
-    # Should be around 25, definitely under 30.
-    assert count < 30, f"Too many top-level names: {count}"
+    # The spec vocabulary (Vertex, Directed, channels, expand, errors,
+    # generate, Propagated, Fixed) is part of the intended public surface.
+    assert count < 45, f"Too many top-level names: {count}"
