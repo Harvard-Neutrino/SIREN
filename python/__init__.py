@@ -99,6 +99,7 @@ from .closure import check_closure, ClosureReport
 Propagated = injection.VertexWeightingMode.Propagated
 Fixed = injection.VertexWeightingMode.Fixed
 ExternalBounds = injection.VertexWeightingMode.ExternalBounds
+PropagatedFromCreation = injection.VertexWeightingMode.PropagatedFromCreation
 
 # Deprecation aliases in this package should surface once by default; set
 # SIREN_STRICT=1 to escalate them to errors.

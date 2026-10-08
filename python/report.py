@@ -168,13 +168,17 @@ class InjectionReport:
 
 
 class VertexWeightLine:
-    """One vertex's factors within a weight breakdown."""
+    """One vertex's factors within a weight breakdown.
+
+    ``survival`` is the creation-to-entry survival that
+    ``PropagatedFromCreation()`` includes in ``physical`` (1 otherwise).
+    """
 
     __slots__ = ("depth", "pdg", "generation", "physical",
-                 "channel_densities", "cancelled", "flags")
+                 "channel_densities", "cancelled", "flags", "survival")
 
     def __init__(self, depth, pdg, generation, physical,
-                 channel_densities, cancelled, flags):
+                 channel_densities, cancelled, flags, survival=1.0):
         self.depth = depth
         self.pdg = pdg
         self.generation = generation
@@ -182,6 +186,7 @@ class VertexWeightLine:
         self.channel_densities = dict(channel_densities)
         self.cancelled = list(cancelled)
         self.flags = list(flags)
+        self.survival = survival
 
     @property
     def particle(self) -> str:
@@ -224,7 +229,7 @@ class WeightBreakdown:
         for v in breakdown.vertices:
             lines.append(VertexWeightLine(
                 v.depth, v.vertex_pdg, v.generation, v.physical,
-                v.channel_densities, v.cancelled, v.flags))
+                v.channel_densities, v.cancelled, v.flags, v.survival))
         return cls(breakdown.total, lines)
 
     def culprit(self) -> Optional[VertexWeightLine]:
@@ -249,6 +254,8 @@ class WeightBreakdown:
             line = "  d={} {:<12} gen={:.3e} phys={:.3e}".format(
                 v.depth, v.particle, v.generation, v.physical)
             extras = []
+            if v.survival != 1.0:
+                extras.append("survival={:.3e}".format(v.survival))
             if v.cancelled:
                 extras.append("cancelled=" + ",".join(v.cancelled))
             if v.flags:

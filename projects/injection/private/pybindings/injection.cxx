@@ -116,11 +116,14 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("compute_interaction_probability", &VWM::compute_interaction_probability)
     .def_readwrite("compute_position_probability", &VWM::compute_position_probability)
     .def_readwrite("bound_source", &VWM::bound_source)
+    .def_readwrite("survival_from_creation", &VWM::survival_from_creation)
+    .def("Validate", &VWM::Validate)
     .def("__eq__", &VWM::operator==)
     .def("__ne__", &VWM::operator!=)
     .def_static("Propagated", &VWM::Propagated)
     .def_static("Fixed", &VWM::Fixed)
     .def_static("ExternalBounds", &VWM::ExternalBounds)
+    .def_static("PropagatedFromCreation", &VWM::PropagatedFromCreation)
     ;
 
   // Phase space channels
@@ -889,6 +892,7 @@ PYBIND11_MODULE(injection,m) {
     .def_readonly("physical", &VertexWeightFactors::physical)
     .def_readonly("interaction_prob", &VertexWeightFactors::interaction_prob)
     .def_readonly("position_prob", &VertexWeightFactors::position_prob)
+    .def_readonly("survival", &VertexWeightFactors::survival)
     .def_readonly("channel_density_topology", &VertexWeightFactors::channel_density_topology)
     .def_readonly("channel_density_measure", &VertexWeightFactors::channel_density_measure)
     .def_readonly("channel_densities", &VertexWeightFactors::channel_densities)
@@ -902,6 +906,7 @@ PYBIND11_MODULE(injection,m) {
   class_<PrimaryProcessWeighter, std::shared_ptr<PrimaryProcessWeighter>>(m, "PrimaryProcessWeighter")
     .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::detector::DetectorModel>>())
     .def("InteractionProbability",&PrimaryProcessWeighter::InteractionProbability)
+    .def("CreationSurvival",&PrimaryProcessWeighter::CreationSurvival)
     .def("NormalizedPositionProbability",&PrimaryProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",
          overload_cast<
@@ -917,6 +922,7 @@ PYBIND11_MODULE(injection,m) {
   class_<SecondaryProcessWeighter, std::shared_ptr<SecondaryProcessWeighter>>(m, "SecondaryProcessWeighter")
     .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<SecondaryInjectionProcess>, std::shared_ptr<siren::detector::DetectorModel>>())
     .def("InteractionProbability",&SecondaryProcessWeighter::InteractionProbability)
+    .def("CreationSurvival",&SecondaryProcessWeighter::CreationSurvival)
     .def("NormalizedPositionProbability",&SecondaryProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",
          overload_cast<

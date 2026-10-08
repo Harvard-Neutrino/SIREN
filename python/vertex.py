@@ -34,7 +34,8 @@ def _resolve_weighting_mode(weighting):
 
     Accepts an already-built VertexWeightingMode (from either
     siren.injection.VertexWeightingMode -- where it actually lives -- or
-    the siren.Propagated / siren.Fixed / siren.ExternalBounds shorthand),
+    the siren.Propagated / siren.PropagatedFromCreation / siren.Fixed /
+    siren.ExternalBounds shorthand),
     or None (defaults to Propagated()).
     """
     siren = _siren()
@@ -162,7 +163,10 @@ class Vertex:
     weighting : VertexWeightingMode, optional
         Defaults to Propagated(). Accepts the engine enum value however
         it is exposed as siren.injection.VertexWeightingMode, or the
-        siren.Propagated / siren.Fixed / siren.ExternalBounds shorthand.
+        siren.Propagated / siren.PropagatedFromCreation / siren.Fixed /
+        siren.ExternalBounds shorthand. PropagatedFromCreation() also
+        charges the survival from the creation point to the entry of the
+        injection bounds (see docs/decay_channels.md).
         ExternalBounds() is required for (and only for) a primary position
         distribution that supplies its own injection bounds, such as a
         PrimaryExternalDistribution segment table (``segment_column`` opt-in).

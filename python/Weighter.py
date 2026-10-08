@@ -9,6 +9,7 @@ from . import injection as _injection
 from . import Injector as _Injector_module
 from .Injector import _is_trampoline
 from ._validation import validate_reweighting_compatibility
+from .errors import ConfigurationError
 
 from typing import Tuple, List, Dict, Optional, Union, Callable
 from typing import TYPE_CHECKING
@@ -56,6 +57,33 @@ def _checked_weight(value, label="event weight", *label_args):
                 label.format(*label_args), value))
     return weight
 
+
+
+def _check_pooled_survival_modes(injectors):
+    """Require pooled injectors to agree on survival_from_creation.
+
+    The physical weighting modes are copied from the first injector, and only
+    the physical side charges the creation-to-entry survival. Injectors that
+    disagree would have their samples weighted under the first one's choice.
+    """
+    def flag(process):
+        return process.GetWeightingMode().survival_from_creation
+
+    engines = [i for i in injectors if i is not None]
+    primary = {flag(i.GetPrimaryProcess()) for i in engines}
+    secondary = {}
+    for injector in engines:
+        for ptype, process in injector.GetSecondaryProcessMap().items():
+            secondary.setdefault(ptype, set()).add(flag(process))
+    mixed = [str(t) for t, flags in secondary.items() if len(flags) > 1]
+    if len(primary) > 1:
+        mixed.insert(0, "primary")
+    if mixed:
+        raise ConfigurationError(
+            "Pooled injectors disagree on survival_from_creation for "
+            + ", ".join(mixed)
+            + "; the physical weighting mode is taken from the first injector, so use "
+            "PropagatedFromCreation() for all of them or for none.")
 
 class Weighter:
     """
@@ -478,6 +506,10 @@ class Weighter:
         being rounded to zero. A negative or NaN depth, which comes from a
         negative or NaN decay width or cross section, raises ``RuntimeError``.
 
+        A vertex weighted with ``PropagatedFromCreation()`` already carries this
+        factor in its event weight; multiplying it in again would count the
+        survival twice.
+
         This segment is DISJOINT from the one measured by
         ``interaction_probabilities``: survival covers everything before the
         injection region, the interaction probability covers the injection region
@@ -721,6 +753,7 @@ class Weighter:
 
         # Copy weighting mode from the injector's primary process
         inj0_cpp = injectors[0]
+        _check_pooled_survival_modes(injectors)
         if inj0_cpp is not None:
             primary_process.weighting_mode = inj0_cpp.GetPrimaryProcess().GetWeightingMode()
 
