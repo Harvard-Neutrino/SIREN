@@ -10,6 +10,7 @@
 #include <initializer_list>                                       // for ini...
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
+#include <sstream>                                                // for ost...
 #include <stdexcept>                                              // for out...
 
 #include "SIREN/interactions/Decay.h"            // for Dec...
@@ -93,7 +94,7 @@ void ProcessWeighter<ProcessType>::Initialize() {
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+double ProcessWeighter<ProcessType>::InteractionDepth(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
     using siren::detector::DetectorPosition;
     using siren::detector::DetectorDirection;
     siren::math::Vector3D interaction_vertex(
@@ -131,7 +132,12 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::ma
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
+    return detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
+}
+
+template<typename ProcessType>
+double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+    double total_interaction_depth = InteractionDepth(bounds, record);
 
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
@@ -144,11 +150,17 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::ma
 
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::SurvivalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
-    double interaction_probability = InteractionProbability(bounds, record);
-    double survival = 1.0 - interaction_probability;
-    if(survival < 0.0) survival = 0.0;
-    if(survival > 1.0) survival = 1.0;
-    return survival;
+    // exp(-depth) directly: 1 - InteractionProbability has a relative error of
+    // about 1e-16 / survival and rounds a survival below ~5e-17 to zero.
+    double total_interaction_depth = InteractionDepth(bounds, record);
+    if(std::isnan(total_interaction_depth) || total_interaction_depth < 0.0) {
+        std::ostringstream message;
+        message.precision(17);
+        message << "SurvivalProbability: interaction depth " << total_interaction_depth
+                << " is negative or NaN; check the decay widths and cross sections";
+        throw std::runtime_error(message.str());
+    }
+    return std::exp(-total_interaction_depth);
 }
 
 template<typename ProcessType>

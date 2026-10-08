@@ -357,6 +357,11 @@ class Weighter:
         the near edge of injector ``i_inj``'s injection region (the first element
         of its PrimaryInjectionBounds / SecondaryInjectionBounds).
 
+        The value is exp(-depth) for the interaction depth over that segment, so
+        it is as accurate as the depth itself down to about 1e-308 instead of
+        being rounded to zero. A negative or NaN depth, which comes from a
+        negative or NaN decay width or cross section, raises ``RuntimeError``.
+
         This segment is DISJOINT from the one measured by
         ``interaction_probabilities``: survival covers everything before the
         injection region, the interaction probability covers the injection region
