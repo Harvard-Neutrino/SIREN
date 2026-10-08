@@ -201,6 +201,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         if(with_diagnostics) {
             factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
             factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+            factors.survival = primary_process_weighters[idx]->CreationSurvival(bounds, datum->record);
             RecordMixtureDiagnostics(factors,
                 injectors[idx]->GetPrimaryProcess(),
                 primary_process_weighters[idx]->GetCancelledDistributionNames(),
@@ -215,6 +216,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             if(with_diagnostics) {
                 factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
                 factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+                factors.survival = w->CreationSurvival(bounds, datum->record);
                 RecordMixtureDiagnostics(factors,
                     injectors[idx]->GetSecondaryProcessMap().at(datum->record.signature.primary_type),
                     w->GetCancelledDistributionNames(),

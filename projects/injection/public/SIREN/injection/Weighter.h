@@ -67,6 +67,10 @@ public:
     double InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double InteractionDepth(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double SurvivalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
+    // exp(-depth) from the record's creation point to the entry of the
+    // injection bounds when the physical mode sets survival_from_creation,
+    // else 1. Throws WeightCalculationError if the factor cannot be represented.
+    double CreationSurvival(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum) const;
@@ -92,6 +96,9 @@ struct VertexWeightFactors {
     double physical = 1.0;
     double interaction_prob = 1.0;
     double position_prob = 1.0;
+    // Creation-to-entry survival (PropagatedFromCreation); 1 otherwise.
+    // Already included in physical.
+    double survival = 1.0;
     // Convention shared by every value in channel_densities, stored here as
     // separate topology/measure fields rather than a single
     // PhaseSpaceConvention.

@@ -501,7 +501,7 @@ def _process_config(process):
                   list(models.GetCrossSections()) + list(models.GetDecays())),
             tuple(_distribution_config(d) for d in process.distributions),
             (mode.compute_interaction_probability, mode.compute_position_probability,
-             int(mode.bound_source)),
+             int(mode.bound_source), mode.survival_from_creation),
             {sig: _mixture_config(mc)
              for sig, mc in process.GetPhaseSpaceMap().items()})
 

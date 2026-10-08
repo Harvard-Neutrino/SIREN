@@ -92,3 +92,31 @@ one process per particle type; it does not choose different channel restrictions
 for repeated occurrences of that particle in a chain. Model-specific particle
 aliases used for such routing need a separate migration decision. Vacuum flight
 beyond detector geometry also remains a separate distribution contract.
+
+## Survival up to a bounded volume
+
+A `Propagated()` vertex with bounded position sampling, such as
+`siren.dist.BoundedVertex`, is weighted from the entry of its injection
+bounds. Its interaction and position factors give the probability of
+interacting at the sampled point once the particle has reached the volume.
+The survival from where the particle was created, `primary_initial_position`,
+up to that entry is not part of the weight. For a long-lived particle that
+must cross many decay or interaction lengths first, this factor can be very
+small.
+
+`siren.PropagatedFromCreation()` includes it. The physical weight is
+multiplied by exp(-depth), where depth is the interaction depth from the
+creation point to the entry. It is computed directly, not as one minus an
+interaction probability, so it keeps its precision for any survival above
+about 1e-308. The mode requires both probability factors and geometry
+bounds: it is rejected for `Fixed()` and for `ExternalBounds()`, whose
+segment tables already start at the creation point. A negative or NaN depth,
+or a survival too small to represent, raises `WeightCalculationError`.
+
+The factor appears as `survival` in `EventWeightWithBreakdown`, and
+`Weighter.survival_probabilities` returns the same quantity for any mode, as a
+diagnostic. Do not multiply that diagnostic into weights from this mode, which
+already contain it. The physical modes of a pooled Python `Weighter` come from
+the first injector, so pooled injectors must agree on the mode. Archives
+store it as version 1 of `VertexWeightingMode`; version-0 archives load with
+the survival omitted, as before.
