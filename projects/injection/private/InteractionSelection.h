@@ -31,7 +31,8 @@ struct InteractionCandidate {
 std::vector<InteractionCandidate> EnumerateInteractionCandidates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record);
+    siren::dataclasses::InteractionRecord const & record,
+    bool for_generation = false);
 
 } // namespace detail
 } // namespace injection

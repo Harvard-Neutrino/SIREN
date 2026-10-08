@@ -67,6 +67,8 @@ class Injector:
         secondaries=(),
         events: Optional[int] = None,
         max_attempts: Optional[int] = None,
+        primary_decay_channels=None,
+        secondary_decay_channels=None,
     ):
         self.__seed = None
         self.__number_of_events = 0
@@ -76,6 +78,8 @@ class Injector:
         self.__primary_interactions = []
         self.__primary_injection_distributions = []
         self.__primary_phase_spaces = {}
+        self.__primary_decay_channels = primary_decay_channels
+        self.__secondary_decay_channels = dict(secondary_decay_channels or {})
 
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
@@ -187,6 +191,7 @@ class Injector:
             ("secondary_injection_distributions", self.__secondary_injection_distributions),
             ("secondary_phase_spaces", self.__secondary_phase_spaces),
             ("secondary_weighting_modes", self.__secondary_weighting_modes),
+            ("secondary_decay_channels", self.__secondary_decay_channels),
         )
         if sorted(self.__secondary_interactions.keys()) != sorted(
                 self.__secondary_injection_distributions.keys()):
@@ -252,6 +257,7 @@ class Injector:
         self.__keepalive.append(primary)
         self.__primary_type = primary._resolved_particle
         self.__primary_interactions = list(primary.interactions)
+        self.__primary_decay_channels = primary.decay_channels
         self.__primary_injection_distributions = list(primary.distributions)
 
         specs = [primary.as_vertex_spec()]
@@ -268,6 +274,7 @@ class Injector:
                     "{!r}; a chain admits one vertex per secondary type".format(
                         str(ptype)))
             self.__secondary_interactions[ptype] = list(sv.interactions)
+            self.__secondary_decay_channels[ptype] = sv.decay_channels
             self.__secondary_injection_distributions[ptype] = list(sv.distributions)
             specs.append(sv.as_vertex_spec())
 
@@ -298,6 +305,7 @@ class Injector:
             return self.__primary_compiled_process
         primary_interaction_collection = _interactions.InteractionCollection(
             self.__primary_type, self.__primary_interactions)
+        primary_interaction_collection.SetDecayChannels(self.__primary_decay_channels)
         primary_process = _injection.PrimaryInjectionProcess(
             self.__primary_type, primary_interaction_collection)
         primary_process.distributions = self.__primary_injection_distributions
@@ -314,6 +322,8 @@ class Injector:
         for secondary_type, sec_ints in self.__secondary_interactions.items():
             secondary_interaction_collection = _interactions.InteractionCollection(
                 secondary_type, sec_ints)
+            secondary_interaction_collection.SetDecayChannels(
+                self.__secondary_decay_channels.get(secondary_type))
             secondary_process = SecondaryInjectionProcess(
                 secondary_type, secondary_interaction_collection)
             secondary_process.distributions = (
@@ -649,6 +659,8 @@ class Injector:
             primary_process.interactions.GetDecays())
         obj.__primary_injection_distributions = list(primary_process.distributions)
         obj.__primary_phase_spaces = primary_process.GetPhaseSpaceMap()
+        obj.__primary_decay_channels = primary_process.interactions.GetDecayChannels()
+        obj.__secondary_decay_channels = {}
         obj.__secondary_interactions = {}
         obj.__secondary_injection_distributions = {}
         obj.__secondary_phase_spaces = {}
@@ -658,6 +670,7 @@ class Injector:
                 sproc.interactions.GetDecays())
             obj.__secondary_injection_distributions[stype] = list(sproc.distributions)
             obj.__secondary_phase_spaces[stype] = sproc.GetPhaseSpaceMap()
+            obj.__secondary_decay_channels[stype] = sproc.interactions.GetDecayChannels()
         return obj
 
     # ------------------------------------------------------------------ #
@@ -690,6 +703,8 @@ class Injector:
         self.__primary_interactions = list(primary_process.interactions.GetCrossSections()) + list(primary_process.interactions.GetDecays())
         self.__primary_injection_distributions = list(primary_process.distributions)
         self.__primary_phase_spaces = primary_process.GetPhaseSpaceMap()
+        self.__primary_decay_channels = primary_process.interactions.GetDecayChannels()
+        self.__secondary_decay_channels = {}
         self.__secondary_interactions = {}
         self.__secondary_injection_distributions = {}
         self.__secondary_phase_spaces = {}
@@ -703,6 +718,7 @@ class Injector:
             self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
             self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
             self.__secondary_phase_spaces[secondary_type] = secondary_process.GetPhaseSpaceMap()
+            self.__secondary_decay_channels[secondary_type] = secondary_process.interactions.GetDecayChannels()
         # The version-2 archive carried the RNG engine state, so the C++
         # __setstate__ above already restored it: generation RESUMES where the
         # pickled injector left off, and no re-seed is needed. self.__seed (from
@@ -785,6 +801,7 @@ class Injector:
             primary_interaction_collection = _interactions.InteractionCollection(
                 self.primary_type, primary_interactions
             )
+            primary_interaction_collection.SetDecayChannels(self.__primary_decay_channels)
             primary_process.interactions = primary_interaction_collection
         self.__primary_interactions = primary_interactions
 
@@ -823,8 +840,16 @@ class Injector:
             new_secondary_types = sorted(list(secondary_interactions.keys()))
             if current_secondary_types != new_secondary_types:
                 raise ValueError("Cannot change the secondary types after initialization")
+            collections = {}
             for secondary_type, secondary_process in secondary_processes.items():
-                secondary_process.interactions = secondary_interactions[secondary_type]
+                collection = _interactions.InteractionCollection(
+                    secondary_type, secondary_interactions[secondary_type])
+                collection.SetDecayChannels(self.__secondary_decay_channels.get(secondary_type))
+                collections[secondary_type] = collection
+            # A rejected update must leave every native process and the Python
+            # model references unchanged, even when a later selection is bad.
+            for secondary_type, secondary_process in secondary_processes.items():
+                secondary_process.interactions = collections[secondary_type]
         self.__secondary_interactions = secondary_interactions
 
     @property

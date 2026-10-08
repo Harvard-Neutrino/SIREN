@@ -124,6 +124,15 @@ double FixedVertexChannelSelectionProbability(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record);
 
+// Generation density for an explicit decay-channel selection. All models
+// remain in the transport collection; only this discrete sampling law is conditioned.
+double DecayChannelGenerationProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const * phase_space = nullptr,
+    PhaseSpaceConvention const * convention = nullptr);
+
 } // namespace injection
 } // namespace siren
 

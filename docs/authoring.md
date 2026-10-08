@@ -13,6 +13,11 @@ indices, for every signature the model advertises through
 count. Signatures outside that set resolve to `Unspecified`.
 `DensityVariables()` labels do not override the declaration.
 
+For a `DecayModel`, `total_width()` is the partial width of its declared final
+state. Keep all competing models in `Vertex.interactions` and use
+[`decay_channels`](decay_channels.md) to restrict generation while preserving
+the full propagation lifetime and physical branching fractions.
+
 Daughter masses default to `particles.mass(type)`: values registered with
 `particles.define(name, pdg, mass)` take precedence over the built-in mass table.
 Masses are in GeV and must be finite and non-negative. Unknown masses raise a
