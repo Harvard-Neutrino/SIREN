@@ -486,7 +486,7 @@ def load_processes(
                 "WARNING: Cannot fill cross section tables without specifying a maximum energy"
             )
         else:
-            for cross_section in cross_sections:
+            for cross_section in cross_sections.values():
                 cross_section.FillInterpolationTables(Emax=Emax)
 
     primary_processes = collections.defaultdict(list)
@@ -681,7 +681,9 @@ def load_vector_portal(
         m_lepton=m_lepton,
         m_V1=m_V1,
         m_chi=m_chi,
-        m_chi_prime=m_chi_prime,
+        # The physical V1 -> chi chi decay fixes the partner mass to m_chi
+        # (V1 -> chi chi' is kinematically forbidden in this model).
+        m_chi_partner=m_chi,
         g_D=g_D,
         epsilon=epsilon_1,
         flux_tag=flux_tag,
