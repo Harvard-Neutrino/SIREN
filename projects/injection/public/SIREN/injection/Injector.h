@@ -32,6 +32,7 @@
 #include "SIREN/dataclasses/InteractionTree.h"    // for Interactio...
 #include "SIREN/dataclasses/Particle.h"           // for Particle
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h" // for Secondary...
+#include "SIREN/injection/FailureLedger.h"
 #include "SIREN/interactions/pyDarkNewsCrossSection.h"
 
 namespace siren { namespace interactions { class Interaction; } }
@@ -59,6 +60,8 @@ protected:
     unsigned int injection_attempts = 0;
     unsigned int injected_events = 0;
     unsigned int failed_events = 0;
+    unsigned int unregistered_secondary_count_ = 0;
+    FailureLedger failure_ledger_;
     std::string last_failure_reason_;
     siren::dataclasses::InteractionTree last_failed_tree_;
     std::shared_ptr<siren::utilities::SIREN_random> random;
@@ -138,8 +141,10 @@ public:
     unsigned int InjectionAttempts() const;
     unsigned int EventsToInject() const;
     unsigned int FailedEvents() const;
+    unsigned int UnregisteredSecondaryCount() const;
     std::string GetLastFailureReason() const;
     siren::dataclasses::InteractionTree const & GetLastFailedTree() const;
+    FailureLedger const & GetFailureLedger() const;
     void ResetInjectedEvents(unsigned int events_to_inject);
     void ResetInjectedEvents();
 
