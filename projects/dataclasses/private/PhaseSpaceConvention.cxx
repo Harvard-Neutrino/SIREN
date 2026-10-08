@@ -27,12 +27,14 @@ namespace {
 bool IndicesRelevant(PhaseSpaceMeasure::Type t) {
     return t == PhaseSpaceMeasure::Type::Recursive2Body
         || t == PhaseSpaceMeasure::Type::DalitzPair
-        || t == PhaseSpaceMeasure::Type::HelicityAngles;
+        || t == PhaseSpaceMeasure::Type::HelicityAngles
+        || t == PhaseSpaceMeasure::Type::OnShellCascade;
 }
 } // anonymous namespace
 
 bool PhaseSpaceMeasure::operator==(PhaseSpaceMeasure const & o) const {
     if (type != o.type) return false;
+    if (type == Type::OnShellCascade && pair_mass != o.pair_mass) return false;
     if (type == Type::SolidAngleLab) return spectator == o.spectator;
     if (!IndicesRelevant(type)) return true;
     return spectator == o.spectator
@@ -40,6 +42,12 @@ bool PhaseSpaceMeasure::operator==(PhaseSpaceMeasure const & o) const {
         && pair_second == o.pair_second;
 }
 
+PhaseSpaceMeasure PhaseSpaceMeasure::OnShellCascade(double mass, int s, int f, int sec) {
+    if (!std::isfinite(mass) || mass <= 0 || s < 0 || f < 0 || sec < 0
+        || s > 2 || f > 2 || sec > 2 || s == f || s == sec || f == sec)
+        throw std::invalid_argument("OnShellCascade requires a positive finite mass and a permutation of 0,1,2");
+    return {Type::OnShellCascade, s, f, sec, mass};
+}
 PhaseSpaceMeasure PhaseSpaceMeasure::SolidAngleRest() {
     return {Type::SolidAngleRest, 0, 1, 2};
 }
@@ -98,6 +106,7 @@ std::string PhaseSpaceMeasureName(PhaseSpaceMeasure const & measure) {
         case PhaseSpaceMeasure::Type::BjorkenXYPhi:    return "BjorkenXYPhi";
         case PhaseSpaceMeasure::Type::MandelstamQ2Y:   return "MandelstamQ2Y";
         case PhaseSpaceMeasure::Type::MandelstamQ2YPhi: return "MandelstamQ2YPhi";
+        case PhaseSpaceMeasure::Type::OnShellCascade: return "OnShellCascade";
         case PhaseSpaceMeasure::Type::Unspecified:     return "Unspecified";
     }
     return "Unknown";
@@ -125,6 +134,8 @@ int MeasureConvertibilityGroup(PhaseSpaceTopology topology,
 
     case PhaseSpaceTopology::Decay3Body:
         switch (measure.type) {
+            case T::OnShellCascade:
+                return 2;
             case T::Recursive2Body:
             case T::DalitzPair:
             case T::HelicityAngles:
@@ -219,6 +230,10 @@ bool PhaseSpaceDensityConvertible(PhaseSpaceTopology topology,
                                   PhaseSpaceMeasure const & to)
 {
     if (from == to) return true;
+    // Different on-shell surfaces or coordinate orderings have no pointwise
+    // conversion. In particular they cannot mix with a ds_pair density.
+    if (from.type == PhaseSpaceMeasure::Type::OnShellCascade
+        || to.type == PhaseSpaceMeasure::Type::OnShellCascade) return false;
 
     int from_family = MeasureConvertibilityGroup(topology, from);
     int to_family = MeasureConvertibilityGroup(topology, to);

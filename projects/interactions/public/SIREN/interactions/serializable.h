@@ -5,6 +5,7 @@
 #include "SIREN/interactions/DarkNewsCrossSection.h"
 #include "SIREN/interactions/DarkNewsDecay.h"
 #include "SIREN/interactions/Decay.h"
+#include "SIREN/interactions/pyDecay.h"
 #include "SIREN/interactions/DummyCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/DISFromSpline.h"

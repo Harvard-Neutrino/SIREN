@@ -2,6 +2,7 @@
 
 #include "DetectorDirectedChannelUtils.h"
 #include "InteractionRecordUtils.h"
+#include "OnShellDecayKinematics.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/geometry/Geometry.h"
@@ -67,8 +68,10 @@ void DetectorDirectedAngularSectorChannel::Sample(
 {
     detail::RequireSecondaryStorage(
         record, 2, "DetectorDirectedAngularSectorChannel");
+    detail::RequireOnShellParent(record);
 
-    auto parent = detail::ReadPrimary(record);
+    // Decay frame from the declared mass and three-momentum.
+    auto parent = detail::OnShellParent(record);
     siren::math::Vector3D decay_pos = detail::ReadVertex(record);
 
     detail::AngularSectorBin bin{u_lo_, u_hi_, phi_lo_, phi_hi_};
@@ -92,11 +95,12 @@ double DetectorDirectedAngularSectorChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 2)) {
+    if (!detail::HasSecondaryStorage(record, 2)
+        || !detail::OnShellParentValid(record)) {
         return 0.0;
     }
 
-    auto parent = detail::ReadPrimary(record);
+    auto parent = detail::OnShellParent(record);
     auto daughter = detail::ReadSecondary(record, daughter_index_);
     siren::math::Vector3D decay_pos = detail::ReadVertex(record);
 
@@ -115,10 +119,11 @@ double DetectorDirectedAngularSectorChannel::Density(
 bool DetectorDirectedAngularSectorChannel::DirectingActive(
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 2)) {
+    if (!detail::HasSecondaryStorage(record, 2)
+        || !detail::OnShellParentValid(record)) {
         return false;
     }
-    auto parent = detail::ReadPrimary(record);
+    auto parent = detail::OnShellParent(record);
     siren::math::Vector3D decay_pos = detail::ReadVertex(record);
     detail::DirectedGeometry geo = detail::ClassifyDirectedRegime(
         parent.e, parent.p.GetX(), parent.p.GetY(), parent.p.GetZ(),

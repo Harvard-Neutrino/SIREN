@@ -29,6 +29,7 @@ int MeasurePriority(PhaseSpaceMeasure const & m) {
     switch (m.type) {
         case MType::SolidAngleRest:  return 0;
         case MType::Recursive2Body:  return 0;
+        case MType::OnShellCascade:  return 0;
         case MType::MandelstamQ2Phi:  return 1;
         case MType::FixedMassYPhi:    return 2;
         case MType::MandelstamQ2YPhi: return 3;
@@ -84,6 +85,10 @@ double ConvertDensity(
     siren::dataclasses::InteractionRecord const & record)
 {
     if (from == to) return density;
+    if (from.type == PhaseSpaceMeasure::Type::OnShellCascade ||
+        to.type == PhaseSpaceMeasure::Type::OnShellCascade) {
+        ThrowUnconvertible("fixed-mass cascade constraints must match exactly", from, to, topology);
+    }
     // Zero is still a density with a convention. Do not let it silently pass
     // an unsupported conversion, but avoid demanding record kinematics for a
     // supported conversion whose result is necessarily zero.
@@ -137,11 +142,14 @@ double ConvertDensity(
         double p_rest = TwoBodyRestMomentum(M, m_A, m_B);
         double E_rest = TwoBodyRestEnergy(M, m_A, m_B);
 
-        double E_parent = record.primary_momentum[0];
         double px = record.primary_momentum[1];
         double py = record.primary_momentum[2];
         double pz = record.primary_momentum[3];
         double p_parent = std::sqrt(px*px + py*py + pz*pz);
+        // Same decay frame as the two-body channels: declared mass and
+        // three-momentum. A rounded tabulated energy would give a different
+        // invariant mass and, at high boost, a very different Jacobian.
+        double E_parent = std::hypot(M, p_parent);
         // Parent at rest: lab and rest frames coincide.
         if (p_parent < 1e-15) return density;
 
@@ -601,6 +609,7 @@ std::size_t MultiChannelPhaseSpace::ConventionFingerprint() const {
         combine(static_cast<std::size_t>(measure.spectator));
         combine(static_cast<std::size_t>(measure.pair_first));
         combine(static_cast<std::size_t>(measure.pair_second));
+        combine(std::hash<double>{}(measure.pair_mass));
         auto nested = std::dynamic_pointer_cast<NestedMixtureChannel>(channel);
         if (nested && nested->mixture) {
             combine(nested->mixture->ConventionFingerprint());

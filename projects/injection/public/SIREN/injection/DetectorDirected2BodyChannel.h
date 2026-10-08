@@ -3,6 +3,7 @@
 #define SIREN_DetectorDirected2BodyChannel_H
 
 #include "SIREN/geometry/Geometry.h"
+#include "SIREN/injection/GeometryVolume.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 
 #include <cstdint>
@@ -47,15 +48,18 @@ namespace injection {
 // usable support fall back deterministically to isotropic sampling. If an
 // active directed sampler exhausts its kinematic solutions, the injection
 // attempt fails rather than emitting a sample absent from Density.
+class OnShellCascadeChannel;
+
 class DetectorDirected2BodyChannel : public PhaseSpaceChannel {
 public:
     enum class Mode { Cone, Volume };
 
-    // If `volume > 0`, it is used directly as the target volume for the
-    // Volume-mode chord-depth density, skipping the internal Monte-Carlo
-    // volume estimate and the viability guard.  This lets a caller supply an
-    // accurate volume for a composite/thin tile (e.g. a BooleanGeometry
-    // subtraction shell) whose AABB-rejection fill fraction is small.
+    // If `volume > 0`, it is the target volume for the Volume-mode chord-depth
+    // density, in place of the analytic volume and the viability guard. It is
+    // checked first (GeometryVolume.h): against the analytic volume where one
+    // exists, otherwise against a chord-integration estimate of the solid. This lets
+    // a caller supply the volume of a composite/thin tile (e.g. a
+    // BooleanGeometry subtraction shell) whose AABB fill fraction is small.
     DetectorDirected2BodyChannel(
         std::shared_ptr<siren::geometry::Geometry const> target,
         int daughter_index = 0,
@@ -82,7 +86,8 @@ public:
         return PhaseSpaceMeasure::SolidAngleRest();
     }
 
-    // Set the true volume of the target geometry (for Volume mode).
+    // Set the true volume of the target geometry (for Volume mode). It is
+    // validated like the constructor argument (see GeometryVolume.h).
     // Prefer the constructor argument for composite geometries (whose volume
     // cannot be derived analytically) and very thin geometries so the
     // viability check can use it before construction completes.
@@ -97,8 +102,17 @@ public:
 
 private:
     friend class cereal::access;
+    friend class OnShellCascadeChannel;
 
     DetectorDirected2BodyChannel() = default;
+
+    // A volume-mode component whose owner has already checked the volume, so
+    // it is neither checked again nor replaced.
+    struct CheckedVolume { double value; };
+    DetectorDirected2BodyChannel(
+        std::shared_ptr<siren::geometry::Geometry const> target,
+        int daughter_index,
+        CheckedVolume volume);
 
     std::shared_ptr<siren::geometry::Geometry const> target_;
     int daughter_index_;
@@ -136,6 +150,8 @@ private:
                     + std::to_string(mode) + " in archive");
             }
             mode_ = static_cast<Mode>(mode);
+            ValidateArchivedDetectorDirectedVolume(
+                target_.get(), mode_ == Mode::Volume, target_volume_);
         } else {
             throw std::runtime_error(
                 "DetectorDirected2BodyChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");

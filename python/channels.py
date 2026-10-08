@@ -31,6 +31,8 @@ __all__ = [
     "Tiling",
     "isotropic",
     "toward",
+    "rest_frame_envelope",
+    "on_shell_cascade",
     "toward_3body",
     "scatter_toward",
     "physical",
@@ -379,6 +381,60 @@ def isotropic(daughter: Union[int, str] = 0) -> Channel:
 
     label = "isotropic" if daughter == 0 else "isotropic({!r})".format(daughter)
     return Channel(factory, weight=1.0, label=label)
+
+
+def rest_frame_envelope(daughter: Union[int, str], target) -> Channel:
+    """Conservative target envelope sampled uniformly in rest solid angle.
+
+    Empty envelopes use a normalized isotropic fallback. Combine with an
+    isotropic component when observables include untargeted phase space.
+    """
+    def factory(signature, *, detector=None, models=None):
+        idx = _resolve_index(signature, daughter, "rest_frame_envelope(daughter=...)")
+        return _siren().injection.RestFrameEnvelope2BodyChannel(target, idx)
+    return Channel(factory, weight=1.0, label="rest_frame_envelope({!r})".format(daughter))
+
+
+def on_shell_cascade(target, pair_mass, kappa=0.,
+                     orientation_weights=(.1,.45,.45), first_daughter_probability=.5, *,
+                     volume=-1.0, spectator=0, pair=(1, 2)) -> Channel:
+    """Prompt fixed-mass pair; final-state order spectator, daughter, antidaughter.
+
+    The internal proposal is proportional to 1+kappa*cos(theta)**2. Physical
+    widths and spin correlations must be declared by the model in the same
+    OnShellCascade measure. The pair daughters must have exactly equal masses.
+    Optional spectator/pair selectors name the intended particles (or indices);
+    the currently supported order is spectator at 0 and pair at (1, 2).
+    Models supplied by Vertex compilation must declare that same constrained
+    measure and compatible masses; no particle order is inferred from masses.
+    """
+    def factory(signature, *, detector=None, models=None):
+        if len(signature.secondary_types) != 3 or len(pair) != 2:
+            raise ConfigurationError("on_shell_cascade requires a spectator and two pair daughters")
+        indices = tuple(_resolve_index(signature, value, "on_shell_cascade")
+                        for value in (spectator, *pair))
+        if indices != (0, 1, 2):
+            raise ConfigurationError(
+                "on_shell_cascade requires spectator at index 0 and pair at (1, 2); "
+                "reorder the model signature and its measure together")
+        siren = _siren()
+        expected = siren.Measure.OnShellCascade(pair_mass)
+        for model in models or ():
+            if signature not in model.GetPossibleSignatures():
+                continue
+            if model.Measure() != expected:
+                raise ConfigurationError(
+                    "on_shell_cascade model measure must declare the same pair_mass "
+                    "and spectator/pair order (0, 1, 2)")
+            masses = model.SecondaryMasses(signature.secondary_types)
+            if (len(masses) != 3 or not all(math.isfinite(m) and m >= 0 for m in masses)
+                    or masses[1] != masses[2] or pair_mass <= 2 * masses[1]):
+                raise ConfigurationError(
+                    "on_shell_cascade requires exactly equal pair masses at indices 1 and 2 "
+                    "below pair_mass/2; check the model's daughter order")
+        return siren.injection.OnShellCascadeChannel(target, pair_mass, kappa,
+            orientation_weights, first_daughter_probability, volume)
+    return Channel(factory,weight=1.0,label="on_shell_cascade")
 
 
 def toward(daughter: Union[int, str], target, *, mode=None, volume=-1.0,

@@ -39,12 +39,38 @@ struct InitialState {
     double E, px, py, pz;
 };
 
+// The frame comes from the declared mass and three-momentum, as in the
+// two-body channels: a tabulated energy may be rounded, and at high boost a
+// frame rebuilt from it is inconsistent. A primary more than 2e-5 off that shell
+// is refused. A scattering beam may be massless; a decaying parent may not.
+bool InitialStateValid(
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceTopology topology)
+{
+    auto const & p = record.primary_momentum;
+    double m = record.primary_mass;
+    bool mass_ok = topology == PhaseSpaceTopology::Scatter2to3 ? m >= 0.0 : m > 0.0;
+    if (!mass_ok || !std::isfinite(m) || !std::isfinite(p[0]) || !std::isfinite(p[1])
+        || !std::isfinite(p[2]) || !std::isfinite(p[3])) return false;
+    double energy = std::hypot(m, detail::ReadPrimary(record).p.magnitude());
+    return std::abs(p[0] - energy) <= 2e-5 * energy;
+}
+
+void RequireInitialState(
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceTopology topology)
+{
+    if (!InitialStateValid(record, topology)) throw siren::utilities::InjectionFailure(
+        siren::utilities::FailureReason::KinematicallyForbidden,
+        "DetectorDirected3BodyChannel needs a primary within 2e-5 of its mass shell");
+}
+
 InitialState GetInitialState(
     siren::dataclasses::InteractionRecord const & record,
     PhaseSpaceTopology topology)
 {
     auto primary = detail::ReadPrimary(record);
-    double E = primary.e;
+    double E = std::hypot(record.primary_mass, primary.p.magnitude());
     double px = primary.p.GetX();
     double py = primary.p.GetY();
     double pz = primary.p.GetZ();
@@ -189,13 +215,16 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
 }
 
 void DetectorDirected3BodyChannel::SetVolume(double volume) {
-    target_volume_ = volume;
+    // Validated like the constructor argument.
+    target_volume_ = ResolveDetectorDirectedVolume(
+        *target_, mode_ == DetectorDirected2BodyChannel::Mode::Volume, volume);
 }
 
 bool DetectorDirected3BodyChannel::DirectingActive(
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 3)) return false;
+    if (!detail::HasSecondaryStorage(record, 3)
+        || !InitialStateValid(record, topology_)) return false;
     return (this->*active_implementation_)(record);
 }
 
@@ -320,6 +349,7 @@ void DetectorDirected3BodyChannel::Sample(
 {
     detail::RequireSecondaryStorage(
         record, 3, "DetectorDirected3BodyChannel");
+    RequireInitialState(record, topology_);
 
     (this->*sample_implementation_)(random, detector_model, record);
 }
@@ -328,7 +358,8 @@ double DetectorDirected3BodyChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 3)) {
+    if (!detail::HasSecondaryStorage(record, 3)
+        || !InitialStateValid(record, topology_)) {
         return 0.0;
     }
 
@@ -396,9 +427,10 @@ void DetectorDirected3BodyChannel::SampleDirect(
     double a_pz_rest = p_ab_rest * cos_ab;
 
     // Boost a and b from X rest frame to lab frame
+    // X has the sampled invariant mass M_X.
     auto a_lab = detail::BoostRestFrameToLab(
         X_E, X_px, X_py, X_pz,
-        E_a_rest, a_px_rest, a_py_rest, a_pz_rest);
+        E_a_rest, a_px_rest, a_py_rest, a_pz_rest, M_X);
     double a_E_lab = a_lab[0];
     double a_px_lab = a_lab[1];
     double a_py_lab = a_lab[2];
@@ -514,7 +546,7 @@ void DetectorDirected3BodyChannel::SampleRecursive(
     }
     auto pair_lab = detail::BoostRestFrameToLab(
         E_parent, px_parent, py_parent, pz_parent,
-        E1_rest, pair_rest.GetX(), pair_rest.GetY(), pair_rest.GetZ());
+        E1_rest, pair_rest.GetX(), pair_rest.GetY(), pair_rest.GetZ(), M);
     double pair_E = pair_lab[0];
     double pair_px = pair_lab[1];
     double pair_py = pair_lab[2];
