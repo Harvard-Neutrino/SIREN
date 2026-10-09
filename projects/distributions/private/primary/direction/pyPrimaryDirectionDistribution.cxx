@@ -68,23 +68,13 @@ std::vector<std::string> pyPrimaryDirectionDistribution::DensityVariables() cons
     )
 }
 
-std::set<DistributionVariable> pyPrimaryDirectionDistribution::SetVariables() const {
+std::set<DistributionVariable> pyPrimaryDirectionDistribution::ProvidedVariables() const {
     SELF_OVERRIDE(
         self,
         PrimaryDirectionDistribution,
         std::set<DistributionVariable>,
-        SetVariables,
-        "SetVariables"
-    )
-}
-
-std::set<DistributionVariable> pyPrimaryDirectionDistribution::RequiredVariables() const {
-    SELF_OVERRIDE(
-        self,
-        PrimaryDirectionDistribution,
-        std::set<DistributionVariable>,
-        RequiredVariables,
-        "RequiredVariables"
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 

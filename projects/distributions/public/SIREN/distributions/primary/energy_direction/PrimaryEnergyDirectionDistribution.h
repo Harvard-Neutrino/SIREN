@@ -34,7 +34,7 @@ public:
     virtual std::pair<double,siren::math::Vector3D> SampleEnergyAndDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override = 0;
-    virtual std::set<DistributionVariable> SetVariables() const override;
+    virtual std::set<DistributionVariable> ProvidedVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override = 0;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override = 0;

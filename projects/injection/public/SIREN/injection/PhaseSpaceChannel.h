@@ -217,11 +217,6 @@ struct MultiChannelPhaseSpace {
     // (Fatal and Info) with a severity tag.  Empty if all checks pass.
     std::vector<ChannelDiagnostic> ValidateChannelsDetailed() const;
 
-    // Validate topology and measure compatibility.
-    // Returns diagnostic messages (empty if all checks pass); a binding-compatible
-    // view over ValidateChannelsDetailed() that flattens away the severity.
-    std::vector<std::string> ValidateChannels() const;
-
     std::vector<std::string> ValidateChannelDensities(
         std::shared_ptr<siren::utilities::SIREN_random> random,
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,

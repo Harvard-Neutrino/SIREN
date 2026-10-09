@@ -23,12 +23,8 @@ void VertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_
     record.SetInteractionVertex((std::array<double, 3>)pos);
 }
 
-std::set<DistributionVariable> VertexPositionDistribution::SetVariables() const {
+std::set<DistributionVariable> VertexPositionDistribution::ProvidedVariables() const {
     return {DistributionVariable::InteractionVertex};
-}
-
-std::set<DistributionVariable> VertexPositionDistribution::RequiredVariables() const {
-    return {DistributionVariable::PrimaryDirection};
 }
 
 std::vector<std::string> VertexPositionDistribution::DensityVariables() const {

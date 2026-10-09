@@ -184,12 +184,8 @@ PrimaryBoundedVertexDistribution::PrimaryBoundedVertexDistribution(std::shared_p
 
 PrimaryBoundedVertexDistribution::PrimaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume, double max_length) : fiducial_volume(fiducial_volume), max_length(max_length) {}
 
-std::set<DistributionVariable> PrimaryBoundedVertexDistribution::SetVariables() const {
+std::set<DistributionVariable> PrimaryBoundedVertexDistribution::ProvidedVariables() const {
     return {DistributionVariable::InteractionVertex};
-}
-
-std::set<DistributionVariable> PrimaryBoundedVertexDistribution::RequiredVariables() const {
-    return {DistributionVariable::InitialPosition, DistributionVariable::PrimaryDirection};
 }
 
 std::string PrimaryBoundedVertexDistribution::Name() const {

@@ -45,7 +45,6 @@ public:
     DecayRangePositionDistribution();
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
     DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function);
-    virtual std::set<DistributionVariable> RequiredVariables() const override;
     std::string Name() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;

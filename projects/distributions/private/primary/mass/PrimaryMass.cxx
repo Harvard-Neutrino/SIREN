@@ -41,7 +41,7 @@ double PrimaryMass::GenerationProbability(std::shared_ptr<siren::detector::Detec
     return 1.0;
 }
 
-std::set<DistributionVariable> PrimaryMass::SetVariables() const {
+std::set<DistributionVariable> PrimaryMass::ProvidedVariables() const {
     return {DistributionVariable::PrimaryMass};
 }
 

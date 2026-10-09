@@ -102,26 +102,26 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
         throw std::runtime_error("No valid data rows in " + filename);
     }
 
-    ComputeSetVariables();
+    ComputeProvidedVariables();
 }
 
-void PrimaryExternalDistribution::ComputeSetVariables() {
-    // Compute set_variables_ from the CSV columns
-    set_variables_.clear();
+void PrimaryExternalDistribution::ComputeProvidedVariables() {
+    // Compute provided_variables_ from the CSV columns
+    provided_variables_.clear();
     for (auto const & k : keys) {
         if (k == "E") {
-            set_variables_.insert(DistributionVariable::PrimaryEnergy);
+            provided_variables_.insert(DistributionVariable::PrimaryEnergy);
         } else if (k == "m") {
-            set_variables_.insert(DistributionVariable::PrimaryMass);
+            provided_variables_.insert(DistributionVariable::PrimaryMass);
         } else if (k == "px" || k == "py" || k == "pz") {
-            set_variables_.insert(DistributionVariable::PrimaryDirection);
-            set_variables_.insert(DistributionVariable::PrimaryEnergy);
+            provided_variables_.insert(DistributionVariable::PrimaryDirection);
+            provided_variables_.insert(DistributionVariable::PrimaryEnergy);
         } else if (k == "x" || k == "y" || k == "z") {
-            set_variables_.insert(DistributionVariable::InteractionVertex);
+            provided_variables_.insert(DistributionVariable::InteractionVertex);
         } else if (k == "x0" || k == "y0" || k == "z0") {
-            set_variables_.insert(DistributionVariable::InitialPosition);
+            provided_variables_.insert(DistributionVariable::InitialPosition);
         } else {
-            set_variables_.insert(DistributionVariable::InteractionParameters);
+            provided_variables_.insert(DistributionVariable::InteractionParameters);
         }
     }
 }
@@ -201,8 +201,8 @@ void PrimaryExternalDistribution::Sample(
     }
 }
 
-std::set<DistributionVariable> PrimaryExternalDistribution::SetVariables() const {
-    return set_variables_;
+std::set<DistributionVariable> PrimaryExternalDistribution::ProvidedVariables() const {
+    return provided_variables_;
 }
 
 std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {

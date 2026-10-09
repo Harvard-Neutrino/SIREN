@@ -670,7 +670,7 @@ void MultiChannelPhaseSpace::EnsureConventionCache() const {
         }
     }
 
-    // Preserve ValidateChannels' topology-first behavior.
+    // Report measure diagnostics only once the topologies agree.
     if (!cached_topology_error_.empty()) return;
     for (std::size_t i = 0; i < channels.size(); ++i) {
         if (measures[i] == cached_common_measure_) continue;
@@ -852,16 +852,6 @@ MultiChannelPhaseSpace::ValidateChannelsDetailed() const {
     return cached_compatibility_diagnostics_;
 }
 
-std::vector<std::string> MultiChannelPhaseSpace::ValidateChannels() const {
-    EnsureConventionCache();
-    std::vector<std::string> messages;
-    messages.reserve(cached_compatibility_diagnostics_.size());
-    for (auto const & d : cached_compatibility_diagnostics_) {
-        messages.push_back(d.message);
-    }
-    return messages;
-}
-
 void MultiChannelPhaseSpace::ThrowOnIncompatibility() const {
     // Populate the cache before the allow_incompatible_ opt-out:
     // ComputeContributions reads the cached conventions right after this
@@ -894,8 +884,8 @@ std::vector<std::string> MultiChannelPhaseSpace::ValidateChannelDensities(
     int samples_per_channel) const
 {
     std::vector<std::string> diagnostics;
-    auto compat = ValidateChannels();
-    diagnostics.insert(diagnostics.end(), compat.begin(), compat.end());
+    for (auto const & diagnostic : ValidateChannelsDetailed())
+        diagnostics.push_back(diagnostic.message);
 
     for (size_t i = 0; i < channels.size(); ++i) {
         int n_zero = 0;

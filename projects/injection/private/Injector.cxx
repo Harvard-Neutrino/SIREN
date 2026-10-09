@@ -97,7 +97,7 @@ std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimary
     std::shared_ptr<distributions::VertexPositionDistribution> vertex_distribution;
     std::shared_ptr<distributions::VertexPositionDistribution> initial_position_only;
     for(auto distribution : process->GetPrimaryInjectionDistributions()) {
-        std::set<distributions::DistributionVariable> variables = distribution->SetVariables();
+        std::set<distributions::DistributionVariable> variables = distribution->ProvidedVariables();
         std::shared_ptr<distributions::VertexPositionDistribution> position_distribution =
             std::dynamic_pointer_cast<distributions::VertexPositionDistribution>(distribution);
         if(variables.count(distributions::DistributionVariable::InteractionVertex)) {
