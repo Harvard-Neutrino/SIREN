@@ -60,12 +60,8 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryBoundedVertexDis
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
-    // A fiducial volume declares the support: only rays whose forward segment
-    // crosses the volume can place a vertex, and the vertex is confined to
-    // the crossing. A ray that misses must fail the attempt -- silently
-    // falling back to the unrestricted path would sample vertices outside
-    // the declared support while GenerationProbability reports the
-    // in-volume density, breaking the sample/density closure contract.
+    // The fiducial volume is the support: a ray that misses it fails the
+    // attempt instead of placing the vertex elsewhere on the path.
     if(fiducial_volume) {
         std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         bool crosses = !fid_intersections.empty()
@@ -128,9 +124,8 @@ double PrimaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr<s
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
-    // Mirror SamplePosition: a fiducial volume is the support, so a ray that
-    // misses it has zero density and a crossing ray is normalized over the
-    // crossing alone.
+    // As in SamplePosition, a ray that misses the fiducial volume has zero
+    // density, and a crossing ray is normalized over the crossing.
     if(fiducial_volume) {
         std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         bool crosses = !fid_intersections.empty()
@@ -216,8 +211,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryBoundedVertexDis
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
-    // Mirror SamplePosition: the bounds are the fiducial crossing, and a ray
-    // that misses the volume has none.
+    // As in SamplePosition, the bounds are the fiducial crossing.
     if(fiducial_volume) {
         std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         bool crosses = !fid_intersections.empty()
