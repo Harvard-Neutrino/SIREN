@@ -274,7 +274,10 @@ void PreparePhaseSpaceFinalState(
 
     size_t n_secondaries = record.signature.secondary_types.size();
     if (secondary_masses.size() != n_secondaries) {
-        throw(siren::utilities::InjectionFailure("SecondaryMasses returned the wrong number of masses!"));
+        throw siren::utilities::ConfigurationError(
+            "Injector: SecondaryMasses returned " + std::to_string(secondary_masses.size())
+            + " masses for " + std::to_string(n_secondaries) + " secondaries "
+            "[siren-docs: errors#configuration]");
     }
     if (secondary_helicities.size() != n_secondaries) {
         secondary_helicities.assign(n_secondaries, 0.0);
@@ -373,13 +376,9 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         }
     } catch(siren::utilities::InjectionFailure const & e) {
         failed_events += 1;
-        siren::utilities::FailureReason reason = e.reason();
-        if(reason == siren::utilities::FailureReason::Unspecified) {
-            reason = siren::utilities::FailureReason::PrimaryVertexFailure;
-        }
         int primary_pdg = static_cast<int>(primary_process->GetPrimaryType());
-        failure_ledger_.Record(0, primary_pdg, reason, e.what());
-        last_failure_reason_ = e.what();
+        failure_ledger_.Record(0, primary_pdg, e.reason(), e.what());
+        last_failure_message_ = e.what();
         // A vertex-distribution throw fires before Finalize sets the signature,
         // so stamp the primary type to keep the partial tree readable.
         if(record.signature.primary_type == siren::dataclasses::ParticleType::unknown) {
@@ -414,46 +413,36 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     };
 
     add_secondaries(parent);
-    try {
-        while(secondaries.size() > 0) {
-            for(int i = secondaries.size() - 1; i >= 0; --i) {
-                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
-                std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
-                secondaries.erase(secondaries.begin() + i);
+    while(secondaries.size() > 0) {
+        for(int i = secondaries.size() - 1; i >= 0; --i) {
+            std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
+            std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
+            secondaries.erase(secondaries.begin() + i);
 
-                int current_secondary_pdg = static_cast<int>(secondary_dist->type);
-                try {
-                    siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-                    std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
-                    // Daughter record is authoritative for its production time; keep the
-                    // parent's secondary_times slot in sync (single write point, after the
-                    // daughter override is finalized).
-                    size_t sidx = secondary_dist->GetSecondaryIndex();
-                    if(sidx < parent->record.secondary_times.size())
-                        parent->record.secondary_times[sidx] = secondary_record.primary_initial_time;
-                    add_secondaries(secondary_datum);
-                } catch(siren::utilities::InjectionFailure const & e) {
-                    failed_events += 1;
-                    int secondary_depth = static_cast<int>(parent->depth(tree)) + 1;
-                    int parent_pdg = static_cast<int>(parent->record.signature.primary_type);
-                    std::ostringstream oss;
-                    oss << e.what() << " (secondary pdg " << current_secondary_pdg << ")";
-                    failure_ledger_.Record(secondary_depth, parent_pdg,
-                        e.reason(), oss.str());
-                    last_failure_reason_ = e.what();
-                    last_failed_tree_ = std::move(tree);
-                    return siren::dataclasses::InteractionTree();
-                }
+            int current_secondary_pdg = static_cast<int>(secondary_dist->type);
+            try {
+                siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
+                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+                // Daughter record is authoritative for its production time; keep the
+                // parent's secondary_times slot in sync (single write point, after the
+                // daughter override is finalized).
+                size_t sidx = secondary_dist->GetSecondaryIndex();
+                if(sidx < parent->record.secondary_times.size())
+                    parent->record.secondary_times[sidx] = secondary_record.primary_initial_time;
+                add_secondaries(secondary_datum);
+            } catch(siren::utilities::InjectionFailure const & e) {
+                failed_events += 1;
+                int secondary_depth = static_cast<int>(parent->depth(tree)) + 1;
+                int parent_pdg = static_cast<int>(parent->record.signature.primary_type);
+                std::ostringstream oss;
+                oss << e.what() << " (secondary pdg " << current_secondary_pdg << ")";
+                failure_ledger_.Record(secondary_depth, parent_pdg,
+                    e.reason(), oss.str());
+                last_failure_message_ = e.what();
+                last_failed_tree_ = std::move(tree);
+                return siren::dataclasses::InteractionTree();
             }
         }
-    } catch(siren::utilities::InjectionFailure const & e) {
-        failed_events += 1;
-        int root_pdg = tree.tree.empty() ? 0
-            : static_cast<int>(tree.tree.front()->record.signature.primary_type);
-        failure_ledger_.Record(0, root_pdg, siren::utilities::FailureReason::TopLevelCatch, e.what());
-        last_failure_reason_ = e.what();
-        last_failed_tree_ = std::move(tree);
-        return siren::dataclasses::InteractionTree();
     }
     tree.header.event_number = injected_events;
     tree.header.provenance["generator"] = "SIREN";
@@ -618,8 +607,8 @@ unsigned int Injector::UnregisteredSecondaryCount() const {
     return unregistered_secondary_count_;
 }
 
-std::string Injector::GetLastFailureReason() const {
-    return last_failure_reason_;
+std::string Injector::GetLastFailureMessage() const {
+    return last_failure_message_;
 }
 
 siren::dataclasses::InteractionTree const & Injector::GetLastFailedTree() const {
@@ -637,7 +626,7 @@ void Injector::ResetInjectedEvents(unsigned int events_to_inject) {
     failed_events = 0;
     unregistered_secondary_count_ = 0;
     failure_ledger_.Clear();
-    last_failure_reason_.clear();
+    last_failure_message_.clear();
     last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
 
@@ -647,7 +636,7 @@ void Injector::ResetInjectedEvents() {
     failed_events = 0;
     unregistered_secondary_count_ = 0;
     failure_ledger_.Clear();
-    last_failure_reason_.clear();
+    last_failure_message_.clear();
     last_failed_tree_ = siren::dataclasses::InteractionTree();
 }
 

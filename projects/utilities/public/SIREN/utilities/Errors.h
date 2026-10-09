@@ -28,11 +28,7 @@ enum class FailureReason {
     NoPathThroughVolume,
     NoTargetsOnPath,
     NoColumnDepthSolution,
-    KinematicallyForbidden,
-    UnregisteredSecondaryType,
-    PrimaryVertexFailure,
-    TopLevelCatch,
-    SamplingFailure
+    KinematicallyForbidden
 };
 
 class SIREN_EXCEPTION_EXPORT InjectionFailure : public std::runtime_error {

@@ -118,11 +118,7 @@ PYBIND11_MODULE(injection,m) {
     .value("NoPathThroughVolume", siren::utilities::FailureReason::NoPathThroughVolume)
     .value("NoTargetsOnPath", siren::utilities::FailureReason::NoTargetsOnPath)
     .value("NoColumnDepthSolution", siren::utilities::FailureReason::NoColumnDepthSolution)
-    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden)
-    .value("UnregisteredSecondaryType", siren::utilities::FailureReason::UnregisteredSecondaryType)
-    .value("PrimaryVertexFailure", siren::utilities::FailureReason::PrimaryVertexFailure)
-    .value("TopLevelCatch", siren::utilities::FailureReason::TopLevelCatch)
-    .value("SamplingFailure", siren::utilities::FailureReason::SamplingFailure);
+    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden);
 
   enum_<PhaseSpaceMeasure::Type>(m, "PhaseSpaceMeasureType")
     .value("CosThetaRest", PhaseSpaceMeasure::Type::CosThetaRest)
@@ -518,7 +514,7 @@ PYBIND11_MODULE(injection,m) {
     .def("__len__", &Injector::EventsToInject)
     .def("FailedEvents",&Injector::FailedEvents)
     .def("UnregisteredSecondaryCount",&Injector::UnregisteredSecondaryCount)
-    .def("GetLastFailureReason",&Injector::GetLastFailureReason)
+    .def("GetLastFailureMessage",&Injector::GetLastFailureMessage)
     .def("GetLastFailedTree",&Injector::GetLastFailedTree, pybind11::return_value_policy::reference_internal)
     .def("GetFailureLedger",&Injector::GetFailureLedger, pybind11::return_value_policy::reference_internal)
     .def("ResetInjectedEvents",overload_cast<unsigned int>(&Injector::ResetInjectedEvents))

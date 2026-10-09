@@ -62,7 +62,7 @@ protected:
     unsigned int failed_events = 0;
     unsigned int unregistered_secondary_count_ = 0;
     FailureLedger failure_ledger_;
-    std::string last_failure_reason_;
+    std::string last_failure_message_;
     siren::dataclasses::InteractionTree last_failed_tree_;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
@@ -135,7 +135,7 @@ public:
     unsigned int EventsToInject() const;
     unsigned int FailedEvents() const;
     unsigned int UnregisteredSecondaryCount() const;
-    std::string GetLastFailureReason() const;
+    std::string GetLastFailureMessage() const;
     siren::dataclasses::InteractionTree const & GetLastFailedTree() const;
     FailureLedger const & GetFailureLedger() const;
     void ResetInjectedEvents(unsigned int events_to_inject);
