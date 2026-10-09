@@ -104,8 +104,9 @@ struct VertexWeightFactors {
     std::vector<std::string> flags;
 };
 
-// Per-vertex factors and total. Invalid probabilities or weight overflow produce
-// flags and a NaN total; valid zero physical support produces a zero total.
+// Per-vertex factors, for every pooled injector, and the total. Invalid
+// probabilities, overflow, or an event no injector can produce give flags and
+// a NaN total; zero physical support gives a zero total.
 struct EventWeightBreakdown {
     double total = 0.0;
     std::vector<VertexWeightFactors> vertices;
@@ -140,6 +141,10 @@ private:
     VertexWeightFactors ComputeVertexFactors(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
         bool with_diagnostics = false) const;
+    // EventWeight and EventWeightWithBreakdown share this pooling. An unusable
+    // event gets a NaN total, and problem (when given) receives its first cause.
+    EventWeightBreakdown PoolEventWeight(siren::dataclasses::InteractionTree const & tree,
+        bool with_diagnostics, std::string * problem) const;
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
     EventWeightBreakdown EventWeightWithBreakdown(siren::dataclasses::InteractionTree const & tree) const;
