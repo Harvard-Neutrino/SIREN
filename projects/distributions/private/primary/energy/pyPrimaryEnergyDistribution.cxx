@@ -98,23 +98,13 @@ std::vector<std::string> pyPrimaryEnergyDistribution::DensityVariables() const {
     )
 }
 
-std::set<DistributionVariable> pyPrimaryEnergyDistribution::SetVariables() const {
+std::set<DistributionVariable> pyPrimaryEnergyDistribution::ProvidedVariables() const {
     SELF_OVERRIDE(
         self,
         PrimaryEnergyDistribution,
         std::set<DistributionVariable>,
-        SetVariables,
-        "SetVariables"
-    )
-}
-
-std::set<DistributionVariable> pyPrimaryEnergyDistribution::RequiredVariables() const {
-    SELF_OVERRIDE(
-        self,
-        PrimaryEnergyDistribution,
-        std::set<DistributionVariable>,
-        RequiredVariables,
-        "RequiredVariables"
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 

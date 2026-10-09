@@ -1,6 +1,5 @@
 #include "SIREN/distributions/Distributions.h"
 
-#include <set>        // for set
 #include <string>     // for basic_string
 #include <vector>     // for vector
 #include <typeinfo>   // for type_info
@@ -86,13 +85,6 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
     const PhysicallyNormalizedDistribution* dist = dynamic_cast<const PhysicallyNormalizedDistribution*>(&distribution);
     if(!dist) return false;
     return normalization<dist->GetNormalization();
-}
-
-//---------------
-// PrimaryInjectionDistribution defaults
-//---------------
-std::set<DistributionVariable> PrimaryInjectionDistribution::RequiredVariables() const {
-    return {};
 }
 
 } // namespace distributions

@@ -24,7 +24,7 @@ void PrimaryEnergyDirectionDistribution::Sample(
     record.SetDirection(energy_and_direction.second);
 }
 
-std::set<DistributionVariable> PrimaryEnergyDirectionDistribution::SetVariables() const {
+std::set<DistributionVariable> PrimaryEnergyDirectionDistribution::ProvidedVariables() const {
     return {DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryDirection};
 }
 

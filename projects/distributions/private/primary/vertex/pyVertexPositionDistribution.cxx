@@ -73,23 +73,13 @@ std::vector<std::string> pyVertexPositionDistribution::DensityVariables() const 
     )
 }
 
-std::set<DistributionVariable> pyVertexPositionDistribution::SetVariables() const {
+std::set<DistributionVariable> pyVertexPositionDistribution::ProvidedVariables() const {
     SELF_OVERRIDE(
         self,
         VertexPositionDistribution,
         std::set<DistributionVariable>,
-        SetVariables,
-        "SetVariables"
-    )
-}
-
-std::set<DistributionVariable> pyVertexPositionDistribution::RequiredVariables() const {
-    SELF_OVERRIDE(
-        self,
-        VertexPositionDistribution,
-        std::set<DistributionVariable>,
-        RequiredVariables,
-        "RequiredVariables"
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 

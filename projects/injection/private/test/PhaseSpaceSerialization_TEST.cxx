@@ -14,7 +14,6 @@
 #include "SIREN/distributions/primary/mass/PrimaryMass.h"
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Sphere.h"
-#include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/Isotropic2BodyChannel.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/PhysicalChannelAdapters.h"
@@ -48,7 +47,6 @@ using siren::injection::PhaseSpaceTopology;
 using siren::injection::PhysicalCrossSectionChannel;
 using siren::injection::PhysicalDecayChannel;
 using siren::injection::PhysicalProcess;
-using siren::injection::TabulatedMappingTable;
 using siren::interactions::CharmMesonDecay;
 using siren::interactions::DummyCrossSection;
 using siren::interactions::InteractionCollection;
@@ -381,19 +379,6 @@ TEST(PhaseSpaceSerialization, PhysicalProcessPreservesDecayAliasing) {
         loaded_channel->GetDecay().get());
 }
 
-
-TEST(PhaseSpaceSerialization, TamperedTableIsRejected) {
-    constexpr char fixture[] = R"JSON({
-        "S": [0.0, 2.0, 1.0],
-        "CDF": [0.0, 0.5, 1.0]
-    })JSON";
-    TabulatedMappingTable table(
-        std::vector<double>{0.0, 1.0},
-        std::vector<double>{0.0, 1.0});
-    std::stringstream stream(fixture);
-    cereal::JSONInputArchive archive(stream);
-    EXPECT_THROW(table.load(archive, 0), std::runtime_error);
-}
 
 TEST(PhaseSpaceSerialization, TamperedMeasureIsRejected) {
     constexpr char fixture[] = R"JSON({

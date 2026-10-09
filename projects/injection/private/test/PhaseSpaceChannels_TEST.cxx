@@ -1,13 +1,11 @@
 #include <gtest/gtest.h>
 #include "../LorentzBoostUtils.h"
 #include "SIREN/math/Kinematics.h"
-#include "SIREN/math/InterpolationUtils.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/ParticleType.h"
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Sphere.h"
-#include "SIREN/injection/InvariantMassMapping.h"
 #include "SIREN/injection/Isotropic2BodyChannel.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/PhaseSpaceJacobian.h"
@@ -196,52 +194,6 @@ void ExpectConserved(InteractionRecord const & record, double tol) {
 
 } // namespace
 
-
-// ---- PropagatorMapping (t-channel 1/(Q^2 + m^2)^2 importance map) ----
-
-TEST(InvariantMassMapping, PropagatorRoundTripAndDensity) {
-    using siren::injection::PropagatorMapping;
-    double m2 = 0.2 * 0.2;          // mediator mass squared (m_V2 = 200 MeV)
-    double x_min = 0.0, x_max = 1.0;
-    PropagatorMapping map(m2, x_min, x_max);
-
-    // Forward(0) -> x_min, Forward(1) -> x_max
-    EXPECT_NEAR(map.Forward(0.0), x_min, 1e-9);
-    EXPECT_NEAR(map.Forward(1.0), x_max, 1e-9);
-
-    // Forward and Inverse are mutual inverses across the unit interval.
-    for (double r = 0.05; r < 1.0; r += 0.05) {
-        double x = map.Forward(r);
-        EXPECT_GE(x, x_min - 1e-9);
-        EXPECT_LE(x, x_max + 1e-9);
-        EXPECT_NEAR(map.Inverse(x), r, 1e-9);
-    }
-
-    // Density matches the analytic CDF slope dr/dx = g(x), checked by
-    // finite difference of Inverse (the CDF).
-    for (double x = 0.05; x < 1.0; x += 0.1) {
-        double h = 1e-6;
-        double slope = (map.Inverse(x + h) - map.Inverse(x - h)) / (2.0 * h);
-        EXPECT_NEAR(map.Density(x), slope, 1e-4 * std::max(1.0, map.Density(x)));
-    }
-
-    // Density integrates to 1 over [x_min, x_max] (midpoint rule).
-    int N = 200000;
-    double dx = (x_max - x_min) / N;
-    double integral = 0.0;
-    for (int i = 0; i < N; ++i) {
-        double x = x_min + (i + 0.5) * dx;
-        integral += map.Density(x) * dx;
-    }
-    EXPECT_NEAR(integral, 1.0, 1e-4);
-
-    // The map is forward-peaked: the median Q^2 sits far below the range
-    // midpoint (propagator concentrates weight near x_min).
-    EXPECT_LT(map.Forward(0.5), 0.2 * (x_max - x_min));
-}
-
-
-
 TEST(PhaseSpaceChannels, UnspecifiedTopologyMismatchDetected) {
     MultiChannelPhaseSpace mc;
     mc.channels = {
@@ -355,9 +307,6 @@ TEST(PhaseSpaceJacobians, RecursiveAndDalitzIntegralsAgree) {
     }
 
     EXPECT_NEAR(integral, 1.0, 5e-4);
-    EXPECT_EQ(
-        siren::injection::phase_space_jacobian::Recursive2BodyToHelicityAnglesJacobian(),
-        1.0);
 }
 
 TEST(PhaseSpaceJacobians, BjorkenAndQ2YIntegralsAgree) {
@@ -1109,11 +1058,10 @@ TEST(AutoConversion, Decay2BodyRestPlusLabDensityAgreesWithPureRest) {
     EXPECT_EQ(mc.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest());
 
     // Validation should pass (same topology, compatible measures)
-    auto diags = mc.ValidateChannels();
     // Should have an info diagnostic about auto-conversion, not an error
-    for (auto const & d : diags) {
-        EXPECT_EQ(d.find("incompatibility"), std::string::npos)
-            << "Unexpected incompatibility: " << d;
+    for (auto const & d : mc.ValidateChannelsDetailed()) {
+        EXPECT_EQ(d.severity, MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Info)
+            << "Unexpected incompatibility: " << d.message;
     }
 
     // Sample many events and verify the combined density equals 1/(4*pi)

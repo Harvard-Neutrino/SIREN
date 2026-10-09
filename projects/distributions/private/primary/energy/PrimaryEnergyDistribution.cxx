@@ -26,7 +26,7 @@ std::vector<std::string> PrimaryEnergyDistribution::DensityVariables() const {
     return std::vector<std::string>{"PrimaryEnergy"};
 }
 
-std::set<DistributionVariable> PrimaryEnergyDistribution::SetVariables() const {
+std::set<DistributionVariable> PrimaryEnergyDistribution::ProvidedVariables() const {
     return {DistributionVariable::PrimaryEnergy};
 }
 

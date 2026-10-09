@@ -53,14 +53,6 @@ inline double LabToRestFrameSolidAngleJacobian(
         daughter_mass, cos_theta_lab, solution_index));
 }
 
-inline double MomentumInTwoBodyRestFrame(
-    double parent_mass,
-    double mass_a,
-    double mass_b)
-{
-    return TwoBodyRestMomentum(parent_mass, mass_a, mass_b);
-}
-
 // For P -> spectator + (first second), followed by
 // (first second) -> first + second, the Dalitz invariant
 // s_spectator_first is linear in the helicity angle of first in
@@ -120,17 +112,6 @@ inline double DalitzDensityToRecursive2BodyDensity(
     return dalitz_density * jacobian;
 }
 
-// Helicity-angle and recursive two-body coordinates differ only by
-// rotations of the angular reference axes when the same pair
-// invariant mass is used.  Rotations preserve dOmega.
-inline double Recursive2BodyToHelicityAnglesJacobian() {
-    return 1.0;
-}
-
-inline double HelicityAnglesToRecursive2BodyJacobian() {
-    return 1.0;
-}
-
 inline double Q2FromBjorkenXY(
     double x,
     double y,
@@ -149,10 +130,6 @@ inline double BjorkenXFromQ2Y(
     double denom = 2.0 * target_mass * incident_energy * y;
     if (denom == 0.0) return std::numeric_limits<double>::quiet_NaN();
     return q2 / denom;
-}
-
-inline double MandelstamTFromQ2(double q2) {
-    return -q2;
 }
 
 // Fixed incident energy relation between (x, y) and (Q2, y).

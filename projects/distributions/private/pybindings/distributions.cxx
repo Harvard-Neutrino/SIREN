@@ -100,8 +100,7 @@ PYBIND11_MODULE(distributions,m) {
     "GenerationProbability(detector_model, interactions, record).")
     .def(init<>())
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
-    .def("SetVariables",&PrimaryInjectionDistribution::SetVariables)
-    .def("RequiredVariables",&PrimaryInjectionDistribution::RequiredVariables)
+    .def("ProvidedVariables",&PrimaryInjectionDistribution::ProvidedVariables)
     .def("clone",&PrimaryInjectionDistribution::clone)
     TrampolinePickleMethods(pyPrimaryInjectionDistribution);
 

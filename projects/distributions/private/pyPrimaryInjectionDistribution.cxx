@@ -53,23 +53,13 @@ std::vector<std::string> pyPrimaryInjectionDistribution::DensityVariables() cons
     )
 }
 
-std::set<DistributionVariable> pyPrimaryInjectionDistribution::SetVariables() const {
+std::set<DistributionVariable> pyPrimaryInjectionDistribution::ProvidedVariables() const {
     SELF_OVERRIDE(
         self,
         PrimaryInjectionDistribution,
         std::set<DistributionVariable>,
-        SetVariables,
-        "SetVariables"
-    )
-}
-
-std::set<DistributionVariable> pyPrimaryInjectionDistribution::RequiredVariables() const {
-    SELF_OVERRIDE(
-        self,
-        PrimaryInjectionDistribution,
-        std::set<DistributionVariable>,
-        RequiredVariables,
-        "RequiredVariables"
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 

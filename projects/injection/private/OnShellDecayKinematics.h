@@ -27,21 +27,4 @@ inline void RequireOnShellParent(siren::dataclasses::InteractionRecord const & r
         siren::utilities::FailureReason::KinematicallyForbidden,
         "Decay parent needs a positive mass and an energy within 2e-5 of its mass shell");
 }
-// Known-mass boost, avoiding an invariant mass reconstructed by subtracting
-// large lab energies. Long-double intermediates limit cancellation on inversion
-// where long double is wider than double. A forward boost of a backward
-// rest-frame vector still cancels terms of size gamma*(E*+p*), so each lab
-// component carries an absolute error of order eps*gamma*(E*+p*).
-inline FourVector BoostOnShell(FourVector const & frame,double mass,FourVector const & p,bool inverse=false) {
-    long double momentum=frame.p.magnitude();
-    if (momentum==0) return p;
-    auto axis=frame.p/static_cast<double>(momentum);
-    long double parallel=static_cast<long double>(p.p.GetX())*axis.GetX()
-        +static_cast<long double>(p.p.GetY())*axis.GetY()+static_cast<long double>(p.p.GetZ())*axis.GetZ();
-    long double energy=std::hypot(momentum,static_cast<long double>(mass));
-    long double sign=inverse ? -1 : 1;
-    long double out_e=(energy*p.e+sign*momentum*parallel)/mass;
-    long double out_p=(energy*parallel+sign*momentum*p.e)/mass;
-    return {static_cast<double>(out_e),p.p+axis*static_cast<double>(out_p-parallel)};
-}
 }}}

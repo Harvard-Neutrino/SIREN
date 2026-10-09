@@ -20,7 +20,6 @@
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
 #include "../../public/SIREN/injection/TwoBodyKinematics.h"
-#include "../../public/SIREN/injection/InvariantMassMapping.h"
 
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
@@ -297,7 +296,6 @@ PYBIND11_MODULE(injection,m) {
     .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
-    .def("ValidateChannels", &MultiChannelPhaseSpace::ValidateChannels)
     .def("ValidateChannelsDetailed", &MultiChannelPhaseSpace::ValidateChannelsDetailed)
     .def("ValidateChannelDensities", &MultiChannelPhaseSpace::ValidateChannelDensities,
          arg("random"), arg("detector_model"), arg("template_record"),
@@ -330,60 +328,6 @@ PYBIND11_MODULE(injection,m) {
         &(siren::serialization::pickle_load<Isotropic2BodyChannel>)
     ))
     ;
-
-  class_<Mapping1D, std::shared_ptr<Mapping1D>>(m, "Mapping1D",
-      "Base interface for a 1-D importance map: one object provides both the draw "
-      "(Forward, from a uniform variate) and its own normalized density (Density) "
-      "over the same variable, so a model/channel routing both through a shared "
-      "instance cannot let sampling and density drift apart.")
-    .def("Forward", &Mapping1D::Forward, arg("r"))
-    .def("Inverse", &Mapping1D::Inverse, arg("x"))
-    .def("Density", &Mapping1D::Density, arg("x"));
-
-  class_<BreitWignerMapping, std::shared_ptr<BreitWignerMapping>, Mapping1D>(m, "BreitWignerMapping",
-      "Breit-Wigner-shaped density in s over [s_min, s_max]; peaks at s = mass^2 "
-      "with width set by width.")
-    .def(init<double, double, double, double>(),
-         arg("mass"), arg("width"), arg("s_min"), arg("s_max"));
-
-  class_<PowerLawMapping, std::shared_ptr<PowerLawMapping>, Mapping1D>(m, "PowerLawMapping",
-      "Power-law-shaped density (index nu, offset m2) over [s_min, s_max]; use for "
-      "a heavy-tailed invariant-mass or Q^2 variable with no resonance.")
-    .def(init<double, double, double, double>(),
-         arg("nu"), arg("m2"), arg("s_min"), arg("s_max"));
-
-  class_<TabulatedMapping, std::shared_ptr<TabulatedMapping>, Mapping1D>(m, "TabulatedMapping",
-      "Density defined by a user-supplied cumulative table (s_nodes, cdf_nodes) "
-      "over [s_min, s_max]; use when the target density has no closed form.")
-    .def(init<std::vector<double>, std::vector<double>, double, double>(),
-         arg("s_nodes"), arg("cdf_nodes"), arg("s_min"), arg("s_max"));
-
-  class_<PropagatorMapping, std::shared_ptr<PropagatorMapping>, Mapping1D>(m, "PropagatorMapping",
-      "1/(x^2 + m2)-shaped density for propagator-peaked variables like off-shell "
-      "Q^2 or invariant mass.")
-    .def(init<double, double, double>(),
-         arg("m2"), arg("x_min"), arg("x_max"));
-
-  class_<UniformMapping, std::shared_ptr<UniformMapping>, Mapping1D>(m, "UniformMapping",
-      "Flat density over [s_min, s_max].")
-    .def(init<double, double>(),
-         arg("s_min"), arg("s_max"));
-
-  class_<LogMapping, std::shared_ptr<LogMapping>, Mapping1D>(m, "LogMapping",
-      "Log-uniform density over [x_min, x_max]; use for a variable spanning "
-      "multiple orders of magnitude.")
-    .def(init<double, double>(),
-         arg("x_min"), arg("x_max"));
-
-  class_<ExponentialMapping, std::shared_ptr<ExponentialMapping>, Mapping1D>(m, "ExponentialMapping",
-      "Exponential density with mean tau over [x_min, x_max].")
-    .def(init<double, double, double>(),
-         arg("tau"), arg("x_min"), arg("x_max"));
-
-  class_<GaussianMapping, std::shared_ptr<GaussianMapping>, Mapping1D>(m, "GaussianMapping",
-      "Gaussian density (mean mu, width sigma) over [x_min, x_max].")
-    .def(init<double, double, double, double>(),
-         arg("mu"), arg("sigma"), arg("x_min"), arg("x_max"));
 
   class_<PhysicalDecayChannel, std::shared_ptr<PhysicalDecayChannel>, PhaseSpaceChannel>(m, "PhysicalDecayChannel",
       "Samples the unbiased physical final state of a Decay (no detector "

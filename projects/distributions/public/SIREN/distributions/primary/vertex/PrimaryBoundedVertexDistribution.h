@@ -47,8 +47,7 @@ public:
     PrimaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume);
     PrimaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume, double max_length);
 
-    virtual std::set<DistributionVariable> SetVariables() const override;
-    virtual std::set<DistributionVariable> RequiredVariables() const override;
+    virtual std::set<DistributionVariable> ProvidedVariables() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 

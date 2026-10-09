@@ -49,7 +49,7 @@ double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_pt
 
 PrimaryNeutrinoHelicityDistribution::PrimaryNeutrinoHelicityDistribution() {}
 
-std::set<DistributionVariable> PrimaryNeutrinoHelicityDistribution::SetVariables() const {
+std::set<DistributionVariable> PrimaryNeutrinoHelicityDistribution::ProvidedVariables() const {
     return {DistributionVariable::PrimaryHelicity};
 }
 

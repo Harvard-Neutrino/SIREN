@@ -145,8 +145,8 @@ public:
     virtual ~PrimaryInjectionDistribution() {};
     virtual void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const = 0;
-    virtual std::set<DistributionVariable> SetVariables() const { return {}; }
-    virtual std::set<DistributionVariable> RequiredVariables() const;
+    // The record fields this distribution sets when it samples.
+    virtual std::set<DistributionVariable> ProvidedVariables() const { return {}; }
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

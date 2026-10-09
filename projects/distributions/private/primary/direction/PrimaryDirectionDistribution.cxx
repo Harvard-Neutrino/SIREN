@@ -20,7 +20,7 @@ void PrimaryDirectionDistribution::Sample(std::shared_ptr<siren::utilities::SIRE
     record.SetDirection(dir);
 }
 
-std::set<DistributionVariable> PrimaryDirectionDistribution::SetVariables() const {
+std::set<DistributionVariable> PrimaryDirectionDistribution::ProvidedVariables() const {
     return {DistributionVariable::PrimaryDirection};
 }
 
