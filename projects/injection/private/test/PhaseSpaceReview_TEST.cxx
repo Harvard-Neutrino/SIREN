@@ -21,6 +21,7 @@
 #include "SIREN/injection/Process.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
 #include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/injection/Weighter.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/interactions/DummyCrossSection.h"
@@ -1311,89 +1312,80 @@ TEST(WeightingConvention, LiftsNaturalFixedMassYIntoJointProposalMeasure) {
         1.0 / (2.0 * M_PI), 1e-14);
 }
 
-TEST(ProcessPhaseSpaceValidation, RejectsPointwiseMarginalizationAtSetup) {
-    auto signature = SignatureWithSecondaries(2);
-    auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        PhaseSpaceMeasure::FixedMassYPhi());
-    auto interactions =
-        std::make_shared<siren::interactions::InteractionCollection>(
-            siren::dataclasses::ParticleType::unknown,
-            std::vector<std::shared_ptr<siren::interactions::CrossSection>>{
-                cross_section});
-    siren::injection::PhysicalProcess process(
-        siren::dataclasses::ParticleType::unknown, interactions);
-
-    auto marginal = std::make_shared<MultiChannelPhaseSpace>();
-    marginal->channels = {std::make_shared<ConstantChannel>(
-        1.0, PhaseSpaceTopology::Scatter2to2,
-        PhaseSpaceMeasure::FixedMassY())};
-    marginal->weights = {1.0};
-
-    EXPECT_THROW(
-        process.SetPhaseSpace(signature, marginal),
-        siren::utilities::MeasureCompatibilityError);
+std::shared_ptr<siren::interactions::InteractionCollection> CollectionOf(
+    std::shared_ptr<siren::interactions::CrossSection> cross_section) {
+    return std::make_shared<siren::interactions::InteractionCollection>(
+        siren::dataclasses::ParticleType::unknown,
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>>{cross_section});
 }
 
-TEST(ProcessPhaseSpaceValidation, AcceptsOpaqueModelWithDeclaredMixture) {
-    // An Unspecified model measure makes no claim a mixture can contradict;
-    // the propagated path weights through the mixture density alone.
-    auto signature = SignatureWithSecondaries(2);
-    auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        PhaseSpaceMeasure::Unspecified());
-    auto interactions =
-        std::make_shared<siren::interactions::InteractionCollection>(
-            siren::dataclasses::ParticleType::unknown,
-            std::vector<std::shared_ptr<siren::interactions::CrossSection>>{
-                cross_section});
-    siren::injection::PhysicalProcess process(
-        siren::dataclasses::ParticleType::unknown, interactions);
-
-    auto declared = std::make_shared<MultiChannelPhaseSpace>();
-    declared->channels = {std::make_shared<ConstantChannel>(
-        1.0, PhaseSpaceTopology::Scatter2to2,
-        PhaseSpaceMeasure::MandelstamQ2Phi())};
-    declared->weights = {1.0};
-
-    EXPECT_NO_THROW(process.SetPhaseSpace(signature, declared));
-
-    auto decay_shaped = std::make_shared<MultiChannelPhaseSpace>();
-    decay_shaped->channels = {std::make_shared<ConstantChannel>(
-        1.0, PhaseSpaceTopology::Decay2Body,
-        PhaseSpaceMeasure::SolidAngleRest())};
-    decay_shaped->weights = {1.0};
-
-    // The opaque model's topology is a secondary-count heuristic, not a
-    // claim, so a decay-shaped mixture registers too.
-    EXPECT_NO_THROW(process.SetPhaseSpace(signature, decay_shaped));
+std::shared_ptr<MultiChannelPhaseSpace> ConstantMixture(
+    PhaseSpaceTopology topology, PhaseSpaceMeasure measure) {
+    auto mixture = std::make_shared<MultiChannelPhaseSpace>();
+    mixture->channels = {std::make_shared<ConstantChannel>(1.0, topology, measure)};
+    mixture->weights = {1.0};
+    return mixture;
 }
 
-TEST(ProcessPhaseSpaceValidation, AcceptsForeignChartMixture) {
+TEST(ProcessPhaseSpaceValidation, SetPhaseSpaceChecksOnlyTheMixture) {
+    // Registration cannot know which process the proposal will be weighted
+    // against, so it accepts any internally consistent mixture.
     auto signature = SignatureWithSecondaries(2);
-    auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        PhaseSpaceMeasure::BjorkenXY());
-    auto interactions =
-        std::make_shared<siren::interactions::InteractionCollection>(
-            siren::dataclasses::ParticleType::unknown,
-            std::vector<std::shared_ptr<siren::interactions::CrossSection>>{
-                cross_section});
     siren::injection::PhysicalProcess process(
+        siren::dataclasses::ParticleType::unknown,
+        CollectionOf(std::make_shared<MixedSignatureCrossSection>(
+            PhaseSpaceMeasure::FixedMassYPhi())));
+    EXPECT_NO_THROW(process.SetPhaseSpace(signature, ConstantMixture(
+        PhaseSpaceTopology::Scatter2to2, PhaseSpaceMeasure::FixedMassY())));
+    EXPECT_NO_THROW(process.SetPhaseSpace(signature, ConstantMixture(
+        PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest())));
+
+    auto inconsistent = std::make_shared<MultiChannelPhaseSpace>();
+    inconsistent->channels = {
+        std::make_shared<ConstantChannel>(
+            1.0, PhaseSpaceTopology::Scatter2to2, PhaseSpaceMeasure::MandelstamQ2Phi()),
+        std::make_shared<ConstantChannel>(
+            1.0, PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest())};
+    inconsistent->weights = {0.5, 0.5};
+    EXPECT_THROW(process.SetPhaseSpace(signature, inconsistent),
+                 siren::utilities::MeasureCompatibilityError);
+}
+
+TEST(ProcessPhaseSpaceValidation, WeighterRejectsProposalWithoutCommonMeasure) {
+    // A (Q2, phi) proposal cannot be compared with a Bjorken (x, y) density.
+    auto signature = SignatureWithSecondaries(2);
+    auto interactions = CollectionOf(
+        std::make_shared<MixedSignatureCrossSection>(PhaseSpaceMeasure::BjorkenXY()));
+    auto injection = std::make_shared<siren::injection::PrimaryInjectionProcess>(
         siren::dataclasses::ParticleType::unknown, interactions);
+    auto physical = std::make_shared<siren::injection::PhysicalProcess>(
+        siren::dataclasses::ParticleType::unknown, interactions);
+    injection->SetPhaseSpace(signature, ConstantMixture(
+        PhaseSpaceTopology::Scatter2to2, PhaseSpaceMeasure::MandelstamQ2Phi()));
+    EXPECT_THROW(siren::injection::PrimaryProcessWeighter(physical, injection, nullptr),
+                 siren::utilities::MeasureCompatibilityError);
 
-    auto decay_shaped = std::make_shared<MultiChannelPhaseSpace>();
-    decay_shaped->channels = {std::make_shared<ConstantChannel>(
-        1.0, PhaseSpaceTopology::Decay2Body,
-        PhaseSpaceMeasure::SolidAngleRest())};
-    decay_shaped->weights = {1.0};
+    // Registered on both processes, the proposal replaces the model density on
+    // both sides, so its chart need not match the model's.
+    physical->SetPhaseSpace(signature, injection->GetPhaseSpace(signature));
+    EXPECT_NO_THROW(siren::injection::PrimaryProcessWeighter(physical, injection, nullptr));
+}
 
-    EXPECT_NO_THROW(process.SetPhaseSpace(signature, decay_shaped));
-
-    auto q2_joint = std::make_shared<MultiChannelPhaseSpace>();
-    q2_joint->channels = {std::make_shared<ConstantChannel>(
-        1.0, PhaseSpaceTopology::Scatter2to2,
-        PhaseSpaceMeasure::MandelstamQ2Phi())};
-    q2_joint->weights = {1.0};
-
-    EXPECT_NO_THROW(process.SetPhaseSpace(signature, q2_joint));
+TEST(ProcessPhaseSpaceValidation, WeighterLiftsPerCosThetaProposal) {
+    // A per-cos(theta) proposal is compared with a solid-angle model density
+    // by lifting the proposal's declared uniform azimuth.
+    auto signature = SignatureWithSecondaries(2);
+    auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+        siren::dataclasses::ParticleType::unknown,
+        std::vector<std::shared_ptr<siren::interactions::Decay>>{
+            std::make_shared<MixedSignatureDecay>()});
+    auto injection = std::make_shared<siren::injection::PrimaryInjectionProcess>(
+        siren::dataclasses::ParticleType::unknown, interactions);
+    auto physical = std::make_shared<siren::injection::PhysicalProcess>(
+        siren::dataclasses::ParticleType::unknown, interactions);
+    injection->SetPhaseSpace(signature, ConstantMixture(
+        PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::CosThetaRest()));
+    EXPECT_NO_THROW(siren::injection::PrimaryProcessWeighter(physical, injection, nullptr));
 }
 
 TEST(CommonMeasure, UnspecifiedMajorityCannotOutvoteSpecifiedChannel) {

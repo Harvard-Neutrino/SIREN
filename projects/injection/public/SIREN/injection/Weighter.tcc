@@ -98,6 +98,19 @@ void ProcessWeighter<ProcessType>::Initialize() {
             }
         }
     }
+
+    // A proposal registered on either process must share a measure with the
+    // other process's density. Check each signature now, not at the first event.
+    std::set<siren::dataclasses::InteractionSignature> proposal_signatures;
+    for(auto const & entry : inj_process->GetPhaseSpaceMap())
+        proposal_signatures.insert(entry.first);
+    for(auto const & entry : phys_process->GetPhaseSpaceMap())
+        proposal_signatures.insert(entry.first);
+    for(auto const & signature : proposal_signatures) {
+        siren::dataclasses::InteractionRecord record;
+        record.signature = signature;
+        WeightingConvention(record);
+    }
 }
 
 template<typename ProcessType>
@@ -236,18 +249,9 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 template<typename ProcessType>
 PhaseSpaceConvention ProcessWeighter<ProcessType>::WeightingConvention(
         siren::dataclasses::InteractionRecord const & record) const {
-
-    auto convention_for = [&](auto const & process) {
-        if (process->HasPhaseSpace(record.signature)) {
-            return process->GetPhaseSpace(record.signature)->CommonConvention();
-        }
-        return SelectedFinalStateConvention(process->GetInteractions(), record);
-    };
-
-    PhaseSpaceConvention generation_convention = convention_for(inj_process);
-    PhaseSpaceConvention physical_convention = convention_for(phys_process);
     return ResolveCommonFinalStateConvention(
-        generation_convention, physical_convention);
+        ProcessFinalStateConvention(*inj_process, record),
+        ProcessFinalStateConvention(*phys_process, record));
 }
 
 template<typename ProcessType>
@@ -258,44 +262,12 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
 
     double physical_probability = 1.0;
     auto mode = phys_process->GetWeightingMode();
-
-    if (mode.compute_interaction_probability) {
-        double prob = InteractionProbability(bounds, record);
-        physical_probability *= prob;
-    }
-
-    if (mode.compute_position_probability) {
-        double prob = NormalizedPositionProbability(bounds, record);
-        physical_probability *= prob;
-    }
-
-    if (mode.compute_interaction_probability) {
-        double prob;
-        if (phys_process->HasPhaseSpace(record.signature)) {
-            prob = siren::injection::CrossSectionProbabilityWithPhaseSpace(
-                detector_model, phys_process->GetInteractions(), record,
-                *phys_process->GetPhaseSpace(record.signature),
-                convention);
-        } else {
-            prob = siren::injection::CrossSectionProbability(
-                detector_model, phys_process->GetInteractions(), record,
-                convention);
-        }
-        physical_probability *= prob;
-    } else {
-        double prob;
-        if (phys_process->HasPhaseSpace(record.signature)) {
-            prob = phys_process->GetPhaseSpace(record.signature)->DensityIn(
-                detector_model, record, convention);
-        } else {
-            prob = siren::injection::SelectedFinalStateProbability(
-                detector_model, phys_process->GetInteractions(), record,
-                convention);
-        }
-        prob *= siren::injection::FixedVertexChannelSelectionProbability(
-            detector_model, phys_process->GetInteractions(), record);
-        physical_probability *= prob;
-    }
+    if (mode.compute_interaction_probability)
+        physical_probability *= InteractionProbability(bounds, record);
+    if (mode.compute_position_probability)
+        physical_probability *= NormalizedPositionProbability(bounds, record);
+    physical_probability *= ProcessFinalStateProbability(
+        detector_model, *phys_process, record, convention);
 
     for(auto physical_dist : unique_phys_distributions) {
         physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
@@ -315,33 +287,8 @@ double ProcessWeighter<ProcessType>::GenerationProbability(
         siren::dataclasses::InteractionTreeDatum const & datum,
         PhaseSpaceConvention const & convention) const {
 
-    double gen_probability;
-    auto mode = inj_process->GetWeightingMode();
-
-    if (mode.compute_interaction_probability) {
-        // Standard: rate-weighted cross section probability
-        if (inj_process->HasPhaseSpace(datum.record.signature)) {
-            gen_probability = siren::injection::CrossSectionProbabilityWithPhaseSpace(
-                detector_model, inj_process->GetInteractions(), datum.record,
-                *inj_process->GetPhaseSpace(datum.record.signature),
-                convention);
-        } else {
-            gen_probability = siren::injection::CrossSectionProbability(
-                detector_model, inj_process->GetInteractions(), datum.record,
-                convention);
-        }
-    } else {
-        if (inj_process->HasPhaseSpace(datum.record.signature)) {
-            gen_probability = inj_process->GetPhaseSpace(datum.record.signature)->DensityIn(
-                detector_model, datum.record, convention);
-        } else {
-            gen_probability = siren::injection::SelectedFinalStateProbability(
-                detector_model, inj_process->GetInteractions(), datum.record,
-                convention);
-        }
-        gen_probability *= siren::injection::FixedVertexChannelSelectionProbability(
-            detector_model, inj_process->GetInteractions(), datum.record);
-    }
+    double gen_probability = ProcessFinalStateProbability(
+        detector_model, *inj_process, datum.record, convention);
 
     for(auto gen_dist : unique_gen_distributions) {
         gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);

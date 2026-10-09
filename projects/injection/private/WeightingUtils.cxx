@@ -1,5 +1,6 @@
 #include "SIREN/injection/WeightingUtils.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
+#include "SIREN/injection/Process.h"
 #include "InteractionSelection.h"
 
 #include <vector>                                                 // for vector
@@ -76,39 +77,6 @@ void MergeConvention(
     throw siren::utilities::MeasureCompatibilityError(oss.str());
 }
 
-PhaseSpaceConvention ResolveSelectedFinalStateConvention(
-    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record)
-{
-    PhaseSpaceConvention result;
-    bool found = false;
-
-    for (auto const & decay : interactions->GetDecays()) {
-        for (auto const & signature :
-             decay->GetPossibleSignaturesFromParent(
-                 record.signature.primary_type)) {
-            if (signature != record.signature) continue;
-            MergeConvention(
-                result, found, decay->TopologyForSignature(signature),
-                decay->MeasureForSignature(signature));
-        }
-    }
-    for (auto const & target_xs : interactions->GetCrossSectionsByTarget()) {
-        for (auto const & cross_section : target_xs.second) {
-            for (auto const & signature :
-                 cross_section->GetPossibleSignaturesFromParents(
-                     record.signature.primary_type, target_xs.first)) {
-                if (signature != record.signature) continue;
-                MergeConvention(
-                    result, found,
-                    cross_section->TopologyForSignature(signature),
-                    cross_section->MeasureForSignature(signature));
-            }
-        }
-    }
-    return result;
-}
-
 std::pair<double, double> AccumulateRates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
@@ -180,7 +148,33 @@ PhaseSpaceConvention SelectedFinalStateConvention(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record)
 {
-    return ResolveSelectedFinalStateConvention(interactions, record);
+    PhaseSpaceConvention result;
+    bool found = false;
+
+    for (auto const & decay : interactions->GetDecays()) {
+        for (auto const & signature :
+             decay->GetPossibleSignaturesFromParent(
+                 record.signature.primary_type)) {
+            if (signature != record.signature) continue;
+            MergeConvention(
+                result, found, decay->TopologyForSignature(signature),
+                decay->MeasureForSignature(signature));
+        }
+    }
+    for (auto const & target_xs : interactions->GetCrossSectionsByTarget()) {
+        for (auto const & cross_section : target_xs.second) {
+            for (auto const & signature :
+                 cross_section->GetPossibleSignaturesFromParents(
+                     record.signature.primary_type, target_xs.first)) {
+                if (signature != record.signature) continue;
+                MergeConvention(
+                    result, found,
+                    cross_section->TopologyForSignature(signature),
+                    cross_section->MeasureForSignature(signature));
+            }
+        }
+    }
+    return result;
 }
 
 PhaseSpaceConvention ResolveCommonFinalStateConvention(
@@ -228,7 +222,7 @@ double SelectedFinalStateProbability(
 {
     return SelectedFinalStateProbability(
         detector_model, interactions, record,
-        ResolveSelectedFinalStateConvention(interactions, record));
+        SelectedFinalStateConvention(interactions, record));
 }
 
 double SelectedFinalStateProbability(
@@ -346,7 +340,7 @@ double CrossSectionProbability(
 {
     return CrossSectionProbability(
         detector_model, interactions, record,
-        ResolveSelectedFinalStateConvention(interactions, record));
+        SelectedFinalStateConvention(interactions, record));
 }
 
 double CrossSectionProbability(
@@ -392,6 +386,39 @@ double CrossSectionProbabilityWithPhaseSpace(
         detector_model, record, convention);
 
     return (selected_rate * mc_density) / total_rate;
+}
+
+PhaseSpaceConvention ProcessFinalStateConvention(
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record)
+{
+    auto phase_space = process.GetPhaseSpace(record.signature);
+    if (phase_space) return phase_space->CommonConvention();
+    if (!process.GetInteractions()) return PhaseSpaceConvention();
+    return SelectedFinalStateConvention(process.GetInteractions(), record);
+}
+
+double ProcessFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceConvention const & convention)
+{
+    auto interactions = process.GetInteractions();
+    auto phase_space = process.GetPhaseSpace(record.signature);
+    if (process.GetWeightingMode().compute_interaction_probability) {
+        return phase_space
+            ? CrossSectionProbabilityWithPhaseSpace(
+                detector_model, interactions, record, *phase_space, convention)
+            : CrossSectionProbability(
+                detector_model, interactions, record, convention);
+    }
+    double density = phase_space
+        ? phase_space->DensityIn(detector_model, record, convention)
+        : SelectedFinalStateProbability(
+            detector_model, interactions, record, convention);
+    return density * FixedVertexChannelSelectionProbability(
+        detector_model, interactions, record);
 }
 
 } // namespace injection
