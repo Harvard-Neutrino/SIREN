@@ -1,28 +1,37 @@
 # Native generation and weighting errors
 
-See [the native phase-space contract](native_phase_space.md) for complete examples.
+Error messages end with a tag such as `[siren-docs: errors#configuration]`
+that names a section below. Examples are in
+[Native phase-space proposals](native_phase_space.md).
 
-## Configuration
+<a id="configuration"></a>
+## Configuration errors
 
 `ConfigurationError` or `AddProcessFailure` means a process cannot be used as
-configured: for example, no vertex distribution, mismatched primary/secondary
-processes, invalid mixture weights, or material scattering at zero momentum.
-Correct the configuration before generating more events.
+configured: for example, it has no vertex distribution, its primary and
+secondary processes do not match, its mixture weights are invalid, or it asks
+for a material interaction at zero momentum. Correct the configuration before
+generating more events.
 
-## Measure-compat
+<a id="measure-compat"></a>
+## Measure compatibility errors
 
-`MeasureCompatibilityError` means two densities do not have a supported common
-pointwise measure. Declare the actual measures and use a supported proposal;
-changing a label alone does not convert a density.
+`MeasureCompatibilityError` means two densities have no supported common
+measure. Declare the measure each model's density is actually differential in
+and use a compatible proposal. Changing the declared label does not convert a
+density.
 
-## Weight-calc
+<a id="weight-calc"></a>
+## Weight calculation errors
 
-`WeightCalculationError` rejects missing proposal support, invalid probabilities,
-empty failed events, or weight overflow. Zero physical support is valid and
-receives zero weight. The breakdown API records unusable totals as NaN.
+`WeightCalculationError` is raised when no injector could have produced an
+event, when a probability is negative or nonfinite, when the event is an empty
+failed tree, or when the weight overflows. A zero physical density is valid and
+gives weight zero. `EventWeightWithBreakdown` reports an unusable total as NaN.
 
-## Injection failure
+<a id="injection-failure"></a>
+## Injection failures
 
-`InjectionFailure` identifies a failed sampling attempt, such as a kinematically
-closed final state or no intersection with a required volume. Inspect the
-injector's failure ledger and retain the attempt in normalization.
+`InjectionFailure` marks one failed sampling attempt, such as a kinematically
+closed final state or a ray that misses a required volume. Inspect the
+injector's failure ledger, and keep the attempt in the normalization.
