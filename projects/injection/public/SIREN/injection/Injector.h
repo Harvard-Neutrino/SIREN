@@ -80,6 +80,8 @@ private:
 
 public:
     // Constructors
+    // Loads an injector archive. An archive that stores RNG state continues
+    // that stream; `random` is used only for archives written before then.
     Injector(unsigned int events_to_inject, std::string filename, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<siren::utilities::SIREN_random> random);
@@ -151,24 +153,21 @@ public:
             throw std::runtime_error(
                 "Injector archives cannot preserve a stopping-condition callback");
         }
-        if(version <= 2) {
+        if(version <= 1) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            // FailedEvents added in version 1 so attempts ~= injected + failed
-            // survives a save/load round-trip. cereal passes the current class
-            // version (>= 1) on save, so it is always written here.
             if(version >= 1) {
                 archive(::cereal::make_nvp("FailedEvents", failed_events));
             }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
-            if(version >= 2) {
+            if(version >= 1) {
                 archive(::cereal::make_nvp("SIRENRandom", random));
             }
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
-            throw std::runtime_error("Injector only supports version <= 2!");
+            throw std::runtime_error("Injector only supports version <= 1!");
         }
     }
 
@@ -176,23 +175,20 @@ public:
     // incompatible archive throws siren::utilities::AddProcessFailure instead of exiting.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version <= 2) {
+        if(version <= 1) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
 
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            // FailedEvents added in version 1. Version-0 archives omit it, so
-            // failed_events keeps its default (0) for backward compatibility.
+            // Version 0 archives have no failed-event count or RNG state;
+            // LoadInjector then keeps the caller's engine.
             if(version >= 1) {
                 archive(::cereal::make_nvp("FailedEvents", failed_events));
             }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
-            // Version 2 restores the RNG engine into `random` (see save). Older
-            // archives omit it, leaving `random` null here, so LoadInjector
-            // keeps the pre-load engine (restart-from-seed).
-            if(version >= 2) {
+            if(version >= 1) {
                 archive(::cereal::make_nvp("SIRENRandom", random));
             }
             archive(::cereal::make_nvp("PrimaryProcess", _primary_process));
@@ -202,7 +198,7 @@ public:
                 AddSecondaryProcess(secondary_process);
             }
         } else {
-            throw std::runtime_error("Injector only supports version <= 2!");
+            throw std::runtime_error("Injector only supports version <= 1!");
         }
     }
 };
@@ -210,6 +206,6 @@ public:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::Injector, 2);
+CEREAL_CLASS_VERSION(siren::injection::Injector, 1);
 
 #endif // SIREN_Injector_H

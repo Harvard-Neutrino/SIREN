@@ -700,8 +700,7 @@ void Injector::LoadInjector(std::string const & filename) {
                     "Failed to load injector archive '" + filename
                     + "': the headered parse failed: " + e.what());
             }
-            // Version 2 restored the RNG into `random`; keep it. Older archives
-            // left it null, so fall back to the pre-load engine.
+            // A version 0 archive has no RNG state; keep the caller's engine.
             if(!random) random = preserved_random;
             stopping_condition = preserved_stopping_condition;
             return;
@@ -722,9 +721,8 @@ void Injector::LoadInjector(std::string const & filename) {
             + "': not a headered archive and the headerless version-0 parse "
               "failed: " + e.what());
     }
-    // Headerless archives are version 0 and never carry the RNG, so restore the
-    // pre-load engine.
-    if(!random) random = preserved_random;
+    // Headerless archives are version 0 and have no RNG state.
+    random = preserved_random;
     stopping_condition = preserved_stopping_condition;
 }
 

@@ -196,6 +196,26 @@ def test_failed_load_preserves_live_configuration(tmp_path):
     assert record_state(generator.GenerateEvent()) == record_state(twin.GenerateEvent())
 
 
+def test_failed_weighter_load_keeps_live_weighter(tmp_path):
+    # The saved injector gains a secondary process that the saved physical
+    # processes do not cover, so the archive reads but cannot be initialized.
+    source_generator, source_weighter = decay_setup()
+    secondary = inj.SecondaryInjectionProcess()
+    secondary.secondary_type = P.Gamma
+    secondary.interactions = xs.InteractionCollection(P.Gamma, [])
+    secondary.distributions = [dist.SecondaryPhysicalVertexDistribution()]
+    source_generator.AddSecondaryProcess(secondary)
+    archive = str(tmp_path / 'mismatched')
+    source_weighter.SaveWeighter(archive)
+
+    generator, weighter = decay_setup()
+    events = [generator.GenerateEvent() for _ in range(4)]
+    before = [weighter.EventWeight(event) for event in events]
+    with pytest.raises(RuntimeError, match='weighter archive'):
+        weighter.LoadWeighter(archive)
+    assert [weighter.EventWeight(event) for event in events] == before
+
+
 def test_native_archive_rejects_live_stopping_callback(tmp_path):
     generator, _ = decay_setup()
     generator.SetStoppingCondition(lambda *_: True)

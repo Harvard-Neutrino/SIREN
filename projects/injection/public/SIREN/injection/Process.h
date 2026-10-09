@@ -95,20 +95,17 @@ public:
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
-        if(version <= 2) {
+        if(version <= 1) {
             archive(::cereal::make_nvp("PhysicalDistributions", physical_distributions));
             archive(cereal::virtual_base_class<Process>(this));
-            // weighting_mode_ added in version 1. On save cereal passes the
-            // current class version (>= 1) so it is always written; on load
-            // version-0 archives skip it and keep the default (Propagated).
+            // Version 0 archives predate weighting modes and proposals, and
+            // load as Propagated with no proposals.
             if(version >= 1) {
                 archive(::cereal::make_nvp("WeightingMode", weighting_mode_));
-            }
-            if(version >= 2) {
                 archive(::cereal::make_nvp("PhaseSpaceMap", phase_space_map_));
             }
         } else {
-            throw std::runtime_error("PhysicalProcess only supports version <= 2!");
+            throw std::runtime_error("PhysicalProcess only supports version <= 1!");
         }
     };
 };
@@ -175,7 +172,7 @@ public:
 
 CEREAL_CLASS_VERSION(siren::injection::Process, 0);
 
-CEREAL_CLASS_VERSION(siren::injection::PhysicalProcess, 2);
+CEREAL_CLASS_VERSION(siren::injection::PhysicalProcess, 1);
 CEREAL_REGISTER_TYPE(siren::injection::PhysicalProcess);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Process, siren::injection::PhysicalProcess);
 

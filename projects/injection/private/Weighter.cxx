@@ -429,13 +429,12 @@ void Weighter::LoadWeighter(std::string const & filename) {
                 archive(version);
                 Weighter temp;
                 temp.load(archive, version);
+                temp.Initialize();
                 *this = std::move(temp);
             } catch(std::exception const & e) {
                 throw std::runtime_error(
-                    "Failed to load weighter archive '" + path
-                    + "': the headered parse failed: " + e.what());
+                    "Failed to load weighter archive '" + path + "': " + e.what());
             }
-            Initialize();
             return;
         }
     }
@@ -447,14 +446,13 @@ void Weighter::LoadWeighter(std::string const & filename) {
         ::cereal::BinaryInputArchive archive(is);
         Weighter temp;
         temp.load(archive, 0);
+        temp.Initialize();
         *this = std::move(temp);
     } catch(std::exception const & e) {
         throw std::runtime_error(
             "Failed to load weighter archive '" + path
-            + "': not a headered archive and the headerless version-0 parse "
-              "failed: " + e.what());
+            + "': not a headered archive, and reading it as version 0 failed: " + e.what());
     }
-    Initialize();
 }
 
 Weighter::Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes)
