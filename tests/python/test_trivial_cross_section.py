@@ -3,13 +3,12 @@
 The class is a pass-through cross section whose physics content is the total
 cross section alone. Unit tests cover the tabulated total (interpolation,
 threshold, clamping) and the signature conventions. The end-to-end tests
-inject against the CCM detector model with a constant stand-in cross section
+inject against a synthetic uniform-argon detector with a constant stand-in cross section
 and then weight the same events under two physical hypotheses, checking that
 the weight ratio is exactly the ratio of the physical total cross sections:
 the mechanism that defers the physical total to an external generator.
 """
 import math as pymath
-import os
 
 import pytest
 
@@ -21,7 +20,6 @@ from siren import injection
 from siren import interactions
 from siren import math as smath
 from siren import utilities
-from siren import _util
 
 NuMu = dc.Particle.ParticleType.NuMu
 NuE = dc.Particle.ParticleType.NuE
@@ -51,20 +49,22 @@ def _constant_cross_section():
     return interactions.TrivialCrossSection(SIGMA_CONST, [NuMu], [Nucleon])
 
 
-def _detector_model():
-    try:
-        dm = siren.detector.DetectorModel()
-        det_dir = _util.get_detector_model_path("CCM")
-        dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
-        dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
-    except Exception as e:  # detector model files not available in this env
-        pytest.skip(f"CCM detector model unavailable: {e}")
-    return dm
-
-
 @pytest.fixture(scope="module")
 def detector_model():
-    return _detector_model()
+    # This test needs a known thin target, not an external detector dataset.
+    dm = siren.detector.DetectorModel()
+    materials = dm.Materials
+    materials.AddMaterial("ARGON", {1000180400: 1.0})
+    dm.Materials = materials
+    sector = siren.detector.DetectorSector()
+    sector.name = "argon"
+    sector.level = 0
+    sector.material_id = materials.GetMaterialId("ARGON")
+    sector.geo = siren.geometry.Sphere(
+        siren.geometry.Placement(smath.Vector3D(0, 0, 0)), 100.0, 0.0)
+    sector.density = siren.detector.ConstantDensityDistribution(1.4)
+    dm.AddSector(sector)
+    return dm
 
 
 # --- unit-level behavior ---
@@ -72,18 +72,18 @@ def detector_model():
 
 def test_constant_cross_section_is_flat():
     xs = _constant_cross_section()
-    assert xs.TotalCrossSection(NuMu, 0.5) == pytest.approx(SIGMA_CONST)
-    assert xs.TotalCrossSection(NuMu, 50.0) == pytest.approx(SIGMA_CONST)
+    assert xs.TotalCrossSection(NuMu, 0.5) == pytest.approx(SIGMA_CONST, rel=1e-12, abs=0.0)
+    assert xs.TotalCrossSection(NuMu, 50.0) == pytest.approx(SIGMA_CONST, rel=1e-12, abs=0.0)
     assert xs.TotalCrossSection(NuE, 1.0) == 0.0
 
 
 def test_tabulated_cross_section_interpolates():
     xs = _table_cross_section()
     for energy in (0.1, 0.5, 1.0, 2.5, 10.0):
-        assert xs.TotalCrossSection(NuMu, energy) == pytest.approx(_table_sigma(energy))
+        assert xs.TotalCrossSection(NuMu, energy) == pytest.approx(_table_sigma(energy), rel=1e-12, abs=0.0)
     # Below the first knot the total vanishes; above the last it clamps.
     assert xs.TotalCrossSection(NuMu, 0.05) == 0.0
-    assert xs.TotalCrossSection(NuMu, 100.0) == pytest.approx(_table_sigma(10.0))
+    assert xs.TotalCrossSection(NuMu, 100.0) == pytest.approx(_table_sigma(10.0), rel=1e-12, abs=0.0)
 
 
 def test_signatures_are_pass_through():
@@ -144,14 +144,8 @@ def _physical_process(cross_section, dists):
 
 
 def _generate(inj, n):
-    events = []
-    for _ in range(n):
-        try:
-            ev = inj.GenerateEvent()
-        except RuntimeError:
-            break
-        if len(ev.tree) > 0:
-            events.append(ev)
+    events = [inj.GenerateEvent() for _ in range(n)]
+    assert all(len(event.tree) > 0 for event in events)
     return events
 
 
@@ -206,4 +200,4 @@ def test_collection_retrieval_preserves_type():
     assert collection.HasCrossSections()
     xs = collection.GetCrossSectionsForTarget(Nucleon)[0]
     assert isinstance(xs, interactions.TrivialCrossSection)
-    assert xs.TotalCrossSection(NuMu, 1.0) == pytest.approx(SIGMA_CONST)
+    assert xs.TotalCrossSection(NuMu, 1.0) == pytest.approx(SIGMA_CONST, rel=1e-12, abs=0.0)
