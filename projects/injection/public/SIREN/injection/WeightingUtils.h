@@ -15,6 +15,7 @@ namespace injection {
 
 struct MultiChannelPhaseSpace;
 class PhaseSpaceChannel;
+class PhysicalProcess;
 
 using PhaseSpaceConvention = siren::dataclasses::PhaseSpaceConvention;
 
@@ -80,6 +81,22 @@ double FixedVertexChannelSelectionProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record);
+
+// The convention of a process's final-state density at this record: its
+// registered proposal's, or else the matching interaction model's.
+PhaseSpaceConvention ProcessFinalStateConvention(
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record);
+
+// The final-state factor a process contributes at a vertex, in `convention`:
+// the rate-weighted probability for a propagated vertex, or the channel
+// selection probability times the selected density for a fixed vertex. A
+// registered proposal replaces the interaction model's own density.
+double ProcessFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceConvention const & convention);
 
 } // namespace injection
 } // namespace siren

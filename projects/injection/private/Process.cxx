@@ -1,7 +1,5 @@
 #include "SIREN/injection/Process.h"
 
-#include "SIREN/dataclasses/InteractionRecord.h"
-#include "SIREN/injection/WeightingUtils.h"
 #include "SIREN/utilities/Errors.h"
 
 #include <tuple>
@@ -108,43 +106,15 @@ void PhysicalProcess::SetPhaseSpace(
     siren::dataclasses::InteractionSignature const & sig,
     std::shared_ptr<MultiChannelPhaseSpace> ps)
 {
+    // Only the mixture itself is checked here. Whether its measure is
+    // compatible depends on the other process it is weighted against, so the
+    // weighter checks that pair when it is constructed.
     if (ps) {
         for (auto const & diagnostic : ps->ValidateChannelsDetailed()) {
             if (diagnostic.severity ==
                 MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Fatal) {
                 throw siren::utilities::MeasureCompatibilityError(
                     diagnostic.message);
-            }
-        }
-
-        auto process_interactions = GetInteractions();
-        if (process_interactions) {
-            siren::dataclasses::InteractionRecord record;
-            record.signature = sig;
-            PhaseSpaceConvention process_convention =
-                SelectedFinalStateConvention(process_interactions, record);
-            PhaseSpaceTopology mixture_topology = ps->CommonTopology();
-            PhaseSpaceMeasure mixture_measure = ps->CommonMeasure();
-            bool same_family =
-                process_convention.topology == mixture_topology &&
-                MeasureConvertibilityGroup(
-                    process_convention.topology,
-                    process_convention.measure) ==
-                MeasureConvertibilityGroup(
-                    process_convention.topology, mixture_measure);
-            if (process_convention.measure.type !=
-                    PhaseSpaceMeasure::Type::Unspecified &&
-                mixture_measure.type !=
-                    PhaseSpaceMeasure::Type::Unspecified &&
-                same_family &&
-                !PhaseSpaceDensityConvertible(
-                    process_convention.topology,
-                    process_convention.measure, mixture_measure)) {
-                throw siren::utilities::MeasureCompatibilityError(
-                    "Phase space registered for a signature is not "
-                    "convertible from that interaction model's "
-                    "final-state convention "
-                    "[siren-docs: errors#measure-compat]");
             }
         }
     }
