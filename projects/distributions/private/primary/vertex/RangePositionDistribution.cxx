@@ -89,7 +89,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> RangePositionDistributi
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoTargetsOnPath, "No interaction targets along path!"));
     }
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
@@ -165,6 +165,10 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<siren::d
 RangePositionDistribution::RangePositionDistribution() {}
 
 RangePositionDistribution::RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::set<siren::dataclasses::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
+
+std::set<DistributionVariable> RangePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
 
 std::string RangePositionDistribution::Name() const {
     return "RangePositionDistribution";

@@ -1,6 +1,7 @@
 #include "SIREN/distributions/primary/vertex/pyVertexPositionDistribution.h"
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <tuple>                                  // for tuple
 #include <vector>                                 // for vector
@@ -69,6 +70,26 @@ std::vector<std::string> pyVertexPositionDistribution::DensityVariables() const 
         std::vector<std::string>,
         DensityVariables,
         "DensityVariables"
+    )
+}
+
+std::set<DistributionVariable> pyVertexPositionDistribution::SetVariables() const {
+    SELF_OVERRIDE(
+        self,
+        VertexPositionDistribution,
+        std::set<DistributionVariable>,
+        SetVariables,
+        "SetVariables"
+    )
+}
+
+std::set<DistributionVariable> pyVertexPositionDistribution::RequiredVariables() const {
+    SELF_OVERRIDE(
+        self,
+        VertexPositionDistribution,
+        std::set<DistributionVariable>,
+        RequiredVariables,
+        "RequiredVariables"
     )
 }
 

@@ -23,12 +23,8 @@ DarkNewsCrossSection::DarkNewsCrossSection() {}
 
 
 bool DarkNewsCrossSection::equal(CrossSection const & other) const {
-    const DarkNewsCrossSection* x = dynamic_cast<const DarkNewsCrossSection*>(&other);
-
-    if(!x)
-        return false;
-    else
-        return true;
+    // Match the authoring default for native and legacy Python instances too.
+    return this == &other;
 }
 
 double DarkNewsCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {

@@ -39,6 +39,10 @@ namespace interactions {
     }
     //pybind11::object self;
 
+bool pyDarkNewsDecay::equal(Decay const & other) const {
+    SELF_OVERRIDE(self, DarkNewsDecay, bool, equal, "equal", other)
+}
+
 double pyDarkNewsDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
         SELF_OVERRIDE(
             self,
@@ -149,6 +153,15 @@ double pyDarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord con
         )
     }
 
+std::vector<double> pyDarkNewsDecay::SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const {
+    SELF_OVERRIDE(self, DarkNewsDecay, std::vector<double>,
+                  SecondaryMasses, "SecondaryMasses", secondary_types)
+}
+
+std::vector<double> pyDarkNewsDecay::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
+    SELF_OVERRIDE(self, DarkNewsDecay, std::vector<double>,
+                  SecondaryHelicities, "SecondaryHelicities", record)
+}
+
 } // namespace interactions
 } // namespace siren
-

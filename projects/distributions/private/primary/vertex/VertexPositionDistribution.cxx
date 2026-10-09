@@ -1,5 +1,6 @@
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 
+#include <set>                                                    // for set
 #include <array>                                                  // for array
 #include <string>                                                 // for bas...
 
@@ -20,6 +21,14 @@ void VertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_
     siren::math::Vector3D const & pos = std::get<1>(init_and_pos);
     record.SetInitialPosition((std::array<double, 3>)init);
     record.SetInteractionVertex((std::array<double, 3>)pos);
+}
+
+std::set<DistributionVariable> VertexPositionDistribution::SetVariables() const {
+    return {DistributionVariable::InteractionVertex};
+}
+
+std::set<DistributionVariable> VertexPositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection};
 }
 
 std::vector<std::string> VertexPositionDistribution::DensityVariables() const {

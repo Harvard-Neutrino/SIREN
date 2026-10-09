@@ -23,12 +23,8 @@ namespace interactions {
 DarkNewsDecay::DarkNewsDecay() {}
 
 bool DarkNewsDecay::equal(Decay const & other) const {
-    const DarkNewsDecay* x = dynamic_cast<const DarkNewsDecay*>(&other);
-
-    if(!x)
-        return false;
-    else
-        return true;
+    // Match the authoring default for native and legacy Python instances too.
+    return this == &other;
 }
 
 double DarkNewsDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
