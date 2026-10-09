@@ -209,7 +209,7 @@ TEST(PhaseSpaceSerialization, NestedMixtureRecurses) {
     EXPECT_EQ(loaded_nested->mixture->weights, inner->weights);
 }
 
-TEST(PhaseSpaceSerialization, PhysicalProcessVersion2PreservesMap) {
+TEST(PhaseSpaceSerialization, PhysicalProcessPreservesPhaseSpaceMap) {
     auto cross_section = std::make_shared<DummyCrossSection>();
     auto interactions = std::make_shared<InteractionCollection>(
         ParticleType::NuE,
@@ -246,15 +246,15 @@ TEST(PhaseSpaceSerialization, PhysicalProcessVersion2PreservesMap) {
     EXPECT_EQ(loaded->GetPhaseSpace(second)->channels.size(), 2u);
 }
 
-TEST(PhaseSpaceSerialization, PhysicalProcessVersion1FixtureLoadsEmptyMap) {
-    // Version 1 predates PhaseSpaceMap.
+TEST(PhaseSpaceSerialization, PhysicalProcessVersion0FixtureLoadsDefaults) {
+    // Version 0 predates weighting modes and proposals.
     constexpr char fixture[] = R"JSON({
         "PhysicalProcess": {
             "polymorphic_id": 1073741824,
             "ptr_wrapper": {
                 "id": 2147483649,
                 "data": {
-                    "cereal_class_version": 1,
+                    "cereal_class_version": 0,
                     "PhysicalDistributions": [
                         {
                             "polymorphic_id": 2147483649,
@@ -316,12 +316,6 @@ TEST(PhaseSpaceSerialization, PhysicalProcessVersion1FixtureLoadsEmptyMap) {
                                 }
                             }
                         }
-                    },
-                    "WeightingMode": {
-                        "cereal_class_version": 0,
-                        "ComputeInteractionProbability": false,
-                        "ComputePositionProbability": false,
-                        "BoundSource": 2
                     }
                 }
             }
@@ -342,7 +336,16 @@ TEST(PhaseSpaceSerialization, PhysicalProcessVersion1FixtureLoadsEmptyMap) {
     EXPECT_TRUE(loaded->GetPhaseSpaceMap().empty());
     EXPECT_EQ(
         loaded->GetWeightingMode(),
-        siren::dataclasses::VertexWeightingMode::Fixed());
+        siren::dataclasses::VertexWeightingMode::Propagated());
+}
+
+TEST(PhaseSpaceSerialization, CorruptRandomEngineStateIsRejected) {
+    std::stringstream stream(R"JSON({
+        "value0": {"cereal_class_version": 1, "Seed": 5, "EngineState": "1 2 3"}
+    })JSON");
+    cereal::JSONInputArchive archive(stream);
+    siren::utilities::SIREN_random random(7);
+    EXPECT_THROW(archive(random), std::runtime_error);
 }
 
 TEST(PhaseSpaceSerialization, PhysicalProcessPreservesDecayAliasing) {

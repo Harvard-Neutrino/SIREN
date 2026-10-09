@@ -116,7 +116,8 @@ struct EventWeightBreakdown {
 // Assumes there is a unique secondary physical process for each particle type
 class Weighter {
 private:
-    // Empty weighter for LoadWeighter's temp-and-swap; a failed parse never mutates the live weighter.
+    // LoadWeighter builds and initializes a temporary, so a failed load leaves
+    // the live weighter unchanged.
     Weighter() = default;
 
     // Supplied by constructor

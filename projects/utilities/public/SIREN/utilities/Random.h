@@ -44,10 +44,8 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version <= 1) {
             archive(::cereal::make_nvp("Seed", seed));
-            // Version 1 also serializes the full engine state so a loaded
-            // generator RESUMES the stream where it left off rather than
-            // restarting from the seed. mt19937_64's stream insertion emits
-            // its complete internal state (the state buffer plus position).
+            // Version 1 also stores the engine state, so a loaded generator
+            // continues its stream instead of restarting from the seed.
             if(version >= 1) {
                 std::ostringstream state;
                 state << configuration;
@@ -72,6 +70,8 @@ public:
                 archive(::cereal::make_nvp("EngineState", state_string));
                 std::istringstream state(state_string);
                 state >> configuration;
+                if(!state)
+                    throw std::runtime_error("SIREN_random: invalid engine state in archive");
                 generator = std::uniform_real_distribution<double>(0.0, 1.0);
             } else {
                 set_seed(seed);
