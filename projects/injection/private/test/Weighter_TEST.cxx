@@ -302,6 +302,22 @@ TEST(WeighterGuards, PooledInverseWeightOverflowThrows) {
                  siren::utilities::WeightCalculationError);
 }
 
+TEST(WeighterGuards, PooledInjectorThatCannotProduceTheEventContributesNothing) {
+    auto first = BuildWeighterGuardFixture(100, 2.0, 0.25);
+    auto second = BuildWeighterGuardFixture(100, 2.0, 0.0);
+    Weighter pooled({first.injector, second.injector},
+                    first.weighter->GetDetectorModel(),
+                    first.weighter->GetPrimaryPhysicalProcess());
+    double alone = first.weighter->EventWeight(first.tree);
+    EXPECT_DOUBLE_EQ(pooled.EventWeight(first.tree), alone);
+
+    auto breakdown = pooled.EventWeightWithBreakdown(first.tree);
+    EXPECT_DOUBLE_EQ(breakdown.total, alone);
+    ASSERT_EQ(breakdown.vertices.size(), 2u);
+    auto const & flags = breakdown.vertices.back().flags;
+    EXPECT_NE(std::find(flags.begin(), flags.end(), "generation density zero"), flags.end());
+}
+
 TEST(WeighterGuards, ZeroPhysicalProbabilityDoesNotHideInvalidPooledInjector) {
     auto first = BuildWeighterGuardFixture(1, 0.0);
     auto second = BuildWeighterGuardFixture(0, 0.0);

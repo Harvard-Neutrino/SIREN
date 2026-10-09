@@ -181,145 +181,128 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
     return factors;
 }
 
-double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) const {
-    if (tree.tree.empty())
-        throw siren::utilities::WeightCalculationError("Cannot weight an empty or failed event");
-
-    // However, the normalization of the physical position distribution is identical to the interaction probability.
-    // Thus, the two will cancel out and we are left with only the unnormalized position probability
-    //  w = p_physCommon / (\sum_i p_gen^i / p_physPosNonNorm^i)
-
-
-    double inv_weight = 0;
-    bool zero_weight = false;
-    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
-        auto check_probabilities = [&](double generation, double physical) {
-            if(generation <= 0.0 || !std::isfinite(generation)
-               || physical < 0.0 || !std::isfinite(physical)) {
-                std::ostringstream oss;
-                oss << "Weighter::EventWeight: unusable probabilities for injector " << idx;
-                if(!tree.tree.empty()) {
-                    oss << " (primary type "
-                        << tree.tree.front()->record.signature.primary_type << ")";
-                }
-                oss << ": generation_probability=" << generation
-                    << ", physical_probability=" << physical
-                    << " [siren-docs: errors#weight-calc]";
-                throw siren::utilities::WeightCalculationError(oss.str());
-            }
-        };
-        double physical_probability = 1.0;
-        double generation_probability = injectors[idx]->InjectionAttempts();
-        if(injectors[idx]->InjectionAttempts() == 0) {
-            generation_probability = injectors[idx]->EventsToInject();
-        }
-        for(auto const & datum : tree.tree) {
-            VertexWeightFactors factors = ComputeVertexFactors(idx, datum);
-            // Invalid vertex factors must not cancel or hide behind a zero.
-            check_probabilities(factors.generation, factors.physical);
-            physical_probability *= factors.physical;
-            generation_probability *= factors.generation;
-        }
-        check_probabilities(generation_probability, physical_probability);
-        if(physical_probability == 0.0) {
-            // Preserve zero support, but still validate every other injector.
-            zero_weight = true;
-            continue;
-        }
-        inv_weight += generation_probability / physical_probability;
-        if(!std::isfinite(inv_weight)) {
-            std::ostringstream oss;
-            oss << "Weighter::EventWeight: inverse weight overflow for injector " << idx
-                << ": generation_probability=" << generation_probability
-                << ", physical_probability=" << physical_probability
-                << " [siren-docs: errors#weight-calc]";
-            throw siren::utilities::WeightCalculationError(oss.str());
-        }
-    }
-    double weight = zero_weight ? 0.0 : 1.0 / inv_weight;
-    if(!std::isfinite(weight) || weight < 0.0) {
-        std::ostringstream oss;
-        oss << "Weighter::EventWeight: unusable event weight=" << weight
-            << ", inverse_weight=" << inv_weight
-            << " [siren-docs: errors#weight-calc]";
-        throw siren::utilities::WeightCalculationError(oss.str());
-    }
-    return weight;
-}
-
-// Report invalid probabilities or weight overflow with flags and a NaN total.
-// Valid zero physical support retains EventWeight's zero total.
-EventWeightBreakdown Weighter::EventWeightWithBreakdown(
-        siren::dataclasses::InteractionTree const & tree) const {
+EventWeightBreakdown Weighter::PoolEventWeight(
+        siren::dataclasses::InteractionTree const & tree,
+        bool with_diagnostics,
+        std::string * problem) const {
+    // The weight pools every injector i that could have produced the tree:
+    //
+    //   w = 1 / sum_i [ N_i * prod_d p_gen(i, d) / prod_d p_phys(i, d) ]
+    //
+    // N_i is injector i's attempt count and d runs over the tree's vertices.
+    // The physical interaction and position probabilities depend on each
+    // injector's bounds. The position density's normalization equals the
+    // interaction probability, so their product is the unnormalized position
+    // density. An injector whose generation density vanishes at some vertex
+    // cannot produce the tree and contributes nothing; the weight is undefined
+    // only if no injector can produce it.
     EventWeightBreakdown breakdown;
-    if (tree.tree.empty()) {
-        breakdown.total = std::numeric_limits<double>::quiet_NaN();
-        return breakdown;
-    }
-    double inv_weight = 0;
-    bool usable = true;
+    std::string first_problem;
+    auto reject = [&first_problem](std::string const & reason) {
+        if(first_problem.empty())
+            first_problem = reason;
+    };
+
+    if(tree.tree.empty())
+        reject("cannot weight an empty or failed event");
+
+    double inv_weight = 0.0;
     bool zero_weight = false;
-    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
-        double physical_probability = 1.0;
-        double generation_probability = injectors[idx]->InjectionAttempts();
-        if(injectors[idx]->InjectionAttempts() == 0) {
-            generation_probability = injectors[idx]->EventsToInject();
-        }
+    bool any_generating = false;
+    for(unsigned int idx = 0; idx < injectors.size() && !tree.tree.empty(); ++idx) {
+        std::string const injector_name = "injector " + std::to_string(idx);
+        // Before generation starts, the configured event count stands in for
+        // the attempt count.
+        double generation = injectors[idx]->InjectionAttempts();
+        if(generation == 0)
+            generation = injectors[idx]->EventsToInject();
+        if(generation == 0)
+            reject(injector_name + " has no attempts and no events to inject");
+        double physical = 1.0;
+        bool zero_generation_density = false;
         for(auto const & datum : tree.tree) {
-            VertexWeightFactors factors = ComputeVertexFactors(idx, datum, true);
-            if(!datum->is_root()) {
+            VertexWeightFactors factors = ComputeVertexFactors(idx, datum, with_diagnostics);
+            if(!datum->is_root())
                 factors.depth = static_cast<int>(datum->depth(tree));
+            std::ostringstream where;
+            where << injector_name << " at depth " << factors.depth
+                  << " (pdg " << factors.vertex_pdg << ")";
+            if(!std::isfinite(factors.generation) || factors.generation < 0.0) {
+                std::string flag = std::isfinite(factors.generation)
+                    ? "generation density negative" : "generation density non-finite";
+                factors.flags.push_back(flag);
+                reject(flag + " for " + where.str() + ": " + std::to_string(factors.generation));
+            } else if(factors.generation == 0.0) {
+                factors.flags.push_back("generation density zero");
+                zero_generation_density = true;
             }
-            if(!std::isfinite(factors.generation)) {
-                factors.flags.push_back("generation density non-finite");
-                usable = false;
-            } else if(factors.generation <= 0.0) {
-                factors.flags.push_back(factors.generation == 0.0
-                    ? "generation density zero" : "generation density negative");
-                usable = false;
-            }
-            if(!std::isfinite(factors.physical)) {
-                factors.flags.push_back("physical density non-finite");
-                usable = false;
-            } else if(factors.physical < 0.0) {
-                factors.flags.push_back("physical density negative");
-                usable = false;
+            if(!std::isfinite(factors.physical) || factors.physical < 0.0) {
+                std::string flag = std::isfinite(factors.physical)
+                    ? "physical density negative" : "physical density non-finite";
+                factors.flags.push_back(flag);
+                reject(flag + " for " + where.str() + ": " + std::to_string(factors.physical));
             } else if(factors.physical == 0.0) {
                 factors.flags.push_back("outside physical support (weight 0)");
             }
-            physical_probability *= factors.physical;
-            generation_probability *= factors.generation;
+            generation *= factors.generation;
+            physical *= factors.physical;
             breakdown.vertices.push_back(std::move(factors));
         }
-        if(generation_probability <= 0.0 || !std::isfinite(generation_probability)
-           || physical_probability < 0.0 || !std::isfinite(physical_probability)) {
-            usable = false;
-            if(!tree.tree.empty()) {
-                breakdown.vertices.back().flags.push_back("unusable event probabilities");
-            }
+        std::ostringstream values;
+        values << ": generation_probability=" << generation
+               << ", physical_probability=" << physical;
+        if(!std::isfinite(generation) || !std::isfinite(physical)
+           || (generation == 0.0 && !zero_generation_density)) {
+            // A product of finite positive factors overflowed or underflowed.
+            breakdown.vertices.back().flags.push_back("unusable event probabilities");
+            reject("unusable probabilities for " + injector_name + values.str());
             continue;
         }
-        if(physical_probability == 0.0) {
+        if(generation == 0.0)
+            continue;
+        any_generating = true;
+        if(physical == 0.0) {
             zero_weight = true;
             continue;
         }
-        inv_weight += generation_probability / physical_probability;
+        inv_weight += generation / physical;
         if(!std::isfinite(inv_weight)) {
-            usable = false;
-            if(!tree.tree.empty()) {
-                breakdown.vertices.back().flags.push_back("inverse weight overflow");
-            }
+            breakdown.vertices.back().flags.push_back("inverse weight overflow");
+            reject("inverse weight overflow at " + injector_name + values.str());
         }
     }
+    if(!tree.tree.empty() && !any_generating) {
+        if(!breakdown.vertices.empty())
+            breakdown.vertices.back().flags.push_back("no injector can produce this event");
+        reject("no injector can produce this event");
+    }
+
     double weight = zero_weight ? 0.0 : 1.0 / inv_weight;
-    if(usable && (!std::isfinite(weight) || weight < 0.0)) {
-        usable = false;
-        if(!breakdown.vertices.empty()) {
-            breakdown.vertices.back().flags.push_back("unusable event weight");
-        }
+    if(first_problem.empty() && (!std::isfinite(weight) || weight < 0.0)) {
+        breakdown.vertices.back().flags.push_back("unusable event weight");
+        reject("unusable event weight " + std::to_string(weight)
+               + " from inverse weight " + std::to_string(inv_weight));
     }
-    breakdown.total = usable ? weight : std::numeric_limits<double>::quiet_NaN();
+    breakdown.total = first_problem.empty()
+        ? weight : std::numeric_limits<double>::quiet_NaN();
+    if(problem)
+        *problem = first_problem;
     return breakdown;
+}
+
+double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) const {
+    std::string problem;
+    EventWeightBreakdown breakdown = PoolEventWeight(tree, false, &problem);
+    if(!problem.empty()) {
+        throw siren::utilities::WeightCalculationError(
+            "Weighter::EventWeight: " + problem + " [siren-docs: errors#weight-calc]");
+    }
+    return breakdown.total;
+}
+
+EventWeightBreakdown Weighter::EventWeightWithBreakdown(
+        siren::dataclasses::InteractionTree const & tree) const {
+    return PoolEventWeight(tree, true, nullptr);
 }
 
 std::vector<std::shared_ptr<Injector>> const & Weighter::GetInjectors() const {

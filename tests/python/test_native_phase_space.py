@@ -124,6 +124,44 @@ def test_declared_cos_theta_densities_match_isotropic_proposal(make_model, paren
         assert weighter.EventWeight(event) == pytest.approx(1 / n, rel=1e-12, abs=0)
 
 
+def test_pooled_injectors_skip_volumes_that_cannot_produce_the_event():
+    # Two injectors fill disjoint spheres, and the physical process has no
+    # position density. Each event then weighs its own sphere's volume per
+    # attempt, the other injector contributes nothing, and the pooled weights
+    # add up to the combined volume.
+    model = xs.HNLDipoleDecay(1.0, 1e-6, xs.HNLDipoleDecay.ChiralNature.Majorana)
+    collection = xs.InteractionCollection(P.N4, [model])
+    detector = siren.detector.DetectorModel()
+    shared = [
+        dist.PrimaryMass(1.0), dist.Monoenergetic(2.0),
+        dist.PrimaryNeutrinoHelicityDistribution(),
+        dist.FixedDirection(Vector3D(0, 0, 1)),
+    ]
+    n = 32
+    generators = []
+    volume = 0.0
+    for center, radius, seed in [(-5.0, 1.0, 11), (5.0, 2.0, 12)]:
+        sphere = siren.geometry.Sphere(
+            siren.geometry.Placement(Vector3D(center, 0, 0)), radius, 0.0)
+        process = inj.PrimaryInjectionProcess()
+        process.primary_type = P.N4
+        process.interactions = collection
+        process.weighting_mode = inj.VertexWeightingMode.Fixed()
+        process.distributions = shared + [dist.SphereVolumePositionDistribution(sphere)]
+        generators.append(inj._Injector(n, detector, process, utilities.SIREN_random(seed)))
+        volume += 4.0 / 3.0 * math.pi * radius**3
+    physical = inj.PhysicalProcess()
+    physical.primary_type = P.N4
+    physical.interactions = collection
+    physical.weighting_mode = inj.VertexWeightingMode.Fixed()
+    physical.distributions = shared
+    weighter = inj._Weighter(generators, detector, physical)
+    events = [generator.GenerateEvent() for generator in generators for _ in range(n)]
+    assert all(len(event.tree) == 1 for event in events)
+    total = sum(weighter.EventWeight(event) for event in events)
+    assert total == pytest.approx(volume, rel=1e-12, abs=0)
+
+
 def test_decay_archive_and_pickle_continue_rng_and_weights(tmp_path):
     generator, weighter = decay_setup()
     for _ in range(7):
