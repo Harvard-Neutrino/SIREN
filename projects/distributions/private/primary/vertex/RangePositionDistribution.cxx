@@ -75,7 +75,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> RangePositionDistributi
     std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     siren::dataclasses::InteractionRecord fake_record;
-    fake_record.signature.primary_type = record.type;
+    record.FinalizeAvailable(fake_record);
     fake_record.primary_mass = record.GetMass();
     fake_record.primary_momentum[0] = record.GetEnergy();
     double total_decay_length = interactions->TotalDecayLengthAllFinalStates(fake_record);
