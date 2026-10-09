@@ -77,41 +77,39 @@ void MergeConvention(
     throw siren::utilities::MeasureCompatibilityError(oss.str());
 }
 
-std::pair<double, double> AccumulateRates(
+// The interaction candidates at a vertex, with the total rate and the rate of
+// those matching the record's signature. Enumerating candidates traverses the
+// geometry, so each probability enumerates them once.
+struct CandidateRates {
+    std::vector<detail::InteractionCandidate> candidates;
+    double total = 0.0;
+    double selected = 0.0;
+};
+
+CandidateRates AccumulateRates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record,
-    std::size_t * candidate_count = nullptr)
+    siren::dataclasses::InteractionRecord const & record)
 {
-    std::vector<detail::InteractionCandidate> candidates =
-        detail::EnumerateInteractionCandidates(
-            detector_model, interactions, record);
-    double total_rate = 0.0;
-    double selected_rate = 0.0;
-    for (detail::InteractionCandidate const & candidate : candidates) {
-        total_rate += candidate.rate;
+    CandidateRates rates;
+    rates.candidates = detail::EnumerateInteractionCandidates(
+        detector_model, interactions, record);
+    for (detail::InteractionCandidate const & candidate : rates.candidates) {
+        rates.total += candidate.rate;
         if (candidate.signature == record.signature) {
-            selected_rate += candidate.rate;
+            rates.selected += candidate.rate;
         }
     }
-
-    if (candidate_count != nullptr) {
-        *candidate_count = candidates.size();
-    }
-    return {total_rate, selected_rate};
+    return rates;
 }
 
-// Find the FinalStateProbability for the matched interaction.
-// Returns rate-weighted FinalStateProbability for the selected signature.
+// The rate-weighted FinalStateProbability of the candidates matching the
+// record's signature, in `convention`.
 double RateWeightedFinalStateProbability(
-    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
-    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    std::vector<detail::InteractionCandidate> const & candidates,
     siren::dataclasses::InteractionRecord const & record,
     PhaseSpaceConvention const & convention)
 {
-    std::vector<detail::InteractionCandidate> candidates =
-        detail::EnumerateInteractionCandidates(
-            detector_model, interactions, record);
     double selected_final_state = 0.0;
     for (detail::InteractionCandidate const & candidate : candidates) {
         if (candidate.signature != record.signature) continue;
@@ -273,15 +271,14 @@ double SelectedFinalStateProbability(
     }
     if (matching_count <= 1) return matching_count == 1 ? direct_density : 0.0;
 
-    double selected_rate =
-        AccumulateRates(detector_model, interactions, record).second;
-    if (selected_rate <= 0.0 || !std::isfinite(selected_rate)) {
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.selected <= 0.0 || !std::isfinite(rates.selected)) {
         throw siren::utilities::WeightCalculationError(
             "SelectedFinalStateProbability: cannot form a rate-conditional "
-            "density from selected_rate=" + std::to_string(selected_rate));
+            "density from selected_rate=" + std::to_string(rates.selected));
     }
     double conditional_density = RateWeightedFinalStateProbability(
-        detector_model, interactions, record, convention) / selected_rate;
+        rates.candidates, record, convention) / rates.selected;
     if (!std::isfinite(conditional_density)) {
         throw siren::utilities::WeightCalculationError(
             "SelectedFinalStateProbability: rate-conditional density is "
@@ -295,10 +292,9 @@ double ChannelSelectionProbability(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record)
 {
-    auto [total_rate, selected_rate] =
-        AccumulateRates(detector_model, interactions, record);
-    if (total_rate == 0) return 0.0;
-    return selected_rate / total_rate;
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.total == 0) return 0.0;
+    return rates.selected / rates.total;
 }
 
 double FixedVertexChannelSelectionProbability(
@@ -306,9 +302,10 @@ double FixedVertexChannelSelectionProbability(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record)
 {
-    std::size_t candidate_count = 0;
-    auto [total_rate, selected_rate] =
-        AccumulateRates(detector_model, interactions, record, &candidate_count);
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    double total_rate = rates.total;
+    double selected_rate = rates.selected;
+    std::size_t candidate_count = rates.candidates.size();
 
     if (candidate_count <= 1) {
         return 1.0;
@@ -349,15 +346,10 @@ double CrossSectionProbability(
     siren::dataclasses::InteractionRecord const & record,
     PhaseSpaceConvention const & convention)
 {
-    auto [total_rate, selected_rate] =
-        AccumulateRates(detector_model, interactions, record);
-    if (total_rate == 0) return 0.0;
-
-    double selected_final_state =
-        RateWeightedFinalStateProbability(
-            detector_model, interactions, record, convention);
-
-    return selected_final_state / total_rate;
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.total == 0) return 0.0;
+    return RateWeightedFinalStateProbability(rates.candidates, record, convention)
+        / rates.total;
 }
 
 double CrossSectionProbabilityWithPhaseSpace(
@@ -378,14 +370,13 @@ double CrossSectionProbabilityWithPhaseSpace(
     MultiChannelPhaseSpace const & phase_space,
     PhaseSpaceConvention const & convention)
 {
-    auto [total_rate, selected_rate] =
-        AccumulateRates(detector_model, interactions, record);
-    if (total_rate == 0 || selected_rate == 0) return 0.0;
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.total == 0 || rates.selected == 0) return 0.0;
 
     double mc_density = phase_space.DensityIn(
         detector_model, record, convention);
 
-    return (selected_rate * mc_density) / total_rate;
+    return (rates.selected * mc_density) / rates.total;
 }
 
 PhaseSpaceConvention ProcessFinalStateConvention(
