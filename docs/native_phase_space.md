@@ -1,19 +1,20 @@
 # Native phase-space proposals
 
-A process can now use a sampling distribution different from its physical
-interaction. Assign a `MultiChannelPhaseSpace` to an interaction signature with
-`SetPhaseSpace`. The injector samples that mixture; the weighter evaluates the
-physical and proposal densities in a common measure.
+A process can sample an interaction's final state from a proposal instead of
+the physical model. Register a `MultiChannelPhaseSpace` for an interaction
+signature with `SetPhaseSpace`. The injector draws final states from that
+mixture, and the weighter divides the physical density by the mixture density,
+with both expressed in the same measure.
 
-This is the native API in `siren.injection`. The existing `siren.Injector` and
-`siren.Weighter` wrappers remain available. This increment does not add a new
-high-level simulation interface.
+These classes live in `siren.injection`. The high-level `siren.Injector` and
+`siren.Weighter` wrappers keep those names, so the native classes used below are
+exposed as `siren.injection._Injector` and `siren.injection._Weighter`.
 
-## A complete decay example
+## Example
 
-This conditional decay example uses the existing HNL dipole interaction. It
-checks sampling and weighting, not a beam exposure or detector prediction.
-All construction and execution calls use public bindings.
+This example samples HNL dipole decays at a fixed vertex from a mixture of the
+physical decay and an isotropic proposal, then weights and archives them. It
+checks sampling and weighting only; there is no beam exposure or detector.
 
 ```python
 import math
@@ -23,7 +24,10 @@ from siren import injection as inj, interactions as xs, utilities
 from siren.math import Vector3D
 
 N4 = dc.Particle.ParticleType.N4
-model = xs.HNLDipoleDecay(1.0, 1e-6, xs.HNLDipoleDecay.ChiralNature.Majorana)
+hnl_mass = 1.0          # GeV
+dipole_coupling = 1e-6  # GeV^-1
+model = xs.HNLDipoleDecay(
+    hnl_mass, dipole_coupling, xs.HNLDipoleDecay.ChiralNature.Majorana)
 interactions = xs.InteractionCollection(N4, [model])
 detector = siren.detector.DetectorModel()
 
@@ -32,8 +36,8 @@ process.primary_type = N4
 process.interactions = interactions
 process.weighting_mode = inj.VertexWeightingMode.Fixed()
 process.distributions = [
-    dist.PrimaryMass(1.0),
-    dist.Monoenergetic(2.0),
+    dist.PrimaryMass(hnl_mass),
+    dist.Monoenergetic(2.0),  # GeV
     dist.PrimaryNeutrinoHelicityDistribution(),
     dist.FixedDirection(Vector3D(0, 0, 1)),
     dist.SphereVolumePositionDistribution(siren.geometry.Sphere(1.0, 0.0)),
@@ -50,87 +54,109 @@ physical.interactions = interactions
 physical.weighting_mode = inj.VertexWeightingMode.Fixed()
 physical.distributions = process.distributions
 
-generator = inj._Injector(1000, detector, process, utilities.SIREN_random(19))
+n_events = 1000
+generator = inj._Injector(n_events, detector, process, utilities.SIREN_random(19))
 weighter = inj._Weighter([generator], detector, physical)
-events = [generator.GenerateEvent() for _ in range(1000)]
+events = [generator.GenerateEvent() for _ in range(n_events)]
 assert all(len(event.tree) == 1 for event in events)
+
+# A Majorana dipole decay is isotropic, so the physical and mixture densities
+# are equal and every event weighs exactly 1/n_events.
 weights = [weighter.EventWeight(event) for event in events]
 assert math.isclose(sum(weights), 1.0, rel_tol=1e-12)
 
 generator.SaveInjector("decay.injector")
-weighter.SaveWeighter("decay")
-restored = inj._Injector(1000, "decay.injector", utilities.SIREN_random(0))
+weighter.SaveWeighter("decay")  # writes decay.siren_weighter
+
+# The archive stores the RNG state, so the restored injector continues the
+# original stream. The engine passed here is used only for archives that
+# predate stored RNG state.
+restored = inj._Injector(n_events, "decay.injector", utilities.SIREN_random(0))
 restored_weighter = inj._Weighter([], "decay")
-assert restored.InjectionAttempts() == 1000
+assert restored.InjectionAttempts() == n_events
 assert restored_weighter.EventWeight(events[0]) == weights[0]
 ```
 
-`Fixed()` suppresses transport and vertex-position factors; it retains the
-probability of selecting the interaction channel. Here the identical source
-and spatial distributions cancel. The default `Propagated()` mode retains
-interaction and position probabilities over the distribution's injection bounds.
-A moving particle that scatters still requires a material geometry.
+## Weighting modes
 
-## Density contract
+`VertexWeightingMode.Fixed()` omits the transport and vertex-position factors
+but keeps the probability of selecting the interaction channel. In the example,
+the injection and physical processes share their source and position
+distributions, so those factors cancel. The default, `Propagated()`, includes
+the interaction and position probabilities over the injection bounds of the
+vertex distribution. A moving particle that scatters needs material in the
+detector model.
 
-A channel supplies `Sample`, `Density`, `Topology`, and `Measure`. `Density`
-must be evaluable at points drawn by other channels. A mixture samples channel
-*i* with normalized probability `weights[i]`; its proposal density is the sum
-of **all** weighted component densities at the resulting point. Nested mixtures
-and adapters for existing `Decay` and `CrossSection` objects follow the same rule.
+## Densities and measures
 
-Densities carry their integration measure. For example, `CosThetaRest` means a
-density per rest-frame `cos(theta)` with a declared uniform omitted azimuth.
-Lifting it to `SolidAngleRest` divides by `2*pi`. An arbitrary solid-angle
-density cannot be integrated over azimuth by a pointwise conversion, so that
-reverse operation is rejected. HNL dipole decays declare `CosThetaRest`; their
-existing `FinalStateProbability` values retain their historical meaning.
+A channel provides `Sample`, `Density`, `Topology` and `Measure`. `Density` must
+be defined at points drawn by any other channel in the same mixture. A mixture
+draws channel *i* with probability `weights[i]` (normalized to sum to one), and
+its density at a point is the weighted sum over **all** channels, not just the
+one that drew it. Nested mixtures and the adapters for existing `Decay` and
+`CrossSection` models follow the same rule.
 
-The native conversion functions also cover compatible two-body scattering
-and three-body charts. Incompatible topology, missing kinematic inputs, or
-an unsupported conversion produces a typed error. A convention override on a
-physical adapter is a declaration by its caller; it does not repair a density
-that is normalized in a different measure.
+Every density is differential in a declared measure. For example,
+`CosThetaRest` is a density per rest-frame `cos(theta)` with a uniform azimuth
+integrated out; converting it to `SolidAngleRest` divides by `2*pi`. The reverse
+would require integrating an arbitrary density over azimuth, so it is rejected.
 
-## Failure and normalization contract
+Interaction models declare their measure through `Measure()`, or through
+`MeasureForSignature()` when channels differ. The default is `Unspecified`: an
+undeclared density can be mixed only with channels in the same undeclared
+measure, and any conversion raises an error. `HNLDipoleDecay`,
+`ElectroweakDecay` and the two-body channels of `HNLDecay` declare
+`CosThetaRest`. The other built-in interactions do not declare a measure yet.
 
-`GenerateEvent()` consumes one attempt. A retryable `InjectionFailure` returns
-an empty tree and records the reason, depth, and particle in `GetFailureLedger()`.
-It does not replace the failed draw. Configuration and measure errors propagate.
-Callers should inspect empty events and failures before accepting a run.
+The conversion functions also cover two-body scattering measures and the
+three-body charts. An incompatible topology, missing kinematic inputs or an
+unsupported conversion raises a typed error. Passing a convention to a physical
+adapter declares the measure of that model's density; it does not convert a
+density that is normalized in a different measure.
 
-Weights use the number of **attempts**, including failed draws. Before generation,
-the configured quota supplies the normalization. Generate the batch before
-weighting it; weights change while the attempt count is increasing. Empty trees
-cannot receive a positive event weight. Zero physical support has weight zero;
-negative/nonfinite densities or nonpositive generation support raise errors.
-`EventWeightWithBreakdown` reports invalid weights as NaN with diagnostic flags.
+## Failed attempts and normalization
 
-Pure decays do not navigate material. At rest, their discrete channel selection
-uses partial-width ratios. Material interactions require finite nonzero momentum.
-Selected versus inclusive parent-width accounting and creation-point survival
-remain separate work; this PR does not introduce those interfaces.
+Each `GenerateEvent()` call is one attempt. A retryable `InjectionFailure`
+returns an empty tree and records the reason, depth and particle in
+`GetFailureLedger()`; the failed draw is not replaced. Configuration and measure
+errors propagate. Check for empty events and recorded failures before using a
+run.
 
-## Persistence and review boundary
+Weights are normalized by the number of **attempts**, including failed ones.
+Before generation starts, the configured number of events is used instead.
+Generate the whole batch before weighting it, because weights change while the
+attempt count grows. An empty tree cannot receive a positive weight.
 
-Native channels, mixtures, process maps, RNG state, attempt/failure counters,
-and weighters support archives and Python pickle. A failed file load preserves
-the receiving object's configuration. Old main injector archives remain readable;
-they did not store the RNG, so loading those uses the caller's supplied engine.
-Failure-ledger exemplars and the last partial tree are transient diagnostics.
+When several injectors are pooled in one weighter, an injector whose generation
+density is zero at an event contributes nothing to that event's weight; an
+error is raised only if no injector could have produced the event. A zero
+physical density gives weight zero. Negative or nonfinite densities raise
+errors, and `EventWeightWithBreakdown` reports them as a NaN total with
+per-vertex flags.
 
-Native archives reject live stopping callbacks rather than silently discard them.
-That restriction also applies when an existing Python wrapper attempts to pickle
-its underlying native injector. Serializable Python interaction/distribution
-subclasses retain their trampoline state; non-pickleable state fails explicitly.
-Do not load pickle or native archives from untrusted sources.
+Pure decays do not look up material. For a parent at rest, the decay channel is
+chosen from partial-width ratios. Material interactions require a finite,
+nonzero momentum.
 
-These are replacement-stack archives, not an interchange format for the unmerged
-original stack: mixture tuning state is deliberately absent. Directed proposals,
-tuning, beam readers, selected/parent decay widths, and model-authoring conveniences
-will be separate increments. Dutta–Kim models belong in BSM-beam.
+## Archives
 
-Run the focused acceptance checks against a matching staged runtime:
+Native channels, mixtures, process phase-space maps, RNG state, attempt and
+failure counters, and weighters can be saved to archives and pickled. If loading
+a file fails, the receiving object keeps its previous configuration. Archives
+written before RNG state was stored remain readable; loading one uses the
+engine passed by the caller. The failure ledger's example messages and the last
+partially generated tree are not saved.
+
+An injector with a stopping-condition callback cannot be saved or pickled,
+because the callback cannot be restored; this includes callbacks set through
+the `siren.Injector` wrapper. Python-defined interactions and distributions keep
+their pickled Python state, and state that cannot be pickled raises an error.
+Do not load pickles or native archives from untrusted sources.
+
+## Tests
+
+Run the focused checks against a build whose Python package and native
+libraries match the source:
 
 ```bash
 python -m pytest tests/python/test_native_phase_space.py -q
