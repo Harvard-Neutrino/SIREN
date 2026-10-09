@@ -56,7 +56,7 @@ struct VertexWeightingMode {
 
     // Standard propagation: particle travels through geometry,
     // interaction probability computed from cross section * density.
-    // This is the default and matches all existing SIREN behavior.
+    // This is the default.
     static VertexWeightingMode Propagated() {
         return {true, true, BoundSource::Geometry};
     }

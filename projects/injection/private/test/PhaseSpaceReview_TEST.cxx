@@ -1208,10 +1208,17 @@ TEST(AzimuthTaxonomy, PredicatesAndCompletionsAgree) {
         EXPECT_EQ(MeasureWithExplicitAzimuth(marginal), joint);
         EXPECT_EQ(MeasureWithExplicitAzimuth(joint), joint);
     }
-    EXPECT_TRUE(MeasureHasExplicitAzimuth(PhaseSpaceMeasure::SolidAngleRest()));
-    EXPECT_FALSE(MeasureIntegratesAzimuth(PhaseSpaceMeasure::SolidAngleRest()));
-    EXPECT_EQ(MeasureWithExplicitAzimuth(PhaseSpaceMeasure::SolidAngleRest()),
+    EXPECT_TRUE(MeasureIntegratesAzimuth(PhaseSpaceMeasure::CosThetaRest()));
+    EXPECT_EQ(MeasureWithExplicitAzimuth(PhaseSpaceMeasure::CosThetaRest()),
               PhaseSpaceMeasure::SolidAngleRest());
+    for (auto const & solid_angle :
+         {PhaseSpaceMeasure::SolidAngleRest(), PhaseSpaceMeasure::SolidAngleLab()}) {
+        EXPECT_TRUE(MeasureHasExplicitAzimuth(solid_angle));
+        EXPECT_FALSE(MeasureIntegratesAzimuth(solid_angle));
+        EXPECT_EQ(MeasureWithExplicitAzimuth(solid_angle), solid_angle);
+        EXPECT_FALSE(siren::dataclasses::PhaseSpaceDensityConvertible(
+            PhaseSpaceTopology::Decay2Body, solid_angle, PhaseSpaceMeasure::CosThetaRest()));
+    }
     EXPECT_FALSE(MeasureHasExplicitAzimuth(PhaseSpaceMeasure::Unspecified()));
     EXPECT_FALSE(MeasureIntegratesAzimuth(PhaseSpaceMeasure::Unspecified()));
 }

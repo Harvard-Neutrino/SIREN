@@ -35,10 +35,9 @@ struct TwoBodyLabSolution {
     bool valid = false;
 };
 
-// Given a parent with lab-frame velocity beta*gamma, a daughter with
-// rest-frame momentum p_rest and rest-frame energy E_rest, and a
-// desired lab-frame angle cos_theta_lab, solve for the rest-frame
-// angle cos_theta_rest.
+// Given a parent moving with velocity beta (Lorentz factor gamma), a
+// daughter with rest-frame momentum p_rest and energy E_rest, and a lab
+// angle cos_theta_lab, solve for the rest-frame angle cos_theta_rest.
 //
 // For massive daughters, there can be 0, 1, or 2 solutions.
 // Returns an array of up to 2 solutions.
@@ -47,8 +46,8 @@ struct TwoBodyLabSolution {
 //   p_lab * cos(theta_lab) = gamma * (p_rest * cos(theta_rest) + beta * E_rest)
 //   p_lab * sin(theta_lab) = p_rest * sin(theta_rest)
 //
-// The Jacobian dOmega_lab/dOmega_rest is:
-//   |dOmega_lab/dOmega_rest| = (E_rest / E_lab) * (p_lab^2 / p_rest^2) * |dp_lab/dp_rest|
+// Each solution also carries the Jacobian
+//   |dOmega_lab/dOmega_rest| = gamma * p_rest * |p_lab - beta * E_lab * cos_theta_lab| / p_lab^2
 //
 // Parameters:
 //   beta_parent:   parent velocity (|p_parent| / E_parent)
@@ -66,13 +65,10 @@ std::array<TwoBodyLabSolution, 2> SolveLabAngle(
     double cos_theta_lab
 );
 
-// Compute the critical angle: the maximum lab-frame angle for a
-// massive daughter. Beyond this angle, no rest-frame angle produces
-// the desired lab direction.
-//
-// Returns cos(theta_critical). For massless daughters or when the
-// parent velocity exceeds the daughter rest-frame velocity, there
-// is no critical angle and this returns -1 (all lab angles accessible).
+// Compute the critical angle: the largest lab angle a massive daughter can
+// reach. Returns cos(theta_critical). When the daughter's rest-frame velocity
+// p_rest / E_rest is at least the parent velocity, as for a massless daughter,
+// every lab angle is reachable and this returns -1.
 double CriticalCosTheta(
     double beta_parent,
     double gamma_parent,

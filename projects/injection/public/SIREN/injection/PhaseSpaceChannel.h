@@ -28,7 +28,7 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace injection {
 
-// Import new types
+// The convention types live in dataclasses.
 using PhaseSpaceTopology = siren::dataclasses::PhaseSpaceTopology;
 using PhaseSpaceMeasure = siren::dataclasses::PhaseSpaceMeasure;
 using PhaseSpaceConvention = siren::dataclasses::PhaseSpaceConvention;
@@ -91,12 +91,10 @@ struct MultiChannelPhaseSpace {
     std::vector<std::shared_ptr<PhaseSpaceChannel>> channels;
     std::vector<double> weights;  // alpha_i, must sum to 1
 
-    // Archived configuration. When set, fatal compatibility checks are skipped.
+    // Skips the fatal channel-compatibility checks. Stored in archives.
     bool allow_incompatible_ = false;
 
-    // Default construction leaves channels/weights empty for the assign-then-use
-    // pattern (populate the public members, then Normalize()).  Kept for pybind
-    // def_readwrite compatibility and existing C++ call sites.
+    // Leaves channels and weights empty; assign them, then call Normalize().
     MultiChannelPhaseSpace() = default;
 
     explicit MultiChannelPhaseSpace(
@@ -145,29 +143,11 @@ struct MultiChannelPhaseSpace {
         archive(::cereal::make_nvp(
             "AllowIncompatible", loaded_allow_incompatible));
 
-        if (loaded_channels.size() != loaded_weights.size()) {
-            throw std::runtime_error(
-                "MultiChannelPhaseSpace: channel/weight size mismatch in archive");
-        }
-        double weight_sum = 0.0;
-        for (double weight : loaded_weights) {
-            if (!std::isfinite(weight) || weight < 0.0) {
-                throw std::runtime_error(
-                    "MultiChannelPhaseSpace: invalid weight in archive");
-            }
-            weight_sum += weight;
-        }
-        if (!std::isfinite(weight_sum) || !(weight_sum > 0.0)) {
-            throw std::runtime_error(
-                "MultiChannelPhaseSpace: weight sum must be positive in archive");
-        }
-        if (std::abs(weight_sum - 1.0) > 1e-9) {
-            throw std::runtime_error("MultiChannelPhaseSpace: unnormalized archive weights");
-        }
         MultiChannelPhaseSpace loaded;
         loaded.channels = std::move(loaded_channels);
         loaded.weights = std::move(loaded_weights);
         loaded.allow_incompatible_ = loaded_allow_incompatible;
+        loaded.RequireNormalizedWeights("load");
         loaded.ThrowOnIncompatibility();
         *this = std::move(loaded);
     }
@@ -239,6 +219,8 @@ private:
     void EnsureConventionCache() const;
 
     void ThrowOnIncompatibility() const;
+    // Throws ConfigurationError unless the weights are valid and sum to one.
+    void RequireNormalizedWeights(char const * where) const;
 
     double ComputeContributions(
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,

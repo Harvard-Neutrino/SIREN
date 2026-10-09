@@ -23,7 +23,8 @@ DarkNewsCrossSection::DarkNewsCrossSection() {}
 
 
 bool DarkNewsCrossSection::equal(CrossSection const & other) const {
-    // Match the authoring default for native and legacy Python instances too.
+    // A DarkNews model's state lives in its Python subclass, which the C++
+    // type cannot compare, so only the same object compares equal.
     return this == &other;
 }
 

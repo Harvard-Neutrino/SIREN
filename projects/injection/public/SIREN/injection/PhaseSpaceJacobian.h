@@ -222,7 +222,7 @@ inline double MandelstamQ2DensityToFixedMassYDensity(
 }
 
 // ------------------------------------------------------------------ //
-//  SolidAngleRest <-> MandelstamQ2  (Scatter2to2 topology)            //
+//  SolidAngleRest <-> MandelstamQ2Phi  (Scatter2to2 topology)         //
 // ------------------------------------------------------------------ //
 //
 // For 2->2 scattering in the CM frame:
@@ -256,7 +256,7 @@ inline double SolidAngleRestToMandelstamQ2AbsJacobian(
     return 2.0 * std::sqrt(p_in_cm_sq * p_out_cm_sq);
 }
 
-// Backward-compatible elastic-scattering overload.
+// Elastic scattering: the outgoing masses equal the incoming ones.
 inline double SolidAngleRestToMandelstamQ2AbsJacobian(
     double s,
     double m_beam,

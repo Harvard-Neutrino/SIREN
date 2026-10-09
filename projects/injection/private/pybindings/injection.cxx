@@ -97,7 +97,6 @@ PYBIND11_MODULE(injection,m) {
 
   // Phase space channels
 
-  // New topology/measure enums
   enum_<PhaseSpaceTopology>(m, "PhaseSpaceTopology")
     .value("Decay2Body", PhaseSpaceTopology::Decay2Body,
            "Two-body final state from a single parent.")
@@ -274,7 +273,7 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("channels", &MultiChannelPhaseSpace::channels,
          "The list of PhaseSpaceChannel objects making up the mixture.")
     .def_readwrite("weights", &MultiChannelPhaseSpace::weights,
-         "Per-channel mixture weights alpha_i; need not be pre-normalized.")
+         "Per-channel mixture weights alpha_i; call Normalize() after assigning unnormalized values.")
     .def("Normalize", &MultiChannelPhaseSpace::Normalize,
          "Rescale weights in place so they sum to one.")
     .def("Sample", &MultiChannelPhaseSpace::Sample,
@@ -306,8 +305,7 @@ PYBIND11_MODULE(injection,m) {
     ))
     ;
 
-  // A sub-mixture wrapped as one channel: encapsulates a set of (e.g.
-  // geometric) channels whose inner weights remain part of the optimization.
+  // A mixture used as one channel of another mixture.
   class_<NestedMixtureChannel, std::shared_ptr<NestedMixtureChannel>, PhaseSpaceChannel>(m, "NestedMixtureChannel")
     .def(init<std::shared_ptr<MultiChannelPhaseSpace>>(), arg("mixture"))
     .def_readwrite("mixture", &NestedMixtureChannel::mixture)
@@ -319,9 +317,8 @@ PYBIND11_MODULE(injection,m) {
     ;
 
   class_<Isotropic2BodyChannel, std::shared_ptr<Isotropic2BodyChannel>, PhaseSpaceChannel>(m, "Isotropic2BodyChannel",
-      "Samples a two-body decay isotropically in the parent rest frame, with no "
-      "detector direction bias. Topology Decay2Body, Measure SolidAngleRest. Use as "
-      "the physical/fallback channel for a 2-body decay with no directing bias.")
+      "Samples a two-body decay isotropically in the parent rest frame. "
+      "Topology Decay2Body, measure SolidAngleRest.")
     .def(init<int>(), arg("daughter_index") = 0)
     .def(pybind11::pickle(
         &(siren::serialization::pickle_save<Isotropic2BodyChannel>),
@@ -330,10 +327,9 @@ PYBIND11_MODULE(injection,m) {
     ;
 
   class_<PhysicalDecayChannel, std::shared_ptr<PhysicalDecayChannel>, PhaseSpaceChannel>(m, "PhysicalDecayChannel",
-      "Samples the unbiased physical final state of a Decay (no detector "
-      "direction). Serves as the fallback channel in a mixture so events that "
-      "miss the target are still represented. Topology/Measure follow the "
-      "underlying interaction.")
+      "Samples a Decay's final state with the model's own sampler and reports "
+      "its FinalStateProbability. The topology and measure are the model's "
+      "declaration for the signature, or the convention passed explicitly.")
     .def(init<std::shared_ptr<siren::interactions::Decay>>())
     .def(init<std::shared_ptr<siren::interactions::Decay>,
               siren::dataclasses::InteractionSignature const &>())
@@ -349,10 +345,9 @@ PYBIND11_MODULE(injection,m) {
     ;
 
   class_<PhysicalCrossSectionChannel, std::shared_ptr<PhysicalCrossSectionChannel>, PhaseSpaceChannel>(m, "PhysicalCrossSectionChannel",
-      "Samples the unbiased physical final state of a CrossSection (no detector "
-      "direction). Serves as the fallback channel in a mixture so events that "
-      "miss the target are still represented. Topology/Measure follow the "
-      "underlying interaction.")
+      "Samples a CrossSection's final state with the model's own sampler and "
+      "reports its FinalStateProbability. The topology and measure are the "
+      "model's declaration for the signature, or the convention passed explicitly.")
     .def(init<std::shared_ptr<siren::interactions::CrossSection>>())
     .def(init<std::shared_ptr<siren::interactions::CrossSection>,
               siren::dataclasses::InteractionSignature const &>())
@@ -375,6 +370,10 @@ PYBIND11_MODULE(injection,m) {
 
   // Process
 
+  // The keep_alive policies below tie python-defined distributions, cross
+  // sections, and decays to the process, injector, or weighter consuming
+  // them; a python-defined object held only by C++ shared_ptrs loses its
+  // python half to garbage collection and virtual calls then fail.
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
