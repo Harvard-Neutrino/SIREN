@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_Cone_H
-#define SIREN_Cone_H
+#ifndef SIREN_geometry_Cone_H
+#define SIREN_geometry_Cone_H
 
 #include <memory>
 #include <vector>
@@ -95,4 +95,4 @@ CEREAL_CLASS_VERSION(siren::geometry::Cone, 0);
 CEREAL_REGISTER_TYPE(siren::geometry::Cone)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Cone);
 
-#endif // SIREN_Cone_H
+#endif // SIREN_geometry_Cone_H
