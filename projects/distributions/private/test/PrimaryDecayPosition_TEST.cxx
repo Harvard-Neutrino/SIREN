@@ -29,8 +29,6 @@ constexpr double width = 2e-16;
 constexpr double length = 25.0;
 constexpr double radius = 3.0;
 
-// A constant rest-frame width provides an independent exponential-flight oracle.
-// Inspect the actual record supplied to the physical model as well as positions.
 class ConstantDecay : public interactions::Decay {
 public:
     mutable InteractionRecord observed;
@@ -114,7 +112,6 @@ TEST_P(PrimaryDecayPosition, PreservesKinematicsAndSamplesExponentialFlight) {
         if(GetParam() != 0) density /= M_PI * radius * radius;
         EXPECT_NEAR(position->GenerationProbability(detector, collection, event), density, density * 1e-10);
     }
-    // Fixed seed; 0.5 m is more than four standard errors for every case.
     EXPECT_NEAR(total_distance / samples, expected_mean, 0.5);
 }
 
