@@ -43,14 +43,18 @@ std::shared_ptr<PrimaryInjectionProcess> MakeVertexlessPrimaryProcess() {
 // instead of sampling.  Every other override is an unreachable stub: Sample()
 // throws before SamplePosition/GenerationProbability/etc. can be invoked.
 class ThrowingVertexDistribution : public siren::distributions::VertexPositionDistribution {
+    siren::utilities::FailureReason reason_;
 public:
+    explicit ThrowingVertexDistribution(
+        siren::utilities::FailureReason reason = siren::utilities::FailureReason::NoTargetsOnPath)
+        : reason_(reason) {}
+
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(
         std::shared_ptr<siren::utilities::SIREN_random> /*rand*/,
         std::shared_ptr<siren::detector::DetectorModel const> /*detector_model*/,
         std::shared_ptr<siren::interactions::InteractionCollection const> /*interactions*/,
         siren::dataclasses::PrimaryDistributionRecord & /*record*/) const override {
-        throw siren::utilities::InjectionFailure(
-            siren::utilities::FailureReason::NoTargetsOnPath, "forced no targets");
+        throw siren::utilities::InjectionFailure(reason_, "forced no targets");
     }
 
     void Sample(
@@ -61,8 +65,7 @@ public:
         // Throw directly rather than delegating to SamplePosition() so the
         // failure fires unconditionally, with no dependence on the base
         // class's Sample() wiring.
-        throw siren::utilities::InjectionFailure(
-            siren::utilities::FailureReason::NoTargetsOnPath, "forced no targets");
+        throw siren::utilities::InjectionFailure(reason_, "forced no targets");
     }
 
     double GenerationProbability(
@@ -97,7 +100,8 @@ protected:
     }
 };
 
-std::shared_ptr<PrimaryInjectionProcess> MakeAlwaysFailingPrimaryProcess() {
+std::shared_ptr<PrimaryInjectionProcess> MakeAlwaysFailingPrimaryProcess(
+        siren::utilities::FailureReason reason = siren::utilities::FailureReason::NoTargetsOnPath) {
     ParticleType primary = ParticleType::NuMu;
     std::shared_ptr<DummyCrossSection> xs = std::make_shared<DummyCrossSection>();
     std::vector<std::shared_ptr<CrossSection>> xs_vec = {xs};
@@ -105,7 +109,7 @@ std::shared_ptr<PrimaryInjectionProcess> MakeAlwaysFailingPrimaryProcess() {
         std::make_shared<InteractionCollection>(primary, xs_vec);
     std::shared_ptr<PrimaryInjectionProcess> process =
         std::make_shared<PrimaryInjectionProcess>(primary, interactions);
-    process->AddPrimaryInjectionDistribution(std::make_shared<ThrowingVertexDistribution>());
+    process->AddPrimaryInjectionDistribution(std::make_shared<ThrowingVertexDistribution>(reason));
     return process;
 }
 
@@ -194,13 +198,28 @@ TEST(FailureLedgerUnit, RecordAggregatesByKeyAndKeepsFirstExemplar) {
 
 TEST(FailureLedgerUnit, KeepsFirstExemplarWhenEmpty) {
     FailureLedger ledger;
-    ledger.Record(1, 14, FailureReason::SamplingFailure, "");
-    ledger.Record(1, 14, FailureReason::SamplingFailure, "later failure");
+    ledger.Record(1, 14, FailureReason::KinematicallyForbidden, "");
+    ledger.Record(1, 14, FailureReason::KinematicallyForbidden, "later failure");
 
-    FailureLedger::Key key{1, 14, FailureReason::SamplingFailure};
+    FailureLedger::Key key{1, 14, FailureReason::KinematicallyForbidden};
     ASSERT_EQ(ledger.entries.size(), 1u);
     EXPECT_EQ(ledger.entries.at(key).count, 2u);
     EXPECT_TRUE(ledger.entries.at(key).exemplar.empty());
+}
+
+// A failure thrown without a reason is recorded as Unspecified, not
+// attributed to the vertex distribution.
+TEST(InjectorHardening, UntaggedFailureStaysUnspecified) {
+    std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
+    std::shared_ptr<SIREN_random> random = std::make_shared<SIREN_random>(1234);
+    Injector injector(1, detector_model,
+        MakeAlwaysFailingPrimaryProcess(FailureReason::Unspecified), random);
+
+    EXPECT_TRUE(injector.GenerateEvent().tree.empty());
+    int primary_pdg = static_cast<int>(ParticleType::NuMu);
+    FailureLedger::Key key{0, primary_pdg, FailureReason::Unspecified};
+    ASSERT_EQ(injector.GetFailureLedger().entries.count(key), 1u);
+    EXPECT_EQ(injector.GetLastFailureMessage(), "forced no targets");
 }
 
 // A primary vertex distribution that always throws NoTargetsOnPath must

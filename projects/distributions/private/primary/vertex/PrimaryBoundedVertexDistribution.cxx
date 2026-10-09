@@ -98,7 +98,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryBoundedVertexDis
 
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoPathThroughVolume, "No path through the injection volume!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoTargetsOnPath, "No available interactions along path!"));
     }
 
     double traversed_interaction_depth;
