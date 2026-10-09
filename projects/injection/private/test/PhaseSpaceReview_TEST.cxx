@@ -23,6 +23,7 @@
 #include "SIREN/injection/WeightingUtils.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
+#include "SIREN/interactions/DummyCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Errors.h"
@@ -391,6 +392,12 @@ public:
     std::vector<std::string> DensityVariables() const override {
         return {"cos_theta"};
     }
+    PhaseSpaceMeasure MeasureForSignature(
+        siren::dataclasses::InteractionSignature const & signature) const override {
+        return signature.secondary_types.size() == 2
+            ? PhaseSpaceMeasure::SolidAngleRest()
+            : PhaseSpaceMeasure::HelicityAngles();
+    }
 
 private:
     std::vector<siren::dataclasses::InteractionSignature> signatures_;
@@ -400,9 +407,9 @@ class MixedSignatureCrossSection final
     : public siren::interactions::CrossSection {
 public:
     explicit MixedSignatureCrossSection(
-        std::vector<std::string> density_variables = {"q2"})
+        PhaseSpaceMeasure measure = PhaseSpaceMeasure::MandelstamQ2())
         : signatures_{SignatureWithSecondaries(2), SignatureWithSecondaries(3)}
-        , density_variables_(std::move(density_variables)) {}
+        , measure_(measure) {}
 
     bool equal(siren::interactions::CrossSection const & other) const override {
         return dynamic_cast<MixedSignatureCrossSection const *>(&other) != nullptr;
@@ -443,12 +450,16 @@ public:
         return 1.0;
     }
     std::vector<std::string> DensityVariables() const override {
-        return density_variables_;
+        return {};
+    }
+    PhaseSpaceMeasure MeasureForSignature(
+        siren::dataclasses::InteractionSignature const &) const override {
+        return measure_;
     }
 
 private:
     std::vector<siren::dataclasses::InteractionSignature> signatures_;
-    std::vector<std::string> density_variables_;
+    PhaseSpaceMeasure measure_;
 };
 
 siren::dataclasses::InteractionSignature SharedDecaySignature() {
@@ -1165,20 +1176,18 @@ TEST(PhysicalAdapterSignature, PinsCrossSectionTopologyAndMeasure) {
     EXPECT_EQ(pinned_three.Measure(), PhaseSpaceMeasure::MandelstamQ2());
 }
 
-TEST(CrossSectionMeasureInference, RecognizesExplicitAzimuthVariables) {
+TEST(InteractionMeasureDeclaration, UndeclaredMeasuresAreUnspecified) {
+    // Density-variable names such as "Bjorken x" do not declare a measure;
+    // only an override does.
     auto signature = SignatureWithSecondaries(2);
+    siren::interactions::DummyCrossSection undeclared;
+    EXPECT_EQ(undeclared.Measure(), PhaseSpaceMeasure::Unspecified());
+    EXPECT_EQ(undeclared.MeasureForSignature(signature),
+              PhaseSpaceMeasure::Unspecified());
 
-    MixedSignatureCrossSection fixed_y({"y", "phi"});
-    EXPECT_EQ(fixed_y.MeasureForSignature(signature),
+    MixedSignatureCrossSection declared(PhaseSpaceMeasure::FixedMassYPhi());
+    EXPECT_EQ(declared.MeasureForSignature(signature),
               PhaseSpaceMeasure::FixedMassYPhi());
-
-    MixedSignatureCrossSection q2_y({"q2", "y", "azimuth"});
-    EXPECT_EQ(q2_y.MeasureForSignature(signature),
-              PhaseSpaceMeasure::MandelstamQ2YPhi());
-
-    MixedSignatureCrossSection bjorken({"bjorken_x", "y", "phi"});
-    EXPECT_EQ(bjorken.MeasureForSignature(signature),
-              PhaseSpaceMeasure::BjorkenXYPhi());
 }
 
 TEST(AzimuthTaxonomy, PredicatesAndCompletionsAgree) {
@@ -1283,7 +1292,7 @@ TEST(PhysicalChannelAdapters, AcceptExplicitSignatureConventionOverride) {
 TEST(WeightingConvention, LiftsNaturalFixedMassYIntoJointProposalMeasure) {
     auto signature = SignatureWithSecondaries(2);
     auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        std::vector<std::string>{"y"});
+        PhaseSpaceMeasure::FixedMassY());
     auto interactions =
         std::make_shared<siren::interactions::InteractionCollection>(
             siren::dataclasses::ParticleType::unknown,
@@ -1305,7 +1314,7 @@ TEST(WeightingConvention, LiftsNaturalFixedMassYIntoJointProposalMeasure) {
 TEST(ProcessPhaseSpaceValidation, RejectsPointwiseMarginalizationAtSetup) {
     auto signature = SignatureWithSecondaries(2);
     auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        std::vector<std::string>{"y", "phi"});
+        PhaseSpaceMeasure::FixedMassYPhi());
     auto interactions =
         std::make_shared<siren::interactions::InteractionCollection>(
             siren::dataclasses::ParticleType::unknown,
@@ -1330,7 +1339,7 @@ TEST(ProcessPhaseSpaceValidation, AcceptsOpaqueModelWithDeclaredMixture) {
     // the propagated path weights through the mixture density alone.
     auto signature = SignatureWithSecondaries(2);
     auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        std::vector<std::string>{});
+        PhaseSpaceMeasure::Unspecified());
     auto interactions =
         std::make_shared<siren::interactions::InteractionCollection>(
             siren::dataclasses::ParticleType::unknown,
@@ -1361,7 +1370,7 @@ TEST(ProcessPhaseSpaceValidation, AcceptsOpaqueModelWithDeclaredMixture) {
 TEST(ProcessPhaseSpaceValidation, AcceptsForeignChartMixture) {
     auto signature = SignatureWithSecondaries(2);
     auto cross_section = std::make_shared<MixedSignatureCrossSection>(
-        std::vector<std::string>{"bjorken_x", "bjorken_y"});
+        PhaseSpaceMeasure::BjorkenXY());
     auto interactions =
         std::make_shared<siren::interactions::InteractionCollection>(
             siren::dataclasses::ParticleType::unknown,

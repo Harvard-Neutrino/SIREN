@@ -12,35 +12,55 @@ from siren.math import Vector3D
 P = dc.Particle.ParticleType
 
 
-def decay_setup(n=256, mixture=True):
+def two_body_mixture(model):
+    """Proposal for each two-body channel: 30% physical decay, 70% isotropic."""
+    def propose(signature):
+        if len(signature.secondary_types) != 2:
+            return None
+        return inj.MultiChannelPhaseSpace([
+            inj.PhysicalDecayChannel(model, signature),
+            inj.Isotropic2BodyChannel(),
+        ], [0.3, 0.7])
+    return propose
+
+
+def fixed_decay_setup(model, parent, mass, n, propose=None):
+    """Injector and weighter for decays at a fixed vertex, with E = 2 * mass.
+
+    propose(signature) returns the proposal for a channel, or None to sample
+    the physical decay.
+    """
     detector = siren.detector.DetectorModel()
-    model = xs.HNLDipoleDecay(1.0, 1e-6, xs.HNLDipoleDecay.ChiralNature.Dirac)
-    collection = xs.InteractionCollection(P.N4, [model])
+    collection = xs.InteractionCollection(parent, [model])
     process = inj.PrimaryInjectionProcess()
-    process.primary_type = P.N4
+    process.primary_type = parent
     process.interactions = collection
     process.weighting_mode = inj.VertexWeightingMode.Fixed()
     process.distributions = [
-        dist.PrimaryMass(1.0), dist.Monoenergetic(2.0),
+        dist.PrimaryMass(mass), dist.Monoenergetic(2.0 * mass),
         dist.PrimaryNeutrinoHelicityDistribution(),
         dist.FixedDirection(Vector3D(0, 0, 1)),
         dist.SphereVolumePositionDistribution(siren.geometry.Sphere(1.0, 0.0)),
     ]
-    if mixture:
-        for signature in model.GetPossibleSignaturesFromParent(P.N4):
-            proposal = inj.MultiChannelPhaseSpace([
-                inj.PhysicalDecayChannel(model, signature),
-                inj.Isotropic2BodyChannel(),
-            ], [0.3, 0.7])
-            process.SetPhaseSpace(signature, proposal)
+    if propose is not None:
+        for signature in model.GetPossibleSignaturesFromParent(parent):
+            proposal = propose(signature)
+            if proposal is not None:
+                process.SetPhaseSpace(signature, proposal)
     generator = inj._Injector(n, detector, process, utilities.SIREN_random(6217))
     physical = inj.PhysicalProcess()
-    physical.primary_type = P.N4
+    physical.primary_type = parent
     physical.interactions = collection
     physical.weighting_mode = inj.VertexWeightingMode.Fixed()
     physical.distributions = process.distributions
     weighter = inj._Weighter([generator], detector, physical)
     return generator, weighter
+
+
+def decay_setup(n=256, mixture=True):
+    model = xs.HNLDipoleDecay(1.0, 1e-6, xs.HNLDipoleDecay.ChiralNature.Dirac)
+    propose = two_body_mixture(model) if mixture else None
+    return fixed_decay_setup(model, P.N4, 1.0, n, propose)
 
 
 def record_state(event):
@@ -84,6 +104,24 @@ def test_decay_mixture_matches_analytic_angular_density():
     # Integral of f is one; its first angular moment is 1/3.
     assert sum(weights) == pytest.approx(1.0, abs=0.035)
     assert sum(w * c for w, c in zip(weights, cosines)) == pytest.approx(1 / 3, abs=0.035)
+
+
+@pytest.mark.parametrize('make_model, parent, mass', [
+    (lambda: xs.HNLDecay(1.0, 1e-3, xs.HNLDecay.ChiralNature.Majorana), P.N4, 1.0),
+    (lambda: xs.ElectroweakDecay({P.WPlus}), P.WPlus, 80.379),
+], ids=['HNLDecay', 'ElectroweakDecay'])
+def test_declared_cos_theta_densities_match_isotropic_proposal(make_model, parent, mass):
+    # Both decays are isotropic. With their declared per-cos(theta) measure the
+    # physical density equals the isotropic proposal, so every weight is 1/n;
+    # reading the density as per solid angle would give about 2.4/n.
+    model = make_model()
+    n = 64
+    generator, weighter = fixed_decay_setup(model, parent, mass, n, two_body_mixture(model))
+    events = [generator.GenerateEvent() for _ in range(n)]
+    assert all(len(event.tree) == 1 for event in events)
+    assert any(len(event.tree[0].record.secondary_momenta) == 2 for event in events)
+    for event in events:
+        assert weighter.EventWeight(event) == pytest.approx(1 / n, rel=1e-12, abs=0)
 
 
 def test_decay_archive_and_pickle_continue_rng_and_weights(tmp_path):

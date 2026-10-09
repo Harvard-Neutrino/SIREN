@@ -62,12 +62,9 @@ public:
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
+    // FinalStateProbability is per rest-frame cos(theta), uniform in azimuth.
     dataclasses::PhaseSpaceMeasure Measure() const override {
         return dataclasses::PhaseSpaceMeasure::CosThetaRest();
-    }
-    dataclasses::PhaseSpaceMeasure MeasureForSignature(
-            dataclasses::InteractionSignature const &) const override {
-        return Measure();
     }
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

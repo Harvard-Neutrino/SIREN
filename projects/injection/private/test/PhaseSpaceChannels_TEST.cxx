@@ -156,6 +156,13 @@ public:
         return {"CosTheta"};
     }
 
+    PhaseSpaceMeasure MeasureForSignature(
+        siren::dataclasses::InteractionSignature const & signature) const override {
+        return signature.secondary_types.size() == 2
+            ? PhaseSpaceMeasure::SolidAngleRest()
+            : PhaseSpaceMeasure::HelicityAngles();
+    }
+
     static siren::dataclasses::InteractionSignature TwoBodySignature() {
         siren::dataclasses::InteractionSignature sig;
         sig.primary_type = ParticleType::N4;
@@ -287,16 +294,12 @@ TEST(PhaseSpaceChannels, PhysicalDecayMeasureFromModel) {
     PhysicalDecayChannel two_body(decay, MixedArityDecay::TwoBodySignature());
     PhysicalDecayChannel three_body(decay, MixedArityDecay::ThreeBodySignature());
 
-    // MixedArityDecay doesn't override Measure(); the signature-blind
-    // constructor sees mixed arities and stays Unspecified, while the
-    // signature constructors pin the per-signature convention.
+    // MixedArityDecay declares a measure per signature only. The
+    // signature-blind constructor reads Measure(), which stays Unspecified;
+    // the signature constructors use the per-signature declaration.
     EXPECT_EQ(generic.Measure().type, PhaseSpaceMeasure::Type::Unspecified);
-    EXPECT_EQ(two_body.Measure(),
-              decay->MeasureForSignature(MixedArityDecay::TwoBodySignature()));
-    EXPECT_NE(two_body.Measure().type, PhaseSpaceMeasure::Type::Unspecified);
-    EXPECT_EQ(three_body.Measure(),
-              decay->MeasureForSignature(MixedArityDecay::ThreeBodySignature()));
-    EXPECT_NE(three_body.Measure().type, PhaseSpaceMeasure::Type::Unspecified);
+    EXPECT_EQ(two_body.Measure(), PhaseSpaceMeasure::SolidAngleRest());
+    EXPECT_EQ(three_body.Measure(), PhaseSpaceMeasure::HelicityAngles());
 
 }
 

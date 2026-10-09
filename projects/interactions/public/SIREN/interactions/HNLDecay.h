@@ -104,6 +104,14 @@ public:
     std::pair<rk::P4,rk::P4> ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & PhiRot_HNLRest) const;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
+    // Two-body FinalStateProbability is per rest-frame cos(theta), uniform in
+    // azimuth. Three-body values are not normalized in a declared measure.
+    dataclasses::PhaseSpaceMeasure MeasureForSignature(
+            dataclasses::InteractionSignature const & signature) const override {
+        if (signature.secondary_types.size() == 2)
+            return dataclasses::PhaseSpaceMeasure::CosThetaRest();
+        return dataclasses::PhaseSpaceMeasure::Unspecified();
+    }
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

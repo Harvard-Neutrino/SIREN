@@ -55,6 +55,10 @@ public:
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
+    // The topology and measure FinalStateProbability is differential in.
+    // Undeclared measures are Unspecified, and an Unspecified density is never
+    // converted or mixed with declared channels. MeasureForSignature defaults
+    // to Measure(); override it only when channels use different measures.
     virtual siren::dataclasses::PhaseSpaceTopology Topology() const;
     virtual siren::dataclasses::PhaseSpaceMeasure Measure() const;
     virtual siren::dataclasses::PhaseSpaceTopology TopologyForSignature(

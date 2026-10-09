@@ -86,6 +86,10 @@ public:
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
+    // FinalStateProbability is per rest-frame cos(theta); the decay is isotropic.
+    dataclasses::PhaseSpaceMeasure Measure() const override {
+        return dataclasses::PhaseSpaceMeasure::CosThetaRest();
+    }
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
