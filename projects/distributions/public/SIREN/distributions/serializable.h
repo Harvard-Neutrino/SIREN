@@ -21,6 +21,7 @@
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
+#include "SIREN/distributions/primary/vertex/SphereVolumePositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/DecayRangeFunction.h"
 #include "SIREN/distributions/primary/vertex/DecayRangePositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/DepthFunction.h"

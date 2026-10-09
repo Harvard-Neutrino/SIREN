@@ -62,6 +62,13 @@ public:
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
+    dataclasses::PhaseSpaceMeasure Measure() const override {
+        return dataclasses::PhaseSpaceMeasure::CosThetaRest();
+    }
+    dataclasses::PhaseSpaceMeasure MeasureForSignature(
+            dataclasses::InteractionSignature const &) const override {
+        return Measure();
+    }
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -86,6 +93,10 @@ public:
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
             archive(::cereal::make_nvp("DipoleCoupling", _dipole_coupling));
             archive(::cereal::make_nvp("ChiralNature", _nature));
+            if(_nature != static_cast<int>(Dirac) && _nature != static_cast<int>(Majorana)) {
+                throw std::runtime_error("HNLDipoleDecay: invalid ChiralNature value "
+                    + std::to_string(_nature) + " in archive");
+            }
             construct(_hnl_mass, _dipole_coupling, static_cast<ChiralNature>(_nature), _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
         } else {

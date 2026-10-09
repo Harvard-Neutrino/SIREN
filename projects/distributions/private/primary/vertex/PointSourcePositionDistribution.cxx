@@ -76,7 +76,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PointSourcePositionDist
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure(siren::utilities::FailureReason::NoTargetsOnPath, "No interaction targets along path!"));
     }
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
@@ -145,6 +145,10 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<si
 PointSourcePositionDistribution::PointSourcePositionDistribution() {}
 
 PointSourcePositionDistribution::PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance) : origin(origin), max_distance(max_distance) {}
+
+std::set<DistributionVariable> PointSourcePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
 
 std::string PointSourcePositionDistribution::Name() const {
     return "PointSourcePositionDistribution";
