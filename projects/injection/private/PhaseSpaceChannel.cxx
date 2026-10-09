@@ -477,40 +477,31 @@ double ConvertDensity(
 
 namespace {
 
-void ThrowIfWeightsInconsistent(
+// Checks that there are channels, one weight per channel, and that every
+// weight is finite and nonnegative. Returns the weight sum.
+double CheckedWeightSum(
     std::vector<std::shared_ptr<PhaseSpaceChannel>> const & channels,
     std::vector<double> const & weights,
-    const char * where)
+    std::string const & where)
 {
+    if (channels.empty()) {
+        throw siren::utilities::ConfigurationError(
+            where + ": the mixture has no channels [siren-docs: errors#configuration]");
+    }
     if (channels.size() != weights.size()) {
-        std::ostringstream oss;
-        oss << "MultiChannelPhaseSpace::" << where
-            << ": weights size (" << weights.size()
-            << ") does not match channels size (" << channels.size() << ")"
-            << " -- call Normalize() or use the validating constructor"
-            << " [siren-docs: errors#configuration]";
-        throw siren::utilities::ConfigurationError(oss.str());
+        throw siren::utilities::ConfigurationError(
+            where + ": " + std::to_string(weights.size()) + " weights for "
+            + std::to_string(channels.size()) + " channels [siren-docs: errors#configuration]");
     }
     for (size_t i = 0; i < weights.size(); ++i) {
         if (!std::isfinite(weights[i]) || weights[i] < 0.0) {
             std::ostringstream oss;
-            oss << "MultiChannelPhaseSpace::" << where
-                << ": weight " << i << " is " << weights[i]
-                << " (must be finite and non-negative)"
-                << " -- call Normalize() or use the validating constructor"
-                << " [siren-docs: errors#configuration]";
+            oss << where << ": weight " << i << " is " << weights[i]
+                << " (must be finite and nonnegative) [siren-docs: errors#configuration]";
             throw siren::utilities::ConfigurationError(oss.str());
         }
     }
-    double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
-    if (std::abs(sum - 1.0) > 1e-9) {
-        std::ostringstream oss;
-        oss << "MultiChannelPhaseSpace::" << where
-            << ": weights sum to " << sum << ", not 1"
-            << " -- call Normalize() or use the validating constructor"
-            << " [siren-docs: errors#configuration]";
-        throw siren::utilities::ConfigurationError(oss.str());
-    }
+    return std::accumulate(weights.begin(), weights.end(), 0.0);
 }
 
 } // anonymous namespace
@@ -528,40 +519,29 @@ MultiChannelPhaseSpace::MultiChannelPhaseSpace(
 }
 
 void MultiChannelPhaseSpace::Normalize() {
-    if (channels.empty()) {
-        throw siren::utilities::ConfigurationError(
-            "MultiChannelPhaseSpace has no channels"
-            " [siren-docs: errors#configuration]");
-    }
-    if (weights.empty()) {
-        // Uniform prior: 1/N per channel.
+    if (weights.empty() && !channels.empty()) {
         weights.assign(channels.size(), 1.0 / static_cast<double>(channels.size()));
         return;
     }
-    if (weights.size() != channels.size()) {
-        std::ostringstream oss;
-        oss << "MultiChannelPhaseSpace::Normalize: weights size ("
-            << weights.size() << ") does not match channels size ("
-            << channels.size() << ") [siren-docs: errors#configuration]";
-        throw siren::utilities::ConfigurationError(oss.str());
-    }
-    for (size_t i = 0; i < weights.size(); ++i) {
-        if (!std::isfinite(weights[i]) || weights[i] < 0.0) {
-            std::ostringstream oss;
-            oss << "MultiChannelPhaseSpace::Normalize: weight " << i << " is "
-                << weights[i] << " (must be finite and non-negative)"
-                << " [siren-docs: errors#configuration]";
-            throw siren::utilities::ConfigurationError(oss.str());
-        }
-    }
-    double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
+    double sum = CheckedWeightSum(channels, weights, "MultiChannelPhaseSpace::Normalize");
     if (!std::isfinite(sum) || sum <= 0.0) {
         std::ostringstream oss;
-        oss << "MultiChannelPhaseSpace::Normalize: weight sum is "
-            << sum << " (must be > 0) [siren-docs: errors#configuration]";
+        oss << "MultiChannelPhaseSpace::Normalize: weight sum is " << sum
+            << " (must be positive) [siren-docs: errors#configuration]";
         throw siren::utilities::ConfigurationError(oss.str());
     }
     for (double & w : weights) w /= sum;
+}
+
+void MultiChannelPhaseSpace::RequireNormalizedWeights(char const * where) const {
+    std::string context = std::string("MultiChannelPhaseSpace::") + where;
+    double sum = CheckedWeightSum(channels, weights, context);
+    if (!(std::abs(sum - 1.0) <= 1e-9)) {
+        std::ostringstream oss;
+        oss << context << ": weights sum to " << sum
+            << ", not 1; call Normalize() [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
+    }
 }
 
 std::size_t MultiChannelPhaseSpace::ConventionFingerprint() const {
@@ -707,14 +687,7 @@ int MultiChannelPhaseSpace::Sample(
     siren::dataclasses::InteractionRecord & record) const
 {
     ThrowOnIncompatibility();
-
-    if (channels.empty()) {
-        throw siren::utilities::ConfigurationError(
-            "MultiChannelPhaseSpace has no channels"
-            " [siren-docs: errors#configuration]");
-    }
-
-    ThrowIfWeightsInconsistent(channels, weights, "Sample");
+    RequireNormalizedWeights("Sample");
 
     double r = random->Uniform(0, 1);
     double cumulative = 0.0;
@@ -738,14 +711,7 @@ double MultiChannelPhaseSpace::ComputeContributions(
     std::vector<double> * bare) const
 {
     ThrowOnIncompatibility();
-
-    if (channels.empty()) {
-        throw siren::utilities::ConfigurationError(
-            "MultiChannelPhaseSpace has no channels"
-            " [siren-docs: errors#configuration]");
-    }
-
-    ThrowIfWeightsInconsistent(channels, weights, "ComputeContributions");
+    RequireNormalizedWeights("Density");
 
     if (!cached_topology_error_.empty()) {
         throw siren::utilities::MeasureCompatibilityError(cached_topology_error_);

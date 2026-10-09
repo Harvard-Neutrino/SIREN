@@ -32,6 +32,9 @@ public:
     PhysicalDecayChannel(
         std::shared_ptr<siren::interactions::Decay> decay,
         siren::dataclasses::InteractionSignature const & signature);
+    // Declares the convention of a model that does not declare its own. The
+    // topology must match the signature; the measure is taken as the caller's
+    // statement of what FinalStateProbability returns.
     PhysicalDecayChannel(
         std::shared_ptr<siren::interactions::Decay> decay,
         siren::dataclasses::InteractionSignature const & signature,
@@ -110,7 +113,7 @@ public:
     PhysicalCrossSectionChannel(
         std::shared_ptr<siren::interactions::CrossSection> cross_section,
         siren::dataclasses::InteractionSignature const & signature);
-    // Explicit convention override; see PhysicalDecayChannel above.
+    // Declares the convention; see PhysicalDecayChannel.
     PhysicalCrossSectionChannel(
         std::shared_ptr<siren::interactions::CrossSection> cross_section,
         siren::dataclasses::InteractionSignature const & signature,

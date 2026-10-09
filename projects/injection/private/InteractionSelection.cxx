@@ -49,8 +49,8 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
-        // Material is located along the direction of motion. A parent at rest
-        // has none; normalizing its zero momentum used to crash the geometry.
+        // Material is looked up along the direction of motion, which a parent
+        // at rest does not have.
         double speed = primary_direction.magnitude();
         if (!(speed > 0) || !std::isfinite(speed))
             throw siren::utilities::ConfigurationError(

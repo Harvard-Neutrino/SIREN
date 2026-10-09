@@ -185,6 +185,7 @@ bool MeasureHasExplicitAzimuth(PhaseSpaceMeasure const & measure) {
     using T = PhaseSpaceMeasure::Type;
     switch (measure.type) {
         case T::SolidAngleRest:
+        case T::SolidAngleLab:
         case T::MandelstamQ2Phi:
         case T::FixedMassYPhi:
         case T::BjorkenXYPhi:
@@ -226,14 +227,13 @@ bool PhaseSpaceDensityConvertible(PhaseSpaceTopology topology,
                                   PhaseSpaceMeasure const & to)
 {
     if (from == to) return true;
-    if (to.type == PhaseSpaceMeasure::Type::CosThetaRest) return false;
 
     int from_family = MeasureConvertibilityGroup(topology, from);
     int to_family = MeasureConvertibilityGroup(topology, to);
     if (from_family < 0 || from_family != to_family) return false;
 
     // A pointwise conversion can lift a declared-uniform azimuth but never
-    // integrate an explicit one. Only the 2->2 families mix the two forms.
+    // integrate an explicit one.
     if (MeasureHasExplicitAzimuth(from) && MeasureIntegratesAzimuth(to)) {
         return false;
     }

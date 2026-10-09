@@ -38,10 +38,10 @@ struct PhaseSpaceMeasure {
     // the uniform factors (for example 1/(4*pi) per isotropic dOmega) in
     // its density values.
     //
-    // The 2->2 scattering measures come in azimuth-integrated and
-    // explicit-azimuth pairs. An integrated measure declares its omitted
-    // beam-axis azimuth uniform, so it lifts to the explicit form by
-    // 1/(2*pi); an omitted azimuth that is opaque or nonuniform must use
+    // CosThetaRest and the 2->2 scattering measures integrate out an azimuth
+    // that their explicit-azimuth partners keep. An integrated measure
+    // declares its omitted azimuth uniform, so it lifts to the explicit form
+    // by 1/(2*pi); an omitted azimuth that is opaque or nonuniform must use
     // Unspecified instead.
     enum class Type {
         SolidAngleRest,   // dOmega_rest
@@ -178,26 +178,29 @@ struct PhaseSpaceConvention {
 };
 
 // ------------------------------------------------------------------ //
-//  Azimuth taxonomy for the 2->2 scattering measures                  //
+//  Azimuth-integrated and explicit-azimuth measures                   //
 // ------------------------------------------------------------------ //
 
-// True when the measure carries the beam-axis azimuth as an explicit
-// coordinate (SolidAngleRest and the *Phi scattering measures).
+// True when the measure carries the azimuth as an explicit coordinate
+// (the solid angles and the *Phi scattering measures).
 bool MeasureHasExplicitAzimuth(PhaseSpaceMeasure const & measure);
 
-// True when the measure integrates the beam-axis azimuth with a declared
-// uniform conditional (MandelstamQ2, FixedMassY, BjorkenXY, MandelstamQ2Y).
+// True when the measure integrates the azimuth with a declared uniform
+// conditional (CosThetaRest, MandelstamQ2, FixedMassY, BjorkenXY,
+// MandelstamQ2Y).
 bool MeasureIntegratesAzimuth(PhaseSpaceMeasure const & measure);
 
-// The declared explicit-azimuth completion of an azimuth-integrated
-// measure (MandelstamQ2 -> MandelstamQ2Phi and so on). Identity for every
-// other measure.
+// The explicit-azimuth partner of an azimuth-integrated measure
+// (CosThetaRest -> SolidAngleRest, MandelstamQ2 -> MandelstamQ2Phi and so
+// on). Identity for every other measure.
 PhaseSpaceMeasure MeasureWithExplicitAzimuth(PhaseSpaceMeasure const & measure);
 
 // ------------------------------------------------------------------ //
 //  Convertibility                                                     //
 // ------------------------------------------------------------------ //
 
+// Measures in the same group of a topology are related by a known change of
+// variables. -1 means the measure has no conversions in that topology.
 int MeasureConvertibilityGroup(PhaseSpaceTopology topology,
                                PhaseSpaceMeasure const & measure);
 

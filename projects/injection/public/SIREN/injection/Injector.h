@@ -45,6 +45,7 @@ namespace siren { namespace geometry { class Geometry; } }
 namespace siren { namespace injection { class PrimaryInjectionProcess; } }
 namespace siren { namespace injection { class SecondaryInjectionProcess; } }
 namespace siren { namespace injection { struct MultiChannelPhaseSpace; } }
+namespace siren { namespace injection { class PhysicalProcess; } }
 namespace siren { namespace math { class Vector3D; } }
 namespace siren { namespace utilities { class SIREN_random; } }
 
@@ -66,7 +67,8 @@ protected:
     siren::dataclasses::InteractionTree last_failed_tree_;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
-    // An unset callback preserves the default of stopping all secondaries.
+    // Returns true when secondary i of datum should not be simulated. When
+    // unset, no secondaries are simulated.
     std::function<bool(siren::dataclasses::InteractionTree const &,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition;
     Injector();
@@ -77,7 +79,8 @@ private:
     std::vector<std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distributions;
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondary_process_map;
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
-
+    void SampleProcessFinalState(siren::dataclasses::InteractionRecord & record,
+                                 siren::injection::PhysicalProcess const & process) const;
 public:
     // Constructors
     // Loads an injector archive. An archive that stores RNG state continues
@@ -171,8 +174,8 @@ public:
         }
     }
 
-    // Rebuilds processes via SetPrimaryProcess/AddSecondaryProcess, so a corrupt or
-    // incompatible archive throws siren::utilities::AddProcessFailure instead of exiting.
+    // Rebuilds processes through SetPrimaryProcess/AddSecondaryProcess, so an
+    // incompatible archive raises AddProcessFailure.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version <= 1) {
