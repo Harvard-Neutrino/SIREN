@@ -4,6 +4,8 @@
 
 #include <memory>                 // for shared_ptr
 
+#include "SIREN/dataclasses/PhaseSpaceConvention.h"
+
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
@@ -11,7 +13,90 @@ namespace siren { namespace detector { class DetectorModel; } }
 namespace siren {
 namespace injection {
 
-double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &);
+struct MultiChannelPhaseSpace;
+class PhaseSpaceChannel;
+class PhysicalProcess;
+
+using PhaseSpaceConvention = siren::dataclasses::PhaseSpaceConvention;
+
+// Return the natural convention (topology and measure) of the interaction
+// model matching the record's signature. When multiple models match, elect a
+// common convention that every model density can reach pointwise.
+PhaseSpaceConvention SelectedFinalStateConvention(
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
+PhaseSpaceConvention ResolveCommonFinalStateConvention(
+    PhaseSpaceConvention const & first,
+    PhaseSpaceConvention const & second);
+
+double ChannelSelectionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
+double CrossSectionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
+// CrossSectionProbability with the final-state density converted into the
+// requested convention. The weighter uses this to evaluate both sides in the
+// common convention elected for the weight ratio.
+double CrossSectionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceConvention const & convention);
+
+double CrossSectionProbabilityWithPhaseSpace(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const & phase_space);
+
+// CrossSectionProbabilityWithPhaseSpace with the mixture density evaluated in
+// the requested convention (DensityIn), including the topology check.
+double CrossSectionProbabilityWithPhaseSpace(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const & phase_space,
+    PhaseSpaceConvention const & convention);
+
+double SelectedFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
+// SelectedFinalStateProbability with the density converted into the
+// requested convention.
+double SelectedFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceConvention const & convention);
+
+double FixedVertexChannelSelectionProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record);
+
+// The convention of a process's final-state density at this record: its
+// registered proposal's, or else the matching interaction model's.
+PhaseSpaceConvention ProcessFinalStateConvention(
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record);
+
+// The final-state factor a process contributes at a vertex, in `convention`:
+// the rate-weighted probability for a propagated vertex, or the channel
+// selection probability times the selected density for a fixed vertex. A
+// registered proposal replaces the interaction model's own density.
+double ProcessFinalStateProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record,
+    PhaseSpaceConvention const & convention);
 
 } // namespace injection
 } // namespace siren

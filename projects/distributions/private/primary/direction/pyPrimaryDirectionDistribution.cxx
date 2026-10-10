@@ -1,6 +1,7 @@
 #include "SIREN/distributions/primary/direction/pyPrimaryDirectionDistribution.h"
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <vector>                                 // for vector
 
@@ -64,6 +65,16 @@ std::vector<std::string> pyPrimaryDirectionDistribution::DensityVariables() cons
         std::vector<std::string>,
         DensityVariables,
         "DensityVariables"
+    )
+}
+
+std::set<DistributionVariable> pyPrimaryDirectionDistribution::ProvidedVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryDirectionDistribution,
+        std::set<DistributionVariable>,
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 
