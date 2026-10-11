@@ -185,6 +185,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         if(with_diagnostics) {
             factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
             factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+            factors.survival = primary_process_weighters[idx]->CreationSurvival(bounds, datum->record);
         }
     } else {
         try {
@@ -194,6 +195,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             if(with_diagnostics) {
                 factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
                 factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+                factors.survival = w->CreationSurvival(bounds, datum->record);
             }
         } catch(const std::out_of_range& oor) {
             std::ostringstream oss;
