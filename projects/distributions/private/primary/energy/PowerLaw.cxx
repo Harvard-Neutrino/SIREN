@@ -1,6 +1,7 @@
 #include "SIREN/distributions/primary/energy/PowerLaw.h"
 
 #include <array>                                           // for array
+#include <cmath>
 #include <tuple>                                           // for tie, opera...
 #include <math.h>                                          // for pow, log10
 #include <string>                                          // for basic_string
@@ -38,6 +39,12 @@ double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> ra
 }
 
 double PowerLaw::pdf(double energy) const {
+    if(!std::isfinite(energy) || energy < energyMin || energy > energyMax)
+        return 0.0;
+    return UnboundedDensity(energy);
+}
+
+double PowerLaw::UnboundedDensity(double energy) const {
     if(energyMin == energyMax)
         return 1.0; // only one allowed energy
 
@@ -81,7 +88,7 @@ bool PowerLaw::less(WeightableDistribution const & other) const {
 }
 
 void PowerLaw::SetNormalizationAtEnergy(double norm, double energy) {
-    SetNormalization(norm / pdf(energy));
+    SetNormalization(norm / UnboundedDensity(energy));
 }
 
 } // namespace distributions
