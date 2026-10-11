@@ -177,3 +177,6 @@ libraries match the source:
 python -m pytest tests/python/test_native_phase_space.py -q
 ctest --test-dir build -R 'PhaseSpace|TwoBodyKinematics|Injector|Weighter' --output-on-failure
 ```
+
+For selected decay channels, inclusive parent widths, and opt-in upstream
+survival, see [native decay accounting](native_decay_accounting.md).
