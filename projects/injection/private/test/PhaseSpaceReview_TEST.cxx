@@ -2130,3 +2130,35 @@ TEST(OnShellDecay, RoundedEnergyTolerancePreservesInputAndFailureType) {
         EXPECT_EQ(record.secondary_momenta, daughters);
     }
 }
+
+TEST(DecayChannelReview, RecordAndDatumGenerationDensitiesAgree) {
+    auto detector = SelectionDetector();
+    auto decay = std::make_shared<TaggedDecay>(1, 2.0, 5.0);
+    for (bool selected : {false, true}) {
+        for (bool biased : {false, true}) {
+            auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+                siren::dataclasses::ParticleType::NuMu,
+                std::vector<std::shared_ptr<siren::interactions::Decay>>{decay});
+            if (selected) interactions->SetDecayChannels(
+            std::vector<siren::dataclasses::InteractionSignature>{SharedDecaySignature()});
+            auto process = SelectionProcess(interactions);
+            if (biased) {
+                auto ps = std::make_shared<MultiChannelPhaseSpace>();
+                ps->channels = {std::make_shared<ConstantChannel>(3.0)};
+                ps->weights = {1.0};
+                process->SetPhaseSpace(SharedDecaySignature(), ps);
+            }
+            siren::injection::Injector injector(7, detector, process,
+                std::make_shared<siren::utilities::SIREN_random>(71));
+            auto record = SelectionRecord();
+            record.signature = SharedDecaySignature();
+            auto datum = std::make_shared<siren::dataclasses::InteractionTreeDatum>(record);
+            for (bool explicit_process : {false, true}) {
+                auto requested = explicit_process ? process : nullptr;
+                double expected = (biased ? 3.0 : 5.0) * (explicit_process ? 1.0 : 7.0);
+                EXPECT_DOUBLE_EQ(injector.GenerationProbability(record, requested), expected);
+                EXPECT_DOUBLE_EQ(injector.GenerationProbability(datum, requested), expected);
+            }
+        }
+    }
+}

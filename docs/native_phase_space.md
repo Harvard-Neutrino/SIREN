@@ -183,3 +183,6 @@ ctest --test-dir build -R 'PhaseSpace|TwoBodyKinematics|Injector|Weighter' --out
 ```
 
 Momentum values and raw record conversions are documented in [four-momentum and records](four_momentum.md).
+
+For selected decay channels, inclusive parent widths, and opt-in upstream
+survival, see [native decay accounting](native_decay_accounting.md).

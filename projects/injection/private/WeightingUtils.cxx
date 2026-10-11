@@ -2,6 +2,7 @@
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/Process.h"
 #include "InteractionSelection.h"
+#include "SIREN/utilities/Constants.h"
 
 #include <vector>                                                 // for vector
 #include <cmath>                                                  // for isfinite
@@ -89,11 +90,11 @@ struct CandidateRates {
 CandidateRates AccumulateRates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record)
+    siren::dataclasses::InteractionRecord const & record, bool for_generation = false)
 {
     CandidateRates rates;
     rates.candidates = detail::EnumerateInteractionCandidates(
-        detector_model, interactions, record);
+        detector_model, interactions, record, for_generation);
     for (detail::InteractionCandidate const & candidate : rates.candidates) {
         rates.total += candidate.rate;
         if (candidate.signature == record.signature) {
@@ -138,6 +139,40 @@ double RateWeightedFinalStateProbability(
     }
 
     return selected_final_state;
+}
+
+double ModeledBranchFraction(
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record, double parent_width,
+    CandidateRates const & rates)
+{
+    double modeled_width = 0;
+    auto candidate_record = record;
+    for (auto const & candidate : rates.candidates) {
+        auto decay = std::dynamic_pointer_cast<siren::interactions::Decay>(candidate.interaction);
+        if (!decay) continue;
+        candidate_record.signature = candidate.signature;
+        double width = decay->TotalDecayWidth(candidate_record);
+        if (!std::isfinite(width) || width < 0)
+            throw siren::utilities::WeightCalculationError("Invalid modeled decay width");
+        modeled_width += width;
+    }
+    if (modeled_width > parent_width*(1+1e-12))
+        throw siren::utilities::WeightCalculationError("Modeled decay widths exceed parent width");
+    double missing_width = std::max(0.0, parent_width-modeled_width);
+    if (missing_width == 0) return 1.0;
+    // With no material competition the common boost cancels exactly, including
+    // the stationary limit. This also avoids subtracting tiny rare branches.
+    if (!interactions->HasCrossSections()) return modeled_width / parent_width;
+    auto const & p = record.primary_momentum;
+    double momentum = std::hypot(p[1],p[2],p[3]);
+    if (momentum == 0) return modeled_width / parent_width;
+    double missing_rate = missing_width * record.primary_mass / momentum
+        * siren::utilities::Constants::cm / siren::utilities::Constants::hbarc;
+    double probability = rates.total / (rates.total+missing_rate);
+    if (!std::isfinite(probability))
+        throw siren::utilities::WeightCalculationError("Nonfinite modeled interaction probability");
+    return probability;
 }
 
 } // anonymous namespace
@@ -389,14 +424,46 @@ PhaseSpaceConvention ProcessFinalStateConvention(
     return SelectedFinalStateConvention(process.GetInteractions(), record);
 }
 
+double DecayChannelGenerationProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const * phase_space,
+    PhaseSpaceConvention const * convention)
+{
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record, true);
+    if(!std::isfinite(rates.total))
+        throw siren::utilities::WeightCalculationError("Nonfinite selected decay generation rate");
+    if(rates.total == 0.0 || rates.selected == 0.0) return 0.0;
+    auto natural = convention ? *convention : (phase_space ? phase_space->CommonConvention()
+        : SelectedFinalStateConvention(interactions, record));
+    double final_state = phase_space
+        ? rates.selected * phase_space->DensityIn(detector_model, record, natural)
+        : RateWeightedFinalStateProbability(rates.candidates, record, natural);
+    return final_state / rates.total;
+}
+
 double ProcessFinalStateProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     PhysicalProcess const & process,
     siren::dataclasses::InteractionRecord const & record,
-    PhaseSpaceConvention const & convention)
+    PhaseSpaceConvention const & convention, bool for_generation)
 {
     auto interactions = process.GetInteractions();
     auto phase_space = process.GetPhaseSpace(record.signature);
+    if(for_generation && interactions->HasDecayChannels())
+        return DecayChannelGenerationProbability(detector_model, interactions, record, phase_space.get(), &convention);
+    double parent_width = for_generation ? 0.0 : interactions->ParentDecayWidth(record);
+    if(parent_width > 0.0) {
+        CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+        if(!(rates.total > 0.0) || !std::isfinite(rates.total))
+            throw siren::utilities::WeightCalculationError("Invalid modeled interaction rate");
+        double final_state = phase_space
+            ? rates.selected * phase_space->DensityIn(detector_model, record, convention)
+            : RateWeightedFinalStateProbability(rates.candidates, record, convention);
+        return (final_state / rates.total)
+            * ModeledBranchFraction(interactions, record, parent_width, rates);
+    }
     if (process.GetWeightingMode().compute_interaction_probability) {
         return phase_space
             ? CrossSectionProbabilityWithPhaseSpace(

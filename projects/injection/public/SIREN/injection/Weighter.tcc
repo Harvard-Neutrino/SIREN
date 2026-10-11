@@ -6,6 +6,7 @@
 #include <iterator>                                              // for ite...
 #include <array>                                                  // for array
 #include <cassert>                                                // for assert
+#include <limits>
 #include <cmath>                                                  // for exp
 #include <initializer_list>                                       // for ini...
 #include <iostream>                                               // for ope...
@@ -254,6 +255,40 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
 }
 
 template<typename ProcessType>
+double ProcessWeighter<ProcessType>::CreationSurvival(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+    if(!phys_process->GetWeightingMode().survival_from_creation) {
+        return 1.0;
+    }
+    // A record outside the distribution's support has the empty bounds
+    // ((0,0,0),(0,0,0)) and a zero generation density; leave it to the
+    // existing off-support handling.
+    if(std::get<0>(bounds) == std::get<1>(bounds)) {
+        return 1.0;
+    }
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> upstream(
+        siren::math::Vector3D(record.primary_initial_position), std::get<0>(bounds));
+    double depth = InteractionDepth(upstream, record);
+    if(std::isnan(depth) || depth < 0.0) {
+        std::ostringstream message;
+        message.precision(17);
+        message << "CreationSurvival: interaction depth " << depth << " from the creation point "
+                << "to the injection bounds is negative or NaN; check the decay widths and "
+                << "cross sections";
+        throw siren::utilities::WeightCalculationError(message.str());
+    }
+    double survival = std::exp(-depth);
+    if(!(survival >= std::numeric_limits<double>::min())) {
+        std::ostringstream message;
+        message.precision(17);
+        message << "CreationSurvival: exp(-" << depth << ") from the creation point to the "
+                << "injection bounds is below the smallest normal double; the weight cannot "
+                << "be represented";
+        throw siren::utilities::WeightCalculationError(message.str());
+    }
+    return survival;
+}
+
+template<typename ProcessType>
 double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionRecord const & record ) const {
 
@@ -280,6 +315,8 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
         physical_probability *= InteractionProbability(bounds, record);
     if (mode.compute_position_probability)
         physical_probability *= NormalizedPositionProbability(bounds, record);
+    if(mode.survival_from_creation)
+        physical_probability *= CreationSurvival(bounds, record);
     physical_probability *= ProcessFinalStateProbability(
         detector_model, *phys_process, record, convention);
     if(physical_probability < 0.0 || !std::isfinite(physical_probability))
@@ -321,7 +358,7 @@ double ProcessWeighter<ProcessType>::GenerationProbability(
         PhaseSpaceConvention const & convention) const {
 
     double gen_probability = ProcessFinalStateProbability(
-        detector_model, *inj_process, datum.record, convention);
+        detector_model, *inj_process, datum.record, convention, true);
     if(gen_probability < 0.0 || !std::isfinite(gen_probability))
         return gen_probability;
 

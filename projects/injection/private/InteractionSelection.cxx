@@ -22,7 +22,7 @@ namespace detail {
 std::vector<InteractionCandidate> EnumerateInteractionCandidates(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record)
+    siren::dataclasses::InteractionRecord const & record, bool for_generation)
 {
     if (!interactions) {
         throw siren::utilities::ConfigurationError(
@@ -97,23 +97,42 @@ std::vector<InteractionCandidate> EnumerateInteractionCandidates(
         }
     }
 
+    if(for_generation) interactions->ValidateDecayChannels();
     bool const at_rest = !interactions->HasCrossSections()
         && record.primary_mass > 0.0
         && record.primary_momentum[1] == 0.0
         && record.primary_momentum[2] == 0.0
         && record.primary_momentum[3] == 0.0;
+    bool const validate_widths = interactions->HasDecayChannels() || at_rest;
+    auto check_width = [](double width) {
+        if(!std::isfinite(width) || width < 0)
+            throw siren::utilities::ConfigurationError("Decay widths must be finite and nonnegative");
+    };
     if (interactions->HasDecays()) {
         double decay_target_mass = detector_model->GetTargetMass(
             siren::dataclasses::ParticleType::Decay);
+        double total_width = 0;
         for (auto const & decay : interactions->GetDecays()) {
+            if(validate_widths) {
+                double width = decay->TotalDecayWidthAllFinalStates(record);
+                check_width(width);
+                total_width += width;
+                check_width(total_width);
+            }
             for (auto const & signature :
                  decay->GetPossibleSignaturesFromParent(
                      record.signature.primary_type)) {
                 candidate_record.signature = signature;
+                double width = 0;
+                if(validate_widths) {
+                    width = decay->TotalDecayWidth(candidate_record);
+                    check_width(width);
+                }
+                if(for_generation && !interactions->AllowsDecay(signature)) continue;
                 candidates.push_back(InteractionCandidate{
                     signature,
                     decay_target_mass,
-                    at_rest ? decay->TotalDecayWidth(candidate_record)
+                    at_rest ? width
                         : 1.0 / (decay->TotalDecayLength(candidate_record)
                            / siren::utilities::Constants::cm),
                     decay});
