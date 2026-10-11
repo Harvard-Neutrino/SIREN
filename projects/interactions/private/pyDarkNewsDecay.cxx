@@ -43,6 +43,17 @@ bool pyDarkNewsDecay::equal(Decay const & other) const {
     SELF_OVERRIDE(self, DarkNewsDecay, bool, equal, "equal", other)
 }
 
+double pyDarkNewsDecay::ParentDecayWidth(dataclasses::InteractionRecord const & interaction) const {
+        SELF_OVERRIDE(
+            self,
+            DarkNewsDecay,
+            double,
+            ParentDecayWidth,
+            "ParentDecayWidth",
+            std::cref(interaction)
+        )
+    }
+
 double pyDarkNewsDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
         SELF_OVERRIDE(
             self,

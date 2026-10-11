@@ -193,7 +193,7 @@ std::shared_ptr<siren::interactions::Interaction> Injector::SelectChannel(
     double total_prob = 0.0;
     std::vector<detail::InteractionCandidate> candidates =
         detail::EnumerateInteractionCandidates(
-            detector_model, interactions, record);
+            detector_model, interactions, record, true);
     std::vector<double> cumulative_rates;
     cumulative_rates.reserve(candidates.size());
     for (detail::InteractionCandidate const & candidate : candidates) {

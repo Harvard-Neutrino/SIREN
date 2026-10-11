@@ -90,7 +90,7 @@ public:
              std::shared_ptr<MultiChannelPhaseSpace>> const &
     GetPhaseSpaceMap() const { return phase_space_map_; }
 
-    void SetWeightingMode(siren::dataclasses::VertexWeightingMode mode) { weighting_mode_ = mode; }
+    void SetWeightingMode(siren::dataclasses::VertexWeightingMode mode) { mode.Validate(); weighting_mode_ = mode; }
     siren::dataclasses::VertexWeightingMode GetWeightingMode() const { return weighting_mode_; }
 
     template<class Archive>
@@ -102,6 +102,7 @@ public:
             // load as Propagated with no proposals.
             if(version >= 1) {
                 archive(::cereal::make_nvp("WeightingMode", weighting_mode_));
+                weighting_mode_.Validate();
                 archive(::cereal::make_nvp("PhaseSpaceMap", phase_space_map_));
             }
         } else {

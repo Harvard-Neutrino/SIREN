@@ -37,7 +37,7 @@ double ProcessFinalStateProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     PhysicalProcess const & process,
     siren::dataclasses::InteractionRecord const & record,
-    PhaseSpaceConvention const & convention);
+    PhaseSpaceConvention const & convention, bool for_generation = false);
 
 // Final-state factor for the injector's sampled interaction, in the process's
 // own convention. Includes the interaction selection used during generation.
