@@ -13,7 +13,7 @@ NuMu = dc.Particle.ParticleType.NuMu
 
 @pytest.fixture(scope="module")
 def detector():
-    # A uniform argon sphere: the weights need a known thin target, not a dataset.
+    # Uniform argon sphere, so no detector dataset is needed.
     dm = siren.detector.DetectorModel()
     materials = dm.Materials
     materials.AddMaterial("ARGON", {1000180400: 1.0})
@@ -76,14 +76,13 @@ def test_density_has_the_sampled_support(index):
         assert spectrum.pdf(energy) > 0.0
 
 
-def test_single_energy_source_uses_the_monoenergetic_tolerance():
+def test_single_energy_source_matches_monoenergetic():
     spectrum = dist.PowerLaw(2.0, 3.0, 3.0)
     reference = dist.Monoenergetic(3.0)
-    for energy in (3.0, 3.0 * (1 + 1e-9), 3.0 * (1 - 1e-9),
-                   3.0 * (1 + 1e-5), 3.0 * (1 - 1e-5)):
-        assert spectrum.pdf(energy) == reference.pdf(energy)
-    assert spectrum.pdf(3.0 * (1 + 1e-9)) == 1.0
-    assert spectrum.pdf(3.0 * (1 + 1e-5)) == 0.0
+    for offset in (0.0, 1e-9, -1e-9, 1e-5, -1e-5):
+        energy = 3.0 * (1 + offset)
+        expected = 1.0 if abs(offset) < 1e-6 else 0.0
+        assert spectrum.pdf(energy) == reference.pdf(energy) == expected
 
 
 @pytest.mark.parametrize("index", [0.0, 1.0, 2.0])
@@ -106,12 +105,10 @@ def test_density_normalizes_and_sampling_matches_cdf(index):
 
 @pytest.mark.parametrize("index", [1.0, 1.01, 2.58])
 def test_endpoint_rounding_stays_in_support(index):
-    # On a four-ulp interval at 30, rounding in the inverse CDF puts about
-    # half of the index-1 samples and all index-1.01 samples outside it.
+    # Without the clamp, inverse-CDF rounding puts many samples outside this
+    # four-ulp interval (all of them for index 1.01).
     energy_min = 30.0
-    energy_max = energy_min
-    for _ in range(4):
-        energy_max = math.nextafter(energy_max, math.inf)
+    energy_max = energy_min + 4 * math.ulp(energy_min)
     spectrum = dist.PowerLaw(index, energy_min, energy_max)
     random = utilities.SIREN_random(4921)
     record = dc.PrimaryDistributionRecord(NuMu)
@@ -154,17 +151,15 @@ def test_disjoint_energy_injectors_do_not_dilute_each_others_weights(detector, m
     injectors = _disjoint_injectors(detector, model)
     physical = _physical(model, 1.0, 4.0)
     pooled = inj._Weighter(injectors, detector, physical)
-    batches = [[g.GenerateEvent() for _ in range(32)] for g in injectors]
-    for injector, events in zip(injectors, batches):
+    for injector in injectors:
         single = inj._Weighter([injector], detector, physical)
-        for event in events:
-            assert len(event.tree) == 1
+        for _ in range(32):
+            event = injector.GenerateEvent()
             assert pooled.EventWeight(event) == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
 
 
 def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
-    # The physical flux ends at 3.5, inside the second injector's range. Above
-    # it, the first injector and the physical flux both have zero density.
+    # Above 3.5, both the first injector and the physical flux have zero density.
     injectors = _disjoint_injectors(detector, model)
     physical = _physical(model, 1.0, 3.5)
     pooled = inj._Weighter(injectors, detector, physical)

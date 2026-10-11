@@ -2,7 +2,7 @@
 
 #include <array>                                           // for array
 #include <algorithm>                                       // for min, max
-#include <cmath>
+#include <cmath>                                           // for isfinite, isnan
 #include <tuple>                                           // for tie, opera...
 #include <math.h>                                          // for pow, log10
 #include <stdexcept>                                       // for invalid_ar...
@@ -26,17 +26,13 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMin(energyMin)
     , energyMax(energyMax)
 {
-    // Reversed or non-normalizable bounds would still sample, but with zero or
-    // undefined density, so every weight would be infinite.
+    // Reject bounds that would sample with zero or undefined density.
     if(!std::isfinite(powerLawIndex) || !std::isfinite(energyMin) || std::isnan(energyMax)
             || energyMin < 0.0 || energyMin > energyMax)
-        throw std::invalid_argument("PowerLaw requires a finite index and 0 <= energyMin <= energyMax with a finite energyMin");
-    if(energyMin != energyMax) {
-        if(energyMin == 0.0 && powerLawIndex >= 1.0)
-            throw std::invalid_argument("PowerLaw with index >= 1 cannot be normalized down to energyMin = 0");
-        if(std::isinf(energyMax) && powerLawIndex <= 1.0)
-            throw std::invalid_argument("PowerLaw with index <= 1 cannot be normalized up to an infinite energyMax");
-    }
+        throw std::invalid_argument("PowerLaw: need a finite index and 0 <= energyMin <= energyMax with energyMin finite");
+    bool divergent = (energyMin == 0.0 && powerLawIndex >= 1.0) || (std::isinf(energyMax) && powerLawIndex <= 1.0);
+    if(energyMin < energyMax && divergent)
+        throw std::invalid_argument("PowerLaw: E^-index is not normalizable on [energyMin, energyMax]");
 }
 
 double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
@@ -51,15 +47,14 @@ double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> ra
         double energyP = (1 - u) * pow(energyMin, 1 - powerLawIndex) + u * pow(energyMax, 1 - powerLawIndex);
         energy = pow(energyP, 1 / (1 - powerLawIndex));
     }
-    // Rounding can put an endpoint sample a few ulp outside the interval,
-    // where pdf is zero.
+    // Rounding can land endpoint samples a few ulp outside, where pdf is zero.
     return std::min(std::max(energy, energyMin), energyMax);
 }
 
 double PowerLaw::pdf(double energy) const {
     if(!std::isfinite(energy))
         return 0.0;
-    if(energyMin == energyMax) // same single-energy tolerance as Monoenergetic
+    if(energyMin == energyMax) // Monoenergetic's tolerance
         return std::abs(energy - energyMin) <= 1e-6 * energyMin ? 1.0 : 0.0;
     if(energy < energyMin || energy > energyMax)
         return 0.0;

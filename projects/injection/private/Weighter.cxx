@@ -134,8 +134,8 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                 }
             }
         }
-        // An injector that cannot produce this event contributes nothing.
-        // Skipping it avoids 0/0 where the physical density also vanishes.
+        // Skip injectors that cannot produce this event; their term is 0/0
+        // where the physical density also vanishes.
         if(generation_probability == 0.0)
             continue;
         inv_weight += generation_probability / physical_probability;

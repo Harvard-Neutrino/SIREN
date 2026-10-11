@@ -275,8 +275,8 @@ TEST(PowerLaw, NormalizationAtOutsideReference) {
 }
 
 TEST(PowerLaw, EndpointSamplesStayInSupport) {
-    // On a four-ulp interval at 30, rounding in the inverse CDF puts about
-    // half of the index-1 samples and all index-1.01 samples outside it.
+    // Without the clamp, inverse-CDF rounding puts many samples outside this
+    // four-ulp interval (all of them for index 1.01).
     double energyMin = 30.0;
     double energyMax = energyMin;
     for(int i=0; i<4; ++i)
