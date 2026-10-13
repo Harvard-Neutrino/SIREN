@@ -43,6 +43,11 @@ class SIREN_Controller:
     def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0, detector_model=None):
         """
         SIREN controller class constructor.
+
+        .. deprecated::
+            Use :class:`siren.Simulation` instead. ``SIREN_Controller`` will be
+            removed in a future release.
+
         :param int event_to_inject: number of events to generate
         :param str experiment: experiment name in string (default None)
         :param str detector_model_file: path to the detector model file (default None)
@@ -52,6 +57,12 @@ class SIREN_Controller:
             a GDML composite from ``load_detector("SBN", detector=...)``); when
             provided it overrides the experiment/file loading (default None)
         """
+        import warnings
+        warnings.warn(
+            "SIREN_Controller is deprecated. Use siren.Simulation instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         self.global_start = time.time()
 

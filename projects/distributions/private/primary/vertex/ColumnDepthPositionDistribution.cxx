@@ -175,6 +175,10 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<si
 
 ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function) : radius(radius), endcap_length(endcap_length), depth_function(depth_function) {}
 
+std::set<DistributionVariable> ColumnDepthPositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
+
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";
 }

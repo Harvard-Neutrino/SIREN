@@ -2,6 +2,7 @@
 #ifndef SIREN_PrimaryMass_H
 #define SIREN_PrimaryMass_H
 
+#include <set>                                           // for set
 #include <string>                                        // for string
 #include <memory>                                        // for shared_ptr
 #include <cstdint>                                       // for uint32_t
@@ -13,8 +14,9 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "SIREN/dataclasses/Particle.h"         // for Particle
-#include "SIREN/distributions/Distributions.h"  // for InjectionDis...
+#include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/distributions/Distributions.h"       // for InjectionDis...
+#include "SIREN/distributions/DistributionVariable.h" // for DistributionVariable
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -35,6 +37,7 @@ public:
     double GetPrimaryMass() const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
+    virtual std::set<DistributionVariable> SetVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
