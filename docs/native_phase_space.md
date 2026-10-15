@@ -133,8 +133,9 @@ error is raised only if no injector could have produced the event. A zero
 physical density from a producing injector gives weight zero. Physical factors
 are not evaluated for injectors without proposal support; their diagnostic
 fields are NaN with a `physical factors not evaluated` flag, while a supported
-event can still have a finite total. Proposal-channel and cancellation
-diagnostics remain available for skipped injectors. Negative or nonfinite evaluated densities raise
+event can still have a finite total. Channel conventions and cancelled names
+remain available for skipped injectors, but per-channel densities are marked
+unevaluated. Negative or nonfinite evaluated densities raise
 errors, and `EventWeightWithBreakdown` reports them as a NaN total with
 per-vertex flags. Matching physical and proposal distributions cancel their
 finite positive density factors, but their support and validity are still

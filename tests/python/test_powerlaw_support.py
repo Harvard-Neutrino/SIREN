@@ -34,7 +34,7 @@ def model():
     return xs.TrivialCrossSection(1.0e-38, [NuMu], [dc.Particle.ParticleType.Nucleon])
 
 
-def _injector(detector, model, seed, energy_min, energy_max, n_inject=32, max_distance=25.0):
+def _injector(detector, model, seed, energy_min, energy_max, n_inject=32, max_distance=25.0, position=None):
     process = inj.PrimaryInjectionProcess()
     process.primary_type = NuMu
     process.interactions = xs.InteractionCollection(NuMu, [model])
@@ -43,7 +43,8 @@ def _injector(detector, model, seed, energy_min, energy_max, n_inject=32, max_di
         dist.PowerLaw(2.0, energy_min, energy_max),
         dist.PrimaryNeutrinoHelicityDistribution(),
         dist.IsotropicDirection(),
-        dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), max_distance),
+        (dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), max_distance)
+         if position is None else position),
     ]
     return inj._Injector(n_inject, detector, process, utilities.SIREN_random(seed))
 
@@ -266,3 +267,28 @@ def test_cancellation_retains_interaction_dependent_density_ratio(detector, shar
         assert weight == pytest.approx(expected, rel=2e-12, abs=0)
         assert weighter.EventWeightWithBreakdown(event).total == weight
     assert max(abs(ratio - 1) for ratio in ratios) > 0.1
+
+
+def test_skipped_zero_rate_mixture_is_not_evaluated_for_diagnostics(detector, model):
+    zero_model = xs.TrivialCrossSection(
+        {NuMu: ([3.0, 4.0], [1e-38, 1e-38])}, [dc.Particle.ParticleType.Nucleon])
+    injectors = [_injector(
+        detector, candidate, seed, 1.0, 2.0,
+        position=dist.SphereVolumePositionDistribution(siren.geometry.Sphere(10.0, 0.0)))
+        for seed, candidate in ((13, zero_model), (14, model))]
+    signature = zero_model.GetPossibleSignatures()[0]
+    mixture = inj.MultiChannelPhaseSpace(
+        [inj.PhysicalCrossSectionChannel(zero_model, signature)], [1.0])
+    injectors[0].GetPrimaryProcess().SetPhaseSpace(signature, mixture)
+    physical = _physical(model, 1.0, 2.0)
+    pooled = inj._Weighter(injectors, detector, physical)
+    single = inj._Weighter([injectors[1]], detector, physical)
+    mixture.weights = [2.0]
+    event = injectors[1].GenerateEvent()
+    weight = pooled.EventWeight(event)
+    assert weight == single.EventWeight(event)
+    breakdown = pooled.EventWeightWithBreakdown(event)
+    assert breakdown.total == weight
+    assert not breakdown.vertices[0].channel_densities
+    assert any("channel densities not evaluated" in flag
+               for flag in breakdown.vertices[0].flags)

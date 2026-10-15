@@ -144,7 +144,7 @@ private:
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const;
     void RecordVertexDiagnostics(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
-        VertexWeightFactors & factors) const;
+        VertexWeightFactors & factors, bool evaluate_densities = true) const;
     // Physical factors are evaluated only after establishing injector support.
     VertexWeightFactors ComputeVertexFactors(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,

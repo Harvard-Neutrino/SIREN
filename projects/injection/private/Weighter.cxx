@@ -122,12 +122,17 @@ static void RecordMixtureDiagnostics(VertexWeightFactors & factors,
         ProcessPtr const & inj_process,
         std::vector<std::string> const & cancelled_names,
         siren::dataclasses::InteractionRecord const & record,
-        std::shared_ptr<siren::detector::DetectorModel> const & detector_model) {
+        std::shared_ptr<siren::detector::DetectorModel> const & detector_model,
+        bool evaluate_densities) {
     factors.cancelled = cancelled_names;
     if(inj_process && inj_process->HasPhaseSpace(record.signature)) {
         auto ps = inj_process->GetPhaseSpace(record.signature);
         factors.channel_density_topology = ps->CommonTopology();
         factors.channel_density_measure = ps->CommonMeasure();
+        if(!evaluate_densities) {
+            factors.flags.push_back("channel densities not evaluated (no usable proposal)");
+            return;
+        }
         std::vector<double> contributions = ps->DensityBreakdown(detector_model, record);
         for(std::size_t c = 0; c < contributions.size(); ++c) {
             factors.channel_densities["channel[" + std::to_string(c) + "]"] = contributions[c];
@@ -153,16 +158,16 @@ double Weighter::ComputeGenerationProbability(unsigned int idx,
 
 void Weighter::RecordVertexDiagnostics(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
-        VertexWeightFactors & factors) const {
+        VertexWeightFactors & factors, bool evaluate_densities) const {
     if(datum->is_root()) {
         RecordMixtureDiagnostics(factors, injectors[idx]->GetPrimaryProcess(),
             primary_process_weighters[idx]->GetCancelledDistributionNames(),
-            datum->record, detector_model);
+            datum->record, detector_model, evaluate_densities);
     } else {
         RecordMixtureDiagnostics(factors,
             injectors[idx]->GetSecondaryProcessMap().at(datum->record.signature.primary_type),
             secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)
-                ->GetCancelledDistributionNames(), datum->record, detector_model);
+                ->GetCancelledDistributionNames(), datum->record, detector_model, evaluate_densities);
     }
 }
 
@@ -282,7 +287,7 @@ EventWeightBreakdown Weighter::PoolEventWeight(
                     std::numeric_limits<double>::quiet_NaN();
                 factors.flags.push_back("physical factors not evaluated (no usable proposal)");
                 if(with_diagnostics)
-                    RecordVertexDiagnostics(idx, tree.tree[v - first_vertex], factors);
+                    RecordVertexDiagnostics(idx, tree.tree[v - first_vertex], factors, false);
             }
             continue;
         }
