@@ -140,7 +140,10 @@ finite positive density factors, but their support and validity are still
 checked for every event.
 
 Pure decays do not look up material. For a parent at rest, the decay channel is
-chosen from partial-width ratios. Material interactions require a finite,
+chosen from partial-width ratios. Built-in fixed, cone and isotropic direction
+distributions assign unit probability to the single momentum of a massive
+on-shell parent at rest, where the sampled direction is unobservable. Material
+interactions require a finite,
 nonzero momentum.
 
 ## Archives

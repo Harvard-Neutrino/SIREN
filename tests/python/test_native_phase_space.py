@@ -24,7 +24,7 @@ def two_body_mixture(model):
     return propose
 
 
-def fixed_decay_setup(model, parent, mass, n, propose=None):
+def fixed_decay_setup(model, parent, mass, n, propose=None, energy=None, direction=None):
     """Injector and weighter for decays at a fixed vertex, with E = 2 * mass.
 
     propose(signature) returns the proposal for a channel, or None to sample
@@ -37,9 +37,9 @@ def fixed_decay_setup(model, parent, mass, n, propose=None):
     process.interactions = collection
     process.weighting_mode = inj.VertexWeightingMode.Fixed()
     process.distributions = [
-        dist.PrimaryMass(mass), dist.Monoenergetic(2.0 * mass),
+        dist.PrimaryMass(mass), dist.Monoenergetic(2.0 * mass if energy is None else energy),
         dist.PrimaryNeutrinoHelicityDistribution(),
-        dist.FixedDirection(Vector3D(0, 0, 1)),
+        dist.FixedDirection(Vector3D(0, 0, 1)) if direction is None else direction,
         dist.SphereVolumePositionDistribution(siren.geometry.Sphere(1.0, 0.0)),
     ]
     if propose is not None:
@@ -267,3 +267,27 @@ def test_isotropic_proposal_rejects_nonphysical_parent_and_preserves_record():
     with pytest.raises(RuntimeError):
         channel.Sample(utilities.SIREN_random(0), None, record)
     assert list(record.secondary_momenta) == before
+
+
+@pytest.mark.parametrize("direction, moving_density", [
+    (dist.FixedDirection(Vector3D(0, 0, 1)), 1.0),
+    (dist.Cone(Vector3D(0, 0, 1), 0.2), 1 / (2 * math.pi * (1 - math.cos(0.2)))),
+    (dist.IsotropicDirection(), 1 / (4 * math.pi)),
+], ids=["fixed", "cone", "isotropic"])
+def test_stationary_direction_is_marginalized(direction, moving_density):
+    record = dc.InteractionRecord()
+    record.primary_mass = 1.0
+    record.primary_momentum = [1.0, 0.0, 0.0, 0.0]
+    assert direction.GenerationProbability(None, None, record) == 1.0
+    for energy in (0.0, 2.0, math.inf, math.nan):
+        record.primary_momentum = [energy, 0.0, 0.0, 0.0]
+        assert direction.GenerationProbability(None, None, record) == 0.0
+    record.primary_momentum = [2.0, 0.0, 0.0, math.sqrt(3)]
+    assert direction.GenerationProbability(None, None, record) == pytest.approx(moving_density)
+    model = xs.HNLDecay(1.0, 1e-3, xs.HNLDecay.ChiralNature.Majorana)
+    generator, weighter = fixed_decay_setup(
+        model, P.N4, 1.0, 32, energy=1.0, direction=direction)
+    events = [generator.GenerateEvent() for _ in range(32)]
+    for event in events:
+        assert weighter.EventWeight(event) == pytest.approx(1 / 32, rel=1e-12, abs=0)
+        assert weighter.EventWeightWithBreakdown(event).total == weighter.EventWeight(event)
