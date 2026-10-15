@@ -155,7 +155,9 @@ def test_disjoint_energy_injectors_do_not_dilute_each_others_weights(detector, m
         single = inj._Weighter([injector], detector, physical)
         for _ in range(32):
             event = injector.GenerateEvent()
-            assert pooled.EventWeight(event) == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
+            weight = pooled.EventWeight(event)
+            assert weight == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
+            assert pooled.EventWeightWithBreakdown(event).total == weight
 
 
 def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
@@ -169,6 +171,7 @@ def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
         for _ in range(32):
             event = injector.GenerateEvent()
             energy = event.tree[0].record.primary_momentum[0]
+            assert pooled.EventWeightWithBreakdown(event).total == pooled.EventWeight(event)
             if energy > 3.5:
                 outside += 1
                 assert single.EventWeight(event) == 0.0
@@ -177,3 +180,30 @@ def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
                 assert single.EventWeight(event) > 0.0
                 assert pooled.EventWeight(event) == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
     assert outside > 0
+
+
+@pytest.mark.parametrize("physical_max", [2.0, 4.0])
+def test_missing_powerlaw_proposal_support_is_an_error(detector, model, physical_max):
+    injectors = _disjoint_injectors(detector, model)
+    pooled = inj._Weighter(injectors, detector, _physical(model, 1.0, physical_max))
+    event = _injector(detector, model, 15, 2.2, 2.8).GenerateEvent()
+    with pytest.raises(RuntimeError, match="no injector can produce"):
+        pooled.EventWeight(event)
+    breakdown = pooled.EventWeightWithBreakdown(event)
+    assert math.isnan(breakdown.total)
+    assert any("no injector can produce" in flag
+               for vertex in breakdown.vertices for flag in vertex.flags)
+
+
+def test_powerlaw_pool_archive_preserves_zero_and_positive_weights(detector, model, tmp_path):
+    injectors = _disjoint_injectors(detector, model)
+    pooled = inj._Weighter(injectors, detector, _physical(model, 1.0, 3.5))
+    events = [injector.GenerateEvent() for injector in injectors for _ in range(32)]
+    expected = [pooled.EventWeight(event) for event in events]
+    assert any(weight == 0 for weight in expected)
+    assert any(weight > 0 for weight in expected)
+    archive = str(tmp_path / "powerlaw-pool")
+    pooled.SaveWeighter(archive)
+    restored = inj._Weighter([], archive)
+    assert [restored.EventWeight(event) for event in events] == expected
+    assert [restored.EventWeightWithBreakdown(event).total for event in events] == expected
