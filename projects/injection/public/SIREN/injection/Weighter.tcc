@@ -86,12 +86,16 @@ void ProcessWeighter<ProcessType>::Initialize() {
     unique_gen_distributions = GetInjectionDistributions();
     unique_phys_distributions = phys_process->GetPhysicalDistributions();
     cancelled_distribution_names.clear();
+    cancelled_gen_distributions.clear();
+    cancelled_phys_distributions.clear();
     for(typename std::vector<std::shared_ptr<typename ProcessType::InjectionType>>::reverse_iterator gen_it = unique_gen_distributions.rbegin();
             gen_it != unique_gen_distributions.rend(); ++gen_it) {
         for(std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
                 phys_it != unique_phys_distributions.rend(); ++phys_it) {
             if((*gen_it) && (*phys_it) && **gen_it == **phys_it) {
                 cancelled_distribution_names.push_back((*gen_it)->Name());
+                cancelled_gen_distributions.push_back(*gen_it);
+                cancelled_phys_distributions.push_back(*phys_it);
                 unique_gen_distributions.erase(std::next(gen_it).base());
                 unique_phys_distributions.erase(std::next(phys_it).base());
                 break;
@@ -268,11 +272,27 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
         physical_probability *= NormalizedPositionProbability(bounds, record);
     physical_probability *= ProcessFinalStateProbability(
         detector_model, *phys_process, record, convention);
+    if(physical_probability < 0.0 || !std::isfinite(physical_probability))
+        return physical_probability;
 
     for(auto physical_dist : unique_phys_distributions) {
-        physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
+        double density = physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        physical_probability *= density;
     }
+    if(!std::isfinite(physical_probability))
+        return physical_probability;
 
+    for(auto const & distribution : cancelled_phys_distributions) {
+        double density = distribution->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        if(density == 0.0)
+            physical_probability = 0.0;
+    }
+    if(normalization < 0.0 || !std::isfinite(normalization))
+        return normalization;
     return normalization * physical_probability;
 }
 
@@ -289,9 +309,23 @@ double ProcessWeighter<ProcessType>::GenerationProbability(
 
     double gen_probability = ProcessFinalStateProbability(
         detector_model, *inj_process, datum.record, convention);
+    if(gen_probability < 0.0 || !std::isfinite(gen_probability))
+        return gen_probability;
 
     for(auto gen_dist : unique_gen_distributions) {
-        gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        double density = gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        gen_probability *= density;
+    }
+    if(!std::isfinite(gen_probability))
+        return gen_probability;
+    for(auto const & distribution : cancelled_gen_distributions) {
+        double density = distribution->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        if(density == 0.0)
+            gen_probability = 0.0;
     }
     return gen_probability;
 }

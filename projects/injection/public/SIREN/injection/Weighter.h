@@ -46,9 +46,9 @@ private:
     std::shared_ptr<ProcessType> inj_process;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> unique_gen_distributions;
     std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>> unique_phys_distributions;
-    // Names of the injection/physical distributions that matched by operator==
-    // and were removed from both unique_* sets because they cancel in the weight
-    // ratio. Observation-only; recorded once at Initialize().
+    std::vector<std::shared_ptr<typename ProcessType::InjectionType>> cancelled_gen_distributions;
+    std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>> cancelled_phys_distributions;
+    // Cancelled factors still constrain support. Names are diagnostic only.
     std::vector<std::string> cancelled_distribution_names;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> const & GetInjectionDistributions();

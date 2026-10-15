@@ -318,6 +318,29 @@ TEST(WeighterGuards, PooledInjectorThatCannotProduceTheEventContributesNothing) 
     EXPECT_NE(std::find(flags.begin(), flags.end(), "generation density zero"), flags.end());
 }
 
+TEST(WeighterGuards, CancelledDistributionsRetainSupportAndValidation) {
+    for(double density : {0.0, -1.0, std::numeric_limits<double>::infinity(),
+                          std::numeric_limits<double>::quiet_NaN(), 2.0}) {
+        SCOPED_TRACE(density);
+        auto fixture = BuildWeighterGuardFixture(1, 1.0, density);
+        auto physical = fixture.weighter->GetPrimaryPhysicalProcess();
+        physical->AddPhysicalDistribution(
+            fixture.injector->GetPrimaryProcess()->GetPrimaryInjectionDistributions().front());
+        Weighter matched({fixture.injector}, fixture.weighter->GetDetectorModel(), physical);
+        auto breakdown = matched.EventWeightWithBreakdown(fixture.tree);
+        if(density == 2.0) {
+            EXPECT_DOUBLE_EQ(matched.EventWeight(fixture.tree), 1.0);
+            EXPECT_DOUBLE_EQ(breakdown.total, 1.0);
+        } else {
+            EXPECT_THROW(matched.EventWeight(fixture.tree),
+                         siren::utilities::WeightCalculationError);
+            EXPECT_TRUE(std::isnan(breakdown.total));
+            ASSERT_EQ(breakdown.vertices.size(), 1u);
+            EXPECT_FALSE(breakdown.vertices.front().flags.empty());
+        }
+    }
+}
+
 TEST(WeighterGuards, ZeroPhysicalProbabilityDoesNotHideInvalidPooledInjector) {
     auto first = BuildWeighterGuardFixture(1, 0.0);
     auto second = BuildWeighterGuardFixture(0, 0.0);
