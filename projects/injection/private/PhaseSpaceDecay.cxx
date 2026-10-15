@@ -2,6 +2,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/utilities/Errors.h"
 #include <cmath>
+#include <exception>
 #include <sstream>
 
 namespace siren { namespace injection {
@@ -40,10 +41,16 @@ void PhaseSpaceDecay::Validate() const {
 
 bool PhaseSpaceDecay::equal(siren::interactions::Decay const & other) const {
     auto p = dynamic_cast<PhaseSpaceDecay const *>(&other);
-    return p && signature_ == p->signature_ && masses_ == p->masses_
-        && partial_width_ == p->partial_width_ && total_width_ == p->total_width_
-        && (physical_channel_ == p->physical_channel_
-            || ChannelState(physical_channel_) == ChannelState(p->physical_channel_));
+    if (!p || signature_ != p->signature_ || masses_ != p->masses_
+        || partial_width_ != p->partial_width_ || total_width_ != p->total_width_)
+        return false;
+    if (physical_channel_ == p->physical_channel_)
+        return true;
+    try {
+        return ChannelState(physical_channel_) == ChannelState(p->physical_channel_);
+    } catch (std::exception const &) {
+        return false;
+    }
 }
 double PhaseSpaceDecay::ParentDecayWidth(siren::dataclasses::InteractionRecord const & r) const {
     return r.signature.primary_type == signature_.primary_type ? total_width_ : 0;
