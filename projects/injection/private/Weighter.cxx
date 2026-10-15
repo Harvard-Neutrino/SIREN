@@ -135,6 +135,22 @@ static void RecordMixtureDiagnostics(VertexWeightFactors & factors,
     }
 }
 
+double Weighter::ComputeGenerationProbability(unsigned int idx,
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const {
+    if(datum->is_root())
+        return primary_process_weighters[idx]->GenerationProbability(*datum);
+    try {
+        return secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)
+            ->GenerationProbability(*datum);
+    } catch(const std::out_of_range & oor) {
+        std::ostringstream oss;
+        oss << "Weighter::ComputeGenerationProbability: no secondary process weighter for secondary type "
+            << datum->record.signature.primary_type << " in injector " << idx
+            << " (" << oor.what() << ") [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
+    }
+}
+
 VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
         bool with_diagnostics) const {
@@ -146,7 +162,6 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         factors.depth = 0;
         bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
         factors.physical = primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
-        factors.generation = primary_process_weighters[idx]->GenerationProbability(*datum);
         if(with_diagnostics) {
             factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
             factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
@@ -160,7 +175,6 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
             auto const & w = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type);
             factors.physical = w->PhysicalProbability(bounds, datum->record);
-            factors.generation = w->GenerationProbability(*datum);
             if(with_diagnostics) {
                 factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
                 factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
@@ -219,9 +233,14 @@ EventWeightBreakdown Weighter::PoolEventWeight(
         if(generation == 0)
             reject(injector_name + " has no attempts and no events to inject");
         double physical = 1.0;
+        std::size_t const first_vertex = breakdown.vertices.size();
         bool zero_generation_density = false;
+        bool invalid_generation_density = false;
         for(auto const & datum : tree.tree) {
-            VertexWeightFactors factors = ComputeVertexFactors(idx, datum, with_diagnostics);
+            VertexWeightFactors factors;
+            factors.injector_index = static_cast<int>(idx);
+            factors.vertex_pdg = static_cast<int>(datum->record.signature.primary_type);
+            factors.generation = ComputeGenerationProbability(idx, datum);
             if(!datum->is_root())
                 factors.depth = static_cast<int>(datum->depth(tree));
             std::ostringstream where;
@@ -232,10 +251,42 @@ EventWeightBreakdown Weighter::PoolEventWeight(
                     ? "generation density negative" : "generation density non-finite";
                 factors.flags.push_back(flag);
                 reject(flag + " for " + where.str() + ": " + std::to_string(factors.generation));
+                invalid_generation_density = true;
             } else if(factors.generation == 0.0) {
                 factors.flags.push_back("generation density zero");
                 zero_generation_density = true;
             }
+            generation *= factors.generation;
+            breakdown.vertices.push_back(std::move(factors));
+        }
+        if(!std::isfinite(generation)
+           || (generation == 0.0 && !zero_generation_density)) {
+            breakdown.vertices.back().flags.push_back("unusable event probabilities");
+            reject("unusable generation probability for " + injector_name
+                   + ": " + std::to_string(generation));
+            invalid_generation_density = true;
+        }
+        if(generation == 0.0 || invalid_generation_density) {
+            for(std::size_t v = first_vertex; v < breakdown.vertices.size(); ++v) {
+                auto & factors = breakdown.vertices[v];
+                factors.physical = factors.interaction_prob = factors.position_prob =
+                    std::numeric_limits<double>::quiet_NaN();
+                factors.flags.push_back("physical factors not evaluated (no usable proposal)");
+            }
+            continue;
+        }
+        any_generating = true;
+        std::size_t vertex = first_vertex;
+        for(auto const & datum : tree.tree) {
+            auto & factors = breakdown.vertices[vertex++];
+            double const density = factors.generation;
+            int const depth = factors.depth;
+            factors = ComputeVertexFactors(idx, datum, with_diagnostics);
+            factors.generation = density;
+            factors.depth = depth;
+            std::ostringstream where;
+            where << injector_name << " at depth " << factors.depth
+                  << " (pdg " << factors.vertex_pdg << ")";
             if(!std::isfinite(factors.physical) || factors.physical < 0.0) {
                 std::string flag = std::isfinite(factors.physical)
                     ? "physical density negative" : "physical density non-finite";
@@ -244,23 +295,16 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             } else if(factors.physical == 0.0) {
                 factors.flags.push_back("outside physical support (weight 0)");
             }
-            generation *= factors.generation;
             physical *= factors.physical;
-            breakdown.vertices.push_back(std::move(factors));
         }
         std::ostringstream values;
         values << ": generation_probability=" << generation
                << ", physical_probability=" << physical;
-        if(!std::isfinite(generation) || !std::isfinite(physical)
-           || (generation == 0.0 && !zero_generation_density)) {
-            // A product of finite positive factors overflowed or underflowed.
+        if(!std::isfinite(physical)) {
             breakdown.vertices.back().flags.push_back("unusable event probabilities");
             reject("unusable probabilities for " + injector_name + values.str());
             continue;
         }
-        if(generation == 0.0)
-            continue;
-        any_generating = true;
         if(physical == 0.0) {
             zero_weight = true;
             continue;

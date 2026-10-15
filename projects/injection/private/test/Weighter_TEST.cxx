@@ -130,16 +130,18 @@ namespace {
 
 class GuardPositionDistribution : public siren::distributions::SphereVolumePositionDistribution {
     double density;
+    double max_z;
 public:
-    explicit GuardPositionDistribution(double density)
+    explicit GuardPositionDistribution(double density,
+            double max_z = std::numeric_limits<double>::infinity())
         : SphereVolumePositionDistribution(siren::geometry::Sphere(50.0, 0.0)),
-          density(density) {}
+          density(density), max_z(max_z) {}
 
     double GenerationProbability(
             std::shared_ptr<siren::detector::DetectorModel const>,
             std::shared_ptr<siren::interactions::InteractionCollection const>,
-            siren::dataclasses::InteractionRecord const &) const override {
-        return density;
+            siren::dataclasses::InteractionRecord const & record) const override {
+        return record.interaction_vertex[2] >= max_z ? 0.0 : density;
     }
 };
 
@@ -316,6 +318,31 @@ TEST(WeighterGuards, PooledInjectorThatCannotProduceTheEventContributesNothing) 
     ASSERT_EQ(breakdown.vertices.size(), 2u);
     auto const & flags = breakdown.vertices.back().flags;
     EXPECT_NE(std::find(flags.begin(), flags.end(), "generation density zero"), flags.end());
+}
+
+TEST(WeighterGuards, WholeEventSupportIsCheckedBeforePhysicalFactors) {
+    for(double density : {1.0, std::numeric_limits<double>::quiet_NaN()}) {
+        auto fixture = BuildWeighterGuardFixture(1, std::numeric_limits<double>::quiet_NaN());
+        fixture.injector->GetPrimaryProcess()->AddPrimaryInjectionDistribution(
+            std::make_shared<GuardPositionDistribution>(density, 20.0));
+        Weighter weighter({fixture.injector}, fixture.weighter->GetDetectorModel(),
+                          fixture.weighter->GetPrimaryPhysicalProcess());
+        auto record = fixture.tree.tree.front()->record;
+        record.interaction_vertex[2] = 30.0;
+        fixture.tree.add_entry(record);
+        auto breakdown = weighter.EventWeightWithBreakdown(fixture.tree);
+        EXPECT_TRUE(std::isnan(breakdown.total));
+        ASSERT_EQ(breakdown.vertices.size(), 2u);
+        for(auto const & vertex : breakdown.vertices) {
+            EXPECT_TRUE(std::isnan(vertex.physical));
+            EXPECT_EQ(std::find(vertex.flags.begin(), vertex.flags.end(),
+                                "physical density non-finite"), vertex.flags.end());
+        }
+        auto const & flags = breakdown.vertices.front().flags;
+        EXPECT_EQ(std::find(flags.begin(), flags.end(), "generation density non-finite")
+                  != flags.end(), std::isnan(density));
+        EXPECT_THROW(weighter.EventWeight(fixture.tree), siren::utilities::WeightCalculationError);
+    }
 }
 
 TEST(WeighterGuards, CancelledDistributionsRetainSupportAndValidation) {

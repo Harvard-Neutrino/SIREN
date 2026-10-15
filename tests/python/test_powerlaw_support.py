@@ -34,7 +34,7 @@ def model():
     return xs.TrivialCrossSection(1.0e-38, [NuMu], [dc.Particle.ParticleType.Nucleon])
 
 
-def _injector(detector, model, seed, energy_min, energy_max, n_inject=32):
+def _injector(detector, model, seed, energy_min, energy_max, n_inject=32, max_distance=25.0):
     process = inj.PrimaryInjectionProcess()
     process.primary_type = NuMu
     process.interactions = xs.InteractionCollection(NuMu, [model])
@@ -43,7 +43,7 @@ def _injector(detector, model, seed, energy_min, energy_max, n_inject=32):
         dist.PowerLaw(2.0, energy_min, energy_max),
         dist.PrimaryNeutrinoHelicityDistribution(),
         dist.IsotropicDirection(),
-        dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 25.0),
+        dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), max_distance),
     ]
     return inj._Injector(n_inject, detector, process, utilities.SIREN_random(seed))
 
@@ -207,3 +207,28 @@ def test_powerlaw_pool_archive_preserves_zero_and_positive_weights(detector, mod
     restored = inj._Weighter([], archive)
     assert [restored.EventWeight(event) for event in events] == expected
     assert [restored.EventWeightWithBreakdown(event).total for event in events] == expected
+
+
+def test_pooled_spatial_support_skips_undefined_physical_factors(detector, model):
+    injectors = [_injector(detector, model, seed, 1.0, 2.0, max_distance=reach)
+                 for seed, reach in ((13, 25.0), (14, 50.0))]
+    physical = _physical(model, 1.0, 2.0)
+    pooled = inj._Weighter(injectors, detector, physical)
+    single = inj._Weighter([injectors[1]], detector, physical)
+    events = [[injector.GenerateEvent() for _ in range(32)] for injector in injectors]
+    outside = 0
+    for event in events[1]:
+        radius = math.sqrt(sum(x * x for x in event.tree[0].record.interaction_vertex))
+        if radius <= 25.0:
+            continue
+        outside += 1
+        weight = pooled.EventWeight(event)
+        assert weight > 0
+        assert weight == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
+        breakdown = pooled.EventWeightWithBreakdown(event)
+        assert breakdown.total == weight
+        assert breakdown.vertices[0].generation == 0
+        assert math.isnan(breakdown.vertices[0].physical)
+        assert any("physical factors not evaluated" in flag
+                   for flag in breakdown.vertices[0].flags)
+    assert outside > 0

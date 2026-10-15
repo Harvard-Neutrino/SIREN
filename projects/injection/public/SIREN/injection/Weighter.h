@@ -136,9 +136,9 @@ private:
     > secondary_process_weighter_maps;
 
     void Initialize();
-    // with_diagnostics fills the observation-only interaction_prob/position_prob
-    // fields; EventWeight leaves it false so it computes only the physical and
-    // generation factors it consumes.
+    double ComputeGenerationProbability(unsigned int idx,
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const;
+    // Physical factors are evaluated only after establishing injector support.
     VertexWeightFactors ComputeVertexFactors(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
         bool with_diagnostics = false) const;
