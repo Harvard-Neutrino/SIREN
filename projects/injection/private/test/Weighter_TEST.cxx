@@ -335,6 +335,7 @@ TEST(WeighterGuards, WholeEventSupportIsCheckedBeforePhysicalFactors) {
         ASSERT_EQ(breakdown.vertices.size(), 2u);
         for(auto const & vertex : breakdown.vertices) {
             EXPECT_TRUE(std::isnan(vertex.physical));
+            EXPECT_TRUE(std::isnan(vertex.survival));
             EXPECT_EQ(std::find(vertex.flags.begin(), vertex.flags.end(),
                                 "physical density non-finite"), vertex.flags.end());
         }
