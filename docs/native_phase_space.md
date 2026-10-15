@@ -132,7 +132,7 @@ density is zero at an event contributes nothing to that event's weight; an
 error is raised only if no injector could have produced the event. A zero
 physical density from a producing injector gives weight zero. Physical factors
 are not evaluated for injectors without proposal support; their diagnostic
-fields are NaN with a `physical factors not evaluated` flag, while a supported
+fields, including creation survival, are NaN with a `physical factors not evaluated` flag, while a supported
 event can still have a finite total. Channel conventions and cancelled names
 remain available for skipped injectors, but per-channel densities are marked
 unevaluated. Negative or nonfinite evaluated densities raise

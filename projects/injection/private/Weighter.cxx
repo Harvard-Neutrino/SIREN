@@ -285,7 +285,7 @@ EventWeightBreakdown Weighter::PoolEventWeight(
         if(generation == 0.0 || invalid_generation_density) {
             for(std::size_t v = first_vertex; v < breakdown.vertices.size(); ++v) {
                 auto & factors = breakdown.vertices[v];
-                factors.physical = factors.interaction_prob = factors.position_prob =
+                factors.physical = factors.interaction_prob = factors.position_prob = factors.survival =
                     std::numeric_limits<double>::quiet_NaN();
                 factors.flags.push_back("physical factors not evaluated (no usable proposal)");
                 if(with_diagnostics)
