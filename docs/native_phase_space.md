@@ -146,9 +146,12 @@ their interaction rates differ.
 Pure decays do not look up material. For a parent at rest, the decay channel is
 chosen from partial-width ratios. Built-in fixed, cone and isotropic direction
 distributions assign unit probability to the single momentum of a massive
-on-shell parent at rest, where the sampled direction is unobservable. Material
-interactions require a finite,
-nonzero momentum.
+on-shell parent at rest, where the sampled direction is unobservable. Custom
+direction distributions should use the same unit probability mass for valid
+stationary records, and zero for invalid stationary records. This removes the
+previous spurious solid-angle factor when an isotropic direction appeared on
+only one side of a stationary weight. Moving densities are unchanged. Material
+interactions require a finite, nonzero momentum.
 
 ## Archives
 

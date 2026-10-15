@@ -25,7 +25,7 @@ def two_body_mixture(model):
 
 
 def fixed_decay_setup(model, parent, mass, n, propose=None, energy=None, direction=None):
-    """Injector and weighter for decays at a fixed vertex, with E = 2 * mass.
+    """Fixed-vertex decays, defaulting to E = 2 * mass and the +z direction.
 
     propose(signature) returns the proposal for a channel, or None to sample
     the physical decay.
@@ -291,3 +291,14 @@ def test_stationary_direction_is_marginalized(direction, moving_density):
     for event in events:
         assert weighter.EventWeight(event) == pytest.approx(1 / 32, rel=1e-12, abs=0)
         assert weighter.EventWeightWithBreakdown(event).total == weighter.EventWeight(event)
+    for physical_direction in (dist.IsotropicDirection(), None):
+        physical = weighter.GetPrimaryPhysicalProcess()
+        distributions = list(generator.GetPrimaryProcess().distributions)
+        if physical_direction is None:
+            del distributions[3]
+        else:
+            distributions[3] = physical_direction
+        physical.distributions = distributions
+        reweighter = inj._Weighter([generator], generator.GetDetectorModel(), physical)
+        for event in events:
+            assert reweighter.EventWeight(event) == pytest.approx(1 / 32, rel=1e-12, abs=0)
