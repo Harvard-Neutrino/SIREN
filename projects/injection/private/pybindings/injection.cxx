@@ -59,19 +59,23 @@ PYBIND11_MODULE(injection,m) {
             std::shared_ptr<siren::detector::DetectorModel const>,
             std::shared_ptr<siren::interactions::InteractionCollection const>,
             siren::dataclasses::InteractionRecord const &>(
-            &CrossSectionProbability));
+            &CrossSectionProbability),
+        "Physical probability; generation-only decay selection is not applied.");
   m.def("CrossSectionProbabilityWithPhaseSpace",
         overload_cast<
             std::shared_ptr<siren::detector::DetectorModel const>,
             std::shared_ptr<siren::interactions::InteractionCollection const>,
             siren::dataclasses::InteractionRecord const &,
             MultiChannelPhaseSpace const &>(
-            &CrossSectionProbabilityWithPhaseSpace));
-  m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
+            &CrossSectionProbabilityWithPhaseSpace),
+        "Physical proposal-mixture probability; generation-only decay selection is not applied.");
+  m.def("ChannelSelectionProbability", &ChannelSelectionProbability,
+        "Physical channel-selection probability; generation-only decay selection is not applied.");
   m.def("FixedVertexChannelSelectionProbability", &FixedVertexChannelSelectionProbability,
         "Channel-selection factor a Fixed vertex charges when multiple channels "
         "compete: exactly 1.0 for a single candidate signature, else "
-        "selected_rate/total_rate. Throws WeightCalculationError on a "
+        "selected_rate/total_rate. Generation-only decay selection is not applied. "
+        "Throws WeightCalculationError on a "
         "non-positive total rate or non-finite result.");
 
   // Vertex weighting mode
