@@ -92,11 +92,18 @@ PhaseSpaceConvention ProcessFinalStateConvention(
 // the rate-weighted probability for a propagated vertex, or the channel
 // selection probability times the selected density for a fixed vertex. A
 // registered proposal replaces the interaction model's own density.
+double DecayChannelGenerationProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const * phase_space = nullptr,
+    PhaseSpaceConvention const * convention = nullptr);
+
 double ProcessFinalStateProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     PhysicalProcess const & process,
     siren::dataclasses::InteractionRecord const & record,
-    PhaseSpaceConvention const & convention);
+    PhaseSpaceConvention const & convention, bool for_generation = false);
 
 } // namespace injection
 } // namespace siren
