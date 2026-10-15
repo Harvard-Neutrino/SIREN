@@ -323,8 +323,8 @@ TEST(WeighterGuards, PooledInjectorThatCannotProduceTheEventContributesNothing) 
 TEST(WeighterGuards, WholeEventSupportIsCheckedBeforePhysicalFactors) {
     for(double density : {1.0, std::numeric_limits<double>::quiet_NaN()}) {
         auto fixture = BuildWeighterGuardFixture(1, std::numeric_limits<double>::quiet_NaN());
-        fixture.injector->GetPrimaryProcess()->AddPrimaryInjectionDistribution(
-            std::make_shared<GuardPositionDistribution>(density, 20.0));
+        fixture.injector->GetPrimaryProcess()->SetPrimaryInjectionDistributions(
+            {std::make_shared<GuardPositionDistribution>(density, 20.0)});
         Weighter weighter({fixture.injector}, fixture.weighter->GetDetectorModel(),
                           fixture.weighter->GetPrimaryPhysicalProcess());
         auto record = fixture.tree.tree.front()->record;
