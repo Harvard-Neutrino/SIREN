@@ -13,10 +13,15 @@ from test_decay_channels import channel, P
 HBARC = 1.973e-16
 
 
-def setup(tmp_path, depth, full, z0=0.0, branch=1.0, n=8):
+def setup(tmp_path, depth, full, z0=0.0, branch=1.0, n=8, volume=False, selected=False):
     width = depth / 10.0 * 3.0 * HBARC
     model = channel([P.NuMu, P.Gamma], branch * width, width)
-    collection = xs.InteractionCollection(P.N4, [model])
+    models = [model]
+    if selected:
+        models.append(channel([P.NuE, P.Gamma], 0.3 * width, width))
+    collection = xs.InteractionCollection(P.N4, models)
+    if selected:
+        collection.SetDecayChannels(model.GetPossibleSignatures())
     detector = siren.detector.DetectorModel()
     path = tmp_path / "source.csv"
     path.write_text(f"E,px,py,pz,x0,y0,z0,m\n{math.sqrt(10)},0,0,3,0,0,{z0},1\n")
@@ -26,7 +31,8 @@ def setup(tmp_path, depth, full, z0=0.0, branch=1.0, n=8):
     process = inj.PrimaryInjectionProcess(P.N4, collection)
     process.distributions = [
         dist.PrimaryExternalDistribution(str(path)),
-        dist.PrimaryBoundedVertexDistribution(sphere, 100.0),
+        (dist.SphereVolumePositionDistribution(sphere) if volume else
+         dist.PrimaryBoundedVertexDistribution(sphere, 100.0)),
     ]
     mode = (
         inj.VertexWeightingMode.PropagatedFromCreation()
@@ -174,3 +180,43 @@ def test_native_archives_retain_opt_in_mode(tmp_path):
         )
     assert loaded.GetPrimaryProcess().weighting_mode.survival_from_creation
     assert restored.GetPrimaryPhysicalProcess().weighting_mode.survival_from_creation
+
+
+@pytest.mark.parametrize("depth", [0.5, 50.0])
+@pytest.mark.parametrize("full", [False, True])
+def test_selected_propagated_channel_uses_full_lifetime(tmp_path, depth, full):
+    generator, weighter = setup(tmp_path, depth, full, branch=0.2, n=32, selected=True)
+    events = [generator.GenerateEvent() for _ in range(32)]
+    expected = 0.2 * -math.expm1(-0.2 * depth) / 32
+    if full:
+        expected *= math.exp(-depth)
+    for event in events:
+        assert list(event.tree[0].record.signature.secondary_types) == [P.NuMu, P.Gamma]
+        assert weighter.EventWeight(event) == pytest.approx(expected, rel=1e-11, abs=0)
+        assert weighter.EventWeightWithBreakdown(event).total == weighter.EventWeight(event)
+
+
+@pytest.mark.parametrize("injection_full", [False, True])
+@pytest.mark.parametrize("physical_full", [False, True])
+def test_physical_process_controls_creation_survival(tmp_path, injection_full, physical_full):
+    generator, weighter = setup(tmp_path, 5.0, True)
+    mode = lambda full: (inj.VertexWeightingMode.PropagatedFromCreation() if full
+                         else inj.VertexWeightingMode.Propagated())
+    generator.GetPrimaryProcess().weighting_mode = mode(injection_full)
+    weighter.GetPrimaryPhysicalProcess().weighting_mode = mode(physical_full)
+    events = [generator.GenerateEvent() for _ in range(8)]
+    expected = -math.expm1(-1.0) / 8 * (math.exp(-5.0) if physical_full else 1.0)
+    for event in events:
+        assert weighter.EventWeight(event) == pytest.approx(expected, rel=1e-11, abs=0)
+
+
+def test_volume_sampler_replaces_creation_with_bounds_entry(tmp_path):
+    generator, weighter = setup(tmp_path, 50.0, True, volume=True)
+    plain, conditional = setup(tmp_path, 50.0, False, volume=True)
+    events = [generator.GenerateEvent() for _ in range(8)]
+    other = [plain.GenerateEvent() for _ in range(8)]
+    for event, reference in zip(events, other):
+        record = event.tree[0].record
+        assert list(record.primary_initial_position) != [0.0, 0.0, 0.0]
+        assert weighter.EventWeightWithBreakdown(event).vertices[0].survival == pytest.approx(1.0)
+        assert weighter.EventWeight(event) == pytest.approx(conditional.EventWeight(reference), rel=1e-12, abs=0)
