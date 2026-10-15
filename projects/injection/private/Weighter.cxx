@@ -151,6 +151,21 @@ double Weighter::ComputeGenerationProbability(unsigned int idx,
     }
 }
 
+void Weighter::RecordVertexDiagnostics(unsigned int idx,
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
+        VertexWeightFactors & factors) const {
+    if(datum->is_root()) {
+        RecordMixtureDiagnostics(factors, injectors[idx]->GetPrimaryProcess(),
+            primary_process_weighters[idx]->GetCancelledDistributionNames(),
+            datum->record, detector_model);
+    } else {
+        RecordMixtureDiagnostics(factors,
+            injectors[idx]->GetSecondaryProcessMap().at(datum->record.signature.primary_type),
+            secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)
+                ->GetCancelledDistributionNames(), datum->record, detector_model);
+    }
+}
+
 VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
         bool with_diagnostics) const {
@@ -165,10 +180,6 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         if(with_diagnostics) {
             factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
             factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
-            RecordMixtureDiagnostics(factors,
-                injectors[idx]->GetPrimaryProcess(),
-                primary_process_weighters[idx]->GetCancelledDistributionNames(),
-                datum->record, detector_model);
         }
     } else {
         try {
@@ -178,10 +189,6 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             if(with_diagnostics) {
                 factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
                 factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
-                RecordMixtureDiagnostics(factors,
-                    injectors[idx]->GetSecondaryProcessMap().at(datum->record.signature.primary_type),
-                    w->GetCancelledDistributionNames(),
-                    datum->record, detector_model);
             }
         } catch(const std::out_of_range& oor) {
             std::ostringstream oss;
@@ -192,6 +199,8 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             throw siren::utilities::ConfigurationError(oss.str());
         }
     }
+    if(with_diagnostics)
+        RecordVertexDiagnostics(idx, datum, factors);
     return factors;
 }
 
@@ -272,6 +281,8 @@ EventWeightBreakdown Weighter::PoolEventWeight(
                 factors.physical = factors.interaction_prob = factors.position_prob =
                     std::numeric_limits<double>::quiet_NaN();
                 factors.flags.push_back("physical factors not evaluated (no usable proposal)");
+                if(with_diagnostics)
+                    RecordVertexDiagnostics(idx, tree.tree[v - first_vertex], factors);
             }
             continue;
         }

@@ -53,6 +53,7 @@ private:
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> const & GetInjectionDistributions();
     void Initialize();
+    bool MatchingInteractionContext() const;
     siren::dataclasses::PhaseSpaceConvention WeightingConvention(
         siren::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(
@@ -71,7 +72,10 @@ public:
     double PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionTreeDatum const & datum) const;
-    std::vector<std::string> const & GetCancelledDistributionNames() const { return cancelled_distribution_names; }
+    std::vector<std::string> const & GetCancelledDistributionNames() const {
+        static std::vector<std::string> const empty;
+        return MatchingInteractionContext() ? cancelled_distribution_names : empty;
+    }
     std::shared_ptr<ProcessType> GetInjectionProcess() const { return inj_process; }
     ProcessWeighter(std::shared_ptr<siren::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<siren::detector::DetectorModel> detector_model);
 
@@ -81,8 +85,8 @@ typedef ProcessWeighter<siren::injection::PrimaryInjectionProcess> PrimaryProces
 typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryProcessWeighter;
 
 // One tree vertex's weight factors, recorded for diagnostics. generation and
-// physical are the exact per-datum factors the event weight consumes; the other
-// fields are observation-only and never fed back into the weight.
+// physical are the per-datum factors consumed by the weight. Skipped physical
+// factors are NaN and flagged; the remaining fields are observation-only.
 struct VertexWeightFactors {
     int injector_index = 0;
     int depth = 0;
@@ -138,6 +142,9 @@ private:
     void Initialize();
     double ComputeGenerationProbability(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const;
+    void RecordVertexDiagnostics(unsigned int idx,
+        std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
+        VertexWeightFactors & factors) const;
     // Physical factors are evaluated only after establishing injector support.
     VertexWeightFactors ComputeVertexFactors(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum,
