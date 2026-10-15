@@ -72,6 +72,8 @@ public:
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
 
+    using CrossSection::SecondaryMasses;
+    std::vector<double> SecondaryMasses(dataclasses::InteractionRecord const & record) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
     virtual std::vector<std::string> DensityVariables() const override;

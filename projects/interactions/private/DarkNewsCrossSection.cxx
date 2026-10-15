@@ -23,12 +23,9 @@ DarkNewsCrossSection::DarkNewsCrossSection() {}
 
 
 bool DarkNewsCrossSection::equal(CrossSection const & other) const {
-    const DarkNewsCrossSection* x = dynamic_cast<const DarkNewsCrossSection*>(&other);
-
-    if(!x)
-        return false;
-    else
-        return true;
+    // A DarkNews model's state lives in its Python subclass, which the C++
+    // type cannot compare, so only the same object compares equal.
+    return this == &other;
 }
 
 double DarkNewsCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {

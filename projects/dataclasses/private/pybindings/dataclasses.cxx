@@ -142,7 +142,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def("finalize", &SecondaryParticleRecord::Finalize)
         ;
 
-    py::class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
+    py::class_<CrossSectionDistributionRecord>(m, "CrossSectionDistributionRecord")
         .def(py::init<InteractionRecord const &>())
         .def("__str__", [](CrossSectionDistributionRecord const & cdr) { return to_str(cdr); })
         .def("__repr__", [](CrossSectionDistributionRecord const & cdr) { return to_repr(cdr); })
@@ -213,6 +213,7 @@ PYBIND11_MODULE(dataclasses, m) {
 
     py::class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
         .def(py::init<>())
+        .def(py::init<InteractionRecord const &>())
         .def("__str__", [](InteractionRecord const & r) { return to_str(r); })
         .def("__repr__", [](InteractionRecord const & r) { return to_repr(r); })
         .def_readwrite("signature",&InteractionRecord::signature)

@@ -16,6 +16,7 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"
+#include "SIREN/distributions/DistributionVariable.h"
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/RangeFunction.h"
 #include "SIREN/math/Vector3D.h"
