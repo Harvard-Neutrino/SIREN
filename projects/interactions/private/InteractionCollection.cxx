@@ -148,7 +148,7 @@ double InteractionCollection::ParentDecayWidth(dataclasses::InteractionRecord co
             total = declared;
         }
     }
-    // Preserve legacy Fixed workflows that never queried all-state widths.
+    // Preserve legacy moving Fixed workflows that never queried all-state widths.
     // Only an explicit parent declaration enables this validation contract.
     if (total == 0) return 0;
     for (auto const & decay : decays) {

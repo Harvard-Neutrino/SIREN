@@ -86,10 +86,28 @@ assert math.isclose(sum(weighter.EventWeight(event) for event in events), 0.2,
 
 `VertexWeightingMode.Propagated()` weights interaction and position within the
 injection bounds, conditional on reaching their entry. Set
-`VertexWeightingMode.PropagatedFromCreation()` on the physical and injection
-processes to include upstream survival from `record.primary_initial_position`
-to that entry. This applies to primary and secondary processes, using each
-record's own creation point. The native weight breakdown exposes `survival`.
+`VertexWeightingMode.PropagatedFromCreation()` on the **physical process** to
+include upstream survival from `record.primary_initial_position` to that entry.
+The injection process's survival flag does not change its proposal or enable
+physical survival. Using the same preset on both processes is convenient, but
+the physical process alone controls this factor. This applies to primary and
+secondary processes. The native weight breakdown exposes `survival`.
+
+The recorded initial position must still be the intended creation point:
+
+- `PrimaryBoundedVertexDistribution` and `PrimaryPhysicalVertexDistribution`
+  preserve a supplied creation point, including external-source coordinates.
+- The secondary bounded/physical distributions preserve their parent's vertex.
+- `FixedTargetPositionDistribution` generates and retains its own target source
+  point. `PointSourcePositionDistribution` retains its configured origin only
+  when clipping to the detector world has not moved that origin.
+- Sphere/cylinder volume, column-depth, range and decay-range distributions
+  replace the initial position with their injection entry. For those samplers,
+  this mode gives unit upstream survival; it cannot recover an earlier external
+  creation point. Do not use them to charge survival from that lost point.
+
+The direct native API does not reject these sampler/mode combinations. Validate
+this contract when constructing a process.
 
 For decay length L, distance d to entry and path length ell inside the bounds,
 the integrated physical probability for a branch b is
@@ -103,6 +121,14 @@ Inconsistent modes are rejected. Negative/NaN depth, survival below the smallest
 normal double, and overflow of the pooled inverse weight raise visible errors.
 For example, exp(-700) is supported at ordinary branch fractions; combining it
 with a very rare branch can exceed the representable inverse-weight range.
+These guards do not cover every product: a product of otherwise representable
+positive factors can still underflow to zero and be reported as zero physical
+support. Such extreme products require additional numerical diagnostics.
+
+The public `CrossSectionProbability`, `CrossSectionProbabilityWithPhaseSpace`,
+`ChannelSelectionProbability` and `FixedVertexChannelSelectionProbability`
+helpers describe physical, unconditioned probabilities. They do not apply the
+generation-only decay selection; use the process weighter for that density.
 
 ## Persistence and compatibility
 

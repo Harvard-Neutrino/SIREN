@@ -232,7 +232,7 @@ def test_darknews_trampoline_preserves_explicit_parent_width():
     assert collection.TotalDecayWidthAllFinalStates(record) == 1e-16
 
 
-def test_legacy_fixed_process_does_not_query_unrequested_lifetime():
+def test_legacy_moving_fixed_process_does_not_query_unrequested_lifetime():
     class LegacyDecay(WidthOverride):
         def TotalDecayWidthAllFinalStates(self, record):
             raise AssertionError("No lifetime was requested")
@@ -264,3 +264,18 @@ def test_rejected_parent_change_preserves_process_and_collection():
     with pytest.raises(RuntimeError, match="decay_channels"):
         process.primary_type = P.Pi0
     assert process.primary_type == collection.GetPrimaryType() == P.N4
+
+
+def test_native_decay_equality_is_conservative_for_live_python_channels():
+    model = WidthOverride(channel([P.NuMu, P.Gamma], 1e-16, 1e-16))
+    signature = model.GetPossibleSignatures()[0]
+    physical = inj.PhysicalDecayChannel(model)
+    first = inj.PhaseSpaceDecay(signature, [0.0, 0.0], 1e-16, 1e-16, physical)
+    shared = inj.PhaseSpaceDecay(signature, [0.0, 0.0], 1e-16, 1e-16, physical)
+    separate = inj.PhaseSpaceDecay(
+        signature, [0.0, 0.0], 1e-16, 1e-16, inj.PhysicalDecayChannel(model))
+    assert first == first
+    assert first == shared
+    assert first != separate
+    with pytest.raises((RuntimeError, TypeError)):
+        pickle.dumps(first)
