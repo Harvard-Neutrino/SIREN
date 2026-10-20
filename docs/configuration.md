@@ -95,8 +95,11 @@ can travel in a Python Injector pickle, separately from the native state.
 Native archive callbacks
 remain unsupported. Loading restores the random stream rather than restarting
 from its seed. `Injector.load(path)` constructs an injector; `injector.load(path)`
-replaces an existing instance. Retry limits are per-call Python controls; native
-archives restore the default retry policy.
+replaces an existing instance. The constructor's `max_attempts` setting limits
+each `generate()` call and survives Python pickling. Native archives restore
+the default retry policy. Weighter pickling resolves its native generation and
+physical processes first; incomplete configurations and live injector callbacks
+therefore fail explicitly, even if the weighter has not yet been used.
 
 [Compatibility changes](configuration-compatibility.md) records intentional
 differences from the legacy interface and the initial U04 draft.

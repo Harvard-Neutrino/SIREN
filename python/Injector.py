@@ -681,15 +681,20 @@ class Injector:
                     "with a picklable function, or use native expansion rules."
                     .format(type(error).__name__, error),
                     offenders=["stopping condition is not picklable"]) from error
-        return (self.__seed, condition, self.__injector._getstate_without_callback())
+        return (self.__seed, condition, self.__injector._getstate_without_callback(),
+                self.__max_attempts)
 
     def __setstate__(self, state):
-        self.__seed, self.__stopping_condition, injector_state = state
+        if len(state) not in (3, 4):
+            raise ValueError("Unsupported Injector pickle state")
+        self.__seed, self.__stopping_condition, injector_state = state[:3]
         self.__injector = _Injector.__new__(_Injector)
         if self.__injector is None:
             raise TypeError("Failed to create C++ Injector object")
         self.__injector.__setstate__(injector_state)
         self._restore_engine_configuration()
+        if len(state) == 4:
+            self.__max_attempts = state[3]
         if self.__stopping_condition is not None:
             self.stopping_condition = self.__stopping_condition
 

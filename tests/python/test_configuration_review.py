@@ -162,3 +162,37 @@ def test_count_is_stable_inside_progress_callback():
     observed = []
     generator.generate(2, progress=lambda *args: observed.append(generator.number_of_events))
     assert observed == [5, 5]
+
+
+@pytest.mark.parametrize("positional_list", [False, True])
+def test_weighter_rejects_two_injector_arguments(positional_list):
+    first, second = _working_injector(), _working_injector()
+    with pytest.raises(TypeError, match="positional.*injectors"):
+        inj.Weighter([first] if positional_list else first, injectors=[second])
+
+
+def test_injector_pickle_retains_retry_policy():
+    generator = _forced_failure_injector(events=1, max_attempts=3)
+    restored = pickle.loads(pickle.dumps(generator))
+    with pytest.raises(siren.errors.InjectionShortfall) as exc:
+        restored.generate(on_shortfall="raise")
+    assert exc.value.report.attempts == 3
+
+
+def test_injector_accepts_legacy_three_field_pickle_state():
+    generator = _working_injector(events=3)
+    state = generator.__getstate__()[:3]
+    restored = inj.Injector.__new__(inj.Injector)
+    restored.__setstate__(state)
+    assert restored.number_of_events == 3
+    assert len(restored.generate(on_shortfall="raise")) == 3
+
+
+def test_old_weighter_pickle_accepts_native_user_attribute():
+    from pathlib import Path
+    import base64
+    encoded = (Path(__file__).parent / "fixtures" /
+               "weighter-native-attribute-v0.b64").read_text()
+    restored = pickle.loads(base64.b64decode(encoded))
+    assert restored.native == "user metadata"
+    assert restored.injectors is None
