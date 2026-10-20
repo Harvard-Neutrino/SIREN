@@ -56,7 +56,42 @@ def test_isoscalar_error_mentions_correct_file_name(processes_mod):
     assert "CSMSDISSplines" not in str(exc.value), f"stale CSMSDISSplines name in {exc.value!r}"
 
 
-def test_load_processes_requires_m4_mev(processes_mod):
+def test_load_processes_requires_m4_mev(processes_mod, monkeypatch):
     """Regression: int(m4_MeV) blew up if m4_MeV was None before #116's fix."""
+    def unexpected_download():
+        pytest.fail("invalid arguments must be rejected before downloading")
+
+    monkeypatch.setattr(processes_mod, "fetch_data", unexpected_download)
     with pytest.raises(ValueError, match="m4_MeV"):
         processes_mod.load_processes()
+
+
+@pytest.mark.parametrize("option", ["primary", "isoscalar"])
+def test_invalid_loader_options_do_not_download(processes_mod, monkeypatch, option):
+    import siren
+
+    def unexpected_download():
+        pytest.fail("invalid arguments must be rejected before downloading")
+
+    monkeypatch.setattr(processes_mod, "fetch_data", unexpected_download)
+    kwargs = {"m4_MeV": 100.0}
+    if option == "primary":
+        kwargs["primary_types"] = [siren.dataclasses.Particle.ParticleType.EPlus]
+        message = "not supported"
+    else:
+        kwargs["isoscalar"] = False
+        message = "Non-isoscalar"
+    with pytest.raises(ValueError, match=message):
+        processes_mod.load_processes(**kwargs)
+
+
+def test_valid_loader_arguments_reach_download(processes_mod, monkeypatch):
+    class DownloadReached(Exception):
+        pass
+
+    def download():
+        raise DownloadReached
+
+    monkeypatch.setattr(processes_mod, "fetch_data", download)
+    with pytest.raises(DownloadReached):
+        processes_mod.load_processes(m4_MeV=100.0)

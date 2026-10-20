@@ -85,10 +85,6 @@ def load_processes(
     mixings: Optional[List[float]] = None,
     ):
 
-    fetch_data()
-
-    _, download_dir = _get_dirs()
-
     primary_types = _get_primary_types(primary_types)
     isoscalar = _get_isoscalar(isoscalar)
     target_types = _get_target_types(isoscalar, target_types)
@@ -98,6 +94,10 @@ def load_processes(
 
     m4_str = f"{int(m4_MeV):07d}"
     m4_GeV = float(m4_MeV) * 1e-3
+
+    fetch_data()
+
+    _, download_dir = _get_dirs()
 
     primary_processes_dict = collections.defaultdict(list)
 
