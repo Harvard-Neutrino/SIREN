@@ -299,91 +299,75 @@ def validate_reweighting_compatibility(
         )
 
 
-def _expand_rule_names(rule):
-    """Return the particle name(s) a child()/depth_below() rule references.
-
-    child() rules name a particle; depth_below() rules name none.
-    """
-    name = getattr(rule, "name", None)
-    return [name] if name is not None else []
-
-
 def validate_expansion_wiring(vertices):
-    """Check that a set of Vertex expand declarations forms a closed graph.
+    """Validate declarations and reachability from the primary vertex.
 
-    Parameters
-    ----------
-    vertices : iterable
-        Objects with ``.particle``, ``.expand`` (tuple of rules from
-        ``siren.expand.child``/``depth_below``), and ``.continue_if``.
-        An object may additionally expose ``.secondary_types`` (an
-        iterable of ParticleType/name the vertex's interactions can
-        produce); when absent, case (c) below is skipped for that
-        vertex since there is nothing to cross-check against.
-
-    Raises
-    ------
-    ConfigurationError
-        (a) An expand rule names a child particle with no registered
-            Vertex for that particle type.
-        (b) A registered secondary Vertex (any vertex other than a root,
-            i.e. one that some other vertex's expand list could reach)
-            is unreachable from every other vertex's expand list.
-        (c) A vertex declares secondaries (via ``.secondary_types``) but
-            has no expansion declaration at all (empty ``.expand``).
+    Empty expansion terminates a vertex. Predicates can veto a reachable
+    daughter at runtime; they cannot make an undeclared daughter reachable.
     """
+    from .expand import _ChildRule, _DepthBelowRule
     vertices = list(vertices)
-    by_particle = {}
-    for v in vertices:
-        ptype = _particles.resolve(v.particle)
-        by_particle[ptype] = v
+    if not vertices:
+        return
+    secondary = {}
+    for index, vertex in enumerate(vertices[1:], 1):
+        particle = _particles.resolve(vertex.particle)
+        if particle in secondary:
+            raise ConfigurationError("Duplicate secondary vertex for {!r}".format(particle))
+        secondary[particle] = index
 
-    named_children = set()
-    for v in vertices:
-        for rule in v.expand:
-            for name in _expand_rule_names(rule):
-                ptype = _particles.resolve(name)
-                named_children.add(ptype)
-                # (a) expand rule names a child with no registered Vertex.
-                if ptype not in by_particle:
+    for vertex in vertices:
+        if vertex.continue_if is not None and not callable(vertex.continue_if):
+            raise ConfigurationError("continue_if must be callable or None")
+        daughters = getattr(vertex, "secondary_types", None)
+        if daughters is not None:
+            daughters = {_particles.resolve(t) for t in daughters}
+        for rule in vertex.expand:
+            if isinstance(rule, _ChildRule):
+                particle = _particles.resolve(rule.name)
+                if daughters is not None and particle not in daughters:
                     raise ConfigurationError(
-                        f"Vertex {v.particle!r} declares expand rule "
-                        f"child({name!r}) but no Vertex is registered for "
-                        f"particle {name!r}. Fix: register a Vertex for "
-                        f"{name!r}, or remove this expand rule."
-                    )
-            # A depth_below rule (no named particle) expands every secondary,
-            # so all of this vertex's secondary types become reachable.
-            if not _expand_rule_names(rule):
-                for t in (getattr(v, "secondary_types", None) or []):
-                    named_children.add(_particles.resolve(t))
+                        "Vertex {!r} does not produce the declared daughter {!r}".format(
+                            vertex.particle, rule.name))
+                if particle not in secondary:
+                    raise ConfigurationError(
+                        "Vertex {!r} names child {!r}, but no secondary Vertex is registered".format(
+                            vertex.particle, rule.name))
+            elif not isinstance(rule, _DepthBelowRule):
+                raise ConfigurationError("expand entries must be child() or depth_below() rules")
+        if len(vertices) == 1 and (vertex.continue_if is not None or any(
+                isinstance(rule, _DepthBelowRule) and rule.n > 0 for rule in vertex.expand)):
+            raise ConfigurationError("Expansion requires a registered secondary Vertex")
 
-    # (b) a registered secondary Vertex unreachable from any expand list.
-    root = _particles.resolve(vertices[0].particle) if vertices else None
-    for v in vertices:
-        ptype = _particles.resolve(v.particle)
-        if ptype == root:
-            continue
-        if ptype not in named_children:
+    pending = [(0, 0)]
+    reached = {0}
+    for index, depth in pending:
+        vertex = vertices[index]
+        daughters = getattr(vertex, "secondary_types", None)
+        candidates = (set(secondary) if daughters is None
+                      else {_particles.resolve(t) for t in daughters})
+        signatures = getattr(vertex, "secondary_signatures", None)
+        for rule in vertex.expand:
+            if isinstance(rule, _ChildRule):
+                particle = _particles.resolve(rule.name)
+                if signatures is None:
+                    matches = (rule.index is None or
+                               (0 <= rule.index < 2**63 and rule.index == int(rule.index)))
+                else:
+                    matches = any(rule._matches(t, i) for signature in signatures
+                                  for i, t in enumerate(signature))
+                permitted = {particle} if matches else set()
+            else:
+                permitted = candidates if rule.n > depth else set()
+            for particle in permitted:
+                child_index = secondary.get(particle)
+                if child_index is not None and child_index not in reached:
+                    reached.add(child_index)
+                    pending.append((child_index, depth + 1))
+    for index, vertex in enumerate(vertices[1:], 1):
+        if index not in reached:
             raise ConfigurationError(
-                f"Vertex {v.particle!r} is registered but unreachable: no "
-                f"other Vertex's expand list names it. Fix: add "
-                f"child({v.particle!r}) to the expand list of the vertex "
-                f"that produces it, or remove this Vertex."
-            )
-
-    # (c) secondaries present with no expansion declaration at all.
-    for v in vertices:
-        secondary_types = getattr(v, "secondary_types", None)
-        if not secondary_types:
-            continue
-        if not v.expand:
-            raise ConfigurationError(
-                f"Vertex {v.particle!r} has secondaries "
-                f"{list(secondary_types)!r} but declares no expand rules. "
-                f"Fix: add expand=[siren.expand.child(...)] naming which "
-                f"secondaries should recurse."
-            )
+                "Vertex {!r} is unreachable from the primary expand rules".format(vertex.particle))
 
 
 def check_expand_vs_legacy_stopping(has_legacy_stopping, has_expand_or_continue_if):

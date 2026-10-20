@@ -379,8 +379,11 @@ PYBIND11_MODULE(injection,m) {
   class_<SecondaryExpansion, std::shared_ptr<SecondaryExpansion>>(m, "SecondaryExpansion",
       "Serializable native child/depth expansion rules; True means stop.")
     .def(init<std::vector<SecondaryExpansion::Rule>>(), arg("rules"))
+    .def(init<std::vector<SecondaryExpansion::Rule>, std::vector<SecondaryExpansion::Rule>>(),
+         arg("rules"), arg("primary_rules"))
     .def("__call__", &SecondaryExpansion::ShouldStop)
     .def_property_readonly("rules", &SecondaryExpansion::GetRules)
+    .def_property_readonly("primary_rules", &SecondaryExpansion::GetPrimaryRules)
     .def("__eq__", &SecondaryExpansion::operator==, pybind11::is_operator())
     .def(pybind11::pickle(
         &(siren::serialization::pickle_save<SecondaryExpansion>),
@@ -493,6 +496,8 @@ PYBIND11_MODULE(injection,m) {
     .def("InjectedEvents",&Injector::InjectedEvents)
     .def("InjectionAttempts",&Injector::InjectionAttempts)
     .def("EventsToInject",&Injector::EventsToInject)
+    .def("_set_attempt_limit", &Injector::SetAttemptLimit,
+         "Set a temporary quota without changing configured counts; None clears it.")
     .def("__len__", &Injector::EventsToInject)
     .def("FailedEvents",&Injector::FailedEvents)
     .def("UnregisteredSecondaryCount",&Injector::UnregisteredSecondaryCount)

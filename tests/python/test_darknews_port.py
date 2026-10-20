@@ -117,6 +117,27 @@ def test_darknews_exact_differential_path_clips_negative_density():
         siren.particles.NuMu, target, 1.0, q2) == 0.0
 
 
+def test_darknews_non_always_mode_keeps_exact_differential_evaluation(monkeypatch):
+    mod = _load_darknews_module("DarkNewsCrossSection")
+    ups_case = SimpleNamespace(
+        nu_projectile=SimpleNamespace(pdgid=14),
+        diff_xsec_Q2=lambda energy, q2: np.float64(7.0e-38),
+        m_ups=0.1, MA=37.2, Ethreshold=0.11,
+    )
+    xs = mod.PyDarkNewsCrossSection(ups_case, always_interpolate=False)
+    xs.is_configured = True
+    monkeypatch.setattr(xs, "_query_interpolation_table", lambda *args, **kwargs: 9.0e-38)
+    target = siren.dataclasses.ParticleType(1000180400)
+    record = siren.dataclasses.InteractionRecord()
+    record.signature.primary_type = siren.particles.NuMu
+    record.signature.target_type = target
+    record.primary_momentum = [1.0, 1.0, 0.0, 0.0]
+    record.target_mass = ups_case.MA
+    q2 = 0.5 * (xs.Q2Min(record) + xs.Q2Max(record))
+    assert xs.DifferentialCrossSection(
+        siren.particles.NuMu, target, 1.0, q2) == pytest.approx(7.0e-38, rel=1e-14, abs=0)
+
+
 def test_no_exit_calls_remain_in_port():
     for name in ("DarkNewsDecay", "DarkNewsCrossSection"):
         path = os.path.join(DARKNEWS_DIR, "%s.py" % name)

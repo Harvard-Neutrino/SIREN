@@ -454,13 +454,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return 0
         z = (Q2 - Q2min) / (Q2max - Q2min)
 
-        # Check if the configured interpolation policy can answer this point.
-        # In non-always mode _query_interpolation_table returns -1 when the
-        # nearby table is insufficient and the exact DarkNews calculation is
-        # required.
-        val = self._query_interpolation_table([energy, z], mode="differential")
-        if val >= 0:
-            return val
+        if self.always_interpolate:
+            val = self._query_interpolation_table([energy, z], mode="differential")
+            if val >= 0:
+                return val
 
         # If we have reached this block, we must compute the differential cross section using DarkNews
         return _finite_nonnegative(

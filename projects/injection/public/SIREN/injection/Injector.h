@@ -7,6 +7,7 @@
 #include <tuple>
 #include <string>
 #include <memory>
+#include <optional>
 #include <vector>                                          // for vector
 #include <cstdint>                                         // for uint32_t
 #include <utility>
@@ -57,8 +58,10 @@ class Injector {
 friend cereal::access;
 public:
     virtual ~Injector() {};
+    void SetAttemptLimit(std::optional<unsigned int> limit) { attempt_limit_ = limit; }
 protected:
     unsigned int events_to_inject = 0;
+    std::optional<unsigned int> attempt_limit_;
     unsigned int injection_attempts = 0;
     unsigned int injected_events = 0;
     unsigned int failed_events = 0;

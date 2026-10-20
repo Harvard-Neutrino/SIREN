@@ -59,14 +59,11 @@ def _checked_weight(value, label="event weight", *label_args):
 
 
 def _check_pooled_survival_modes(injectors):
-    """Require pooled injectors to agree on survival_from_creation.
-
-    The physical weighting modes are copied from the first injector, and only
-    the physical side charges the creation-to-entry survival. Injectors that
-    disagree would have their samples weighted under the first one's choice.
-    """
+    """Require pooled processes to agree on the inherited physical mode."""
     def flag(process):
-        return process.GetWeightingMode().survival_from_creation
+        mode = process.GetWeightingMode()
+        return (mode.compute_interaction_probability, mode.compute_position_probability,
+                mode.bound_source, mode.survival_from_creation)
 
     engines = [i for i in injectors if i is not None]
     primary = {flag(i.GetPrimaryProcess()) for i in engines}
@@ -79,10 +76,9 @@ def _check_pooled_survival_modes(injectors):
         mixed.insert(0, "primary")
     if mixed:
         raise ConfigurationError(
-            "Pooled injectors disagree on survival_from_creation for "
+            "Pooled injectors disagree on weighting mode for "
             + ", ".join(mixed)
-            + "; the physical weighting mode is taken from the first injector, so use "
-            "PropagatedFromCreation() for all of them or for none.")
+            + "; use the same physical mode for every pooled process.")
 
 class Weighter:
     """
@@ -184,9 +180,27 @@ class Weighter:
         spec_injectors = self.__detect_spec_injectors(args, injectors)
 
         if spec_injectors is not None:
+            legacy = {
+                "detector_model": detector_model, "primary_type": primary_type,
+                "primary_interactions": primary_interactions,
+                "primary_physical_distributions": primary_physical_distributions,
+                "secondary_interactions": secondary_interactions,
+                "secondary_physical_distributions": secondary_physical_distributions,
+            }
+            supplied = [key for key, value in legacy.items() if value is not None]
+            if supplied:
+                raise TypeError("Cannot mix inherited and legacy Weighter arguments: "
+                                + ", ".join(supplied))
+            unknown = set(overrides or {}) - {
+                "detector_model", "primary_type", "primary_interactions",
+                "secondary_interactions"}
+            if unknown:
+                raise TypeError("unknown Weighter overrides: " + ", ".join(sorted(unknown)))
             self.__init_from_injectors(
                 spec_injectors, primary_physical, secondary_physical, overrides)
             return
+        if primary_physical is not None or secondary_physical is not None or overrides is not None:
+            raise TypeError("Cannot mix legacy Weighter arguments with inherited physical arguments")
 
         if len(args) == 1 and injectors is None:
             # Legacy form with injectors passed positionally as a list.
@@ -557,6 +571,48 @@ class Weighter:
         self._guard_event_factor_serializable()
         return super().__reduce_ex__(protocol)
 
+    def __getstate__(self):
+        from . import errors
+        from types import MemberDescriptorType
+        slots = []
+        for base in type(self).__mro__:
+            for name, member in vars(base).items():
+                if isinstance(member, MemberDescriptorType):
+                    try:
+                        slots.append((base, name, member.__get__(self, type(self))))
+                    except AttributeError:
+                        pass
+        engine = None
+        if self.__weighter is not None or self.__injectors is not None:
+            engine = self.engine
+            self._guard_serializable(errors)
+        return {
+            "native": engine.__getstate__() if engine is not None else None,
+            "python": {key: value for key, value in self.__dict__.items()
+                       if engine is None or not key.startswith("_Weighter__")},
+            "slots": slots,
+        }
+
+    def __setstate__(self, state):
+        if isinstance(state, tuple):
+            dictionary, slots = state
+            self.__dict__.update(dictionary or {})
+            for name, value in slots.items():
+                setattr(self, name, value)
+            return
+        if "native" not in state:
+            self.__dict__.update(state)
+            return
+        if state["native"] is not None:
+            Weighter.__init__(self)
+            self.__weighter = _Weighter.__new__(_Weighter)
+            self.__weighter.__setstate__(state["native"])
+            self.__injectors = list(self.__weighter.GetInjectors())
+            self._restore_engine_configuration()
+        self.__dict__.update(state["python"])
+        for base, name, value in state.get("slots", []):
+            vars(base)[name].__set__(self, value)
+
     def __copy__(self):
         return self._copy_state()
 
@@ -632,6 +688,10 @@ class Weighter:
         else:
             injectors = []
         self.__weighter = _Weighter(injectors, filename)
+        self.__injectors = list(self.__weighter.GetInjectors())
+        self._restore_engine_configuration()
+
+    def _restore_engine_configuration(self):
         self.__detector_model = self.__weighter.GetDetectorModel()
         primary_process = self.__weighter.GetPrimaryPhysicalProcess()
         self.__primary_type = primary_process.primary_type

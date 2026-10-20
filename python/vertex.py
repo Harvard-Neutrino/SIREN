@@ -165,7 +165,7 @@ class Vertex:
         siren.Propagated / siren.PropagatedFromCreation / siren.Fixed /
         siren.ExternalBounds shorthand. PropagatedFromCreation() also
         charges the survival from the creation point to the entry of the
-        injection bounds (see docs/decay_channels.md).
+        injection bounds (see docs/native_decay_accounting.md).
     expand : tuple, optional
         Expansion rules from expand.child() / expand.depth_below().
     continue_if : callable, optional
@@ -286,6 +286,8 @@ class Vertex:
             expand=self.expand,
             continue_if=self.continue_if,
             secondary_types=seen,
+            secondary_signatures=tuple(tuple(sig.secondary_types)
+                                       for _, sig in self._all_signatures()),
         )
 
     # ------------------------------------------------------------------ #

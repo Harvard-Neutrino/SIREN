@@ -15,7 +15,7 @@ count. Signatures outside that set resolve to `Unspecified`.
 
 For a `DecayModel`, `total_width()` is the partial width of its declared final
 state. Keep all competing models in `Vertex.interactions` and use
-[`decay_channels`](decay_channels.md) to restrict generation while preserving
+[`decay_channels`](native_decay_accounting.md) to restrict generation while preserving
 the full propagation lifetime and physical branching fractions.
 
 Daughter masses default to `particles.mass(type)`: values registered with
@@ -108,6 +108,5 @@ coverage, and mixture density probes that have not run cannot certify closure.
 Mixture configuration validation is reported separately. Three-body and
 scattering models still need an independent reference before full certification.
 
-For a three-body decay with one massless daughter, [siren.three_body](three_body.md)
-provides Dalitz integration, energy sampling, isotropic momentum construction,
-boosts, and the matching Recursive2Body density.
+The shared three-body authoring helpers are planned in U09. This unit does not
+provide them or certify three-body closure.
