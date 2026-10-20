@@ -7,7 +7,7 @@ The shared installed runtime and downstream BSM adapters are separate migrations
 | Contract | Behavior and reason |
 |---|---|
 | Repeated generation | Attempts and failures accumulate until `reset()`. Weights use the combined attempts, including failures. Recompute weights after generating all batches. This repairs the initial draft's denominator reset. |
-| Requested count | Retry budgets do not replace the configured event count. Saving and loading retain that count and the RNG stream. Per-call retry controls are Python settings, not native archive metadata. |
+| Requested count | Retry budgets do not replace the configured event count. Saving and loading retain that count and the RNG stream. The constructor's `max_attempts` setting limits each generation call and survives Python pickle; native archives restore the default retry policy. |
 | Efficiency floor | A run with no successes stops after the 50-attempt warmup when below the requested floor. Budgets are bounded by the native counter's remaining capacity. |
 | Mixed interfaces | Vertex declarations cannot be combined with legacy process keywords. Inherited Weighter construction rejects legacy keywords and unknown overrides instead of dropping them. |
 | Physical target | The first pooled injector supplies the shared physical target unless explicitly overridden. Proposal models may differ; the complete weighting modes must agree for each process type. |
@@ -17,7 +17,7 @@ The shared installed runtime and downstream BSM adapters are separate migrations
 | Expansion | Empty lists terminate. Repeated primary/secondary particle types keep distinct rules and predicates. Invalid rules, absent daughters and unreachable secondary declarations fail early. |
 | Native expansion archives | SecondaryExpansion version 1 adds a separate primary policy. Real version-0 expansion archives load with their original policy. Injector remains version 2. |
 | Callback state | Native archives refuse callbacks. Python Injector pickle supports picklable stopping functions and predicates; lambdas and other non-picklable state fail explicitly. |
-| Weighter pickle | Native generation and resolved physical processes are stored together. Python subclasses' additional attributes remain Python pickle state. Python physics trampolines and `event_factor` still cannot be serialized as native physics. |
+| Weighter pickle | Native generation and resolved physical processes are stored together. Python subclasses' additional attributes remain Python pickle state. Pickling builds configured weighters first: incomplete configurations and live injector callbacks fail explicitly even before first use. Empty weighters remain picklable. Python physics trampolines and `event_factor` still cannot be serialized as native physics. |
 | Archive loading | Class loading constructs an injector; legacy instance loading replaces that instance. Duplicate secondary process types are rejected, including ambiguous old archives, instead of silently overwriting one entry. |
 | Stopping inspection | Native `GetStoppingCondition()` supplies a stop-all callable when no callback exists. Use `HasStoppingCondition()` or the facade's `stopping_condition` to inspect whether one was supplied. |
 | Channel sums | Addition preserves written coefficients across more than two terms; normalization occurs for the resulting mixture. This repairs proposal shares in the initial draft. |

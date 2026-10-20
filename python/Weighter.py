@@ -177,6 +177,8 @@ class Weighter:
         self.__weighter = None
         self.event_factor = event_factor
 
+        if args and injectors is not None:
+            raise TypeError("Cannot supply both positional injectors and injectors=")
         spec_injectors = self.__detect_spec_injectors(args, injectors)
 
         if spec_injectors is not None:
@@ -586,23 +588,26 @@ class Weighter:
         if self.__weighter is not None or self.__injectors is not None:
             engine = self.engine
             self._guard_serializable(errors)
-        return {
+        return ("siren.Weighter", 1, {
             "native": engine.__getstate__() if engine is not None else None,
             "python": {key: value for key, value in self.__dict__.items()
                        if engine is None or not key.startswith("_Weighter__")},
             "slots": slots,
-        }
+        })
 
     def __setstate__(self, state):
-        if isinstance(state, tuple):
+        if isinstance(state, dict):
+            self.__dict__.update(state)
+            return
+        if len(state) == 2:
             dictionary, slots = state
             self.__dict__.update(dictionary or {})
             for name, value in slots.items():
                 setattr(self, name, value)
             return
-        if "native" not in state:
-            self.__dict__.update(state)
-            return
+        tag, version, state = state
+        if tag != "siren.Weighter" or version != 1:
+            raise ValueError("Unsupported Weighter pickle state")
         if state["native"] is not None:
             Weighter.__init__(self)
             self.__weighter = _Weighter.__new__(_Weighter)
