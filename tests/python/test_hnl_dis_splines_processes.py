@@ -5,6 +5,7 @@ needs C++ classes that aren't on main until #122 lands. Here we just regression-
 protect the review fixes that landed alongside these files.
 """
 import importlib.util
+import inspect
 
 import pytest
 
@@ -93,5 +94,22 @@ def test_valid_loader_arguments_reach_download(processes_mod, monkeypatch):
         raise DownloadReached
 
     monkeypatch.setattr(processes_mod, "fetch_data", download)
+    coupling_name = ("mixings" if "mixings" in inspect.signature(
+        processes_mod.load_processes).parameters else "dipole_couplings")
     with pytest.raises(DownloadReached):
-        processes_mod.load_processes(m4_MeV=100.0)
+        processes_mod.load_processes(m4_MeV=100.0, **{coupling_name: [0.0, 1e-3, 0.0]})
+
+
+@pytest.mark.parametrize("couplings", [
+    None, [], [0.0, 0.0], [0.0] * 4, [float("nan"), 0, 0],
+    [float("inf"), 0, 0], ["invalid", 0, 0],
+])
+def test_invalid_couplings_do_not_download(processes_mod, monkeypatch, couplings):
+    def unexpected_download():
+        pytest.fail("invalid couplings must be rejected before downloading")
+
+    coupling_name = ("mixings" if "mixings" in inspect.signature(
+        processes_mod.load_processes).parameters else "dipole_couplings")
+    monkeypatch.setattr(processes_mod, "fetch_data", unexpected_download)
+    with pytest.raises(ValueError, match=coupling_name):
+        processes_mod.load_processes(m4_MeV=100.0, **{coupling_name: couplings})
