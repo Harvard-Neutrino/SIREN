@@ -249,5 +249,9 @@ bool PrimaryBoundedVertexDistribution::less(WeightableDistribution const & other
     return false;
 }
 
+std::set<DistributionVariable> PrimaryBoundedVertexDistribution::RequiredVariables() const {
+    return {DistributionVariable::InitialPosition, DistributionVariable::PrimaryDirection};
+}
+
 } // namespace distributions
 } // namespace siren

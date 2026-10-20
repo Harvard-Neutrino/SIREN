@@ -72,3 +72,17 @@ def darknews_version():
         print("WARNING: DarkNews is not available (not installed, or installed version lacks required APIs)")
         return None
 utilities.darknews_version = darknews_version
+
+
+from . import errors, particles, dist, channels, expand
+from .vertex import Vertex
+from .models import (
+    DecayModel, CrossSectionModel, decay_model_base, cross_section_model_base,
+    Measure, Topology,
+)
+from .closure import check_closure, ClosureReport
+
+Propagated = injection.VertexWeightingMode.Propagated
+PropagatedFromCreation = injection.VertexWeightingMode.PropagatedFromCreation
+Fixed = injection.VertexWeightingMode.Fixed
+ExternalBounds = injection.VertexWeightingMode.ExternalBounds

@@ -188,5 +188,9 @@ bool PointSourcePositionDistribution::less(WeightableDistribution const & other)
         std::tie(origin, x->max_distance);
 }
 
+std::set<DistributionVariable> PointSourcePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
+
 } // namespace distributions
 } // namespace sirenREN

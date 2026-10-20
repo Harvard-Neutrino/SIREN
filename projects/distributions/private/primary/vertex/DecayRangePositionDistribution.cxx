@@ -155,5 +155,9 @@ bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<siren::detect
     return this->operator==(*distribution);
 }
 
+std::set<DistributionVariable> DecayRangePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy};
+}
+
 } // namespace distributions
 } // namespace sirenREN

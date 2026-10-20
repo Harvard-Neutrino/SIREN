@@ -243,5 +243,9 @@ bool PrimaryExternalDistribution::less(WeightableDistribution const & other) con
 }
 
 
+std::set<DistributionVariable> PrimaryExternalDistribution::RequiredVariables() const {
+    return {};
+}
+
 } // namespace distributions
 } // namespace siren

@@ -147,6 +147,7 @@ public:
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const = 0;
     // The record fields this distribution sets when it samples.
     virtual std::set<DistributionVariable> ProvidedVariables() const { return {}; }
+    virtual std::set<DistributionVariable> RequiredVariables() const;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
