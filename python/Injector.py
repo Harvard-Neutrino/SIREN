@@ -30,6 +30,17 @@ SecondaryInjectionProcess = _injection.SecondaryInjectionProcess
 InteractionTreeDatum = _dataclasses.InteractionTreeDatum
 
 
+class _ArchiveLoader:
+    """Class loading constructs an injector; instance loading replaces it."""
+    def __get__(self, instance, owner):
+        def load(filename):
+            target = owner() if instance is None else instance
+            target._load_archive(filename)
+            return target
+        load.__doc__ = owner._load_archive.__doc__
+        return load
+
+
 class Injector:
     """Biased-sampling injector.
 
@@ -70,6 +81,29 @@ class Injector:
         primary_decay_channels=None,
         secondary_decay_channels=None,
     ):
+        if primary is not None:
+            legacy = {
+                "primary_type": primary_type, "primary_interactions": primary_interactions,
+                "primary_injection_distributions": primary_injection_distributions,
+                "primary_phase_spaces": primary_phase_spaces,
+                "primary_weighting_mode": primary_weighting_mode,
+                "primary_decay_channels": primary_decay_channels,
+                "secondary_interactions": secondary_interactions,
+                "secondary_injection_distributions": secondary_injection_distributions,
+                "secondary_phase_spaces": secondary_phase_spaces,
+                "secondary_weighting_modes": secondary_weighting_modes,
+                "secondary_decay_channels": secondary_decay_channels,
+            }
+            supplied = [key for key, value in legacy.items() if value is not None]
+            if supplied:
+                raise TypeError("Cannot mix Vertex and legacy process arguments: "
+                                + ", ".join(supplied))
+        elif secondaries:
+            raise TypeError("secondaries requires a primary Vertex")
+        if events is not None and number_of_events is not None:
+            raise TypeError("Supply events or number_of_events, not both")
+        if detector is not None and detector_model is not None:
+            raise TypeError("Supply detector or detector_model, not both")
         self.__seed = None
         self.__number_of_events = 0
         self.__detector_model = None
@@ -287,9 +321,9 @@ class Injector:
             self.__secondary_injection_distributions[ptype] = list(sv.distributions)
             specs.append(sv.as_vertex_spec())
 
-        if self.__secondary_vertices and self.__stopping_condition is None:
+        if self.__stopping_condition is None:
             _validation.validate_expansion_wiring(specs)
-        if self.__secondary_vertices and has_expand:
+        if has_expand:
             self.__stopping_condition = _expand.compile_expansion(specs)
 
         # Compile per-signature phase spaces from each Vertex's kinematics.
@@ -356,12 +390,15 @@ class Injector:
             ps_map = process.GetPhaseSpaceMap()
             for sig, mcps in ps_map.items():
                 try:
-                    _validation.probe_channel_densities(
+                    diagnostics = _validation.probe_channel_densities(
                         mcps, sig, self.__detector_model, validation_random)
+                    for diagnostic in diagnostics:
+                        warnings.warn(str(diagnostic), RuntimeWarning, stacklevel=3)
                 except typed_errors:
                     raise
-                except (ValueError, TypeError, RuntimeError):
-                    continue
+                except (ValueError, TypeError, RuntimeError) as error:
+                    warnings.warn("Channel density probe skipped: " + str(error),
+                                  RuntimeWarning, stacklevel=3)
 
     def __initialize_injector(self):
         self._build()
@@ -379,6 +416,8 @@ class Injector:
         attempts. ``min_efficiency`` aborts early if the success rate falls
         below it. On shortfall, ``on_shortfall`` chooses ``'warn'`` (default),
         ``'raise'``, or ``'ignore'``, carrying an InjectionReport.
+        Attempts accumulate until ``reset()``; weight combined batches after
+        generation finishes. Retry limits do not change the configured count.
 
         ``on_failure``: ``'retry'`` (default) retries failed attempts; ``'raise'``
         raises GenerationFailure except for NoPathThroughVolume and
@@ -392,17 +431,32 @@ class Injector:
             self._build()
         if events is None:
             events = self.__number_of_events
+        import operator
+        try:
+            events = operator.index(events)
+        except TypeError as error:
+            raise ValueError("events must be a positive integer") from error
         if events <= 0:
-            raise ValueError("events must be positive")
+            raise ValueError("events must be a positive integer")
+        if on_shortfall not in ("warn", "raise", "ignore"):
+            raise ValueError("on_shortfall must be 'warn', 'raise', or 'ignore'")
+        if min_efficiency is not None and not 0 <= min_efficiency <= 1:
+            raise ValueError("min_efficiency must be between zero and one")
 
         max_attempts = self.__max_attempts
         if max_attempts is None:
             max_attempts = events * 1000
-
-        # The engine throws once its own attempt quota (events_to_inject) is
-        # reached, so raise that quota to the retry budget; otherwise a
-        # sub-unity efficiency could never reach `events` successes.
-        self.__injector.ResetInjectedEvents(max_attempts)
+        try:
+            max_attempts = operator.index(max_attempts)
+        except TypeError as error:
+            raise ValueError("max_attempts must be a positive integer") from error
+        if max_attempts <= 0:
+            raise ValueError("max_attempts must be a positive integer")
+        previous_attempts = self.__injector.InjectionAttempts()
+        max_attempts = min(max_attempts, 2**32 - 1 - previous_attempts)
+        if max_attempts == 0:
+            raise ValueError("Native attempt counter is exhausted; reset before a new run")
+        self.__injector._set_attempt_limit(previous_attempts + max_attempts)
 
         # Give the efficiency estimate a minimum sample before it can abort, so
         # an unlucky early run is not cut short.
@@ -410,41 +464,37 @@ class Injector:
 
         trees = []
         attempts = 0
-        while len(trees) < events and attempts < max_attempts:
-            attempts += 1
-            try:
+        try:
+            while len(trees) < events and attempts < max_attempts:
+                attempts += 1
                 tree = self.__injector.GenerateEvent()
-            except RuntimeError as err:
-                # The engine raises once its own attempt quota is exhausted;
-                # any other error is a real fault and must not be swallowed.
-                if "maximum number of injection attempts" in str(err):
-                    break
-                raise
-            if len(tree.tree) == 0:
-                if on_failure == "raise":
-                    self.report()._raise_for_failure()
-                continue
-            trees.append(tree)
-            if progress is not None:
-                progress(len(trees), events)
-            if (min_efficiency is not None and attempts >= min_efficiency_warmup
-                    and (len(trees) / attempts) < min_efficiency):
+                if len(tree.tree) == 0:
+                    if on_failure == "raise":
+                        self.report()._raise_for_failure()
+                else:
+                    trees.append(tree)
+                    if progress is not None:
+                        progress(len(trees), events)
+                if (min_efficiency is not None and attempts >= min_efficiency_warmup
+                        and (len(trees) / attempts) < min_efficiency):
+                    report = self.report()
+                    message = (
+                        "injection efficiency {:.2%} fell below min_efficiency "
+                        "{:.2%} after {} attempts ({} succeeded)".format(
+                            len(trees) / attempts, min_efficiency, attempts,
+                            len(trees)))
+                    self._handle_shortfall(on_shortfall, message, report, _errors)
+                    return trees
+
+            if len(trees) < events:
                 report = self.report()
                 message = (
-                    "injection efficiency {:.2%} fell below min_efficiency "
-                    "{:.2%} after {} attempts ({} succeeded)".format(
-                        len(trees) / attempts, min_efficiency, attempts,
-                        len(trees)))
+                    "requested {} events but only {} succeeded in {} attempts"
+                    .format(events, len(trees), attempts))
                 self._handle_shortfall(on_shortfall, message, report, _errors)
-                return trees
-
-        if len(trees) < events:
-            report = self.report()
-            message = (
-                "requested {} events but only {} succeeded in {} attempts"
-                .format(events, len(trees), attempts))
-            self._handle_shortfall(on_shortfall, message, report, _errors)
-        return trees
+            return trees
+        finally:
+            self.__injector._set_attempt_limit(None)
 
     def _handle_shortfall(self, on_shortfall, message, report, _errors):
         if on_shortfall == "ignore":
@@ -582,8 +632,9 @@ class Injector:
                 "physics on reload:\n  - " + "\n  - ".join(offenders),
                 offenders=offenders)
 
-    @classmethod
-    def load(cls, filename):
+    load = _ArchiveLoader()
+
+    def _load_archive(self, filename):
         """Construct an Injector from a saved archive.
 
         A version-1 or newer archive carries the RNG engine state, so the reloaded
@@ -592,15 +643,18 @@ class Injector:
         starts a fresh unseeded stream. Version 2 also preserves native
         declarative expansion. Arbitrary Python predicates require pickle.
         """
-        obj = cls()
-        _random = _utilities.SIREN_random()
-        obj.__injector = _Injector(1, filename, _random)
-        # Read the seed back from whichever engine is now installed (the
-        # restored one after a resume, or the fresh fallback otherwise).
-        obj.__seed = obj.__injector.GetRandom().get_seed()
-        obj.__stopping_condition = obj.__injector.GetSecondaryExpansion()
-        obj._restore_engine_configuration()
-        return obj
+        condition = self.stopping_condition
+        if self.__injector is None:
+            random = (_utilities.SIREN_random() if self.__seed is None
+                      else _utilities.SIREN_random(self.__seed))
+            self.__injector = _Injector(1, filename, random)
+        else:
+            self.__injector.LoadInjector(filename)
+        self.__seed = self.__injector.GetRandom().get_seed()
+        self.__stopping_condition = self.__injector.GetSecondaryExpansion()
+        if self.__injector.HasStoppingCondition():
+            self.__stopping_condition = condition
+        self._restore_engine_configuration()
 
     # ------------------------------------------------------------------ #
     #  Pickling                                                            #
@@ -749,8 +803,9 @@ class Injector:
     @primary_injection_distributions.setter
     def primary_injection_distributions(self, primary_injection_distributions):
         if self.__injector is not None:
-            primary_process = self.__injector.GetPrimaryProcess()
-            primary_process.distributions = primary_injection_distributions
+            from .errors import ConfigurationError
+            raise ConfigurationError(
+                "Cannot replace distributions on a built Injector; construct a new Injector")
         self.__primary_injection_distributions = primary_injection_distributions
 
     @property
@@ -796,13 +851,9 @@ class Injector:
     @secondary_injection_distributions.setter
     def secondary_injection_distributions(self, secondary_injection_distributions):
         if self.__injector is not None:
-            secondary_processes = self.__injector.GetSecondaryProcessMap()
-            current_secondary_types = sorted(list(secondary_processes.keys()))
-            new_secondary_types = sorted(list(secondary_injection_distributions.keys()))
-            if current_secondary_types != new_secondary_types:
-                raise ValueError("Cannot change the secondary types after initialization")
-            for secondary_type, secondary_process in secondary_processes.items():
-                secondary_process.distributions = secondary_injection_distributions[secondary_type]
+            from .errors import ConfigurationError
+            raise ConfigurationError(
+                "Cannot replace distributions on a built Injector; construct a new Injector")
         self.__secondary_injection_distributions = secondary_injection_distributions
 
     @property

@@ -157,7 +157,7 @@ class Mixture:
                 "Mixture: weights sum to {!r}, must be finite and positive".format(total))
         self._entries: List[Tuple[float, "Channel"]] = [
             (w / total, ch) for w, ch in entries]
-        self._scale = 1.0
+        self._scale = total
 
     def _scaled_entries(self):
         """The entries as (scale * relative_weight, channel) pairs."""
