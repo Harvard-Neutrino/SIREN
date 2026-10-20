@@ -1,4 +1,5 @@
 import os
+import math
 from typing import List, Optional
 import siren
 import collections
@@ -91,6 +92,13 @@ def load_processes(
 
     if m4_MeV is None:
         raise ValueError("m4_MeV requires a floating point number but is currently set to None")
+
+    try:
+        mixings = [float(value) for value in mixings]
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ValueError("mixings requires three finite coupling values") from error
+    if len(mixings) != 3 or not all(math.isfinite(value) for value in mixings):
+        raise ValueError("mixings requires three finite coupling values")
 
     m4_str = f"{int(m4_MeV):07d}"
     m4_GeV = float(m4_MeV) * 1e-3
