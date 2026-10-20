@@ -255,8 +255,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     break
                 gamma_idx += 1
             if gamma_idx >= len(record.signature.secondary_types):
-                print("No gamma found in the list of secondaries!")
-                exit(0)
+                raise ValueError("no gamma found in the list of secondaries")
 
             Pgamma = np.array(record.secondary_momenta[gamma_idx])
             momenta = np.expand_dims(PN, 0), np.expand_dims(Pgamma, 0)
@@ -281,8 +280,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 else:
                     nu_idx = idx
             if -1 in [lepminus_idx, lepplus_idx, nu_idx]:
-                print("Couldn't find two leptons and a neutrino in the final state!")
-                exit(0)
+                raise ValueError("could not find two leptons and a neutrino in the final state")
             Pnu = np.array(record.secondary_momenta[nu_idx])
             Plepminus = np.array(record.secondary_momenta[lepminus_idx])
             Plepplus = np.array(record.secondary_momenta[lepplus_idx])
@@ -293,8 +291,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 np.expand_dims(Pnu, 0),
             )
         else:
-            print("%s is not a valid decay class type!" % type(self.dec_case))
-            exit(0)
+            raise ValueError("%s is not a valid decay class type" % type(self.dec_case))
         ret = self.dec_case.differential_width(momenta)
         if hasattr(ret, "item"):
             ret = ret.item()
@@ -306,8 +303,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         elif isinstance(arg1, dataclasses.Particle.ParticleType):
             primary = arg1
         else:
-            print("Incorrect function call to TotalDecayWidthAllFinalStates!")
-            exit(0)
+            raise TypeError("TotalDecayWidthAllFinalStates expects an InteractionRecord or ParticleType")
         if int(primary) != self.dec_case.nu_parent:
             return 0
         if self.total_width is None:
@@ -357,33 +353,19 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
     def DensityVariables(self):
         if isinstance(self.dec_case, FermionSinglePhotonDecay):
-            return "cost"
+            return ["cost"]
         elif isinstance(self.dec_case, FermionDileptonDecay):
             if self.dec_case.vector_on_shell and self.dec_case.scalar_on_shell:
-                print("Can't have both the scalar and vector on shell")
-                exit(0)
+                raise ValueError("cannot have both the scalar and vector on shell")
             elif (self.dec_case.vector_on_shell and self.dec_case.scalar_off_shell) or (
                 self.dec_case.vector_off_shell and self.dec_case.scalar_on_shell
             ):
-                return "cost"
+                return ["cost"]
             elif self.dec_case.vector_off_shell and self.dec_case.scalar_off_shell:
-                return "t,u,c3,phi34"
+                return ["t", "u", "c3", "phi34"]
         else:
-            print("%s is not a valid decay class type!" % type(self.dec_case))
-            exit(0)
-        return ""
-
-    def GetPSSample(self, random):
-        # Make the PS weight CDF if that hasn't been done
-        if self.PS_weights_CDF is None:
-            self.PS_weights_CDF = np.cumsum(self.PS_weights)
-
-        # Random number to determine
-        x = random.Uniform(0, self.PS_weights_CDF[-1])
-
-        # find first instance of a CDF entry greater than x
-        PSidx = np.argmax(x - self.PS_weights_CDF <= 0)
-        return self.PS_samples[:, PSidx]
+            raise ValueError("%s is not a valid decay class type" % type(self.dec_case))
+        return []
 
     def GetPSSample(self, random):
         # Make the PS weight CDF if that hasn't been done
@@ -441,8 +423,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     break
                 gamma_idx += 1
             if gamma_idx >= len(record.signature.secondary_types):
-                print("No gamma found in the list of secondaries!")
-                exit(0)
+                raise ValueError("no gamma found in the list of secondaries")
             nu_idx = 1 - gamma_idx
             secondaries[gamma_idx].four_momentum = np.squeeze(four_momenta["P_decay_photon"])
             secondaries[gamma_idx].mass = 0
@@ -469,10 +450,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 else:
                     nu_idx = idx
             if -1 in [lepminus_idx, lepplus_idx, nu_idx]:
-                print([lepminus_idx, lepplus_idx, nu_idx])
-                print(record.signature.secondary_types)
-                print("Couldn't find two leptons and a neutrino in the final state!")
-                exit(0)
+                raise ValueError("could not find two leptons and a neutrino in the final state")
             secondaries[lepminus_idx].four_momentum = (
                 np.squeeze(four_momenta["P_decay_ell_minus"])
             )

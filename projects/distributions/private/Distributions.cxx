@@ -87,5 +87,9 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
     return normalization<dist->GetNormalization();
 }
 
+std::set<DistributionVariable> PrimaryInjectionDistribution::RequiredVariables() const {
+    return {};
+}
+
 } // namespace distributions
 } // namespace sirenREN

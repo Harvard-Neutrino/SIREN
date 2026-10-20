@@ -376,6 +376,16 @@ PYBIND11_MODULE(injection,m) {
   m.def("TwoBodyRestEnergy", &TwoBodyRestEnergy);
   m.def("Kallen", &Kallen);
 
+  class_<SecondaryExpansion, std::shared_ptr<SecondaryExpansion>>(m, "SecondaryExpansion",
+      "Serializable native child/depth expansion rules; True means stop.")
+    .def(init<std::vector<SecondaryExpansion::Rule>>(), arg("rules"))
+    .def("__call__", &SecondaryExpansion::ShouldStop)
+    .def_property_readonly("rules", &SecondaryExpansion::GetRules)
+    .def("__eq__", &SecondaryExpansion::operator==, pybind11::is_operator())
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<SecondaryExpansion>),
+        &(siren::serialization::pickle_load<SecondaryExpansion>)));
+
   class_<PhaseSpaceDecay, std::shared_ptr<PhaseSpaceDecay>, siren::interactions::Decay>(m, "PhaseSpaceDecay",
       "Native decay with an explicitly declared normalized physical channel. "
       "Injection bias belongs on the process, separately from this physical law.")
@@ -454,6 +464,16 @@ PYBIND11_MODULE(injection,m) {
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::SIREN_random>>(), keep_alive<1, 4>())
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>>(), keep_alive<1, 4>(), keep_alive<1, 5>())
     .def("SetStoppingCondition",&Injector::SetStoppingCondition)
+    .def("SetSecondaryExpansion", &Injector::SetSecondaryExpansion)
+    .def("GetSecondaryExpansion", &Injector::GetSecondaryExpansion)
+    .def("HasStoppingCondition", &Injector::HasStoppingCondition)
+    .def("GetStoppingConditionRevision", &Injector::GetStoppingConditionRevision)
+    .def("SetSecondaryProcesses", &Injector::SetSecondaryProcesses, keep_alive<1, 2>())
+    .def("_getstate_without_callback", [](Injector const & self) {
+        auto snapshot = std::make_shared<Injector>(self);
+        if(snapshot->HasStoppingCondition()) snapshot->SetStoppingCondition({});
+        return siren::serialization::pickle_save<Injector>(snapshot);
+    }, "Internal facade pickle helper; the facade stores the callback separately.")
     .def("GetStoppingCondition",&Injector::GetStoppingCondition)
     .def("SetPrimaryProcess",&Injector::SetPrimaryProcess, keep_alive<1, 2>())
     .def("AddSecondaryProcess",&Injector::AddSecondaryProcess, keep_alive<1, 2>())
