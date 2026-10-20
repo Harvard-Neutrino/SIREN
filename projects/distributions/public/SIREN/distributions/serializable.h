@@ -2,6 +2,11 @@
 #define SIREN_distributions_serializable_H
 
 #include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
+#include "SIREN/distributions/primary/vertex/PrimaryBoundedVertexDistribution.h"
+#include "SIREN/distributions/primary/vertex/PrimaryPhysicalVertexDistribution.h"
+#include "SIREN/distributions/primary/vertex/FixedTargetPositionDistribution.h"
+#include "SIREN/distributions/primary/area/FixedTargetAreaDistribution.h"
 
 #include "SIREN/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "SIREN/distributions/primary/direction/Cone.h"

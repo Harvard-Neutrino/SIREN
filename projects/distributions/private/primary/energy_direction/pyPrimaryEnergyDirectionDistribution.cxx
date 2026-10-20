@@ -162,5 +162,15 @@ bool pyPrimaryEnergyDirectionDistribution::less(WeightableDistribution const & d
     )
 }
 
+std::set<DistributionVariable> pyPrimaryEnergyDirectionDistribution::RequiredVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryEnergyDirectionDistribution,
+        std::set<DistributionVariable>,
+        RequiredVariables,
+        "RequiredVariables"
+    )
+}
+
 } // namespace distributions
 } // namespace siren

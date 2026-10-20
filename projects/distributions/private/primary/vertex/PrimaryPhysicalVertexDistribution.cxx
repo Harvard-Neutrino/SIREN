@@ -185,5 +185,9 @@ bool PrimaryPhysicalVertexDistribution::less(WeightableDistribution const & othe
     return false;
 }
 
+std::set<DistributionVariable> PrimaryPhysicalVertexDistribution::RequiredVariables() const {
+    return {DistributionVariable::InitialPosition, DistributionVariable::PrimaryDirection};
+}
+
 } // namespace distributions
 } // namespace siren

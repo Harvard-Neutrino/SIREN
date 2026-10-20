@@ -100,8 +100,11 @@ def _build_darknews_ccm(events_to_inject=2):
     injector.primary_injection_distributions = primary_injection_distributions
     injector.secondary_interactions = secondary_processes
     injector.secondary_injection_distributions = secondary_injection_distributions
+    # Preserve this round-trip fixture's primary-only generation contract.
+    injector.stopping_condition = lambda tree, parent, index: True
 
     events, gen_times = GenerateEvents(injector)
+    assert all(len(event.tree) == 1 for event in events)
 
     weighter = siren.injection.Weighter()
     weighter.injectors = [injector]

@@ -144,5 +144,15 @@ bool pyVertexPositionDistribution::less(WeightableDistribution const & distribut
     )
 }
 
+std::set<DistributionVariable> pyVertexPositionDistribution::RequiredVariables() const {
+    SELF_OVERRIDE(
+        self,
+        VertexPositionDistribution,
+        std::set<DistributionVariable>,
+        RequiredVariables,
+        "RequiredVariables"
+    )
+}
+
 } // namespace distributions
 } // namespace siren
