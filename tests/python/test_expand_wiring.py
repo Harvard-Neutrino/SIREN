@@ -131,8 +131,7 @@ def test_wiring_error_unreachable_vertex():
         validate_expansion_wiring(vertices)
 
 
-def test_wiring_error_secondaries_without_expansion():
-    """Secondaries present but no expand declaration at all -> ConfigurationError."""
+def test_empty_expansion_terminates_daughters():
     vertices = [
         VertexSpec(
             particle=PT.N4,
@@ -141,8 +140,10 @@ def test_wiring_error_secondaries_without_expansion():
             secondary_types=[PT.NuLight, PT.Gamma],
         ),
     ]
-    with pytest.raises(ConfigurationError):
-        validate_expansion_wiring(vertices)
+    validate_expansion_wiring(vertices)
+    tree, parent = _tree_with_root(PT.N4, [PT.NuLight, PT.Gamma])
+    stop = compile_expansion(vertices)
+    assert all(stop(tree, parent, i) for i in range(2))
 
 
 def test_legacy_stopping_condition_with_expand_is_hard_error():

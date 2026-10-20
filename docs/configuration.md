@@ -60,24 +60,43 @@ Declare secondary Vertices in `secondaries`. The parent uses
 `siren.expand.depth_below(n)` for a depth limit. Unlisted daughters terminate.
 Duplicate secondary types and unreachable or missing declarations fail during
 configuration. An optional `continue_if(tree, parent, index)` can veto expansion.
+An empty expansion list ends the chain at that vertex. When the primary and
+a secondary share a particle type, each retains its own expansion policy.
 
 `generate(N)` returns N successful trees, subject to `max_attempts`. The native
-attempt count includes failed attempts and remains the weight denominator.
+attempt count includes failed attempts and accumulates across calls until
+`reset()`. Compute weights after all batches have been generated, using that
+combined denominator. The configured event count is independent of retry limits
+and remains the default for later calls and loaded injectors.
 Use `on_failure="raise"` to expose non-geometric failures immediately and
 `on_shortfall="raise"` to require the requested count. `report()` exposes the
 attempt and failure counts. Validation probes use a separate random stream.
+Probe diagnostics are warnings; an inapplicable template does not certify closure.
+
+Use either Vertex process declarations or legacy process keywords. Mixing them,
+unknown Weighter override keys, and pooled processes with different weighting
+modes are errors. The first injector defines the shared physical target for
+`Weighter(first, second, ...)`; explicit physical overrides replace that target.
+Construct a new Injector to change generation distributions after it is built.
 
 ## Persistence
 
 Native process modes, mixtures and declarative expansion rules survive saving
 and pickling. Injector archive version 2 adds expansion rules; version 1 already
 contains the random-engine state. Version 0 archives use the caller's fresh
-random engine.
+random engine. SecondaryExpansion version 1 distinguishes primary and secondary
+policies; its version-0 archives retain their original policy by particle type.
 
 `Injector.save()` stores generation processes. A Vertex's separate physical
 declarations require `Weighter.save()`. Python interaction/distribution
 subclasses and `event_factor` cannot be saved as native physics; unsupported
-state raises explicitly. A picklable stopping function can travel in a Python
-Injector pickle, separately from the native state. Native archive callbacks
+state raises explicitly. A picklable stopping function or `continue_if` predicate
+can travel in a Python Injector pickle, separately from the native state.
+Native archive callbacks
 remain unsupported. Loading restores the random stream rather than restarting
-from its seed.
+from its seed. `Injector.load(path)` constructs an injector; `injector.load(path)`
+replaces an existing instance. Retry limits are per-call Python controls; native
+archives restore the default retry policy.
+
+[Compatibility changes](configuration-compatibility.md) records intentional
+differences from the legacy interface and the initial U04 draft.

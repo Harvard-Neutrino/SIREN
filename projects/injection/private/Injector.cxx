@@ -384,7 +384,7 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
 }
 
 siren::dataclasses::InteractionTree Injector::GenerateEvent() {
-    if(injection_attempts >= events_to_inject) {
+    if(injection_attempts >= attempt_limit_.value_or(events_to_inject)) {
         throw(std::runtime_error("Injector has already made the maximum number of injection attempts!"));
     }
     injection_attempts += 1;
