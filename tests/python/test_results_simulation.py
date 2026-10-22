@@ -229,3 +229,98 @@ def test_legacy_loader_options_are_explicit_and_metadata_survives(monkeypatch):
     assert calls == [('mock',{'primary_types':[siren.particles.NuMu],
         'target_types':[siren.particles.Nucleon], 'process_types':['CC'],'coupling':0.2})]
     assert sim.process_metadata == ('metadata',)
+
+
+def test_merge_rejects_identical_seeds_from_fresh_injectors():
+    sim = simulation(4, 71)
+    a, b = sim.run(), sim.run()
+    np.testing.assert_array_equal(a.weights, b.weights)
+    with pytest.raises(siren.errors.ConfigurationError, match='independent seeds'):
+        siren.Results.merge([a, b])
+
+
+@pytest.mark.parametrize('change', ['length', 'fiducial'])
+def test_merge_rejects_different_fixed_target_bounds(change):
+    cylinder=siren.geometry.Cylinder(siren.geometry.Placement(),0.05,0.,0.1)
+    fid=siren.geometry.Sphere(siren.geometry.Placement(siren.math.Vector3D(0,0,5)),1.,0.)
+    positions=[siren.distributions.FixedTargetPositionDistribution(cylinder,fid,25.)]
+    positions.append(siren.distributions.FixedTargetPositionDistribution(cylinder,fid,5.)
+                     if change=='length' else
+                     siren.distributions.FixedTargetPositionDistribution(cylinder,25.))
+    results=[]
+    for seed,pos in zip((81,82),positions):
+        sim=simulation(3,seed)
+        sim._primary.distributions[-1]=pos
+        results.append(sim.run())
+    with pytest.raises(siren.errors.ConfigurationError,match='differing config'):
+        siren.Results.merge(results)
+
+
+@pytest.mark.parametrize('option', ['targets', 'process', 'isoscalar'])
+@pytest.mark.parametrize('use_vertex', [False, True])
+def test_legacy_loader_selectors_are_not_ignored(option,use_vertex):
+    original=simulation(2)
+    kwargs={option: {'targets':'Proton','process':'NC','isoscalar':True}[option]}
+    if use_vertex:
+        kwargs['primary']=original._primary
+    else:
+        kwargs.update(primary='NuMu',interactions=original._primary.interactions,
+                      injection_distributions=original._primary.distributions)
+    with pytest.warns(DeprecationWarning), pytest.raises(TypeError,match='named interaction loader'):
+        siren.Simulation(events=2,detector=original.detector_model,**kwargs)
+
+
+@pytest.mark.parametrize('pooled', [False, True])
+def test_results_constructor_checks_weighter_source(pooled):
+    a,b=simulation(3,11),simulation(3,12)
+    ra,rb=a.run(),b.run()
+    wrong=siren.injection.Weighter(a.injector,b.injector) if pooled else b.weighter
+    with pytest.raises(siren.errors.ConfigurationError,match='same single injector'):
+        siren.Results(ra.events,wrong.weight_all(ra.events),ra.gen_times,wrong,a.injector)
+
+
+@pytest.mark.parametrize('zero_success', [False, True])
+def test_empty_results_export_preserves_run_accounting(tmp_path,zero_success):
+    if zero_success:
+        gen=_forced_failure_injector(events=2,max_attempts=5)
+        result=siren.generate(gen,siren.injection.Weighter(gen),events=2,on_shortfall='ignore')
+    else:
+        result=simulation(3).run().where(lambda event,weight:False)
+    path=tmp_path/'empty'
+    result.save(path,snapshot=True)
+    restored=siren.Results.load(path)
+    assert len(restored)==0 and restored.attempts==result.attempts
+    assert restored.injected==result.injected
+    assert len(restored.reweight())==0
+    with h5py.File(str(path)+'.hdf5') as stream:
+        assert stream['Events'].attrs['length']==0
+        assert stream['Events'].attrs['attempted_events']==result.attempts
+        assert stream['Events'].attrs['accepted_events']==result.injected
+
+
+@pytest.mark.parametrize('scale',[1.,1e-280,1e280])
+def test_effective_sample_size_is_scale_invariant(scale):
+    result=siren.Results([None,None],[scale,scale],[0.,0.],None,None)
+    assert result.ess()==2.
+
+
+def _constant_factor(tree):
+    return 2.
+
+
+def test_pickleable_event_factor_still_obeys_archive_refusal(tmp_path):
+    result=simulation(factor=_constant_factor).run()
+    with pytest.raises(siren.errors.NotSerializableError):
+        result.save(tmp_path/'factor',snapshot=True)
+    assert not list(tmp_path.iterdir())
+
+
+def test_process_bundle_unpacking_exposes_metadata_explicitly(monkeypatch):
+    from siren import _util
+    monkeypatch.setattr(_util,'load_resource',lambda *args,**kwargs:({'primary':[]},{},'ups','dec'))
+    bundle=siren.load_processes('mock')
+    primary,secondary=bundle
+    assert primary=={'primary':[]} and secondary=={}
+    assert bundle.metadata==('ups','dec')
+    with pytest.raises(ValueError):
+        primary,secondary,ups,dec=bundle

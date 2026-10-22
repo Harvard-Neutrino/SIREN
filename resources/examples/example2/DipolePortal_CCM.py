@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--events", type=int, default=1)
 parser.add_argument("--seed", type=int, default=None)
 parser.add_argument("--output", default="output/CCM_Dipole")
+parser.add_argument("--save-tables", metavar="DIRECTORY",
+                    help="save reusable DarkNews cross-section and decay tables")
 args = parser.parse_args()
 
 model_kwargs = {
@@ -80,3 +82,9 @@ results = sim.run(on_failure="raise", on_shortfall="raise")
 results.summary()
 # save_hepmc3=True additionally writes <output>.hepmc3 (HepMC3/NuHepMC).
 results.save(args.output, save_hepmc3=True)
+
+if args.save_tables:
+    primary_ups_keys, secondary_dec_keys = bundle.metadata
+    siren.resources.processes.DarkNewsTables.SaveDarkNewsProcesses(
+        args.save_tables, bundle.primary, primary_ups_keys,
+        bundle.secondary, secondary_dec_keys)
