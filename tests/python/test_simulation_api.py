@@ -46,8 +46,6 @@ class TestWeighterBatch:
             detector=offline_detector(),
             primary="NuMu",
             interactions=[siren.interactions.DummyCrossSection()],
-            targets="Nucleon",
-            process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
             direction=siren.dist.IsotropicDirection(),
             position=siren.dist.ColumnDepth(
@@ -69,8 +67,6 @@ class TestEventsAlias:
             detector=offline_detector(),
             primary="NuMu",
             interactions=[siren.interactions.DummyCrossSection()],
-            targets="Nucleon",
-            process="CC",
             energy=siren.dist.PowerLaw(2, 1e3, 1e6),
             direction=siren.dist.IsotropicDirection(),
             position=siren.dist.ColumnDepth(
@@ -86,7 +82,6 @@ class TestEventsAlias:
 
     def test_legacy_slots_warn_even_with_events(self):
         import siren
-        import warnings
         with pytest.warns(DeprecationWarning, match="convenience slots"):
             sim = siren.Simulation(events=7, **self._kwargs(siren))
         assert "events=7" in repr(sim)

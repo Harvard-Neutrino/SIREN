@@ -36,15 +36,17 @@ including failed attempts and zero-success runs. Requested and accepted counts
 are metadata, not the normalization denominator. Results from the same source
 injector (including across resets), overlapping subsets, unknown configurations,
 and differing physical targets are refused. Distinct injectors with identical
-seeds are still correlated; the caller must provide independent seeds.
+seeds are refused as correlated samples. This check does not prove independence
+of externally supplied sources; callers retain that responsibility.
 
 `result.save("output/run")` exports stored weights without evaluating physics
 again. HDF5 includes the run counts and optional `pot` metadata; POT does not
 multiply weights. Parquet and native event files retain event weights.
 `save(..., snapshot=True)` additionally writes `.siren_results`, carrying the
 configuration needed by `Results.load("output/run").reweight(...)`. Native event
-files alone are not Results snapshots. Live physics/event factors that cannot
-be archived fail before writing any snapshot output. Load pickle snapshots only
+files alone are not Results snapshots. Live unarchivable physics and all non-None event factors (including pickleable
+functions) are refused before writing any snapshot output, matching Weighter
+archive policy. Load pickle snapshots only
 from trusted sources and use a compatible SIREN version.
 
 Legacy Simulation energy/direction/interaction slots issue a deprecation warning

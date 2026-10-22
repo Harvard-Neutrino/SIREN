@@ -57,8 +57,9 @@ def translate(primary, secondaries, detector, options, slots):
             raise TypeError('process_options requires a named interaction loader')
         vertex = Vertex(primary, models)
         injection, physical = [], []
-    for ignored in ('targets', 'process', 'isoscalar'):
-        slots.pop(ignored, None)
+    for option in ('targets', 'process', 'isoscalar'):
+        if option in slots:
+            raise TypeError(option + ' requires a named interaction loader')
     energy = slots.pop('energy', None)
     inj_energy = slots.pop('injection_energy', None)
     phys_energy = slots.pop('physical_energy', None)
