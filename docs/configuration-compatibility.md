@@ -48,8 +48,11 @@ primary_ups_keys, secondary_dec_keys = bundle.metadata
 ```
 
 The retained legacy CCM example uses this loader migration. The supported CCM
-example exposes `--save-tables DIRECTORY` to preserve generic DarkNews table
-persistence. Legacy scripts otherwise retain their historical interface; they
+example exposes `--save-tables DIRECTORY` to load and save generic DarkNews
+tables under a version/model subdirectory. Keep separate directories for different
+model settings. Cached runs share a finite decay sample pool: additional event
+seeds reduce sampling noise conditional on that pool, not the pool's own
+integration uncertainty. Legacy scripts otherwise retain their historical interface; they
 are migration references, not the supported workflow.
 
 Results pools by attempted draws, including rejected events. It retains a
