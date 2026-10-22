@@ -27,3 +27,25 @@ The shared installed runtime and downstream BSM adapters are separate migrations
 The retained main/U02 archive and scattering witnesses cover the unchanged native
 paths. These checks do not establish full DarkNews cascade or downstream model
 acceptance.
+
+## U05 facade and Results
+
+Simulation now uses the U04 compiler for both canonical Vertex declarations and
+a finite deprecated convenience adapter. Unknown loader keywords no longer
+silently pass through; use process_options or load_processes explicitly.
+Controller and GenerateEvents warn but remain available. Box scalar positional
+arguments fail with a widths=/center= migration message; placement/copy forms
+remain compatible. load_processes returns ProcessBundle, whose two-item unpacking
+preserves the primary/secondary convention and exposes extra metadata by name.
+
+Results pools by attempted draws, including rejected events. It retains a
+separate native configuration snapshot instead of the mutable source injector.
+The one-run generate helper requires fresh counters and duplicate source runs
+cannot be pooled across reset boundaries. Live unarchivable Python configurations
+support export but refuse frozen reweighting/pooling; explicit event factors
+remain required where their state cannot be copied. These restrictions replace
+silent loss of state and stale normalization. Event trees themselves are shallow
+references; callers must not mutate events while retaining their stored weights.
+
+The implementation intentionally defers directed helpers, tuning/explanations,
+beam/charm examples and all Dutta/Kim models to their planned owning units/repos.
