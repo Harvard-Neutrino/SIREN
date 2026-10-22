@@ -352,10 +352,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             )
         ):
             return 0
-        ret = self.dec_case.total_width()
-        if hasattr(ret, "item"):
-            ret = ret.item()
-        return ret
+        return self.TotalDecayWidthAllFinalStates(record.signature.primary_type)
 
     def DensityVariables(self):
         if isinstance(self.dec_case, FermionSinglePhotonDecay):
