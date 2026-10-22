@@ -293,7 +293,7 @@ def load_decay_from_pickle(
     import pickle
     subdir = "_".join(["Decay"] + [str(x) for x in decay_key])
     table_subdir = os.path.join(table_dir, subdir)
-    fname = os.path.join(table_dir, "dec_object.pkl")
+    fname = os.path.join(table_subdir, "dec_object.pkl")
     with open(fname, "rb") as f:
         dec_obj = pickle.load(f)
         return dec_obj
@@ -319,7 +319,7 @@ def attempt_to_load_decay(
                     decay = load_decay_from_table(
                         models,
                         decay_key,
-                        table_subdir,
+                        table_dir,
                     )
                     loaded = True
                 except Exception as e:

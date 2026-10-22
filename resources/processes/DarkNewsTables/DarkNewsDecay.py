@@ -192,13 +192,22 @@ class PyDarkNewsDecay(DarkNewsDecay):
         decay_file = os.path.join(table_dir, "decay.pkl")
         if os.path.isfile(decay_file):
             with open(decay_file, "rb") as f:
-                self.decay_norm, self.decay_integrator = pickle.load(f)
+                state = pickle.load(f)
+            self.decay_integrator = state.get("decay_integrator")
+            self.decay_norm = state.get("decay_norm")
+            self.total_width = state.get("total_width")
+            self.PS_samples = state.get("PS_samples")
+            self.PS_weights = state.get("PS_weights")
+            self.PS_weights_CDF = None
 
     def save_to_table(self, table_dir):
         with open(os.path.join(table_dir, "decay.pkl"),'wb') as f:
             pickle.dump({
                 "decay_integrator": self.decay_integrator,
-                "decay_norm": self.decay_norm
+                "decay_norm": self.decay_norm,
+                "total_width": self.total_width,
+                "PS_samples": self.PS_samples,
+                "PS_weights": self.PS_weights,
             }, f)
 
     # serialization method
