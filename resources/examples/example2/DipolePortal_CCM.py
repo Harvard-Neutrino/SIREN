@@ -43,7 +43,7 @@ dn_version = siren.utilities.darknews_version()
 table_name = f"DarkNewsTables-v{dn_version}/"
 table_name += "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
 if args.save_tables:
-    table_name = str(Path(args.save_tables).expanduser().resolve())
+    table_name = str(Path(args.save_tables).expanduser().resolve() / table_name)
 
 bundle = siren.load_processes(
     "DarkNewsTables",
