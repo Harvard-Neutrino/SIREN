@@ -270,13 +270,24 @@ bool FixedTargetPositionDistribution::equal(WeightableDistribution const & other
 
     if(!x)
         return false;
-    else
-        return (cylinder == x->cylinder);
+    bool same_fid = (!fiducial_volume && !x->fiducial_volume)
+        || (fiducial_volume && x->fiducial_volume && *fiducial_volume == *x->fiducial_volume);
+    return cylinder == x->cylinder && max_length == x->max_length && same_fid;
 }
 
 bool FixedTargetPositionDistribution::less(WeightableDistribution const & other) const {
     const FixedTargetPositionDistribution* x = dynamic_cast<const FixedTargetPositionDistribution*>(&other);
-    return cylinder < x->cylinder;
+    if(!x)
+        return false;
+    if(cylinder != x->cylinder)
+        return cylinder < x->cylinder;
+    if(max_length != x->max_length)
+        return max_length < x->max_length;
+    bool has_fid = (fiducial_volume != nullptr);
+    bool other_has_fid = (x->fiducial_volume != nullptr);
+    if(has_fid != other_has_fid)
+        return has_fid < other_has_fid;
+    return has_fid && *fiducial_volume < *x->fiducial_volume;
 }
 
 bool FixedTargetPositionDistribution::AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const {
