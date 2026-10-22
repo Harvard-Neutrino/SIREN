@@ -499,19 +499,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def GetPossibleSignatures(self):
         self._ensure_configured()
-        signature = dataclasses.InteractionSignature()
-        signature.primary_type = Particle.ParticleType(
-            self.ups_case.nu_projectile.pdgid
-        )
-        signature.target_type = self.target_type
-        signature.secondary_types = []
-        signature.secondary_types.append(
-            Particle.ParticleType(self.ups_case.nu_upscattered.pdgid)
-        )
-        signature.secondary_types.append(
-            self.target_type
-        )
-        return [signature]
+        return self.GetPossibleSignaturesFromParents(
+            Particle.ParticleType(self.ups_case.nu_projectile.pdgid), self.target_type)
 
     def GetPossibleSignaturesFromParents(self, primary_type, target_type):
         if (
