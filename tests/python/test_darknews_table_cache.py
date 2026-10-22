@@ -16,8 +16,11 @@ def resource():
 def test_decay_table_restores_current_cache_without_recomputation(tmp_path):
     module = resource()
     from DarkNews.processes import FermionDileptonDecay
+    from DarkNews import pdg
     case = object.__new__(FermionDileptonDecay)
-    case.nu_parent = 5914
+    case.nu_parent = pdg.neutrino4
+    case.nu_daughter = pdg.nulight
+    case.secondaries = [pdg.electron, pdg.positron]
     case.vector_off_shell = case.scalar_off_shell = True
     case.total_width = lambda: pytest.fail("cached width was recomputed")
     decay = module.PyDarkNewsDecay(case)
@@ -28,6 +31,9 @@ def test_decay_table_restores_current_cache_without_recomputation(tmp_path):
     restored = module.PyDarkNewsDecay(case)
     restored.load_from_table(tmp_path)
     assert restored.TotalDecayWidthAllFinalStates(siren.particles.N4) == 0.123
+    record = siren.dataclasses.InteractionRecord()
+    record.signature = restored.GetPossibleSignatures()[0]
+    assert restored.TotalDecayWidth(record) == 0.123
     np.testing.assert_array_equal(restored.PS_samples, decay.PS_samples)
     np.testing.assert_array_equal(restored.PS_weights, decay.PS_weights)
     np.testing.assert_array_equal(restored.GetPSSample(SimpleNamespace(Uniform=lambda a, b: 0.)), [0.1])
