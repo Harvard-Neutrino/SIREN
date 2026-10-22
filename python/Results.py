@@ -63,13 +63,13 @@ class Results:
     def _capture_configuration(self, weighter, injector):
         from .Weighter import Weighter
         from .Injector import Injector
-        from . import errors
-        import copy
-        import pickle
         import uuid
         if not isinstance(weighter, Weighter) or not isinstance(injector, Injector):
             self._snapshot_error = "a public Injector and Weighter are required"
             return
+        sources = weighter.injectors or []
+        if len(sources) != 1 or (sources[0] is not injector and sources[0] is not injector.engine):
+            raise ConfigurationError("Results requires a weighter for the same single injector")
         if not hasattr(injector, "_results_source_id"):
             injector._results_source_id = uuid.uuid4().hex
         self._run_ids = frozenset([injector._results_source_id])
@@ -104,10 +104,11 @@ class Results:
     def _set_config_key(self, factor_key=None):
         from . import injection
         eng, phys = self._injector, self._weighter.engine
+        expansion = eng.GetSecondaryExpansion()
         self._config_key = (
             injection._detector_state(eng.GetDetectorModel()),
             injection._detector_state(phys.GetDetectorModel()),
-            eng.GetSecondaryExpansion().__getstate__(),
+            expansion.__getstate__() if expansion is not None else None,
             _process_config(eng.GetPrimaryProcess()),
             {p.primary_type: _process_config(p) for p in eng.GetSecondaryProcesses()},
             _process_config(phys.GetPrimaryPhysicalProcess()),
@@ -283,6 +284,10 @@ class Results:
         """
         w = self._weights
         finite = w[np.isfinite(w)]
+        scale = float(np.max(np.abs(finite))) if finite.size else 0.0
+        if scale == 0.0:
+            return 0.0
+        finite = finite / scale
         denom = float(np.sum(finite * finite))
         if denom <= 0.0:
             return 0.0
@@ -372,6 +377,12 @@ class Results:
             if run_ids.intersection(r._run_ids):
                 raise ConfigurationError("Results.merge: runs must use independent injectors")
             run_ids.update(r._run_ids)
+        seeds = set()
+        for r in runs:
+            current = {i.GetRandom().get_seed() for i in r._snapshot_weighter().injectors}
+            if seeds.intersection(current):
+                raise ConfigurationError("Results.merge: runs must use independent seeds")
+            seeds.update(current)
         for r in runs[1:]:
             try:
                 matches = r._config_key == key

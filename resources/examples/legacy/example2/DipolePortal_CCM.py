@@ -36,13 +36,16 @@ os.makedirs(table_dir,exist_ok=True)
 
 
 # Load DarkNews processes
-primary_processes, secondary_processes, primary_ups_keys, secondary_dec_keys = utilities.load_processes(
+bundle = utilities.load_processes(
     "DarkNewsTables",
     primary_type=primary_type,
     detector_model = detector_model,
     table_name = table_name,
     **model_kwargs,
 )
+
+primary_processes, secondary_processes = bundle
+primary_ups_keys, secondary_dec_keys = bundle.metadata
 
 print(primary_processes)
 
