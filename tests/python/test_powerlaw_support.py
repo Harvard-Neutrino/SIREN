@@ -34,7 +34,7 @@ def model():
     return xs.TrivialCrossSection(1.0e-38, [NuMu], [dc.Particle.ParticleType.Nucleon])
 
 
-def _injector(detector, model, seed, energy_min, energy_max, n_inject=32):
+def _injector(detector, model, seed, energy_min, energy_max, n_inject=32, max_distance=25.0, position=None):
     process = inj.PrimaryInjectionProcess()
     process.primary_type = NuMu
     process.interactions = xs.InteractionCollection(NuMu, [model])
@@ -43,7 +43,8 @@ def _injector(detector, model, seed, energy_min, energy_max, n_inject=32):
         dist.PowerLaw(2.0, energy_min, energy_max),
         dist.PrimaryNeutrinoHelicityDistribution(),
         dist.IsotropicDirection(),
-        dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 25.0),
+        (dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), max_distance)
+         if position is None else position),
     ]
     return inj._Injector(n_inject, detector, process, utilities.SIREN_random(seed))
 
@@ -155,7 +156,9 @@ def test_disjoint_energy_injectors_do_not_dilute_each_others_weights(detector, m
         single = inj._Weighter([injector], detector, physical)
         for _ in range(32):
             event = injector.GenerateEvent()
-            assert pooled.EventWeight(event) == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
+            weight = pooled.EventWeight(event)
+            assert weight == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
+            assert pooled.EventWeightWithBreakdown(event).total == weight
 
 
 def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
@@ -169,6 +172,7 @@ def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
         for _ in range(32):
             event = injector.GenerateEvent()
             energy = event.tree[0].record.primary_momentum[0]
+            assert pooled.EventWeightWithBreakdown(event).total == pooled.EventWeight(event)
             if energy > 3.5:
                 outside += 1
                 assert single.EventWeight(event) == 0.0
@@ -177,3 +181,114 @@ def test_physical_flux_outside_its_range_gives_zero_not_nan(detector, model):
                 assert single.EventWeight(event) > 0.0
                 assert pooled.EventWeight(event) == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
     assert outside > 0
+
+
+@pytest.mark.parametrize("physical_max", [2.0, 4.0])
+def test_missing_powerlaw_proposal_support_is_an_error(detector, model, physical_max):
+    injectors = _disjoint_injectors(detector, model)
+    pooled = inj._Weighter(injectors, detector, _physical(model, 1.0, physical_max))
+    event = _injector(detector, model, 15, 2.2, 2.8).GenerateEvent()
+    with pytest.raises(RuntimeError, match="no injector can produce"):
+        pooled.EventWeight(event)
+    breakdown = pooled.EventWeightWithBreakdown(event)
+    assert math.isnan(breakdown.total)
+    assert any("no injector can produce" in flag
+               for vertex in breakdown.vertices for flag in vertex.flags)
+
+
+def test_powerlaw_pool_archive_preserves_zero_and_positive_weights(detector, model, tmp_path):
+    injectors = _disjoint_injectors(detector, model)
+    pooled = inj._Weighter(injectors, detector, _physical(model, 1.0, 3.5))
+    events = [injector.GenerateEvent() for injector in injectors for _ in range(32)]
+    expected = [pooled.EventWeight(event) for event in events]
+    assert any(weight == 0 for weight in expected)
+    assert any(weight > 0 for weight in expected)
+    archive = str(tmp_path / "powerlaw-pool")
+    pooled.SaveWeighter(archive)
+    restored = inj._Weighter([], archive)
+    assert [restored.EventWeight(event) for event in events] == expected
+    assert [restored.EventWeightWithBreakdown(event).total for event in events] == expected
+
+
+def test_pooled_spatial_support_skips_undefined_physical_factors(detector, model):
+    injectors = [_injector(detector, model, seed, 1.0, 2.0, max_distance=reach)
+                 for seed, reach in ((13, 25.0), (14, 50.0))]
+    physical = _physical(model, 1.0, 2.0)
+    pooled = inj._Weighter(injectors, detector, physical)
+    single = inj._Weighter([injectors[1]], detector, physical)
+    events = [[injector.GenerateEvent() for _ in range(32)] for injector in injectors]
+    outside = 0
+    for event in events[1]:
+        radius = math.sqrt(sum(x * x for x in event.tree[0].record.interaction_vertex))
+        if radius <= 25.0:
+            continue
+        outside += 1
+        weight = pooled.EventWeight(event)
+        assert weight > 0
+        assert weight == pytest.approx(single.EventWeight(event), rel=1e-12, abs=0)
+        breakdown = pooled.EventWeightWithBreakdown(event)
+        assert breakdown.total == weight
+        assert breakdown.vertices[0].generation == 0
+        assert "PowerLaw" in breakdown.vertices[0].cancelled
+        assert math.isnan(breakdown.vertices[0].physical)
+        assert any("physical factors not evaluated" in flag
+                   for flag in breakdown.vertices[0].flags)
+    assert outside > 0
+
+
+@pytest.mark.parametrize("shared_position", [False, True])
+@pytest.mark.parametrize("replace_context", [False, True])
+def test_cancellation_retains_interaction_dependent_density_ratio(detector, shared_position, replace_context):
+    proposal_model = xs.TrivialCrossSection(1e-25, [NuMu], [dc.Particle.ParticleType.Nucleon])
+    physical_model = xs.TrivialCrossSection(2e-25, [NuMu], [dc.Particle.ParticleType.Nucleon])
+    generator = _injector(detector, proposal_model, 13, 1.0, 2.0)
+    process = generator.GetPrimaryProcess()
+    process.weighting_mode = inj.VertexWeightingMode.Fixed()
+    physical = _physical(proposal_model if replace_context else physical_model, 1.0, 2.0)
+    physical.weighting_mode = inj.VertexWeightingMode.Fixed()
+    physical.distributions = process.distributions[:-1] + [
+        process.distributions[-1] if shared_position else
+        dist.PointSourcePositionDistribution(smath.Vector3D(0, 0, 0), 25.0)]
+    weighter = inj._Weighter([generator], detector, physical)
+    if replace_context:
+        physical.interactions = xs.InteractionCollection(NuMu, [physical_model])
+    events = [generator.GenerateEvent() for _ in range(32)]
+    ratios = []
+    for event in events:
+        record = event.tree[0].record
+        proposal_density = process.distributions[-1].GenerationProbability(
+            detector, process.interactions, record)
+        physical_density = physical.distributions[-1].GenerationProbability(
+            detector, physical.interactions, record)
+        expected = physical_density / proposal_density / 32
+        ratios.append(physical_density / proposal_density)
+        assert not weighter.EventWeightWithBreakdown(event).vertices[0].cancelled
+        weight = weighter.EventWeight(event)
+        assert weight == pytest.approx(expected, rel=2e-12, abs=0)
+        assert weighter.EventWeightWithBreakdown(event).total == weight
+    assert max(abs(ratio - 1) for ratio in ratios) > 0.1
+
+
+def test_skipped_zero_rate_mixture_is_not_evaluated_for_diagnostics(detector, model):
+    zero_model = xs.TrivialCrossSection(
+        {NuMu: ([3.0, 4.0], [1e-38, 1e-38])}, [dc.Particle.ParticleType.Nucleon])
+    injectors = [_injector(
+        detector, candidate, seed, 1.0, 2.0,
+        position=dist.SphereVolumePositionDistribution(siren.geometry.Sphere(10.0, 0.0)))
+        for seed, candidate in ((13, zero_model), (14, model))]
+    signature = zero_model.GetPossibleSignatures()[0]
+    mixture = inj.MultiChannelPhaseSpace(
+        [inj.PhysicalCrossSectionChannel(zero_model, signature)], [1.0])
+    injectors[0].GetPrimaryProcess().SetPhaseSpace(signature, mixture)
+    physical = _physical(model, 1.0, 2.0)
+    pooled = inj._Weighter(injectors, detector, physical)
+    single = inj._Weighter([injectors[1]], detector, physical)
+    mixture.weights = [2.0]
+    event = injectors[1].GenerateEvent()
+    weight = pooled.EventWeight(event)
+    assert weight == single.EventWeight(event)
+    breakdown = pooled.EventWeightWithBreakdown(event)
+    assert breakdown.total == weight
+    assert not breakdown.vertices[0].channel_densities
+    assert any("channel densities not evaluated" in flag
+               for flag in breakdown.vertices[0].flags)

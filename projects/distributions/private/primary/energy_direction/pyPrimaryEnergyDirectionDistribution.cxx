@@ -1,6 +1,7 @@
 #include "SIREN/distributions/primary/energy_direction/pyPrimaryEnergyDirectionDistribution.h"
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <utility>                                // for pair
 #include <vector>                                 // for vector
@@ -100,6 +101,16 @@ std::vector<std::string> pyPrimaryEnergyDirectionDistribution::DensityVariables(
         std::vector<std::string>,
         DensityVariables,
         "DensityVariables"
+    )
+}
+
+std::set<DistributionVariable> pyPrimaryEnergyDirectionDistribution::ProvidedVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryEnergyDirectionDistribution,
+        std::set<DistributionVariable>,
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 

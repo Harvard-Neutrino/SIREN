@@ -5,6 +5,7 @@ needs C++ classes that aren't on main until #122 lands. Here we just regression-
 protect the review fixes that landed alongside these files.
 """
 import importlib.util
+import inspect
 
 import pytest
 
@@ -56,7 +57,59 @@ def test_isoscalar_error_mentions_correct_file_name(processes_mod):
     assert "CSMSDISSplines" not in str(exc.value), f"stale CSMSDISSplines name in {exc.value!r}"
 
 
-def test_load_processes_requires_m4_mev(processes_mod):
+def test_load_processes_requires_m4_mev(processes_mod, monkeypatch):
     """Regression: int(m4_MeV) blew up if m4_MeV was None before #116's fix."""
+    def unexpected_download():
+        pytest.fail("invalid arguments must be rejected before downloading")
+
+    monkeypatch.setattr(processes_mod, "fetch_data", unexpected_download)
     with pytest.raises(ValueError, match="m4_MeV"):
         processes_mod.load_processes()
+
+
+@pytest.mark.parametrize("option", ["primary", "isoscalar"])
+def test_invalid_loader_options_do_not_download(processes_mod, monkeypatch, option):
+    import siren
+
+    def unexpected_download():
+        pytest.fail("invalid arguments must be rejected before downloading")
+
+    monkeypatch.setattr(processes_mod, "fetch_data", unexpected_download)
+    kwargs = {"m4_MeV": 100.0}
+    if option == "primary":
+        kwargs["primary_types"] = [siren.dataclasses.Particle.ParticleType.EPlus]
+        message = "not supported"
+    else:
+        kwargs["isoscalar"] = False
+        message = "Non-isoscalar"
+    with pytest.raises(ValueError, match=message):
+        processes_mod.load_processes(**kwargs)
+
+
+def test_valid_loader_arguments_reach_download(processes_mod, monkeypatch):
+    class DownloadReached(Exception):
+        pass
+
+    def download():
+        raise DownloadReached
+
+    monkeypatch.setattr(processes_mod, "fetch_data", download)
+    coupling_name = ("mixings" if "mixings" in inspect.signature(
+        processes_mod.load_processes).parameters else "dipole_couplings")
+    with pytest.raises(DownloadReached):
+        processes_mod.load_processes(m4_MeV=100.0, **{coupling_name: [0.0, 1e-3, 0.0]})
+
+
+@pytest.mark.parametrize("couplings", [
+    None, [], [0.0, 0.0], [0.0] * 4, [float("nan"), 0, 0],
+    [float("inf"), 0, 0], ["invalid", 0, 0],
+])
+def test_invalid_couplings_do_not_download(processes_mod, monkeypatch, couplings):
+    def unexpected_download():
+        pytest.fail("invalid couplings must be rejected before downloading")
+
+    coupling_name = ("mixings" if "mixings" in inspect.signature(
+        processes_mod.load_processes).parameters else "dipole_couplings")
+    monkeypatch.setattr(processes_mod, "fetch_data", unexpected_download)
+    with pytest.raises(ValueError, match=coupling_name):
+        processes_mod.load_processes(m4_MeV=100.0, **{coupling_name: couplings})

@@ -346,7 +346,6 @@ public: \
             pybind11::object bytes_module = pybind11::module::import("builtins").attr("bytes"); \
             pybind11::object bytes = bytes_module.attr("fromhex")(str_repr); \
  \
-            pkl.attr("loads")(bytes); \
             this->self = pkl.attr("loads")(bytes); \
  \
             archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const BaseType*>(this))); \

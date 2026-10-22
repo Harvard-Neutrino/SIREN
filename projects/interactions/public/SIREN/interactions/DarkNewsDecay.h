@@ -61,7 +61,7 @@ public:
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<DarkNewsDecay> & construct, std::uint32_t version) {
+    static void load_and_construct(Archive & archive, cereal::construct<DarkNewsDecay> & construct, std::uint32_t version) {
         if(version == 0) {
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
         } else {
