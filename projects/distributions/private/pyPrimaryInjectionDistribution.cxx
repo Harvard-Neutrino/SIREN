@@ -111,5 +111,15 @@ bool pyPrimaryInjectionDistribution::less(WeightableDistribution const & distrib
     )
 }
 
+std::set<DistributionVariable> pyPrimaryInjectionDistribution::RequiredVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryInjectionDistribution,
+        std::set<DistributionVariable>,
+        RequiredVariables,
+        "RequiredVariables"
+    )
+}
+
 } // namespace distributions
 } // namespace siren

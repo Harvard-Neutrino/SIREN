@@ -7,6 +7,7 @@
 #include <tuple>
 #include <string>
 #include <memory>
+#include <optional>
 #include <vector>                                          // for vector
 #include <cstdint>                                         // for uint32_t
 #include <utility>
@@ -33,6 +34,7 @@
 #include "SIREN/dataclasses/Particle.h"           // for Particle
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h" // for Secondary...
 #include "SIREN/injection/FailureLedger.h"
+#include "SIREN/injection/SecondaryExpansion.h"
 #include "SIREN/interactions/pyDarkNewsCrossSection.h"
 
 namespace siren { namespace interactions { class Interaction; } }
@@ -56,14 +58,18 @@ class Injector {
 friend cereal::access;
 public:
     virtual ~Injector() {};
+    void SetAttemptLimit(std::optional<unsigned int> limit) { attempt_limit_ = limit; }
 protected:
     unsigned int events_to_inject = 0;
+    std::optional<unsigned int> attempt_limit_;
     unsigned int injection_attempts = 0;
     unsigned int injected_events = 0;
     unsigned int failed_events = 0;
     unsigned int unregistered_secondary_count_ = 0;
     FailureLedger failure_ledger_;
     std::string last_failure_message_;
+    std::shared_ptr<SecondaryExpansion> secondary_expansion_;
+    std::size_t stopping_condition_revision_ = 0;
     siren::dataclasses::InteractionTree last_failed_tree_;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
@@ -90,8 +96,31 @@ public:
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random);
 
-    void SetStoppingCondition(std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
-    std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> GetStoppingCondition() {return stopping_condition;}
+    void SetStoppingCondition(std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> f_in) {
+        secondary_expansion_.reset();
+        stopping_condition = std::move(f_in);
+        ++stopping_condition_revision_;
+    }
+    void SetSecondaryExpansion(std::shared_ptr<SecondaryExpansion> rules) {
+        stopping_condition = {};
+        secondary_expansion_ = std::move(rules);
+        ++stopping_condition_revision_;
+    }
+    bool HasStoppingCondition() const { return bool(stopping_condition); }
+    std::size_t GetStoppingConditionRevision() const { return stopping_condition_revision_; }
+    std::shared_ptr<SecondaryExpansion> GetSecondaryExpansion() const { return secondary_expansion_; }
+    std::function<bool(siren::dataclasses::InteractionTree const &, std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> GetStoppingCondition() {
+        if (secondary_expansion_) {
+            auto rules = secondary_expansion_;
+            return [rules](siren::dataclasses::InteractionTree const & tree,
+                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent, size_t index) {
+                return rules->ShouldStop(tree, parent, index);
+            };
+        }
+        if (stopping_condition) return stopping_condition;
+        return [](siren::dataclasses::InteractionTree const &,
+                  std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t) { return true; };
+    }
     std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<siren::injection::PrimaryInjectionProcess> process);
     std::shared_ptr<distributions::SecondaryVertexPositionDistribution> FindSecondaryVertexDistribution(std::shared_ptr<siren::injection::SecondaryInjectionProcess> process);
     void SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary);
@@ -156,7 +185,7 @@ public:
             throw std::runtime_error(
                 "Injector archives cannot preserve a stopping-condition callback");
         }
-        if(version <= 1) {
+        if(version <= 2) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
@@ -169,8 +198,9 @@ public:
             }
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
+            if(version >= 2) archive(::cereal::make_nvp("SecondaryExpansion", secondary_expansion_));
         } else {
-            throw std::runtime_error("Injector only supports version <= 1!");
+            throw std::runtime_error("Injector only supports version <= 2!");
         }
     }
 
@@ -178,7 +208,7 @@ public:
     // incompatible archive raises AddProcessFailure.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version <= 1) {
+        if(version <= 2) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
 
@@ -196,12 +226,15 @@ public:
             }
             archive(::cereal::make_nvp("PrimaryProcess", _primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", _secondary_processes));
+            secondary_expansion_.reset();
+            if(version >= 2)
+                archive(::cereal::make_nvp("SecondaryExpansion", secondary_expansion_));
+            stopping_condition = {};
+            ++stopping_condition_revision_;
             SetPrimaryProcess(_primary_process);
-            for(auto secondary_process : _secondary_processes) {
-                AddSecondaryProcess(secondary_process);
-            }
+            SetSecondaryProcesses(_secondary_processes);
         } else {
-            throw std::runtime_error("Injector only supports version <= 1!");
+            throw std::runtime_error("Injector only supports version <= 2!");
         }
     }
 };
@@ -209,6 +242,6 @@ public:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::Injector, 1);
+CEREAL_CLASS_VERSION(siren::injection::Injector, 2);
 
 #endif // SIREN_Injector_H

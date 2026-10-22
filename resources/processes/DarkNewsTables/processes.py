@@ -293,7 +293,7 @@ def load_decay_from_pickle(
     import pickle
     subdir = "_".join(["Decay"] + [str(x) for x in decay_key])
     table_subdir = os.path.join(table_dir, subdir)
-    fname = os.path.join(table_dir, "dec_object.pkl")
+    fname = os.path.join(table_subdir, "dec_object.pkl")
     with open(fname, "rb") as f:
         dec_obj = pickle.load(f)
         return dec_obj
@@ -319,7 +319,7 @@ def attempt_to_load_decay(
                     decay = load_decay_from_table(
                         models,
                         decay_key,
-                        table_subdir,
+                        table_dir,
                     )
                     loaded = True
                 except Exception as e:
@@ -372,18 +372,6 @@ def load_decays(
         decays[decay_key] = attempt_to_load_decay(models, decay_key, table_dir, preferences)
 
     return decays
-
-# This class is a hacky workaround for an issue with the python reference counting of classes derived
-# from a pybind11 trampoline class i.e. python cross-section classes and python decay classes that
-# inherit from siren.interactions.CrossSection or siren.interactions.Decay. If these python classes
-# are passed to the InteractionCollection constructor, but a python-side reference to them is not
-# maintained, then their python side state/memory will be destroyed/deallocated. This class maintains
-# a python-side reference to all PyDarkNewsCrossSection and PyDarkNewsDecay instances created by
-# load_processes(...) to avoid this issue
-class Holder:
-    holders = []
-    def __init__(self):
-        Holder.holders.append(self)
 
 def load_processes(
     primary_type: Optional[Any] = None,
@@ -490,11 +478,6 @@ def load_processes(
         )
         secondary_processes[secondary_type].append(decay)
         secondary_dec_keys[secondary_type].append(dec_key)
-
-
-    #holder = Holder()
-    #holder.primary_processes = primary_processes
-    #holder.secondary_processes = secondary_processes
 
     return dict(primary_processes), dict(secondary_processes), dict(primary_ups_keys), dict(secondary_dec_keys)
 

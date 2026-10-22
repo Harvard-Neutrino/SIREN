@@ -126,5 +126,15 @@ bool pyPrimaryAreaDistribution::less(WeightableDistribution const & distribution
     )
 }
 
+std::set<DistributionVariable> pyPrimaryAreaDistribution::RequiredVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryAreaDistribution,
+        std::set<DistributionVariable>,
+        RequiredVariables,
+        "RequiredVariables"
+    )
+}
+
 } // namespace distributions
 } // namespace siren
