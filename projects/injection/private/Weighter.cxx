@@ -185,6 +185,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
         if(with_diagnostics) {
             factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
             factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+            factors.survival = primary_process_weighters[idx]->CreationSurvival(bounds, datum->record);
         }
     } else {
         try {
@@ -194,6 +195,7 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             if(with_diagnostics) {
                 factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
                 factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
+                factors.survival = w->CreationSurvival(bounds, datum->record);
             }
         } catch(const std::out_of_range& oor) {
             std::ostringstream oss;
@@ -283,7 +285,7 @@ EventWeightBreakdown Weighter::PoolEventWeight(
         if(generation == 0.0 || invalid_generation_density) {
             for(std::size_t v = first_vertex; v < breakdown.vertices.size(); ++v) {
                 auto & factors = breakdown.vertices[v];
-                factors.physical = factors.interaction_prob = factors.position_prob =
+                factors.physical = factors.interaction_prob = factors.position_prob = factors.survival =
                     std::numeric_limits<double>::quiet_NaN();
                 factors.flags.push_back("physical factors not evaluated (no usable proposal)");
                 if(with_diagnostics)

@@ -17,6 +17,7 @@
 #include "../../public/SIREN/injection/Weighter.h"
 #include "../../public/SIREN/injection/WeightingUtils.h"
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
+#include "SIREN/injection/PhaseSpaceDecay.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
 #include "../../public/SIREN/injection/TwoBodyKinematics.h"
@@ -58,19 +59,23 @@ PYBIND11_MODULE(injection,m) {
             std::shared_ptr<siren::detector::DetectorModel const>,
             std::shared_ptr<siren::interactions::InteractionCollection const>,
             siren::dataclasses::InteractionRecord const &>(
-            &CrossSectionProbability));
+            &CrossSectionProbability),
+        "Physical probability; generation-only decay selection is not applied.");
   m.def("CrossSectionProbabilityWithPhaseSpace",
         overload_cast<
             std::shared_ptr<siren::detector::DetectorModel const>,
             std::shared_ptr<siren::interactions::InteractionCollection const>,
             siren::dataclasses::InteractionRecord const &,
             MultiChannelPhaseSpace const &>(
-            &CrossSectionProbabilityWithPhaseSpace));
-  m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
+            &CrossSectionProbabilityWithPhaseSpace),
+        "Physical proposal-mixture probability; generation-only decay selection is not applied.");
+  m.def("ChannelSelectionProbability", &ChannelSelectionProbability,
+        "Physical channel-selection probability; generation-only decay selection is not applied.");
   m.def("FixedVertexChannelSelectionProbability", &FixedVertexChannelSelectionProbability,
         "Channel-selection factor a Fixed vertex charges when multiple channels "
         "compete: exactly 1.0 for a single candidate signature, else "
-        "selected_rate/total_rate. Throws WeightCalculationError on a "
+        "selected_rate/total_rate. Generation-only decay selection is not applied. "
+        "Throws WeightCalculationError on a "
         "non-positive total rate or non-finite result.");
 
   // Vertex weighting mode
@@ -90,6 +95,9 @@ PYBIND11_MODULE(injection,m) {
     .def_readwrite("bound_source", &VWM::bound_source)
     .def("__eq__", &VWM::operator==)
     .def("__ne__", &VWM::operator!=)
+    .def_readwrite("survival_from_creation", &VWM::survival_from_creation)
+    .def("Validate", &VWM::Validate)
+    .def_static("PropagatedFromCreation", &VWM::PropagatedFromCreation)
     .def_static("Propagated", &VWM::Propagated)
     .def_static("Fixed", &VWM::Fixed)
     .def_static("ExternalBounds", &VWM::ExternalBounds)
@@ -368,6 +376,17 @@ PYBIND11_MODULE(injection,m) {
   m.def("TwoBodyRestEnergy", &TwoBodyRestEnergy);
   m.def("Kallen", &Kallen);
 
+  class_<PhaseSpaceDecay, std::shared_ptr<PhaseSpaceDecay>, siren::interactions::Decay>(m, "PhaseSpaceDecay",
+      "Native decay with an explicitly declared normalized physical channel. "
+      "Injection bias belongs on the process, separately from this physical law.")
+    .def(init<siren::dataclasses::InteractionSignature, std::vector<double>, double, double,
+              std::shared_ptr<PhaseSpaceChannel>>(),
+         arg("signature"), arg("masses"), arg("partial_width"), arg("total_width"), arg("physical_channel"))
+    .def("GetPhysicalChannel", &PhaseSpaceDecay::GetPhysicalChannel)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<PhaseSpaceDecay>),
+        &(siren::serialization::pickle_load<PhaseSpaceDecay>)));
+
   // Process
 
   // The keep_alive policies below tie python-defined distributions, cross
@@ -487,6 +506,7 @@ PYBIND11_MODULE(injection,m) {
     .def_readonly("physical", &VertexWeightFactors::physical)
     .def_readonly("interaction_prob", &VertexWeightFactors::interaction_prob)
     .def_readonly("position_prob", &VertexWeightFactors::position_prob)
+    .def_readonly("survival", &VertexWeightFactors::survival)
     .def_readonly("channel_density_topology", &VertexWeightFactors::channel_density_topology)
     .def_readonly("channel_density_measure", &VertexWeightFactors::channel_density_measure)
     .def_readonly("channel_densities", &VertexWeightFactors::channel_densities)

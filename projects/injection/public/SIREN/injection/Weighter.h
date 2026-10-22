@@ -69,6 +69,7 @@ public:
     double InteractionDepth(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double SurvivalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
+    double CreationSurvival(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionTreeDatum const & datum) const;
@@ -96,6 +97,7 @@ struct VertexWeightFactors {
     double physical = 1.0;
     double interaction_prob = 1.0;
     double position_prob = 1.0;
+    double survival = 1.0;
     // Convention shared by every value in channel_densities, stored here as
     // separate topology/measure fields rather than a single
     // PhaseSpaceConvention.
