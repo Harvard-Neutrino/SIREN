@@ -23,59 +23,37 @@ are installed automatically. Download the [datasets](#dataset-download) needed
 by your simulation before running the example. For source builds and C++ use,
 see [Installation](#installation).
 
-The following example injects 1e4 muon-neutrino DIS events in IceCube and computes their physical weights:
+Start with the [data-free authoring quickstart](docs/quickstart.md), which declares
+an explicit sampler, checks it against an independent angular reference, and
+compares the accepted decay probability with an analytic result. The public
+workflow is `Vertex` → `Simulation.run()` → `Results`.
 
 ```python
 import siren
 
-# Load detector geometry and interaction cross sections
-detector_model = siren.utilities.load_detector("IceCube")
-primary_type = siren.dataclasses.Particle.ParticleType.NuMu
-primary_processes, _ = siren.utilities.load_processes(
-    "CSMSDISSplines",
-    primary_types=[primary_type],
-    target_types=[siren.dataclasses.Particle.ParticleType.Nucleon],
-    isoscalar=True,
+detector = siren.load_detector("IceCube")
+models = siren.load_processes(
+    "CSMSDISSplines", primary_types=[siren.particles.NuMu],
+    target_types=[siren.particles.Nucleon], isoscalar=True,
     process_types=["CC"],
+).primary[siren.particles.NuMu]
+energy = siren.dist.PowerLaw(2, 1e3, 1e6)
+direction = siren.dist.IsotropicDirection()
+primary = siren.Vertex(
+    "NuMu", models,
+    distributions=[siren.dist.PrimaryMass(0), energy, direction,
+                   siren.dist.ColumnDepth(600, 600, siren.distributions.LeptonDepthFunction())],
+    physical=[energy, direction],
 )
-
-# Configure the injector: energy spectrum, direction, and position
-injector = siren.injection.Injector()
-injector.number_of_events = int(1e4)
-injector.detector_model = detector_model
-injector.primary_type = primary_type
-injector.primary_interactions = primary_processes[primary_type]
-injector.primary_injection_distributions = [
-    siren.distributions.PrimaryMass(0),
-    siren.distributions.PowerLaw(2, 1e3, 1e6),
-    siren.distributions.IsotropicDirection(),
-    siren.distributions.ColumnDepthPositionDistribution(
-        600, 600.0, siren.distributions.LeptonDepthFunction()
-    ),
-]
-
-# Generate events
-from siren._util import GenerateEvents, SaveEvents
-events, gen_times = GenerateEvents(injector)
-
-# Weight events using physical distributions
-weighter = siren.injection.Weighter()
-weighter.injectors = [injector]
-weighter.detector_model = detector_model
-weighter.primary_type = primary_type
-weighter.primary_interactions = primary_processes[primary_type]
-weighter.primary_physical_distributions = [
-    siren.distributions.PowerLaw(2, 1e3, 1e6),
-    siren.distributions.IsotropicDirection(),
-]
-
-weights = [weighter(event) for event in events]
-
-# Save results to HDF5 and Parquet
-SaveEvents(events, weighter, gen_times, output_filename="my_output")
+results = siren.Simulation(events=1000, seed=31, detector=detector, primary=primary).run(
+    on_failure="raise", on_shortfall="raise")
+results.save("output/icecube", snapshot=True)
 ```
 
-More examples — including BSM dipole-portal injection and MARLEY low-energy interactions — are in [`resources/examples/`](https://github.com/Harvard-Neutrino/SIREN/tree/main/resources/examples/).
+This DIS example requires the IceCube detector and CSMS spline datasets.
+[Examples](resources/examples/README.md) include generic DarkNews and MARLEY
+workflows. [Results](docs/results.md) explains attempt normalization, pooling,
+reweighting and the distinction between event export and configuration snapshots.
 
 ## How it works
 
