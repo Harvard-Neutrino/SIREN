@@ -8,6 +8,7 @@ the lower tungsten target into a cone covering the detector, and weighting
 uses the isotropic physical direction.
 """
 import argparse
+from pathlib import Path
 
 import numpy as np
 
@@ -18,7 +19,7 @@ parser.add_argument("--events", type=int, default=1)
 parser.add_argument("--seed", type=int, default=None)
 parser.add_argument("--output", default="output/CCM_Dipole")
 parser.add_argument("--save-tables", metavar="DIRECTORY",
-                    help="save reusable DarkNews cross-section and decay tables")
+                    help="load and save DarkNews tables in this directory (use one model per directory)")
 args = parser.parse_args()
 
 model_kwargs = {
@@ -41,6 +42,8 @@ fiducial = siren.get_fiducial_volume("CCM")
 dn_version = siren.utilities.darknews_version()
 table_name = f"DarkNewsTables-v{dn_version}/"
 table_name += "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+if args.save_tables:
+    table_name = str(Path(args.save_tables).expanduser().resolve())
 
 bundle = siren.load_processes(
     "DarkNewsTables",
@@ -86,5 +89,5 @@ results.save(args.output, save_hepmc3=True)
 if args.save_tables:
     primary_ups_keys, secondary_dec_keys = bundle.metadata
     siren.resources.processes.DarkNewsTables.SaveDarkNewsProcesses(
-        args.save_tables, bundle.primary, primary_ups_keys,
+        table_name, bundle.primary, primary_ups_keys,
         bundle.secondary, secondary_dec_keys)
