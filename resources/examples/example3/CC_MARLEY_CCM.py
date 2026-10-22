@@ -21,6 +21,8 @@ parser.add_argument("--events", type=int, default=10000)
 parser.add_argument("--seed", type=int, default=None)
 parser.add_argument("--output", default="output/CCM_MARLEY")
 args = parser.parse_args()
+if not hasattr(siren.interactions, "MarleyCrossSection"):
+    parser.error("this example requires a SIREN build with native MARLEY support")
 
 NuE = siren.particles.NuE
 

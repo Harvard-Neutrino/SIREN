@@ -41,9 +41,6 @@ def MergeInteractionCollections(primary_type,int_col_list):
 class SIREN_Controller:
 
     def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0, detector_model=None):
-        import warnings
-        warnings.warn("SIREN_Controller is deprecated; use Vertex and Simulation",
-                      DeprecationWarning, stacklevel=2)
         """
         SIREN controller class constructor.
         :param int event_to_inject: number of events to generate
@@ -55,6 +52,9 @@ class SIREN_Controller:
             a GDML composite from ``load_detector("SBN", detector=...)``); when
             provided it overrides the experiment/file loading (default None)
         """
+        import warnings
+        warnings.warn("SIREN_Controller is deprecated; use Vertex and Simulation",
+                      DeprecationWarning, stacklevel=2)
 
         self.global_start = time.time()
 

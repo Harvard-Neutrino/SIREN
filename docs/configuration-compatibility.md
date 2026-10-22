@@ -34,9 +34,23 @@ Simulation now uses the U04 compiler for both canonical Vertex declarations and
 a finite deprecated convenience adapter. Unknown loader keywords no longer
 silently pass through; use process_options or load_processes explicitly.
 Controller and GenerateEvents warn but remain available. Box scalar positional
-arguments fail with a widths=/center= migration message; placement/copy forms
-remain compatible. load_processes returns ProcessBundle, whose two-item unpacking
+arguments fail with a widths=/center= migration message. Positional sequence
+arguments, such as Box([2, 4, 6], [0, 0, 0]), also now require those keywords;
+placement/copy forms remain compatible. Downstream BSM test_flux_api.py uses
+positional sequences and needs migration at the later integration/adoption gate. load_processes returns ProcessBundle, whose two-item unpacking
 preserves the primary/secondary convention and exposes extra metadata by name.
+Four-value DarkNews unpacking is intentionally replaced by:
+
+```python
+bundle = siren.load_processes("DarkNewsTables", **model_options)
+primary, secondary = bundle
+primary_ups_keys, secondary_dec_keys = bundle.metadata
+```
+
+The retained legacy CCM example uses this loader migration. The supported CCM
+example exposes `--save-tables DIRECTORY` to preserve generic DarkNews table
+persistence. Legacy scripts otherwise retain their historical interface; they
+are migration references, not the supported workflow.
 
 Results pools by attempted draws, including rejected events. It retains a
 separate native configuration snapshot instead of the mutable source injector.

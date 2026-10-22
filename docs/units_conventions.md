@@ -18,6 +18,7 @@ a passing check at one energy and sample count is not general physics validation
 Injector archive version 2 stores expansion rules; SecondaryExpansion version 1
 also stores a distinct primary policy. PhysicalProcess version 1 stores phase
 spaces. Injector/random archives with current RNG state resume the stream;
-older version-0 archives restart from their stored seed. Setting a seed or
-calling reset explicitly starts a new stream. Results captures attempt counts
+version-0 Injector archives contain no RNG and retain the caller-supplied
+engine. Setting a seed starts a new stream; reset clears counters and failure
+accounting while retaining the current RNG state. Results captures attempt counts
 separately so later generation cannot change its stored normalization.
