@@ -40,14 +40,13 @@ def run(events=100):
             kinematics=siren.channels.physical(),
             weighting=siren.PropagatedFromCreation(),
         )
-        generator = siren.injection.Injector(
-            detector=siren.detector.DetectorModel(),
-            primary=primary,
-            events=events,
-            seed=31,
+        simulation = siren.Simulation(
+            detector=siren.detector.DetectorModel(), primary=primary,
+            events=events, seed=31,
         )
-        trees = generator.generate(on_failure="raise", on_shortfall="raise")
-        weights = siren.injection.Weighter(generator).weight_all(trees)
+        results = simulation.run(on_failure="raise", on_shortfall="raise")
+        results.save(Path(directory) / "events", save_parquet=False)
+        weights = results.weights
     probability = float(weights.sum())
     expected = math.exp(-1) * -math.expm1(-0.2)
     assert math.isclose(probability, expected, rel_tol=2e-12)

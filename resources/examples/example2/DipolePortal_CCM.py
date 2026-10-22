@@ -1,15 +1,27 @@
-import os
+"""Dipole-portal heavy neutral lepton (N4) at CCM.
+
+A monoenergetic pi+ decay-at-rest muon neutrino upscatters to N4 through the
+DarkNews dipole portal (primary vertex) and the N4 decays to a photon inside
+the detector (secondary vertex). The primary's ``expand`` rule recurses only
+into the N4; the N4 vertex is terminal. Injection points the neutrino from
+the lower tungsten target into a cone covering the detector, and weighting
+uses the isotropic physical direction.
+"""
+import argparse
+
 import numpy as np
+
 import siren
-from siren import utilities
-from siren._util import GenerateEvents, SaveEvents, get_processes_model_path
 
-SaveDarkNewsProcesses = siren.resources.processes.DarkNewsTables.SaveDarkNewsProcesses
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--events", type=int, default=1)
+parser.add_argument("--seed", type=int, default=None)
+parser.add_argument("--output", default="output/CCM_Dipole")
+args = parser.parse_args()
 
-# Define a DarkNews model
 model_kwargs = {
     "m4": 0.0235,
-    "mu_tr_mu4": 6e-7,  # GeV^-1
+    "mu_tr_mu4": 6e-7,
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -19,120 +31,52 @@ model_kwargs = {
     "HNLtype": "dirac",
 }
 
-# Number of events to inject
-events_to_inject = 1
+NuMu, N4 = siren.particles.NuMu, siren.particles.N4
 
-# Experiment to run
-experiment = "CCM"
-detector_model = utilities.load_detector(experiment)
+detector_model = siren.load_detector("CCM")
+fiducial = siren.get_fiducial_volume("CCM")
 
-# Particle to inject
-primary_type = siren.dataclasses.Particle.ParticleType.NuMu
+dn_version = siren.utilities.darknews_version()
+table_name = f"DarkNewsTables-v{dn_version}/"
+table_name += "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
 
-table_name = f"DarkNewsTables-v{siren.utilities.darknews_version()}/"
-table_name += "Dipole_M%2.2e_mu%2.2e"%(model_kwargs["m4"],model_kwargs["mu_tr_mu4"])
-table_dir = os.path.join(get_processes_model_path("DarkNewsTables"),table_name)
-os.makedirs(table_dir,exist_ok=True)
-
-
-# Load DarkNews processes
-primary_processes, secondary_processes, primary_ups_keys, secondary_dec_keys = utilities.load_processes(
+bundle = siren.load_processes(
     "DarkNewsTables",
-    primary_type=primary_type,
-    detector_model = detector_model,
-    table_name = table_name,
+    primary_type=NuMu,
+    detector_model=detector_model,
+    table_name=table_name,
     **model_kwargs,
 )
 
-print(primary_processes)
-
-# for cross_section in primary_processes[primary_type].CrossSections:
-#     print(cross_section)
-
-# Mass distribution
-mass_ddist = siren.distributions.PrimaryMass(0)
-
-# Primary distributions
-nu_energy = 0.02965  # from pi+ DAR
-edist = siren.distributions.Monoenergetic(nu_energy)
-flux_units = siren.distributions.NormalizationConstant(3.76e-2)
-
-# Cone direction distribution
-opening_angle = np.arctan(5 / 23.0)
-lower_target_origin = siren.math.Vector3D(0, 0, -0.241)
+target_origin = siren.math.Vector3D(0, 0, -0.241)
 detector_origin = siren.math.Vector3D(23, 0, -0.65)
-lower_dir = detector_origin - lower_target_origin
-lower_dir.normalize()
-lower_inj_ddist = siren.distributions.Cone(lower_dir, opening_angle)
-phys_ddist = siren.distributions.IsotropicDirection()
+beam_dir = detector_origin - target_origin
+beam_dir.normalize()
 
-# Position distribution
-max_dist = 25
-lower_pos_dist = siren.distributions.PointSourcePositionDistribution(
-    lower_target_origin - detector_origin, max_dist,
+energy = siren.dist.Monoenergetic(0.02965)  # pi+ decay at rest
+
+primary = siren.Vertex(
+    NuMu, bundle.primary[NuMu],
+    distributions=[
+        siren.dist.PrimaryMass(0),
+        energy,
+        siren.dist.Cone(beam_dir, np.arctan(5 / 23.0)),
+        siren.dist.PointSource(target_origin - detector_origin, 25),
+    ],
+    physical=[energy, siren.dist.IsotropicDirection()],
+    expand=(siren.expand.child("N4"),),
 )
 
-primary_injection_distributions = [
-    mass_ddist,  # Mass distribution
-    edist,  # Energy distribution
-    lower_inj_ddist,  # Direction distribution
-    lower_pos_dist  # Position distribution
-]
+hnl = siren.Vertex(
+    N4, bundle.secondary[N4],
+    position=siren.dist.BoundedVertex(fiducial, 25),
+    expand=(siren.expand.depth_below(0),),  # terminal: photon and neutrino are final
+)
 
-primary_physical_distributions = [
-    edist,  # Energy distribution
-    phys_ddist,  # Direction distribution
-]
-
-fiducial_volume = siren.utilities.get_fiducial_volume(experiment)
-secondary_injection_distributions = {}
-for secondary_type in secondary_processes.keys():
-    secondary_injection_distributions[secondary_type] = [
-        siren.distributions.SecondaryBoundedVertexDistribution(fiducial_volume, max_dist)
-    ]
-
-# Define stopping condition for the injector
-def stop(tree, datum, i):
-    secondary_type = datum.record.signature.secondary_types[i]
-    return secondary_type != siren.dataclasses.Particle.ParticleType.N4
-
-injector = siren.injection.Injector()
-injector.number_of_events = events_to_inject
-injector.detector_model = detector_model
-injector.primary_type = primary_type
-injector.primary_interactions = primary_processes[primary_type]
-injector.primary_injection_distributions = primary_injection_distributions
-injector.secondary_interactions = secondary_processes
-injector.secondary_injection_distributions = secondary_injection_distributions
-injector.stopping_condition = stop
-
-events,gen_times = GenerateEvents(injector)
-
-
-# Output the events
-os.makedirs("output", exist_ok=True)
-
-weighter = siren.injection.Weighter()
-weighter.injectors = [injector]
-weighter.detector_model = detector_model
-weighter.primary_type = primary_type
-weighter.primary_interactions = primary_processes[primary_type]
-weighter.secondary_interactions = secondary_processes
-weighter.primary_physical_distributions = primary_physical_distributions
-weighter.secondary_physical_distributions = {}
-
-# save_hepmc3=True additionally writes output/CCM_Dipole.hepmc3 (HepMC3/NuHepMC).
-SaveEvents(events,weighter,gen_times,output_filename="output/CCM_Dipole",save_hepmc3=True)
-
-# save cross section tables
-SaveDarkNewsProcesses(table_dir,
-                      primary_processes,
-                      primary_ups_keys,
-                      secondary_processes,
-                      secondary_dec_keys)
-
-
-
-weights = [weighter(event) for event in events]
-
-
+sim = siren.Simulation(
+    events=args.events, seed=args.seed, detector=detector_model,
+    primary=primary, secondaries=[hnl])
+results = sim.run(on_failure="raise", on_shortfall="raise")
+results.summary()
+# save_hepmc3=True additionally writes <output>.hepmc3 (HepMC3/NuHepMC).
+results.save(args.output, save_hepmc3=True)

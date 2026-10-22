@@ -1,12 +1,26 @@
-import os
+"""Dipole-portal heavy neutral lepton (N4) at MINERvA in the NuMI beam.
+
+NuMI muon neutrinos upscatter to N4 through the DarkNews dipole portal
+(primary vertex) and the N4 decays to a photon in the fiducial volume
+(secondary vertex). Injection samples the unit-normalized flux shape and
+places the primary vertex along the N4 decay range in front of the detector;
+weighting uses the physically normalized flux. The primary's ``expand`` rule
+recurses only into the N4, whose vertex is terminal.
+"""
+import argparse
 
 import siren
-from siren.SIREN_Controller import SIREN_Controller
 
-# Define a DarkNews model
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--events", type=int, default=100000)
+parser.add_argument("--seed", type=int, default=None)
+parser.add_argument("--output", default=None,
+                    help="output prefix (default: output/MINERvA_Dipole_<params>_example)")
+args = parser.parse_args()
+
 model_kwargs = {
-    "m4": 0.47,  # 0.140,
-    "mu_tr_mu4": 2.50e-6,  # 1e-6, # GeV^-1
+    "m4": 0.47,
+    "mu_tr_mu4": 2.50e-6,
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -16,69 +30,72 @@ model_kwargs = {
     "HNLtype": "dirac",
 }
 
-# Number of events to inject
-events_to_inject = 100000
+NuMu, N4 = siren.particles.NuMu, siren.particles.N4
 
-# Expeirment to run
-experiment = "MINERvA"
+detector_model = siren.load_detector("MINERvA")
 
-# Define the controller
-controller = SIREN_Controller(events_to_inject, experiment)
+dn_version = siren.utilities.darknews_version()
+table_name = f"DarkNewsTables-v{dn_version}/"
+table_name += "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
 
-# Particle to inject
-primary_type = siren.dataclasses.Particle.ParticleType.NuMu
-
-xs_path = siren.utilities.get_cross_section_model_path(f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False)
-# Define DarkNews Model
-table_dir = os.path.join(
-    xs_path,
-    "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+bundle = siren.load_processes(
+    "DarkNewsTables",
+    primary_type=NuMu,
+    detector_model=detector_model,
+    table_name=table_name,
+    **model_kwargs,
 )
-controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs)
+hnl_decays = bundle.secondary[N4]
 
-# Primary distributions
-primary_injection_distributions = {}
-primary_physical_distributions = {}
 
-# energy distribution
-edist = siren.utilities.load_flux("NUMI", tag="FHC_ME_numu", physically_normalized=True)
-edist_gen = siren.utilities.load_flux("NUMI", tag="FHC_ME_numu", min_energy=model_kwargs["m4"], max_energy=20, physically_normalized=False)
-primary_injection_distributions["energy"] = edist_gen
-primary_physical_distributions["energy"] = edist
+def _total_decay_width(decay):
+    # TotalDecayWidth(record) only returns a nonzero width when the record's
+    # signature matches the decay's own signature; a default-constructed
+    # InteractionRecord has an "unknown" signature and always yields zero.
+    record = siren.dataclasses.InteractionRecord()
+    record.signature = decay.GetPossibleSignatures()[0]
+    return decay.TotalDecayWidth(record)
 
-# direction distribution
-direction_distribution = siren.distributions.FixedDirection(siren.math.Vector3D(0, 0, 1.0))
-primary_injection_distributions["direction"] = direction_distribution
-primary_physical_distributions["direction"] = direction_distribution
 
-# position distribution
-decay_range_func = siren.distributions.DecayRangeFunction(
-    model_kwargs["m4"], controller.DN_min_decay_width, 3, 240
+direction = siren.dist.FixedDirection([0, 0, 1])
+
+primary = siren.Vertex(
+    NuMu, bundle.primary[NuMu],
+    distributions=[
+        siren.dist.PrimaryMass(0),
+        siren.load_flux(
+            "NUMI", tag="FHC_ME_numu",
+            min_energy=model_kwargs["m4"], max_energy=20,
+            physically_normalized=False),
+        direction,
+        siren.dist.RangePosition(
+            1.24, 5.0,
+            siren.dist.DecayRange(
+                model_kwargs["m4"],
+                min(_total_decay_width(d) for d in hnl_decays),
+                3, 240,
+            ),
+            siren.get_detector_model_targets(detector_model),
+        ),
+    ],
+    physical=[
+        siren.load_flux("NUMI", tag="FHC_ME_numu", physically_normalized=True),
+        direction,
+    ],
+    expand=(siren.expand.child("N4"),),
 )
-position_distribution = siren.distributions.RangePositionDistribution(
-    1.24, 5.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
-)
-primary_injection_distributions["position"] = position_distribution
 
-# SetProcesses
-controller.SetProcesses(
-    primary_type, primary_injection_distributions, primary_physical_distributions
+hnl = siren.Vertex(
+    N4, hnl_decays,
+    position=siren.dist.BoundedVertex(siren.get_fiducial_volume("MINERvA"), 25),
+    expand=(siren.expand.depth_below(0),),  # terminal: photon and neutrino are final
 )
 
-controller.Initialize()
-
-def stop(tree, datum, i):
-    secondary_type = datum.record.signature.secondary_types[i]
-    return secondary_type != siren.dataclasses.Particle.ParticleType.N4
-
-controller.injector.SetStoppingCondition(stop)
-
-events = controller.GenerateEvents(fill_tables_at_exit=False)
-
-os.makedirs("output", exist_ok=True)
-
-controller.SaveEvents(
-    "output/MINERvA_Dipole_M%2.2e_mu%2.2e_example"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
-    fill_tables_at_exit=True
-)
+sim = siren.Simulation(
+    events=args.events, seed=args.seed, detector=detector_model,
+    primary=primary, secondaries=[hnl])
+results = sim.run(on_failure="raise", on_shortfall="raise")
+results.summary()
+results.save(
+    args.output or "output/MINERvA_Dipole_M%2.2e_mu%2.2e_example"
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]))
