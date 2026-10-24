@@ -1,5 +1,6 @@
 
 #include <vector>
+#include "SIREN/dataclasses/RecordKinematics.h"
 #include <set>
 
 #include "../../public/SIREN/dataclasses/Particle.h"
@@ -221,6 +222,10 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("primary_initial_position",&InteractionRecord::primary_initial_position)
         .def_readwrite("primary_initial_time",&InteractionRecord::primary_initial_time)
         .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
+        .def("get_primary_momentum", &PrimaryMomentum)
+        .def("set_primary_momentum", &SetPrimaryMomentum, py::arg("momentum"))
+        .def("get_secondary_momentum", &SecondaryMomentum, py::arg("index"))
+        .def("set_secondary_momentum", &SetSecondaryMomentum, py::arg("index"), py::arg("momentum"))
         .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
         .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
         .def_readwrite("target_id",&InteractionRecord::target_id)
