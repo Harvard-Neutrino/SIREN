@@ -70,7 +70,7 @@ PYBIND11_MODULE(math,m) {
             [](FourMomentum const & p) {
                 std::optional<double> mass;
                 if (p.HasKnownMass()) mass = p.Mass();
-                return make_tuple(p.Components(), mass);
+                return pybind11::make_tuple(p.Components(), mass);
             },
             [](tuple state) {
                 if (state.size() != 2)

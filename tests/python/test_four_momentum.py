@@ -44,6 +44,10 @@ def test_known_mass_boost_against_decimal(frame_scale, mass, momentum, negative)
     assert result.components() == pytest.approx(reference, rel=0, abs=bound)
     assert result.mass() == mass
     assert result.has_known_mass()
+    restored = pickle.loads(pickle.dumps(result))
+    assert restored.components() == result.components()
+    assert restored.mass() == mass
+    assert restored.has_known_mass()
     if frame_scale <= 1e3:
         back = result.boost_to_rest(frame)
         assert back.components() == pytest.approx(particle.components(), rel=0, abs=8*gamma*bound)
@@ -117,3 +121,17 @@ def test_legacy_rk_exports_remain_available():
     assert p.m() == 2.
     assert p.e() == pytest.approx(math.sqrt(13.))
     assert rk.invMass(p, p) == pytest.approx(4.)
+
+
+def test_raw_mass_residue_cannot_be_promoted_by_a_boost():
+    raw = P4.from_components([1.0000001192092896, 0., 0., 1.])
+    frame = P4.from_mass(0.135, Vector3D(0., 0., 100.))
+    assert raw.mass() > 0.
+    assert not raw.has_known_mass()
+    for operation in (raw.boost_to_lab, raw.boost_to_rest):
+        with pytest.raises(ValueError, match="explicitly known"):
+            operation(frame)
+    particle = P4.from_mass(0., raw.momentum())
+    with pytest.raises(ValueError, match="explicitly known"):
+        particle.boost_to_lab(P4.from_components(frame.components()))
+    assert particle.boost_to_lab(frame).mass() == 0.
