@@ -33,6 +33,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
+    PATTERN "*.def"
 )
 
 package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionSignature_TEST.cxx)

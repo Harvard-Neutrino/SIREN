@@ -84,3 +84,36 @@ TEST(FourMomentum, RecordAccessReturnsValuesAndRequiresExplicitWrite) {
     EXPECT_THROW(SecondaryMomentum(record, 1), std::out_of_range);
     EXPECT_THROW(SetSecondaryMomentum(record, 1, value), std::out_of_range);
 }
+
+TEST(FourMomentum, BoostDoesNotPromoteRoundedRawMassToKnownMass) {
+    auto raw = FourMomentum::FromComponents({1.0000001192092896, 0., 0., 1.});
+    auto frame = FourMomentum::FromMass(0.135, {0., 0., 100.});
+    EXPECT_FALSE(raw.HasKnownMass());
+    EXPECT_GT(raw.Mass(), 0.);
+    EXPECT_FALSE(raw.HasKnownMass());
+    EXPECT_THROW(raw.BoostToLab(frame), std::domain_error);
+    EXPECT_THROW(raw.BoostToRest(frame), std::domain_error);
+    auto particle = FourMomentum::FromMass(0., {0., 0., 1.});
+    auto raw_frame = FourMomentum::FromComponents(frame.Components());
+    EXPECT_THROW(particle.BoostToLab(raw_frame), std::domain_error);
+    EXPECT_DOUBLE_EQ(particle.BoostToLab(frame).Mass(), 0.);
+}
+
+TEST(FourMomentum, ComponentArithmeticDoesNotClaimAPhysicalMass) {
+    auto a = FourMomentum::FromMass(0., {1., 1., 1.});
+    auto sum = a + a;
+    auto raw = FourMomentum::FromComponents(sum.Components());
+    EXPECT_FALSE(sum.HasKnownMass());
+    EXPECT_DOUBLE_EQ(sum.MassSquared(), raw.MassSquared());
+    if (raw.MassSquared() < 0.) EXPECT_THROW(sum.Mass(), std::domain_error);
+    auto rest = FourMomentum::FromMass(2., {0., 0., 0.});
+    EXPECT_THROW(sum.BoostToLab(rest), std::domain_error);
+}
+
+TEST(FourMomentum, NonzeroSlowFrameIsNotReplacedWithIdentity) {
+    auto frame = FourMomentum::FromMass(2., {0., 0., 1e-16});
+    auto daughter = FourMomentum::FromMass(1., {0., 0., 0.});
+    auto lab = daughter.BoostToLab(frame);
+    EXPECT_DOUBLE_EQ(lab.Components()[3], 5e-17);
+    EXPECT_DOUBLE_EQ(lab.Mass(), 1.);
+}

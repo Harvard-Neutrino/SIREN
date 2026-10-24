@@ -85,6 +85,8 @@ private:
     }
 
     FourMomentum Boost(FourMomentum const & frame, bool inverse) const {
+        if (!known_mass_ || !frame.known_mass_)
+            throw std::domain_error("A boost needs explicitly known particle and frame masses");
         Mass();
         if (!(frame.Mass() > 0.0) || !(frame.Energy() > 0.0))
             throw std::domain_error("A boost frame needs positive mass and energy");

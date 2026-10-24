@@ -2095,3 +2095,38 @@ TEST(CoreMeasure, RestCosThetaLiftsUniformAzimuthButCannotMarginalize) {
 }
 
 } // namespace
+
+
+TEST(OnShellDecay, RoundedEnergyTolerancePreservesInputAndFailureType) {
+    siren::injection::Isotropic2BodyChannel channel;
+    auto random = std::make_shared<siren::utilities::SIREN_random>(824);
+    const double shell_energy = std::hypot(2., 3.);
+    for (double delta : {-1.9e-5, 1.9e-5}) {
+        auto record = TwoBodyDecayRecord();
+        record.primary_momentum = {shell_energy * (1. + delta), 0., 0., 3.};
+        const auto original = record.primary_momentum;
+        EXPECT_GT(channel.Density(nullptr, record), 0.);
+        channel.Sample(random, nullptr, record);
+        EXPECT_EQ(record.primary_momentum, original);
+        for (std::size_t i = 0; i < 4; ++i) {
+            double expected = i == 0 ? shell_energy : original[i];
+            EXPECT_NEAR(record.secondary_momenta[0][i] + record.secondary_momenta[1][i],
+                        expected, 2e-15 * shell_energy);
+        }
+    }
+    for (double delta : {-2.1e-5, 2.1e-5}) {
+        auto record = TwoBodyDecayRecord();
+        record.primary_momentum = {shell_energy * (1. + delta), 0., 0., 3.};
+        const auto primary = record.primary_momentum;
+        const auto daughters = record.secondary_momenta;
+        EXPECT_DOUBLE_EQ(channel.Density(nullptr, record), 0.);
+        try {
+            channel.Sample(random, nullptr, record);
+            FAIL() << "Expected an invalid decay parent";
+        } catch (siren::utilities::InjectionFailure const & error) {
+            EXPECT_EQ(error.reason(), siren::utilities::FailureReason::KinematicallyForbidden);
+        }
+        EXPECT_EQ(record.primary_momentum, primary);
+        EXPECT_EQ(record.secondary_momenta, daughters);
+    }
+}

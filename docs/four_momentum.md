@@ -19,7 +19,10 @@ SetSecondaryMomentum(record, 0, daughter.BoostToLab(parent));
 
 `FromComponents(array)` preserves all four supplied doubles, including signed
 energy and spacelike momentum transfers. It does not validate or project a
-mass shell. Addition and subtraction also preserve their component results.
+mass shell. Addition and subtraction also preserve their component results, without a
+physical-mass claim or rk's possible roundoff clamp for same-sign sums. Thus a
+rounded sum of collinear particles can have a slightly negative signed invariant;
+`Mass()` rejects that raw result. Do not use raw sums to recover small known masses.
 `MassSquared()` is the signed component invariant from rk, including negative
 values. It still suffers cancellation in `E*E - p*p`; replacing a spelling of
 that expression does not improve precision.
@@ -31,8 +34,10 @@ spacelike/nonfinite inputs. `HasKnownMass()` distinguishes a retained mass from
 a raw component value. Converting to an array and back discards the retained
 mass: callers with independently known mass must use `FromMass` explicitly.
 
-`BoostToLab(frame)` and `BoostToRest(frame)` return values. The frame must have
-positive mass and positive energy. Particle energy may have either sign,
+`BoostToLab(frame)` and `BoostToRest(frame)` return values. Both the particle and frame must carry masses from explicit `FromMass`
+construction (or a preceding known-mass boost); raw component values and
+component sums/differences must not silently acquire that claim. The frame must
+have positive mass and positive energy. Particle energy may have either sign,
 including massless particles; a massless particle cannot define a rest frame.
 Spacelike particles/frames are rejected with `std::domain_error`, even for a
 zero boost, instead of reaching rk assertions or silently clamping the mass.
@@ -67,3 +72,10 @@ energy for upstream densities. Threshold equality remains allowed, and invalid
 parents or daughter masses retain the channel's `InjectionFailure` contract.
 The first daughter now carries its known mass through the boost instead of
 reconstructing it by subtraction; the second is stored by momentum conservation.
+
+The former boost adapter skipped all frames with `|p|² < 1e-30`; the common
+operation retains nonzero boosts. The parent energy now follows rk's `sqrt`
+construction rather than a separate `hypot`, so a few ulp difference is possible.
+These changes and the retained daughter mass do not change RNG draws. Finite
+but extreme momenta whose intermediate squares overflow are outside rk's
+supported numerical range; the channel may raise `std::domain_error` there.

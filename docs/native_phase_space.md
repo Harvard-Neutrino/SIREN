@@ -177,3 +177,5 @@ libraries match the source:
 python -m pytest tests/python/test_native_phase_space.py -q
 ctest --test-dir build -R 'PhaseSpace|TwoBodyKinematics|Injector|Weighter' --output-on-failure
 ```
+
+Momentum values and raw record conversions are documented in [four-momentum and records](four_momentum.md).
