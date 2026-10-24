@@ -79,3 +79,36 @@ construction rather than a separate `hypot`, so a few ulp difference is possible
 These changes and the retained daughter mass do not change RNG draws. Finite
 but extreme momenta whose intermediate squares overflow are outside rk's
 supported numerical range; the channel may raise `std::domain_error` there.
+
+## Python authoring
+
+The same value is `siren.math.FourMomentum`. Existing `siren.utilities.rk`
+exports and array fields remain available. Python checks raise `ValueError`
+for invalid particle/frame domains and `IndexError` for secondary bounds.
+
+```python
+import pickle
+from siren import dataclasses, math
+
+record = dataclasses.InteractionRecord()
+record.primary_momentum = [1.0, 2.0, 3.0, 4.0]
+raw = record.get_primary_momentum()
+assert raw.mass_squared() == -28.0
+record.set_primary_momentum(raw + raw)
+assert raw.components() == [1.0, 2.0, 3.0, 4.0]
+
+parent = math.FourMomentum.from_mass(2.0, math.Vector3D(0, 0, 2e9))
+daughter = math.FourMomentum.from_mass(0.001, math.Vector3D(0, 0, 0))
+lab = daughter.boost_to_lab(parent)
+assert lab.mass() == 0.001
+assert pickle.loads(pickle.dumps(lab)).mass() == 0.001
+```
+
+Methods are `from_components`, `from_mass`, `components`, `energy`, `momentum`,
+`mass`, `mass_squared`, `has_known_mass`, `boost_to_lab`, `boost_to_rest` and
+`invariant_mass(a, b)`, with `+`/`-` for component arithmetic. Record methods are
+`get_primary_momentum`, `set_primary_momentum`, `get_secondary_momentum(index)`
+and `set_secondary_momentum(index, momentum)`. Reads return values; setting a
+momentum does not update the record's mass metadata. Pickling the value preserves
+both raw components and retained known mass, while record pickles keep the
+existing array representation and do not acquire an implicit mass-shell claim.
