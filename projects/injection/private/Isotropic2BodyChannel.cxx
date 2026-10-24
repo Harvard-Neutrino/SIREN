@@ -1,7 +1,6 @@
 #include "SIREN/injection/Isotropic2BodyChannel.h"
 
-#include "LorentzBoostUtils.h"
-#include "InteractionRecordUtils.h"
+#include "SIREN/dataclasses/RecordKinematics.h"
 #include "OnShellDecayKinematics.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
 
@@ -50,7 +49,7 @@ void Isotropic2BodyChannel::Sample(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord & record) const
 {
-    detail::RequireSecondaryStorage(record, 2, "Isotropic2BodyChannel");
+    siren::dataclasses::RequireSecondaryStorage(record, 2, "Isotropic2BodyChannel");
     detail::RequireOnShellParent(record);
 
     double M_parent = record.primary_mass;
@@ -64,7 +63,6 @@ void Isotropic2BodyChannel::Sample(
     }
 
     double p_rest = TwoBodyRestMomentum(M_parent, m_A, m_B);
-    double E_A_rest = TwoBodyRestEnergy(M_parent, m_A, m_B);
 
     // Sample isotropic direction in rest frame
     double cos_theta = 2.0 * random->Uniform(0, 1) - 1.0;
@@ -76,26 +74,18 @@ void Isotropic2BodyChannel::Sample(
     double py_rest = p_rest * sin_theta * std::sin(phi);
     double pz_rest = p_rest * cos_theta;
 
-    // Boost to lab frame along parent direction. The frame comes from the
-    // declared mass and three-momentum; a tabulated energy may be rounded.
     auto parent = detail::OnShellParent(record);
-    auto lab = detail::BoostRestFrameToLab(
-        parent.e, parent.p.GetX(), parent.p.GetY(), parent.p.GetZ(),
-        E_A_rest, px_rest, py_rest, pz_rest, M_parent);
-    detail::FourVector daughter{
-        lab[0], siren::math::Vector3D(lab[1], lab[2], lab[3])};
-    detail::WriteSecondary(record, daughter_index_, daughter);
-
-    // Daughter B: by momentum conservation
-    detail::WriteSecondary(record, 1 - daughter_index_, {
-        parent.e - daughter.e, parent.p - daughter.p});
+    auto daughter = siren::math::FourMomentum::FromMass(
+        m_A, siren::math::Vector3D(px_rest, py_rest, pz_rest)).BoostToLab(parent);
+    siren::dataclasses::SetSecondaryMomentum(record, daughter_index_, daughter);
+    siren::dataclasses::SetSecondaryMomentum(record, 1 - daughter_index_, parent - daughter);
 }
 
 double Isotropic2BodyChannel::Density(
     std::shared_ptr<siren::detector::DetectorModel const>,
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (!detail::HasSecondaryStorage(record, 2)
+    if (!siren::dataclasses::HasSecondaryStorage(record, 2)
         || !detail::OnShellParentValid(record)) {
         return 0.0;
     }

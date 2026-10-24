@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include "../LorentzBoostUtils.h"
 #include "SIREN/math/Kinematics.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"

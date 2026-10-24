@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../LorentzBoostUtils.h"
+#include "SIREN/math/FourMomentum.h"
 #include "SIREN/math/Kinematics.h"
 
 #include "SIREN/dataclasses/InteractionRecord.h"
@@ -29,7 +29,7 @@
 #include "SIREN/utilities/Constants.h"
 #include "SIREN/utilities/Random.h"
 
-#include "../InteractionRecordUtils.h"
+#include "SIREN/dataclasses/RecordKinematics.h"
 
 #include <algorithm>
 #include <array>
@@ -1896,34 +1896,33 @@ TEST(KinematicInjectionFailure, InjectorCountsFailureAsAnAttempt) {
 }
 
 
-TEST(SharedInteractionRecordUtils, ReadWriteAndValidationUseOneLayout) {
+TEST(RecordKinematics, ReadWriteAndValidationUseOneLayout) {
     InteractionRecord record = TwoBodyDecayRecord();
     record.primary_momentum = {5.0, 1.0, 2.0, 3.0};
     record.interaction_vertex = {4.0, 5.0, 6.0};
 
-    ASSERT_TRUE(siren::injection::detail::HasSecondaryStorage(record, 2));
-    auto primary = siren::injection::detail::ReadPrimary(record);
-    EXPECT_DOUBLE_EQ(primary.e, 5.0);
-    EXPECT_DOUBLE_EQ(primary.p.GetX(), 1.0);
-    EXPECT_DOUBLE_EQ(primary.p.GetY(), 2.0);
-    EXPECT_DOUBLE_EQ(primary.p.GetZ(), 3.0);
-    auto vertex = siren::injection::detail::ReadVertex(record);
+    ASSERT_TRUE(siren::dataclasses::HasSecondaryStorage(record, 2));
+    auto primary = siren::dataclasses::PrimaryMomentum(record);
+    EXPECT_DOUBLE_EQ(primary.Energy(), 5.0);
+    EXPECT_DOUBLE_EQ(primary.Momentum().GetX(), 1.0);
+    EXPECT_DOUBLE_EQ(primary.Momentum().GetY(), 2.0);
+    EXPECT_DOUBLE_EQ(primary.Momentum().GetZ(), 3.0);
+    auto vertex = siren::dataclasses::InteractionVertex(record);
     EXPECT_DOUBLE_EQ(vertex.GetX(), 4.0);
     EXPECT_DOUBLE_EQ(vertex.GetY(), 5.0);
     EXPECT_DOUBLE_EQ(vertex.GetZ(), 6.0);
 
-    siren::injection::detail::WriteSecondary(record, 1, {
-        7.0, siren::math::Vector3D(8.0, 9.0, 10.0)});
-    auto secondary = siren::injection::detail::ReadSecondary(record, 1);
-    EXPECT_DOUBLE_EQ(secondary.e, 7.0);
-    EXPECT_DOUBLE_EQ(secondary.p.GetX(), 8.0);
-    EXPECT_DOUBLE_EQ(secondary.p.GetY(), 9.0);
-    EXPECT_DOUBLE_EQ(secondary.p.GetZ(), 10.0);
+    siren::dataclasses::SetSecondaryMomentum(record, 1, siren::math::FourMomentum::FromComponents({7.0, 8.0, 9.0, 10.0}));
+    auto secondary = siren::dataclasses::SecondaryMomentum(record, 1);
+    EXPECT_DOUBLE_EQ(secondary.Energy(), 7.0);
+    EXPECT_DOUBLE_EQ(secondary.Momentum().GetX(), 8.0);
+    EXPECT_DOUBLE_EQ(secondary.Momentum().GetY(), 9.0);
+    EXPECT_DOUBLE_EQ(secondary.Momentum().GetZ(), 10.0);
 
     record.secondary_momenta.pop_back();
-    EXPECT_FALSE(siren::injection::detail::HasSecondaryStorage(record, 2));
+    EXPECT_FALSE(siren::dataclasses::HasSecondaryStorage(record, 2));
     EXPECT_THROW(
-        siren::injection::detail::RequireSecondaryStorage(
+        siren::dataclasses::RequireSecondaryStorage(
             record, 2, "test"),
         std::runtime_error);
 }
@@ -1988,7 +1987,6 @@ TEST(SharedLorentzBoost, RkAdapterMatchesAnalyticBoost) {
     constexpr double parent_mass = 2.0;
     constexpr double gamma = 1.5;
     const double beta = std::sqrt(1.0 - 1.0 / (gamma * gamma));
-    const double parent_energy = gamma * parent_mass;
     const double parent_pz = gamma * beta * parent_mass;
     constexpr double daughter_mass = 0.4;
     constexpr double rest_px = 0.3;
@@ -1998,9 +1996,11 @@ TEST(SharedLorentzBoost, RkAdapterMatchesAnalyticBoost) {
         daughter_mass * daughter_mass
         + rest_px * rest_px + rest_py * rest_py + rest_pz * rest_pz);
 
-    auto lab = siren::injection::detail::BoostRestFrameToLab(
-        parent_energy, 0.0, 0.0, parent_pz,
-        rest_energy, rest_px, rest_py, rest_pz);
+    auto frame = siren::math::FourMomentum::FromMass(
+        parent_mass, siren::math::Vector3D(0.0, 0.0, parent_pz));
+    auto lab = siren::math::FourMomentum::FromMass(
+        daughter_mass, siren::math::Vector3D(rest_px, rest_py, rest_pz))
+        .BoostToLab(frame).Components();
     EXPECT_NEAR(lab[0], gamma * (rest_energy + beta * rest_pz), 1e-14);
     EXPECT_NEAR(lab[1], rest_px, 1e-14);
     EXPECT_NEAR(lab[2], rest_py, 1e-14);

@@ -47,6 +47,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/math/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_FourMomentum ${PROJECT_SOURCE_DIR}/projects/math/private/test/FourMomentum_TEST.cxx)
 package_add_test(UnitTest_MathMethods ${PROJECT_SOURCE_DIR}/projects/math/private/test/MathMethods_TEST.cxx)
 package_add_test(UnitTest_Polynomial ${PROJECT_SOURCE_DIR}/projects/math/private/test/Polynomial_TEST.cxx)
 package_add_test(UnitTest_Quaternion ${PROJECT_SOURCE_DIR}/projects/math/private/test/Quaternion_TEST.cxx)
