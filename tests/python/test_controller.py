@@ -26,6 +26,9 @@ from siren import math as smath
 from siren import utilities
 from siren import _util
 
+# The CCM version that ships densities.dat and materials.dat.
+CCM_FILES = "CCM-v2"
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -34,7 +37,7 @@ from siren import _util
 @pytest.fixture(scope="module")
 def ccm_det_paths():
     """Return (detector_model_file, materials_model_file) for CCM."""
-    det_dir = _util.get_detector_model_path("CCM")
+    det_dir = _util.get_detector_model_path(CCM_FILES)
     return (
         os.path.join(det_dir, "densities.dat"),
         os.path.join(det_dir, "materials.dat"),
@@ -132,6 +135,21 @@ class TestControllerConstructor:
         assert c.detector_model_file is None
         assert c.materials_model_file is None
         assert c.GetFiducialVolume() is None
+
+    def test_experiment_without_materials_file_uses_loader(self, tmp_path, monkeypatch):
+        """An experiment folder without materials.dat loads through its loader and takes the fiducial volume from densities.dat."""
+        from siren.SIREN_Controller import SIREN_Controller
+        model = siren.utilities.load_detector(CCM_FILES)
+        densities = os.path.join(_util.get_detector_model_path(CCM_FILES), "densities.dat")
+        with open(densities) as src:
+            (tmp_path / "densities.dat").write_text(src.read())
+        monkeypatch.setattr(_util, "load_detector", lambda name: model)
+        monkeypatch.setattr(_util, "get_detector_model_path", lambda name: str(tmp_path))
+        c = SIREN_Controller(1, experiment="CCM")
+        assert c.detector_model is model
+        assert c.detector_model_file == str(tmp_path / "densities.dat")
+        assert c.materials_model_file is None
+        assert c.GetFiducialVolume() is not None
 
 
 # ---------------------------------------------------------------------------
@@ -365,7 +383,7 @@ class TestWeighter:
         NuMu = dc.Particle.ParticleType.NuMu
 
         dm = detector.DetectorModel()
-        det_dir = _util.get_detector_model_path("CCM")
+        det_dir = _util.get_detector_model_path(CCM_FILES)
         dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
         dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
 
@@ -443,7 +461,7 @@ class TestEndToEnd:
         NuMu = dc.Particle.ParticleType.NuMu
 
         dm = detector.DetectorModel()
-        det_dir = _util.get_detector_model_path("CCM")
+        det_dir = _util.get_detector_model_path(CCM_FILES)
         dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
         dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
 
@@ -529,7 +547,7 @@ class TestSerialization:
     def _ccm_pieces(self):
         NuMu = dc.Particle.ParticleType.NuMu
         dm = detector.DetectorModel()
-        det_dir = _util.get_detector_model_path("CCM")
+        det_dir = _util.get_detector_model_path(CCM_FILES)
         dm.LoadMaterialModel(os.path.join(det_dir, "materials.dat"))
         dm.LoadDetectorModel(os.path.join(det_dir, "densities.dat"))
         int_col = interactions.InteractionCollection(NuMu, [interactions.DummyCrossSection()])

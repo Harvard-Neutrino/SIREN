@@ -81,16 +81,19 @@ class SIREN_Controller:
             self.materials_model_file = None
         else:
             if experiment is not None:
-                # Find the density and materials files
+                # The experiment's loader builds the model; its densities.dat, if present, sets the fiducial volume.
+                self.detector_model = _util.load_detector(experiment)
                 detector_dir = _util.get_detector_model_path(experiment)
-                self.materials_model_file = os.path.join(detector_dir, "materials.dat")
-                self.detector_model_file = os.path.join(detector_dir, "densities.dat")
+                densities_file = os.path.join(detector_dir, "densities.dat")
+                materials_file = os.path.join(detector_dir, "materials.dat")
+                self.detector_model_file = densities_file if os.path.isfile(densities_file) else None
+                self.materials_model_file = materials_file if os.path.isfile(materials_file) else None
             elif (self.detector_model_file is None or self.materials_model_file is None):
                 raise ValueError("Must provide either an experiment name, both a detector model file and materials model file, or a pre-built detector_model")
-
-            self.detector_model = _detector.DetectorModel()
-            self.detector_model.LoadMaterialModel(self.materials_model_file)
-            self.detector_model.LoadDetectorModel(self.detector_model_file)
+            else:
+                self.detector_model = _detector.DetectorModel()
+                self.detector_model.LoadMaterialModel(self.materials_model_file)
+                self.detector_model.LoadDetectorModel(self.detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
