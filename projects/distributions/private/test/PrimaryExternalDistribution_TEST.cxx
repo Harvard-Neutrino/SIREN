@@ -598,7 +598,7 @@ TEST(PrimaryExternalDistribution, ArchiveRecomputesColumnFlags) {
 
 
 TEST(PrimaryExternalDistribution, RejectsLegacySegmentArchiveVersion) {
-    PrimaryExternalDistribution loaded({"E", "m"}, {{1., 0.}});
+    PrimaryExternalDistribution loaded({"E", "m"}, {{1., 0.}, {2., 0.}}, {1., 3.});
     std::stringstream stream;
     cereal::BinaryInputArchive archive(stream);
     try {
@@ -607,6 +607,10 @@ TEST(PrimaryExternalDistribution, RejectsLegacySegmentArchiveVersion) {
     } catch(std::runtime_error const & error) {
         EXPECT_NE(std::string(error.what()).find("legacy segment layout"), std::string::npos);
     }
+    InteractionRecord record;
+    record.primary_momentum = {1., 0., 0., 1.};
+    record.interaction_parameters["PrimaryExternalDistribution_row"] = 0.;
+    EXPECT_DOUBLE_EQ(loaded.GenerationProbability(nullptr, nullptr, record), .5);
 }
 
 TEST(PrimaryExternalDistribution, VersionZeroLoadClearsExistingProposalCDF) {
