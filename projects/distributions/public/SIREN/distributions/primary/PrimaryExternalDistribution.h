@@ -92,7 +92,7 @@ public:
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
-        } else if(version == 1 || version == 2) {
+        } else if(version == 1 || version == 3) {
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
@@ -101,12 +101,12 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
-            if(version == 2) {
+            if(version == 3) {
                 archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
                 archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
             }
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 2!");
+            throw std::runtime_error("PrimaryExternalDistribution supports versions 0, 1 and 3; version 2 is the unsupported legacy segment layout!");
         }
     }
     template<typename Archive>
@@ -124,7 +124,8 @@ public:
             ValidateTable();
             ComputeProvidedVariables();
             DerivePhysicalRowWeights();
-        } else if(version == 1 || version == 2) {
+            BuildSamplingCDF();
+        } else if(version == 1 || version == 3) {
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
@@ -133,14 +134,14 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
-            if(version == 2) archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
+            if(version == 3) archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
             ValidateTable();
             ComputeProvidedVariables();
             DerivePhysicalRowWeights();
             BuildSamplingCDF();
-            if(version == 2) archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
+            if(version == 3) archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 2!");
+            throw std::runtime_error("PrimaryExternalDistribution supports versions 0, 1 and 3; version 2 is the unsupported legacy segment layout!");
         }
     }
 private:
@@ -153,7 +154,7 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 2);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 3);
 CEREAL_REGISTER_TYPE(siren::distributions::PrimaryExternalDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PrimaryExternalDistribution);
 
