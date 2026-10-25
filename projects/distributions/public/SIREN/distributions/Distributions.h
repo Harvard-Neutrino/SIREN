@@ -82,6 +82,11 @@ friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const = 0;
+    // Physical and proposal densities may differ even on the same object.
+    virtual double PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+        return GenerationProbability(detector_model, interactions, record);
+    }
+    virtual bool PhysicalDensityDiffers() const { return false; }
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
