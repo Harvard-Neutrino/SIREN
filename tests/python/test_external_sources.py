@@ -251,7 +251,9 @@ def test_version_zero_weight_column_stays_metadata_on_resave(label, tmp_path):
     if sys.byteorder != "little":
         pytest.skip("Native archive fixture is little-endian")
     fixture = Path(__file__).parents[1] / "fixtures" / "external_v0" / f"{label}.injector"
-    gen = siren.injection._Injector(1, str(fixture), siren.utilities.SIREN_random(1))
+    random = siren.utilities.SIREN_random(17)
+    gen = siren.injection._Injector(1, str(fixture), random)
+    assert gen.GetRandom() is random
     for _ in range(2):
         dist = gen.GetPrimaryProcess().distributions[0]
         assert not dist.IsNormalizationSet()
