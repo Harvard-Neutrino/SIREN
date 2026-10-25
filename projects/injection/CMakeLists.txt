@@ -8,6 +8,7 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/TwoBodyKinematics.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhysicalChannelAdapters.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
 )
