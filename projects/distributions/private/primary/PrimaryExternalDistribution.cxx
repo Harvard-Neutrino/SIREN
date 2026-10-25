@@ -248,6 +248,12 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename, 
 }
 
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data)
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data), DeferPhysicalWeights{})
+{
+    DerivePhysicalRowWeights();
+}
+
+PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, DeferPhysicalWeights)
     : emin(0)
 {
     keys = std::move(_keys);
@@ -286,11 +292,10 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string
         else if (k == "x0" || k == "y0" || k == "z0") provided_variables_.insert(DistributionVariable::InitialPosition);
         else provided_variables_.insert(DistributionVariable::InteractionParameters);
     }
-    DerivePhysicalRowWeights();
 }
 
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, double emin)
-    : PrimaryExternalDistribution(std::move(_keys), std::move(_data))
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data), DeferPhysicalWeights{})
 {
     this->emin = emin;
     ValidateTable();
@@ -308,10 +313,8 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string
         if (input_data.empty()) {
             throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
         }
-        // The physical row weights and normalization derived by the delegated
-        // constructor refer to the unfiltered table; rebuild on the survivors.
-        DerivePhysicalRowWeights();
     }
+    DerivePhysicalRowWeights();
 }
 
 PrimaryExternalDistribution::PrimaryExternalDistribution(
@@ -341,7 +344,7 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
     std::vector<std::vector<double>> _data,
     std::vector<double> _sampling_weights,
     double emin)
-    : PrimaryExternalDistribution(std::move(_keys), std::move(_data))
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data), DeferPhysicalWeights{})
 {
     if (!_sampling_weights.empty() && _sampling_weights.size() != input_data.size())
         throw std::runtime_error("Sampling weights must match the table rows");
@@ -370,8 +373,8 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
             throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
         }
         if (!sampling_weights_.empty()) sampling_weights_ = std::move(filtered_weights);
-        DerivePhysicalRowWeights();
     }
+    DerivePhysicalRowWeights();
     BuildSamplingCDF();
 }
 
