@@ -6,5 +6,14 @@ Python 3.13, macOS arm64, native cereal BinaryOutputArchive. These little-endian
 `[2, 2]` or `[-1, 2]`, plus a sphere vertex sampler and HNLDipoleDecay.
 They contain no model tables, event samples, or private inputs. The regression
 checks load and resave without interpreting the old metadata as physical weights.
-Generation script and matching runtime provenance are retained in
-`artifacts/siren-stack-v2-u06-20261025/legacy_weight_archive.py` in SBN_PRISM.
+Regenerate using the unmodified published U05 runtime, not the U06 runtime:
+
+```sh
+python tests/fixtures/external_v0/generate.py /tmp/siren-external-v0-new
+```
+
+`generate.py` writes the CSV input and native archive for both cases. Confirm
+that the selected Python imports SIREN built from the U05 revision above before
+running it. Current archives intentionally use a newer version. The fixture
+regression loads these original bytes directly, then resaves with the current
+version and verifies the old metadata semantics remain intact.
