@@ -27,3 +27,42 @@ The shared installed runtime and downstream BSM adapters are separate migrations
 The retained main/U02 archive and scattering witnesses cover the unchanged native
 paths. These checks do not establish full DarkNews cascade or downstream model
 acceptance.
+
+## U05 facade and Results
+
+Simulation now uses the U04 compiler for both canonical Vertex declarations and
+a finite deprecated convenience adapter. Unknown loader keywords no longer
+silently pass through; use process_options or load_processes explicitly.
+Controller and GenerateEvents warn but remain available. Box scalar positional
+arguments fail with a widths=/center= migration message. Positional sequence
+arguments, such as Box([2, 4, 6], [0, 0, 0]), also now require those keywords;
+placement/copy forms remain compatible. Downstream BSM test_flux_api.py uses
+positional sequences and needs migration at the later integration/adoption gate. load_processes returns ProcessBundle, whose two-item unpacking
+preserves the primary/secondary convention and exposes extra metadata by name.
+Four-value DarkNews unpacking is intentionally replaced by:
+
+```python
+bundle = siren.load_processes("DarkNewsTables", **model_options)
+primary, secondary = bundle
+primary_ups_keys, secondary_dec_keys = bundle.metadata
+```
+
+The retained legacy CCM example uses this loader migration. The supported CCM
+example exposes `--save-tables DIRECTORY` to load and save generic DarkNews
+tables under a version/model subdirectory. Keep separate directories for different
+model settings. Cached runs share a finite decay sample pool: additional event
+seeds reduce sampling noise conditional on that pool, not the pool's own
+integration uncertainty. Legacy scripts otherwise retain their historical interface; they
+are migration references, not the supported workflow.
+
+Results pools by attempted draws, including rejected events. It retains a
+separate native configuration snapshot instead of the mutable source injector.
+The one-run generate helper requires fresh counters and duplicate source runs
+cannot be pooled across reset boundaries. Live unarchivable Python configurations
+support export but refuse frozen reweighting/pooling; explicit event factors
+remain required where their state cannot be copied. These restrictions replace
+silent loss of state and stale normalization. Event trees themselves are shallow
+references; callers must not mutate events while retaining their stored weights.
+
+The implementation intentionally defers directed helpers, tuning/explanations,
+beam/charm examples and all Dutta/Kim models to their planned owning units/repos.

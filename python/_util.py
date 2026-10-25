@@ -781,8 +781,65 @@ def load_detector(model_name, *args, **kwargs):
     return _detector_file_loader(model_name)
 
 
+class ProcessBundle:
+    """Normalized return type from ``load_processes``.
+
+    Behaves like a 2-tuple ``(primary, secondary)`` for unpacking::
+
+        primary, secondary = siren.load_processes("CSMSDISSplines", ...)
+
+    Any extra return values from the process loader are available as
+    the ``metadata`` attribute (a tuple of additional return values).
+    """
+
+    def __init__(self, primary, secondary, *extra):
+        self.primary = primary
+        self.secondary = secondary
+        self.metadata = extra
+
+    def __iter__(self):
+        yield self.primary
+        yield self.secondary
+
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, idx):
+        return (self.primary, self.secondary)[idx]
+
+    def __repr__(self):
+        n_primary = sum(len(v) for v in self.primary.values())
+        n_secondary = sum(len(v) for v in self.secondary.values())
+        extra = f", +{len(self.metadata)} metadata" if self.metadata else ""
+        return f"ProcessBundle({n_primary} primary, {n_secondary} secondary{extra})"
+
+
 def load_processes(model_name, *args, **kwargs):
-    return load_resource("processes", model_name, *args, **kwargs)
+    result = load_resource("processes", model_name, *args, **kwargs)
+    if result is None:
+        raise ValueError(
+            f"No process loader found for model '{model_name}'. "
+            "Check the model name and that its resource directory is installed.")
+    if isinstance(result, tuple):
+        if len(result) >= 2:
+            return ProcessBundle(result[0], result[1], *result[2:])
+        return ProcessBundle(result[0], {})
+    return ProcessBundle(result, {})
+
+
+def get_detector_model_targets(detector_model):
+    """Return the set of target ParticleTypes (nuclei) present in *detector_model*.
+
+    These are the material targets used by depth/range-based vertex
+    distributions (e.g. RangePositionDistribution), not the primary
+    projectile types.
+    """
+    targets = set()
+    count = 0
+    while detector_model.Materials.HasMaterial(count):
+        targets.update(detector_model.Materials.GetMaterialTargets(count))
+        count += 1
+    return targets
 
 def get_fiducial_volume(experiment):
     """
@@ -916,6 +973,9 @@ def _get_detector_loader(detector_name):
 # Optionally save events to hdf5, parquet, and/or custom SIREN filetypes
 # If the weighter exists, calculate the event weight too
 def GenerateEvents(injector, N=None):
+    import warnings
+    warnings.warn("GenerateEvents is deprecated; use Injector.generate or siren.generate",
+                  DeprecationWarning, stacklevel=2)
     if N is None:
         N = injector.number_of_events
     count = 0
@@ -1092,7 +1152,47 @@ def SaveEvents(events,
                hepmc3_gzip=False,
                fid_vol=None,
                injector=None,
-               output_filename=None):
+               output_filename=None,
+               pot=None,
+               weights=None,
+               run_counts=None):
+
+    """Save trees, using explicit ``weights`` consistently in every output format.
+
+    ``run_counts`` supplies snapshot attempted_events, accepted_events, and
+    events_to_inject metadata in place of a live injector.
+    """
+    if weights is not None:
+        if weighter is not None or not isinstance(hepmc3_weights, str) or hepmc3_weights != "auto":
+            raise ValueError("weights cannot be combined with a weighter or hepmc3_weights policy")
+        weights = list(weights)
+        if len(weights) != len(events):
+            raise ValueError("weights must contain one value per event")
+        from .Weighter import _checked_weight
+        weights = [_checked_weight(w, "Event {} weight", i) for i, w in enumerate(weights)]
+    if gen_times is not None and len(gen_times) != len(events):
+        raise ValueError("gen_times must contain one value per event")
+    if run_counts is not None:
+        if injector is not None:
+            raise ValueError("run_counts and injector are mutually exclusive")
+        if set(run_counts) != {"attempted_events", "accepted_events", "events_to_inject"}:
+            raise ValueError("run_counts requires attempted_events, accepted_events, and events_to_inject")
+        import operator
+        run_counts = {name: operator.index(value) for name, value in run_counts.items()}
+        if any(value < 0 for value in run_counts.values()):
+            raise ValueError("run_counts must be non-negative")
+
+    # pot is recorded only as an HDF5 attribute; accepting it while HDF5
+    # output is disabled would drop it silently.
+    if pot is not None and not save_hdf5:
+        raise ValueError(
+            "pot is recorded in the HDF5 output; pass save_hdf5=True or omit pot")
+
+    # Ensure the output directory exists before any writer runs
+    if output_filename:
+        _out_dir = os.path.dirname(output_filename)
+        if _out_dir:
+            os.makedirs(_out_dir, exist_ok=True)
 
     # An omitted gen_times must not crash the per-event loop below (which
     # unconditionally indexes it) after files have already been written;
@@ -1110,7 +1210,12 @@ def SaveEvents(events,
     hepmc3_state = "unweighted"
     if save_hepmc3 or save_siren_events:
         hepmc3_cv, hepmc3_state = resolve_hepmc3_weight_policy(
-            events, hepmc3_weights, weighter)
+            events, weights if weights is not None else hepmc3_weights, weighter)
+        if weights is not None:
+            for tree in events:
+                provenance = dict(tree.header.provenance)
+                provenance["siren.weights_state"] = hepmc3_state
+                tree.header.provenance = provenance
 
     # Optionally save things. Headers are already populated (when the policy chose
     # to) so the native .siren_events file carries the same CV as the HepMC3 file.
@@ -1127,6 +1232,9 @@ def SaveEvents(events,
             opts.attempted_events = int(injector.InjectionAttempts())
             opts.accepted_events = int(injector.InjectedEvents())
             opts.events_to_inject = int(injector.EventsToInject())
+        if run_counts is not None:
+            for name, value in run_counts.items():
+                setattr(opts, name, int(value))
         out = output_filename + ".hepmc3"
         if hepmc3_gzip and not out.endswith(".gz"):
             out = out + ".gz"
@@ -1148,9 +1256,10 @@ def SaveEvents(events,
         "parent_idx":[], # index of the parent interaction
     }
     for ie, event in enumerate(events):
-        print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
         t0 = time.time()
-        if hepmc3_cv is not None:
+        if weights is not None:
+            datasets["event_weight"].append(weights[ie])
+        elif hepmc3_cv is not None:
             datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
         elif weighter is None:
             datasets["event_weight"].append(0)
@@ -1204,8 +1313,10 @@ def SaveEvents(events,
                                                                datum.record.secondary_momenta)):
                 datasets["secondary_types"][-1][-1].append(int(sec_type))
                 datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
-            datasets["num_secondaries"][-1].append(isec+1)
-        datasets["num_interactions"].append(id+1)
+            # Counted from the built lists; an empty tree leaves the loop
+            # variables stale.
+            datasets["num_secondaries"][-1].append(len(datasets["secondary_types"][-1][-1]))
+        datasets["num_interactions"].append(len(datasets["vertex"][-1]))
 
     # awkward must be imported here rather than at module scope
     # causes issues with multi-threading otherwise
@@ -1219,9 +1330,16 @@ def SaveEvents(events,
         form, length, container = ak.to_buffers(ak.to_packed(ak_array), container=group)
         group.attrs["form"] = form.to_json()
         group.attrs["length"] = length
+        # Protons-on-target normalization as run metadata, so a saved dataset
+        # records the exposure it represents.
+        if pot is not None:
+            group.attrs["pot"] = float(pot)
+        if run_counts is not None:
+            for name, value in run_counts.items():
+                group.attrs[name] = int(value)
         fout.close()
     if save_parquet:
-        ak.to_parquet(ak_array,output_filename+".parquet")
+        ak.to_parquet(ak_array, output_filename+".parquet")
 
 # Load events from the custom SIREN event format
 def LoadEvents(filename):
@@ -1704,3 +1822,59 @@ def combine_and_export_hepmc3(sets, out_path, options=None):
 
     return out_path, pooled_weights
 
+
+
+def get_volume_position_distribution_from_sector(detector_model, sector_name):
+    """Create a position distribution from a named detector sector.
+
+    Extracts the geometry from the sector, converts coordinates from
+    geometry frame to detector frame, and returns the appropriate
+    volume position distribution (Cylinder or Sphere).
+
+    Parameters
+    ----------
+    detector_model : DetectorModel
+        The loaded detector model.
+    sector_name : str
+        Name of the sector to use (e.g. "tilecal", "fiducial").
+
+    Returns
+    -------
+    CylinderVolumePositionDistribution or SphereVolumePositionDistribution
+    """
+    from . import detector as _detector
+    from . import geometry as _geometry
+    from . import distributions as _distributions
+
+    geo = None
+    for sector in detector_model.Sectors:
+        if sector.name == sector_name:
+            geo = sector.geo
+            break
+    if geo is None:
+        available = [s.name for s in detector_model.Sectors]
+        raise ValueError(
+            f"Sector {sector_name!r} not found. Available: {available}"
+        )
+
+    det_position = detector_model.GeoPositionToDetPosition(
+        _detector.GeometryPosition(geo.placement.Position)
+    )
+    det_rotation = geo.placement.Quaternion
+    det_placement = _geometry.Placement(det_position.get(), det_rotation)
+
+    if isinstance(geo, _geometry.Cylinder):
+        cylinder = _geometry.Cylinder(
+            det_placement, geo.Radius, geo.InnerRadius, geo.Z
+        )
+        return _distributions.CylinderVolumePositionDistribution(cylinder)
+    elif isinstance(geo, _geometry.Sphere):
+        sphere = _geometry.Sphere(
+            det_placement, geo.Radius, geo.InnerRadius
+        )
+        return _distributions.SphereVolumePositionDistribution(sphere)
+    else:
+        raise TypeError(
+            f"Sector geometry type {type(geo).__name__} not supported "
+            f"for position distribution"
+        )
