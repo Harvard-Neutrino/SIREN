@@ -12,10 +12,14 @@
 #include <set>                                                    // for set
 #include <sstream>                                                // for ost...
 #include <stdexcept>                                              // for out...
+#include <sstream>
+
+#include <type_traits>
 
 #include "SIREN/interactions/Decay.h"            // for Dec...
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
 #include "SIREN/interactions/InteractionCollection.h"  // for Cro...
+#include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
 #include "SIREN/dataclasses/InteractionSignature.h"      // for Int...
 #include "SIREN/detector/DetectorModel.h"                   // for Ear...
@@ -26,6 +30,7 @@
 #include "SIREN/injection/Process.h"                     // for Phy...
 #include "SIREN/injection/WeightingUtils.h"              // for Cro...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
+#include "SIREN/utilities/Errors.h"
 
 #include <tuple>
 #include <cassert>
@@ -68,6 +73,14 @@ double log_one_minus_exp_of_negative(double x) {
 //---------------
 
 template<typename ProcessType>
+bool ProcessWeighter<ProcessType>::MatchingInteractionContext() const {
+    auto const & gen_interactions = inj_process->GetInteractions();
+    auto const & phys_interactions = phys_process->GetInteractions();
+    return gen_interactions && phys_interactions
+        && (gen_interactions == phys_interactions || *gen_interactions == *phys_interactions);
+}
+
+template<typename ProcessType>
 void ProcessWeighter<ProcessType>::Initialize() {
     normalization = 1.0;
     for(auto physical_dist : phys_process->GetPhysicalDistributions()) {
@@ -78,18 +91,39 @@ void ProcessWeighter<ProcessType>::Initialize() {
             }
         }
     }
+    bool const matching_interactions = MatchingInteractionContext();
     unique_gen_distributions = GetInjectionDistributions();
     unique_phys_distributions = phys_process->GetPhysicalDistributions();
+    cancelled_distribution_names.clear();
+    cancelled_gen_distributions.clear();
+    cancelled_phys_distributions.clear();
     for(typename std::vector<std::shared_ptr<typename ProcessType::InjectionType>>::reverse_iterator gen_it = unique_gen_distributions.rbegin();
             gen_it != unique_gen_distributions.rend(); ++gen_it) {
         for(std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
                 phys_it != unique_phys_distributions.rend(); ++phys_it) {
-            if((*gen_it) == (*phys_it)) {
+            if(matching_interactions && (*gen_it) && (*phys_it) && **gen_it == **phys_it
+                    && !(*phys_it)->PhysicalDensityDiffers()) {
+                cancelled_distribution_names.push_back((*gen_it)->Name());
+                cancelled_gen_distributions.push_back(*gen_it);
+                cancelled_phys_distributions.push_back(*phys_it);
                 unique_gen_distributions.erase(std::next(gen_it).base());
                 unique_phys_distributions.erase(std::next(phys_it).base());
                 break;
             }
         }
+    }
+
+    // A proposal registered on either process must share a measure with the
+    // other process's density. Check each signature now, not at the first event.
+    std::set<siren::dataclasses::InteractionSignature> proposal_signatures;
+    for(auto const & entry : inj_process->GetPhaseSpaceMap())
+        proposal_signatures.insert(entry.first);
+    for(auto const & entry : phys_process->GetPhaseSpaceMap())
+        proposal_signatures.insert(entry.first);
+    for(auto const & signature : proposal_signatures) {
+        siren::dataclasses::InteractionRecord record;
+        record.signature = signature;
+        WeightingConvention(record);
     }
 }
 
@@ -223,29 +257,91 @@ template<typename ProcessType>
 double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionRecord const & record ) const {
 
+    return PhysicalProbability(bounds, record, WeightingConvention(record));
+}
+
+template<typename ProcessType>
+PhaseSpaceConvention ProcessWeighter<ProcessType>::WeightingConvention(
+        siren::dataclasses::InteractionRecord const & record) const {
+    return ResolveCommonFinalStateConvention(
+        ProcessFinalStateConvention(*inj_process, record),
+        ProcessFinalStateConvention(*phys_process, record));
+}
+
+template<typename ProcessType>
+double ProcessWeighter<ProcessType>::PhysicalProbability(
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionRecord const & record,
+        PhaseSpaceConvention const & convention) const {
+
     double physical_probability = 1.0;
-    double prob = InteractionProbability(bounds, record);
-    physical_probability *= prob;
-
-    prob = NormalizedPositionProbability(bounds, record);
-    physical_probability *= prob;
-
-    prob = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), record);
-    physical_probability *= prob;
+    auto mode = phys_process->GetWeightingMode();
+    if (mode.compute_interaction_probability)
+        physical_probability *= InteractionProbability(bounds, record);
+    if (mode.compute_position_probability)
+        physical_probability *= NormalizedPositionProbability(bounds, record);
+    physical_probability *= ProcessFinalStateProbability(
+        detector_model, *phys_process, record, convention);
+    if(physical_probability < 0.0 || !std::isfinite(physical_probability))
+        return physical_probability;
 
     for(auto physical_dist : unique_phys_distributions) {
-        physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
+        double density = physical_dist->PhysicalDensity(detector_model, phys_process->GetInteractions(), record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        physical_probability *= density;
     }
+    if(!std::isfinite(physical_probability))
+        return physical_probability;
 
+    bool const cancel_physical = MatchingInteractionContext();
+    for(auto const & distribution : cancelled_phys_distributions) {
+        double density = distribution->PhysicalDensity(detector_model, phys_process->GetInteractions(), record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        if(!cancel_physical)
+            physical_probability *= density;
+        else if(density == 0.0)
+            physical_probability = 0.0;
+    }
+    if(normalization < 0.0 || !std::isfinite(normalization))
+        return normalization;
     return normalization * physical_probability;
 }
 
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
-    double gen_probability = siren::injection::CrossSectionProbability(detector_model, inj_process->GetInteractions(), datum.record);
+
+    return GenerationProbability(datum, WeightingConvention(datum.record));
+}
+
+template<typename ProcessType>
+double ProcessWeighter<ProcessType>::GenerationProbability(
+        siren::dataclasses::InteractionTreeDatum const & datum,
+        PhaseSpaceConvention const & convention) const {
+
+    double gen_probability = ProcessFinalStateProbability(
+        detector_model, *inj_process, datum.record, convention);
+    if(gen_probability < 0.0 || !std::isfinite(gen_probability))
+        return gen_probability;
 
     for(auto gen_dist : unique_gen_distributions) {
-        gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        double density = gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        gen_probability *= density;
+    }
+    if(!std::isfinite(gen_probability))
+        return gen_probability;
+    bool const cancel_generation = MatchingInteractionContext();
+    for(auto const & distribution : cancelled_gen_distributions) {
+        double density = distribution->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        if(density < 0.0 || !std::isfinite(density))
+            return density;
+        if(!cancel_generation)
+            gen_probability *= density;
+        else if(density == 0.0)
+            gen_probability = 0.0;
     }
     return gen_probability;
 }
@@ -253,7 +349,28 @@ double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::I
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionTreeDatum const & datum) const {
-    return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
+    PhaseSpaceConvention convention = WeightingConvention(datum.record);
+    double physical = PhysicalProbability(bounds, datum.record, convention);
+    double generation = GenerationProbability(datum, convention);
+    if(generation <= 0.0 || !std::isfinite(generation)
+       || physical < 0.0 || !std::isfinite(physical)) {
+        std::ostringstream oss;
+        oss << "ProcessWeighter::EventWeight: unusable probabilities for primary type "
+            << datum.record.signature.primary_type
+            << ": generation_probability=" << generation
+            << ", physical_probability=" << physical
+            << " [siren-docs: errors#weight-calc]";
+        throw siren::utilities::WeightCalculationError(oss.str());
+    }
+    double weight = physical / generation;
+    if(!std::isfinite(weight) || weight < 0.0) {
+        std::ostringstream oss;
+        oss << "ProcessWeighter::EventWeight: unusable event weight=" << weight
+            << " for primary type " << datum.record.signature.primary_type
+            << " [siren-docs: errors#weight-calc]";
+        throw siren::utilities::WeightCalculationError(oss.str());
+    }
+    return weight;
 }
 
 template<typename ProcessType>
@@ -265,10 +382,6 @@ ProcessWeighter<ProcessType>::ProcessWeighter(std::shared_ptr<siren::injection::
     Initialize();
 }
 
-//template<typename ProcessType>
-//std::vector<std::shared_ptr<ProcessType::InjectionType>> const & ProcessWeighter<ProcessType>::GetInjectionDistributions() {
-//    return unique_gen_distributions;
-//}
 
 template<>
 std::vector<std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> const & PrimaryProcessWeighter::GetInjectionDistributions() {

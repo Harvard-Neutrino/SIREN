@@ -12,6 +12,7 @@ add_library(SIREN_math OBJECT ${math_SOURCES})
 set_property(TARGET SIREN_math PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_math PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/math/public/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/vendor/rk>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/math/>
 )
 
@@ -47,6 +48,13 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/math/public/"
     PATTERN "*.tcc"
 )
 
+# Public momentum headers include rk; keep its expected include layout.
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/rk/rk"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.hh" PATTERN "*.icc"
+)
+
+package_add_test(UnitTest_FourMomentum ${PROJECT_SOURCE_DIR}/projects/math/private/test/FourMomentum_TEST.cxx)
 package_add_test(UnitTest_MathMethods ${PROJECT_SOURCE_DIR}/projects/math/private/test/MathMethods_TEST.cxx)
 package_add_test(UnitTest_Polynomial ${PROJECT_SOURCE_DIR}/projects/math/private/test/Polynomial_TEST.cxx)
 package_add_test(UnitTest_Quaternion ${PROJECT_SOURCE_DIR}/projects/math/private/test/Quaternion_TEST.cxx)

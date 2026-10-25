@@ -224,18 +224,19 @@ void ElectroweakDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
     pX_Bosonrest.rotate(rand_rot);
 
     rk::P4 pX = pX_Bosonrest.boost(boost_to_lab);
-    rk::P4 pY = pBoson - pX;
-    assert(abs(pY.m()-mY)<1e-6);
+    // Build Y from its momentum and known mass, as HNLDecay does: the mass of
+    // pBoson - pX is rounding noise, or NaN, for a massless daughter.
+    rk::P4 pY(pBoson.momentum() - pX.momentum(), mY);
 
     siren::dataclasses::SecondaryParticleRecord & X = record.GetSecondaryParticleRecord(0);
     siren::dataclasses::SecondaryParticleRecord & Y = record.GetSecondaryParticleRecord(1);
 
     X.SetFourMomentum({pX.e(), pX.px(), pX.py(), pX.pz()});
-    X.SetMass(pX.m());
+    X.SetMass(mX);
     X.SetHelicity(std::copysign(1.0, record.primary_helicity)); // TODO: treat helicity correctly
 
     Y.SetFourMomentum({pY.e(), pY.px(), pY.py(), pY.pz()});
-    Y.SetMass(pY.m());
+    Y.SetMass(mY);
     Y.SetHelicity(std::copysign(1.0, record.primary_helicity)); // TODO: treat helicity correctly
 }
 

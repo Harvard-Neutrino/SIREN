@@ -1,6 +1,7 @@
 #include "SIREN/distributions/pyPrimaryInjectionDistribution.h"
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <vector>                                 // for vector
 
@@ -49,6 +50,16 @@ std::vector<std::string> pyPrimaryInjectionDistribution::DensityVariables() cons
         std::vector<std::string>,
         DensityVariables,
         "DensityVariables"
+    )
+}
+
+std::set<DistributionVariable> pyPrimaryInjectionDistribution::ProvidedVariables() const {
+    SELF_OVERRIDE(
+        self,
+        PrimaryInjectionDistribution,
+        std::set<DistributionVariable>,
+        ProvidedVariables,
+        "ProvidedVariables"
     )
 }
 

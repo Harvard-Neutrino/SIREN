@@ -8,6 +8,7 @@
 // this implements a class to sample numbers just like in an i3 service
 
 #include <random> // mt19937_64, uniform_real_distribution
+#include <string>                                       // for string
 #include <cstdint>                                      // for uint64_t
 
 #include <cereal/cereal.hpp>
@@ -40,35 +41,66 @@ public:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 0) {
+        if(version <= 2) {
+            if(version >= 2) {
+                std::string format = EngineStateFormat();
+                archive(::cereal::make_nvp("EngineStateFormat", format));
+            }
             archive(::cereal::make_nvp("Seed", seed));
+            if(version >= 1) {
+                std::string state_string = WriteEngineState();
+                archive(::cereal::make_nvp("EngineState", state_string));
+            }
         } else {
-            throw std::runtime_error("SIREN_random only supports version <= 0!");
+            throw std::runtime_error("SIREN_random only supports version <= 2!");
         }
     };
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            archive(::cereal::make_nvp("Seed", seed));
-            set_seed(seed);
+        if(version <= 2) {
+            if(version >= 2) {
+                std::string format;
+                archive(::cereal::make_nvp("EngineStateFormat", format));
+                if(format != EngineStateFormat())
+                    throw std::runtime_error("SIREN_random: incompatible engine state format; "
+                        "RNG archives require the same C++ standard library");
+            }
+            uint64_t loaded_seed;
+            archive(::cereal::make_nvp("Seed", loaded_seed));
+            std::mt19937_64 loaded_configuration(loaded_seed);
+            if(version >= 1) {
+                std::string state_string;
+                archive(::cereal::make_nvp("EngineState", state_string));
+                loaded_configuration = ReadEngineState(state_string);
+            }
+            seed = loaded_seed;
+            configuration = loaded_configuration;
+            generator = std::uniform_real_distribution<double>(0.0, 1.0);
         } else {
-            throw std::runtime_error("SIREN_random only supports version <= 0!");
+            throw std::runtime_error("SIREN_random only supports version <= 2!");
         }
     };
 
 private:
+    static std::string EngineStateFormat();
+    static std::mt19937_64 ReadEngineState(std::string const & state);
+    std::string WriteEngineState() const;
+
     uint64_t seed;
     // 64-bit Mersenne Twister (period 2^19937-1). The period must far exceed
     // (number of seeds) x (draws per event) x (events per seed) so that distinct
     // seeds never collide into overlapping draw sequences. A given seed
-    // deterministically fixes the entire sequence; only the seed is serialized
-    // (version 0), so any cached samples or golden baselines are keyed to the seed.
+    // deterministically fixes the entire sequence; version 1 serializes the
+    // engine state. Version 2 identifies its library-specific encoding;
+    // version 0 (seed only) restarts from the seed.
     std::mt19937_64 configuration;
     std::uniform_real_distribution<double> generator;
 };
 
 } // namespace utilities
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::utilities::SIREN_random, 2);
 
 #endif // SIREN_Random_H
