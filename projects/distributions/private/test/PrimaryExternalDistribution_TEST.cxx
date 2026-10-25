@@ -7,6 +7,8 @@
 #include <unistd.h>
 
 #include <gtest/gtest.h>
+#include <cereal/archives/json.hpp>
+#include <sstream>
 
 #include "SIREN/utilities/Random.h"
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
@@ -575,4 +577,20 @@ TEST(PrimaryExternalDistribution, ConstructFromInMemoryRows) {
     EXPECT_EQ(dist.GetPhysicalNumEvents(), 1u);
     EXPECT_TRUE(dist.RequiredVariables().empty());
     EXPECT_TRUE(dist.ProvidedVariables().count(DistributionVariable::PrimaryEnergy));
+}
+
+TEST(PrimaryExternalDistribution, ArchiveRecomputesColumnFlags) {
+    PrimaryExternalDistribution original({"E", "m"}, {{2., 1.}});
+    std::stringstream saved;
+    { cereal::JSONOutputArchive archive(saved); archive(original); }
+    std::string bytes = saved.str();
+    auto pos = bytes.find("\"MomSet\": false");
+    ASSERT_NE(pos, std::string::npos);
+    bytes.replace(pos, 15, "\"MomSet\": true");
+    std::stringstream malformed(bytes);
+    PrimaryExternalDistribution loaded({"E", "m"}, {{2., 1.}});
+    { cereal::JSONInputArchive archive(malformed); archive(loaded); }
+    std::stringstream roundtrip;
+    { cereal::JSONOutputArchive archive(roundtrip); archive(loaded); }
+    EXPECT_EQ(roundtrip.str().find("\"MomSet\": true"), std::string::npos);
 }

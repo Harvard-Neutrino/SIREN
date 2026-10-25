@@ -180,10 +180,12 @@ _ANCESTOR_SETS = [
 ]
 
 
-def _detect_branches(tree):
+def _detect_branches(tree, *, read_polarization=True):
     """Auto-detect which branch naming convention the file uses."""
     keys = set(tree.keys())
+    polarization = {"ppdxdz", "ppdydz", "pppz", "mupare", "muparpx", "muparpy", "muparpz"}
     for bset in _BRANCH_SETS:
+        bset = {k: v for k, v in bset.items() if read_polarization or k not in polarization}
         if all(v in keys for v in bset.values()):
             return bset
     raise ValueError(
@@ -347,7 +349,7 @@ def read_dk2nu(
     if not filenames:
         raise ConfigurationError("At least one dk2nu file is required")
     all_data, sources, seen = {}, [], {}
-    total_pot = 0.0
+    all_pots = []
     for filename in filenames:
         with open(filename, "rb") as stream:
             content_hash = hashlib.sha256()
@@ -369,7 +371,7 @@ def read_dk2nu(
             if not len(pots) or not np.all(np.isfinite(pots)) or np.any(pots <= 0):
                 raise ConfigurationError(f"{filename}: POT entries must be finite and positive")
             pot = math.fsum(pots)
-            branches = _detect_branches(tree)
+            branches = _detect_branches(tree, read_polarization=read_polarization)
             data = tree.arrays(list(branches.values()), library="np")
             mapping = {"ptype":"ptype", "E":"ppenergy", "px":"pdpx", "py":"pdpy", "pz":"pdpz",
                        "vx":"vx", "vy":"vy", "vz":"vz", "nimpwt":"nimpwt", "ntype":"ntype", "ndecay":"ndecay"}
@@ -411,9 +413,13 @@ def read_dk2nu(
                     columns["time_available"] = np.isfinite(last_t)
             for key, values in columns.items():
                 all_data.setdefault(key, []).append(values[mask])
-            total_pot += pot
+            all_pots.extend(pots)
             sources.append({"path": os.fspath(filename), "sha256": digest, "source_file_id": file_id,
                             "pot": pot, "entries": n, "selected_entries": int(mask.sum())})
+    try:
+        total_pot = math.fsum(all_pots)
+    except OverflowError as exc:
+        raise ConfigurationError("Total POT must be finite") from exc
     if not math.isfinite(total_pot):
         raise ConfigurationError("Total POT must be finite")
     result = {k: np.concatenate(v) for k, v in all_data.items()}
@@ -447,9 +453,20 @@ def meson_energy_spectrum(
     E_centers : array, bin centers [GeV]
     dN_dE     : array, weighted counts per GeV per POT
     """
-    mask = dk2nu_data["ptype"] == parent_pdg
-    E = _decay_energies(dk2nu_data, masses)[mask]
-    w = np.asarray(dk2nu_data["nimpwt"], dtype=float)[mask]
+    ptype = np.asarray(dk2nu_data["ptype"])
+    if np.ma.isMaskedArray(dk2nu_data["ptype"]) or ptype.ndim != 1:
+        raise ConfigurationError("ptype must be a plain one-dimensional array")
+    mask = ptype == parent_pdg
+    selected = {"ptype": ptype[mask]}
+    for key in ("px", "py", "pz", "nimpwt"):
+        values = np.asarray(dk2nu_data[key], dtype=float)
+        if np.ma.isMaskedArray(dk2nu_data[key]) or values.shape != ptype.shape or not np.all(np.isfinite(values[mask])):
+            raise ConfigurationError(f"Invalid selected {key} values")
+        selected[key] = values[mask]
+    E = _decay_energies(selected, masses)
+    w = selected["nimpwt"]
+    if np.any(w < 0):
+        raise ConfigurationError("Spectrum importance weights must be non-negative")
     pot = dk2nu_data["pot"]
 
     if E_range is None:
@@ -568,6 +585,8 @@ def _source_columns(data, extra_columns):
 
 def _parent_mask(data, parent_pdg):
     """Apply the same species and importance-weight selection to both exports."""
+    if np.ma.isMaskedArray(data["ptype"]):
+        raise ConfigurationError("ptype must be a plain unmasked array")
     ptype = np.asarray(data["ptype"])
     if ptype.ndim != 1:
         raise ConfigurationError("ptype must be one-dimensional")
@@ -582,10 +601,8 @@ def _parent_mask(data, parent_pdg):
     weights = np.asarray(data["nimpwt"])
     bad = ~np.isfinite(weights) | (weights < 0)
     if np.any(bad & mask):
-        print("  dropping %d row(s) with negative or non-finite nimpwt "
-              "(importance-reweighting bookkeeping artifacts)"
-              % int(np.sum(bad & mask)))
-        mask &= ~bad
+        raise ConfigurationError("Selected nimpwt values must be finite and non-negative; "
+                                 "invalid rows require explicit upstream selection")
     for key in ("E", "px", "py", "pz", "vx", "vy", "vz", "t0", "pol_x", "pol_y", "pol_z"):
         if key in data and not np.all(np.isfinite(np.asarray(data[key])[mask])):
             raise ConfigurationError(f"Selected {key} values must be finite; missing times require explicit read_time=False")
@@ -1036,6 +1053,13 @@ def combine_dif_dar(dif_data, dar_data, kinetic_energy_cut=0.05, *, masses=None)
         raise ConfigurationError("DIF and DAR row columns differ; metadata cannot be discarded")
     masks = []
     for data in (dif_data, dar_data):
+        shape = np.shape(data["ptype"])
+        for key in ("ptype", "px", "py", "pz", "nimpwt"):
+            values = np.asarray(data[key])
+            if np.ma.isMaskedArray(data[key]) or values.shape != shape or not np.all(np.isfinite(values)):
+                raise ConfigurationError(f"Invalid DIF/DAR {key} values")
+        if np.any(np.asarray(data["nimpwt"]) < 0):
+            raise ConfigurationError("DIF/DAR importance weights must be non-negative")
         mass = _parent_masses(np.asarray(data["ptype"]), masses)
         p = np.hypot(np.hypot(data["px"], data["py"]), data["pz"])
         energy = np.hypot(p, mass)

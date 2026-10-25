@@ -171,3 +171,150 @@ def test_dif_dar_split_uses_decay_momentum_and_preserves_columns(tmp_path):
     assert len(merged["source_entry"]) == 6
     with pytest.raises(ConfigurationError, match="columns differ"):
         dk2nu.combine_dif_dar(dif, {k: v for k, v in dar.items() if k != "t0"})
+
+
+def boundary_data():
+    return {'ptype':np.array([211,211]),'E':np.array([99.,99.]),'px':np.zeros(2),'py':np.zeros(2),'pz':np.array([0.,1.]),'vx':np.zeros(2),'vy':np.zeros(2),'vz':np.zeros(2),'nimpwt':np.array([.2,.8]),'pot':10.}
+
+
+def test_masked_species_must_not_be_silently_unmasked():
+    d=boundary_data();d['ptype']=np.ma.array([211,211],mask=[True,False])
+    with pytest.raises(ConfigurationError):
+        dk2nu.dk2nu_to_primary_distribution(d,None,frame='detector')
+
+
+def test_dif_dar_invalid_momentum_must_not_disappear():
+    d=boundary_data();d['pz'][0]=np.nan
+    with pytest.raises(ConfigurationError):
+        dk2nu.combine_dif_dar(d,boundary_data())
+
+
+def test_spectrum_invalid_physical_weights_must_not_be_negative():
+    d=boundary_data();d['nimpwt'][:]=-1
+    with pytest.raises(ConfigurationError):
+        dk2nu.meson_energy_spectrum(d,211)
+
+
+def test_unrepresentable_proposal_support_must_not_be_claimed():
+    with pytest.raises(RuntimeError):
+        siren.distributions.PrimaryExternalDistribution(['E','weight'],[[1.,1.],[2.,1.]],[1.,1e-300])
+
+
+def test_unweighted_table_removes_proposal_bias_per_event():
+    dist = siren.distributions.PrimaryExternalDistribution(
+        ["E", "px", "py", "pz", "m", "x", "y", "z", "source_entry"],
+        [[math.sqrt(2), 0, 0, 1, 1, 0, 0, 0, 0],
+         [math.sqrt(10), 0, 0, 3, 1, 0, 0, 0, 1]], [1., 3.])
+    gen, weighter, _, _ = setup(dist, n=128)
+    assert dist.PhysicalDensityDiffers()
+    seen = set()
+    for _ in range(128):
+        event = gen.GenerateEvent()
+        row = int(event.tree[0].record.interaction_parameters["source_entry"])
+        seen.add(row)
+        assert weighter.EventWeight(event) == pytest.approx(.5 / (.25, .75)[row] / 128)
+    assert seen == {0, 1}
+
+
+def test_filter_rebuilds_physical_support_before_proposal():
+    dist = siren.distributions.PrimaryExternalDistribution(
+        ["E", "weight"], [[.5, 1.], [2., 0.], [3., 1.]], [1., 0., 1.], 1.)
+    assert dist.GetPhysicalNumEvents() == 2
+    assert dist.normalization == 1.
+
+
+def test_pot_sum_is_stable_for_unequal_file_exposures(tmp_path):
+    paths = [write_beam(tmp_path / f"beam-{i}.root", pots=(pot,))
+             for i, pot in enumerate([1e16, 1., 1.])]
+    assert dk2nu.read_dk2nu(paths)["pot"] == dk2nu.read_dk2nu(paths[::-1])["pot"] == 1e16 + 2
+
+
+def test_nonzero_threshold_requires_energy_column():
+    with pytest.raises(RuntimeError, match="E column"):
+        siren.distributions.PrimaryExternalDistribution(["px", "py", "pz"], [[0., 0., .1]], .2)
+
+
+@pytest.mark.parametrize("density", [-1., float("nan"), float("inf")])
+def test_legacy_cached_proposal_density_must_be_valid(density):
+    dist = siren.distributions.PrimaryExternalDistribution(["E"], [[1.], [2.]], [1., 3.])
+    record = siren.dataclasses.InteractionRecord()
+    record.primary_momentum = [1., 0., 0., 1.]
+    record.interaction_parameters = {"PrimaryExternalDistribution_gen_prob": density}
+    with pytest.raises(siren.errors.WeightCalculationError, match="legacy"):
+        dist.GenerationProbability(None, None, record)
+
+
+@pytest.mark.parametrize("label", ["positive", "negative"])
+def test_version_zero_weight_column_stays_metadata_on_resave(label, tmp_path):
+    import sys
+    from pathlib import Path
+    if sys.byteorder != "little":
+        pytest.skip("Native archive fixture is little-endian")
+    fixture = Path(__file__).parents[1] / "fixtures" / "external_v0" / f"{label}.injector"
+    gen = siren.injection._Injector(1, str(fixture), siren.utilities.SIREN_random(1))
+    for step in range(2):
+        dist = gen.GetPrimaryProcess().distributions[0]
+        assert not dist.IsNormalizationSet()
+        assert dist.normalization == 1
+        assert not dist.PhysicalDensityDiffers()
+        gen.SaveInjector(str(tmp_path / "roundtrip"))
+        gen = siren.injection._Injector(1, str(tmp_path / "roundtrip"), siren.utilities.SIREN_random(1))
+
+
+def test_explicit_normalization_survives_native_archive(tmp_path):
+    dist = table()
+    dist.normalization = 9.
+    gen, _, _, _ = setup(dist)
+    gen.SaveInjector(str(tmp_path / "normalized"))
+    restored = siren.injection._Injector(256, str(tmp_path / "normalized"), siren.utilities.SIREN_random(1))
+    assert restored.GetPrimaryProcess().distributions[0].normalization == 9.
+
+
+def test_initial_only_table_preserves_separately_sampled_vertex():
+    dist = siren.distributions.PrimaryExternalDistribution(["x0", "y0", "z0"], [[1., 2., 3.]])
+    record = siren.dataclasses.PrimaryDistributionRecord(siren.particles.N4)
+    record.interaction_vertex = [4., 5., 6.]
+    dist.Sample(siren.utilities.SIREN_random(1), None, None, record)
+    assert list(record.interaction_vertex) == [4., 5., 6.]
+    assert list(record.initial_position) == [1., 2., 3.]
+
+
+def test_point_vertex_rejects_propagation_weighting_at_configuration():
+    gen, _, phys, detector = setup(table())
+    phys.weighting_mode = siren.Propagated()
+    with pytest.raises(ConfigurationError, match="Fixed weighting"):
+        siren.injection._Weighter([gen], detector, phys)
+
+
+def test_reader_can_explicitly_disable_missing_polarization_fields(tmp_path):
+    uproot = pytest.importorskip("uproot")
+    path = write_beam(tmp_path / "full.root", times=False)
+    with uproot.open(path) as f:
+        columns = f["dk2nuTree"].arrays(library="np")
+    for name in ("ppdxdz", "ppdydz", "pppz", "mupare", "muparpx", "muparpy", "muparpz"):
+        del columns[f"decay.{name}"]
+    slim = tmp_path / "slim.root"
+    with uproot.recreate(slim) as f:
+        f.mktree("dk2nuTree", columns)
+        f.mktree("dkmetaTree", {"dkmeta/pots": np.array([10.])})
+    data = dk2nu.read_dk2nu(slim, read_time=False, read_polarization=False)
+    assert len(data["ptype"]) == 3
+    with pytest.raises(ValueError, match="branches"):
+        dk2nu.read_dk2nu(slim, read_time=False)
+
+
+def test_dif_dar_at_rest_parents_run_through_public_simulation():
+    dif = boundary_data(); dif["ptype"][:] = 111; dif["pz"][:] = [1., 2.]
+    dar = boundary_data(); dar["ptype"][:] = 111; dar["pz"][:] = 0.; dar["pot"] = 20.
+    merged = dk2nu.combine_dif_dar(dif, dar)
+    dist = dk2nu.dk2nu_to_primary_distribution(merged, None, frame="detector", sampling_bias=merged["nimpwt"])
+    signature = siren.dataclasses.InteractionSignature()
+    signature.primary_type = siren.particles.Pi0
+    signature.target_type = siren.particles.Decay
+    signature.secondary_types = [siren.particles.Gamma] * 2
+    decay = siren.injection.PhaseSpaceDecay(signature, [0., 0.], 1e-16, 1e-16, siren.injection.Isotropic2BodyChannel())
+    vertex = siren.Vertex("Pi0", decay, distributions=[dist], physical=[dist],
+                          kinematics=siren.channels.physical(), weighting=siren.Fixed())
+    result = siren.Simulation(detector=siren.detector.DetectorModel(), primary=vertex, events=128, seed=37).run(
+        on_failure="raise", on_shortfall="raise")
+    assert float(result.weights.sum()) == pytest.approx(.15, rel=2e-12)

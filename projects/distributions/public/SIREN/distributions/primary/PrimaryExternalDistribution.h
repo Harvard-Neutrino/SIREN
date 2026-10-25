@@ -52,6 +52,7 @@ private:
     // and deserialization; never archived.
     std::vector<double> physical_weights_;
     double physical_weights_sum_ = 0;
+    bool physical_weight_column_ = true;
     bool init_pos_set = false;
     bool vertex_set = false;
     bool mom_set = false;
@@ -91,7 +92,7 @@ public:
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
-        } else if(version == 1) {
+        } else if(version == 1 || version == 2) {
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
@@ -100,12 +101,18 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            if(version == 2) {
+                archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
+                archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
+            }
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 1!");
+            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 2!");
         }
     }
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
+        physical_weight_column_ = version != 0;
+        sampling_weights_.clear();
         if(version == 0) {
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
@@ -117,7 +124,7 @@ public:
             ValidateTable();
             ComputeProvidedVariables();
             DerivePhysicalRowWeights();
-        } else if(version == 1) {
+        } else if(version == 1 || version == 2) {
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
@@ -126,12 +133,14 @@ public:
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
             archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            if(version == 2) archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
             ValidateTable();
             ComputeProvidedVariables();
             DerivePhysicalRowWeights();
             BuildSamplingCDF();
+            if(version == 2) archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 1!");
+            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 2!");
         }
     }
 private:
@@ -144,7 +153,7 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 1);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 2);
 CEREAL_REGISTER_TYPE(siren::distributions::PrimaryExternalDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PrimaryExternalDistribution);
 
