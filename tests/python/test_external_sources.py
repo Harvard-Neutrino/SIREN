@@ -208,8 +208,8 @@ def test_unweighted_table_removes_proposal_bias_per_event():
     gen, weighter, _, _ = setup(dist, n=128)
     assert dist.PhysicalDensityDiffers()
     seen = set()
-    for _ in range(128):
-        event = gen.GenerateEvent()
+    events = [gen.GenerateEvent() for _ in range(128)]
+    for event in events:
         row = int(event.tree[0].record.interaction_parameters["source_entry"])
         seen.add(row)
         assert weighter.EventWeight(event) == pytest.approx(.5 / (.25, .75)[row] / 128)

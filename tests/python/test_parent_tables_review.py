@@ -117,6 +117,10 @@ def test_discarded_masked_metadata_does_not_invalidate_retained_rows(
         data["ptype"][1] = 111
     else:
         data["nimpwt"][1] = -1
+    if filter_by == "importance":
+        with pytest.raises(ConfigurationError, match="nimpwt"):
+            _export(kind, data, tmp_path, parent_pdg=211, extra_columns={"source_id": ids})
+        return
     dist = _export(
         kind, data, tmp_path, parent_pdg=211, extra_columns={"source_id": ids}
     )
