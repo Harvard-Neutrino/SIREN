@@ -188,7 +188,8 @@ def validate_creation_position(process, *, is_primary):
             _d.SecondaryBoundedVertexDistribution,
             _d.SecondaryPhysicalVertexDistribution,
         )
-    positions = [d for d in process.distributions if isinstance(d, base)]
+    positions = [d for d in process.distributions if isinstance(d, base)
+                 and (not is_primary or DV.InteractionVertex in d.ProvidedVariables())]
     if len(positions) != 1 or type(positions[0]) not in supported:
         raise ConfigurationError(
             "PropagatedFromCreation requires a position sampler that retains "

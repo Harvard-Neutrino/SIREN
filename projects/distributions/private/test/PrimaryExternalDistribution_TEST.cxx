@@ -567,3 +567,12 @@ int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+
+
+TEST(PrimaryExternalDistribution, ConstructFromInMemoryRows) {
+    PrimaryExternalDistribution dist({"E", "x0", "y0", "z0"},
+        {{10.0, 1.0, 2.0, 3.0}, {20.0, 4.0, 5.0, 6.0}}, 15.0);
+    EXPECT_EQ(dist.GetPhysicalNumEvents(), 1u);
+    EXPECT_TRUE(dist.RequiredVariables().empty());
+    EXPECT_TRUE(dist.ProvidedVariables().count(DistributionVariable::PrimaryEnergy));
+}

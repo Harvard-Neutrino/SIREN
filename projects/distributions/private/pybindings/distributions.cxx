@@ -107,31 +107,6 @@ PYBIND11_MODULE(distributions,m) {
     .def("clone",&PrimaryInjectionDistribution::clone)
     TrampolinePickleMethods(pyPrimaryInjectionDistribution);
 
-  // External distribution
-  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution",
-    "Primary distribution driven by an external CSV file.\n\n"
-    "The first line is a comma-separated header naming each column and\n"
-    "each subsequent line is one candidate event. Recognized columns:\n"
-    "  x0, y0, z0  initial position of the primary\n"
-    "  x, y, z     interaction vertex (also used as the initial position\n"
-    "              when x0, y0, z0 are absent)\n"
-    "  px, py, pz  primary momentum\n"
-    "  E           primary energy; rows with E below emin are dropped\n"
-    "  m           primary mass\n"
-    "  t0          primary initial time, in SIREN time units where one\n"
-    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
-    "              propagated to the vertex by time of flight\n"
-    "Any other column is stored as a named interaction parameter. Each of\n"
-    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
-    "omitted entirely.")
-    .def(init<std::string>())
-    .def(init<std::string, double>())
-    .def("Sample",&PrimaryExternalDistribution::Sample)
-    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
-    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
-    .def("Name",&PrimaryExternalDistribution::Name);
-
   // Direciton distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, pyPrimaryDirectionDistribution, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution",
@@ -311,6 +286,46 @@ PYBIND11_MODULE(distributions,m) {
     .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth)
     .def("GetLeptonDepthFunctionReturnValue",&LeptonDepthFunction::GetLeptonDepthFunctionReturnValue);
     //.def((siren::dataclasses::InteractionSignature const &, double));
+
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, VertexPositionDistribution, PhysicallyNormalizedDistribution>(m,"PrimaryExternalDistribution",
+    "Primary distribution driven by an external CSV file.\n\n"
+    "The first line is a comma-separated header naming each column and\n"
+    "each subsequent line is one candidate event. Recognized columns:\n"
+    "  x0, y0, z0  initial position of the primary\n"
+    "  x, y, z     interaction vertex (also used as the initial position\n"
+    "              when x0, y0, z0 are absent)\n"
+    "  px, py, pz  primary momentum\n"
+    "  E           primary energy; rows with E below emin are dropped\n"
+    "  m           primary mass\n"
+    "  t0          primary initial time, in SIREN time units where one\n"
+    "              second is 1e9, so t0 is expressed in nanoseconds; it is\n"
+    "              propagated to the vertex by time of flight\n"
+    "  weight      physical weight of the row (primaries per unit exposure,\n"
+    "              e.g. nimpwt/POT for dk2nu tables). Never affects how rows\n"
+    "              are sampled: the supplied list is the intended injection\n"
+    "              ensemble, drawn uniformly unless explicit sampling_weights\n"
+    "              bias the selection. The weights encode the return to the\n"
+    "              physical ensemble: PhysicalDensity reports the physical\n"
+    "              row density on the physical side of the weight ratio and\n"
+    "              the weight total is the distribution's physical\n"
+    "              normalization, so absolute rates are correct with one\n"
+    "              instance shared between the injection and physical sides.\n"
+    "Any other column is stored as a named interaction parameter. Each of\n"
+    "the x0/y0/z0, x/y/z, and px/py/pz groups must be given in full or\n"
+    "omitted entirely.")
+    .def(init<std::string>())
+    .def(init<std::string, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, double>())
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>>(),
+         arg("keys"), arg("data"), arg("sampling_weights"))
+    .def(init<std::vector<std::string>, std::vector<std::vector<double>>, std::vector<double>, double>(),
+         arg("keys"), arg("data"), arg("sampling_weights"), arg("emin"))
+    .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
+    .def("Name",&PrimaryExternalDistribution::Name);
 
   // VertexPositionDistribution subclasses
 
