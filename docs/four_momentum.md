@@ -85,6 +85,8 @@ supported numerical range; the channel may raise `std::domain_error` there.
 The same value is `siren.math.FourMomentum`. Existing `siren.utilities.rk`
 exports and array fields remain available. Python checks raise `ValueError`
 for invalid particle/frame domains and `IndexError` for secondary bounds.
+Secondary indices must be nonnegative integers; negative and oversized integer
+indices raise `IndexError`, while non-integer inputs raise `TypeError`.
 
 ```python
 import pickle

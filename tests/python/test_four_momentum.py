@@ -3,6 +3,7 @@ from decimal import Decimal, localcontext
 import math
 import pickle
 import struct
+import sys
 
 import pytest
 
@@ -40,7 +41,7 @@ def test_known_mass_boost_against_decimal(frame_scale, mass, momentum, negative)
     reference = decimal_boost(mass, momentum, 2., fp, negative)
     gamma = math.hypot(2., *fp) / 2.
     # Absolute component conditioning, independent of a possibly tiny result.
-    bound = 32*math.ulp(1.)*gamma*(abs(particle.energy()) + math.hypot(*momentum))
+    bound = 32*sys.float_info.epsilon*gamma*(abs(particle.energy()) + math.hypot(*momentum))
     assert result.components() == pytest.approx(reference, rel=0, abs=bound)
     assert result.mass() == mass
     assert result.has_known_mass()
@@ -87,10 +88,17 @@ def test_record_copy_setters_and_record_pickle_keep_array_contract():
     assert r.primary_mass == 9.
     r.set_secondary_momentum(0, r.get_secondary_momentum(0) + r.get_secondary_momentum(0))
     assert r.secondary_momenta == [[-4., 0., 0., 0.]]
-    with pytest.raises(IndexError):
-        r.get_secondary_momentum(1)
-    with pytest.raises(IndexError):
-        r.set_secondary_momentum(1, raw)
+    for index in (-1, 1, 2**100):
+        with pytest.raises(IndexError):
+            r.get_secondary_momentum(index)
+        with pytest.raises(IndexError):
+            r.set_secondary_momentum(index, raw)
+    for index in (0.5, "0"):
+        with pytest.raises(TypeError):
+            r.get_secondary_momentum(index)
+        with pytest.raises(TypeError):
+            r.set_secondary_momentum(index, raw)
+    assert r.secondary_momenta == [[-4., 0., 0., 0.]]
     loaded = pickle.loads(pickle.dumps(r))
     assert loaded.primary_momentum == r.primary_momentum
     assert loaded.primary_mass == 9.
