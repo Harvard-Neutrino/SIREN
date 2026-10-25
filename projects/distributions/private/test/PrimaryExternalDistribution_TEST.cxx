@@ -7,6 +7,9 @@
 #include <unistd.h>
 
 #include <gtest/gtest.h>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <sstream>
 
 #include "SIREN/utilities/Random.h"
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
@@ -566,4 +569,62 @@ TEST(PrimaryPhysicalVertexDistribution, ClonePreservesEquality) {
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
+}
+
+
+TEST(PrimaryExternalDistribution, ConstructFromInMemoryRows) {
+    PrimaryExternalDistribution dist({"E", "x0", "y0", "z0"},
+        {{10.0, 1.0, 2.0, 3.0}, {20.0, 4.0, 5.0, 6.0}}, 15.0);
+    EXPECT_EQ(dist.GetPhysicalNumEvents(), 1u);
+    EXPECT_TRUE(dist.RequiredVariables().empty());
+    EXPECT_TRUE(dist.ProvidedVariables().count(DistributionVariable::PrimaryEnergy));
+}
+
+TEST(PrimaryExternalDistribution, ArchiveRecomputesColumnFlags) {
+    PrimaryExternalDistribution original({"E", "m"}, {{2., 1.}});
+    std::stringstream saved;
+    { cereal::JSONOutputArchive archive(saved); archive(original); }
+    std::string bytes = saved.str();
+    auto pos = bytes.find("\"MomSet\": false");
+    ASSERT_NE(pos, std::string::npos);
+    bytes.replace(pos, 15, "\"MomSet\": true");
+    std::stringstream malformed(bytes);
+    PrimaryExternalDistribution loaded({"E", "m"}, {{2., 1.}});
+    { cereal::JSONInputArchive archive(malformed); archive(loaded); }
+    std::stringstream roundtrip;
+    { cereal::JSONOutputArchive archive(roundtrip); archive(loaded); }
+    EXPECT_EQ(roundtrip.str().find("\"MomSet\": true"), std::string::npos);
+}
+
+
+TEST(PrimaryExternalDistribution, RejectsLegacySegmentArchiveVersion) {
+    PrimaryExternalDistribution loaded({"E", "m"}, {{1., 0.}, {2., 0.}}, {1., 3.});
+    std::stringstream stream;
+    cereal::BinaryInputArchive archive(stream);
+    try {
+        loaded.load(archive, 2);
+        FAIL() << "Legacy segment archive must be refused";
+    } catch(std::runtime_error const & error) {
+        EXPECT_NE(std::string(error.what()).find("legacy segment layout"), std::string::npos);
+    }
+    InteractionRecord record;
+    record.primary_momentum = {1., 0., 0., 1.};
+    record.interaction_parameters["PrimaryExternalDistribution_row"] = 0.;
+    EXPECT_DOUBLE_EQ(loaded.GenerationProbability(nullptr, nullptr, record), .5);
+}
+
+TEST(PrimaryExternalDistribution, VersionZeroLoadClearsExistingProposalCDF) {
+    PrimaryExternalDistribution original({"E", "m"}, {{1., 0.}, {2., 0.}});
+    std::stringstream stream;
+    { cereal::BinaryOutputArchive archive(stream); original.save(archive, 0); }
+    PrimaryExternalDistribution loaded({"E", "m"}, {{1., 0.}, {2., 0.}}, {1., 3.});
+    { cereal::BinaryInputArchive archive(stream); loaded.load(archive, 0); }
+    auto first_rng = std::make_shared<siren::utilities::SIREN_random>(37);
+    auto second_rng = std::make_shared<siren::utilities::SIREN_random>(37);
+    for(unsigned i = 0; i < 128; ++i) {
+        PrimaryDistributionRecord first(ParticleType::NuMu), second(ParticleType::NuMu);
+        original.Sample(first_rng, nullptr, nullptr, first);
+        loaded.Sample(second_rng, nullptr, nullptr, second);
+        EXPECT_EQ(first.GetEnergy(), second.GetEnergy());
+    }
 }

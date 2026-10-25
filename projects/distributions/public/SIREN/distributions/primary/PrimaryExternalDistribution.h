@@ -3,8 +3,10 @@
 #define SIREN_PrimaryExternalDistribution_H
 
 #include <memory>                                        // for shared_ptr
+#include <array>                                         // for array
 #include <set>                                           // for set
 #include <string>                                        // for string
+#include <tuple>                                         // for tuple
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
 #include <stdexcept>                                     // for runtime_error
@@ -17,8 +19,10 @@
 #include <cereal/types/set.hpp>
 #include <cereal/types/string.hpp>
 
-#include "SIREN/distributions/Distributions.h"       // for WeightableDi...
-#include "SIREN/distributions/DistributionVariable.h" // for DistributionVariable
+#include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/DistributionVariable.h"
+#include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "SIREN/math/Vector3D.h"
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -29,33 +33,58 @@ namespace cereal { class access; }
 namespace siren {
 namespace distributions {
 
-class PrimaryExternalDistribution : virtual public PrimaryInjectionDistribution {
+// Rows have independent proposal weights and physical weights per exposure.
+class PrimaryExternalDistribution : virtual public VertexPositionDistribution,
+                                    virtual public PhysicallyNormalizedDistribution {
 friend cereal::access;
 protected:
     PrimaryExternalDistribution() {};
     void LoadInputFile(std::string const & _filename);
 private:
+    struct DeferPhysicalWeights {};
+    PrimaryExternalDistribution(std::vector<std::string> keys,
+                                std::vector<std::vector<double>> data, DeferPhysicalWeights);
     std::string filename;
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
+    std::vector<double> sampling_weights_;
+    double sampling_weights_sum_ = 0;
+    std::vector<double> sampling_cdf_;
+    // Physical row weights from the "weight" column (empty without one).
+    // Derived state: rebuilt from input_data on construction, refiltering,
+    // and deserialization; never archived.
+    std::vector<double> physical_weights_;
+    double physical_weights_sum_ = 0;
+    bool physical_weight_column_ = true;
     bool init_pos_set = false;
     bool vertex_set = false;
     bool mom_set = false;
     double emin = 0;
     std::set<DistributionVariable> provided_variables_;
+    void ValidateTable() const;
     void ComputeProvidedVariables();
+    void BuildSamplingCDF();
+    void DerivePhysicalRowWeights();
 public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, double emin);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, std::vector<double> _sampling_weights);
+    PrimaryExternalDistribution(std::vector<std::string> _keys, std::vector<std::vector<double>> _data, std::vector<double> _sampling_weights, double emin);
     PrimaryExternalDistribution(PrimaryExternalDistribution const & other) = default;
     size_t GetPhysicalNumEvents() const;
+    std::string RowLayoutMismatch(PrimaryExternalDistribution const & other) const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
+    virtual double PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
+    virtual bool PhysicalDensityDiffers() const override;
     virtual std::set<DistributionVariable> ProvidedVariables() const override;
     virtual std::set<DistributionVariable> RequiredVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -66,13 +95,28 @@ public:
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
+        } else if(version == 1 || version == 3) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
+            archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            if(version == 3) {
+                archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
+                archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
+            }
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryExternalDistribution supports versions 0, 1 and 3; version 2 is the unsupported legacy segment layout!");
         }
     }
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+            physical_weight_column_ = false;
+            sampling_weights_.clear();
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
@@ -80,11 +124,33 @@ public:
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
             archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
+            ValidateTable();
             ComputeProvidedVariables();
+            DerivePhysicalRowWeights();
+            BuildSamplingCDF();
+        } else if(version == 1 || version == 3) {
+            physical_weight_column_ = true;
+            sampling_weights_.clear();
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
+            archive(::cereal::make_nvp("SamplingWeights", sampling_weights_));
+            if(version == 3) archive(::cereal::make_nvp("PhysicalWeightColumn", physical_weight_column_));
+            ValidateTable();
+            ComputeProvidedVariables();
+            DerivePhysicalRowWeights();
+            BuildSamplingCDF();
+            if(version == 3) archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
-            throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryExternalDistribution supports versions 0, 1 and 3; version 2 is the unsupported legacy segment layout!");
         }
     }
+private:
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
 protected:
     virtual bool equal(WeightableDistribution const & distribution) const override;
     virtual bool less(WeightableDistribution const & distribution) const override;
@@ -93,8 +159,8 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 0);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryExternalDistribution, 3);
 CEREAL_REGISTER_TYPE(siren::distributions::PrimaryExternalDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryInjectionDistribution, siren::distributions::PrimaryExternalDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PrimaryExternalDistribution);
 
 #endif // SIREN_PrimaryExternalDistribution_H
