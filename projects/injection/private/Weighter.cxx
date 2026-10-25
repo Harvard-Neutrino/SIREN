@@ -22,6 +22,7 @@
 #include "SIREN/dataclasses/InteractionSignature.h"      // for Int...
 #include "SIREN/detector/DetectorModel.h"                   // for Ear...
 #include "SIREN/detector/Coordinates.h"
+#include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "SIREN/distributions/Distributions.h"           // for Inj...
 #include "SIREN/geometry/Geometry.h"                     // for Geo...
 #include "SIREN/injection/Injector.h"                // for Inj...
@@ -114,6 +115,38 @@ void Weighter::Initialize() {
         }
         secondary_process_weighter_maps.push_back(injector_sec_process_weighter_map);
         ++i;
+    }
+    CheckExternalTableLayouts();
+}
+
+void Weighter::CheckExternalTableLayouts() const {
+    using siren::distributions::PrimaryExternalDistribution;
+    std::vector<std::pair<std::string, std::shared_ptr<PrimaryExternalDistribution const>>> tables;
+    for(size_t idx = 0; idx < injectors.size(); ++idx) {
+        for(auto const & dist : injectors[idx]->GetPrimaryProcess()->GetPrimaryInjectionDistributions()) {
+            auto table = std::dynamic_pointer_cast<PrimaryExternalDistribution const>(dist);
+            if(table) tables.emplace_back("injector " + std::to_string(idx), table);
+        }
+    }
+    if(primary_physical_process) {
+        for(auto const & dist : primary_physical_process->GetPhysicalDistributions()) {
+            auto table = std::dynamic_pointer_cast<PrimaryExternalDistribution const>(dist);
+            if(table) tables.emplace_back("the primary physical process", table);
+        }
+    }
+    for(size_t j = 1; j < tables.size(); ++j) {
+        if(tables[j].second == tables[0].second) continue;
+        std::string mismatch = tables[0].second->RowLayoutMismatch(*tables[j].second);
+        if(mismatch.empty()) continue;
+        std::ostringstream oss;
+        oss << "Weighter::Initialize: the PrimaryExternalDistribution of " << tables[j].first
+            << " does not share the row layout of the one of " << tables[0].first
+            << " (" << mismatch << "); records cache a row index that every "
+            << "table in a weighter reads as an index into itself, so pooled or "
+            << "physical-side tables must list the same primaries in the same "
+            << "order (physical weights and sampling weights "
+            << "may differ) [siren-docs: errors#configuration]";
+        throw siren::utilities::ConfigurationError(oss.str());
     }
 }
 

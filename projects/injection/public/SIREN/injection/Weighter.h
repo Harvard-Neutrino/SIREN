@@ -142,6 +142,7 @@ private:
     > secondary_process_weighter_maps;
 
     void Initialize();
+    void CheckExternalTableLayouts() const;
     double ComputeGenerationProbability(unsigned int idx,
         std::shared_ptr<siren::dataclasses::InteractionTreeDatum> const & datum) const;
     void RecordVertexDiagnostics(unsigned int idx,
