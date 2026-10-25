@@ -146,8 +146,10 @@ sampling biases are still removed by the density ratio. Zero total physical weig
 Version-0 injector archives preserve the historical interpretation of a `weight`
 column as inert metadata, including on resave. Newly constructed CSV and array
 tables interpret `weight` as a physical weight; rename a legacy CSV column to
-retain it as metadata. Version-2 archives retain proposal weights, this legacy
-interpretation, and explicit normalization overrides.
+retain it as metadata. Version-3 archives retain proposal weights, this legacy
+interpretation, and explicit normalization overrides. Version 1 retains its
+historical row-derived normalization. Version 2 belongs to the legacy segment
+stack and is explicitly refused; U06 does not reinterpret that archive layout.
 
 Use `Fixed()` weighting when the table supplies the interaction vertex. A
 zero-length point is not a propagation interval. An initial-position-only table

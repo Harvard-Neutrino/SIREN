@@ -252,7 +252,7 @@ def test_version_zero_weight_column_stays_metadata_on_resave(label, tmp_path):
         pytest.skip("Native archive fixture is little-endian")
     fixture = Path(__file__).parents[1] / "fixtures" / "external_v0" / f"{label}.injector"
     gen = siren.injection._Injector(1, str(fixture), siren.utilities.SIREN_random(1))
-    for step in range(2):
+    for _ in range(2):
         dist = gen.GetPrimaryProcess().distributions[0]
         assert not dist.IsNormalizationSet()
         assert dist.normalization == 1
@@ -318,3 +318,19 @@ def test_dif_dar_at_rest_parents_run_through_public_simulation():
     result = siren.Simulation(detector=siren.detector.DetectorModel(), primary=vertex, events=128, seed=37).run(
         on_failure="raise", on_shortfall="raise")
     assert float(result.weights.sum()) == pytest.approx(.15, rel=2e-12)
+
+
+@pytest.mark.parametrize("weighted", [False, True])
+def test_proposal_support_only_required_above_threshold(weighted):
+    keys = ["E", "weight"] if weighted else ["E"]
+    rows = [[.5, 1.], [2., 1.]] if weighted else [[.5], [2.]]
+    dist = siren.distributions.PrimaryExternalDistribution(keys, rows, [0., 1.], 1.)
+    assert dist.GetPhysicalNumEvents() == 1
+
+
+def test_initial_only_source_requires_a_vertex_sampler_at_configuration():
+    dist = siren.distributions.PrimaryExternalDistribution(
+        ["E", "px", "py", "pz", "m", "x0", "y0", "z0"],
+        [[2., 0., 0., math.sqrt(3), 1., 0., 0., 0.]])
+    with pytest.raises(ConfigurationError, match="requires a separate vertex sampler"):
+        setup(dist)

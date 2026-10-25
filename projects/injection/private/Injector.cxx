@@ -21,6 +21,7 @@
 #include "SIREN/detector/Path.h"
 #include "SIREN/detector/Coordinates.h"
 #include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "SIREN/distributions/primary/vertex/DecayRangeFunction.h"
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
@@ -103,16 +104,18 @@ std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimary
         if(variables.count(distributions::DistributionVariable::InteractionVertex)) {
             vertex_distribution = position_distribution;
         } else if(position_distribution && variables.count(distributions::DistributionVariable::InitialPosition)) {
-            // An external distribution carrying only the initial position
-            // doubles as a fixed-vertex distribution when nothing downstream
-            // places the vertex.
+            // Retain the existing fallback for custom initial-position samplers.
             initial_position_only = position_distribution;
         }
     }
     if(vertex_distribution)
         return vertex_distribution;
-    if(initial_position_only)
+    if(initial_position_only) {
+        if(std::dynamic_pointer_cast<distributions::PrimaryExternalDistribution>(initial_position_only))
+            throw siren::utilities::ConfigurationError(
+                "An initial-position-only external table requires a separate vertex sampler");
         return initial_position_only;
+    }
     throw(siren::utilities::AddProcessFailure("No primary vertex distribution specified!"));
 }
 

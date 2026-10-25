@@ -341,8 +341,14 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
     std::vector<std::vector<double>> _data,
     std::vector<double> _sampling_weights,
     double emin)
-    : PrimaryExternalDistribution(std::move(_keys), std::move(_data), std::move(_sampling_weights))
+    : PrimaryExternalDistribution(std::move(_keys), std::move(_data))
 {
+    if (!_sampling_weights.empty() && _sampling_weights.size() != input_data.size())
+        throw std::runtime_error("Sampling weights must match the table rows");
+    for (double weight : _sampling_weights)
+        if (weight < 0 || !std::isfinite(weight))
+            throw std::runtime_error("Sampling weights must be finite and non-negative");
+    sampling_weights_ = std::move(_sampling_weights);
     this->emin = emin;
     ValidateTable();
     auto energy_it = std::find(keys.begin(), keys.end(), "E");
@@ -365,8 +371,8 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
         }
         if (!sampling_weights_.empty()) sampling_weights_ = std::move(filtered_weights);
         DerivePhysicalRowWeights();
-        BuildSamplingCDF();
     }
+    BuildSamplingCDF();
 }
 
 // Accounts for events above threshold only!
