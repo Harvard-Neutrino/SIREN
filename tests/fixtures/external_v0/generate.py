@@ -19,6 +19,7 @@ def generate(directory):
             siren.distributions.SphereVolumePositionDistribution(siren.geometry.Sphere(1., 0.))]
         injector = siren.injection._Injector(
             1, siren.detector.DetectorModel(), process, siren.utilities.SIREN_random(1))
+        injector.SetRandom(None)
         injector.SaveInjector(str(directory / f"{label}.injector"))
 
 
