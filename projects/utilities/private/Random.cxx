@@ -5,14 +5,79 @@
 #include <random>
 #include <cstdint>                                      // for uint64_t
 #include <utility>
+#include <algorithm>
+#include <charconv>
+#include <locale>
+#include <sstream>
+#include <vector>
 #include <unistd.h>
 
 namespace {
 	std::mutex global_seed_lock;
+
+    std::size_t EngineStateWordCount() {
+#if defined(_LIBCPP_VERSION)
+        return std::mt19937_64::state_size;
+#elif defined(__GLIBCXX__)
+        return std::mt19937_64::state_size + 1;
+#else
+        throw std::runtime_error("SIREN_random: unsupported C++ standard library for RNG archives");
+#endif
+    }
 }
 
 namespace siren {
 namespace utilities {
+
+    std::string SIREN_random::EngineStateFormat() {
+#if defined(_LIBCPP_VERSION)
+        return "mt19937_64/libc++/1";
+#elif defined(__GLIBCXX__)
+        return "mt19937_64/libstdc++/1";
+#else
+        throw std::runtime_error("SIREN_random: unsupported C++ standard library for RNG archives");
+#endif
+    }
+
+    std::string SIREN_random::WriteEngineState() const {
+        std::ostringstream stream;
+        stream.imbue(std::locale::classic());
+        stream << configuration;
+        return stream.str();
+    }
+
+    std::mt19937_64 SIREN_random::ReadEngineState(std::string const & text) {
+        auto invalid = []() {
+            return std::runtime_error("SIREN_random: invalid or incompatible engine state in archive; "
+                "legacy RNG archives require the same C++ standard library");
+        };
+        std::istringstream tokens(text);
+        tokens.imbue(std::locale::classic());
+        std::vector<uint64_t> words;
+        std::string token;
+        auto count = EngineStateWordCount();
+        while(tokens >> token) {
+            uint64_t value;
+            auto result = std::from_chars(token.data(), token.data() + token.size(), value);
+            if(result.ec != std::errc{} || result.ptr != token.data() + token.size() || words.size() == count)
+                throw invalid();
+            words.push_back(value);
+        }
+        if(words.size() != count ||
+                std::all_of(words.begin(), words.begin() + std::mt19937_64::state_size,
+                    [](uint64_t value) { return value == 0; }))
+            throw invalid();
+        if(count > std::mt19937_64::state_size && words.back() > std::mt19937_64::state_size)
+            throw invalid();
+
+        std::istringstream stream(text);
+        stream.imbue(std::locale::classic());
+        std::mt19937_64 engine;
+        if(!(stream >> engine)) throw invalid();
+        stream >> std::ws;
+        if(!stream.eof()) throw invalid();
+        return engine;
+    }
 
     SIREN_random::SIREN_random() {
         // default to a generated seed (hashed from time/pid/host)

@@ -162,6 +162,10 @@ written before RNG state was stored remain readable; loading one uses the
 engine passed by the caller. The failure ledger's example messages and the last
 partially generated tree are not saved.
 
+RNG continuation requires the same C++ standard library. New version-2 RNG
+archives identify their encoding; incompatible or malformed legacy state is
+refused explicitly. See [random-engine archives](random_archives.md).
+
 An injector with a stopping-condition callback cannot be saved or pickled,
 because the callback cannot be restored; this includes callbacks set through
 the `siren.Injector` wrapper. Python-defined interactions and distributions keep
