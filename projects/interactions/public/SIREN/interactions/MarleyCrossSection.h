@@ -32,24 +32,6 @@ namespace siren { namespace interactions { class MarleyCrossSection; } }
 namespace siren {
 namespace interactions {
 
-namespace marley_ {
-
-class FileManager_ : public ::marley::FileManager {
-friend class siren::interactions::MarleyCrossSection;
-    static void set_search_path(std::string const & search_path) {
-        ::marley::FileManager::default_search_path_ = search_path;
-    }
-    static void set_marley_path(std::string const & marley_path) {
-        std::string default_search_path;
-        default_search_path = marley_path + "/data";
-        default_search_path += ':' + marley_path + "/data/react";
-        default_search_path += ':' + marley_path + "/data/structure";
-        set_search_path(default_search_path);
-    }
-};
-
-} // namespace marley
-
 class MarleyCrossSection : public CrossSection {
 //friend cereal::access;
 private:
