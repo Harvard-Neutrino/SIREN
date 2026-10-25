@@ -41,6 +41,9 @@ protected:
     PrimaryExternalDistribution() {};
     void LoadInputFile(std::string const & _filename);
 private:
+    struct DeferPhysicalWeights {};
+    PrimaryExternalDistribution(std::vector<std::string> keys,
+                                std::vector<std::vector<double>> data, DeferPhysicalWeights);
     std::string filename;
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
@@ -111,9 +114,9 @@ public:
     }
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        physical_weight_column_ = version != 0;
-        sampling_weights_.clear();
         if(version == 0) {
+            physical_weight_column_ = false;
+            sampling_weights_.clear();
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));
@@ -126,6 +129,8 @@ public:
             DerivePhysicalRowWeights();
             BuildSamplingCDF();
         } else if(version == 1 || version == 3) {
+            physical_weight_column_ = true;
+            sampling_weights_.clear();
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
             archive(::cereal::make_nvp("Emin", emin));
             archive(::cereal::make_nvp("Keys", keys));

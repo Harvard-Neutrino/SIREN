@@ -334,3 +334,16 @@ def test_initial_only_source_requires_a_vertex_sampler_at_configuration():
         [[2., 0., 0., math.sqrt(3), 1., 0., 0., 0.]])
     with pytest.raises(ConfigurationError, match="requires a separate vertex sampler"):
         setup(dist)
+
+
+@pytest.mark.parametrize("bias", [None, []])
+def test_physical_weight_validation_uses_threshold_survivors(bias, tmp_path):
+    path = tmp_path / "threshold.csv"
+    path.write_text("E,weight\n0.5,-1\n2,1\n")
+    csv = siren.distributions.PrimaryExternalDistribution(str(path), 1.)
+    args = [["E", "weight"], [[.5, -1.], [2., 1.]]]
+    if bias is not None:
+        args.append(bias)
+    array = siren.distributions.PrimaryExternalDistribution(*args, 1.)
+    assert array.GetPhysicalNumEvents() == csv.GetPhysicalNumEvents() == 1
+    assert array.normalization == csv.normalization == 1.
