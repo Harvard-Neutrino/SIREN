@@ -18,7 +18,7 @@ def _rows():
         k: np.repeat(v, 5) if isinstance(v, np.ndarray) else v
         for k, v in _one_row_data().items()
     }
-    data["ptype"] = np.array([211, 321, 211, 111, 211])
+    data["ptype"] = np.array([211, 321, 321, 111, 211])
     data["nimpwt"] = np.array([1.0, 50.0, -1.0, 8.0, 3.0])
     data["pz"] = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     data["t0"] = np.arange(5.0) + 0.125

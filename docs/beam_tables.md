@@ -54,8 +54,9 @@ table columns.
 Physical row weights are `nimpwt/POT`, evaluated in double precision even for
 lower-precision input arrays. Inclusion probabilities are **metadata**:
 the caller must already include any source-subsampling correction in `nimpwt`.
-The converter does not apply another inverse-probability factor. Species and
-invalid-importance-row filtering use the same mask for kinematics and metadata.
+The converter does not apply another inverse-probability factor. Species filtering uses the same mask for kinematics and metadata. Selected
+negative or nonfinite importance weights raise; any upstream selection must be
+explicit and retain the associated source/exposure provenance.
 
 `sampling_bias` changes row selection separately from physical weights. Arrays
 align with the full input; callables receive the selected original kinematics,
@@ -139,13 +140,25 @@ Pass the table explicitly to both `distributions=[parents]` and
 `physical=[parents]` on the Vertex. An omitted physical declaration does not
 apply the table's physical weights or absolute exposure normalization. The generic physical-density hook
 prevents cancellation when the table has a `weight` column. Other distributions
-retain their existing density semantics. Unweighted tables retain their legacy
-semantics. Zero total physical weight is rejected.
+retain their existing density semantics. Without a `weight` column the physical row measure is uniform; explicit
+sampling biases are still removed by the density ratio. Zero total physical weight is rejected.
+
+Version-0 injector archives preserve the historical interpretation of a `weight`
+column as inert metadata, including on resave. Newly constructed CSV and array
+tables interpret `weight` as a physical weight; rename a legacy CSV column to
+retain it as metadata. Version-2 archives retain proposal weights, this legacy
+interpretation, and explicit normalization overrides.
+
+Use `Fixed()` weighting when the table supplies the interaction vertex. A
+zero-length point is not a propagation interval. An initial-position-only table
+(`x0,y0,z0`) requires a separate vertex sampler and does not overwrite its vertex.
+A nonzero `emin` requires an explicit `E` column.
 
 Native pooling and reweighting require the same row layout: matching row count,
 kinematics and metadata at every index. Column order may differ; physical and
-proposal weights may differ. Reordered or subset tables raise during weighter
-construction. Stable source IDs identify rows across readers; they do not make
+proposal weights may differ. Reordered or subset tables within one weighter raise during construction.
+Replaying raw records with an entirely rebuilt weighter requires preserving the
+original table layout; construction cannot compare against an absent injector. Stable source IDs identify rows across readers; they do not make
 arbitrarily reordered native tables share the same sampling measure.
 
 Run the self-contained public interface example:

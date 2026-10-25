@@ -115,6 +115,8 @@ void PrimaryExternalDistribution::ValidateTable() const {
     if (keys.empty() || input_data.empty() || !std::isfinite(emin))
         throw std::runtime_error("External table requires columns, rows and a finite energy threshold");
     std::set<std::string> names(keys.begin(), keys.end());
+    if (emin != 0 && !names.count("E"))
+        throw std::runtime_error("A nonzero emin requires an explicit E column");
     if (names.size() != keys.size()) throw std::runtime_error("Duplicate external table column");
     for (auto const & key : keys)
         if (key.empty() || key.rfind("PrimaryExternalDistribution_", 0) == 0)
@@ -149,6 +151,10 @@ std::string PrimaryExternalDistribution::RowLayoutMismatch(PrimaryExternalDistri
 }
 
 void PrimaryExternalDistribution::ComputeProvidedVariables() {
+    auto has = [&](std::string const & key) { return std::find(keys.begin(), keys.end(), key) != keys.end(); };
+    init_pos_set = has("x0") && has("y0") && has("z0");
+    vertex_set = has("x") && has("y") && has("z");
+    mom_set = has("px") && has("py") && has("pz");
     // Compute provided_variables_ from the column headers
     provided_variables_.clear();
     for (auto const & k : keys) {
@@ -175,6 +181,9 @@ void PrimaryExternalDistribution::DerivePhysicalRowWeights() {
     ValidateTable();
     physical_weights_.clear();
     physical_weights_sum_ = 0;
+    normalization_set = false;
+    normalization = 1.0;
+    if (!physical_weight_column_) return;
     auto weight_it = std::find(keys.begin(), keys.end(), "weight");
     if (weight_it == keys.end()) return;
     size_t weight_index = static_cast<size_t>(
@@ -222,6 +231,9 @@ void PrimaryExternalDistribution::BuildSamplingCDF() {
     for (size_t i = 0; i < sampling_weights_.size(); ++i) {
         cumsum += sampling_weights_[i];
         sampling_cdf_[i] = cumsum / sampling_weights_sum_;
+        double previous = i == 0 ? 0.0 : sampling_cdf_[i - 1];
+        if (sampling_weights_[i] > 0 && sampling_cdf_[i] <= previous)
+            throw std::runtime_error("Sampling weights lose support at double precision");
     }
 }
 
@@ -281,6 +293,7 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::vector<std::string
     : PrimaryExternalDistribution(std::move(_keys), std::move(_data))
 {
     this->emin = emin;
+    ValidateTable();
     auto energy_it = std::find(keys.begin(), keys.end(), "E");
     if (energy_it != keys.end()) {
         size_t energy_index = static_cast<size_t>(
@@ -331,6 +344,7 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
     : PrimaryExternalDistribution(std::move(_keys), std::move(_data), std::move(_sampling_weights))
 {
     this->emin = emin;
+    ValidateTable();
     auto energy_it = std::find(keys.begin(), keys.end(), "E");
     if (energy_it != keys.end()) {
         size_t energy_index = static_cast<size_t>(
@@ -349,12 +363,9 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(
         if (input_data.empty()) {
             throw std::runtime_error("No valid in-memory PrimaryExternalDistribution rows");
         }
-        if (!sampling_weights_.empty()) {
-            sampling_weights_ = std::move(filtered_weights);
-            BuildSamplingCDF();
-        }
-        // Physical row weights and normalization rebuild on the survivors.
+        if (!sampling_weights_.empty()) sampling_weights_ = std::move(filtered_weights);
         DerivePhysicalRowWeights();
+        BuildSamplingCDF();
     }
 }
 
@@ -436,7 +447,6 @@ void PrimaryExternalDistribution::Sample(
     if(mom_set) record.SetThreeMomentum(_momentum);
     if(init_pos_set) {
         record.SetInitialPosition(_initial_position);
-        if(!vertex_set) record.SetInteractionVertex(_initial_position);
     }
     if(vertex_set) {
         record.SetInteractionVertex(_vertex);
@@ -514,6 +524,8 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
         }
         auto gp_it = record.interaction_parameters.find("PrimaryExternalDistribution_gen_prob");
         if (gp_it != record.interaction_parameters.end()) {
+            if (!std::isfinite(gp_it->second) || gp_it->second < 0)
+                throw siren::utilities::WeightCalculationError("Invalid legacy external generation density");
             if (energy >= emin) return gp_it->second;
             return 0;
         }
@@ -536,13 +548,14 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
 // to return from the supplied (intentionally biased) parent ensemble to the
 // physical one, given the sampling density GenerationProbability reports.
 // Together with the sum(w) normalization this makes the event weight carry
-// exactly w_i / (sampling pdf of row i). Tables without a weight column fall
-// back to the sampling density, restoring the cancel-with-injection default.
+// exactly w_i / (sampling pdf of row i). Without a physical weight column,
+// the physical row measure is uniform, independently of the proposal.
 double PrimaryExternalDistribution::PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const> detector_model,
                                                     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
                                                     siren::dataclasses::InteractionRecord const & record) const {
     if (physical_weights_.empty()) {
-        return GenerationProbability(detector_model, interactions, record);
+        double proposal = GenerationProbability(detector_model, interactions, record);
+        return sampling_weights_.empty() ? proposal : (proposal > 0 ? 1.0 : 0.0);
     }
     double energy = record.primary_momentum[0];
     if (!std::isfinite(energy)) return 0;
@@ -574,7 +587,7 @@ double PrimaryExternalDistribution::PhysicalDensity(std::shared_ptr<siren::detec
 }
 
 bool PrimaryExternalDistribution::PhysicalDensityDiffers() const {
-    return !physical_weights_.empty();
+    return !physical_weights_.empty() || !sampling_weights_.empty();
 }
 
 std::shared_ptr<PrimaryInjectionDistribution> PrimaryExternalDistribution::clone() const {
@@ -588,15 +601,16 @@ bool PrimaryExternalDistribution::equal(WeightableDistribution const & other) co
     return emin == x->emin
         && keys == x->keys
         && input_data == x->input_data
-        && sampling_weights_ == x->sampling_weights_;
+        && sampling_weights_ == x->sampling_weights_
+        && physical_weight_column_ == x->physical_weight_column_;
 }
 
 bool PrimaryExternalDistribution::less(WeightableDistribution const & other) const {
     const PrimaryExternalDistribution* x = dynamic_cast<const PrimaryExternalDistribution*>(&other);
     if(!x)
         return false;
-    return std::tie(emin, keys, input_data, sampling_weights_)
-        < std::tie(x->emin, x->keys, x->input_data, x->sampling_weights_);
+    return std::tie(emin, keys, input_data, sampling_weights_, physical_weight_column_)
+        < std::tie(x->emin, x->keys, x->input_data, x->sampling_weights_, x->physical_weight_column_);
 }
 
 

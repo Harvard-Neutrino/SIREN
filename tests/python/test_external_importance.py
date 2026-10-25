@@ -1,23 +1,15 @@
 """Physical row weights and independent proposal densities."""
 
 import math
-import os
 
 import numpy as np
 import pytest
 
 siren = pytest.importorskip("siren")
 
-from siren import _util
-from siren import channels
-from siren import detector
 from siren import distributions
-from siren import expand
-from siren.Injector import Injector
-from siren.Weighter import Weighter
 
 M_PI = 0.13957039
-M_MU = 0.1056583755
 
 
 # --------------------------------------------------------------------------- #
@@ -149,8 +141,3 @@ def test_tables_without_weight_column_are_unchanged():
         assert dist.GenerationProbability(None, None, ir) == 1.0
         assert dist.PhysicalDensity(None, None, ir) == 1.0
     assert abs(counts[0] / 2000 - 0.5) < 0.05
-
-
-# --------------------------------------------------------------------------- #
-# Chain-level pins (CCM detector, data-free cross sections)                    #
-# --------------------------------------------------------------------------- #
