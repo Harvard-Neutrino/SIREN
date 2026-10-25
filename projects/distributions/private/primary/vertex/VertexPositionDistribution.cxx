@@ -39,5 +39,9 @@ bool VertexPositionDistribution::AreEquivalent(std::shared_ptr<siren::detector::
     return this->operator==(*distribution) and detector_model->operator==(*second_detector_model) and interactions->operator==(*second_interactions);
 }
 
+std::set<DistributionVariable> VertexPositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection};
+}
+
 } // namespace distributions
 } // namespace sirenREN

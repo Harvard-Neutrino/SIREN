@@ -42,6 +42,7 @@ public:
     FixedTargetPositionDistribution(siren::geometry::Cylinder cylinder, std::shared_ptr<siren::geometry::Geometry> fiducial_volume, double max_length);
     FixedTargetPositionDistribution(siren::geometry::Cylinder cylinder, double max_length);
     std::string Name() const override;
+    std::set<DistributionVariable> RequiredVariables() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     virtual bool AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const override;

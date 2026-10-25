@@ -126,12 +126,16 @@ std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::Fi
 }
 
 void Injector::SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary) {
+    if(!primary) throw siren::utilities::AddProcessFailure("Primary process cannot be null");
     std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist = FindPrimaryVertexDistribution(primary);
     primary_process = primary;
     primary_position_distribution = vtx_dist;
 }
 
 void Injector::AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryInjectionProcess> secondary) {
+    if(!secondary) throw siren::utilities::AddProcessFailure("Secondary process cannot be null");
+    if(secondary_process_map.count(secondary->GetPrimaryType()))
+        throw siren::utilities::AddProcessFailure("Duplicate secondary particle type");
     std::shared_ptr<distributions::SecondaryVertexPositionDistribution> vtx_dist = FindSecondaryVertexDistribution(secondary);
     secondary_processes.push_back(secondary);
     secondary_position_distributions.push_back(vtx_dist);
@@ -140,13 +144,16 @@ void Injector::AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryIn
 }
 
 void Injector::SetSecondaryProcesses(std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondaries) {
-    secondary_processes.clear();
-    secondary_position_distributions.clear();
-    secondary_process_map.clear();
-    secondary_position_distribution_map.clear();
-    for(auto secondary : secondaries) {
-        AddSecondaryProcess(secondary);
-    }
+    Injector candidate(*this);
+    candidate.secondary_processes.clear();
+    candidate.secondary_position_distributions.clear();
+    candidate.secondary_process_map.clear();
+    candidate.secondary_position_distribution_map.clear();
+    for(auto const & secondary : secondaries) candidate.AddSecondaryProcess(secondary);
+    secondary_processes.swap(candidate.secondary_processes);
+    secondary_position_distributions.swap(candidate.secondary_position_distributions);
+    secondary_process_map.swap(candidate.secondary_process_map);
+    secondary_position_distribution_map.swap(candidate.secondary_position_distribution_map);
 }
 
 siren::dataclasses::InteractionRecord Injector::NewRecord() const {
@@ -377,7 +384,7 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
 }
 
 siren::dataclasses::InteractionTree Injector::GenerateEvent() {
-    if(injection_attempts >= events_to_inject) {
+    if(injection_attempts >= attempt_limit_.value_or(events_to_inject)) {
         throw(std::runtime_error("Injector has already made the maximum number of injection attempts!"));
     }
     injection_attempts += 1;
@@ -418,7 +425,8 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
                 unregistered_secondary_count_ += 1;
                 continue;
             }
-            if(!stopping_condition || stopping_condition(tree, parent, i)) {
+            if(secondary_expansion_ ? secondary_expansion_->ShouldStop(tree, parent, i)
+                    : (!stopping_condition || stopping_condition(tree, parent, i))) {
                 continue;
             }
             secondaries.emplace_back(
@@ -662,6 +670,8 @@ void Injector::LoadInjector(std::string const & filename) {
     }
     auto preserved_random = random;
     auto preserved_stopping_condition = stopping_condition;
+    auto preserved_expansion = secondary_expansion_;
+    auto next_revision = stopping_condition_revision_ + 1;
     {
         std::ifstream is(filename, std::ios::binary);
         ::cereal::BinaryInputArchive archive(is);
@@ -678,6 +688,11 @@ void Injector::LoadInjector(std::string const & filename) {
                 archive(version);
                 Injector temp;
                 temp.load(archive, version);
+                if(version < 2) {
+                    temp.stopping_condition = preserved_stopping_condition;
+                    temp.secondary_expansion_ = preserved_expansion;
+                }
+                temp.stopping_condition_revision_ = next_revision;
                 *this = std::move(temp);
             } catch(std::exception const & e) {
                 throw std::runtime_error(
@@ -686,7 +701,6 @@ void Injector::LoadInjector(std::string const & filename) {
             }
             // A version 0 archive has no RNG state; keep the caller's engine.
             if(!random) random = preserved_random;
-            stopping_condition = preserved_stopping_condition;
             return;
         }
     }
@@ -698,6 +712,9 @@ void Injector::LoadInjector(std::string const & filename) {
         ::cereal::BinaryInputArchive archive(is);
         Injector temp;
         temp.load(archive, 0);
+        temp.stopping_condition = preserved_stopping_condition;
+        temp.secondary_expansion_ = preserved_expansion;
+        temp.stopping_condition_revision_ = next_revision;
         *this = std::move(temp);
     } catch(std::exception const & e) {
         throw std::runtime_error(

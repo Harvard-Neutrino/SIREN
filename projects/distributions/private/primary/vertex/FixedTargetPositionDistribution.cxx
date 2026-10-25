@@ -294,5 +294,10 @@ bool FixedTargetPositionDistribution::AreEquivalent(std::shared_ptr<siren::detec
     return this->operator==(*distribution);
 }
 
+std::set<DistributionVariable> FixedTargetPositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy,
+            DistributionVariable::PrimaryMass};
+}
+
 } // namespace distributions
 } // namespace sirenREN

@@ -103,6 +103,7 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<>())
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
     .def("ProvidedVariables",&PrimaryInjectionDistribution::ProvidedVariables)
+    .def("RequiredVariables",&PrimaryInjectionDistribution::RequiredVariables)
     .def("clone",&PrimaryInjectionDistribution::clone)
     TrampolinePickleMethods(pyPrimaryInjectionDistribution);
 

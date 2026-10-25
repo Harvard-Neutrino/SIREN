@@ -1,4 +1,6 @@
 #include <vector>
+#include <optional>
+#include "SIREN/math/FourMomentum.h"
 
 #include "../../public/SIREN/math/Vector3D.h"
 #include "../../public/SIREN/math/Quaternion.h"
@@ -48,6 +50,41 @@ PYBIND11_MODULE(math,m) {
         .def_static("scalar_product", [](Vector3D const & a, Vector3D const & b)->double{return scalar_product(a, b);})
         .def_static("vector_product", [](Vector3D const & a, Vector3D const & b)->Vector3D{return vector_product(a, b);})
         .def_static("cross_product", [](Vector3D const & a, Vector3D const & b)->Vector3D{return cross_product(a, b);});
+
+    class_<FourMomentum>(m, "FourMomentum")
+        .def_static("from_components", &FourMomentum::FromComponents, arg("components"))
+        .def_static("from_mass", &FourMomentum::FromMass,
+                    arg("mass"), arg("momentum"), arg("negative_energy") = false)
+        .def("components", &FourMomentum::Components)
+        .def("energy", &FourMomentum::Energy)
+        .def("momentum", &FourMomentum::Momentum)
+        .def("mass", &FourMomentum::Mass)
+        .def("mass_squared", &FourMomentum::MassSquared)
+        .def("has_known_mass", &FourMomentum::HasKnownMass)
+        .def("boost_to_lab", &FourMomentum::BoostToLab, arg("frame"))
+        .def("boost_to_rest", &FourMomentum::BoostToRest, arg("frame"))
+        .def_static("invariant_mass", &FourMomentum::InvariantMass, arg("a"), arg("b"))
+        .def(self + self)
+        .def(self - self)
+        .def(pickle(
+            [](FourMomentum const & p) {
+                std::optional<double> mass;
+                if (p.HasKnownMass()) mass = p.Mass();
+                return pybind11::make_tuple(p.Components(), mass);
+            },
+            [](tuple state) {
+                if (state.size() != 2)
+                    throw std::runtime_error("Invalid FourMomentum pickle state");
+                auto components = state[0].cast<std::array<double, 4>>();
+                auto mass = state[1].cast<std::optional<double>>();
+                if (!mass) return FourMomentum::FromComponents(components);
+                auto p = FourMomentum::FromMass(*mass,
+                    Vector3D(components[1], components[2], components[3]),
+                    std::signbit(components[0]));
+                if (p.Components() != components)
+                    throw std::runtime_error("FourMomentum pickle energy disagrees with its mass");
+                return p;
+            }));
 
     class_<Matrix3D, std::shared_ptr<Matrix3D>>(m, "Matrix3D")
         .def(init<>())
