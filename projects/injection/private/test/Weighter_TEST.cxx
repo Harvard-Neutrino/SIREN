@@ -512,3 +512,34 @@ TEST(WeighterNormalization, EmptyFailedTreeCannotReceivePositiveWeight) {
     EXPECT_THROW(fixture.weighter->EventWeight(empty), siren::utilities::WeightCalculationError);
     EXPECT_TRUE(std::isnan(fixture.weighter->EventWeightWithBreakdown(empty).total));
 }
+
+
+namespace {
+class SeparatePhysicalDensity : public GuardPositionDistribution {
+    double physical;
+public:
+    explicit SeparatePhysicalDensity(double physical) : GuardPositionDistribution(1.0), physical(physical) {}
+    double PhysicalDensity(std::shared_ptr<siren::detector::DetectorModel const>,
+            std::shared_ptr<siren::interactions::InteractionCollection const>,
+            siren::dataclasses::InteractionRecord const &) const override { return physical; }
+    bool PhysicalDensityDiffers() const override { return true; }
+};
+}
+
+TEST(WeighterGuards, SharedObjectWithSeparatePhysicalDensityDoesNotCancel) {
+    for(double density : {0.0, 0.25, -1.0, std::numeric_limits<double>::infinity()}) {
+        auto fixture = BuildWeighterGuardFixture(1);
+        auto distribution = std::make_shared<SeparatePhysicalDensity>(density);
+        fixture.injector->GetPrimaryProcess()->AddPrimaryInjectionDistribution(distribution);
+        auto physical = fixture.weighter->GetPrimaryPhysicalProcess();
+        physical->AddPhysicalDistribution(distribution);
+        Weighter matched({fixture.injector}, fixture.weighter->GetDetectorModel(), physical);
+        if(density >= 0.0 && std::isfinite(density)) {
+            EXPECT_DOUBLE_EQ(matched.EventWeight(fixture.tree), density);
+            EXPECT_DOUBLE_EQ(matched.EventWeightWithBreakdown(fixture.tree).total, density);
+        } else {
+            EXPECT_THROW(matched.EventWeight(fixture.tree), siren::utilities::WeightCalculationError);
+            EXPECT_TRUE(std::isnan(matched.EventWeightWithBreakdown(fixture.tree).total));
+        }
+    }
+}

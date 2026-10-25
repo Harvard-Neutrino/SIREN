@@ -84,6 +84,8 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<>())
     .def("__eq__", [](const WeightableDistribution &self, const WeightableDistribution &other){ return self == other; })
     .def("GenerationProbability",&WeightableDistribution::GenerationProbability)
+    .def("PhysicalDensity",&WeightableDistribution::PhysicalDensity)
+    .def("PhysicalDensityDiffers",&WeightableDistribution::PhysicalDensityDiffers)
     .def("DensityVariables",&WeightableDistribution::DensityVariables)
     .def("Name",&WeightableDistribution::Name)
     .def("AreEquivalent",&WeightableDistribution::AreEquivalent)
