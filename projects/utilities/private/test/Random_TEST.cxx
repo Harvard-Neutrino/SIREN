@@ -93,6 +93,7 @@ TEST(RandomArchive, ForeignAndCorruptLegacyStateLeaveDestinationUntouched) {
     invalid.push_back(state.substr(0, end) + " 313");
 #endif
     invalid.push_back(zero);
+    invalid.push_back("1" + zero.substr(1));
     for(auto const & bad : invalid) {
         SIREN_random target(51);
         for(int i = 0; i < 9; ++i) target.Uniform();
@@ -124,6 +125,21 @@ TEST(RandomArchive, VersionTwoIgnoresGlobalNumberGrouping) {
     for(int i = 0; i < 400; ++i) original.Uniform();
     std::stringstream stream;
     { cereal::JSONOutputArchive archive(stream); archive(original); }
+    std::locale::global(std::locale::classic());
     { cereal::JSONInputArchive archive(stream); archive(restored); }
     SameContinuation(original, restored);
+}
+
+TEST(RandomArchive, TruncatedBinaryStateLeavesDestinationUntouched) {
+    SIREN_random original(17), target(51);
+    for(int i = 0; i < 9; ++i) target.Uniform();
+    auto before = target;
+    std::ostringstream output;
+    { cereal::BinaryOutputArchive archive(output); original.save(archive, 2); }
+    auto data = output.str();
+    data.resize(data.size() / 2);
+    std::istringstream input(data);
+    cereal::BinaryInputArchive archive(input);
+    EXPECT_THROW(target.load(archive, 2), std::runtime_error);
+    SameContinuation(before, target);
 }

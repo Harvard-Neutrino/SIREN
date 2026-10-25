@@ -76,7 +76,11 @@ namespace utilities {
         if(!(stream >> engine)) throw invalid();
         stream >> std::ws;
         if(!stream.eof()) throw invalid();
-        return engine;
+        auto probe = engine;
+        probe.discard(std::mt19937_64::state_size);
+        for(std::size_t i = 0; i < std::mt19937_64::state_size; ++i)
+            if(probe() != 0) return engine;
+        throw invalid();
     }
 
     SIREN_random::SIREN_random() {
