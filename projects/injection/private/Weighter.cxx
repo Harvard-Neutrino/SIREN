@@ -123,6 +123,13 @@ void Weighter::CheckExternalTableLayouts() const {
     using siren::distributions::PrimaryExternalDistribution;
     std::vector<std::pair<std::string, std::shared_ptr<PrimaryExternalDistribution const>>> tables;
     for(size_t idx = 0; idx < injectors.size(); ++idx) {
+        auto vertex = injectors[idx]->FindPrimaryVertexDistribution(injectors[idx]->GetPrimaryProcess());
+        auto mode = primary_physical_process->GetWeightingMode();
+        if(std::dynamic_pointer_cast<PrimaryExternalDistribution const>(vertex)
+                && (mode.compute_interaction_probability || mode.compute_position_probability || mode.survival_from_creation))
+            throw siren::utilities::ConfigurationError(
+                "External point-table vertices require Fixed weighting; use a separate "
+                "vertex sampler for propagation [siren-docs: errors#configuration]");
         for(auto const & dist : injectors[idx]->GetPrimaryProcess()->GetPrimaryInjectionDistributions()) {
             auto table = std::dynamic_pointer_cast<PrimaryExternalDistribution const>(dist);
             if(table) tables.emplace_back("injector " + std::to_string(idx), table);
