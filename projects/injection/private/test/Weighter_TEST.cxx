@@ -530,7 +530,7 @@ TEST(WeighterGuards, SharedObjectWithSeparatePhysicalDensityDoesNotCancel) {
     for(double density : {0.0, 0.25, -1.0, std::numeric_limits<double>::infinity()}) {
         auto fixture = BuildWeighterGuardFixture(1);
         auto distribution = std::make_shared<SeparatePhysicalDensity>(density);
-        fixture.injector->GetPrimaryProcess()->AddPrimaryInjectionDistribution(distribution);
+        fixture.injector->GetPrimaryProcess()->SetPrimaryInjectionDistributions({distribution});
         auto physical = fixture.weighter->GetPrimaryPhysicalProcess();
         physical->AddPhysicalDistribution(distribution);
         Weighter matched({fixture.injector}, fixture.weighter->GetDetectorModel(), physical);
