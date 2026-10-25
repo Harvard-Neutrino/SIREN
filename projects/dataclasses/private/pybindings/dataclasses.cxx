@@ -19,6 +19,15 @@
 #include <pybind11/stl.h>
 
 
+namespace {
+std::size_t SecondaryMomentumIndex(pybind11::handle index) {
+    auto value = PyNumber_AsSsize_t(index.ptr(), PyExc_IndexError);
+    if (value == -1 && PyErr_Occurred()) throw pybind11::error_already_set();
+    if (value < 0) throw pybind11::index_error("Secondary momentum index must be nonnegative");
+    return static_cast<std::size_t>(value);
+}
+}
+
 PYBIND11_MODULE(dataclasses, m) {
     namespace py = pybind11;
     using namespace siren::dataclasses;
@@ -224,8 +233,13 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
         .def("get_primary_momentum", &PrimaryMomentum)
         .def("set_primary_momentum", &SetPrimaryMomentum, py::arg("momentum"))
-        .def("get_secondary_momentum", &SecondaryMomentum, py::arg("index"))
-        .def("set_secondary_momentum", &SetSecondaryMomentum, py::arg("index"), py::arg("momentum"))
+        .def("get_secondary_momentum", [](InteractionRecord const & record, py::handle index) {
+            return SecondaryMomentum(record, SecondaryMomentumIndex(index));
+        }, py::arg("index"))
+        .def("set_secondary_momentum", [](InteractionRecord & record, py::handle index,
+                                          siren::math::FourMomentum const & momentum) {
+            SetSecondaryMomentum(record, SecondaryMomentumIndex(index), momentum);
+        }, py::arg("index"), py::arg("momentum"))
         .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
         .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
         .def_readwrite("target_id",&InteractionRecord::target_id)
