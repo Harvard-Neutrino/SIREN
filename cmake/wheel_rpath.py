@@ -1,4 +1,4 @@
-"""Put the wheel sibling directory first in an installed Mach-O's RPATHs."""
+"""Put an RPATH entry (default @loader_path) first in an installed Mach-O."""
 
 from pathlib import Path
 import re
@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 
-def prefer_siblings(path):
+def prefer_siblings(path, sibling="@loader_path"):
     architectures = subprocess.check_output(
         ["/usr/bin/lipo", "-archs", str(path)], text=True).split()
     if not architectures:
@@ -31,7 +31,7 @@ def prefer_siblings(path):
             output = subprocess.check_output(["/usr/bin/otool", "-l", str(thin)], text=True)
             paths = re.findall(
                 r"cmd LC_RPATH\n\s+cmdsize \d+\n\s+path (.*?) \(offset \d+\)", output)
-            desired = list(dict.fromkeys(["@loader_path", *paths]))
+            desired = list(dict.fromkeys([sibling, *paths]))
             if paths == desired:
                 continue
             changed = True
@@ -59,4 +59,4 @@ def prefer_siblings(path):
 
 
 if __name__ == "__main__":
-    prefer_siblings(Path(sys.argv[1]))
+    prefer_siblings(Path(sys.argv[1]), *sys.argv[2:3])
