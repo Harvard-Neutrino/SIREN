@@ -52,9 +52,12 @@ endif()
 # 2) Locate marleyConfig.cmake (optional; include if present)
 # -----------------------------
 if(_marley_ok)
+  # Only under the chosen prefix: CMAKE_PREFIX_PATH is searched before HINTS
+  # and PATHS, and may hold a different MARLEY.
   find_path(MARLEY_CONFIG_DIR
     NAMES marleyConfig.cmake MARLEYConfig.cmake
     HINTS "${MARLEY_PREFIX}"
+    NO_DEFAULT_PATH
     PATH_SUFFIXES
       share/marley/cmake
       lib/cmake/marley
@@ -84,6 +87,7 @@ if(_marley_ok)
   find_library(MARLEY_LIBRARY
     NAMES MARLEY
     PATHS "${MARLEY_PREFIX}/lib64" "${MARLEY_PREFIX}/lib"
+    NO_DEFAULT_PATH
     DOC "MARLEY library"
   )
 
