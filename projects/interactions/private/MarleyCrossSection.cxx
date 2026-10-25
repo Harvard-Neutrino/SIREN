@@ -1,6 +1,8 @@
 #include <algorithm>   // for std::find
 #include <cstdlib>     // for std::getenv
 #include <filesystem>  // for path, create_directories
+#include <iostream>    // for std::cerr
+#include <system_error>
 
 #include "SIREN/interactions/MarleyCrossSection.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
@@ -12,6 +14,8 @@
 #include "marley/JSON.hh"
 #include "marley/JSONConfig.hh"
 #include "marley/CoulombCorrector.hh"  // MARLEY v2: CoulombMode for Reaction::load_from_file
+#include "marley/ContinuumNuclearReaction.hh"  // MARLEY v2.1: SubContinuumMode for Reaction::load_from_file
+#include "marley/FileManager.hh"
 
 namespace siren {
 namespace interactions {
@@ -130,12 +134,21 @@ void MarleyCrossSection::SetupMarley() {
 
     std::string search_path = tmp_dir_path.string();
 
-    // MARLEY's logger loads config/logger.js through $MARLEY/data rather than
-    // FileManager. Point $MARLEY at the reconstructed, self-contained bundle.
-    setenv("MARLEY", tmp_dir_path.c_str(), 1);
+    // MARLEY reads MARLEY_SEARCH_PATH once, when its FileManager is first used,
+    // and searches the data installed with the library after it. The bundle
+    // becomes a data root only if this is that first use; otherwise MARLEY
+    // resolves the bundle's file names from its existing roots.
     setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 1);
-    marley::FileManager::Instance();
-    siren::interactions::marley_::FileManager_::set_search_path(search_path);
+    marley::FileManager const & file_manager = marley::FileManager::Instance();
+    std::error_code ec;
+    std::filesystem::path const bundle = std::filesystem::weakly_canonical(tmp_dir_path, ec);
+    bool bundle_is_root = false;
+    for(marley::FileManager::DataRoot const & root : file_manager.roots())
+        bundle_is_root |= std::filesystem::weakly_canonical(root.path, ec) == bundle;
+    if(not bundle_is_root)
+        std::cerr << "MarleyCrossSection: MARLEY's FileManager existed before this cross section, so "
+                  << search_path << " is not one of its data roots; MARLEY reads the structure and "
+                  << "mass tables from its existing roots" << std::endl;
 
     std::vector<std::string> react_paths;
     for(std::string const & fname : marley_react_fnames_)
@@ -161,7 +174,8 @@ void MarleyCrossSection::InitializeMarley(std::vector<std::string> const & marle
     for(std::string const & react_file : marley_react_files) {
         std::vector<std::unique_ptr<marley::Reaction>> reacts =
             marley::Reaction::load_from_file(react_file, *structure_database_,
-                marley::CoulombCorrector::CoulombMode::FERMI_AND_MEMA, ff_config);
+                marley::CoulombCorrector::CoulombMode::FERMI_AND_MEMA, ff_config,
+                marley::SubContinuumMode::ACCUMULATE);  // the MARLEY generator's default
         for(std::unique_ptr<marley::Reaction> & r : reacts)
             reactions_.push_back(std::move(r));
     }
