@@ -111,7 +111,7 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 1) {
+        if(version == 2) {
             int mode = static_cast<int>(mode_);
             archive(::cereal::make_nvp("Target", target_));
             archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
@@ -126,7 +126,14 @@ private:
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 1) {
+        DetectorDirected2BodyChannel candidate;
+        candidate.LoadState(archive, version);
+        *this = std::move(candidate);
+    }
+
+    template<class Archive>
+    void LoadState(Archive & archive, std::uint32_t const version) {
+        if(version == 2) {
             int mode;
             archive(::cereal::make_nvp("Target", target_));
             archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
@@ -138,6 +145,9 @@ private:
                 throw std::runtime_error(
                     "DetectorDirected2BodyChannel: invalid Mode value "
                     + std::to_string(mode) + " in archive");
+            }
+            if (daughter_index_ < 0 || daughter_index_ > 1) {
+                throw std::runtime_error("Invalid directed daughter index in archive");
             }
             mode_ = static_cast<Mode>(mode);
             ValidateArchivedDetectorDirectedVolume(
@@ -152,7 +162,7 @@ private:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::DetectorDirected2BodyChannel, 1);
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirected2BodyChannel, 2);
 CEREAL_REGISTER_TYPE(siren::injection::DetectorDirected2BodyChannel);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(
     siren::injection::PhaseSpaceChannel,
