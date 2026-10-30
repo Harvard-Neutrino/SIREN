@@ -1,4 +1,6 @@
 #pragma once
+#include <array>
+#include <algorithm>
 #ifndef SIREN_DetectorDirected3BodyChannel_H
 #define SIREN_DetectorDirected3BodyChannel_H
 
@@ -158,7 +160,7 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if (version != 1) {
+        if (version != 2) {
             throw std::runtime_error(
                 "DetectorDirected3BodyChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
         }
@@ -199,7 +201,14 @@ private:
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if (version != 1) {
+        DetectorDirected3BodyChannel candidate;
+        candidate.LoadState(archive, version);
+        *this = std::move(candidate);
+    }
+
+    template<class Archive>
+    void LoadState(Archive & archive, std::uint32_t const version) {
+        if (version != 2) {
             throw std::runtime_error(
                 "DetectorDirected3BodyChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
         }
@@ -254,6 +263,19 @@ private:
             throw std::runtime_error(
                 "DetectorDirected3BodyChannel: invalid PhaseSpaceTopology value " +
                 std::to_string(topology_int) + " in archive");
+        }
+
+        std::array<int, 3> indices{roles_.outer, roles_.pair_first, roles_.pair_second};
+        std::sort(indices.begin(), indices.end());
+        bool direct = factorization_int == static_cast<int>(Factorization::Direct);
+        if (indices != std::array<int, 3>{0, 1, 2} ||
+            (direct && (roles_.directed != roles_.outer || roles_.pair_first > roles_.pair_second)) ||
+            (!direct && roles_.directed != roles_.pair_first && roles_.directed != roles_.pair_second)) {
+            throw std::runtime_error("Invalid directed three-body roles in archive");
+        }
+        if (topology_int != static_cast<int>(PhaseSpaceTopology::Decay3Body) &&
+            topology_int != static_cast<int>(PhaseSpaceTopology::Scatter2to3)) {
+            throw std::runtime_error("Unsupported directed three-body topology in archive");
         }
 
         mass_mode_ = static_cast<InvariantMassMode>(mass_mode_int);
@@ -316,7 +338,7 @@ private:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::DetectorDirected3BodyChannel, 1);
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirected3BodyChannel, 2);
 CEREAL_REGISTER_TYPE(siren::injection::DetectorDirected3BodyChannel);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(
     siren::injection::PhaseSpaceChannel,

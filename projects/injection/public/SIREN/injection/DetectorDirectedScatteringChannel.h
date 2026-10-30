@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #ifndef SIREN_DetectorDirectedScatteringChannel_H
 #define SIREN_DetectorDirectedScatteringChannel_H
 
@@ -106,9 +107,9 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if (version != 0) {
+        if (version != 1) {
             throw std::runtime_error(
-                "DetectorDirectedScatteringChannel only supports version <= 0!");
+                "DetectorDirectedScatteringChannel legacy directed-scattering density archive rejected; regenerate events with the current sampler");
         }
 
         archive(::cereal::make_nvp("Target", target_));
@@ -124,9 +125,16 @@ private:
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if (version != 0) {
+        DetectorDirectedScatteringChannel candidate;
+        candidate.LoadState(archive, version);
+        *this = std::move(candidate);
+    }
+
+    template<class Archive>
+    void LoadState(Archive & archive, std::uint32_t const version) {
+        if (version != 1) {
             throw std::runtime_error(
-                "DetectorDirectedScatteringChannel only supports version <= 0!");
+                "DetectorDirectedScatteringChannel legacy directed-scattering density archive rejected; regenerate events with the current sampler");
         }
 
         int variable_int;
@@ -163,6 +171,9 @@ private:
                 std::to_string(q2_mode_int) + " in archive");
         }
 
+        if (directed_index_ < 0 || directed_index_ > 1) {
+            throw std::runtime_error("Invalid directed scattering index in archive");
+        }
         variable_ = static_cast<Variable>(variable_int);
         mode_ = static_cast<DetectorDirected2BodyChannel::Mode>(mode_int);
         q2_mode_ = static_cast<Q2Mode>(q2_mode_int);
@@ -176,7 +187,8 @@ private:
             throw std::runtime_error(
                 "DetectorDirectedScatteringChannel: Q2 mapping requires Variable::Q2");
         }
-        if (q2_mode_ == Q2Mode::Propagator && mediator_mass_ <= 0.0) {
+        if (q2_mode_ == Q2Mode::Propagator &&
+            (!std::isfinite(mediator_mass_) || !(mediator_mass_ > 0.0))) {
             throw std::runtime_error(
                 "DetectorDirectedScatteringChannel: invalid propagator mediator mass");
         }
@@ -198,7 +210,7 @@ private:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::DetectorDirectedScatteringChannel, 0);
+CEREAL_CLASS_VERSION(siren::injection::DetectorDirectedScatteringChannel, 1);
 CEREAL_REGISTER_TYPE(siren::injection::DetectorDirectedScatteringChannel);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(
     siren::injection::PhaseSpaceChannel,

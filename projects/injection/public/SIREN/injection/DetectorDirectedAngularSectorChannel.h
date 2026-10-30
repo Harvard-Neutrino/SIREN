@@ -39,8 +39,7 @@ namespace injection {
 // directing is inert.
 //
 // A complete set of sectors (a partition of [0,1] x [0,2pi]) tiles the
-// reachable cone disjointly, giving the Kleiss-Pittau optimizer a
-// non-degenerate per-sector weight.  Sample and Density share the bin
+// reachable cone disjointly with a fixed weight for each sector.  Sample and Density share the bin
 // test, Omega_bin, axis, and Jacobian, so Sample == Density (Contract C1).
 class DetectorDirectedAngularSectorChannel : public PhaseSpaceChannel {
 public:
@@ -73,8 +72,7 @@ public:
     }
 
     // True when this sector genuinely directs (the active regime), false when it
-    // falls back to isotropic 1/4pi.  Lets the optimizer separate genuine
-    // directing from the shared fallback.
+    // falls back to isotropic 1/4pi.  The inactive density is the full isotropic proposal.
     bool DirectingActive(
         siren::dataclasses::InteractionRecord const & record) const;
 
@@ -92,7 +90,7 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 1) {
+        if(version == 2) {
             archive(::cereal::make_nvp("Target", target_));
             archive(::cereal::make_nvp("ULower", u_lo_));
             archive(::cereal::make_nvp("UUpper", u_hi_));
@@ -108,7 +106,14 @@ private:
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 1) {
+        DetectorDirectedAngularSectorChannel candidate;
+        candidate.LoadState(archive, version);
+        *this = std::move(candidate);
+    }
+
+    template<class Archive>
+    void LoadState(Archive & archive, std::uint32_t const version) {
+        if(version == 2) {
             archive(::cereal::make_nvp("Target", target_));
             archive(::cereal::make_nvp("ULower", u_lo_));
             archive(::cereal::make_nvp("UUpper", u_hi_));
@@ -116,6 +121,9 @@ private:
             archive(::cereal::make_nvp("PhiUpper", phi_hi_));
             archive(::cereal::make_nvp("DaughterIndex", daughter_index_));
             archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
+            DetectorDirectedAngularSectorChannel checked(
+                target_, u_lo_, u_hi_, phi_lo_, phi_hi_, daughter_index_);
+            *this = std::move(checked);
         } else {
             throw std::runtime_error(
                 "DetectorDirectedAngularSectorChannel: legacy directed-decay density archive rejected; regenerate events with the current sampler");
@@ -127,7 +135,7 @@ private:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(
-    siren::injection::DetectorDirectedAngularSectorChannel, 1);
+    siren::injection::DetectorDirectedAngularSectorChannel, 2);
 CEREAL_REGISTER_TYPE(
     siren::injection::DetectorDirectedAngularSectorChannel);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(
