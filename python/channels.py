@@ -585,9 +585,7 @@ def tile(geometry, grid: int, method: str = "disjoint",
         if volume_fn is not None:
             tile_volume_fn = volume_fn
         else:
-            # Equal-size grid cells of an axis-aligned Box; disjointify
-            # subtracts non-overlapping siblings, so each tile keeps its
-            # cell volume exactly.
+            # Disjoint grid cells retain their analytic Box volumes.
             cell_volume = (
                 geometry.X * geometry.Y * geometry.Z) / float(len(cells))
             tile_volume_fn = lambda _geo: cell_volume

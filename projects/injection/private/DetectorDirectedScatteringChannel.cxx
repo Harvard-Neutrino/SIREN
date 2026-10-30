@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -27,17 +28,28 @@ using siren::dataclasses::PrimaryMomentum;
 using siren::dataclasses::SecondaryMomentum;
 using siren::dataclasses::SetSecondaryMomentum;
 
-FourMomentum BeamMomentum(siren::dataclasses::InteractionRecord const & record) {
+std::optional<FourMomentum> TryBeamMomentum(siren::dataclasses::InteractionRecord const & record) {
     auto raw = PrimaryMomentum(record);
-    auto beam = FourMomentum::FromMass(record.primary_mass, raw.Momentum());
-    if (!(beam.Energy() > 0.0) || !std::isfinite(raw.Energy()) ||
-        std::abs(raw.Energy() - beam.Energy()) > 2e-5 * beam.Energy() ||
-        !std::isfinite(record.target_mass) || !(record.target_mass > 0.0)) {
+    if (!std::isfinite(raw.Energy()) || !std::isfinite(record.target_mass) ||
+        !(record.target_mass > 0.0)) return std::nullopt;
+    try {
+        auto beam = FourMomentum::FromMass(record.primary_mass, raw.Momentum());
+        if (!(beam.Energy() > 0.0) ||
+            std::abs(raw.Energy() - beam.Energy()) > 2e-5 * beam.Energy()) return std::nullopt;
+        return beam;
+    } catch (std::domain_error const &) {
+        return std::nullopt;
+    }
+}
+
+FourMomentum BeamMomentum(siren::dataclasses::InteractionRecord const & record) {
+    auto beam = TryBeamMomentum(record);
+    if (!beam) {
         throw siren::utilities::InjectionFailure(
             siren::utilities::FailureReason::KinematicallyForbidden,
             "Directed scattering needs an on-shell beam and a positive stationary target mass");
     }
-    return beam;
+    return *beam;
 }
 
 double MomentumMagnitude(double e, double m) {
@@ -211,14 +223,17 @@ PhaseSpaceMeasure DetectorDirectedScatteringChannel::Measure() const {
 bool DetectorDirectedScatteringChannel::DirectingActive(
     siren::dataclasses::InteractionRecord const & record) const
 {
-    if (q2_mode_ != Q2Mode::Geometry) return true;
+    auto beam = TryBeamMomentum(record);
+    if (!beam) return false;
     if (!siren::dataclasses::HasSecondaryStorage(record, 2) ||
         directed_index_ < 0 || directed_index_ > 1) {
         return false;
     }
 
+    if (q2_mode_ != Q2Mode::Geometry) return true;
+
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = BeamMomentum(record);
+    FourMomentum const & p1 = *beam;
     double m2 = record.target_mass;
     double m3 = record.secondary_masses[directed_index_];
     double m4 = record.secondary_masses[other_index];
@@ -308,7 +323,9 @@ double DetectorDirectedScatteringChannel::Density(
     }
 
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = BeamMomentum(record);
+    auto beam = TryBeamMomentum(record);
+    if (!beam) return 0.0;
+    FourMomentum const & p1 = *beam;
     FourMomentum directed = SecondaryMomentum(record, directed_index_);
     double p1_mag = p1.Momentum().magnitude();
     double directed_mag = directed.Momentum().magnitude();
@@ -420,7 +437,9 @@ double DetectorDirectedScatteringChannel::DensityFromQ2Mapping(
     siren::dataclasses::InteractionRecord const & record) const
 {
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = BeamMomentum(record);
+    auto beam = TryBeamMomentum(record);
+    if (!beam) return 0.0;
+    FourMomentum const & p1 = *beam;
     FourMomentum directed = SecondaryMomentum(record, directed_index_);
     if (p1.Energy() <= 0.0 || p1.Momentum().magnitude() <= 0.0 || directed.Momentum().magnitude() <= 0.0) {
         return 0.0;
