@@ -178,6 +178,14 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
     roles_.pair_first = others[0];
     roles_.pair_second = others[1];
 
+    if (mode_ != DetectorDirected2BodyChannel::Mode::Cone &&
+        mode_ != DetectorDirected2BodyChannel::Mode::Volume) {
+        throw std::invalid_argument("Unknown directed three-body mode");
+    }
+    if (topology_ != PhaseSpaceTopology::Decay3Body &&
+        topology_ != PhaseSpaceTopology::Scatter2to3) {
+        throw std::invalid_argument("Directed three-body topology must be Decay3Body or Scatter2to3");
+    }
     target_volume_ = ResolveDetectorDirectedVolume(
         *target_, mode_ == DetectorDirected2BodyChannel::Mode::Volume, volume);
 }
@@ -232,6 +240,14 @@ DetectorDirected3BodyChannel::DetectorDirected3BodyChannel(
         roles_.directed != roles_.pair_second) {
         throw std::runtime_error("directed_pair_index must be one of the pair indices");
     }
+    if (mode_ != DetectorDirected2BodyChannel::Mode::Cone &&
+        mode_ != DetectorDirected2BodyChannel::Mode::Volume) {
+        throw std::invalid_argument("Unknown directed three-body mode");
+    }
+    if (topology_ != PhaseSpaceTopology::Decay3Body &&
+        topology_ != PhaseSpaceTopology::Scatter2to3) {
+        throw std::invalid_argument("Directed three-body topology must be Decay3Body or Scatter2to3");
+    }
     target_volume_ = ResolveDetectorDirectedVolume(
         *target_, mode_ == DetectorDirected2BodyChannel::Mode::Volume, volume);
 }
@@ -255,8 +271,6 @@ bool DetectorDirected3BodyChannel::DirectingActiveDirect(
 {
     InitialState init = GetInitialState(record, topology_);
     siren::math::Vector3D vertex = siren::dataclasses::InteractionVertex(record);
-    FourMomentum first = SecondaryMomentum(record, roles_.pair_first);
-    FourMomentum second = SecondaryMomentum(record, roles_.pair_second);
     double pair_mass_squared = PairMassSquaredInRestFrame(
         record, roles_.pair_first, roles_.pair_second, init);
     if (!(pair_mass_squared > 0.0)) return false;

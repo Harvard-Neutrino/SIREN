@@ -140,6 +140,17 @@ DetectorDirectedScatteringChannel::DetectorDirectedScatteringChannel(
     if (!target_) {
         throw std::runtime_error("DetectorDirectedScatteringChannel requires a target geometry");
     }
+    if (directed_index_ < 0 || directed_index_ > 1) {
+        throw std::invalid_argument("directed_index must be 0 or 1");
+    }
+    if ((variable_ != Variable::Q2 && variable_ != Variable::BjorkenY &&
+         variable_ != Variable::RecoilY) ||
+        (q2_mode_ != Q2Mode::Geometry && q2_mode_ != Q2Mode::Propagator &&
+         q2_mode_ != Q2Mode::Tabulated) ||
+        (mode_ != DetectorDirected2BodyChannel::Mode::Cone &&
+         mode_ != DetectorDirected2BodyChannel::Mode::Volume)) {
+        throw std::invalid_argument("Unknown directed scattering mode or variable");
+    }
     target_volume_ = ResolveDetectorDirectedVolume(
         *target_, mode_ == DetectorDirected2BodyChannel::Mode::Volume, volume);
 
@@ -149,7 +160,8 @@ DetectorDirectedScatteringChannel::DetectorDirectedScatteringChannel(
                 "DetectorDirectedScatteringChannel: Propagator/Tabulated Q2 mode "
                 "requires Variable::Q2");
         }
-        if (q2_mode_ == Q2Mode::Propagator && mediator_mass_ <= 0.0) {
+        if (q2_mode_ == Q2Mode::Propagator &&
+            (!std::isfinite(mediator_mass_) || !(mediator_mass_ > 0.0))) {
             throw std::runtime_error(
                 "DetectorDirectedScatteringChannel: Propagator Q2 mode requires "
                 "mediator_mass > 0");

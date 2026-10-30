@@ -480,19 +480,20 @@ PYBIND11_MODULE(injection,m) {
            double volume) {
           if (factorization == DetectorDirected3BodyChannel::Factorization::Direct) {
             return std::make_shared<DetectorDirected3BodyChannel>(
-                target, directed_index,
+                target, directed_index == -1 ? 0 : directed_index,
                 mass_mode, resonance_mass, resonance_width,
                 power_law_nu, power_law_offset,
                 mode, topology, mass_cdf_nodes, mass_cdf_values, volume);
+          }
+          if (factorization != DetectorDirected3BodyChannel::Factorization::Recursive) {
+            throw siren::utilities::ConfigurationError("Unknown three-body factorization");
           }
           if (spectator_index < 0 || pair_first_index < 0 || pair_second_index < 0) {
             throw siren::utilities::ConfigurationError(
                 "factorization=ThreeBodyMode.Recursive requires spectator_index, "
                 "pair_first_index, and pair_second_index");
           }
-          int directed_pair_index =
-              (directed_index == pair_first_index || directed_index == pair_second_index)
-                  ? directed_index : pair_first_index;
+          int directed_pair_index = directed_index == -1 ? pair_first_index : directed_index;
           return std::make_shared<DetectorDirected3BodyChannel>(
               target, spectator_index, pair_first_index, pair_second_index,
               directed_pair_index,
@@ -501,7 +502,7 @@ PYBIND11_MODULE(injection,m) {
               mode, topology, mass_cdf_nodes, mass_cdf_values, volume);
         }),
         arg("factorization"), arg("target"),
-        arg("directed_index") = 0,
+        arg("directed_index") = -1,
         arg("spectator_index") = -1,
         arg("pair_first_index") = -1,
         arg("pair_second_index") = -1,

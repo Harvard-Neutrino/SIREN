@@ -826,7 +826,6 @@ inline DirectedStepResult IsotropicBoostStep(
 {
     DirectedStepResult result;
     double p_rest = TwoBodyRestMomentum(parent_mass, daughter_mass, other_mass);
-    double E_rest = TwoBodyRestEnergy(parent_mass, daughter_mass, other_mass);
     double p_parent = std::sqrt(parent_px*parent_px + parent_py*parent_py + parent_pz*parent_pz);
 
     double cos_theta = 2.0 * random->Uniform(0, 1) - 1.0;

@@ -34,6 +34,9 @@ DetectorDirected2BodyChannel::DetectorDirected2BodyChannel(
         throw std::runtime_error(
             "DetectorDirected2BodyChannel daughter_index must be 0 or 1");
     }
+    if (mode_ != Mode::Cone && mode_ != Mode::Volume) {
+        throw std::invalid_argument("Unknown directed two-body mode");
+    }
     target_volume_ = ResolveDetectorDirectedVolume(
         *target_, mode_ == Mode::Volume, volume);
 }

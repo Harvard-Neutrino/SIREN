@@ -128,3 +128,27 @@ def test_directed_fraction_cannot_silently_drop_fallback(fraction):
 def test_conflicting_directed_factories_fail_explicitly():
     with pytest.raises(siren.utilities.ConfigurationError, match='cannot be combined'):
         siren.Directed('Gamma', box(), tiling=2, variable=siren.injection.ScatteringVariable.Q2)
+
+@pytest.mark.parametrize('case', ['two_mode', 'scatter_index', 'scatter_variable',
+                                  'nan_mediator', 'topology', 'spectator', 'factorization'])
+def test_invalid_directed_configuration_is_rejected_at_construction(case):
+    j = siren.injection
+    common = dict(factorization=j.ThreeBodyMode.Recursive, target=box(),
+                  spectator_index=0, pair_first_index=1, pair_second_index=2)
+    factories = {
+        'two_mode': lambda: j.DetectorDirected2BodyChannel(box(), 0, j.DirectedMode(33)),
+        'scatter_index': lambda: j.DetectorDirectedScatteringChannel(box(), directed_index=2),
+        'scatter_variable': lambda: j.DetectorDirectedScatteringChannel(box(), variable=j.ScatteringVariable(33)),
+        'nan_mediator': lambda: j.DetectorDirectedScatteringChannel(box(), q2_mode=j.ScatteringQ2Mode.Propagator, mediator_mass=math.nan),
+        'topology': lambda: j.DetectorDirected3BodyChannel(**common, topology=j.PhaseSpaceTopology.Decay2Body),
+        'spectator': lambda: j.DetectorDirected3BodyChannel(**common, directed_index=0),
+        'factorization': lambda: j.DetectorDirected3BodyChannel(target=box(), factorization=j.ThreeBodyMode(33)),
+    }
+    with pytest.raises((ValueError, RuntimeError)):
+        factories[case]()
+
+
+@pytest.mark.parametrize('bounds', [(1., 1.), (2., 1.), (0., math.inf)])
+def test_propagator_map_requires_a_normalizable_interval(bounds):
+    with pytest.raises(ValueError):
+        siren.injection.PropagatorMapping(.1, *bounds)
