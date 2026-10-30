@@ -226,3 +226,61 @@ def test_active_cone_density_matches_massless_aberration(gamma):
         oracle = float(gamma**2 * (1-beta*c)**2 / omega)
         assert channel.DirectingActive(r)
         assert channel.Density(None, r) == pytest.approx(oracle, rel=3e-8, abs=0)
+
+
+def scattering_channel_and_record(qmode):
+    j = siren.injection
+    kwargs = {'Geometry': {}, 'Propagator': {'mediator_mass': .2},
+              'Tabulated': {'q2_cdf_nodes': [0., 1., 10.],
+                            'q2_cdf_values': [0., .5, 1.]}}[qmode]
+    channel = j.DetectorDirectedScatteringChannel(
+        box((0, 0, 100)), q2_mode=getattr(j.ScatteringQ2Mode, qmode), **kwargs)
+    r = siren.dataclasses.InteractionRecord()
+    sig = siren.dataclasses.InteractionSignature()
+    sig.primary_type = siren.particles.NuMu
+    sig.target_type = siren.particles.O16Nucleus
+    sig.secondary_types = [siren.particles.NuMu, siren.particles.O16Nucleus]
+    r.signature = sig
+    r.primary_mass = .1
+    r.primary_momentum = [math.hypot(.1, .99), 0., 0., .99]
+    r.target_mass = .938
+    r.secondary_masses = [.1, .938]
+    r.secondary_momenta = [[0.] * 4] * 2
+    r.secondary_helicities = [0., 0.]
+    r.interaction_vertex = [0., 0., 0.]
+    return channel, r
+
+
+@pytest.mark.parametrize('qmode', ['Geometry', 'Propagator', 'Tabulated'])
+@pytest.mark.parametrize('bad_input', ['off_shell', 'zero_target', 'nan_target',
+                                      'negative_mass', 'nan_momentum', 'zero_energy'])
+def test_scattering_invalid_initial_state_has_zero_support(qmode, bad_input):
+    channel, r = scattering_channel_and_record(qmode)
+    if bad_input == 'off_shell':
+        r.primary_momentum = [1., 0., 0., .99]
+    elif bad_input == 'zero_target':
+        r.target_mass = 0.
+    elif bad_input == 'nan_target':
+        r.target_mass = math.nan
+    elif bad_input == 'negative_mass':
+        r.primary_mass = -.1
+    elif bad_input == 'nan_momentum':
+        r.primary_momentum = [1., 0., 0., math.nan]
+    else:
+        r.primary_mass = 0.
+        r.primary_momentum = [0., 0., 0., 0.]
+    assert channel.Density(None, r) == 0.
+    assert not channel.DirectingActive(r)
+    with pytest.raises(siren.utilities.InjectionFailure):
+        channel.Sample(siren.utilities.SIREN_random(19), None, r)
+
+
+@pytest.mark.parametrize('qmode', ['Geometry', 'Propagator', 'Tabulated'])
+def test_scattering_retains_supported_rounded_source(qmode):
+    channel, r = scattering_channel_and_record(qmode)
+    raw = list(r.primary_momentum)
+    raw[0] *= 1 + 1e-6
+    r.primary_momentum = raw
+    channel.Sample(siren.utilities.SIREN_random(19), None, r)
+    assert channel.Density(None, r) > 0.
+    np.testing.assert_array_equal(r.primary_momentum, raw)

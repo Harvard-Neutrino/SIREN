@@ -265,4 +265,3 @@ class TestNameResolution:
         ch = channels.scatter_toward(box, daughter="NotAParticle")
         with pytest.raises(siren.utilities.ConfigurationError):
             ch._build(sig)
-

@@ -689,4 +689,3 @@ TwoCompatibleChannels() {
 }
 
 } // namespace
-

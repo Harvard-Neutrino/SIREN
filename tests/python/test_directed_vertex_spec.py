@@ -214,4 +214,3 @@ class TestDirected:
         v = Vertex(sig.primary_type, xs, distributions=[], kinematics=d)
         proc = v.compile(is_primary=True)
         assert proc.HasPhaseSpace(sig)
-
