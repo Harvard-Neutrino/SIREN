@@ -90,5 +90,3 @@ def test_log_mapping_matches_powerlaw_limit():
     pl = injection.PowerLawMapping(0.999, 0.0, lo, hi)  # nu just below 1
     for r in np.linspace(0.05, 0.95, 19):
         assert log_map.Forward(r) == pytest.approx(pl.Forward(r), rel=2e-2)
-
-

@@ -508,13 +508,3 @@ def test_tiling_covers_separated_regions_single_misses():
     tiled = dt.build_subtraction_tiling([A, B], volume_fn=lambda g: 8.0)
     ti_A, ti_B = directed_hits(tiled, 33)
     assert ti_A > 0.2 and ti_B > 0.2              # tiling directs at BOTH
-
-
-
-
-
-
-
-
-
-
