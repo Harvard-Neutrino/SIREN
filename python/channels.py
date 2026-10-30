@@ -405,7 +405,7 @@ def toward(daughter: Union[int, str], target, *, mode=None, volume=-1.0,
     """DetectorDirected2BodyChannel toward `target`, daughter named by particle.
 
     If `fraction` is given and < 1, returns the mixture
-    `fraction*toward(...) + (1-fraction)*isotropic(...)` (a physical
+    `fraction*toward(...) + (1-fraction)*isotropic(...)` (an isotropic
     fallback for events that miss the target); otherwise a bare directed
     Channel.
     """
@@ -435,7 +435,7 @@ def toward_3body(directed: Union[int, str], target, *,
                   spectator: Optional[Union[int, str]] = None,
                   strategy: str = "recursive",
                   pair_mass: Optional[PairMass] = None,
-                  mode=None) -> Channel:
+                  mode=None, volume=-1.0) -> Channel:
     """DetectorDirected3BodyChannel toward `target`.
 
     strategy='direct' uses the direct ctor (directed_index only, other two
@@ -475,6 +475,7 @@ def toward_3body(directed: Union[int, str], target, *,
             mode=mode,
             mass_cdf_nodes=pair_mass.mass_cdf_nodes,
             mass_cdf_values=pair_mass.mass_cdf_values,
+            volume=volume,
         )
         if strategy == "direct":
             return siren.injection.DetectorDirected3BodyChannel(
@@ -504,7 +505,8 @@ def toward_3body(directed: Union[int, str], target, *,
 
 
 def scatter_toward(target, *, daughter=None, variable=None, q2_mode=None,
-                    mediator_mass=0.0, mode=None) -> Channel:
+                    mediator_mass=0.0, q2_cdf_nodes=(), q2_cdf_values=(),
+                    mode=None, volume=-1.0) -> Channel:
     """DetectorDirectedScatteringChannel toward `target`.
 
     `daughter` names which outgoing particle is directed toward the target,
@@ -525,7 +527,8 @@ def scatter_toward(target, *, daughter=None, variable=None, q2_mode=None,
                else _resolve_index(signature, daughter,
                                    "scatter_toward(daughter=...)"))
         return siren.injection.DetectorDirectedScatteringChannel(
-            target, idx, variable, mode, q2_mode, mediator_mass)
+            target, idx, variable, mode, q2_mode, mediator_mass,
+            list(q2_cdf_nodes), list(q2_cdf_values), volume)
 
     label = ("scatter_toward" if daughter is None
              else "scatter_toward({!r})".format(daughter))
@@ -559,8 +562,7 @@ def tile(geometry, grid: int, method: str = "disjoint",
 
     `grid` is the number of cells per axis (an axis-aligned Box region is
     required, matching directed_tiling.grid_cells).  method='disjoint'
-    routes through directed_tiling.disjointify on the grid cells (already
-    disjoint by construction, so disjointify is a no-op composition step
+    uses the grid cells directly (they are disjoint by construction
     kept for a uniform call path); any other method raises
     ConfigurationError.  Grid cells of an axis-aligned Box have exact,
     equal volumes, which the tiling supplies to the Volume-mode channels;
@@ -578,7 +580,7 @@ def tile(geometry, grid: int, method: str = "disjoint",
             resolved_mode = mode
         idx = _resolve_index(signature, daughter, "tile(daughter=...)")
         cells = _tiling.grid_cells(geometry, grid)
-        disjoint_cells = _tiling.disjointify(cells)
+        disjoint_cells = cells
         chan_factory = _tiling.default_2body_factory(idx, resolved_mode)
         if volume_fn is not None:
             tile_volume_fn = volume_fn

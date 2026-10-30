@@ -27,6 +27,19 @@ using siren::dataclasses::PrimaryMomentum;
 using siren::dataclasses::SecondaryMomentum;
 using siren::dataclasses::SetSecondaryMomentum;
 
+FourMomentum BeamMomentum(siren::dataclasses::InteractionRecord const & record) {
+    auto raw = PrimaryMomentum(record);
+    auto beam = FourMomentum::FromMass(record.primary_mass, raw.Momentum());
+    if (!(beam.Energy() > 0.0) || !std::isfinite(raw.Energy()) ||
+        std::abs(raw.Energy() - beam.Energy()) > 2e-5 * beam.Energy() ||
+        !std::isfinite(record.target_mass) || !(record.target_mass > 0.0)) {
+        throw siren::utilities::InjectionFailure(
+            siren::utilities::FailureReason::KinematicallyForbidden,
+            "Directed scattering needs an on-shell beam and a positive stationary target mass");
+    }
+    return beam;
+}
+
 double MomentumMagnitude(double e, double m) {
     double p2 = e * e - m * m;
     if (p2 <= 0.0) return 0.0;
@@ -205,13 +218,14 @@ bool DetectorDirectedScatteringChannel::DirectingActive(
     }
 
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = PrimaryMomentum(record);
+    FourMomentum p1 = BeamMomentum(record);
     double m2 = record.target_mass;
     double m3 = record.secondary_masses[directed_index_];
     double m4 = record.secondary_masses[other_index];
     auto total = p1 + FourMomentum::FromMass(m2, {0, 0, 0});
-    double s = total.Energy() * total.Energy() - total.Momentum() * total.Momentum();
+    double s = record.primary_mass * record.primary_mass + m2 * m2 + 2.0 * m2 * p1.Energy();
     if (s <= 0.0 || std::sqrt(s) <= m3 + m4) return false;
+    total = FourMomentum::FromMass(std::sqrt(s), p1.Momentum());
 
     siren::math::Vector3D vertex = siren::dataclasses::InteractionVertex(record);
     auto geometry = detail::ClassifyDirectedRegime(
@@ -238,7 +252,7 @@ void DetectorDirectedScatteringChannel::Sample(
     }
 
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = PrimaryMomentum(record);
+    FourMomentum p1 = BeamMomentum(record);
     double m1 = record.primary_mass;
     double m2 = record.target_mass;
     double m3 = record.secondary_masses[directed_index_];
@@ -246,11 +260,12 @@ void DetectorDirectedScatteringChannel::Sample(
 
     auto p2 = FourMomentum::FromMass(m2, {0, 0, 0});
     auto total = p1 + p2;
-    double s = total.Energy() * total.Energy() - total.Momentum() * total.Momentum();
+    double s = record.primary_mass * record.primary_mass + m2 * m2 + 2.0 * m2 * p1.Energy();
     if (s <= 0.0 || std::sqrt(s) <= m3 + m4) {
         throw siren::utilities::InjectionFailure(
             "DetectorDirectedScatteringChannel: no physical 2->2 phase space");
     }
+    total = FourMomentum::FromMass(std::sqrt(s), p1.Momentum());
 
     siren::math::Vector3D vertex = siren::dataclasses::InteractionVertex(record);
 
@@ -293,7 +308,7 @@ double DetectorDirectedScatteringChannel::Density(
     }
 
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = PrimaryMomentum(record);
+    FourMomentum p1 = BeamMomentum(record);
     FourMomentum directed = SecondaryMomentum(record, directed_index_);
     double p1_mag = p1.Momentum().magnitude();
     double directed_mag = directed.Momentum().magnitude();
@@ -306,8 +321,9 @@ double DetectorDirectedScatteringChannel::Density(
 
     auto p2 = FourMomentum::FromMass(m2, {0, 0, 0});
     auto total = p1 + p2;
-    double s = total.Energy() * total.Energy() - total.Momentum() * total.Momentum();
+    double s = record.primary_mass * record.primary_mass + m2 * m2 + 2.0 * m2 * p1.Energy();
     if (s <= 0.0 || std::sqrt(s) <= m3 + m4) return 0.0;
+    total = FourMomentum::FromMass(std::sqrt(s), p1.Momentum());
 
     siren::math::Vector3D vertex = siren::dataclasses::InteractionVertex(record);
 
@@ -333,7 +349,7 @@ void DetectorDirectedScatteringChannel::SampleFromQ2Mapping(
     siren::dataclasses::InteractionRecord & record) const
 {
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = PrimaryMomentum(record);
+    FourMomentum p1 = BeamMomentum(record);
     double m1 = record.primary_mass;
     double m2 = record.target_mass;
     double m3 = record.secondary_masses[directed_index_];
@@ -404,7 +420,7 @@ double DetectorDirectedScatteringChannel::DensityFromQ2Mapping(
     siren::dataclasses::InteractionRecord const & record) const
 {
     int other_index = 1 - directed_index_;
-    FourMomentum p1 = PrimaryMomentum(record);
+    FourMomentum p1 = BeamMomentum(record);
     FourMomentum directed = SecondaryMomentum(record, directed_index_);
     if (p1.Energy() <= 0.0 || p1.Momentum().magnitude() <= 0.0 || directed.Momentum().magnitude() <= 0.0) {
         return 0.0;
