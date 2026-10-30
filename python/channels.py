@@ -538,11 +538,8 @@ def scatter_toward(target, *, daughter=None, variable=None, q2_mode=None,
 class Tiling(_MixtureNode):
     """A grid/disjoint tiling of a geometry, treated as one Channel-like unit.
 
-    Wraps directed_tiling.build_grid_tiling/disjointify as a fixed nested
-    mixture (see
-    NestedMixtureChannel), never touching the outer mixture's weight for
-    it directly.  Participates in Mixture algebra the same way a Channel
-    does.
+    Wraps the tiles as a fixed NestedMixtureChannel and participates in
+    Mixture algebra like a Channel. Its weight belongs to the outer mixture.
     """
 
     def __init__(self, factory: Callable, weight: float = 1.0,
@@ -562,8 +559,8 @@ def tile(geometry, grid: int, method: str = "disjoint",
 
     `grid` is the number of cells per axis (an axis-aligned Box region is
     required, matching directed_tiling.grid_cells).  method='disjoint'
-    uses the grid cells directly (they are disjoint by construction
-    kept for a uniform call path); any other method raises
+    uses the grid cells directly, since they are disjoint by construction;
+    any other method raises
     ConfigurationError.  Grid cells of an axis-aligned Box have exact,
     equal volumes, which the tiling supplies to the Volume-mode channels;
     pass `volume_fn` (a callable geometry -> volume) to override.
