@@ -19,6 +19,15 @@
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/PhaseSpaceDecay.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
+#include "../../public/SIREN/injection/InvariantMassMapping.h"
+
+#include "../../public/SIREN/injection/DetectorDirected2BodyChannel.h"
+#include "../../public/SIREN/injection/DetectorDirected3BodyChannel.h"
+#include "../../public/SIREN/injection/DetectorDirectedAngularSectorChannel.h"
+#include "../../public/SIREN/injection/DetectorDirectedScatteringChannel.h"
+#include "../../public/SIREN/injection/GeometryVolume.h"
+#include "../../public/SIREN/injection/InvariantMassMapping.h"
+
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
 #include "../../public/SIREN/injection/TwoBodyKinematics.h"
 
@@ -127,7 +136,8 @@ PYBIND11_MODULE(injection,m) {
     .value("NoPathThroughVolume", siren::utilities::FailureReason::NoPathThroughVolume)
     .value("NoTargetsOnPath", siren::utilities::FailureReason::NoTargetsOnPath)
     .value("NoColumnDepthSolution", siren::utilities::FailureReason::NoColumnDepthSolution)
-    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden);
+    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden)
+    .value("SamplingFailure", siren::utilities::FailureReason::SamplingFailure);
 
   enum_<PhaseSpaceMeasure::Type>(m, "PhaseSpaceMeasureType")
     .value("CosThetaRest", PhaseSpaceMeasure::Type::CosThetaRest)
@@ -317,6 +327,265 @@ PYBIND11_MODULE(injection,m) {
     ;
 
   // A mixture used as one channel of another mixture.
+  enum_<DetectorDirected2BodyChannel::Mode>(m, "DirectedMode")
+    .value("Cone", DetectorDirected2BodyChannel::Mode::Cone,
+           "Bias into a fixed cone around the detector direction; simple but "
+           "leaves solid angle outside the cone unsampled.")
+    .value("Volume", DetectorDirected2BodyChannel::Mode::Volume,
+           "Bias toward the target volume's actual angular extent; adapts to "
+           "detector geometry.");
+
+  class_<DetectorDirected2BodyChannel, std::shared_ptr<DetectorDirected2BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected2BodyChannel",
+      "Directs one daughter of a two-body decay toward a target volume. Topology "
+      "Decay2Body, Measure SolidAngleRest. Use for 2-body decays where one "
+      "daughter is the signal to point at the detector.")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int, DetectorDirected2BodyChannel::Mode, double>(),
+         arg("target"), arg("daughter_index") = 0,
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+         arg("volume") = -1.0,
+         "target: geometry to bias toward.\n"
+         "daughter_index: which of the two final-state particles is directed.\n"
+         "mode: DirectedMode.Cone or DirectedMode.Volume.\n"
+         "volume: exact target volume for Volume mode; -1 to derive it from geometry.")
+    .def("SetVolume", &DetectorDirected2BodyChannel::SetVolume)
+    .def("DirectingActive", &DetectorDirected2BodyChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirected2BodyChannel>),
+        &(siren::serialization::pickle_load<DetectorDirected2BodyChannel>)
+    ))
+    ;
+
+  class_<DetectorDirectedAngularSectorChannel, std::shared_ptr<DetectorDirectedAngularSectorChannel>, PhaseSpaceChannel>(m, "DetectorDirectedAngularSectorChannel",
+      "Directs a two-body daughter into one angular sector (u, phi bounds) of the "
+      "target, for disjoint tiling of the target's angular extent across channels. "
+      "Topology Decay2Body, Measure SolidAngleRest.")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, double, double, double, double, int>(),
+         arg("target"), arg("u_lo"), arg("u_hi"), arg("phi_lo"), arg("phi_hi"),
+         arg("daughter_index") = 0,
+         "target: geometry the sector is defined against.\n"
+         "u_lo, u_hi: bounds in cos(theta) (u = cos theta) for this sector.\n"
+         "phi_lo, phi_hi: azimuthal bounds for this sector.\n"
+         "daughter_index: which of the two final-state particles is directed.")
+    .def("DirectingActive", &DetectorDirectedAngularSectorChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirectedAngularSectorChannel>),
+        &(siren::serialization::pickle_load<DetectorDirectedAngularSectorChannel>)
+    ))
+    ;
+
+  // 1-D importance maps: one object provides BOTH the draw (Forward) and
+  // its own normalized density (Density), so a model/channel routing both
+  // through a shared instance cannot let sampling and density drift apart
+  // (Contract C1).  Models consume these; they do not subclass in Python,
+  // so no trampoline is needed.
+  class_<Mapping1D, std::shared_ptr<Mapping1D>>(m, "Mapping1D",
+      "Base interface for a 1-D importance map: one object provides both the draw "
+      "(Forward, from a uniform variate) and its own normalized density (Density) "
+      "over the same variable, so a model/channel routing both through a shared "
+      "instance cannot let sampling and density drift apart.")
+    .def("Forward", &Mapping1D::Forward, arg("r"))
+    .def("Inverse", &Mapping1D::Inverse, arg("x"))
+    .def("Density", &Mapping1D::Density, arg("x"));
+
+  class_<BreitWignerMapping, std::shared_ptr<BreitWignerMapping>, Mapping1D>(m, "BreitWignerMapping",
+      "Breit-Wigner-shaped density in s over [s_min, s_max]; peaks at s = mass^2 "
+      "with width set by width.")
+    .def(init<double, double, double, double>(),
+         arg("mass"), arg("width"), arg("s_min"), arg("s_max"));
+
+  class_<PowerLawMapping, std::shared_ptr<PowerLawMapping>, Mapping1D>(m, "PowerLawMapping",
+      "Power-law-shaped density (index nu, offset m2) over [s_min, s_max]; use for "
+      "a heavy-tailed invariant-mass or Q^2 variable with no resonance.")
+    .def(init<double, double, double, double>(),
+         arg("nu"), arg("m2"), arg("s_min"), arg("s_max"));
+
+  class_<TabulatedMapping, std::shared_ptr<TabulatedMapping>, Mapping1D>(m, "TabulatedMapping",
+      "Density defined by a user-supplied cumulative table (s_nodes, cdf_nodes) "
+      "over [s_min, s_max]; use when the target density has no closed form.")
+    .def(init<std::vector<double>, std::vector<double>, double, double>(),
+         arg("s_nodes"), arg("cdf_nodes"), arg("s_min"), arg("s_max"));
+
+  class_<PropagatorMapping, std::shared_ptr<PropagatorMapping>, Mapping1D>(m, "PropagatorMapping",
+      "1/(x^2 + m2)-shaped density for propagator-peaked variables like off-shell "
+      "Q^2 or invariant mass.")
+    .def(init<double, double, double>(),
+         arg("m2"), arg("x_min"), arg("x_max"));
+
+  class_<UniformMapping, std::shared_ptr<UniformMapping>, Mapping1D>(m, "UniformMapping",
+      "Flat density over [s_min, s_max].")
+    .def(init<double, double>(),
+         arg("s_min"), arg("s_max"));
+
+  class_<LogMapping, std::shared_ptr<LogMapping>, Mapping1D>(m, "LogMapping",
+      "Log-uniform density over [x_min, x_max]; use for a variable spanning "
+      "multiple orders of magnitude.")
+    .def(init<double, double>(),
+         arg("x_min"), arg("x_max"));
+
+  class_<ExponentialMapping, std::shared_ptr<ExponentialMapping>, Mapping1D>(m, "ExponentialMapping",
+      "Exponential density with mean tau over [x_min, x_max].")
+    .def(init<double, double, double>(),
+         arg("tau"), arg("x_min"), arg("x_max"));
+
+  class_<GaussianMapping, std::shared_ptr<GaussianMapping>, Mapping1D>(m, "GaussianMapping",
+      "Gaussian density (mean mu, width sigma) over [x_min, x_max].")
+    .def(init<double, double, double, double>(),
+         arg("mu"), arg("sigma"), arg("x_min"), arg("x_max"));
+
+  enum_<DetectorDirected3BodyChannel::InvariantMassMode>(m, "InvariantMassMode")
+    .value("Uniform", DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
+           "Flat invariant-mass sampling.")
+    .value("BreitWigner", DetectorDirected3BodyChannel::InvariantMassMode::BreitWigner,
+           "Breit-Wigner resonance shape (needs resonance_mass, resonance_width).")
+    .value("PowerLaw", DetectorDirected3BodyChannel::InvariantMassMode::PowerLaw,
+           "Power-law tail (needs power_law_nu, power_law_offset).")
+    .value("Tabulated", DetectorDirected3BodyChannel::InvariantMassMode::Tabulated,
+           "User-supplied cumulative table (mass_cdf_nodes/values).");
+
+  enum_<DetectorDirected3BodyChannel::Factorization>(m, "ThreeBodyMode")
+    .value("Direct", DetectorDirected3BodyChannel::Factorization::Direct,
+           "Bias one daughter directly toward the detector; the invariant mass "
+           "pairs the other two. Best when the biased daughter is the signal "
+           "and the spectator pair has no resonance.")
+    .value("Recursive", DetectorDirected3BodyChannel::Factorization::Recursive,
+           "Bias a two-body sub-decay (a resonance pair) toward the detector, "
+           "then decay the pair internally. Best when the pair has resonance "
+           "structure (e.g. an off-shell mediator sampled with Breit-Wigner).");
+
+  class_<DetectorDirected3BodyChannel, std::shared_ptr<DetectorDirected3BodyChannel>, PhaseSpaceChannel>(m, "DetectorDirected3BodyChannel",
+      "Directs a three-body decay toward a target volume, factorized per "
+      "ThreeBodyMode. Topology Decay3Body, Measure Recursive2Body. Use for "
+      "3-body BSM decays where a signal daughter or resonance pair should "
+      "point at the detector.")
+    // Keyword ctor: factorization selects Direct vs Recursive explicitly, so
+    // pybind disambiguates on the leading Factorization-typed argument rather
+    // than on argument count. Constructs via the underlying Direct/Recursive
+    // C++ ctors, so objects built here are byte-identical to ones built there.
+    .def(init(
+        [](DetectorDirected3BodyChannel::Factorization factorization,
+           std::shared_ptr<siren::geometry::Geometry const> target,
+           int directed_index,
+           int spectator_index,
+           int pair_first_index,
+           int pair_second_index,
+           DetectorDirected3BodyChannel::InvariantMassMode mass_mode,
+           double resonance_mass,
+           double resonance_width,
+           double power_law_nu,
+           double power_law_offset,
+           DetectorDirected2BodyChannel::Mode mode,
+           PhaseSpaceTopology topology,
+           std::vector<double> mass_cdf_nodes,
+           std::vector<double> mass_cdf_values,
+           double volume) {
+          if (factorization == DetectorDirected3BodyChannel::Factorization::Direct) {
+            return std::make_shared<DetectorDirected3BodyChannel>(
+                target, directed_index,
+                mass_mode, resonance_mass, resonance_width,
+                power_law_nu, power_law_offset,
+                mode, topology, mass_cdf_nodes, mass_cdf_values, volume);
+          }
+          if (spectator_index < 0 || pair_first_index < 0 || pair_second_index < 0) {
+            throw siren::utilities::ConfigurationError(
+                "factorization=ThreeBodyMode.Recursive requires spectator_index, "
+                "pair_first_index, and pair_second_index");
+          }
+          int directed_pair_index =
+              (directed_index == pair_first_index || directed_index == pair_second_index)
+                  ? directed_index : pair_first_index;
+          return std::make_shared<DetectorDirected3BodyChannel>(
+              target, spectator_index, pair_first_index, pair_second_index,
+              directed_pair_index,
+              mass_mode, resonance_mass, resonance_width,
+              power_law_nu, power_law_offset,
+              mode, topology, mass_cdf_nodes, mass_cdf_values, volume);
+        }),
+        arg("factorization"), arg("target"),
+        arg("directed_index") = 0,
+        arg("spectator_index") = -1,
+        arg("pair_first_index") = -1,
+        arg("pair_second_index") = -1,
+        arg("mass_mode") = DetectorDirected3BodyChannel::InvariantMassMode::Uniform,
+        arg("resonance_mass") = 0.0, arg("resonance_width") = 0.0,
+        arg("power_law_nu") = 0.8, arg("power_law_offset") = 0.0,
+        arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+        arg("topology") = PhaseSpaceTopology::Decay3Body,
+        arg("mass_cdf_nodes") = std::vector<double>{},
+        arg("mass_cdf_values") = std::vector<double>{},
+        arg("volume") = -1.0,
+        "Keyword constructor selecting the factorization explicitly via "
+        "factorization=ThreeBodyMode.Direct or ThreeBodyMode.Recursive.\n"
+        "factorization: ThreeBodyMode.Direct or ThreeBodyMode.Recursive.\n"
+        "target: geometry to bias toward.\n"
+        "directed_index: (Direct) which daughter is biased toward target; "
+        "(Recursive) which member of the pair is biased, defaulting to "
+        "pair_first_index if not one of the pair indices.\n"
+        "spectator_index, pair_first_index, pair_second_index: (Recursive only) "
+        "indices of the spectator daughter and the resonance-pair daughters.\n"
+        "mass_mode: InvariantMassMode governing the paired/spectator invariant mass.\n"
+        "resonance_mass, resonance_width: used when mass_mode is BreitWigner.\n"
+        "power_law_nu, power_law_offset: used when mass_mode is PowerLaw.\n"
+        "mode: DirectedMode.Cone or DirectedMode.Volume for the directed sub-step.\n"
+        "topology: PhaseSpaceTopology tag carried by the channel.\n"
+        "mass_cdf_nodes, mass_cdf_values: used when mass_mode is Tabulated.\n"
+        "volume: exact target volume override (skips the viability estimate).")
+    .def("SetVolume", &DetectorDirected3BodyChannel::SetVolume)
+    .def("DirectingActive", &DetectorDirected3BodyChannel::DirectingActive, arg("record"))
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirected3BodyChannel>),
+        &(siren::serialization::pickle_load<DetectorDirected3BodyChannel>)
+    ))
+    ;
+
+  enum_<DetectorDirectedScatteringChannel::Variable>(m, "ScatteringVariable")
+    .value("Q2", DetectorDirectedScatteringChannel::Variable::Q2,
+           "Sample in momentum transfer Q^2.")
+    .value("BjorkenY", DetectorDirectedScatteringChannel::Variable::BjorkenY,
+           "Sample in inelasticity y.")
+    .value("RecoilY", DetectorDirectedScatteringChannel::Variable::RecoilY,
+           "Sample in recoil-energy fraction.");
+
+  enum_<DetectorDirectedScatteringChannel::Q2Mode>(m, "ScatteringQ2Mode")
+    .value("Geometry", DetectorDirectedScatteringChannel::Q2Mode::Geometry,
+           "Q^2 range set by detector geometry (preserves current behavior).")
+    .value("Propagator", DetectorDirectedScatteringChannel::Q2Mode::Propagator,
+           "Q^2 sampled from the propagator peak (lower variance when the "
+           "density is propagator-peaked).")
+    .value("Tabulated", DetectorDirectedScatteringChannel::Q2Mode::Tabulated,
+           "Q^2 from a user CDF table (q2_cdf_nodes/values).");
+
+  class_<DetectorDirectedScatteringChannel, std::shared_ptr<DetectorDirectedScatteringChannel>, PhaseSpaceChannel>(m, "DetectorDirectedScatteringChannel",
+      "Directs the recoil of a 2->2 scatter toward a target volume. Topology "
+      "Scatter2to2, with an explicit-azimuth Q2 or y measure. Use for upscattering where the "
+      "outgoing state should point at the detector.")
+    .def(init<std::shared_ptr<siren::geometry::Geometry const>, int,
+              DetectorDirectedScatteringChannel::Variable,
+              DetectorDirected2BodyChannel::Mode,
+              DetectorDirectedScatteringChannel::Q2Mode, double,
+              std::vector<double>, std::vector<double>, double>(),
+         arg("target"), arg("directed_index") = 0,
+         arg("variable") = DetectorDirectedScatteringChannel::Variable::Q2,
+         arg("mode") = DetectorDirected2BodyChannel::Mode::Volume,
+         arg("q2_mode") = DetectorDirectedScatteringChannel::Q2Mode::Geometry,
+         arg("mediator_mass") = 0.0,
+         arg("q2_cdf_nodes") = std::vector<double>{},
+         arg("q2_cdf_values") = std::vector<double>{},
+         arg("volume") = -1.0,
+         "target: geometry to bias the recoil toward.\n"
+         "directed_index: which outgoing particle is directed.\n"
+         "variable: ScatteringVariable sampled (Q2, BjorkenY, or RecoilY).\n"
+         "mode: DirectedMode.Cone or DirectedMode.Volume for the directed sub-step.\n"
+         "q2_mode: ScatteringQ2Mode governing how the Q^2 range/density is chosen.\n"
+         "mediator_mass: propagator mass used when q2_mode is Propagator.\n"
+         "q2_cdf_nodes, q2_cdf_values: used when q2_mode is Tabulated.\n"
+         "volume: exact target volume override (skips the viability estimate).")
+    .def("SetVolume", &DetectorDirectedScatteringChannel::SetVolume)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<DetectorDirectedScatteringChannel>),
+        &(siren::serialization::pickle_load<DetectorDirectedScatteringChannel>)
+    ))
+    ;
+
   class_<NestedMixtureChannel, std::shared_ptr<NestedMixtureChannel>, PhaseSpaceChannel>(m, "NestedMixtureChannel")
     .def(init<std::shared_ptr<MultiChannelPhaseSpace>>(), arg("mixture"))
     .def_readwrite("mixture", &NestedMixtureChannel::mixture)
@@ -402,6 +671,17 @@ PYBIND11_MODULE(injection,m) {
     .def(pybind11::pickle(
         &(siren::serialization::pickle_save<PhaseSpaceDecay>),
         &(siren::serialization::pickle_load<PhaseSpaceDecay>)));
+
+  m.def("geometry_volume", [](
+      std::shared_ptr<siren::geometry::Geometry const> const & geometry) {
+    if (!geometry) throw std::invalid_argument("geometry_volume requires a geometry");
+    double volume = ExactGeometryVolume(*geometry);
+    if (!std::isfinite(volume)) {
+      throw std::invalid_argument(
+          "exact volume is unavailable for this geometry; provide volume_fn");
+    }
+    return volume;
+  });
 
   // Process
 

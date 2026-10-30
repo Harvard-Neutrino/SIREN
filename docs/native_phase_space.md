@@ -186,3 +186,6 @@ Momentum values and raw record conversions are documented in [four-momentum and 
 
 For selected decay channels, inclusive parent widths, and opt-in upstream
 survival, see [native decay accounting](native_decay_accounting.md).
+
+Directed decay/scattering proposals, fixed mappings and tiling are documented in
+[directed sampling](directed_sampling.md).
