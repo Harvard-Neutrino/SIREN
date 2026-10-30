@@ -101,3 +101,5 @@ package_add_test(UnitTest_InvariantMassMapping ${PROJECT_SOURCE_DIR}/projects/in
 if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
     target_link_libraries(UnitTest_InvariantMassMapping pybind11::headers)
 endif()
+
+package_add_test(UnitTest_DirectedSerialization ${PROJECT_SOURCE_DIR}/projects/injection/private/test/DirectedSerialization_TEST.cxx)

@@ -152,3 +152,77 @@ def test_invalid_directed_configuration_is_rejected_at_construction(case):
 def test_propagator_map_requires_a_normalizable_interval(bounds):
     with pytest.raises(ValueError):
         siren.injection.PropagatorMapping(.1, *bounds)
+
+@pytest.mark.parametrize('gamma', [1001., 1e4, 1e8])
+@pytest.mark.parametrize('oblique', [False, True])
+def test_large_boost_geometry_sampling_uses_declared_full_sphere_fallback(gamma, oblique):
+    r = record3(gamma)
+    sig = r.signature
+    sig.secondary_types = [siren.particles.NuLight, siren.particles.Gamma]
+    r.signature = sig
+    r.secondary_masses = [0., 0.]
+    r.secondary_momenta = [[0.] * 4] * 2
+    r.secondary_helicities = [0.] * 2
+    if oblique:
+        p = math.sqrt(gamma * gamma - 1.)
+        r.primary_momentum = [gamma, *[p*v/math.sqrt(14) for v in (1,2,3)]]
+    channel = siren.injection.DetectorDirected2BodyChannel(box((0,0,100), 10))
+    random = siren.utilities.SIREN_random(9)
+    for _ in range(30):
+        channel.Sample(random, None, r)
+        assert not channel.DirectingActive(r)
+        assert channel.Density(None, r) == pytest.approx(1/(4*math.pi), rel=1e-14)
+
+
+@pytest.mark.parametrize('index', [0, 1, 2])
+def test_three_body_off_shell_daughters_have_zero_proposal_support(index):
+    j = siren.injection
+    channel = j.DetectorDirected3BodyChannel(factorization=j.ThreeBodyMode.Direct, target=box())
+    r = record3(10)
+    channel.Sample(siren.utilities.SIREN_random(91), None, r)
+    momenta = list(r.secondary_momenta)
+    momenta[index] = list(momenta[index])
+    momenta[index][0] *= 1.01
+    r.secondary_momenta = momenta
+    assert channel.Density(None, r) == 0
+    assert not channel.DirectingActive(r)
+
+
+def test_python_q2_parameters_reach_native_constructor():
+    j = siren.injection
+    r = record3()
+    sig = r.signature
+    sig.primary_type = siren.particles.NuMu
+    sig.target_type = siren.dataclasses.ParticleType.O16Nucleus
+    sig.secondary_types = [siren.particles.NuMu, siren.dataclasses.ParticleType.O16Nucleus]
+    for kwargs in [dict(q2_mode=j.ScatteringQ2Mode.Propagator, mediator_mass=.2),
+                   dict(q2_mode=j.ScatteringQ2Mode.Tabulated,
+                        q2_cdf_nodes=[0.,1.,10.], q2_cdf_values=[0.,.5,1.])]:
+        spec = siren.Directed('NuMu', box(), fraction=1., volume=1000., **kwargs)
+        native = spec._directed_channel()._build(sig)
+        assert isinstance(native, j.DetectorDirectedScatteringChannel)
+        assert pickle.loads(pickle.dumps(native)).Measure() == native.Measure()
+    three = channels.toward_3body('NuLight', box(), strategy='direct', volume=1000.)
+    assert isinstance(three._build(record3().signature), j.DetectorDirected3BodyChannel)
+
+@pytest.mark.parametrize('gamma', [100., 1000.])
+def test_active_cone_density_matches_massless_aberration(gamma):
+    r = record3(gamma)
+    sig = r.signature
+    sig.secondary_types = [siren.particles.NuLight, siren.particles.Gamma]
+    r.signature = sig
+    r.secondary_masses = [0., 0.]
+    r.secondary_momenta = [[0.] * 4] * 2
+    r.secondary_helicities = [0.] * 2
+    channel = siren.injection.DetectorDirected2BodyChannel(
+        box((0,0,100), 10), 0, siren.injection.DirectedMode.Cone)
+    random = siren.utilities.SIREN_random(102)
+    beta = np.sqrt(np.longdouble(1)-np.longdouble(1)/gamma**2)
+    omega = 2*math.pi * 75/(100*(100+math.sqrt(10000-75)))
+    for _ in range(100):
+        channel.Sample(random, None, r)
+        p = np.asarray(r.secondary_momenta[0][1:], dtype=np.longdouble)
+        c = p[2]/np.sqrt(np.dot(p,p))
+        oracle = float(gamma**2 * (1-beta*c)**2 / omega)
+        assert channel.DirectingActive(r)
+        assert channel.Density(None, r) == pytest.approx(oracle, rel=3e-8, abs=0)

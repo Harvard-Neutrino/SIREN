@@ -97,7 +97,7 @@ jobs:
             -DSIREN_WITH_MARLEY=OFF -DSIREN_WITH_PYTHIA8=OFF
           cmake --build native-build --parallel 2
           ctest --test-dir native-build --output-on-failure --no-tests=error \
-            -R '^UnitTest_(StandaloneLoad|Vector3D|Random|Weighter|DirectedChannels|DirectedAngularSector|DirectedValidation|InvariantMassMapping|HepMC3Writer|HepMC3RoundTrip)$'
+            -R '^UnitTest_(StandaloneLoad|Vector3D|Random|Weighter|DirectedChannels|DirectedAngularSector|DirectedValidation|DirectedSerialization|InvariantMassMapping|HepMC3Writer|HepMC3RoundTrip)$'
           python -c 'import ctypes; ctypes.CDLL("native-build/libSIREN.so"); import siren' \
             > native-import.log 2>&1 && exit 1
           grep -q 'use separate processes' native-import.log

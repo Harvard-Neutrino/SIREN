@@ -363,7 +363,7 @@ PYBIND11_MODULE(injection,m) {
          arg("target"), arg("u_lo"), arg("u_hi"), arg("phi_lo"), arg("phi_hi"),
          arg("daughter_index") = 0,
          "target: geometry the sector is defined against.\n"
-         "u_lo, u_hi: bounds in cos(theta) (u = cos theta) for this sector.\n"
+         "u_lo, u_hi: bounds in u=(1-cos(theta))/(1-cos(theta_bound)) for this sector.\n"
          "phi_lo, phi_hi: azimuthal bounds for this sector.\n"
          "daughter_index: which of the two final-state particles is directed.")
     .def("DirectingActive", &DetectorDirectedAngularSectorChannel::DirectingActive, arg("record"))
