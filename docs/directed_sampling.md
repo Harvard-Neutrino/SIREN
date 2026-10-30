@@ -50,3 +50,30 @@ within the existing relative 2e-5 shell tolerance. Input record components are
 preserved. A sampler's exhausted rejection loop is `SamplingFailure`, distinct
 from a kinematically forbidden event; generation must keep those failed attempts
 in its accounting.
+
+The analytic lab-angle inverse is used only for parent/subsystem boosts up to
+1,000. Above that, both sampling and density deterministically use the full
+isotropic rest-frame proposal, and `DirectingActive` is false. This preserves
+support and normalization at the cost of geometric focusing. Pair invariants
+are reconstructed using bounded known-mass boosts. Tests include oblique boosts;
+finite stored components still limit recoverable angular precision at extreme
+boosts (the axis-aligned 1e12 regression is not a universal precision guarantee).
+
+A supplied composite volume is a caller assertion. The chord estimate is a gross
+consistency/viability check, with a tolerance up to five estimated standard
+errors; it does **not** certify the volume's accuracy or substitute for an exact
+calculation. A wrong supplied volume changes the proposal normalization even if
+that consistency check accepts it. Primitive analytic volumes are checked against
+the exact formula. Use strict generation when sampling exhaustion is reported;
+ignoring exhausted attempts is not a validated rate calculation.
+
+`Directed` forwards `mediator_mass`, `q2_cdf_nodes`, `q2_cdf_values` and `volume`
+for explicit scattering modes. Three-body factories also accept `volume`.
+Grid tiling retains plain disjoint Box cells and their analytic volumes.
+Results can archive, reweight and pool the supported native directed channels;
+changed geometry, roles, maps or mixture weights remain different configurations.
+
+The large-boost fallback changes the proposal law. Archives therefore use version
+2 for directed two-/three-body decay and angular sectors, and version 1 for
+scattering. Earlier directed-channel versions are refused, so archived proposals
+cannot be reweighted under a different sampling law. Regenerate those events.
