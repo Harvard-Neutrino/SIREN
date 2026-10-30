@@ -581,6 +581,7 @@ PYBIND11_MODULE(injection,m) {
          "q2_cdf_nodes, q2_cdf_values: used when q2_mode is Tabulated.\n"
          "volume: exact target volume override (skips the viability estimate).")
     .def("SetVolume", &DetectorDirectedScatteringChannel::SetVolume)
+    .def("DirectingActive", &DetectorDirectedScatteringChannel::DirectingActive, arg("record"))
     .def(pybind11::pickle(
         &(siren::serialization::pickle_save<DetectorDirectedScatteringChannel>),
         &(siren::serialization::pickle_load<DetectorDirectedScatteringChannel>)
