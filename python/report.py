@@ -35,6 +35,8 @@ _REASON_HINTS: Dict[str, str] = {
     "NoColumnDepthSolution":
         "no column-depth solution along the path; the energy or geometry "
         "leaves the vertex sampler with no root",
+    "SamplingFailure":
+        "the proposal exhausted its sampling attempts; inspect its support and geometry",
     "KinematicallyForbidden":
         "the sampled kinematics are below threshold; check masses and the "
         "primary energy range",
