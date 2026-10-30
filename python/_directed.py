@@ -74,15 +74,25 @@ class Directed:
 
     def __init__(self, particle, toward, fraction: float = 0.98, *,
                  mode=None, spectator=None, pair_mass=None,
-                 variable=None, q2_mode=None, tiling=None):
+                 variable=None, q2_mode=None, tiling=None, mediator_mass=0.0,
+                 q2_cdf_nodes=(), q2_cdf_values=(), volume=-1.0):
         if not (0.0 <= fraction <= 1.0):
             raise ConfigurationError(
                 "Directed(fraction={!r}): fraction must be in [0, 1]".format(fraction))
+        q2_cdf_nodes, q2_cdf_values = tuple(q2_cdf_nodes), tuple(q2_cdf_values)
+        scattering = (variable is not None or q2_mode is not None or
+                      mediator_mass != 0.0 or bool(q2_cdf_nodes) or bool(q2_cdf_values))
         families = (tiling is not None,
-                    variable is not None or q2_mode is not None,
+                    scattering,
                     spectator is not None or pair_mass is not None)
         if sum(families) > 1:
             raise ConfigurationError("Directed tiling, scattering and three-body options cannot be combined")
+        if tiling is not None and volume != -1.0:
+            raise ConfigurationError("Directed tiling uses per-cell volumes; use channels.tile(volume_fn=...) for overrides")
+        self._scattering = scattering
+        self.mediator_mass = mediator_mass
+        self.q2_cdf_nodes, self.q2_cdf_values = q2_cdf_nodes, q2_cdf_values
+        self.volume = volume
         self.particle = particle
         self.toward = toward
         self.fraction = float(fraction)
@@ -99,16 +109,18 @@ class Directed:
             return _channels.tile(
                 self.toward, self.tiling, daughter=self.particle,
                 mode=self.mode)
-        if self.variable is not None or self.q2_mode is not None:
+        if self._scattering:
             return _channels.scatter_toward(
                 self.toward, daughter=self.particle, variable=self.variable, q2_mode=self.q2_mode,
-                mode=self.mode)
+                mode=self.mode, mediator_mass=self.mediator_mass,
+                q2_cdf_nodes=self.q2_cdf_nodes, q2_cdf_values=self.q2_cdf_values,
+                volume=self.volume)
         if self.spectator is not None or self.pair_mass is not None:
             return _channels.toward_3body(
                 self.particle, self.toward, spectator=self.spectator,
-                pair_mass=self.pair_mass, mode=self.mode,
+                pair_mass=self.pair_mass, mode=self.mode, volume=self.volume,
                 strategy="recursive" if self.spectator is not None else "direct")
-        return _channels.toward(self.particle, self.toward, mode=self.mode)
+        return _channels.toward(self.particle, self.toward, mode=self.mode, volume=self.volume)
 
     def to_mixture(self, signature=None) -> "_channels.Mixture":
         """Build the channels.Mixture this Directed describes.

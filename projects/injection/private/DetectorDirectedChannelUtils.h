@@ -134,7 +134,9 @@ inline siren::math::Vector3D SampleVolumePoint(
         siren::math::Vector3D point(x, y, z);
         if (target.IsInside(point)) return point;
     }
-    throw std::runtime_error("Failed to sample a point inside target volume after 10000 attempts");
+    throw siren::utilities::InjectionFailure(
+        siren::utilities::FailureReason::SamplingFailure,
+        "Failed to sample a point inside target volume after 10000 attempts");
 }
 
 // Sample a direction uniformly within a spherical cap centered on
@@ -400,6 +402,13 @@ inline DirectedGeometry ClassifyDirectedRegime(
     siren::math::Vector3D const & decay_pos,
     siren::geometry::Geometry const & target)
 {
+    // Beyond this bound the analytic lab-angle inverse loses precision.
+    // Both sampling and density use the full isotropic rest-frame proposal.
+    if (parent_E / parent_mass > 1000.0) {
+        DirectedGeometry fallback{};
+        fallback.regime = DirectedRegime::KinInBound;
+        return fallback;
+    }
     return ComputeDirectedRegime(parent_E, parent_px, parent_py, parent_pz,
         parent_mass, daughter_mass, other_mass, decay_pos, target);
 }

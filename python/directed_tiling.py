@@ -1,27 +1,8 @@
-"""
-Disjoint tiling of the reachable region for detector-directed phase-space
-biasing.
+"""Fixed geometry and angular tilings for directed phase-space proposals.
 
-The detector-directed channels point a daughter at a geometric target volume so
-the downstream signal lands in the detector.  When several target volumes
-overlap/nest, presenting them as separate channels makes the Kleiss-Pittau
-optimizer degenerate (it cannot tell near-identical proposals apart) and dilutes
-the sampling budget -- even though the mixture denominator already counts overlap
-exactly once (so the estimate stays unbiased).
-
-This module presents the reachable region as a DISJOINT PARTITION (tiling) of
-directed sub-channels instead.  Each tile runs the SAME existing
-kinematic-cone-intersect-geometry regime machinery at finer resolution and gets
-its own optimizer weight; the recursive Kleiss-Pittau optimizer then allocates
-sampling across tiles, concentrating on the tiles inside the per-event kinematic
-cone and suppressing the rest.  Disjoint tiles are a non-degenerate channel basis
-(the MadGraph/Kleiss-Pittau "one distinct channel per region" ideal).
-
-The tiles are built from existing pieces -- `siren.geometry.Box` sub-cells and
-`siren.geometry.BooleanGeometry` (UNION to dedup/collapse nested inputs,
-SUBTRACTION to disjointify overlapping inputs) -- and wrapped in the existing
-`NestedMixtureChannel`, so C1 (Sample == Density) holds automatically and the
-existing `optimize_multichannel_weights` recursion tunes the tile weights.
+Tiles share a native nested mixture. Primitive grid cells keep exact analytic
+volumes; Boolean tiles require caller-supplied exact volumes. Sampling and
+normalization remain the responsibility of the native channel for each tile.
 """
 
 from __future__ import annotations
@@ -416,7 +397,7 @@ def build_union_tile(volumes: Sequence, factory=None, daughter_index: int = 0,
     """Collapse `volumes` (optionally deduped) into ONE union directed channel.
 
     Returns a single channel (the union tile).  Use for a tightly-nested cluster
-    where partitioning adds no optimizer value. With ``set_volume=True``, an
+    where further partitioning is unnecessary. With ``set_volume=True``, an
     exact ``volume_fn`` is required when the result is composite.
     """
     if factory is None:

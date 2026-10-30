@@ -1770,3 +1770,18 @@ TEST(ThreeBodyPowerLaw, RejectsRangeBelowOffsetBeforeWritingMomenta) {
 }
 
 } // namespace
+
+TEST(DirectedRejectionExhaustion, ThinVolumeHasTypedSamplingFailure) {
+    siren::geometry::Cylinder target(
+        siren::geometry::Placement(siren::math::Vector3D(0,0,100)), 1., .9999, 10.);
+    auto random=std::make_shared<siren::utilities::SIREN_random>(9);
+    int failures=0;
+    for (int i=0; i<100; ++i) {
+        try { siren::injection::detail::SampleVolumePoint(target,random); }
+        catch (siren::utilities::InjectionFailure const & error) {
+            EXPECT_EQ(error.reason(),siren::utilities::FailureReason::SamplingFailure);
+            ++failures;
+        }
+    }
+    EXPECT_GT(failures,0);
+}

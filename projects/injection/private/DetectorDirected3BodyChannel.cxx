@@ -39,6 +39,8 @@ bool InitialStateValid(
     siren::dataclasses::InteractionRecord const & record,
     PhaseSpaceTopology topology)
 {
+    if (topology == PhaseSpaceTopology::Scatter2to3 &&
+        (!std::isfinite(record.target_mass) || !(record.target_mass > 0.0))) return false;
     auto const & p = record.primary_momentum;
     double m = record.primary_mass;
     bool mass_ok = topology == PhaseSpaceTopology::Scatter2to3 ? m >= 0.0 : m > 0.0;
@@ -46,6 +48,19 @@ bool InitialStateValid(
         || !std::isfinite(p[2]) || !std::isfinite(p[3])) return false;
     double energy = std::hypot(m, siren::dataclasses::PrimaryMomentum(record).Momentum().magnitude());
     return std::abs(p[0] - energy) <= 2e-5 * energy;
+}
+
+bool FinalStateValid(siren::dataclasses::InteractionRecord const & record) {
+    for (int index = 0; index < 3; ++index) {
+        double mass = record.secondary_masses[index];
+        auto const & p = record.secondary_momenta[index];
+        if (!std::isfinite(mass) || mass < 0.0) return false;
+        for (double value : p) if (!std::isfinite(value)) return false;
+        double energy = std::hypot(mass, std::hypot(p[1], p[2], p[3]));
+        if (!std::isfinite(energy) || energy <= 0.0 ||
+            std::abs(p[0] - energy) > 2e-5 * energy) return false;
+    }
+    return true;
 }
 
 void RequireInitialState(
@@ -262,7 +277,7 @@ bool DetectorDirected3BodyChannel::DirectingActive(
     siren::dataclasses::InteractionRecord const & record) const
 {
     if (!siren::dataclasses::HasSecondaryStorage(record, 3)
-        || !InitialStateValid(record, topology_)) return false;
+        || !InitialStateValid(record, topology_) || !FinalStateValid(record)) return false;
     return (this->*active_implementation_)(record);
 }
 
@@ -288,10 +303,11 @@ bool DetectorDirected3BodyChannel::DirectingActiveRecursive(
     siren::math::Vector3D vertex = siren::dataclasses::InteractionVertex(record);
     FourMomentum first = SecondaryMomentum(record, roles_.pair_first);
     FourMomentum second = SecondaryMomentum(record, roles_.pair_second);
-    FourMomentum pair = (first + second);
+    FourMomentum raw_pair = (first + second);
     double pair_mass_squared = PairMassSquaredInRestFrame(
         record, roles_.pair_first, roles_.pair_second, GetInitialState(record, topology_));
     if (!(pair_mass_squared > 0.0)) return false;
+    auto pair = FourMomentum::FromMass(std::sqrt(pair_mass_squared), raw_pair.Momentum());
     int other_pair_index = roles_.PairOther();
     auto geometry = detail::ClassifyDirectedRegime(
         pair.Energy(), pair.Momentum().GetX(), pair.Momentum().GetY(), pair.Momentum().GetZ(),
@@ -397,7 +413,7 @@ double DetectorDirected3BodyChannel::Density(
     siren::dataclasses::InteractionRecord const & record) const
 {
     if (!siren::dataclasses::HasSecondaryStorage(record, 3)
-        || !InitialStateValid(record, topology_)) {
+        || !InitialStateValid(record, topology_) || !FinalStateValid(record)) {
         return 0.0;
     }
 
@@ -629,11 +645,12 @@ double DetectorDirected3BodyChannel::DensityRecursive(
 
     FourMomentum first = SecondaryMomentum(record, roles_.pair_first);
     FourMomentum second = SecondaryMomentum(record, roles_.pair_second);
-    FourMomentum pair = (first + second);
+    FourMomentum raw_pair = (first + second);
     double s_pair = PairMassSquaredInRestFrame(
         record, roles_.pair_first, roles_.pair_second, init);
     if (!(s_pair > 0.0)) return 0.0;
     double m_pair = std::sqrt(s_pair);
+    auto pair = FourMomentum::FromMass(m_pair, raw_pair.Momentum());
 
     double s_density = InvariantMassDensity(s_pair, s_min, s_max);
     if (s_density <= 0.0) return 0.0;
