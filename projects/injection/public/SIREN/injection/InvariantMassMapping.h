@@ -413,6 +413,9 @@ struct PropagatorMapping : public Mapping1D {
     PropagatorMapping(double m2_, double x_min_, double x_max_)
         : m2(m2_), x_min(x_min_), x_max(x_max_)
     {
+        if (!std::isfinite(x_min) || !std::isfinite(x_max) || !(x_max > x_min)) {
+            throw std::invalid_argument("PropagatorMapping requires a finite increasing interval");
+        }
         double d_lo = x_min + m2;
         double d_hi = x_max + m2;
         bool same_side = (d_lo > 0.0 && d_hi > 0.0) ||
@@ -425,6 +428,9 @@ struct PropagatorMapping : public Mapping1D {
         inv_lo = 1.0 / d_lo;
         inv_hi = 1.0 / d_hi;
         C = inv_lo - inv_hi;
+        if (!(C > 0.0) || !std::isfinite(C)) {
+            throw std::invalid_argument("PropagatorMapping interval cannot be normalized at this precision");
+        }
     }
 
     double Forward(double r) const {
