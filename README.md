@@ -26,7 +26,9 @@ see [Installation](#installation).
 Start with the [data-free authoring quickstart](docs/quickstart.md), which declares
 an explicit sampler, checks it against an independent angular reference, and
 compares the accepted decay probability with an analytic result. The public
-workflow is `Vertex` → `Simulation.run()` → `Results`.
+workflow is `Vertex` → `Simulation.run()` → `Results`. For external parents,
+see [beam tables](docs/beam_tables.md) and the synthetic
+[external-source example](resources/examples/external_sources.py).
 
 ```python
 import siren
