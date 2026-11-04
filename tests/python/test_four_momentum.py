@@ -91,7 +91,9 @@ def test_restore_boosted_state_from_different_compiler(sign, energy):
         frame_momentum = [0., 0., 1.]
         boosted = restored.boost_to_lab(P4.from_mass(2., Vector3D(*frame_momentum)))
         reference = decimal_boost(0.4, components[1:], 2., frame_momentum, sign < 0.)
-        assert boosted.components() == pytest.approx(reference, rel=4*sys.float_info.epsilon)
+        gamma = math.hypot(2., *frame_momentum) / 2.
+        bound = 32*sys.float_info.epsilon*gamma*(abs(components[0]) + math.hypot(*components[1:]))
+        assert boosted.components() == pytest.approx(reference, rel=0., abs=bound)
         assert boosted.has_known_mass() and boosted.mass() == 0.4
 
 
@@ -100,6 +102,7 @@ def test_restore_boosted_state_from_different_compiler(sign, energy):
     ([math.inf, 0., 0., 0.], 1.),
     ([math.nan, 0., 0., 0.], 1.),
     ([1., 0., 0., 0.], -1.),
+    ([math.inf, 1e308, 0., 0.], 1.),
     ([math.inf, math.inf, 0., 0.], 1.),
     ([math.inf, 0., 0., 0.], math.inf),
     ([1., 0., 0., 0.], math.nan),
