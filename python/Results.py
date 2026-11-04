@@ -475,7 +475,9 @@ def _channel_config(channel):
         # These adapters store only their model, topology, and measure. Do not
         # serialize the model: it may be a Python authoring class.
         return (cls, _model_config(model), channel.Topology(), channel.Measure())
-    if cls in (inj.Isotropic2BodyChannel,):
+    if cls in (inj.Isotropic2BodyChannel, inj.DetectorDirected2BodyChannel,
+               inj.DetectorDirected3BodyChannel, inj.DetectorDirectedAngularSectorChannel,
+               inj.DetectorDirectedScatteringChannel):
         try:
             # Native leaf-channel archives contain all proposal parameters
             # (geometry, indices, mappings, etc.), without runtime caches.

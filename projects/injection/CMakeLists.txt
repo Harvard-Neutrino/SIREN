@@ -11,6 +11,12 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhysicalChannelAdapters.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected2BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirected3BodyChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirectedAngularSectorChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/DetectorDirectedScatteringChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/GeometryVolume.cxx
+
 )
 add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -77,3 +83,23 @@ if(SIREN_BUILD_PYTHON_BINDINGS)
     target_link_libraries(injection PRIVATE SIREN_python photospline pybind11::module)
     siren_strip_module(injection)
 endif()
+
+# Directed proposal regression targets.
+package_add_test(UnitTest_DirectedAngularSector ${PROJECT_SOURCE_DIR}/projects/injection/private/test/DirectedAngularSector_TEST.cxx)
+if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
+    target_link_libraries(UnitTest_DirectedAngularSector pybind11::headers)
+endif()
+package_add_test(UnitTest_DirectedChannels ${PROJECT_SOURCE_DIR}/projects/injection/private/test/DirectedChannels_TEST.cxx)
+if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
+    target_link_libraries(UnitTest_DirectedChannels pybind11::headers)
+endif()
+package_add_test(UnitTest_DirectedValidation ${PROJECT_SOURCE_DIR}/projects/injection/private/test/DirectedValidation_TEST.cxx)
+if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
+    target_link_libraries(UnitTest_DirectedValidation pybind11::headers)
+endif()
+package_add_test(UnitTest_InvariantMassMapping ${PROJECT_SOURCE_DIR}/projects/injection/private/test/InvariantMassMapping_TEST.cxx)
+if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
+    target_link_libraries(UnitTest_InvariantMassMapping pybind11::headers)
+endif()
+
+package_add_test(UnitTest_DirectedSerialization ${PROJECT_SOURCE_DIR}/projects/injection/private/test/DirectedSerialization_TEST.cxx)

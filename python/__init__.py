@@ -87,6 +87,7 @@ PropagatedFromCreation = injection.VertexWeightingMode.PropagatedFromCreation
 Fixed = injection.VertexWeightingMode.Fixed
 ExternalBounds = injection.VertexWeightingMode.ExternalBounds
 
+from ._directed import Directed
 from .Simulation import Simulation
 from .Results import Results
 from .generate import generate
