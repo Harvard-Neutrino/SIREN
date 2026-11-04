@@ -40,6 +40,7 @@ public:
     double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     std::vector<std::string> DensityVariables() const override;
     std::set<DistributionVariable> ProvidedVariables() const override;
+    std::set<DistributionVariable> RequiredVariables() const override;
     std::string Name() const override;
     std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;

@@ -104,6 +104,7 @@ injector.primary_interactions = primary_processes[primary_type]
 injector.primary_injection_distributions = primary_injection_distributions
 injector.secondary_interactions = secondary_processes
 injector.secondary_injection_distributions = secondary_injection_distributions
+injector.stopping_condition = stop
 
 events,gen_times = GenerateEvents(injector)
 

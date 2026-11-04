@@ -1,10 +1,37 @@
 #include "rk/LT.hh"
 
+#include <cmath>
+#include <initializer_list>
+#include <stdexcept>
+
 //
 // Large functions (or functions whose implementation can be expected
 // to change) from the rk namespace are implemented below
 //
 namespace rk {
+    P4 P4::restoreOnShell(double e, const geom3::Vector3& p, double m)
+    {
+        if (!std::isfinite(e) || !std::isfinite(m) || m < 0.0 ||
+            !std::isfinite(p.x()) || !std::isfinite(p.y()) || !std::isfinite(p.z()))
+            throw std::domain_error("Invalid on-shell four-momentum state");
+
+        const double magnitude = std::abs(e);
+        if (magnitude == std::sqrt(m*m + p.lengthSquared()))
+            return P4(e, p, m);
+
+        // The writer may have fused any multiply-add in m*m + ((x*x + y*y) + z*z).
+        const double x = p.x(), y = p.y(), z = p.z();
+        // Round each standalone square before considering the unfused sums.
+        const double xx = std::fma(x, x, 0.0), yy = std::fma(y, y, 0.0);
+        const double zz = std::fma(z, z, 0.0), mm = std::fma(m, m, 0.0);
+        for (double xy : {xx + yy, std::fma(x, x, yy), std::fma(y, y, xx)})
+            for (double xyz : {xy + zz, std::fma(z, z, xy)})
+                if (magnitude == std::sqrt(xyz + mm) ||
+                    magnitude == std::sqrt(std::fma(m, m, xyz)))
+                    return P4(e, p, m);
+        throw std::runtime_error("FourMomentum pickle energy disagrees with its mass");
+    }
+
     P4& P4::boost(const Boost& b)
     {
         if (m_ < 0.0)

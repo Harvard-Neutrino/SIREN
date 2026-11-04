@@ -231,5 +231,9 @@ bool ColumnDepthPositionDistribution::less(WeightableDistribution const & other)
         std::tie(radius, x->endcap_length, depth_less);
 }
 
+std::set<DistributionVariable> ColumnDepthPositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
+
 } // namespace distributions
 } // namespace siren

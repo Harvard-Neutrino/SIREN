@@ -45,6 +45,7 @@ public:
     PointSourcePositionDistribution(const PointSourcePositionDistribution &) = default;
     PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance);
     std::string Name() const override;
+    virtual std::set<DistributionVariable> RequiredVariables() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
