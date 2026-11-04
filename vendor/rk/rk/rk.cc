@@ -1,6 +1,7 @@
 #include "rk/LT.hh"
 
 #include <cmath>
+#include <initializer_list>
 #include <stdexcept>
 
 //
@@ -20,6 +21,7 @@ namespace rk {
 
         // The writer may have fused any multiply-add in m*m + ((x*x + y*y) + z*z).
         const double x = p.x(), y = p.y(), z = p.z();
+        // Round each standalone square before considering the unfused sums.
         const double xx = std::fma(x, x, 0.0), yy = std::fma(y, y, 0.0);
         const double zz = std::fma(z, z, 0.0), mm = std::fma(m, m, 0.0);
         for (double xy : {xx + yy, std::fma(x, x, yy), std::fma(y, y, xx)})

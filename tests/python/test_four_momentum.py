@@ -86,13 +86,28 @@ def test_restore_boosted_state_from_different_compiler(sign, energy):
         assert struct.pack("4d", *restored.components()) == struct.pack("4d", *components)
         assert restored.mass() == 0.4
         assert restored.has_known_mass()
+        summed = restored + P4.from_mass(1., Vector3D(0., 0., 0.))
+        assert summed.components() == [components[0] + 1., *components[1:]]
+        frame_momentum = [0., 0., 1.]
+        boosted = restored.boost_to_lab(P4.from_mass(2., Vector3D(*frame_momentum)))
+        reference = decimal_boost(0.4, components[1:], 2., frame_momentum, sign < 0.)
+        assert boosted.components() == pytest.approx(reference, rel=4*sys.float_info.epsilon)
+        assert boosted.has_known_mass() and boosted.mass() == 0.4
 
 
-@pytest.mark.parametrize("energy", [math.nextafter(1., 2.), math.inf, math.nan])
-def test_known_mass_pickle_rejects_inconsistent_energy(energy):
+@pytest.mark.parametrize(("components", "mass"), [
+    ([math.nextafter(1., 2.), 0., 0., 0.], 1.),
+    ([math.inf, 0., 0., 0.], 1.),
+    ([math.nan, 0., 0., 0.], 1.),
+    ([1., 0., 0., 0.], -1.),
+    ([math.inf, math.inf, 0., 0.], 1.),
+    ([math.inf, 0., 0., 0.], math.inf),
+    ([1., 0., 0., 0.], math.nan),
+])
+def test_known_mass_pickle_rejects_invalid_state(components, mass):
     value = P4.__new__(P4)
     with pytest.raises((ValueError, RuntimeError)):
-        value.__setstate__(([energy, 0., 0., 0.], 1.))
+        value.__setstate__((components, mass))
 
 
 def test_record_copy_setters_and_record_pickle_keep_array_contract():
