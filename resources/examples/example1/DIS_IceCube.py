@@ -1,62 +1,50 @@
-import os
+"""Muon-neutrino charged-current DIS in IceCube.
+
+One ``siren.Vertex`` declares the primary: ``distributions`` sample the
+injection (mass, energy, direction, and a column-depth position along the
+muon range) and ``physical`` names the flux and direction factors used for
+weighting. The energy and direction objects are shared between the two
+lists, so they cancel in the weight, which then corrects only the position
+sampling and carries the interaction probability.
+"""
+import argparse
+
 import siren
-from siren._util import GenerateEvents,SaveEvents
 
-# Number of events to inject
-events_to_inject = int(1e5)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--events", type=int, default=int(1e5))
+parser.add_argument("--seed", type=int, default=None)
+parser.add_argument("--output", default="output/IceCube")
+args = parser.parse_args()
 
-# Experiment to run
-experiment = "IceCube"
-detector_model = siren.utilities.load_detector(experiment)
+NuMu = siren.particles.NuMu
 
-# Particle to inject
-primary_type = siren.dataclasses.Particle.ParticleType.NuMu
-
-# Cross-section model to use
-cross_section_model = "CSMSDISSplines"
-
-# Load the cross-section model
-primary_processes, _ = siren.utilities.load_processes(
-    cross_section_model,
-    primary_types=[primary_type],
-    target_types=[siren.dataclasses.Particle.ParticleType.Nucleon],
+# CSMS DIS cross sections: NuMu CC on an isoscalar nucleon target.
+interactions = siren.load_processes(
+    "CSMSDISSplines",
+    primary_types=[NuMu],
+    target_types=[siren.particles.Nucleon],
     isoscalar=True,
-    process_types=["CC"]
+    process_types=["CC"],
+).primary[NuMu]
+
+energy = siren.dist.PowerLaw(2, 1e3, 1e6)
+direction = siren.dist.IsotropicDirection()
+
+primary = siren.Vertex(
+    NuMu, interactions,
+    distributions=[
+        siren.dist.PrimaryMass(0),
+        energy,
+        direction,
+        siren.dist.ColumnDepth(
+            600, 600.0, siren.distributions.LeptonDepthFunction()),
+    ],
+    physical=[energy, direction],
 )
 
-# Extract the primary cross-sections for the primary type
-primary_cross_sections = primary_processes[primary_type]
-
-# Set up the Injector
-injector = siren.injection.Injector()
-injector.number_of_events = events_to_inject
-injector.detector_model = detector_model
-injector.primary_type = primary_type
-injector.primary_interactions = primary_cross_sections
-
-# Directly set the distributions
-injector.primary_injection_distributions = [
-    siren.distributions.PrimaryMass(0),  # Mass distribution
-    siren.distributions.PowerLaw(2, 1e3, 1e6),  # Energy distribution
-    siren.distributions.IsotropicDirection(),  # Direction distribution
-    siren.distributions.ColumnDepthPositionDistribution(600, 600.0, siren.distributions.LeptonDepthFunction())  # Position distribution
-]
-
-# Generate events
-events,gen_times = GenerateEvents(injector)
-
-# Set up the Weighter for event weighting (without position distribution)
-weighter = siren.injection.Weighter()
-weighter.injectors = [injector]
-weighter.detector_model = detector_model
-weighter.primary_type = primary_type
-weighter.primary_interactions = primary_cross_sections
-weighter.primary_physical_distributions = [
-    siren.distributions.PowerLaw(2, 1e3, 1e6),  # Energy distribution
-    siren.distributions.IsotropicDirection()  # Direction distribution
-]
-
-
-# Output events and weights
-os.makedirs("output", exist_ok=True)
-SaveEvents(events,weighter,gen_times,output_filename="output/IceCube")
+sim = siren.Simulation(
+    events=args.events, seed=args.seed, detector="IceCube", primary=primary)
+results = sim.run(on_failure="raise", on_shortfall="raise")
+results.summary()
+results.save(args.output)
