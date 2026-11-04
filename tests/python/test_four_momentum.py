@@ -74,6 +74,27 @@ def test_pickle_keeps_small_known_mass_and_raw_components(negative):
         assert struct.pack('4d', *loaded.components()) == struct.pack('4d', *components)
 
 
+@pytest.mark.parametrize("sign", [1., -1.])
+@pytest.mark.parametrize("energy", ["0x1.419615a98e7a1p+33", "0x1.419615a98e7a2p+33"])
+def test_restore_boosted_state_from_different_compiler(sign, energy):
+    # Two archived evaluations of the same on-shell norm, with and without FMA.
+    components = [sign * float.fromhex(energy), *(float.fromhex(p) for p in
+                  ("-0x1.28d94f12e8b49p+31", "0x1.8bcc696e25351p+31", "-0x1.28d94f12a8b49p+33"))]
+    value = P4.__new__(P4)
+    value.__setstate__((components, 0.4))
+    for restored in (value, pickle.loads(pickle.dumps(value))):
+        assert struct.pack("4d", *restored.components()) == struct.pack("4d", *components)
+        assert restored.mass() == 0.4
+        assert restored.has_known_mass()
+
+
+@pytest.mark.parametrize("energy", [math.nextafter(1., 2.), math.inf, math.nan])
+def test_known_mass_pickle_rejects_inconsistent_energy(energy):
+    value = P4.__new__(P4)
+    with pytest.raises((ValueError, RuntimeError)):
+        value.__setstate__(([energy, 0., 0., 0.], 1.))
+
+
 def test_record_copy_setters_and_record_pickle_keep_array_contract():
     r = siren.dataclasses.InteractionRecord()
     r.primary_mass = 9.

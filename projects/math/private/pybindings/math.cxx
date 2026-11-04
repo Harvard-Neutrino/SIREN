@@ -78,12 +78,7 @@ PYBIND11_MODULE(math,m) {
                 auto components = state[0].cast<std::array<double, 4>>();
                 auto mass = state[1].cast<std::optional<double>>();
                 if (!mass) return FourMomentum::FromComponents(components);
-                auto p = FourMomentum::FromMass(*mass,
-                    Vector3D(components[1], components[2], components[3]),
-                    std::signbit(components[0]));
-                if (p.Components() != components)
-                    throw std::runtime_error("FourMomentum pickle energy disagrees with its mass");
-                return p;
+                return FourMomentum::RestoreOnShell(components, *mass);
             }));
 
     class_<Matrix3D, std::shared_ptr<Matrix3D>>(m, "Matrix3D")
