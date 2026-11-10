@@ -146,6 +146,10 @@ PointSourcePositionDistribution::PointSourcePositionDistribution() {}
 
 PointSourcePositionDistribution::PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance) : origin(origin), max_distance(max_distance) {}
 
+std::set<DistributionVariable> PointSourcePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
+
 std::string PointSourcePositionDistribution::Name() const {
     return "PointSourcePositionDistribution";
 }

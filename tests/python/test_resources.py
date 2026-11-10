@@ -84,6 +84,7 @@ def test_load_detector_returns_built_model(utilities, installed_resources_root):
     assert len(dm.Sectors) > 0
 
 
+@pytest.mark.network
 def test_load_flux_t2k_kaons(utilities, installed_resources_root, tmp_path):
     if not _has_resource(installed_resources_root, "fluxes", "T2K_Kaons"):
         pytest.skip("installed siren has no fluxes/T2K_Kaons")
