@@ -12,8 +12,9 @@ is an error, distinct from an exact zero physical factor.
 `results.explain(i)` uses the saved configuration and verifies the explanation
 against the stored weight. `results.bad()` and `results.ess()` summarize stored
 weights. Generation failures retain their typed reason in `injector.report()`.
-An explicitly requested, unregistered secondary is a generation failure; an
-unexpanded terminal daughter is allowed.
+Terminal daughters without a registered process are counted separately in
+`report.unregistered_secondaries`. They do not discard the parent event or
+enter failure counts. Explicit invalid expansion wiring is rejected by the compiler.
 
 ## Separate pilot and production runs
 

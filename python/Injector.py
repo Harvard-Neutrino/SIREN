@@ -534,7 +534,8 @@ class Injector:
         last_tree = self.__injector.GetLastFailedTree()
         return InjectionReport.from_ledger(
             ledger, attempts=attempts, successes=successes,
-            last_failed_tree=last_tree)
+            last_failed_tree=last_tree,
+            unregistered_secondaries=self.__injector.UnregisteredSecondaryCount())
 
 
     # ------------------------------------------------------------------ #

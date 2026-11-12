@@ -90,19 +90,20 @@ class InjectionReport:
     attempts.
     """
 
-    __slots__ = ("attempts", "successes", "by_vertex", "last_failed_tree")
+    __slots__ = ("attempts", "successes", "by_vertex", "last_failed_tree", "unregistered_secondaries")
 
     def __init__(self, attempts: int, successes: int,
                  by_vertex: List[VertexAttrition],
-                 last_failed_tree=None):
+                 last_failed_tree=None, unregistered_secondaries=0):
         self.attempts = attempts
         self.successes = successes
         self.by_vertex = list(by_vertex)
         self.last_failed_tree = last_failed_tree
+        self.unregistered_secondaries = int(unregistered_secondaries)
 
     @classmethod
     def from_ledger(cls, ledger, *, attempts: int, successes: int,
-                    last_failed_tree=None) -> "InjectionReport":
+                    last_failed_tree=None, unregistered_secondaries=0) -> "InjectionReport":
         """Build a report from an engine FailureLedger.
 
         ledger.entries() maps (depth, parent_pdg, FailureReason) to
@@ -112,7 +113,7 @@ class InjectionReport:
         for (depth, pdg, reason), (count, exemplar) in ledger.entries().items():
             buckets.append(VertexAttrition(depth, pdg, reason, count, exemplar))
         buckets.sort(key=lambda b: b.count, reverse=True)
-        return cls(attempts, successes, buckets, last_failed_tree)
+        return cls(attempts, successes, buckets, last_failed_tree, unregistered_secondaries)
 
     def _raise_for_failure(self):
         """Apply the strict policy after a failed generation attempt."""
@@ -150,6 +151,8 @@ class InjectionReport:
         eff_str = "{:.1%}".format(eff) if math.isfinite(eff) else "n/a"
         lines.append("InjectionReport: {}/{} succeeded (efficiency {})".format(
             self.successes, self.attempts, eff_str))
+        if self.unregistered_secondaries:
+            lines.append("  terminal daughters without a registered process: {}".format(self.unregistered_secondaries))
         if not self.by_vertex:
             lines.append("  no failures recorded")
             return "\n".join(lines)

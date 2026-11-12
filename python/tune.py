@@ -148,7 +148,7 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
     if injector.seed is None or injector.seed == seed:
         raise ConfigurationError('Set distinct explicit pilot and production seeds')
     pilot, target = _clone_pair(injector, weighter)
-    original_rng = pickle.dumps(pilot.engine.GetRandom())
+    original_rng = pilot.engine.GetRandom()
     pilot.seed = seed
     roots = _mixtures(pilot.engine)
     levels = _levels(roots, recurse)
@@ -201,5 +201,5 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
             for a,b in zip(before, after))
     pilot.reset(injector.number_of_events)
     pilot.seed = injector.seed
-    pilot.engine.SetRandom(pickle.loads(original_rng))
+    pilot.engine.SetRandom(original_rng)
     return report

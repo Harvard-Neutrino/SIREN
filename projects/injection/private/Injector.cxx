@@ -404,15 +404,13 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
             siren::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
             std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
-            if(it == secondary_process_map.end()) ++unregistered_secondary_count_;
+            if(it == secondary_process_map.end()) {
+                unregistered_secondary_count_ += 1;
+                continue;
+            }
             if(secondary_expansion_ ? secondary_expansion_->ShouldStop(tree, parent, i)
                     : (!stopping_condition || stopping_condition(tree, parent, i))) {
                 continue;
-            }
-            if(it == secondary_process_map.end()) {
-                throw siren::utilities::InjectionFailure(
-                    siren::utilities::FailureReason::UnregisteredSecondaryType,
-                    "Expansion requested an unregistered secondary type");
             }
             secondaries.emplace_back(
                 parent,
@@ -421,16 +419,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         }
     };
 
-    try {
-        add_secondaries(parent);
-    } catch(siren::utilities::InjectionFailure const & e) {
-        ++failed_events;
-        failure_ledger_.Record(1, static_cast<int>(parent->record.signature.primary_type),
-                               e.reason(), e.what());
-        last_failure_message_ = e.what();
-        last_failed_tree_ = std::move(tree);
-        return siren::dataclasses::InteractionTree();
-    }
+    add_secondaries(parent);
     while(secondaries.size() > 0) {
         for(int i = secondaries.size() - 1; i >= 0; --i) {
             std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
