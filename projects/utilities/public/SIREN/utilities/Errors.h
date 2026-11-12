@@ -29,7 +29,7 @@ enum class FailureReason {
     NoTargetsOnPath,
     NoColumnDepthSolution,
     KinematicallyForbidden,
-    UnregisteredSecondaryType = 6
+    UnregisteredSecondaryType = 5
 };
 
 class SIREN_EXCEPTION_EXPORT InjectionFailure : public std::runtime_error {

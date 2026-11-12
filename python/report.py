@@ -201,6 +201,8 @@ class VertexWeightLine:
     def is_ok(self) -> bool:
         if self.skipped:
             return True
+        if any("underflow" in f or "overflow" in f for f in self.flags):
+            return False
         return (math.isfinite(self.physical) and self.physical >= 0.0
                 and math.isfinite(self.generation) and self.generation > 0.0)
 

@@ -173,3 +173,16 @@ def test_native_nested_tuning_and_transactional_validation():
         outer.UpdateWeights()
     assert outer.weights==before
     outer.ResetAccumulators()
+
+
+def test_terminal_counts_remain_separate_from_failures():
+    sim = simulation(events=2)
+    results = sim.run(on_failure='raise', on_shortfall='raise')
+    report = sim.injector.report()
+    assert report.unregistered_secondaries > 0
+    assert report.successes == 2
+    assert 'terminal daughters' in str(report)
+
+
+def test_common_enum_values_remain_compatible():
+    assert int(siren.injection.FailureReason.UnregisteredSecondaryType) == 5
