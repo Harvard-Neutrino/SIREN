@@ -65,15 +65,31 @@ class Simulation:
         return Weighter(injector, event_factor=self._event_factor)
 
     def run(self, *, on_shortfall='warn', on_failure='retry', progress=None,
-            min_efficiency=None):
+            min_efficiency=None, optimize=False):
         """Generate a fresh run; strict production uses both policies='raise'."""
         injector = self._build_injector()
         weighter = self._build_weighter(injector)
+        optimization = None
+        if optimize is not False:
+            from .tune import Plan, tune
+            if optimize is True:
+                optimize = Plan()
+            if not isinstance(optimize, Plan):
+                raise TypeError('optimize must be False, True, or Plan')
+            optimization = tune(injector, weighter, on_failure=on_failure,
+                                **{name: getattr(optimize, name) for name in optimize.__dataclass_fields__})
+            injector, weighter = optimization.injector, optimization.weighter
         results = generate(injector, weighter, events=self._events,
                            on_shortfall=on_shortfall, on_failure=on_failure,
                            progress=progress, min_efficiency=min_efficiency)
+        self._optimization_report = optimization
         self._injector, self._weighter, self._last_results = injector, weighter, results
         return results
+
+    @property
+    def optimization_report(self):
+        """Pilot outcomes from the last successful run, or None."""
+        return getattr(self, '_optimization_report', None)
 
     def reweight(self, *, physical_energy=None, physical_direction=None,
                  physical_distributions=None, interactions=None,

@@ -163,3 +163,116 @@ class InjectionReport:
             lines.append("  dominant: {} ({}x) -- {}".format(
                 dom.reason_name, dom.count, dom.hint))
         return "\n".join(lines)
+
+
+class VertexWeightLine:
+    """One vertex's factors within a weight breakdown."""
+
+    __slots__ = ("depth", "pdg", "generation", "physical",
+                 "channel_densities", "cancelled", "flags", "injector_index",
+                 "interaction_prob", "position_prob", "survival",
+                 "channel_density_topology", "channel_density_measure")
+
+    def __init__(self, depth, pdg, generation, physical,
+                 channel_densities, cancelled, flags):
+        self.depth = depth
+        self.pdg = pdg
+        self.generation = generation
+        self.physical = physical
+        self.channel_densities = dict(channel_densities)
+        self.cancelled = list(cancelled)
+        self.flags = list(flags)
+        self.injector_index = 0
+        self.interaction_prob = self.position_prob = self.survival = float("nan")
+        self.channel_density_topology = self.channel_density_measure = None
+
+    @property
+    def particle(self) -> str:
+        return _pdg_name(self.pdg)
+
+    @property
+    def skipped(self) -> bool:
+        return self.generation == 0 and any("not evaluated" in f for f in self.flags)
+
+    @property
+    def is_ok(self) -> bool:
+        if self.skipped:
+            return True
+        return (math.isfinite(self.physical) and self.physical >= 0.0
+                and math.isfinite(self.generation) and self.generation > 0.0)
+
+    def __repr__(self):
+        flag = "" if self.is_ok else " !!!"
+        return ("VertexWeightLine(d={} {} gen={:.3e} phys={:.3e}{})".format(
+            self.depth, self.particle, self.generation, self.physical, flag))
+
+
+class WeightBreakdown:
+    """Native and whole-event contributions to one event's weight.
+
+    ``base_total`` is the native weight; ``event_factor`` records the callback's
+    returned value when evaluated, and ``total`` includes that factor.
+    ``vertices`` retain the native factors. ``flags`` describe invalid
+    event-level corrections; ``culprit()`` identifies invalid vertex factors.
+    A zero physical weight is valid.
+    """
+
+    __slots__ = ("total", "base_total", "event_factor", "flags", "vertices")
+
+    def __init__(self, total: float, vertices: List[VertexWeightLine]):
+        self.total = total
+        self.base_total = total
+        self.event_factor = None
+        self.flags = []
+        self.vertices = list(vertices)
+
+    @classmethod
+    def from_engine(cls, breakdown) -> "WeightBreakdown":
+        """Build the native portion from an engine EventWeightBreakdown struct."""
+        lines = []
+        for v in breakdown.vertices:
+            line = VertexWeightLine(v.depth, v.vertex_pdg, v.generation, v.physical,
+                                    v.channel_densities, v.cancelled, v.flags)
+            for field in ("injector_index", "interaction_prob", "position_prob", "survival",
+                          "channel_density_topology", "channel_density_measure"):
+                setattr(line, field, getattr(v, field))
+            lines.append(line)
+        return cls(breakdown.total, lines)
+
+    def culprit(self) -> Optional[VertexWeightLine]:
+        """The first vertex whose factors explain a bad total, or None."""
+        if math.isfinite(self.total) and self.total >= 0.0:
+            return None
+        for v in self.vertices:
+            if not v.is_ok:
+                return v
+        return None
+
+    def __str__(self):
+        ok = math.isfinite(self.total) and self.total >= 0.0 and not self.flags
+        lines = ["WeightBreakdown: total={:.6e}{}".format(
+            self.total, "" if ok else " (unusable)")]
+        if self.event_factor is not None or self.flags:
+            lines.append("  base_total={:.6e} event_factor={!r}".format(
+                self.base_total, self.event_factor))
+        if self.flags:
+            lines.append("  event flags=" + ";".join(self.flags))
+        for v in self.vertices:
+            line = "  injector={} d={} {:<12} gen={:.3e} phys={:.3e}".format(
+                v.injector_index, v.depth, v.particle, v.generation, v.physical)
+            extras = []
+            if v.cancelled:
+                extras.append("cancelled=" + ",".join(v.cancelled))
+            if v.flags:
+                extras.append("flags=" + ";".join(v.flags))
+            if not v.is_ok:
+                extras.append("!!!")
+            if extras:
+                line += "  [" + " ".join(extras) + "]"
+            lines.append(line)
+        culprit = self.culprit()
+        if culprit is not None:
+            lines.append("  culprit: d={} {} ({})".format(
+                culprit.depth, culprit.particle,
+                ";".join(culprit.flags) or "no positive support"))
+        return "\n".join(lines)

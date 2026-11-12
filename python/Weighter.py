@@ -55,7 +55,16 @@ def _checked_weight(value, label="event weight", *label_args):
         raise _utilities.WeightCalculationError(
             "{} must be finite and nonnegative, got {!r}".format(
                 label.format(*label_args), value))
+    if value > 0 and weight == 0:
+        raise _utilities.WeightCalculationError("{} underflow during conversion".format(label.format(*label_args)))
     return weight
+
+
+def _weight_product(base, factor):
+    product = base * factor
+    if base > 0 and factor > 0 and product == 0:
+        raise _utilities.WeightCalculationError("corrected event weight underflow")
+    return product
 
 
 def _check_pooled_survival_modes(injectors):
@@ -471,7 +480,7 @@ class Weighter:
         if self.event_factor is None:
             return base
         factor = _checked_weight(self.event_factor(interaction_tree), "event factor")
-        return _checked_weight(base * factor,
+        return _checked_weight(_weight_product(base, factor),
                                "corrected event weight (base={!r}, event_factor={!r})",
                                base, factor)
 
@@ -746,6 +755,47 @@ class Weighter:
             self.__initialize_weighter()
         return self.__weighter
 
+
+    def explain(self, interaction_tree: InteractionTree) -> "report.WeightBreakdown":
+        """Explain the final weight and its native vertex factors.
+
+        Returns a ``report.WeightBreakdown`` whose ``total`` includes the
+        optional ``event_factor``; ``base_total`` and vertex factors remain
+        native. Invalid returned factors or corrected weights produce
+        event-level flags and a NaN total. Callback exceptions propagate.
+        A valid zero base still evaluates the factor; an invalid native
+        weight does not.
+        """
+        from .report import WeightBreakdown
+        breakdown = WeightBreakdown.from_engine(
+            self.engine.EventWeightWithBreakdown(interaction_tree))
+        if self.event_factor is None:
+            return breakdown
+        try:
+            _checked_weight(breakdown.base_total, "base event weight")
+        except _utilities.WeightCalculationError:
+            return breakdown
+        breakdown.event_factor = self.event_factor(interaction_tree)
+        try:
+            factor = _checked_weight(breakdown.event_factor, "event factor")
+            breakdown.total = _checked_weight(
+                _weight_product(breakdown.base_total, factor), "corrected event weight")
+            breakdown.event_factor = factor
+        except _utilities.WeightCalculationError as exc:
+            breakdown.flags.append(str(exc))
+            breakdown.total = float("nan")
+        return breakdown
+
+    def breakdown(self, interaction_tree: InteractionTree) -> "report.WeightBreakdown":
+        """Deprecated alias of explain().
+
+        Retained for backward compatibility; emits a DeprecationWarning and
+        returns the same ``report.WeightBreakdown`` as explain().
+        """
+        warnings.warn(
+            "Weighter.breakdown() is deprecated, use Weighter.explain() instead",
+            DeprecationWarning, stacklevel=2)
+        return self.explain(interaction_tree)
 
     def __initialize_weighter(self):
         return self.__do_initialize_weighter()

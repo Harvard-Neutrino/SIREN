@@ -119,7 +119,8 @@ PYBIND11_MODULE(injection,m) {
     .value("NoPathThroughVolume", siren::utilities::FailureReason::NoPathThroughVolume)
     .value("NoTargetsOnPath", siren::utilities::FailureReason::NoTargetsOnPath)
     .value("NoColumnDepthSolution", siren::utilities::FailureReason::NoColumnDepthSolution)
-    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden);
+    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden)
+    .value("UnregisteredSecondaryType", siren::utilities::FailureReason::UnregisteredSecondaryType);
 
   enum_<PhaseSpaceMeasure::Type>(m, "PhaseSpaceMeasureType")
     .value("CosThetaRest", PhaseSpaceMeasure::Type::CosThetaRest)
@@ -295,6 +296,14 @@ PYBIND11_MODULE(injection,m) {
          arg("detector_model"), arg("record"),
          "Per-channel density contributions at record, for diagnosing which "
          "channel dominates the mixture at a given point.")
+    .def("Accumulate", &MultiChannelPhaseSpace::Accumulate,
+         arg("detector"), arg("record"), arg("weight"), arg("recurse") = true)
+    .def("UpdateWeights", &MultiChannelPhaseSpace::UpdateWeights,
+         arg("rule") = "alpha_sqrt_W", arg("damping") = 0.5,
+         arg("min_weight") = 0.001, arg("recurse") = true)
+    .def("ResetAccumulators", &MultiChannelPhaseSpace::ResetAccumulators,
+         arg("recurse") = true)
+    .def_property_readonly("tuning_count", &MultiChannelPhaseSpace::TuningCount)
     .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)

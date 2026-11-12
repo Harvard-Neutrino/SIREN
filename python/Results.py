@@ -262,6 +262,25 @@ class Results:
         return child
 
 
+    def explain(self, i):
+        """Per-vertex weight breakdown for event ``i``.
+
+        Returns a :class:`report.WeightBreakdown` from the retained weighter,
+        decomposing the event's weight into per-vertex generation and physical
+        factors. Useful for diagnosing inf/0/NaN weights.
+        """
+        breakdown = self._snapshot_weighter().explain(self.events[i])
+        if not math.isclose(breakdown.total, self._weights[i], rel_tol=1e-12, abs_tol=0):
+            message = (
+                "The weighter no longer reproduces this Results snapshot; "
+                "its models, event_factor, or injector state have changed")
+            if breakdown.flags:
+                message += ": " + "; ".join(breakdown.flags)
+            error = ConfigurationError(message)
+            error.breakdown = breakdown
+            raise error
+        return breakdown
+
     def bad(self):
         """Indices of pathological weights, grouped by kind.
 
@@ -288,11 +307,9 @@ class Results:
         if scale == 0.0:
             return 0.0
         finite = finite / scale
-        denom = float(np.sum(finite * finite))
-        if denom <= 0.0:
-            return 0.0
-        num = float(np.sum(finite))
-        return (num * num) / denom
+        from .tune import _ess
+        return _ess(finite.tolist())
+
 
     def where(self, pred):
         """A new Results over events satisfying ``pred(event, weight)``.

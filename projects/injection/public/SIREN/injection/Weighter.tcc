@@ -73,6 +73,15 @@ double log_one_minus_exp_of_negative(double x) {
 // class ProcessWeighter
 //---------------
 
+inline double CheckedProbabilityProduct(double a, double b) {
+    if(!std::isfinite(a) || a < 0) return a;
+    if(!std::isfinite(b) || b < 0) return b;
+    double product = a * b;
+    if(a > 0 && b > 0 && product == 0)
+        throw siren::utilities::WeightCalculationError("Probability product underflow (not physical zero)");
+    return product;
+}
+
 template<typename ProcessType>
 bool ProcessWeighter<ProcessType>::MatchingInteractionContext() const {
     auto const & gen_interactions = inj_process->GetInteractions();
@@ -88,7 +97,7 @@ void ProcessWeighter<ProcessType>::Initialize() {
         const siren::distributions::PhysicallyNormalizedDistribution* p = dynamic_cast<const siren::distributions::PhysicallyNormalizedDistribution*>(physical_dist.get());
         if(p) {
             if(p->IsNormalizationSet()) {
-                normalization *= p->GetNormalization();
+                normalization = CheckedProbabilityProduct(normalization, p->GetNormalization());
             }
         }
     }
@@ -316,20 +325,20 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
     if (mode.compute_interaction_probability) {
         double probability = InteractionProbability(bounds, record);
         if (factors) factors->interaction_prob = probability;
-        physical_probability *= probability;
+        physical_probability = CheckedProbabilityProduct(physical_probability, probability);
     }
     if (mode.compute_position_probability) {
         double probability = NormalizedPositionProbability(bounds, record);
         if (factors) factors->position_prob = probability;
-        physical_probability *= probability;
+        physical_probability = CheckedProbabilityProduct(physical_probability, probability);
     }
     if (mode.survival_from_creation) {
         double probability = CreationSurvival(bounds, record);
         if (factors) factors->survival = probability;
-        physical_probability *= probability;
+        physical_probability = CheckedProbabilityProduct(physical_probability, probability);
     }
-    physical_probability *= ProcessFinalStateProbability(
-        detector_model, *phys_process, record, convention);
+    physical_probability = CheckedProbabilityProduct(physical_probability, ProcessFinalStateProbability(
+        detector_model, *phys_process, record, convention));
     if(physical_probability < 0.0 || !std::isfinite(physical_probability))
         return physical_probability;
 
@@ -337,7 +346,7 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
         double density = physical_dist->PhysicalDensity(detector_model, phys_process->GetInteractions(), record);
         if(density < 0.0 || !std::isfinite(density))
             return density;
-        physical_probability *= density;
+        physical_probability = CheckedProbabilityProduct(physical_probability, density);
     }
     if(!std::isfinite(physical_probability))
         return physical_probability;
@@ -348,13 +357,13 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(
         if(density < 0.0 || !std::isfinite(density))
             return density;
         if(!cancel_physical)
-            physical_probability *= density;
+            physical_probability = CheckedProbabilityProduct(physical_probability, density);
         else if(density == 0.0)
             physical_probability = 0.0;
     }
     if(normalization < 0.0 || !std::isfinite(normalization))
         return normalization;
-    return normalization * physical_probability;
+    return CheckedProbabilityProduct(normalization, physical_probability);
 }
 
 template<typename ProcessType>
@@ -377,7 +386,7 @@ double ProcessWeighter<ProcessType>::GenerationProbability(
         double density = gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
         if(density < 0.0 || !std::isfinite(density))
             return density;
-        gen_probability *= density;
+        gen_probability = CheckedProbabilityProduct(gen_probability, density);
     }
     if(!std::isfinite(gen_probability))
         return gen_probability;
@@ -387,7 +396,7 @@ double ProcessWeighter<ProcessType>::GenerationProbability(
         if(density < 0.0 || !std::isfinite(density))
             return density;
         if(!cancel_generation)
-            gen_probability *= density;
+            gen_probability = CheckedProbabilityProduct(gen_probability, density);
         else if(density == 0.0)
             gen_probability = 0.0;
     }
@@ -411,7 +420,7 @@ double ProcessWeighter<ProcessType>::EventWeight(std::tuple<siren::math::Vector3
         throw siren::utilities::WeightCalculationError(oss.str());
     }
     double weight = physical / generation;
-    if(!std::isfinite(weight) || weight < 0.0) {
+    if(!std::isfinite(weight) || weight < 0.0 || (physical > 0 && weight == 0)) {
         std::ostringstream oss;
         oss << "ProcessWeighter::EventWeight: unusable event weight=" << weight
             << " for primary type " << datum.record.signature.primary_type
