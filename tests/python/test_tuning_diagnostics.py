@@ -205,9 +205,11 @@ def test_signed_metric_has_same_squared_statistic(tmp_path):
 
 
 def test_all_miss_pilot_retains_owned_failure_reports(tmp_path):
-    gen,weight=pair(tmp_path)
+    gen=facade(tmp_path)
+    gen.primary.kinematics = .5*siren.channels.physical() + .5*siren.channels.isotropic()
     far=siren.geometry.Sphere(siren.geometry.Placement(siren.math.Vector3D(1e6,0,11)),1.,0.)
     gen.primary.distributions[-1]=siren.distributions.PrimaryBoundedVertexDistribution(far,100.)
+    weight=siren.injection.Weighter(gen)
     report=tune(gen,weight,events=9,rounds=2,seed=810,on_failure='raise')
     assert report.attempts==[9,9]
     assert report.successes==[0,0]
