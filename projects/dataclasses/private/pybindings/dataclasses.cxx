@@ -191,6 +191,13 @@ PYBIND11_MODULE(dataclasses, m) {
         .def("get_secondary_particle_records",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
                 py::return_value_policy::reference_internal)
+        .def_property("secondary_types",
+            [](CrossSectionDistributionRecord const & cdr) { return cdr.GetSecondaryTypes(); },
+            &CrossSectionDistributionRecord::SetSecondaryTypes,
+            "Realised secondary types. Assigning a list discards secondary values already set "
+            "and invalidates secondary particle records obtained earlier; fetch them again.")
+        .def("set_secondary_type", &CrossSectionDistributionRecord::SetSecondaryType,
+            py::arg("index"), py::arg("type"))
         .def("finalize", &CrossSectionDistributionRecord::Finalize)
         ;
 
@@ -253,6 +260,16 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("secondary_helicities",&InteractionRecord::secondary_helicities)
         .def_readwrite("secondary_times",&InteractionRecord::secondary_times)
         .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters)
+        // Reading gives the effective list (the signature's unless the vertex
+        // realised a different one). Assigning stores a realised list.
+        .def_property("secondary_types",
+            [](InteractionRecord const & r) { return r.GetSecondaryTypes(); },
+            [](InteractionRecord & r, std::vector<ParticleType> const & types) {
+                r.secondary_types = (types == r.signature.secondary_types)
+                    ? std::vector<ParticleType>() : types;
+            })
+        .def_property_readonly("has_realised_secondary_types",
+            [](InteractionRecord const & r) { return !r.secondary_types.empty(); })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionRecord>),
             &(siren::serialization::pickle_load<InteractionRecord>)

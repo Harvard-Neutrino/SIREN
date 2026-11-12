@@ -81,7 +81,8 @@ def main():
         secs = list(ir_out.secondary_momenta)
         smass = list(ir_out.secondary_masses)
         p_lep, p_D = secs[0], secs[2]          # primary muon, D meson
-        D_type = ir_out.signature.secondary_types[2]
+        # The D meson Pythia produced; the signature stays the selected channel.
+        D_type = ir_out.secondary_types[2]
         E_lep, E_D = p_lep[0], p_D[0]
         if E_D <= 0:
             continue

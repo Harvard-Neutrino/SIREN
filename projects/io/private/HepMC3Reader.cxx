@@ -177,6 +177,18 @@ siren::dataclasses::InteractionRecord VertexToRecord(
         rec.secondary_ids.push_back(GetOrAssignId(out, particle_ids));
     }
 
+    // A vertex whose realised particles differ from its channel stores the
+    // channel's secondaries; the outgoing particles are then the realised list.
+    if(std::shared_ptr<HepMC3::VectorIntAttribute> channel =
+            vertex->attribute<HepMC3::VectorIntAttribute>("siren.channel_secondaries")) {
+        rec.secondary_types = rec.signature.secondary_types;
+        rec.signature.secondary_types.clear();
+        for(int code : channel->value())
+            rec.signature.secondary_types.push_back(pdg_to_type(code));
+        if(rec.secondary_types == rec.signature.secondary_types)
+            rec.secondary_types.clear();
+    }
+
     // interaction_parameters from siren.param.<key> attributes on the vertex.
     std::string const prefix = "siren.param.";
     for(std::string const & name : vertex->attribute_names()) {

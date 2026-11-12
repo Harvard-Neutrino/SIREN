@@ -27,7 +27,7 @@ inline math::Vector3D InteractionVertex(InteractionRecord const & record) {
     return math::Vector3D(record.interaction_vertex);
 }
 inline bool HasSecondaryStorage(InteractionRecord const & record, std::size_t count) {
-    return record.signature.secondary_types.size() == count
+    return record.GetSecondaryTypes().size() == count
         && record.secondary_masses.size() == count
         && record.secondary_momenta.size() == count;
 }

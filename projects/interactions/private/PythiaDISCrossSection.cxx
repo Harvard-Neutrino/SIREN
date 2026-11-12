@@ -619,13 +619,15 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
         }
 
         if (i_lep >= 0 && i_charm >= 0) {
-            // Trust Pythia: accept whatever charm meson it produced and
-            // overwrite the signature's pre-chosen (uniform) meson slot with
-            // Pythia's actual PID. Natural Lund-string fragmentation then
-            // carries the physical D-type distribution without rejection.
+            // Trust Pythia: accept whatever charm meson it produced and record
+            // it as the realised type of the meson slot. Natural Lund-string
+            // fragmentation then carries the physical D-type distribution
+            // without rejection. The signature stays the selected channel: its
+            // rate carries that species' fragmentation fraction, and so does
+            // its selection probability, so in the unbiased configuration the
+            // two cancel in the weight whichever species Pythia produced.
             int pythia_pid = pythia_->event[i_charm].id();
-            const_cast<dataclasses::InteractionSignature &>(record.signature)
-                .secondary_types[meson_index] = PdgToParticleType(pythia_pid);
+            record.SetSecondaryType(meson_index, PdgToParticleType(pythia_pid));
 
             found_charm = true;
 

@@ -746,7 +746,7 @@ class SIREN_Controller:
                 sec_times = datum.record.secondary_times
                 if len(sec_times) != len(datum.record.secondary_momenta):
                     sec_times = [datum.record.interaction_time] * len(datum.record.secondary_momenta)
-                for isec, (sec_type, sec_momenta, sec_time) in enumerate(zip(datum.record.signature.secondary_types,
+                for isec, (sec_type, sec_momenta, sec_time) in enumerate(zip(datum.record.secondary_types,
                                                                              datum.record.secondary_momenta,
                                                                              sec_times)):
                     datasets["secondary_types"][-1][-1].append(int(sec_type))

@@ -198,6 +198,9 @@ public:
     SecondaryParticleRecord & operator=(SecondaryParticleRecord && other) = delete;
 
     SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index);
+    // The type is a reference that must outlive this record; a
+    // CrossSectionDistributionRecord passes an element of its own type list.
+    SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index, ParticleType const & type);
 
     InteractionSignature const & GetSignature() const;
 
@@ -255,6 +258,12 @@ public:
     double target_helicity = 0;
     std::map<std::string, double> interaction_parameters;
 private:
+    // The realised secondary types. They start as the record's secondary
+    // types (the signature's, unless the record already holds a realised
+    // list), and a model may replace them while sampling. Each element of
+    // secondary_particles refers to one entry, so the list is only changed
+    // through SetSecondaryTypes and SetSecondaryType.
+    std::vector<ParticleType> secondary_types;
     std::vector<SecondaryParticleRecord> secondary_particles;
     bool interaction_time_set = false;
     double overridden_interaction_time = 0;
@@ -300,6 +309,15 @@ public:
     SecondaryParticleRecord & GetSecondaryParticleRecord(size_t index);
     SecondaryParticleRecord const & GetSecondaryParticleRecord(size_t index) const;
 
+    // The realised final state. The signature stays the channel that was
+    // selected and is weighted; these set the particles the model produced.
+    // SetSecondaryTypes discards every secondary value already set and keeps
+    // the IDs of indices that existed before. SetSecondaryType changes one
+    // slot's type and keeps its other values.
+    std::vector<ParticleType> const & GetSecondaryTypes() const;
+    void SetSecondaryTypes(std::vector<ParticleType> const & types);
+    void SetSecondaryType(size_t index, ParticleType type);
+
     void Finalize(InteractionRecord & record) const;
 };
 
@@ -323,6 +341,14 @@ public:
     std::vector<double> secondary_helicities;
     std::vector<double> secondary_times;
     std::map<std::string, double> interaction_parameters;
+    // Realised secondary types, when they differ from signature.secondary_types.
+    // Empty means the vertex produced exactly the signature's secondaries; the
+    // signature remains the channel used for selection and weighting.
+    std::vector<ParticleType> secondary_types;
+
+    // The types of the secondaries this vertex produced, in the order of the
+    // secondary_* vectors.
+    std::vector<ParticleType> const & GetSecondaryTypes() const;
 
     bool operator==(InteractionRecord const & other) const;
     bool operator<(InteractionRecord const & other) const;
@@ -367,8 +393,28 @@ public:
             archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
+        } else if(version == 2) {
+            archive(::cereal::make_nvp("InteractionSignature", signature));
+            archive(::cereal::make_nvp("PrimaryID", primary_id));
+            archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
+            archive(::cereal::make_nvp("PrimaryInitialTime", primary_initial_time));
+            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
+            archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
+            archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
+            archive(::cereal::make_nvp("TargetID", target_id));
+            archive(::cereal::make_nvp("TargetMass", target_mass));
+            archive(::cereal::make_nvp("TargetHelicity", target_helicity));
+            archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
+            archive(::cereal::make_nvp("InteractionTime", interaction_time));
+            archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
+            archive(::cereal::make_nvp("SecondaryTypes", secondary_types));
+            archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
+            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
+            archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
+            archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 1!");
+            throw std::runtime_error("InteractionRecord only supports version <= 2!");
         }
     }
     template<typename Archive>
@@ -394,6 +440,7 @@ public:
             primary_initial_time = 0;
             interaction_time = 0;
             secondary_times.assign(secondary_momenta.size(), 0);
+            secondary_types.clear();
         } else if(version == 1) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
@@ -413,8 +460,29 @@ public:
             archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
+            secondary_types.clear();
+        } else if(version == 2) {
+            archive(::cereal::make_nvp("InteractionSignature", signature));
+            archive(::cereal::make_nvp("PrimaryID", primary_id));
+            archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
+            archive(::cereal::make_nvp("PrimaryInitialTime", primary_initial_time));
+            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
+            archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
+            archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
+            archive(::cereal::make_nvp("TargetID", target_id));
+            archive(::cereal::make_nvp("TargetMass", target_mass));
+            archive(::cereal::make_nvp("TargetHelicity", target_helicity));
+            archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
+            archive(::cereal::make_nvp("InteractionTime", interaction_time));
+            archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
+            archive(::cereal::make_nvp("SecondaryTypes", secondary_types));
+            archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
+            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
+            archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
+            archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 1!");
+            throw std::runtime_error("InteractionRecord only supports version <= 2!");
         }
     }
 };
@@ -463,6 +531,6 @@ public:
 } // namespace dataclasses
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 1);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 2);
 
 #endif // SIREN_InteractionRecord_H

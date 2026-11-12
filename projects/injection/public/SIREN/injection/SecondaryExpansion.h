@@ -25,12 +25,12 @@ public:
     bool ShouldStop(siren::dataclasses::InteractionTree const & tree,
                     std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent,
                     std::size_t index) const {
-        if (!parent || index >= parent->record.signature.secondary_types.size())
-            throw std::out_of_range("SecondaryExpansion child index is outside the parent signature");
+        if (!parent || index >= parent->record.GetSecondaryTypes().size())
+            throw std::out_of_range("SecondaryExpansion child index is outside the parent's secondaries");
         auto const & rules = has_primary_rules_ && parent->depth(tree) == 0 ? primary_rules_ : rules_;
         for (auto const & rule : rules) {
             if (rule[0] != static_cast<int>(parent->record.signature.primary_type)) continue;
-            if (!rule[4] && rule[1] != static_cast<int>(parent->record.signature.secondary_types[index])) continue;
+            if (!rule[4] && rule[1] != static_cast<int>(parent->record.GetSecondaryTypes()[index])) continue;
             if (rule[2] >= 0 && static_cast<std::size_t>(rule[2]) != index) continue;
             if (rule[3] >= 0 && parent->depth(tree) >= rule[3]) continue;
             return false;

@@ -296,7 +296,7 @@ void ApplySelectedInteractionTime(
     siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
     record.interaction_time = SampleSelectedTime(selected_interaction, xsec_record, random);
     record.secondary_times.assign(
-        record.signature.secondary_types.size(), record.interaction_time);
+        record.GetSecondaryTypes().size(), record.interaction_time);
 }
 
 // A process's final-state factor in its generation probability: its proposal
@@ -418,8 +418,10 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     // Secondary Processes
     std::deque<std::tuple<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord>>> secondaries;
     std::function<void(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent) {
-        for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
-            siren::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
+        // Offer the particles the vertex realised, not the channel's nominal list.
+        std::vector<siren::dataclasses::ParticleType> const & realised = parent->record.GetSecondaryTypes();
+        for(size_t i=0; i<realised.size(); ++i) {
+            siren::dataclasses::ParticleType const & type = realised[i];
             std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
                 unregistered_secondary_count_ += 1;

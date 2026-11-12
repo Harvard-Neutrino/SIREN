@@ -431,13 +431,15 @@ struct HepMC3Writer::Impl {
 
             // Outgoing secondaries.
             std::vector<std::pair<HepMC3::GenParticlePtr, std::size_t>> outgoing;
-            std::size_t const n = rec.signature.secondary_types.size();
+            // The particles the vertex realised; the signature is the channel.
+            std::vector<ParticleType> const & realised = rec.GetSecondaryTypes();
+            std::size_t const n = realised.size();
             for(std::size_t j = 0; j < n; ++j) {
                 std::array<double, 4> const mom =
                     (j < rec.secondary_momenta.size()) ? rec.secondary_momenta[j]
                                                        : std::array<double, 4>{0, 0, 0, 0};
                 HepMC3::GenParticlePtr out = std::make_shared<HepMC3::GenParticle>(
-                    Momentum(mom), pdg(rec.signature.secondary_types[j]), 1);
+                    Momentum(mom), pdg(realised[j]), 1);
                 if(j < rec.secondary_masses.size()) out->set_generated_mass(rec.secondary_masses[j]);
                 if(j < rec.secondary_ids.size() && rec.secondary_ids[j].IsSet())
                     particle_by_id[rec.secondary_ids[j]] = out;
@@ -489,6 +491,14 @@ struct HepMC3Writer::Impl {
             // flat ASCII with no embedded dot (e.g. energy, bjorken_x, bjorken_y).
             for(auto const & kv : rec.interaction_parameters) {
                 vertex->add_attribute("siren.param." + kv.first, D(kv.second));
+            }
+            // When the realised particles differ from the channel's, keep the
+            // channel's secondaries so a reader restores the weighted signature.
+            if(!rec.secondary_types.empty()) {
+                std::vector<int> channel;
+                for(auto const & st : rec.signature.secondary_types) channel.push_back(pdg(st));
+                vertex->add_attribute("siren.channel_secondaries",
+                    std::make_shared<HepMC3::VectorIntAttribute>(channel));
             }
             // Decay and unknown-target interactions both omit the target
             // particle above; this flag disambiguates them for the reader.

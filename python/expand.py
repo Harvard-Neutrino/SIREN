@@ -231,7 +231,8 @@ class _ExpansionCallback:
         if vertex is None or _particles.resolve(vertex.particle) != primary_type:
             return True
 
-        secondary_types = parent.record.signature.secondary_types
+        # The particles the parent realised, which a generator may vary.
+        secondary_types = parent.record.secondary_types
         ptype = secondary_types[i]
 
         matched = any(

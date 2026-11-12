@@ -258,7 +258,7 @@ TEST(InteractionRecord_Serialization, SaveUnsupportedVersionThrows) {
     std::stringstream ss;
     cereal::JSONOutputArchive oar(ss);
 
-    EXPECT_THROW(r.save(oar, 2), std::runtime_error);
+    EXPECT_THROW(r.save(oar, 3), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
@@ -268,7 +268,7 @@ TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
     ss << "{}";
     cereal::JSONInputArchive iar(ss);
 
-    EXPECT_THROW(r.load(iar, 2), std::runtime_error);
+    EXPECT_THROW(r.load(iar, 3), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, Version0_LoadsWithDefaultTimes) {
@@ -1023,6 +1023,200 @@ TEST(TimePropagation, SecondaryRecordInteractionTimeOverride) {
     sdr.Finalize(out);
     EXPECT_DOUBLE_EQ(out.interaction_time, 99.0);
 }
+
+///////////////////////////////////////////////
+// Realised secondaries (variable final states)
+///////////////////////////////////////////////
+
+namespace {
+
+InteractionRecord MakeChannelRecord() {
+    InteractionRecord r;
+    r.signature.primary_type = ParticleType::NuMu;
+    r.signature.target_type = ParticleType::Ar40Nucleus;
+    r.signature.secondary_types = {ParticleType::MuMinus, ParticleType::Hadrons};
+    r.primary_momentum = {1.0, 0.0, 0.0, 1.0};
+    r.interaction_vertex = {1.0, 2.0, 3.0};
+    r.interaction_time = 5.0;
+    return r;
+}
+
+size_t CountOf(std::string const & text, std::string const & what) {
+    size_t count = 0;
+    for(size_t at = text.find(what); at != std::string::npos; at = text.find(what, at + 1)) ++count;
+    return count;
+}
+
+void FillSecondaries(CrossSectionDistributionRecord & csr) {
+    double e = 0.1;
+    for(auto & s : csr.GetSecondaryParticleRecords()) {
+        s.SetMass(0.0);
+        s.SetFourMomentum({e, 0.0, 0.0, e});
+        s.SetHelicity(0.0);
+        e += 0.1;
+    }
+}
+
+}  // namespace
+
+TEST(RealisedSecondaries, DefaultIsTheSignatureAndIsNotStored) {
+    InteractionRecord r = MakeChannelRecord();
+    EXPECT_EQ(r.GetSecondaryTypes(), r.signature.secondary_types);
+    CrossSectionDistributionRecord csr(r);
+    EXPECT_EQ(csr.GetSecondaryTypes(), r.signature.secondary_types);
+    FillSecondaries(csr);
+    csr.Finalize(r);
+    EXPECT_TRUE(r.secondary_types.empty());
+    EXPECT_EQ(r.secondary_momenta.size(), 2u);
+}
+
+TEST(RealisedSecondaries, ResizeIsStoredAndKeepsTheSignature) {
+    InteractionRecord r = MakeChannelRecord();
+    InteractionSignature const channel = r.signature;
+    CrossSectionDistributionRecord csr(r);
+    std::vector<ParticleType> realised = {ParticleType::MuMinus, ParticleType::PPlus,
+        ParticleType::PiPlus, ParticleType::PiMinus, ParticleType::Neutron};
+    csr.SetSecondaryTypes(realised);
+    ASSERT_EQ(csr.GetSecondaryParticleRecords().size(), realised.size());
+    for(size_t i = 0; i < realised.size(); ++i) {
+        EXPECT_EQ(csr.GetSecondaryParticleRecord(i).GetType(), realised[i]);
+        EXPECT_EQ(csr.GetSecondaryParticleRecord(i).secondary_index, i);
+    }
+    FillSecondaries(csr);
+    csr.Finalize(r);
+    EXPECT_EQ(r.signature, channel);
+    EXPECT_EQ(r.secondary_types, realised);
+    EXPECT_EQ(r.GetSecondaryTypes(), realised);
+    EXPECT_EQ(r.secondary_ids.size(), realised.size());
+    EXPECT_EQ(r.secondary_masses.size(), realised.size());
+    EXPECT_EQ(r.secondary_momenta.size(), realised.size());
+    EXPECT_EQ(r.secondary_helicities.size(), realised.size());
+    EXPECT_EQ(r.secondary_times.size(), realised.size());
+    EXPECT_DOUBLE_EQ(r.secondary_momenta.at(4).at(0), 0.5);
+    for(auto const & id : r.secondary_ids) EXPECT_TRUE(id.IsSet());
+}
+
+TEST(RealisedSecondaries, ShrinkToOneSecondary) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    csr.SetSecondaryTypes({ParticleType::MuMinus});
+    FillSecondaries(csr);
+    csr.Finalize(r);
+    EXPECT_EQ(r.GetSecondaryTypes(), std::vector<ParticleType>{ParticleType::MuMinus});
+    EXPECT_EQ(r.secondary_momenta.size(), 1u);
+}
+
+TEST(RealisedSecondaries, SetSecondaryTypeChangesOneSlotAndKeepsItsValues) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    FillSecondaries(csr);
+    ParticleID const id = csr.GetSecondaryParticleRecord(1).GetID();
+    csr.SetSecondaryType(1, ParticleType::D0);
+    EXPECT_EQ(csr.GetSecondaryParticleRecord(1).GetType(), ParticleType::D0);
+    EXPECT_EQ(csr.GetSecondaryParticleRecord(1).GetID(), id);
+    csr.Finalize(r);
+    std::vector<ParticleType> const expected = {ParticleType::MuMinus, ParticleType::D0};
+    EXPECT_EQ(r.GetSecondaryTypes(), expected);
+    EXPECT_DOUBLE_EQ(r.secondary_momenta.at(1).at(0), 0.2);
+    EXPECT_EQ(r.secondary_ids.at(1), id);
+    EXPECT_THROW(csr.SetSecondaryType(2, ParticleType::D0), std::out_of_range);
+}
+
+TEST(RealisedSecondaries, SettingTheSignatureListStoresNothing) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    csr.SetSecondaryTypes({ParticleType::MuMinus, ParticleType::PPlus});
+    csr.SetSecondaryTypes(r.signature.secondary_types);
+    FillSecondaries(csr);
+    csr.Finalize(r);
+    EXPECT_TRUE(r.secondary_types.empty());
+}
+
+TEST(RealisedSecondaries, AnEmptyListForANonEmptySignatureIsRefused) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    csr.SetSecondaryTypes({});
+    EXPECT_THROW(csr.Finalize(r), std::runtime_error);
+}
+
+TEST(RealisedSecondaries, ADistributionRecordStartsFromTheRealisedList) {
+    InteractionRecord r = MakeChannelRecord();
+    {
+        CrossSectionDistributionRecord csr(r);
+        csr.SetSecondaryTypes({ParticleType::MuMinus, ParticleType::PPlus, ParticleType::Pi0});
+        FillSecondaries(csr);
+        csr.Finalize(r);
+    }
+    CrossSectionDistributionRecord again(r);
+    ASSERT_EQ(again.GetSecondaryParticleRecords().size(), 3u);
+    EXPECT_EQ(again.GetSecondaryParticleRecord(2).GetType(), ParticleType::Pi0);
+    EXPECT_EQ(again.GetSecondaryParticleRecord(2).GetID(), r.secondary_ids.at(2));
+}
+
+TEST(RealisedSecondaries, DaughterRecordTakesTheRealisedType) {
+    InteractionRecord r = MakeChannelRecord();
+    {
+        CrossSectionDistributionRecord csr(r);
+        csr.SetSecondaryTypes({ParticleType::MuMinus, ParticleType::PPlus, ParticleType::PiPlus});
+        FillSecondaries(csr);
+        csr.Finalize(r);
+    }
+    SecondaryDistributionRecord daughter(r, 2);
+    EXPECT_EQ(daughter.type, ParticleType::PiPlus);
+    EXPECT_EQ(daughter.id, r.secondary_ids.at(2));
+}
+
+TEST(RealisedSecondaries, EqualityUsesTheEffectiveList) {
+    InteractionRecord a = MakeChannelRecord();
+    InteractionRecord b = a;
+    b.secondary_types = b.signature.secondary_types;  // explicit, but the same particles
+    EXPECT_TRUE(a == b);
+    b.secondary_types = {ParticleType::MuMinus, ParticleType::PPlus};
+    EXPECT_FALSE(a == b);
+    EXPECT_TRUE((a < b) != (b < a));
+}
+
+TEST(RealisedSecondaries, Version2RoundTripsBothArchives) {
+    InteractionRecord in = MakeChannelRecord();
+    {
+        CrossSectionDistributionRecord csr(in);
+        csr.SetSecondaryTypes({ParticleType::MuMinus, ParticleType::PPlus, ParticleType::PiPlus});
+        FillSecondaries(csr);
+        csr.Finalize(in);
+    }
+    {
+        std::stringstream ss;
+        { cereal::JSONOutputArchive oar(ss); oar(in); }
+        // Once in the signature and once for the realised list.
+        EXPECT_EQ(CountOf(ss.str(), "\"SecondaryTypes\""), 2u);
+        InteractionRecord out;
+        { cereal::JSONInputArchive iar(ss); iar(out); }
+        EXPECT_EQ(out, in);
+        EXPECT_EQ(out.secondary_types, in.secondary_types);
+    }
+    {
+        std::stringstream ss;
+        { cereal::BinaryOutputArchive oar(ss); oar(in); }
+        InteractionRecord out;
+        { cereal::BinaryInputArchive iar(ss); iar(out); }
+        EXPECT_EQ(out, in);
+        EXPECT_EQ(out.signature, in.signature);
+    }
+}
+
+TEST(RealisedSecondaries, Version1LoadsAsTheSignatureList) {
+    InteractionRecord in = MakePopulatedInteractionRecord();
+    std::stringstream ss;
+    { cereal::JSONOutputArchive oar(ss); in.save(oar, 1); }
+    // Only the signature's own list.
+    EXPECT_EQ(CountOf(ss.str(), "\"SecondaryTypes\""), 1u);
+    InteractionRecord out;
+    out.secondary_types = {ParticleType::PPlus};
+    { cereal::JSONInputArchive iar(ss); out.load(iar, 1); }
+    EXPECT_TRUE(out.secondary_types.empty());
+    EXPECT_EQ(out, in);
+}
+
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

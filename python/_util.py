@@ -1309,7 +1309,7 @@ def SaveEvents(events,
             # secondary particle stuff
             datasets["secondary_types"][-1].append([])
             datasets["secondary_momenta"][-1].append([])
-            for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.signature.secondary_types,
+            for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.secondary_types,
                                                                datum.record.secondary_momenta)):
                 datasets["secondary_types"][-1][-1].append(int(sec_type))
                 datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))

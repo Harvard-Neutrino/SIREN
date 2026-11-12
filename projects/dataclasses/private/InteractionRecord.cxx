@@ -704,7 +704,15 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
 SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index) :
     secondary_index(secondary_index),
     id((record.secondary_ids.size() > secondary_index and record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
-    type(record.signature.secondary_types.at(secondary_index)),
+    type(record.GetSecondaryTypes().at(secondary_index)),
+    initial_position(record.interaction_vertex),
+    initial_time(record.interaction_time)
+{}
+
+SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index, ParticleType const & type) :
+    secondary_index(secondary_index),
+    id((record.secondary_ids.size() > secondary_index and record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
+    type(type),
     initial_position(record.interaction_vertex),
     initial_time(record.interaction_time)
 {}
@@ -930,7 +938,7 @@ void SecondaryParticleRecord::UpdateMomentum() const {
 }
 
 void SecondaryParticleRecord::Finalize(InteractionRecord & record) const {
-    assert(record.signature.secondary_types.at(secondary_index) == type);
+    assert(record.GetSecondaryTypes().at(secondary_index) == type);
     record.secondary_ids.at(secondary_index) = GetID();
     record.secondary_masses.at(secondary_index) = GetMass();
     record.secondary_momenta.at(secondary_index) = GetFourMomentum();
@@ -958,11 +966,12 @@ CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord
     // Models may condition sampling on distribution-set parameters, so
     // SampleFinalState and FinalStateProbability must see the same record;
     // Finalize merges these back key by key.
-    interaction_parameters(record.interaction_parameters) {
+    interaction_parameters(record.interaction_parameters),
+    secondary_types(record.GetSecondaryTypes()) {
 
-    secondary_particles.reserve(record.signature.secondary_types.size());
-    for(size_t i = 0; i < record.signature.secondary_types.size(); ++i) {
-        secondary_particles.emplace_back(record, i);
+    secondary_particles.reserve(secondary_types.size());
+    for(size_t i = 0; i < secondary_types.size(); ++i) {
+        secondary_particles.emplace_back(record, i, secondary_types[i]);
     }
 }
 
@@ -1075,7 +1084,34 @@ SecondaryParticleRecord const & CrossSectionDistributionRecord::GetSecondaryPart
     return secondary_particles.at(index);
 }
 
+std::vector<ParticleType> const & CrossSectionDistributionRecord::GetSecondaryTypes() const {
+    return secondary_types;
+}
+
+void CrossSectionDistributionRecord::SetSecondaryTypes(std::vector<ParticleType> const & types) {
+    // The particle records hold references into secondary_types, so drop them
+    // before the list is replaced and rebuild them against the new storage.
+    secondary_particles.clear();
+    secondary_types = types;
+    secondary_particles.reserve(secondary_types.size());
+    for(size_t i = 0; i < secondary_types.size(); ++i) {
+        secondary_particles.emplace_back(record, i, secondary_types[i]);
+    }
+}
+
+void CrossSectionDistributionRecord::SetSecondaryType(size_t index, ParticleType type) {
+    // The particle record at index refers to this element, so it sees the new type.
+    secondary_types.at(index) = type;
+}
+
 void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const {
+    if(secondary_types.empty() && !record.signature.secondary_types.empty()) {
+        throw std::runtime_error(
+            "CrossSectionDistributionRecord::Finalize: the model realised no "
+            "secondaries for a signature that declares "
+            + std::to_string(record.signature.secondary_types.size())
+            + "; an empty realised list is reserved to mean the signature's list");
+    }
     record.target_id = target_id;
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;
@@ -1089,6 +1125,13 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     for (auto const & x : interaction_parameters) {
         record.interaction_parameters[x.first] = x.second;
     }
+
+    // Store the realised list only when it differs from the signature, so
+    // fixed-signature events keep their exact form.
+    if(secondary_types == record.signature.secondary_types)
+        record.secondary_types.clear();
+    else
+        record.secondary_types = secondary_types;
 
     record.secondary_ids.resize(secondary_particles.size());
     record.secondary_masses.resize(secondary_particles.size());
@@ -1107,7 +1150,7 @@ InteractionRecord SecondaryDistributionRecord::CreateSecondaryRecord(Interaction
     InteractionRecord record;
 
     record.primary_id = ((parent_record.secondary_ids.at(secondary_index)) ? (parent_record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
-    record.signature.primary_type = parent_record.signature.secondary_types.at(secondary_index);
+    record.signature.primary_type = parent_record.GetSecondaryTypes().at(secondary_index);
     record.primary_mass = parent_record.secondary_masses.at(secondary_index);
     record.primary_momentum = parent_record.secondary_momenta.at(secondary_index);
     record.primary_helicity = parent_record.secondary_helicities.at(secondary_index);
@@ -1228,7 +1271,8 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         secondary_momenta,
         secondary_helicities,
         secondary_times,
-        interaction_parameters)
+        interaction_parameters,
+        GetSecondaryTypes())
         ==
         std::tie(
         other.signature,
@@ -1248,7 +1292,8 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.secondary_momenta,
         other.secondary_helicities,
         other.secondary_times,
-        other.interaction_parameters);
+        other.interaction_parameters,
+        other.GetSecondaryTypes());
 }
 
 bool InteractionRecord::operator<(InteractionRecord const & other) const {
@@ -1270,7 +1315,8 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         secondary_momenta,
         secondary_helicities,
         secondary_times,
-        interaction_parameters)
+        interaction_parameters,
+        GetSecondaryTypes())
         <
         std::tie(
         other.signature,
@@ -1290,7 +1336,12 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.secondary_momenta,
         other.secondary_helicities,
         other.secondary_times,
-        other.interaction_parameters);
+        other.interaction_parameters,
+        other.GetSecondaryTypes());
+}
+
+std::vector<ParticleType> const & InteractionRecord::GetSecondaryTypes() const {
+    return secondary_types.empty() ? signature.secondary_types : secondary_types;
 }
 
 } // namespace dataclasses
@@ -1457,7 +1508,7 @@ std::string to_str(siren::dataclasses::CrossSectionDistributionRecord const & re
     }
 
     ss << tab << "SecondaryParticles:\n";
-    for(size_t i=0; i<record.signature.secondary_types.size(); ++i) {
+    for(size_t i=0; i<record.secondary_particles.size(); ++i) {
         siren::dataclasses::SecondaryParticleRecord const & secondary = record.secondary_particles[i];
         ss << indent(to_str(secondary), 2) << '\n';
     }
@@ -1507,7 +1558,7 @@ std::string to_repr(siren::dataclasses::CrossSectionDistributionRecord const& re
 
     // Secondary Particles
     ss << "secondary_particles=[";
-    for (size_t i = 0; i < record.signature.secondary_types.size(); ++i) {
+    for (size_t i = 0; i < record.secondary_particles.size(); ++i) {
         siren::dataclasses::SecondaryParticleRecord const & secondary = record.secondary_particles[i];
         if (i > 0) ss << ", ";
         ss << "{";
@@ -1714,6 +1765,12 @@ std::string to_str(siren::dataclasses::InteractionRecord const & record) {
     for(auto secondary: record.signature.secondary_types)
         ss << " " << secondary;
     ss << '\n';
+    if(!record.secondary_types.empty()) {
+        ss << tab << "SecondaryTypes:";
+        for(auto secondary: record.secondary_types)
+            ss << " " << secondary;
+        ss << '\n';
+    }
 
     ss << tab << "PrimaryID: " << to_repr(record.primary_id) << '\n';
     ss << tab << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << '\n';
@@ -1757,6 +1814,12 @@ std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
     for(auto secondary: record.signature.secondary_types)
         ss << " " << secondary;
     ss << ", ";
+    if(!record.secondary_types.empty()) {
+        ss << "secondary_types=[";
+        for(size_t i = 0; i < record.secondary_types.size(); ++i)
+            ss << (i ? ", " : "") << record.secondary_types[i];
+        ss << "], ";
+    }
     ss << "primary_id=" << to_repr(record.primary_id) << ", ";
     ss << "primary_initial_position=(" << record.primary_initial_position.at(0) << ", " << record.primary_initial_position.at(1) << ", " << record.primary_initial_position.at(2) << "), ";
     ss << "primary_initial_time=" << record.primary_initial_time << ", ";
