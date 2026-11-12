@@ -202,3 +202,19 @@ def test_signed_metric_has_same_squared_statistic(tmp_path):
     b=tune(gen,weight,events=16,rounds=2,seed=201,metric=lambda ev,w:-w)
     assert a.alpha_history==b.alpha_history
     assert a.ess_trajectory==b.ess_trajectory
+
+
+def test_all_miss_pilot_retains_owned_failure_reports(tmp_path):
+    gen,weight=pair(tmp_path)
+    far=siren.geometry.Sphere(siren.geometry.Placement(siren.math.Vector3D(1e6,0,11)),1.,0.)
+    gen.primary.distributions[-1]=siren.distributions.PrimaryBoundedVertexDistribution(far,100.)
+    report=tune(gen,weight,events=9,rounds=2,seed=810,on_failure='raise')
+    assert report.attempts==[9,9]
+    assert report.successes==[0,0]
+    assert report.ess_trajectory==[0.,0.]
+    assert all(r.failures==9 for r in report.failures)
+    assert all(len(r.last_failed_tree.tree)==1 for r in report.failures)
+    assert report.injector.injection_attempts==0
+    report.injector.reset()
+    assert all(r.attempts==9 for r in report.failures)
+    assert all(len(r.last_failed_tree.tree)==1 for r in report.failures)

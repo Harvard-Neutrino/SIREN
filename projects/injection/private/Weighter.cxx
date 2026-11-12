@@ -302,7 +302,8 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             try {
                 factors = ComputeVertexFactors(idx, datum, with_diagnostics);
             } catch(siren::utilities::WeightCalculationError const & e) {
-                factors.physical = std::numeric_limits<double>::quiet_NaN();
+                factors.physical = factors.interaction_prob = factors.position_prob = factors.survival =
+                    std::numeric_limits<double>::quiet_NaN();
                 factors.flags.push_back(e.what());
                 reject(e.what());
             }

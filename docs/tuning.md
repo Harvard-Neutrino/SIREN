@@ -6,7 +6,9 @@ index in a pool, cancelled factors, channel densities and their measure, and
 creation survival. A skipped injector has unevaluated physical/channel values;
 those NaNs describe an omitted contribution. Invalid inputs produce a NaN total
 with diagnostic flags, while scalar weighting raises `WeightCalculationError`.
-User callback exceptions propagate. A positive-factor product that underflows
+The event-factor callback's own exceptions propagate. Native creation-survival
+underflow, previously thrown from the breakdown method, now appears as a flagged
+NaN total there; scalar weighting still raises. A positive-factor product that underflows
 is an error, distinct from an exact zero physical factor.
 
 `results.explain(i)` uses the saved configuration and verifies the explanation
