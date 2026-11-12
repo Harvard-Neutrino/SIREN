@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 import copy
 import math
 import operator
+from numbers import Real
 import pickle
 
 from .errors import ConfigurationError, WeightCalculationError
@@ -187,12 +188,17 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
             w = target(tree)
             if metric is not None:
                 w = metric(tree, w)
+            if not isinstance(w, Real):
+                raise WeightCalculationError('Metric must return a finite real scalar')
+            original = w
             try:
                 w = float(w)
             except (ValueError, TypeError, OverflowError) as exc:
                 raise WeightCalculationError('Metric must return a finite real scalar') from exc
             if not math.isfinite(w):
                 raise WeightCalculationError('Metric must return a finite real scalar')
+            if original != 0 and w == 0:
+                raise WeightCalculationError('Metric underflow during conversion')
             weights.append(w)
             for datum in tree.tree:
                 process = (pilot.engine.GetPrimaryProcess() if datum.is_root()

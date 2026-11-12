@@ -186,3 +186,19 @@ def test_terminal_counts_remain_separate_from_failures():
 
 def test_common_enum_values_remain_compatible():
     assert int(siren.injection.FailureReason.UnregisteredSecondaryType) == 5
+
+
+@pytest.mark.parametrize('value',[Fraction(1,10**400),Fraction(-1,10**400),[1.],complex(1,1)])
+def test_invalid_metric_values_are_visible(tmp_path,value):
+    gen,weight=pair(tmp_path)
+    with pytest.raises(siren.errors.WeightCalculationError,match='Metric'):
+        tune(gen,weight,events=2,rounds=1,metric=lambda ev,w:value)
+    assert gen.injection_attempts==0
+
+
+def test_signed_metric_has_same_squared_statistic(tmp_path):
+    gen,weight=pair(tmp_path)
+    a=tune(gen,weight,events=16,rounds=2,seed=201)
+    b=tune(gen,weight,events=16,rounds=2,seed=201,metric=lambda ev,w:-w)
+    assert a.alpha_history==b.alpha_history
+    assert a.ess_trajectory==b.ess_trajectory
