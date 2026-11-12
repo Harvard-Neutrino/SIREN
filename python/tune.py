@@ -103,6 +103,18 @@ def _ess(weights):
     return math.fsum(scaled)**2 / math.fsum(w*w for w in scaled)
 
 
+def _report(injector):
+    from .dataclasses import InteractionTree
+    report = injector.report()
+    borrowed = report.last_failed_tree
+    owned = InteractionTree()
+    if borrowed is not None:
+        owned.tree = list(borrowed.tree)
+        owned.header = borrowed.header
+    report.last_failed_tree = owned
+    return report
+
+
 def _clone_pair(injector, weighter):
     from .Injector import Injector
     from .Weighter import Weighter
@@ -168,7 +180,7 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
             if tree.tree:
                 trees.append(tree)
             elif on_failure == 'raise':
-                pilot.report()._raise_for_failure()
+                _report(pilot)._raise_for_failure()
         # Fix the denominator after the complete pilot batch, including misses.
         weights = []
         for tree in trees:
@@ -194,7 +206,7 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
         report.alpha_history.append([list(mc.weights) for mc in levels])
         report.attempts.append(pilot.injection_attempts)
         report.successes.append(len(trees))
-        report.failures.append(copy.deepcopy(pilot.report()))
+        report.failures.append(_report(pilot))
     if len(report.alpha_history) >= 2:
         report.converged = all(abs(a-b) < 1e-3
             for before, after in zip(report.alpha_history[-2], report.alpha_history[-1])
