@@ -18,6 +18,8 @@ class MultiChannelPhaseSpace;
 
 using PhaseSpaceConvention = siren::dataclasses::PhaseSpaceConvention;
 
+double CheckedProbabilityProduct(double a, double b);
+
 // Select a common convention in which both densities can be compared.
 PhaseSpaceConvention ResolveCommonFinalStateConvention(
     PhaseSpaceConvention const & first,

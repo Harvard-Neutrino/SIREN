@@ -195,7 +195,7 @@ class VertexWeightLine:
 
     @property
     def skipped(self) -> bool:
-        return self.generation == 0 and any("not evaluated" in f for f in self.flags)
+        return any("physical factors not evaluated" in f for f in self.flags)
 
     @property
     def is_ok(self) -> bool:

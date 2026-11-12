@@ -73,14 +73,6 @@ double log_one_minus_exp_of_negative(double x) {
 // class ProcessWeighter
 //---------------
 
-inline double CheckedProbabilityProduct(double a, double b) {
-    if(!std::isfinite(a) || a < 0) return a;
-    if(!std::isfinite(b) || b < 0) return b;
-    double product = a * b;
-    if(a > 0 && b > 0 && product == 0)
-        throw siren::utilities::WeightCalculationError("Probability product underflow (not physical zero)");
-    return product;
-}
 
 template<typename ProcessType>
 bool ProcessWeighter<ProcessType>::MatchingInteractionContext() const {

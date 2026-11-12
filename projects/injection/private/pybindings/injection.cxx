@@ -483,6 +483,11 @@ PYBIND11_MODULE(injection,m) {
         if(snapshot->HasStoppingCondition()) snapshot->SetStoppingCondition({});
         return siren::serialization::pickle_save<Injector>(snapshot);
     }, "Internal facade pickle helper; the facade stores the callback separately.")
+    .def("_copy_without_callback", [](Injector const & self) {
+        auto snapshot = std::make_shared<Injector>(self);
+        if(snapshot->HasStoppingCondition()) snapshot->SetStoppingCondition({});
+        return snapshot;
+    }, "Internal graph snapshot helper; retains shared model identity before archiving.")
     .def("GetStoppingCondition",&Injector::GetStoppingCondition)
     .def("SetPrimaryProcess",&Injector::SetPrimaryProcess, keep_alive<1, 2>())
     .def("AddSecondaryProcess",&Injector::AddSecondaryProcess, keep_alive<1, 2>())

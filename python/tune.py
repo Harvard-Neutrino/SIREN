@@ -119,24 +119,41 @@ def _report(injector):
 def _clone_pair(injector, weighter):
     from .Injector import Injector
     from .Weighter import Weighter
+    from . import errors, injection
     if type(injector) is not Injector or type(weighter) is not Weighter:
         raise TypeError('tune requires the public Injector and Weighter classes')
     sources = weighter.injectors or []
     if len(sources) != 1 or (sources[0] is not injector and sources[0] is not injector.engine):
         raise ConfigurationError('tune requires a weighter for the same single injector')
-    # Native snapshots refuse Python model/callback state that cannot be retained.
-    new_injector = pickle.loads(pickle.dumps(injector))
     source = copy.copy(weighter)
     source.event_factor = None
-    frozen = pickle.loads(pickle.dumps(source))
-    factor = pickle.loads(pickle.dumps(weighter.event_factor))
-    new_weighter = Weighter(new_injector,
-        primary_physical=frozen.primary_physical_distributions,
-        secondary_physical=frozen.secondary_physical_distributions,
-        overrides={'detector_model': frozen.detector_model,
-                   'primary_interactions': frozen.primary_interactions,
-                   'secondary_interactions': frozen.secondary_interactions},
-        event_factor=factor)
+    engine = source.engine
+    injector._guard_serializable(errors, for_pickle=True, for_weighter=True)
+    source._Weighter__injectors = []
+    source._guard_serializable(errors)
+    try:
+        condition, factor = pickle.loads(pickle.dumps(
+            (injector.stopping_condition, weighter.event_factor)))
+    except (TypeError, ValueError, RuntimeError, AttributeError, pickle.PickleError) as exc:
+        raise errors.NotSerializableError(
+            'Tuning requires picklable stopping_condition and event_factor',
+            offenders=['pilot callbacks']) from exc
+    # One archive retains pointer identity between sampling and physical models.
+    graph = injection._Weighter([injector.engine._copy_without_callback()],
+        engine.GetDetectorModel(), engine.GetPrimaryPhysicalProcess(),
+        list(engine.GetSecondaryPhysicalProcesses()))
+    new_weighter = Weighter()
+    new_weighter.__setstate__(('siren.Weighter', 1,
+        {'native': graph.__getstate__(), 'python': {}, 'slots': []}))
+    new_weighter.event_factor = factor
+    new_injector = Injector.__new__(Injector)
+    new_injector._Injector__injector = new_weighter.injectors[0]
+    new_injector._Injector__seed = injector.seed
+    new_injector._Injector__stopping_condition = None
+    new_injector._restore_engine_configuration()
+    new_injector._Injector__max_attempts = injector._Injector__max_attempts
+    if condition is not None:
+        new_injector.stopping_condition = condition
     return new_injector, new_weighter
 
 
@@ -161,7 +178,7 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
     if injector.seed is None or injector.seed == seed:
         raise ConfigurationError('Set distinct explicit pilot and production seeds')
     pilot, target = _clone_pair(injector, weighter)
-    original_rng = pilot.engine.GetRandom()
+    production, production_target = _clone_pair(injector, weighter)
     pilot.seed = seed
     roots = _mixtures(pilot.engine)
     levels = _levels(roots, recurse)
@@ -170,7 +187,7 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
             raise ValueError('min_weight exceeds the mixture simplex')
         if any(w <= 0 for w in mc.weights):
             raise ConfigurationError('Tuning requires initially positive component weights')
-    report = OptimizationReport(pilot, target, seed)
+    report = OptimizationReport(production, production_target, seed)
     for _ in range(rounds if roots else 0):
         pilot.reset(events)
         for mc in roots:
@@ -217,7 +234,6 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
         report.converged = all(abs(a-b) < 1e-3
             for before, after in zip(report.alpha_history[-2], report.alpha_history[-1])
             for a,b in zip(before, after))
-    pilot.reset(injector.number_of_events)
-    pilot.seed = injector.seed
-    pilot.engine.SetRandom(original_rng)
+    for tuned, fresh in zip(levels, _levels(_mixtures(production.engine), recurse)):
+        fresh.SetWeights(tuned.weights)
     return report

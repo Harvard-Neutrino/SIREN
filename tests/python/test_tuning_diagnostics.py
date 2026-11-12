@@ -168,7 +168,7 @@ def test_native_nested_tuning_and_transactional_validation():
     assert inner.tuning_count==outer.tuning_count==0
     assert min(inner.weights)>=.02
     outer.Accumulate(None,record(),2.)
-    inner.weights=[.3,.7]
+    inner.SetWeights([.3,.7])
     with pytest.raises(ValueError,match='changed'):
         outer.UpdateWeights()
     assert outer.weights==before
@@ -220,3 +220,97 @@ def test_all_miss_pilot_retains_owned_failure_reports(tmp_path):
     report.injector.reset()
     assert all(r.attempts==9 for r in report.failures)
     assert all(len(r.last_failed_tree.tree)==1 for r in report.failures)
+
+
+def _constant_factor(event):
+    return 2.0
+
+
+@pytest.mark.parametrize('chain',[False,True])
+def test_tuning_retains_declared_physical_models_and_stopping_condition(chain):
+    gen=_injector(chain=chain)
+    weight=siren.injection.Weighter(gen)
+    report=tune(gen,weight,events=4,rounds=1,seed=103)
+    trees=report.injector.generate(5,on_failure='raise',on_shortfall='raise')
+    assert all(len(t.tree)==(2 if chain else 1) for t in trees)
+    np.testing.assert_allclose(report.weighter.weight_all(trees),weight.weight_all(trees),rtol=2e-12,atol=0)
+    assert report.injector.engine is report.weighter.injectors[0]
+    assert gen.injection_attempts==0
+
+
+def anisotropic_pair(n=4096,seed=601,selected=False):
+    from test_native_phase_space import decay_setup
+    raw,_=decay_setup(n=n)
+    process=raw.GetPrimaryProcess()
+    model=process.interactions.GetDecays()[0]
+    choices=model.GetPossibleSignaturesFromParent(siren.particles.N4)
+    vertex=siren.Vertex('N4',model,distributions=list(process.distributions),
+        physical=list(process.distributions),weighting=siren.Fixed(),
+        decay_channels=[choices[0]] if selected else None,
+        kinematics=.3*siren.channels.physical()+.7*siren.channels.isotropic())
+    gen=siren.injection.Injector(events=n,seed=seed,detector=raw.GetDetectorModel(),primary=vertex)
+    return gen,siren.injection.Weighter(gen)
+
+
+@pytest.mark.parametrize('selected',[False,True])
+def test_changed_proposal_survives_production_and_native_archives(tmp_path,selected):
+    gen,weight=anisotropic_pair(selected=selected)
+    report=tune(gen,weight,events=1024,rounds=6,seed=104,damping=1.)
+    active=[a for a in report.alpha_history[-1] if abs(a[0]-.3)>.05]
+    assert active
+    assert all(a[0]>.3 for a in active)
+    assert all(list(m.weights)==[.3,.7] for m in gen.engine.GetPrimaryProcess().GetPhaseSpaceMap().values())
+    result=siren.generate(report.injector,report.weighter,events=4096,on_failure='raise',on_shortfall='raise')
+    expected=1/3 if selected else 1.
+    se=np.std(result.weights*4096,ddof=1)/64
+    assert abs(sum(result.weights)-expected)<6*se
+    assert result.explain(1).total==pytest.approx(result.weights[1],rel=2e-12)
+    np.testing.assert_allclose(result.reweight().weights,result.weights,rtol=2e-12,atol=0)
+    restored=pickle.loads(pickle.dumps(result))
+    np.testing.assert_allclose(restored.reweight().weights,result.weights,rtol=2e-12,atol=0)
+    name=str(tmp_path/'tuned')
+    report.injector.save(name)
+    report.weighter.save(name)
+    loaded=siren.injection.Injector.load(name)
+    loaded_weight=siren.injection.Weighter(loaded);loaded_weight.load(name)
+    np.testing.assert_allclose(loaded_weight.weight_all(result.events),result.weights,rtol=2e-12,atol=0)
+    copied=pickle.loads(pickle.dumps(report.injector))
+    assert [list(m.weights) for m in copied.engine.GetPrimaryProcess().GetPhaseSpaceMap().values()]==report.alpha_history[-1]
+
+
+def test_event_factor_is_cloned_or_refused_explicitly(tmp_path):
+    gen,weight=pair(tmp_path)
+    weight.event_factor=_constant_factor
+    report=tune(gen,weight,events=16,rounds=2,seed=107)
+    event=report.injector.generate(1,on_failure='raise')[0]
+    plain=siren.injection.Weighter(report.injector)
+    assert report.weighter(event)==pytest.approx(2*plain(event))
+    weight.event_factor=lambda event:1
+    with pytest.raises(siren.errors.NotSerializableError,match='event_factor'):
+        tune(gen,weight,events=4,rounds=1,seed=108)
+
+
+def test_skipped_positive_vertex_is_not_a_culprit():
+    from siren.report import VertexWeightLine,WeightBreakdown
+    skipped=VertexWeightLine(0,14,1.,math.nan,{},[],['physical factors not evaluated (no usable proposal)'])
+    broken=VertexWeightLine(1,14,1.,-1.,{},[],['physical density negative'])
+    assert skipped.is_ok
+    assert WeightBreakdown(math.nan,[skipped,broken]).culprit() is broken
+
+
+def test_internal_positive_decay_product_does_not_become_physical_zero():
+    from test_decay_channels import WidthOverride,channel,setup,P
+    class RareDensity(WidthOverride):
+        def FinalStateProbability(self,record):return 1e-200
+    model=channel([P.NuMu,P.Gamma],1e-16,1e-16)
+    gen,_,_=setup([model]);tree=gen.GenerateEvent()
+    rare=RareDensity(model,partial=1e-216,owned=1e-216,parent=1e-16)
+    physical=siren.injection.PhysicalProcess(P.N4,siren.interactions.InteractionCollection(P.N4,[rare]))
+    physical.weighting_mode=siren.Fixed()
+    physical.distributions=gen.GetPrimaryProcess().distributions
+    weight=siren.injection._Weighter([gen],gen.GetDetectorModel(),physical)
+    with pytest.raises(siren.errors.WeightCalculationError,match='underflow'):
+        weight.EventWeight(tree)
+    bd=weight.EventWeightWithBreakdown(tree)
+    assert math.isnan(bd.total)
+    assert any('underflow' in f for v in bd.vertices for f in v.flags)

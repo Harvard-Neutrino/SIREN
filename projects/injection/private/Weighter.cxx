@@ -340,10 +340,8 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             continue;
         }
         double term = generation / physical;
-        if(term == 0) {
-            breakdown.vertices.back().flags.push_back("inverse weight term underflow");
-            reject("inverse weight term underflow");
-        }
+        if(term == 0)
+            breakdown.vertices.back().flags.push_back("negligible inverse weight term rounded to zero");
         inv_weight += term;
         if(!std::isfinite(inv_weight)) {
             breakdown.vertices.back().flags.push_back("inverse weight overflow");

@@ -21,6 +21,15 @@
 namespace siren {
 namespace injection {
 
+double CheckedProbabilityProduct(double a, double b) {
+    if(!std::isfinite(a) || a < 0) return a;
+    if(!std::isfinite(b) || b < 0) return b;
+    double product = a * b;
+    if(a > 0 && b > 0 && product == 0)
+        throw siren::utilities::WeightCalculationError("Probability product underflow (not physical zero)");
+    return product;
+}
+
 namespace {
 
 double ConvertFinalStateDensity(
@@ -109,7 +118,7 @@ CandidateRates AccumulateRates(
 double RateWeightedFinalStateProbability(
     std::vector<detail::InteractionCandidate> const & candidates,
     siren::dataclasses::InteractionRecord const & record,
-    PhaseSpaceConvention const & convention)
+    PhaseSpaceConvention const & convention, double normalization)
 {
     double selected_final_state = 0.0;
     for (detail::InteractionCandidate const & candidate : candidates) {
@@ -135,7 +144,7 @@ double RateWeightedFinalStateProbability(
                 "Interaction candidate is neither a CrossSection nor a Decay "
                 "[siren-docs: errors#configuration]");
         }
-        selected_final_state += candidate.rate * density;
+        selected_final_state += CheckedProbabilityProduct(candidate.rate / normalization, density);
     }
 
     return selected_final_state;
@@ -148,14 +157,12 @@ double RateWeightedProbability(
     MultiChannelPhaseSpace const * phase_space,
     PhaseSpaceConvention const & convention)
 {
-    if (rates.total == 0) return 0.0;
     if (phase_space) {
-        if (rates.selected == 0) return 0.0;
         double density = phase_space->DensityIn(detector_model, record, convention);
-        return (rates.selected * density) / rates.total;
+        return CheckedProbabilityProduct(rates.selected / rates.total, density);
     }
-    return RateWeightedFinalStateProbability(rates.candidates, record, convention)
-        / rates.total;
+    return RateWeightedFinalStateProbability(
+        rates.candidates, record, convention, rates.total);
 }
 
 double ModeledBranchFraction(
@@ -323,7 +330,7 @@ double SelectedFinalStateProbability(
             "density from selected_rate=" + std::to_string(rates.selected));
     }
     double conditional_density = RateWeightedFinalStateProbability(
-        rates.candidates, record, convention) / rates.selected;
+        rates.candidates, record, convention, rates.selected);
     if (!std::isfinite(conditional_density)) {
         throw siren::utilities::WeightCalculationError(
             "SelectedFinalStateProbability: rate-conditional density is "
@@ -384,6 +391,7 @@ double CrossSectionProbability(
 {
     auto convention = SelectedFinalStateConvention(interactions, record);
     CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.total == 0) return 0.0;
     return RateWeightedProbability(detector_model, rates, record, nullptr, convention);
 }
 
@@ -395,6 +403,7 @@ double CrossSectionProbabilityWithPhaseSpace(
 {
     auto convention = phase_space.CommonConvention();
     CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.total == 0 || rates.selected == 0) return 0.0;
     return RateWeightedProbability(detector_model, rates, record, &phase_space, convention);
 }
 
@@ -444,14 +453,14 @@ double ProcessFinalStateProbability(
         CandidateRates rates = AccumulateRates(detector_model, interactions, record);
         if(!(rates.total > 0.0) || !std::isfinite(rates.total))
             throw siren::utilities::WeightCalculationError("Invalid modeled interaction rate");
-        double final_state = phase_space
-            ? rates.selected * phase_space->DensityIn(detector_model, record, convention)
-            : RateWeightedFinalStateProbability(rates.candidates, record, convention);
-        return (final_state / rates.total)
-            * ModeledBranchFraction(interactions, record, parent_width, rates);
+        double final_state = RateWeightedProbability(
+            detector_model, rates, record, phase_space.get(), convention);
+        return CheckedProbabilityProduct(final_state,
+            ModeledBranchFraction(interactions, record, parent_width, rates));
     }
     if (process.GetWeightingMode().compute_interaction_probability) {
         CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+        if (rates.total == 0 || (phase_space && rates.selected == 0)) return 0.0;
         return RateWeightedProbability(
             detector_model, rates, record, phase_space.get(), convention);
     }
@@ -459,8 +468,8 @@ double ProcessFinalStateProbability(
         ? phase_space->DensityIn(detector_model, record, convention)
         : SelectedFinalStateProbability(
             detector_model, interactions, record, convention);
-    return density * FixedVertexChannelSelectionProbability(
-        detector_model, interactions, record);
+    return CheckedProbabilityProduct(density, FixedVertexChannelSelectionProbability(
+        detector_model, interactions, record));
 }
 
 double ProcessGenerationProbability(
@@ -478,6 +487,7 @@ double ProcessGenerationProbability(
         ? phase_space->CommonConvention()
         : SelectedFinalStateConvention(interactions, record);
     CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    if (rates.total == 0 || (phase_space && rates.selected == 0)) return 0.0;
     return RateWeightedProbability(
         detector_model, rates, record, phase_space.get(), convention);
 }

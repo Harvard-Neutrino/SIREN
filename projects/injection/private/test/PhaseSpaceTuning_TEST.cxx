@@ -82,3 +82,61 @@ TEST(PhaseSpaceTuning, CommonMeasureAndExtremeWeights) {
     EXPECT_EQ(mc.TuningCount(),0u);
 }
 }
+
+namespace {
+class AngularChannel : public PhaseSpaceChannel {
+public:
+    double slope;
+    bool solid_angle;
+    AngularChannel(double slope, bool solid): slope(slope), solid_angle(solid) {}
+    void Sample(std::shared_ptr<siren::utilities::SIREN_random> random,
+                std::shared_ptr<siren::detector::DetectorModel const>,
+                siren::dataclasses::InteractionRecord & r) const override {
+        double u=random->Uniform(0,1);
+        r.interaction_parameters["cosine"] = slope == 0 ? 2*u-1
+            : (-1+std::sqrt((1-slope)*(1-slope)+4*slope*u))/slope;
+    }
+    double Density(std::shared_ptr<siren::detector::DetectorModel const>,
+                   siren::dataclasses::InteractionRecord const & r) const override {
+        return .5*(1+slope*r.interaction_parameters.at("cosine"))
+            / (solid_angle ? 2*std::acos(-1.) : 1.);
+    }
+    PhaseSpaceTopology Topology() const override { return PhaseSpaceTopology::Decay2Body; }
+    PhaseSpaceMeasure Measure() const override {
+        return solid_angle ? PhaseSpaceMeasure::SolidAngleRest() : PhaseSpaceMeasure::CosThetaRest();
+    }
+    std::string Name() const override { return "angular"; }
+};
+}
+
+TEST(PhaseSpaceTuning, NestedDistinctMeasuresMatchIndependentQuadrature) {
+    auto inner=std::make_shared<MultiChannelPhaseSpace>(
+        std::vector<std::shared_ptr<PhaseSpaceChannel>>{
+            std::make_shared<AngularChannel>(.9,false),std::make_shared<AngularChannel>(-.7,true)},
+        std::vector<double>{.25,.75});
+    MultiChannelPhaseSpace outer({std::make_shared<NestedMixtureChannel>(inner),
+                                  std::make_shared<AngularChannel>(.4,false)}, {.4,.6});
+    // Analytic cos(theta) densities: the outer proposal has slope .12.
+    constexpr int n=100000;
+    double wi[2]={0,0},wo[2]={0,0};
+    siren::dataclasses::InteractionRecord r;
+    for(int i=0;i<n;++i) {
+        double x=-1+(i+.5)*2/n, a=.5*(1+.9*x), b=.5*(1-.7*x);
+        double nested=.25*a+.75*b, c=.5*(1+.4*x), g=.4*nested+.6*c, f=.5*(1+.8*x);
+        wi[0]+=2./n*f*f*a/(g*g);wi[1]+=2./n*f*f*b/(g*g);
+        wo[0]+=2./n*f*f*nested/(g*g);wo[1]+=2./n*f*f*c/(g*g);
+        double u=(i+.5)/n;
+        x=(-1+std::sqrt(.88*.88+.48*u))/.12;
+        g=.5*(1+.12*x);f=.5*(1+.8*x);
+        r.interaction_parameters["cosine"]=x;
+        outer.Accumulate(nullptr,r,f/g);
+    }
+    outer.UpdateWeights("alpha_sqrt_W",1.,.01);
+    auto expected=[](double alpha,double a,double b) {
+        double p=alpha*std::sqrt(a),q=(1-alpha)*std::sqrt(b);
+        return .01+.98*p/(p+q);
+    };
+    EXPECT_NEAR(inner->Weights()[0],expected(.25,wi[0],wi[1]),1e-8);
+    EXPECT_NEAR(outer.Weights()[0],expected(.4,wo[0],wo[1]),1e-8);
+    EXPECT_GT(std::abs(inner->Weights()[0]-.25),.02);
+}
