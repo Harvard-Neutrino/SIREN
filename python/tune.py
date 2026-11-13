@@ -237,10 +237,13 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
         report.attempts.append(pilot.injection_attempts)
         report.successes.append(len(trees))
         report.failures.append(_report(pilot))
+    production_levels = _levels(_mixtures(production.engine), recurse)
+    for tuned, fresh in zip(levels, production_levels):
+        fresh.SetWeights(tuned.weights)
+    if report.alpha_history:
+        report.alpha_history[-1] = [list(mixture.weights) for mixture in production_levels]
     if len(report.alpha_history) >= 2:
         report.converged = all(abs(a-b) < 1e-3
             for before, after in zip(report.alpha_history[-2], report.alpha_history[-1])
             for a,b in zip(before, after))
-    for tuned, fresh in zip(levels, _levels(_mixtures(production.engine), recurse)):
-        fresh.SetWeights(tuned.weights)
     return report
