@@ -52,6 +52,9 @@ class SIREN_Controller:
             a GDML composite from ``load_detector("SBN", detector=...)``); when
             provided it overrides the experiment/file loading (default None)
         """
+        import warnings
+        warnings.warn("SIREN_Controller is deprecated; use Vertex and Simulation",
+                      DeprecationWarning, stacklevel=2)
 
         self.global_start = time.time()
 

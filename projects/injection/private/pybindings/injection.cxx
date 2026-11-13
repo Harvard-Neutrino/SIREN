@@ -52,6 +52,9 @@ using namespace pybind11;
 PYBIND11_MODULE(injection,m) {
   using namespace siren::injection;
 
+  m.def("_detector_state",
+        &(siren::serialization::pickle_save<siren::detector::DetectorModel>));
+
   // Collection-level probability diagnostics.
   m.def("CrossSectionProbability", &CrossSectionProbability,
         arg("detector_model"), arg("interactions"), arg("record"),

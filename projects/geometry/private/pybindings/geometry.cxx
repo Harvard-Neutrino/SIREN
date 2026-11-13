@@ -22,6 +22,8 @@
 #include "../../public/SIREN/geometry/Para.h"
 #include "../../public/SIREN/geometry/GeometryMesh.h"
 
+#include "../../../utilities/public/SIREN/utilities/Errors.h"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -92,7 +94,19 @@ PYBIND11_MODULE(geometry,m) {
 
     class_<Box, std::shared_ptr<Box>, Geometry>(m, "Box")
         .def(init<>())
-        .def(init<double, double, double>())
+        .def(init([](double x, double y, double z) -> std::shared_ptr<Box> {
+            throw siren::utilities::ConfigurationError(
+                "Box(x, y, z) places the box at the ORIGIN; pass "
+                "Box(widths=(x, y, z), center=(cx, cy, cz))");
+        }))
+        .def(init([](sequence widths, sequence center) {
+            if (len(widths) != 3 || len(center) != 3)
+                throw value_error("Box widths and center must each contain three coordinates");
+            Placement placement(siren::math::Vector3D(
+                cast<double>(center[0]), cast<double>(center[1]), cast<double>(center[2])));
+            return std::make_shared<Box>(placement, cast<double>(widths[0]),
+                                        cast<double>(widths[1]), cast<double>(widths[2]));
+        }), kw_only(), arg("widths"), arg("center") = make_tuple(0.0, 0.0, 0.0))
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double, double>())
         .def(init<const Box&>())

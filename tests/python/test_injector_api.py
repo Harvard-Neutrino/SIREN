@@ -243,6 +243,10 @@ def test_typo_secondary_key_raises():
 #  positional Box raises                                              #
 # ------------------------------------------------------------------ #
 
+def test_positional_box_raises():
+    """Box(x, y, z) raises with the widths=/center= fix-it."""
+    with pytest.raises(siren.errors.ConfigurationError, match="widths="):
+        siren.geometry.Box(1.0, 2.0, 3.0)
 
 
 
