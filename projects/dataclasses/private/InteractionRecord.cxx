@@ -968,6 +968,8 @@ CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord
     // SampleFinalState and FinalStateProbability must see the same record;
     // Finalize merges these back key by key.
     interaction_parameters(record.interaction_parameters),
+    interaction_int_parameters(record.interaction_int_parameters),
+    interaction_string_parameters(record.interaction_string_parameters),
     secondary_types(record.GetSecondaryTypes()),
     sampler_factor(record.sampler_factor) {
 
@@ -1140,6 +1142,12 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     for (auto const & x : interaction_parameters) {
         record.interaction_parameters[x.first] = x.second;
     }
+    for (auto const & x : interaction_int_parameters) {
+        record.interaction_int_parameters[x.first] = x.second;
+    }
+    for (auto const & x : interaction_string_parameters) {
+        record.interaction_string_parameters[x.first] = x.second;
+    }
 
     // Store the realised list only when it differs from the signature, so
     // fixed-signature events keep their exact form.
@@ -1290,7 +1298,9 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         secondary_times,
         interaction_parameters,
         GetSecondaryTypes(),
-        sampler_factor)
+        sampler_factor,
+        interaction_int_parameters,
+        interaction_string_parameters)
         ==
         std::tie(
         other.signature,
@@ -1312,7 +1322,9 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.secondary_times,
         other.interaction_parameters,
         other.GetSecondaryTypes(),
-        other.sampler_factor);
+        other.sampler_factor,
+        other.interaction_int_parameters,
+        other.interaction_string_parameters);
 }
 
 bool InteractionRecord::operator<(InteractionRecord const & other) const {
@@ -1336,7 +1348,9 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         secondary_times,
         interaction_parameters,
         GetSecondaryTypes(),
-        sampler_factor)
+        sampler_factor,
+        interaction_int_parameters,
+        interaction_string_parameters)
         <
         std::tie(
         other.signature,
@@ -1358,7 +1372,9 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.secondary_times,
         other.interaction_parameters,
         other.GetSecondaryTypes(),
-        other.sampler_factor);
+        other.sampler_factor,
+        other.interaction_int_parameters,
+        other.interaction_string_parameters);
 }
 
 std::vector<ParticleType> const & InteractionRecord::GetSecondaryTypes() const {
@@ -1823,6 +1839,12 @@ std::string to_str(siren::dataclasses::InteractionRecord const & record) {
     ss << tab << "InteractionParameters:\n";
     for(std::pair<std::string const, double> const & param : record.interaction_parameters) {
         ss << tab << tab << '\"' << param.first << "\": " << param.second << '\n';
+    }
+    for(auto const & param : record.interaction_int_parameters) {
+        ss << tab << tab << '\"' << param.first << "\": " << param.second << '\n';
+    }
+    for(auto const & param : record.interaction_string_parameters) {
+        ss << tab << tab << '\"' << param.first << "\": \"" << param.second << "\"\n";
     }
     ss << ']';
 

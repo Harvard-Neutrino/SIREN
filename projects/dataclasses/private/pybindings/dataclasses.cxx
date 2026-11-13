@@ -198,6 +198,8 @@ PYBIND11_MODULE(dataclasses, m) {
             "and invalidates secondary particle records obtained earlier; fetch them again.")
         .def("set_secondary_type", &CrossSectionDistributionRecord::SetSecondaryType,
             py::arg("index"), py::arg("type"))
+        .def_readwrite("interaction_int_parameters", &CrossSectionDistributionRecord::interaction_int_parameters)
+        .def_readwrite("interaction_string_parameters", &CrossSectionDistributionRecord::interaction_string_parameters)
         .def_property("sampler_factor", &CrossSectionDistributionRecord::GetSamplerFactor,
             &CrossSectionDistributionRecord::SetSamplerFactor,
             "Non-negative physical factor the sampler attaches to this vertex.")
@@ -272,6 +274,8 @@ PYBIND11_MODULE(dataclasses, m) {
                     ? std::vector<ParticleType>() : types;
             })
         .def_readwrite("sampler_factor", &InteractionRecord::sampler_factor)
+        .def_readwrite("interaction_int_parameters", &InteractionRecord::interaction_int_parameters)
+        .def_readwrite("interaction_string_parameters", &InteractionRecord::interaction_string_parameters)
         .def_property_readonly("has_realised_secondary_types",
             [](InteractionRecord const & r) { return !r.secondary_types.empty(); })
         .def(pybind11::pickle(

@@ -257,6 +257,10 @@ public:
     double target_mass = 0;
     double target_helicity = 0;
     std::map<std::string, double> interaction_parameters;
+    // Integer and string vertex attributes, for what a generator reports that
+    // is not a number on a continuous scale: a process ID, a channel name.
+    std::map<std::string, std::int64_t> interaction_int_parameters;
+    std::map<std::string, std::string> interaction_string_parameters;
 private:
     // The realised secondary types. They start as the record's secondary
     // types (the signature's, unless the record already holds a realised
@@ -358,6 +362,12 @@ public:
     // CrossSectionDistributionRecord::SetSamplerFactor). The weighter
     // multiplies it into this vertex's physical factor.
     double sampler_factor = 1.0;
+    // Integer and string vertex attributes (see
+    // CrossSectionDistributionRecord). The reserved integer key "process_id"
+    // and string key "process_name" on a root vertex name its process in
+    // NuHepMC output.
+    std::map<std::string, std::int64_t> interaction_int_parameters;
+    std::map<std::string, std::string> interaction_string_parameters;
 
     // The types of the secondaries this vertex produced, in the order of the
     // secondary_* vectors.
@@ -406,7 +416,7 @@ public:
             archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
-        } else if(version == 2 || version == 3) {
+        } else if(version >= 2 && version <= 4) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
             archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
@@ -428,8 +438,12 @@ public:
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
             if(version >= 3)
                 archive(::cereal::make_nvp("SamplerFactor", sampler_factor));
+            if(version >= 4) {
+                archive(::cereal::make_nvp("InteractionIntParameters", interaction_int_parameters));
+                archive(::cereal::make_nvp("InteractionStringParameters", interaction_string_parameters));
+            }
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 3!");
+            throw std::runtime_error("InteractionRecord only supports version <= 4!");
         }
     }
     template<typename Archive>
@@ -457,6 +471,8 @@ public:
             secondary_times.assign(secondary_momenta.size(), 0);
             secondary_types.clear();
             sampler_factor = 1.0;
+            interaction_int_parameters.clear();
+            interaction_string_parameters.clear();
         } else if(version == 1) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
@@ -478,7 +494,9 @@ public:
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
             secondary_types.clear();
             sampler_factor = 1.0;
-        } else if(version == 2 || version == 3) {
+            interaction_int_parameters.clear();
+            interaction_string_parameters.clear();
+        } else if(version >= 2 && version <= 4) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
             archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
@@ -499,10 +517,16 @@ public:
             archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
             sampler_factor = 1.0;
+            interaction_int_parameters.clear();
+            interaction_string_parameters.clear();
             if(version >= 3)
                 archive(::cereal::make_nvp("SamplerFactor", sampler_factor));
+            if(version >= 4) {
+                archive(::cereal::make_nvp("InteractionIntParameters", interaction_int_parameters));
+                archive(::cereal::make_nvp("InteractionStringParameters", interaction_string_parameters));
+            }
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 3!");
+            throw std::runtime_error("InteractionRecord only supports version <= 4!");
         }
     }
 };
@@ -551,6 +575,6 @@ public:
 } // namespace dataclasses
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 3);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 4);
 
 #endif // SIREN_InteractionRecord_H

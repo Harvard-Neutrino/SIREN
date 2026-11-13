@@ -26,6 +26,17 @@ std::string ProcessKey(siren::dataclasses::InteractionSignature const & s) {
     return k;
 }
 
+// A root vertex may name its process with the reserved integer attribute
+// "process_id" (and optionally the string attribute "process_name"); such
+// processes register under the generator's own id. Others are keyed by
+// signature and get ids in SIREN's band.
+std::string RootProcessKey(siren::dataclasses::InteractionRecord const & r) {
+    auto const it = r.interaction_int_parameters.find("process_id");
+    if(it != r.interaction_int_parameters.end())
+        return "generator:" + std::to_string(it->second);
+    return ProcessKey(r.signature);
+}
+
 std::string ProcessName(siren::dataclasses::InteractionSignature const & s) {
     std::string n = std::to_string(pdg(s.primary_type)) + "+"
                   + std::to_string(pdg(s.target_type)) + " -> ";
@@ -355,7 +366,7 @@ struct HepMC3Writer::Impl {
         // NuHepMC E.R.3 signal_process_id from the root interaction signature
         // (plain IntAttribute, no NuHepMC. prefix). Ids come from the pre-scan.
         if(nuhepmc_conformant && !tree.tree.empty() && !options_.process_ids.empty()) {
-            auto const it = options_.process_ids.find(ProcessKey(tree.tree.front()->record.signature));
+            auto const it = options_.process_ids.find(RootProcessKey(tree.tree.front()->record));
             if(it != options_.process_ids.end())
                 evt.add_attribute("signal_process_id",
                     std::make_shared<HepMC3::IntAttribute>(it->second));
@@ -492,6 +503,15 @@ struct HepMC3Writer::Impl {
             for(auto const & kv : rec.interaction_parameters) {
                 vertex->add_attribute("siren.param." + kv.first, D(kv.second));
             }
+            // Integer and string attributes, under their own prefixes.
+            for(auto const & kv : rec.interaction_int_parameters) {
+                vertex->add_attribute("siren.iparam." + kv.first,
+                    std::make_shared<HepMC3::LongAttribute>(static_cast<long>(kv.second)));
+            }
+            for(auto const & kv : rec.interaction_string_parameters) {
+                vertex->add_attribute("siren.sparam." + kv.first,
+                    std::make_shared<HepMC3::StringAttribute>(kv.second));
+            }
             // A sampler factor other than one enters the weight; keep it.
             if(rec.sampler_factor != 1.0)
                 vertex->add_attribute("siren.sampler_factor", D(rec.sampler_factor));
@@ -596,12 +616,20 @@ void SaveInteractionTreesAsHepMC3(
     // First pass: accumulate FATX sums/counts and collect one representative
     // signature per distinct root process key (dedup by key, keep the first).
     std::map<std::string, siren::dataclasses::InteractionSignature> sig_by_key;
+    // Processes the generator named: id -> name (first name seen wins).
+    std::map<int, std::string> generator_processes;
     for(auto const & tree : trees) {
         if(!tree || tree->tree.empty()) continue;
-        siren::dataclasses::InteractionSignature const & sig =
-            tree->tree.front()->record.signature;
-        std::string const key = ProcessKey(sig);
-        sig_by_key.emplace(key, sig);
+        siren::dataclasses::InteractionRecord const & root = tree->tree.front()->record;
+        siren::dataclasses::InteractionSignature const & sig = root.signature;
+        auto const pid = root.interaction_int_parameters.find("process_id");
+        if(pid != root.interaction_int_parameters.end()) {
+            auto const name = root.interaction_string_parameters.find("process_name");
+            generator_processes.emplace(static_cast<int>(pid->second),
+                name != root.interaction_string_parameters.end() ? name->second : ProcessName(sig));
+        } else {
+            sig_by_key.emplace(ProcessKey(sig), sig);
+        }
         // CV weight is slot 0, matching what TreeToGenEvent writes into evt.weights().
         std::vector<double> const & wv = tree->header.weights;
         double const w = wv.empty() ? 1.0 : wv.front();
@@ -618,10 +646,18 @@ void SaveInteractionTreesAsHepMC3(
     sigs.reserve(sig_by_key.size());
     for(auto const & kv : sig_by_key) sigs.push_back(kv.second);
     std::sort(sigs.begin(), sigs.end());
+    for(auto const & kv : generator_processes) {
+        std::string const key = "generator:" + std::to_string(kv.first);
+        if(opts.process_ids.find(key) == opts.process_ids.end()) {
+            opts.process_ids[key] = kv.first;
+            opts.process_names[kv.first] = kv.second;
+        }
+    }
     int next_process_id = 700; // NuHepMC generator ("Other") process-id band
     for(auto const & sig : sigs) {
         std::string const key = ProcessKey(sig);
         if(opts.process_ids.find(key) == opts.process_ids.end()) {
+            while(opts.process_names.count(next_process_id)) ++next_process_id;
             int const id = next_process_id++;
             opts.process_ids[key] = id;
             opts.process_names[id] = ProcessName(sig);

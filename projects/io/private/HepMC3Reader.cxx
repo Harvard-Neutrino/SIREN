@@ -193,6 +193,19 @@ siren::dataclasses::InteractionRecord VertexToRecord(
             vertex->attribute<HepMC3::DoubleAttribute>("siren.sampler_factor"))
         rec.sampler_factor = factor->value();
 
+    // Integer and string attributes from siren.iparam.<key> and siren.sparam.<key>.
+    for(std::string const & name : vertex->attribute_names()) {
+        std::string const iprefix = "siren.iparam.";
+        std::string const sprefix = "siren.sparam.";
+        if(name.compare(0, iprefix.size(), iprefix) == 0 && name.size() > iprefix.size()) {
+            if(auto a = vertex->attribute<HepMC3::LongAttribute>(name))
+                rec.interaction_int_parameters[name.substr(iprefix.size())] = a->value();
+        } else if(name.compare(0, sprefix.size(), sprefix) == 0 && name.size() > sprefix.size()) {
+            if(auto a = vertex->attribute<HepMC3::StringAttribute>(name))
+                rec.interaction_string_parameters[name.substr(sprefix.size())] = a->value();
+        }
+    }
+
     // interaction_parameters from siren.param.<key> attributes on the vertex.
     std::string const prefix = "siren.param.";
     for(std::string const & name : vertex->attribute_names()) {

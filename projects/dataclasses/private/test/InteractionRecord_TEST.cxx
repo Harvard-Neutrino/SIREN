@@ -5,6 +5,7 @@
 // (it includes main()).
 
 #include <array>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -259,7 +260,7 @@ TEST(InteractionRecord_Serialization, SaveUnsupportedVersionThrows) {
     std::stringstream ss;
     cereal::JSONOutputArchive oar(ss);
 
-    EXPECT_THROW(r.save(oar, 4), std::runtime_error);
+    EXPECT_THROW(r.save(oar, 5), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
@@ -269,7 +270,7 @@ TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
     ss << "{}";
     cereal::JSONInputArchive iar(ss);
 
-    EXPECT_THROW(r.load(iar, 4), std::runtime_error);
+    EXPECT_THROW(r.load(iar, 5), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, Version0_LoadsWithDefaultTimes) {
@@ -1277,6 +1278,60 @@ TEST(SamplerFactor, Version2LoadsAsOne) {
     out.sampler_factor = 9.0;
     { cereal::JSONInputArchive iar(ss); out.load(iar, 2); }
     EXPECT_DOUBLE_EQ(out.sampler_factor, 1.0);
+}
+
+
+///////////////////////////////////////////////
+// Integer and string vertex attributes
+///////////////////////////////////////////////
+
+TEST(TypedAttributes, FinalizeMergesThemKeyByKey) {
+    InteractionRecord r = MakeChannelRecord();
+    r.interaction_int_parameters["kept"] = 7;
+    CrossSectionDistributionRecord csr(r);
+    EXPECT_EQ(csr.interaction_int_parameters.at("kept"), 7);
+    csr.interaction_int_parameters["process_id"] = 1001;
+    csr.interaction_string_parameters["process_name"] = "toy QE";
+    FillSecondaries(csr);
+    csr.Finalize(r);
+    EXPECT_EQ(r.interaction_int_parameters.at("kept"), 7);
+    EXPECT_EQ(r.interaction_int_parameters.at("process_id"), 1001);
+    EXPECT_EQ(r.interaction_string_parameters.at("process_name"), "toy QE");
+}
+
+TEST(TypedAttributes, EnteredInEqualityAndArchives) {
+    InteractionRecord a = MakePopulatedInteractionRecord();
+    InteractionRecord b = a;
+    b.interaction_int_parameters["big"] = (std::int64_t(1) << 52) + 3;
+    b.interaction_string_parameters["channel"] = "Delta(1232) -> p pi+";
+    EXPECT_FALSE(a == b);
+    for(int binary = 0; binary < 2; ++binary) {
+        std::stringstream ss;
+        InteractionRecord out;
+        if(binary) {
+            { cereal::BinaryOutputArchive oar(ss); oar(b); }
+            { cereal::BinaryInputArchive iar(ss); iar(out); }
+        } else {
+            { cereal::JSONOutputArchive oar(ss); oar(b); }
+            { cereal::JSONInputArchive iar(ss); iar(out); }
+        }
+        EXPECT_EQ(out, b);
+        EXPECT_EQ(out.interaction_int_parameters.at("big"), (std::int64_t(1) << 52) + 3);
+        EXPECT_EQ(out.interaction_string_parameters.at("channel"), "Delta(1232) -> p pi+");
+    }
+}
+
+TEST(TypedAttributes, Version3LoadsWithout) {
+    InteractionRecord in = MakePopulatedInteractionRecord();
+    in.interaction_int_parameters["x"] = 1;
+    std::stringstream ss;
+    { cereal::JSONOutputArchive oar(ss); in.save(oar, 3); }
+    EXPECT_EQ(ss.str().find("InteractionIntParameters"), std::string::npos);
+    InteractionRecord out;
+    out.interaction_string_parameters["stale"] = "y";
+    { cereal::JSONInputArchive iar(ss); out.load(iar, 3); }
+    EXPECT_TRUE(out.interaction_int_parameters.empty());
+    EXPECT_TRUE(out.interaction_string_parameters.empty());
 }
 
 
