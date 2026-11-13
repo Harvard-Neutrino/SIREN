@@ -1,81 +1,26 @@
-# Native phase-space proposals
+# Phase-space proposals
 
-A process can sample an interaction's final state from a proposal instead of
-the physical model. Register a `MultiChannelPhaseSpace` for an interaction
-signature with `SetPhaseSpace`. The injector draws final states from that
-mixture, and the weighter divides the physical density by the mixture density,
-with both expressed in the same measure.
+Register a proposal for each interaction signature you want to sample through
+`SetPhaseSpace`. The injector draws final states from that proposal, and the
+weighter compares its density with the physical density in a common measure.
 
-These classes live in `siren.injection`. The high-level `siren.Injector` and
-`siren.Weighter` wrappers keep those names, so the native classes used below are
-exposed as `siren.injection._Injector` and `siren.injection._Weighter`.
-
-## Example
-
-This example samples HNL dipole decays at a fixed vertex from a mixture of the
-physical decay and an isotropic proposal, then weights and archives them. It
-checks sampling and weighting only; there is no beam exposure or detector.
+For a two-body decay, register a mixture on an existing injection process:
 
 ```python
-import math
-import siren
-from siren import dataclasses as dc, distributions as dist
-from siren import injection as inj, interactions as xs, utilities
-from siren.math import Vector3D
+from siren import injection as inj
 
-N4 = dc.Particle.ParticleType.N4
-hnl_mass = 1.0          # GeV
-dipole_coupling = 1e-6  # GeV^-1
-model = xs.HNLDipoleDecay(
-    hnl_mass, dipole_coupling, xs.HNLDipoleDecay.ChiralNature.Majorana)
-interactions = xs.InteractionCollection(N4, [model])
-detector = siren.detector.DetectorModel()
-
-process = inj.PrimaryInjectionProcess()
-process.primary_type = N4
-process.interactions = interactions
-process.weighting_mode = inj.VertexWeightingMode.Fixed()
-process.distributions = [
-    dist.PrimaryMass(hnl_mass),
-    dist.Monoenergetic(2.0),  # GeV
-    dist.PrimaryNeutrinoHelicityDistribution(),
-    dist.FixedDirection(Vector3D(0, 0, 1)),
-    dist.SphereVolumePositionDistribution(siren.geometry.Sphere(1.0, 0.0)),
-]
-for signature in model.GetPossibleSignaturesFromParent(N4):
-    process.SetPhaseSpace(signature, inj.MultiChannelPhaseSpace([
-        inj.PhysicalDecayChannel(model, signature),
-        inj.Isotropic2BodyChannel(),
-    ], [0.3, 0.7]))
-
-physical = inj.PhysicalProcess()
-physical.primary_type = N4
-physical.interactions = interactions
-physical.weighting_mode = inj.VertexWeightingMode.Fixed()
-physical.distributions = process.distributions
-
-n_events = 1000
-generator = inj._Injector(n_events, detector, process, utilities.SIREN_random(19))
-weighter = inj._Weighter([generator], detector, physical)
-events = [generator.GenerateEvent() for _ in range(n_events)]
-assert all(len(event.tree) == 1 for event in events)
-
-# A Majorana dipole decay is isotropic, so the physical and mixture densities
-# are equal and every event weighs exactly 1/n_events.
-weights = [weighter.EventWeight(event) for event in events]
-assert math.isclose(sum(weights), 1.0, rel_tol=1e-12)
-
-generator.SaveInjector("decay.injector")
-weighter.SaveWeighter("decay")  # writes decay.siren_weighter
-
-# The archive stores the RNG state, so the restored injector continues the
-# original stream. The engine passed here is used only for archives that
-# predate stored RNG state.
-restored = inj._Injector(n_events, "decay.injector", utilities.SIREN_random(0))
-restored_weighter = inj._Weighter([], "decay")
-assert restored.InjectionAttempts() == n_events
-assert restored_weighter.EventWeight(events[0]) == weights[0]
+process.SetPhaseSpace(signature, inj.MultiChannelPhaseSpace(
+    [inj.PhysicalDecayChannel(model, signature), inj.Isotropic2BodyChannel()],
+    [0.3, 0.7],
+))
 ```
+
+The [runnable archive example](../examples/phase_space_archive.py) sets up
+a Majorana HNL dipole decay, generates and weights a batch, and reloads the
+injector and weighter. Run it with `python examples/phase_space_archive.py`.
+It uses the C++ bindings `siren.injection._Injector` and
+`siren.injection._Weighter` directly, with a fixed vertex and no detector or
+beam exposure.
 
 ## Weighting modes
 
@@ -92,8 +37,7 @@ detector model.
 A channel provides `Sample`, `Density`, `Topology` and `Measure`. `Density` must
 be defined at points drawn by any other channel in the same mixture. A mixture
 draws channel *i* with probability `weights[i]` (normalized to sum to one), and
-its density at a point is the weighted sum over **all** channels, not just the
-one that drew it. Nested mixtures and the adapters for existing `Decay` and
+its density at a point is the weighted sum over **all** channels. Nested mixtures and the adapters for existing `Decay` and
 `CrossSection` models follow the same rule.
 
 Every density is differential in a declared measure. For example,
@@ -148,14 +92,12 @@ chosen from partial-width ratios. Built-in fixed, cone and isotropic direction
 distributions assign unit probability to the single momentum of a massive
 on-shell parent at rest, where the sampled direction is unobservable. Custom
 direction distributions should use the same unit probability mass for valid
-stationary records, and zero for invalid stationary records. This removes the
-previous spurious solid-angle factor when an isotropic direction appeared on
-only one side of a stationary weight. Moving densities are unchanged. Material
+stationary records, and zero for invalid stationary records. Material
 interactions require a finite, nonzero momentum.
 
 ## Archives
 
-Native channels, mixtures, process phase-space maps, RNG state, attempt and
+Built-in channels, mixtures, process phase-space maps, RNG state, attempt and
 failure counters, and weighters can be saved to archives and pickled. If loading
 a file fails, the receiving object keeps its previous configuration. Archives
 written before RNG state was stored remain readable; loading one uses the
@@ -170,11 +112,11 @@ An injector with a stopping-condition callback cannot be saved or pickled,
 because the callback cannot be restored; this includes callbacks set through
 the `siren.Injector` wrapper. Python-defined interactions and distributions keep
 their pickled Python state, and state that cannot be pickled raises an error.
-Do not load pickles or native archives from untrusted sources.
+Do not load pickles or SIREN archives from untrusted sources.
 
 ## Tests
 
-Run the focused checks against a build whose Python package and native
+Run the focused checks against a build whose Python package and compiled
 libraries match the source:
 
 ```bash
