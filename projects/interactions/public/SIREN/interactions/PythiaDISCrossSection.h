@@ -159,6 +159,11 @@ public:
     // enforces that (see CrossSection::FinalStateDensityEvaluable).
     virtual bool FinalStateDensityEvaluable(
         siren::dataclasses::InteractionSignature const & signature) const override;
+    // Names the Pythia configuration that shapes the final state (version,
+    // current, PDF set, Q^2 cut, target mass), so that two objects configured
+    // alike count as the same sampler when the final state is opaque.
+    virtual std::string FinalStateSamplerKey(
+        siren::dataclasses::InteractionSignature const & signature) const override;
     virtual std::vector<std::string> DensityVariables() const override;
 
     // Getters

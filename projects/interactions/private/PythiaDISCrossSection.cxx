@@ -1,6 +1,7 @@
 #include "SIREN/interactions/PythiaDISCrossSection.h"
 
 #include <map>
+#include <sstream>
 #include <set>
 #include <array>
 #include <cmath>
@@ -417,6 +418,18 @@ double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle
 bool PythiaDISCrossSection::FinalStateDensityEvaluable(
     siren::dataclasses::InteractionSignature const &) const {
     return has_differential_;
+}
+
+std::string PythiaDISCrossSection::FinalStateSamplerKey(
+    siren::dataclasses::InteractionSignature const &) const {
+    std::ostringstream key;
+    key.precision(17);
+    key << "Pythia8 " << PYTHIA_VERSION_INTEGER
+        << "|current=" << interaction_type_
+        << "|pdf=" << pdf_set_
+        << "|Q2min=" << minimum_Q2_
+        << "|target_mass=" << target_mass_;
+    return key.str();
 }
 
 double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {

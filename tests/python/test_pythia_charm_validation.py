@@ -306,9 +306,12 @@ def test_end_to_end_rate_closure():
     inj = injection._Injector(N, dm, pinj, rand)
     weighter = injection._Weighter([inj], dm, pphys)
 
+    # Weight after all N attempts: the weighter normalizes by the injector's
+    # attempt count so far, which is N only once every event has been drawn.
+    events = [inj.GenerateEvent() for _ in range(N)]
+    assert inj.InjectionAttempts() == N
     weights, int_probs = [], []
-    for _ in range(N):
-        ev = inj.GenerateEvent()
+    for ev in events:
         w = weighter.EventWeight(ev)
         ip = weighter.GetInteractionProbabilities(ev, 0)[0]
         assert np.isfinite(w) and w > 0.0, f"non-finite/non-positive event weight {w}"
