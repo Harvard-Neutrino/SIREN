@@ -52,6 +52,9 @@ namespace rk {
         //
         P4(double e, const geom3::Vector3& p);
 
+        // Restore an archived on-shell value with its original energy and cached mass.
+        static P4 restoreOnShell(double e, const geom3::Vector3& p, double m);
+
         // Basic accessors
         const geom3::Vector3& momentum() const;
         double e() const;

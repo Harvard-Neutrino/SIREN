@@ -225,5 +225,9 @@ bool RangePositionDistribution::less(WeightableDistribution const & other) const
         std::tie(radius, x->endcap_length, range_less, x->target_types);
 }
 
+std::set<DistributionVariable> RangePositionDistribution::RequiredVariables() const {
+    return {DistributionVariable::PrimaryDirection, DistributionVariable::PrimaryEnergy, DistributionVariable::PrimaryMass};
+}
+
 } // namespace distributions
 } // namespace sirenREN

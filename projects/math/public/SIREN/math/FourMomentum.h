@@ -30,6 +30,11 @@ public:
         return result;
     }
 
+    static FourMomentum RestoreOnShell(std::array<double, 4> const & p, double mass) {
+        return FourMomentum(rk::P4::restoreOnShell(
+            p[0], geom3::Vector3(p[1], p[2], p[3]), mass), true);
+    }
+
     std::array<double, 4> Components() const {
         return {value_.e(), value_.px(), value_.py(), value_.pz()};
     }
