@@ -11,7 +11,9 @@ underflow, previously thrown from the breakdown method, now appears as a flagged
 NaN total there; scalar weighting still raises. A positive-factor product that underflows
 is an error, distinct from an exact zero physical factor. This checks the
 framework's probability composition; a numerical zero already returned by a model
-is outside this guarantee. Unrepresentable generation densities fail explicitly.
+is outside this guarantee. These guards check products, not every division or
+the relative precision of subnormal rate ratios. Unrepresentable generation
+densities fail explicitly.
 A negligible positive inverse-weight contribution may round to zero when another
 pooled injector supplies a representable total.
 
@@ -44,7 +46,8 @@ only the finalized proposal coefficients are transferred from the pilot.
 
 For direct use, `report = siren.tune.tune(injector, weighter, seed=1729)` returns
 `report.injector` and `report.weighter`. Generate with that pair using
-`siren.generate`. The input objects are unchanged. Use fresh input counters;
+`siren.generate`. The input objects are unchanged. A legacy-form Weighter requires its Injector
+to be built explicitly before tuning; an unbuilt input is refused. Use fresh input counters;
 previously generated events cannot be assigned a changed proposal law.
 
 Tuning requires a serializable native configuration. Separately declared
@@ -52,7 +55,13 @@ physical models/distributions are retained in the same graph archive as the
 samplers. Picklable stopping conditions and event factors are copied independently. Python model implementations
 and unsupported live callbacks fail explicitly. A picklable `event_factor` is
 copied for the pilot/production pair; Results retains its existing archive guard.
-No pilot is silently omitted when cloning fails.
+No pilot is silently omitted when cloning fails. If a Vertex declares physical
+models or distributions, the returned injector refuses standalone pickle/save
+and default Weighter inheritance, since those would lose the physical target.
+Use the returned weighter, and save/load that weighter to retain the complete
+configuration. Python stopping callbacks still preclude native archives and
+frozen Results; use native expansion rules for persistence. Injector-only archives
+remain supported when no separate physical declarations exist.
 
 ## Update and acceptance
 
@@ -61,7 +70,8 @@ The default Kleiss–Pittau update is proportional to
 Damping blends with the old proposal. Each component has a strictly positive
 floor, including a physical fallback, so tuning cannot delete its support.
 With `recurse=True`, nested channels, including U07 tiling coefficients, are
-tunable. `recurse=False` keeps their interior coefficients fixed. Nested channels
+tunable. The fixed weights described by U07 tiling are construction defaults,
+not a tuning lock. `recurse=False` keeps their interior coefficients fixed. Nested channels
 use the outer mixture's density in the statistic, with all
 bare densities converted to the same measure. Repeated references and cycles
 in nested mixture graphs are refused. The native accumulator uses log sums to

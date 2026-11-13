@@ -259,6 +259,9 @@ class Weighter:
     def __init_from_injectors(self, injectors, primary_physical,
                                secondary_physical, overrides):
         """Inherit the first injector's physical target, then apply overrides."""
+        if getattr(injectors[0], '_physical_target_in_weighter', False):
+            raise ConfigurationError(
+                'Physical declarations belong to the returned tuning weighter; use that weighter rather than inheriting from its injector')
         overrides = overrides or {}
 
         self.injectors = injectors

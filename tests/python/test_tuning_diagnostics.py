@@ -235,7 +235,7 @@ def test_tuning_retains_declared_physical_models_and_stopping_condition(chain):
     assert all(len(t.tree)==(2 if chain else 1) for t in trees)
     expected=weight.weight_all(trees)*gen.number_of_events/report.injector.injection_attempts
     np.testing.assert_allclose(report.weighter.weight_all(trees),expected,rtol=2e-12,atol=0)
-    assert report.injector.engine is report.weighter.injectors[0]
+    assert report.injector is report.weighter.injectors[0]
     assert gen.injection_attempts==0
 
 
@@ -275,13 +275,13 @@ def test_changed_proposal_survives_production_and_native_archives(tmp_path,selec
     restored=pickle.loads(pickle.dumps(result))
     np.testing.assert_allclose(restored.reweight().weights,result.weights,rtol=2e-12,atol=0)
     name=str(tmp_path/'tuned')
-    report.injector.save(name)
+    with pytest.raises(siren.errors.NotSerializableError,match='tuning weighter'):
+        report.injector.save(name)
     report.weighter.save(name)
-    loaded=siren.injection.Injector.load(name)
-    loaded_weight=siren.injection.Weighter(loaded);loaded_weight.load(name)
+    loaded_weight=siren.injection.Weighter();loaded_weight.load(name)
     np.testing.assert_allclose(loaded_weight.weight_all(result.events),result.weights,rtol=2e-12,atol=0)
-    copied=pickle.loads(pickle.dumps(report.injector))
-    assert [list(m.weights) for m in copied.engine.GetPrimaryProcess().GetPhaseSpaceMap().values()]==report.alpha_history[-1]
+    copied=pickle.loads(pickle.dumps(report.weighter))
+    assert [list(m.weights) for m in copied.injectors[0].GetPrimaryProcess().GetPhaseSpaceMap().values()]==report.alpha_history[-1]
 
 
 def test_event_factor_is_cloned_or_refused_explicitly(tmp_path):
@@ -351,3 +351,64 @@ def test_production_callback_starts_from_pristine_state():
     assert report.injector.stopping_condition.calls==0
     report.injector.generate(2,on_failure='raise',on_shortfall='raise')
     assert report.injector.stopping_condition.calls==2
+
+
+def test_tuned_physical_declarations_cannot_be_lost_through_injector(tmp_path):
+    gen=_injector(chain=False)
+    report=tune(gen,siren.injection.Weighter(gen),events=4,rounds=1,seed=113)
+    with pytest.raises(siren.errors.NotSerializableError,match='tuning weighter'):
+        pickle.dumps(report.injector)
+    with pytest.raises(siren.errors.NotSerializableError,match='tuning weighter'):
+        report.injector.save(str(tmp_path/'bare'))
+    with pytest.raises(siren.errors.ConfigurationError,match='tuning weighter'):
+        siren.injection.Weighter(report.injector)
+    event=report.injector.generate(1,on_failure='raise')[0]
+    name=str(tmp_path/'physical')
+    report.weighter.save(name)
+    restored=siren.injection.Weighter();restored.load(name)
+    assert restored(event)==pytest.approx(report.weighter(event),rel=2e-12)
+
+
+def test_tuned_injector_without_physical_declarations_still_archives(tmp_path):
+    gen,weight=pair(tmp_path)
+    report=tune(gen,weight,events=8,rounds=1,seed=114)
+    name=str(tmp_path/'sampling')
+    event=report.injector.generate(1,on_failure='raise')[0]
+    report.injector.save(name)
+    loaded=siren.injection.Injector.load(name)
+    assert siren.injection.Weighter(loaded)(event)==pytest.approx(report.weighter(event),rel=2e-12)
+
+
+@pytest.mark.parametrize('density',[-1.,math.nan,math.inf])
+def test_invalid_native_generation_retains_diagnostic_culprit(tmp_path,density):
+    from test_python_distributions import InitialTimeShift
+    class BadDensity(InitialTimeShift):
+        def GenerationProbability(self,detector,interactions,record):return density
+    gen=facade(tmp_path)
+    gen.primary.distributions.append(BadDensity())
+    weight=siren.injection.Weighter(gen)
+    event=gen.generate(1,on_failure='raise')[0]
+    with pytest.raises(siren.errors.WeightCalculationError):weight(event)
+    breakdown=weight.explain(event)
+    assert math.isnan(breakdown.total)
+    assert breakdown.culprit() is not None
+    assert not breakdown.culprit().is_ok
+
+
+def test_legacy_unbuilt_input_is_refused_without_compiling_it(tmp_path):
+    from test_creation_survival import setup,P
+    raw,_=setup(tmp_path,5.,True)
+    gen=facade(tmp_path)
+    weight=siren.injection.Weighter(injectors=[gen],detector_model=raw.GetDetectorModel(),
+        primary_type=P.N4,primary_interactions=list(raw.GetPrimaryProcess().interactions.GetDecays()),
+        primary_physical_distributions=[])
+    with pytest.raises(siren.errors.ConfigurationError,match='Build the injector'):
+        tune(gen,weight,events=4,rounds=1,seed=115)
+    gen.number_of_events=9
+
+
+def test_tuned_python_stopping_callback_has_typed_archive_refusal(tmp_path):
+    gen=_injector(chain=True)
+    report=tune(gen,siren.injection.Weighter(gen),events=4,rounds=1,seed=116)
+    with pytest.raises(siren.errors.NotSerializableError,match='stopping condition'):
+        report.weighter.save(str(tmp_path/'callback'))

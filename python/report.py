@@ -195,6 +195,10 @@ class VertexWeightLine:
 
     @property
     def skipped(self) -> bool:
+        if not math.isfinite(self.generation) or self.generation < 0:
+            return False
+        if any(any(word in f for word in ('unusable', 'underflow', 'overflow')) for f in self.flags):
+            return False
         return any("physical factors not evaluated" in f for f in self.flags)
 
     @property

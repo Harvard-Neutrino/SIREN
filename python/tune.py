@@ -152,8 +152,13 @@ def _clone_pair(injector, weighter):
     new_injector._Injector__stopping_condition = None
     new_injector._restore_engine_configuration()
     new_injector._Injector__max_attempts = injector._Injector__max_attempts
+    vertices = ([injector.primary] if injector.primary is not None else []) + list(injector.secondaries)
+    new_injector._physical_target_in_weighter = (
+        getattr(injector, '_physical_target_in_weighter', False)
+        or any(v.physical or v.physical_interactions is not None for v in vertices))
     if condition is not None:
         new_injector.stopping_condition = condition
+    new_weighter._Weighter__injectors = [new_injector]
     return new_injector, new_weighter
 
 
@@ -173,6 +178,8 @@ def tune(injector, weighter, *, events=2000, rounds=5, seed=1729,
     Plan(rounds, events, seed, rule, damping, min_weight, metric, recurse)
     if on_failure not in ('raise', 'retry'):
         raise ValueError("on_failure must be 'raise' or 'retry'")
+    if getattr(injector, '_Injector__injector', None) is None:
+        raise ConfigurationError('Build the injector before tuning a legacy weighter')
     if injector.injection_attempts or injector.injected_events:
         raise ConfigurationError('tune requires fresh counters; create a fresh injector')
     if injector.seed is None or injector.seed == seed:

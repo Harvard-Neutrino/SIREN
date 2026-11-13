@@ -589,6 +589,8 @@ class Injector:
         # Injector archives contain sampling processes only. A Weighter archive
         # also stores the resolved physical processes, so it preserves these.
         if not for_weighter:
+            if getattr(self, '_physical_target_in_weighter', False):
+                offenders.append('tuned physical declarations belong to the returned tuning weighter; save that weighter instead')
             vertices = ([self.__primary_vertex] if self.__primary_vertex is not None else [])
             vertices += self.__secondary_vertices
             for vertex in vertices:
