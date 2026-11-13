@@ -971,12 +971,17 @@ CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord
     interaction_int_parameters(record.interaction_int_parameters),
     interaction_string_parameters(record.interaction_string_parameters),
     secondary_types(record.GetSecondaryTypes()),
+    secondary_statuses(record.secondary_statuses),
+    secondary_parents(record.secondary_parents),
     sampler_factor(record.sampler_factor) {
 
     secondary_particles.reserve(secondary_types.size());
     for(size_t i = 0; i < secondary_types.size(); ++i) {
         secondary_particles.emplace_back(record, i, secondary_types[i]);
     }
+    // A stored history must match the stored particles.
+    if(secondary_statuses.size() != secondary_types.size()) secondary_statuses.clear();
+    if(secondary_parents.size() != secondary_types.size()) secondary_parents.clear();
 }
 
 InteractionSignature const & CrossSectionDistributionRecord::GetSignature() const {
@@ -1096,6 +1101,8 @@ void CrossSectionDistributionRecord::SetSecondaryTypes(std::vector<ParticleType>
     // The particle records hold references into secondary_types, so drop them
     // before the list is replaced and rebuild them against the new storage.
     secondary_particles.clear();
+    secondary_statuses.clear();
+    secondary_parents.clear();
     secondary_types = types;
     secondary_particles.reserve(secondary_types.size());
     for(size_t i = 0; i < secondary_types.size(); ++i) {
@@ -1106,6 +1113,28 @@ void CrossSectionDistributionRecord::SetSecondaryTypes(std::vector<ParticleType>
 void CrossSectionDistributionRecord::SetSecondaryType(size_t index, ParticleType type) {
     // The particle record at index refers to this element, so it sees the new type.
     secondary_types.at(index) = type;
+}
+
+int CrossSectionDistributionRecord::GetSecondaryStatus(size_t index) const {
+    if(index >= secondary_types.size()) throw std::out_of_range("secondary index out of range");
+    return secondary_statuses.empty() ? 1 : secondary_statuses[index];
+}
+
+int CrossSectionDistributionRecord::GetSecondaryParent(size_t index) const {
+    if(index >= secondary_types.size()) throw std::out_of_range("secondary index out of range");
+    return secondary_parents.empty() ? -1 : secondary_parents[index];
+}
+
+void CrossSectionDistributionRecord::SetSecondaryStatus(size_t index, int status) {
+    if(index >= secondary_types.size()) throw std::out_of_range("secondary index out of range");
+    if(secondary_statuses.empty()) secondary_statuses.assign(secondary_types.size(), 1);
+    secondary_statuses[index] = status;
+}
+
+void CrossSectionDistributionRecord::SetSecondaryParent(size_t index, int parent) {
+    if(index >= secondary_types.size()) throw std::out_of_range("secondary index out of range");
+    if(secondary_parents.empty()) secondary_parents.assign(secondary_types.size(), -1);
+    secondary_parents[index] = parent;
 }
 
 double CrossSectionDistributionRecord::GetSamplerFactor() const {
@@ -1157,6 +1186,32 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
         record.secondary_types = secondary_types;
 
     record.sampler_factor = sampler_factor;
+
+    // History: validate, then store only what differs from the defaults.
+    size_t const n = secondary_types.size();
+    for(size_t i = 0; i < n && !secondary_parents.empty(); ++i) {
+        int const p = secondary_parents[i];
+        if(p == -1) continue;
+        if(p < 0 || static_cast<size_t>(p) >= n || static_cast<size_t>(p) == i)
+            throw std::runtime_error("CrossSectionDistributionRecord::Finalize: secondary "
+                + std::to_string(i) + " has invalid parent index " + std::to_string(p));
+        if(GetSecondaryStatus(p) == 1)
+            throw std::runtime_error("CrossSectionDistributionRecord::Finalize: secondary "
+                + std::to_string(i) + " has parent " + std::to_string(p)
+                + ", which is final (status 1); a parent must be non-final");
+        size_t steps = 0;
+        for(int a = p; a != -1; a = secondary_parents[a]) {
+            if(++steps > n)
+                throw std::runtime_error("CrossSectionDistributionRecord::Finalize: the "
+                    "parents of secondary " + std::to_string(i) + " form a cycle");
+        }
+    }
+    bool const default_status = std::all_of(secondary_statuses.begin(), secondary_statuses.end(),
+        [](int s) { return s == 1; });
+    bool const default_parent = std::all_of(secondary_parents.begin(), secondary_parents.end(),
+        [](int p) { return p == -1; });
+    if(default_status) record.secondary_statuses.clear(); else record.secondary_statuses = secondary_statuses;
+    if(default_parent) record.secondary_parents.clear(); else record.secondary_parents = secondary_parents;
 
     record.secondary_ids.resize(secondary_particles.size());
     record.secondary_masses.resize(secondary_particles.size());
@@ -1300,7 +1355,9 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         GetSecondaryTypes(),
         sampler_factor,
         interaction_int_parameters,
-        interaction_string_parameters)
+        interaction_string_parameters,
+        secondary_statuses,
+        secondary_parents)
         ==
         std::tie(
         other.signature,
@@ -1324,7 +1381,9 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.GetSecondaryTypes(),
         other.sampler_factor,
         other.interaction_int_parameters,
-        other.interaction_string_parameters);
+        other.interaction_string_parameters,
+        other.secondary_statuses,
+        other.secondary_parents);
 }
 
 bool InteractionRecord::operator<(InteractionRecord const & other) const {
@@ -1350,7 +1409,9 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         GetSecondaryTypes(),
         sampler_factor,
         interaction_int_parameters,
-        interaction_string_parameters)
+        interaction_string_parameters,
+        secondary_statuses,
+        secondary_parents)
         <
         std::tie(
         other.signature,
@@ -1374,7 +1435,17 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.GetSecondaryTypes(),
         other.sampler_factor,
         other.interaction_int_parameters,
-        other.interaction_string_parameters);
+        other.interaction_string_parameters,
+        other.secondary_statuses,
+        other.secondary_parents);
+}
+
+int InteractionRecord::GetSecondaryStatus(size_t index) const {
+    return secondary_statuses.size() > index ? secondary_statuses[index] : 1;
+}
+
+int InteractionRecord::GetSecondaryParent(size_t index) const {
+    return secondary_parents.size() > index ? secondary_parents[index] : -1;
 }
 
 std::vector<ParticleType> const & InteractionRecord::GetSecondaryTypes() const {

@@ -445,22 +445,54 @@ struct HepMC3Writer::Impl {
             // The particles the vertex realised; the signature is the channel.
             std::vector<ParticleType> const & realised = rec.GetSecondaryTypes();
             std::size_t const n = realised.size();
+            // A vertex with its own history (statuses or parents) writes each
+            // particle with its status; a particle with a parent leaves an
+            // internal vertex fed by that parent, marked siren.intra_vertex.
+            bool const has_history = !rec.secondary_statuses.empty() || !rec.secondary_parents.empty();
+            std::vector<HepMC3::GenParticlePtr> made(n);
             for(std::size_t j = 0; j < n; ++j) {
                 std::array<double, 4> const mom =
                     (j < rec.secondary_momenta.size()) ? rec.secondary_momenta[j]
                                                        : std::array<double, 4>{0, 0, 0, 0};
                 HepMC3::GenParticlePtr out = std::make_shared<HepMC3::GenParticle>(
-                    Momentum(mom), pdg(realised[j]), 1);
+                    Momentum(mom), pdg(realised[j]), rec.GetSecondaryStatus(j));
                 if(j < rec.secondary_masses.size()) out->set_generated_mass(rec.secondary_masses[j]);
                 if(j < rec.secondary_ids.size() && rec.secondary_ids[j].IsSet())
                     particle_by_id[rec.secondary_ids[j]] = out;
-                vertex->add_particle_out(out);
+                made[j] = out;
                 outgoing.emplace_back(out, j);
+            }
+            std::map<std::size_t, HepMC3::GenVertexPtr> internal;
+            for(std::size_t j = 0; j < n; ++j) {
+                int const p = rec.GetSecondaryParent(j);
+                if(p < 0) {
+                    vertex->add_particle_out(made[j]);
+                    continue;
+                }
+                HepMC3::GenVertexPtr & iv = internal[static_cast<std::size_t>(p)];
+                if(!iv) {
+                    iv = std::make_shared<HepMC3::GenVertex>(
+                        VertexPosition(rec.interaction_vertex, rec.interaction_time));
+                    iv->add_particle_in(made[static_cast<std::size_t>(p)]);
+                }
+                iv->add_particle_out(made[j]);
             }
 
             // Registering the vertex assigns particle/vertex ids; attributes can
             // only be attached once the objects belong to the event.
             evt.add_vertex(vertex);
+            for(auto const & kv : internal) {
+                evt.add_vertex(kv.second);
+                kv.second->add_attribute("siren.intra_vertex", std::make_shared<HepMC3::IntAttribute>(1));
+            }
+            if(has_history) {
+                for(auto const & item : outgoing) {
+                    item.first->add_attribute("siren.secondary_index",
+                        std::make_shared<HepMC3::IntAttribute>(static_cast<int>(item.second)));
+                    item.first->add_attribute("siren.status",
+                        std::make_shared<HepMC3::IntAttribute>(rec.GetSecondaryStatus(item.second)));
+                }
+            }
 
             if(primary_is_new) {
                 // A reused (non-root) primary already got these as the parent's

@@ -198,6 +198,12 @@ PYBIND11_MODULE(dataclasses, m) {
             "and invalidates secondary particle records obtained earlier; fetch them again.")
         .def("set_secondary_type", &CrossSectionDistributionRecord::SetSecondaryType,
             py::arg("index"), py::arg("type"))
+        .def("get_secondary_status", &CrossSectionDistributionRecord::GetSecondaryStatus, py::arg("index"))
+        .def("get_secondary_parent", &CrossSectionDistributionRecord::GetSecondaryParent, py::arg("index"))
+        .def("set_secondary_status", &CrossSectionDistributionRecord::SetSecondaryStatus,
+            py::arg("index"), py::arg("status"))
+        .def("set_secondary_parent", &CrossSectionDistributionRecord::SetSecondaryParent,
+            py::arg("index"), py::arg("parent"))
         .def_readwrite("interaction_int_parameters", &CrossSectionDistributionRecord::interaction_int_parameters)
         .def_readwrite("interaction_string_parameters", &CrossSectionDistributionRecord::interaction_string_parameters)
         .def_property("sampler_factor", &CrossSectionDistributionRecord::GetSamplerFactor,
@@ -274,6 +280,11 @@ PYBIND11_MODULE(dataclasses, m) {
                     ? std::vector<ParticleType>() : types;
             })
         .def_readwrite("sampler_factor", &InteractionRecord::sampler_factor)
+        .def_readwrite("secondary_statuses", &InteractionRecord::secondary_statuses)
+        .def_readwrite("secondary_parents", &InteractionRecord::secondary_parents)
+        .def("get_secondary_status", &InteractionRecord::GetSecondaryStatus, py::arg("index"))
+        .def("get_secondary_parent", &InteractionRecord::GetSecondaryParent, py::arg("index"))
+        .def("is_final_secondary", &InteractionRecord::IsFinalSecondary, py::arg("index"))
         .def_readwrite("interaction_int_parameters", &InteractionRecord::interaction_int_parameters)
         .def_readwrite("interaction_string_parameters", &InteractionRecord::interaction_string_parameters)
         .def_property_readonly("has_realised_secondary_types",

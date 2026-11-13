@@ -422,6 +422,9 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         std::vector<siren::dataclasses::ParticleType> const & realised = parent->record.GetSecondaryTypes();
         for(size_t i=0; i<realised.size(); ++i) {
             siren::dataclasses::ParticleType const & type = realised[i];
+            // Intermediate particles of the vertex's own history do not propagate.
+            if(!parent->record.IsFinalSecondary(i))
+                continue;
             std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
                 unregistered_secondary_count_ += 1;

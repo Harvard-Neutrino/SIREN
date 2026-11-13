@@ -269,6 +269,10 @@ private:
     // through SetSecondaryTypes and SetSecondaryType.
     std::vector<ParticleType> secondary_types;
     std::vector<SecondaryParticleRecord> secondary_particles;
+    // HepMC status and parent index of each secondary; empty means every
+    // secondary is final (status 1) and comes straight from the vertex.
+    std::vector<int> secondary_statuses;
+    std::vector<int> secondary_parents;
     double sampler_factor = 1.0;
     bool interaction_time_set = false;
     double overridden_interaction_time = 0;
@@ -331,6 +335,18 @@ public:
     double GetSamplerFactor() const;
     void SetSamplerFactor(double factor);
 
+    // History inside the vertex. Each secondary has a HepMC status (1 for a
+    // final particle, the only kind offered to secondary processes; any other
+    // value marks an intermediate, pre-cascade or remnant particle, in the
+    // generator's own convention) and an optional parent: the index of another
+    // secondary it came from, or -1 for the vertex itself. SetSecondaryTypes
+    // resets both. Finalize refuses an index out of range, a particle that is
+    // its own ancestor, and a final particle used as a parent.
+    int GetSecondaryStatus(size_t index) const;
+    int GetSecondaryParent(size_t index) const;
+    void SetSecondaryStatus(size_t index, int status);
+    void SetSecondaryParent(size_t index, int parent);
+
     void Finalize(InteractionRecord & record) const;
 };
 
@@ -362,6 +378,11 @@ public:
     // CrossSectionDistributionRecord::SetSamplerFactor). The weighter
     // multiplies it into this vertex's physical factor.
     double sampler_factor = 1.0;
+    // HepMC status and parent index of each secondary (see
+    // CrossSectionDistributionRecord::SetSecondaryStatus). Empty means all
+    // final and all straight from the vertex.
+    std::vector<int> secondary_statuses;
+    std::vector<int> secondary_parents;
     // Integer and string vertex attributes (see
     // CrossSectionDistributionRecord). The reserved integer key "process_id"
     // and string key "process_name" on a root vertex name its process in
@@ -372,6 +393,10 @@ public:
     // The types of the secondaries this vertex produced, in the order of the
     // secondary_* vectors.
     std::vector<ParticleType> const & GetSecondaryTypes() const;
+    // Status (1 when not stored) and parent (-1 when not stored) of secondary i.
+    int GetSecondaryStatus(size_t index) const;
+    int GetSecondaryParent(size_t index) const;
+    bool IsFinalSecondary(size_t index) const { return GetSecondaryStatus(index) == 1; }
 
     bool operator==(InteractionRecord const & other) const;
     bool operator<(InteractionRecord const & other) const;
@@ -416,7 +441,7 @@ public:
             archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("SecondaryTimes", secondary_times));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
-        } else if(version >= 2 && version <= 4) {
+        } else if(version >= 2 && version <= 5) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
             archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
@@ -442,8 +467,12 @@ public:
                 archive(::cereal::make_nvp("InteractionIntParameters", interaction_int_parameters));
                 archive(::cereal::make_nvp("InteractionStringParameters", interaction_string_parameters));
             }
+            if(version >= 5) {
+                archive(::cereal::make_nvp("SecondaryStatuses", secondary_statuses));
+                archive(::cereal::make_nvp("SecondaryParents", secondary_parents));
+            }
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 4!");
+            throw std::runtime_error("InteractionRecord only supports version <= 5!");
         }
     }
     template<typename Archive>
@@ -473,6 +502,8 @@ public:
             sampler_factor = 1.0;
             interaction_int_parameters.clear();
             interaction_string_parameters.clear();
+            secondary_statuses.clear();
+            secondary_parents.clear();
         } else if(version == 1) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
@@ -496,7 +527,9 @@ public:
             sampler_factor = 1.0;
             interaction_int_parameters.clear();
             interaction_string_parameters.clear();
-        } else if(version >= 2 && version <= 4) {
+            secondary_statuses.clear();
+            secondary_parents.clear();
+        } else if(version >= 2 && version <= 5) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
             archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
@@ -519,14 +552,20 @@ public:
             sampler_factor = 1.0;
             interaction_int_parameters.clear();
             interaction_string_parameters.clear();
+            secondary_statuses.clear();
+            secondary_parents.clear();
             if(version >= 3)
                 archive(::cereal::make_nvp("SamplerFactor", sampler_factor));
             if(version >= 4) {
                 archive(::cereal::make_nvp("InteractionIntParameters", interaction_int_parameters));
                 archive(::cereal::make_nvp("InteractionStringParameters", interaction_string_parameters));
             }
+            if(version >= 5) {
+                archive(::cereal::make_nvp("SecondaryStatuses", secondary_statuses));
+                archive(::cereal::make_nvp("SecondaryParents", secondary_parents));
+            }
         } else {
-            throw std::runtime_error("InteractionRecord only supports version <= 4!");
+            throw std::runtime_error("InteractionRecord only supports version <= 5!");
         }
     }
 };
@@ -575,6 +614,6 @@ public:
 } // namespace dataclasses
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 4);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 5);
 
 #endif // SIREN_InteractionRecord_H

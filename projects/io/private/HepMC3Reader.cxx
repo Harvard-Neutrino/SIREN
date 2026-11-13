@@ -1,6 +1,8 @@
 #include "SIREN/io/HepMC3Reader.h"
 
 #include <map>
+#include <algorithm>
+#include <functional>
 #include <array>
 #include <string>
 #include <memory>
@@ -82,6 +84,22 @@ double required_double_attr(Ptr const & obj, std::string const & name,
 
 // The primary is the incoming particle that is not a target. Targets carry
 // status 20 (primary interaction) or 22 (deeper cascade interaction).
+// An internal vertex of one SIREN vertex's own history (see the writer).
+bool is_intra(HepMC3::GenVertexPtr const & vertex) {
+    return vertex && vertex->attribute<HepMC3::IntAttribute>("siren.intra_vertex");
+}
+
+// The SIREN vertex that owns a HepMC vertex: itself, or for an internal
+// vertex the vertex its incoming particle came from, followed upward.
+HepMC3::GenVertexPtr owning_vertex(HepMC3::GenVertexPtr vertex) {
+    std::size_t guard = 0;
+    while(is_intra(vertex) && ++guard < 10000) {
+        auto const & in = vertex->particles_in();
+        vertex = in.empty() ? nullptr : in.front()->production_vertex();
+    }
+    return vertex;
+}
+
 HepMC3::GenParticlePtr find_primary(HepMC3::GenVertexPtr const & vertex) {
     for(auto const & pin : vertex->particles_in()) {
         if(pin->status() != 20 && pin->status() != 22) return pin;
@@ -167,7 +185,41 @@ siren::dataclasses::InteractionRecord VertexToRecord(
     // Outgoing secondaries. Each id is the stored id when present, else a
     // fresh ParticleID (or the id already assigned as another vertex's
     // primary, keyed on the shared GenParticlePtr).
-    for(auto const & out : vertex->particles_out()) {
+    // Particles leaving internal vertices belong to this record too; their
+    // parent is the particle that feeds the internal vertex.
+    std::vector<std::pair<HepMC3::GenParticlePtr, int>> outs;
+    std::function<void(HepMC3::GenVertexPtr const &, int)> collect =
+        [&](HepMC3::GenVertexPtr const & v, int parent) {
+        for(auto const & out : v->particles_out()) {
+            int const index = static_cast<int>(outs.size());
+            outs.emplace_back(out, parent);
+            if(is_intra(out->end_vertex())) collect(out->end_vertex(), index);
+        }
+    };
+    collect(vertex, -1);
+    // Restore the stored order when every particle carries its index.
+    std::vector<std::size_t> order(outs.size());
+    for(std::size_t i = 0; i < order.size(); ++i) order[i] = i;
+    bool indexed = !outs.empty();
+    std::vector<int> stored_index(outs.size(), -1);
+    for(std::size_t i = 0; i < outs.size(); ++i) {
+        auto a = outs[i].first->attribute<HepMC3::IntAttribute>("siren.secondary_index");
+        if(!a || a->value() < 0 || static_cast<std::size_t>(a->value()) >= outs.size()) { indexed = false; break; }
+        stored_index[i] = a->value();
+    }
+    if(indexed) {
+        std::vector<std::size_t> by_index(outs.size(), outs.size());
+        for(std::size_t i = 0; i < outs.size(); ++i) by_index[stored_index[i]] = i;
+        if(std::find(by_index.begin(), by_index.end(), outs.size()) == by_index.end()) order = by_index;
+        else indexed = false;
+    }
+    std::vector<int> position(outs.size());
+    for(std::size_t k = 0; k < order.size(); ++k) position[order[k]] = static_cast<int>(k);
+    bool history = false;
+    std::vector<int> statuses, parents;
+    for(std::size_t k = 0; k < order.size(); ++k) {
+        HepMC3::GenParticlePtr const & out = outs[order[k]].first;
+        int const parent = outs[order[k]].second;
         rec.signature.secondary_types.push_back(pdg_to_type(out->pid()));
         rec.secondary_momenta.push_back(siren_momentum(out->momentum()));
         rec.secondary_masses.push_back(out->generated_mass());
@@ -175,6 +227,19 @@ siren::dataclasses::InteractionRecord VertexToRecord(
         rec.secondary_helicities.push_back(required_double_attr(out, "siren.helicity", "secondary particle", strict));
         rec.secondary_times.push_back(double_attr(out, "siren.time") * C::second);
         rec.secondary_ids.push_back(GetOrAssignId(out, particle_ids));
+        // The HepMC status of a particle that feeds a SIREN daughter vertex is
+        // rewritten to 2, so the vertex's own status travels in siren.status.
+        auto const status = out->attribute<HepMC3::IntAttribute>("siren.status");
+        if(status) history = true;
+        statuses.push_back(status ? status->value() : 1);
+        parents.push_back(parent < 0 ? -1 : position[parent]);
+        if(parent >= 0) history = true;
+    }
+    if(history) {
+        if(std::any_of(statuses.begin(), statuses.end(), [](int x) { return x != 1; }))
+            rec.secondary_statuses = statuses;
+        if(std::any_of(parents.begin(), parents.end(), [](int x) { return x != -1; }))
+            rec.secondary_parents = parents;
     }
 
     // A vertex whose realised particles differ from its channel stores the
@@ -229,7 +294,10 @@ siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt, bool 
     }
     tree.header.weights = evt.weights();
 
-    std::vector<HepMC3::GenVertexPtr> const vertices = evt.vertices();
+    // Internal vertices of a SIREN vertex's own history are not tree nodes.
+    std::vector<HepMC3::GenVertexPtr> vertices;
+    for(auto const & vertex : evt.vertices())
+        if(!is_intra(vertex)) vertices.push_back(vertex);
 
     // Parent vertex id is the incoming primary's production vertex (none -> root).
     // particle_ids is shared across the event so a GenParticlePtr always
@@ -240,7 +308,8 @@ siren::dataclasses::InteractionTree GenEventToTree(HepMC3::GenEvent & evt, bool 
     for(auto const & vertex : vertices) {
         record_by_vid[vertex->id()] = VertexToRecord(vertex, strict, particle_ids);
         HepMC3::GenParticlePtr const primary = find_primary(vertex);
-        HepMC3::GenVertexPtr const parent = primary ? primary->production_vertex() : nullptr;
+        HepMC3::GenVertexPtr const parent =
+            owning_vertex(primary ? primary->production_vertex() : nullptr);
         parent_vid[vertex->id()] = parent ? parent->id() : 0;
     }
 

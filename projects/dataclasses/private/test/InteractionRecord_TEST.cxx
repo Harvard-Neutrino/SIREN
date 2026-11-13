@@ -260,7 +260,7 @@ TEST(InteractionRecord_Serialization, SaveUnsupportedVersionThrows) {
     std::stringstream ss;
     cereal::JSONOutputArchive oar(ss);
 
-    EXPECT_THROW(r.save(oar, 5), std::runtime_error);
+    EXPECT_THROW(r.save(oar, 6), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
@@ -270,7 +270,7 @@ TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
     ss << "{}";
     cereal::JSONInputArchive iar(ss);
 
-    EXPECT_THROW(r.load(iar, 5), std::runtime_error);
+    EXPECT_THROW(r.load(iar, 6), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, Version0_LoadsWithDefaultTimes) {
@@ -1332,6 +1332,123 @@ TEST(TypedAttributes, Version3LoadsWithout) {
     { cereal::JSONInputArchive iar(ss); out.load(iar, 3); }
     EXPECT_TRUE(out.interaction_int_parameters.empty());
     EXPECT_TRUE(out.interaction_string_parameters.empty());
+}
+
+
+///////////////////////////////////////////////
+// Particle status and parent links
+///////////////////////////////////////////////
+
+namespace {
+
+// mu-, struck neutron (pre-cascade, 21), Delta++ (intermediate, 2), p, pi+
+void MakeCascade(CrossSectionDistributionRecord & csr) {
+    csr.SetSecondaryTypes({ParticleType::MuMinus, ParticleType::Neutron,
+        ParticleType::Hadrons, ParticleType::PPlus, ParticleType::PiPlus});
+    FillSecondaries(csr);
+    csr.SetSecondaryStatus(1, 21);
+    csr.SetSecondaryStatus(2, 2);
+    csr.SetSecondaryParent(2, 1);
+    csr.SetSecondaryParent(3, 2);
+    csr.SetSecondaryParent(4, 2);
+}
+
+}  // namespace
+
+TEST(ParticleHistory, DefaultsAreFinalAndFromTheVertex) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    FillSecondaries(csr);
+    csr.Finalize(r);
+    EXPECT_TRUE(r.secondary_statuses.empty());
+    EXPECT_TRUE(r.secondary_parents.empty());
+    EXPECT_EQ(r.GetSecondaryStatus(1), 1);
+    EXPECT_EQ(r.GetSecondaryParent(1), -1);
+    EXPECT_TRUE(r.IsFinalSecondary(0));
+}
+
+TEST(ParticleHistory, ACascadeIsStored) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    MakeCascade(csr);
+    csr.Finalize(r);
+    EXPECT_EQ(r.secondary_statuses, (std::vector<int>{1, 21, 2, 1, 1}));
+    EXPECT_EQ(r.secondary_parents, (std::vector<int>{-1, -1, 1, 2, 2}));
+    EXPECT_FALSE(r.IsFinalSecondary(1));
+    EXPECT_FALSE(r.IsFinalSecondary(2));
+    EXPECT_TRUE(r.IsFinalSecondary(4));
+    CrossSectionDistributionRecord again(r);
+    EXPECT_EQ(again.GetSecondaryParent(4), 2);
+    EXPECT_EQ(again.GetSecondaryStatus(1), 21);
+}
+
+TEST(ParticleHistory, ResizingResetsIt) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    MakeCascade(csr);
+    csr.SetSecondaryTypes({ParticleType::MuMinus, ParticleType::PPlus});
+    EXPECT_EQ(csr.GetSecondaryStatus(1), 1);
+    EXPECT_EQ(csr.GetSecondaryParent(1), -1);
+}
+
+TEST(ParticleHistory, InvalidHistoriesAreRefused) {
+    {
+        InteractionRecord r = MakeChannelRecord();
+        CrossSectionDistributionRecord csr(r);
+        MakeCascade(csr);
+        csr.SetSecondaryParent(3, 7);
+        EXPECT_THROW(csr.Finalize(r), std::runtime_error);
+    }
+    {
+        InteractionRecord r = MakeChannelRecord();
+        CrossSectionDistributionRecord csr(r);
+        MakeCascade(csr);
+        csr.SetSecondaryParent(2, 2);
+        EXPECT_THROW(csr.Finalize(r), std::runtime_error);
+    }
+    {
+        InteractionRecord r = MakeChannelRecord();
+        CrossSectionDistributionRecord csr(r);
+        MakeCascade(csr);
+        csr.SetSecondaryParent(3, 0);  // mu- is final
+        EXPECT_THROW(csr.Finalize(r), std::runtime_error);
+    }
+    {
+        InteractionRecord r = MakeChannelRecord();
+        CrossSectionDistributionRecord csr(r);
+        MakeCascade(csr);
+        csr.SetSecondaryParent(1, 2);  // neutron <- Delta <- neutron
+        EXPECT_THROW(csr.Finalize(r), std::runtime_error);
+    }
+    {
+        InteractionRecord r = MakeChannelRecord();
+        CrossSectionDistributionRecord csr(r);
+        EXPECT_THROW(csr.SetSecondaryStatus(5, 1), std::out_of_range);
+    }
+}
+
+TEST(ParticleHistory, Version5RoundTripsAndVersion4LoadsWithout) {
+    InteractionRecord in = MakeChannelRecord();
+    {
+        CrossSectionDistributionRecord csr(in);
+        MakeCascade(csr);
+        csr.Finalize(in);
+    }
+    std::stringstream ss;
+    { cereal::BinaryOutputArchive oar(ss); oar(in); }
+    InteractionRecord out;
+    { cereal::BinaryInputArchive iar(ss); iar(out); }
+    EXPECT_EQ(out, in);
+    EXPECT_EQ(out.secondary_parents, in.secondary_parents);
+
+    std::stringstream v4;
+    { cereal::JSONOutputArchive oar(v4); in.save(oar, 4); }
+    EXPECT_EQ(v4.str().find("SecondaryStatuses"), std::string::npos);
+    InteractionRecord old;
+    old.secondary_statuses = {3};
+    { cereal::JSONInputArchive iar(v4); old.load(iar, 4); }
+    EXPECT_TRUE(old.secondary_statuses.empty());
+    EXPECT_TRUE(old.secondary_parents.empty());
 }
 
 
