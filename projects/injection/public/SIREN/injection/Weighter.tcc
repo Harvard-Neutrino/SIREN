@@ -108,7 +108,6 @@ double ProcessWeighter<ProcessType>::InteractionDepth(std::tuple<siren::math::Ve
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
     std::vector<siren::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
@@ -132,6 +131,10 @@ double ProcessWeighter<ProcessType>::InteractionDepth(std::tuple<siren::math::Ve
         total_cross_sections.push_back(total_xs);
     }
 
+    // Decays alone need no material, so the ray is traced only for targets.
+    siren::geometry::Geometry::IntersectionList intersections;
+    if(!targets.empty())
+        intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     return detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
 }
 
@@ -178,7 +181,6 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
@@ -203,6 +205,10 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
         total_cross_sections.push_back(total_xs);
     }
 
+    // Decays alone need no material, so the ray is traced only for targets.
+    siren::geometry::Geometry::IntersectionList intersections;
+    if(!targets.empty())
+        intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length); // unitless
     double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
     double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1

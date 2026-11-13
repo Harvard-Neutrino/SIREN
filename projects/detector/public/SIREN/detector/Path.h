@@ -56,6 +56,8 @@ private:
     void RequireLastFinite();
     void RequireBothFinite();
     void RequireOneFinite();
+    // Traces the ray only if there are targets; decays alone need no material.
+    void EnsureIntersectionsForTargets(std::vector<siren::dataclasses::ParticleType> const & targets);
 public:
     Path();
     Path(std::shared_ptr<const DetectorModel> detector_model);

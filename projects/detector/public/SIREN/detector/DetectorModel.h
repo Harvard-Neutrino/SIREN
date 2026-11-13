@@ -97,6 +97,11 @@ friend siren::detector::Path;
     mutable std::vector<unsigned int> bvh_invalid_aabb_sectors_;
     mutable std::atomic<bool> bvh_dirty_{true};
     mutable std::mutex bvh_mutex_;
+    // Process-unique value, renewed whenever the sectors change. Together with
+    // the model's address it identifies the cached rays of GetIntersections.
+    std::atomic<std::uint64_t> sector_version_{NextSectorVersion()};
+    static std::uint64_t NextSectorVersion();
+    void MarkSectorsChanged();
 
     void RebuildBVH() const;
     int BuildBVHRecursive(std::vector<unsigned int> & indices, std::vector<geometry::AABB> const & aabbs, int begin, int end) const;
@@ -128,7 +133,7 @@ public:
             archive(cereal::make_nvp("SectorNameMap", sector_name_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
             if(Archive::is_loading::value) {
-                bvh_dirty_.store(true, std::memory_order_release); // BVH will be rebuilt on next query after load
+                MarkSectorsChanged();
             }
         } else {
             throw std::runtime_error("DetectorModel only supports version <= 0!");

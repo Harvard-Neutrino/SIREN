@@ -275,6 +275,14 @@ void Path::EnsureIntersections() {
     }
 }
 
+void Path::EnsureIntersectionsForTargets(std::vector<siren::dataclasses::ParticleType> const & targets) {
+    if(targets.empty()) {
+        EnsureDetectorModel();
+    } else {
+        EnsureIntersections();
+    }
+}
+
 void Path::ClipToOuterBounds() {
     EnsureIntersections();
     EnsurePoints();
@@ -541,7 +549,7 @@ double Path::GetInteractionDepthInBounds(
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireBothFinite();
     double interaction_depth = detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, last_point_, targets, total_cross_sections, total_decay_length);
@@ -617,7 +625,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
     } else if(distance <= 0) {
         return 0.0;
     }
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireFirstFinite();
     return detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length);
@@ -632,7 +640,7 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
     } else if(distance <= 0) {
         return 0.0;
     }
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireLastFinite();
     return detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length);
@@ -642,7 +650,7 @@ double Path::GetInteractionDepthFromStartAlongPath(double distance,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireFirstFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length), distance);
@@ -652,7 +660,7 @@ double Path::GetInteractionDepthFromEndAlongPath(double distance,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireLastFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length), distance);
@@ -662,7 +670,7 @@ double Path::GetInteractionDepthFromStartInReverse(double distance,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireFirstFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length), distance);
@@ -672,7 +680,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireLastFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length), distance);
@@ -748,7 +756,7 @@ double Path::GetDistanceFromStartInBounds(double interaction_depth,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireFirstFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -764,7 +772,7 @@ double Path::GetDistanceFromEndInBounds(double interaction_depth,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireLastFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -780,7 +788,7 @@ double Path::GetDistanceFromStartAlongPath(double interaction_depth,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireFirstFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -791,7 +799,7 @@ double Path::GetDistanceFromEndAlongPath(double interaction_depth,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireLastFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -802,7 +810,7 @@ double Path::GetDistanceFromStartInReverse(double interaction_depth,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireFirstFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -813,7 +821,7 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
-    EnsureIntersections();
+    EnsureIntersectionsForTargets(targets);
     EnsurePoints();
     RequireLastFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
