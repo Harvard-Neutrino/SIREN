@@ -122,6 +122,43 @@ the `siren.Injector` wrapper. Python-defined interactions and distributions keep
 their pickled Python state, and state that cannot be pickled raises an error.
 Do not load pickles or SIREN archives from untrusted sources.
 
+## Migrating phase-space callers
+
+Construct `MultiChannelPhaseSpace(channels, weights)` with a nonempty channel
+list. Omit weights or pass an empty list for a uniform mixture. Construction
+and `SetWeights(weights)` normalize coefficients and check their validity.
+Replace empty construction followed by assignment and `Normalize()` with
+direct construction. Use C++ `Channels()` and `Weights()` or Python
+`channels` and `weights` for inspection. Use `SetWeights()` to update
+coefficients and construct a new mixture to replace channels. The third
+constructor argument, `allow_incompatible`, and C++ `allow_incompatible_`
+field have been removed. Every mixture needs a common topology and measure.
+
+`ValidateChannelsDetailed()` still reports convention diagnostics. The
+`ValidateChannelDensities` method is now a free function taking the mixture as
+its first argument, in `siren::injection` and `siren.injection`. It samples
+each channel and probes the other channels at those points.
+
+In C++, include `SIREN/injection/FinalStateProbability.h` in place of
+`SIREN/injection/WeightingUtils.h`. Use `ProcessFinalStateConvention` in
+place of `SelectedFinalStateConvention`. Use
+`ProcessFinalStateProbability` for the process's weighting factor in the
+requested convention, in place of the `SelectedFinalStateProbability`
+overloads and the convention-taking overloads of `CrossSectionProbability`
+and `CrossSectionProbabilityWithPhaseSpace`. Configure the process with its
+weighting mode, interaction collection and any signature-specific proposal.
+`ProcessGenerationProbability` supplies the injector's generation factor in
+the process's own convention. The collection-level diagnostics
+`CrossSectionProbability`, `CrossSectionProbabilityWithPhaseSpace`,
+`ChannelSelectionProbability` and `FixedVertexChannelSelectionProbability`
+remain available without a convention argument, including in Python.
+
+Mixture archives retain their version-0 layout and exact normalized weights.
+The legacy `AllowIncompatible` field is read for compatibility and new
+archives write it as false. A legacy mixture with that field set to true
+loads if its topology, measure and weights pass validation. A mixture with
+fatal convention diagnostics fails to load.
+
 ## Tests
 
 Run the focused checks against a build whose Python package and compiled
