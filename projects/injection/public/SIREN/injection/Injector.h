@@ -65,6 +65,9 @@ protected:
     unsigned int injection_attempts = 0;
     unsigned int injected_events = 0;
     unsigned int failed_events = 0;
+    // Accepted events with a zero sampler factor at some vertex. They are valid
+    // zero-weight events, not failures.
+    unsigned int zero_factor_events = 0;
     unsigned int unregistered_secondary_count_ = 0;
     FailureLedger failure_ledger_;
     std::string last_failure_message_;
@@ -168,6 +171,7 @@ public:
     unsigned int InjectionAttempts() const;
     unsigned int EventsToInject() const;
     unsigned int FailedEvents() const;
+    unsigned int ZeroFactorEvents() const;
     unsigned int UnregisteredSecondaryCount() const;
     std::string GetLastFailureMessage() const;
     siren::dataclasses::InteractionTree const & GetLastFailedTree() const;
@@ -185,12 +189,15 @@ public:
             throw std::runtime_error(
                 "Injector archives cannot preserve a stopping-condition callback");
         }
-        if(version <= 2) {
+        if(version <= 3) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             if(version >= 1) {
                 archive(::cereal::make_nvp("FailedEvents", failed_events));
+            }
+            if(version >= 3) {
+                archive(::cereal::make_nvp("ZeroFactorEvents", zero_factor_events));
             }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             if(version >= 1) {
@@ -200,7 +207,7 @@ public:
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
             if(version >= 2) archive(::cereal::make_nvp("SecondaryExpansion", secondary_expansion_));
         } else {
-            throw std::runtime_error("Injector only supports version <= 2!");
+            throw std::runtime_error("Injector only supports version <= 3!");
         }
     }
 
@@ -208,17 +215,21 @@ public:
     // incompatible archive raises AddProcessFailure.
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version <= 2) {
+        if(version <= 3) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
 
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
+            zero_factor_events = 0;
             // Version 0 archives have no failed-event count or RNG state;
             // LoadInjector then keeps the caller's engine.
             if(version >= 1) {
                 archive(::cereal::make_nvp("FailedEvents", failed_events));
+            }
+            if(version >= 3) {
+                archive(::cereal::make_nvp("ZeroFactorEvents", zero_factor_events));
             }
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             if(version >= 1) {
@@ -234,7 +245,7 @@ public:
             SetPrimaryProcess(_primary_process);
             SetSecondaryProcesses(_secondary_processes);
         } else {
-            throw std::runtime_error("Injector only supports version <= 2!");
+            throw std::runtime_error("Injector only supports version <= 3!");
         }
     }
 };
@@ -242,6 +253,6 @@ public:
 } // namespace injection
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::injection::Injector, 2);
+CEREAL_CLASS_VERSION(siren::injection::Injector, 3);
 
 #endif // SIREN_Injector_H

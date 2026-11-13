@@ -492,6 +492,9 @@ struct HepMC3Writer::Impl {
             for(auto const & kv : rec.interaction_parameters) {
                 vertex->add_attribute("siren.param." + kv.first, D(kv.second));
             }
+            // A sampler factor other than one enters the weight; keep it.
+            if(rec.sampler_factor != 1.0)
+                vertex->add_attribute("siren.sampler_factor", D(rec.sampler_factor));
             // When the realised particles differ from the channel's, keep the
             // channel's secondaries so a reader restores the weighted signature.
             if(!rec.secondary_types.empty()) {

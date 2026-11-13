@@ -189,6 +189,10 @@ siren::dataclasses::InteractionRecord VertexToRecord(
             rec.secondary_types.clear();
     }
 
+    if(std::shared_ptr<HepMC3::DoubleAttribute> factor =
+            vertex->attribute<HepMC3::DoubleAttribute>("siren.sampler_factor"))
+        rec.sampler_factor = factor->value();
+
     // interaction_parameters from siren.param.<key> attributes on the vertex.
     std::string const prefix = "siren.param.";
     for(std::string const & name : vertex->attribute_names()) {

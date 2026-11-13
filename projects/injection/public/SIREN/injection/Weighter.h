@@ -98,6 +98,9 @@ struct VertexWeightFactors {
     double interaction_prob = 1.0;
     double position_prob = 1.0;
     double survival = 1.0;
+    // Physical factor the sampler attached to the vertex record; already
+    // included in physical.
+    double sampler_factor = 1.0;
     // Convention shared by every value in channel_densities, stored here as
     // separate topology/measure fields rather than a single
     // PhaseSpaceConvention.

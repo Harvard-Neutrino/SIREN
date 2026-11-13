@@ -5,6 +5,7 @@
 // (it includes main()).
 
 #include <array>
+#include <limits>
 #include <sstream>
 #include <string>
 
@@ -258,7 +259,7 @@ TEST(InteractionRecord_Serialization, SaveUnsupportedVersionThrows) {
     std::stringstream ss;
     cereal::JSONOutputArchive oar(ss);
 
-    EXPECT_THROW(r.save(oar, 3), std::runtime_error);
+    EXPECT_THROW(r.save(oar, 4), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
@@ -268,7 +269,7 @@ TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
     ss << "{}";
     cereal::JSONInputArchive iar(ss);
 
-    EXPECT_THROW(r.load(iar, 3), std::runtime_error);
+    EXPECT_THROW(r.load(iar, 4), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, Version0_LoadsWithDefaultTimes) {
@@ -1215,6 +1216,67 @@ TEST(RealisedSecondaries, Version1LoadsAsTheSignatureList) {
     { cereal::JSONInputArchive iar(ss); out.load(iar, 1); }
     EXPECT_TRUE(out.secondary_types.empty());
     EXPECT_EQ(out, in);
+}
+
+
+///////////////////////////////////////////////
+// Sampler-supplied physical factor
+///////////////////////////////////////////////
+
+TEST(SamplerFactor, DefaultsToOneAndFinalizes) {
+    InteractionRecord r = MakeChannelRecord();
+    EXPECT_DOUBLE_EQ(r.sampler_factor, 1.0);
+    CrossSectionDistributionRecord csr(r);
+    EXPECT_DOUBLE_EQ(csr.GetSamplerFactor(), 1.0);
+    FillSecondaries(csr);
+    csr.SetSamplerFactor(2.5);
+    csr.Finalize(r);
+    EXPECT_DOUBLE_EQ(r.sampler_factor, 2.5);
+    CrossSectionDistributionRecord again(r);
+    EXPECT_DOUBLE_EQ(again.GetSamplerFactor(), 2.5);
+}
+
+TEST(SamplerFactor, ZeroIsAllowedAndInvalidValuesAreRefused) {
+    InteractionRecord r = MakeChannelRecord();
+    CrossSectionDistributionRecord csr(r);
+    EXPECT_NO_THROW(csr.SetSamplerFactor(0.0));
+    EXPECT_THROW(csr.SetSamplerFactor(-1e-300), std::invalid_argument);
+    EXPECT_THROW(csr.SetSamplerFactor(std::numeric_limits<double>::infinity()), std::invalid_argument);
+    EXPECT_THROW(csr.SetSamplerFactor(std::numeric_limits<double>::quiet_NaN()), std::invalid_argument);
+    EXPECT_DOUBLE_EQ(csr.GetSamplerFactor(), 0.0);
+}
+
+TEST(SamplerFactor, EnteredInEqualityAndArchives) {
+    InteractionRecord a = MakePopulatedInteractionRecord();
+    InteractionRecord b = a;
+    b.sampler_factor = 0.75;
+    EXPECT_FALSE(a == b);
+    for(int binary = 0; binary < 2; ++binary) {
+        std::stringstream ss;
+        InteractionRecord out;
+        if(binary) {
+            { cereal::BinaryOutputArchive oar(ss); oar(b); }
+            { cereal::BinaryInputArchive iar(ss); iar(out); }
+        } else {
+            { cereal::JSONOutputArchive oar(ss); oar(b); }
+            EXPECT_NE(ss.str().find("SamplerFactor"), std::string::npos);
+            { cereal::JSONInputArchive iar(ss); iar(out); }
+        }
+        EXPECT_EQ(out, b);
+        EXPECT_DOUBLE_EQ(out.sampler_factor, 0.75);
+    }
+}
+
+TEST(SamplerFactor, Version2LoadsAsOne) {
+    InteractionRecord in = MakePopulatedInteractionRecord();
+    in.sampler_factor = 3.0;
+    std::stringstream ss;
+    { cereal::JSONOutputArchive oar(ss); in.save(oar, 2); }
+    EXPECT_EQ(ss.str().find("SamplerFactor"), std::string::npos);
+    InteractionRecord out;
+    out.sampler_factor = 9.0;
+    { cereal::JSONInputArchive iar(ss); out.load(iar, 2); }
+    EXPECT_DOUBLE_EQ(out.sampler_factor, 1.0);
 }
 
 

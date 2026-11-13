@@ -4,6 +4,7 @@
 #include <algorithm>  // for min
 #include <tuple>    // for tie, operator==, tuple
 #include <cassert>
+#include <stdexcept>
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
                     //
 #include "SIREN/utilities/StringManipulation.h"  // for tab
@@ -967,7 +968,8 @@ CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord
     // SampleFinalState and FinalStateProbability must see the same record;
     // Finalize merges these back key by key.
     interaction_parameters(record.interaction_parameters),
-    secondary_types(record.GetSecondaryTypes()) {
+    secondary_types(record.GetSecondaryTypes()),
+    sampler_factor(record.sampler_factor) {
 
     secondary_particles.reserve(secondary_types.size());
     for(size_t i = 0; i < secondary_types.size(); ++i) {
@@ -1104,6 +1106,19 @@ void CrossSectionDistributionRecord::SetSecondaryType(size_t index, ParticleType
     secondary_types.at(index) = type;
 }
 
+double CrossSectionDistributionRecord::GetSamplerFactor() const {
+    return sampler_factor;
+}
+
+void CrossSectionDistributionRecord::SetSamplerFactor(double factor) {
+    if(!std::isfinite(factor) || factor < 0.0) {
+        throw std::invalid_argument(
+            "CrossSectionDistributionRecord::SetSamplerFactor: the factor must be "
+            "finite and non-negative, got " + std::to_string(factor));
+    }
+    sampler_factor = factor;
+}
+
 void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const {
     if(secondary_types.empty() && !record.signature.secondary_types.empty()) {
         throw std::runtime_error(
@@ -1132,6 +1147,8 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
         record.secondary_types.clear();
     else
         record.secondary_types = secondary_types;
+
+    record.sampler_factor = sampler_factor;
 
     record.secondary_ids.resize(secondary_particles.size());
     record.secondary_masses.resize(secondary_particles.size());
@@ -1272,7 +1289,8 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         secondary_helicities,
         secondary_times,
         interaction_parameters,
-        GetSecondaryTypes())
+        GetSecondaryTypes(),
+        sampler_factor)
         ==
         std::tie(
         other.signature,
@@ -1293,7 +1311,8 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.secondary_helicities,
         other.secondary_times,
         other.interaction_parameters,
-        other.GetSecondaryTypes());
+        other.GetSecondaryTypes(),
+        other.sampler_factor);
 }
 
 bool InteractionRecord::operator<(InteractionRecord const & other) const {
@@ -1316,7 +1335,8 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         secondary_helicities,
         secondary_times,
         interaction_parameters,
-        GetSecondaryTypes())
+        GetSecondaryTypes(),
+        sampler_factor)
         <
         std::tie(
         other.signature,
@@ -1337,7 +1357,8 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.secondary_helicities,
         other.secondary_times,
         other.interaction_parameters,
-        other.GetSecondaryTypes());
+        other.GetSecondaryTypes(),
+        other.sampler_factor);
 }
 
 std::vector<ParticleType> const & InteractionRecord::GetSecondaryTypes() const {
@@ -1765,6 +1786,8 @@ std::string to_str(siren::dataclasses::InteractionRecord const & record) {
     for(auto secondary: record.signature.secondary_types)
         ss << " " << secondary;
     ss << '\n';
+    if(record.sampler_factor != 1.0)
+        ss << tab << "SamplerFactor: " << record.sampler_factor << '\n';
     if(!record.secondary_types.empty()) {
         ss << tab << "SecondaryTypes:";
         for(auto secondary: record.secondary_types)
@@ -1814,6 +1837,8 @@ std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
     for(auto secondary: record.signature.secondary_types)
         ss << " " << secondary;
     ss << ", ";
+    if(record.sampler_factor != 1.0)
+        ss << "sampler_factor=" << record.sampler_factor << ", ";
     if(!record.secondary_types.empty()) {
         ss << "secondary_types=[";
         for(size_t i = 0; i < record.secondary_types.size(); ++i)

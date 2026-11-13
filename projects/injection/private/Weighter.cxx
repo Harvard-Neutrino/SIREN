@@ -206,6 +206,8 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
             throw siren::utilities::ConfigurationError(oss.str());
         }
     }
+    factors.sampler_factor = datum->record.sampler_factor;
+    factors.physical *= factors.sampler_factor;
     if(with_diagnostics)
         RecordVertexDiagnostics(idx, datum, factors);
     return factors;
@@ -310,6 +312,8 @@ EventWeightBreakdown Weighter::PoolEventWeight(
                     ? "physical density negative" : "physical density non-finite";
                 factors.flags.push_back(flag);
                 reject(flag + " for " + where.str() + ": " + std::to_string(factors.physical));
+            } else if(factors.sampler_factor == 0.0) {
+                factors.flags.push_back("sampler factor zero (weight 0)");
             } else if(factors.physical == 0.0) {
                 factors.flags.push_back("outside physical support (weight 0)");
             }

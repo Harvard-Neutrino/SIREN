@@ -473,6 +473,14 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     tree.header.event_number = injected_events;
     tree.header.provenance["generator"] = "SIREN";
     injected_events += 1;
+    // A zero sampler factor is an accepted event with weight zero, not a
+    // failure; count it separately.
+    for(auto const & datum : tree.tree) {
+        if(datum->record.sampler_factor == 0.0) {
+            zero_factor_events += 1;
+            break;
+        }
+    }
     return tree;
 }
 
@@ -597,6 +605,10 @@ unsigned int Injector::InjectionAttempts() const {
 
 unsigned int Injector::EventsToInject() const {
     return events_to_inject;
+}
+
+unsigned int Injector::ZeroFactorEvents() const {
+    return zero_factor_events;
 }
 
 unsigned int Injector::FailedEvents() const {
