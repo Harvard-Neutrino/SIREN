@@ -14,6 +14,7 @@
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/Process.h"
 #include "SIREN/injection/FinalStateProbability.h"
+#include "SIREN/utilities/Constants.h"
 #include "SIREN/injection/Weighter.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
