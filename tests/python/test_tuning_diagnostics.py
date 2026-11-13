@@ -179,6 +179,21 @@ def test_tuning_floor_and_production_transfer_preserve_exact_coefficients():
     assert production.weights == pilot.weights
 
 
+def test_tuning_levels_reject_a_rewired_cycle():
+    from siren.tune import _levels
+
+    leaf = iso_mixture((0.2, 0.8))
+    link = siren.injection.NestedMixtureChannel(leaf)
+    root = siren.injection.MultiChannelPhaseSpace([link])
+    link.mixture = root
+    try:
+        with pytest.raises(siren.errors.ConfigurationError, match="acyclic"):
+            _levels([root])
+    finally:
+        link.mixture = leaf
+    assert _levels([root]) == [root, leaf]
+
+
 def test_native_nested_tuning_and_transactional_validation():
     inner=iso_mixture((.2,.8))
     outer=siren.injection.MultiChannelPhaseSpace(
