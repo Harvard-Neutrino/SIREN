@@ -177,23 +177,20 @@ VertexWeightFactors Weighter::ComputeVertexFactors(unsigned int idx,
     factors.injector_index = static_cast<int>(idx);
     factors.vertex_pdg = static_cast<int>(datum->record.signature.primary_type);
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+    auto evaluate_physical = [&](auto const & weighter) {
+        return weighter.PhysicalProbability(
+            bounds, datum->record, weighter.WeightingConvention(datum->record),
+            with_diagnostics ? &factors : nullptr);
+    };
     if(datum->is_root()) {
         factors.depth = 0;
         bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
-        factors.physical = primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
-        if(with_diagnostics) {
-            factors.interaction_prob = primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
-            factors.position_prob = primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
-        }
+        factors.physical = evaluate_physical(*primary_process_weighters[idx]);
     } else {
         try {
             bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
             auto const & w = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type);
-            factors.physical = w->PhysicalProbability(bounds, datum->record);
-            if(with_diagnostics) {
-                factors.interaction_prob = w->InteractionProbability(bounds, datum->record);
-                factors.position_prob = w->NormalizedPositionProbability(bounds, datum->record);
-            }
+            factors.physical = evaluate_physical(*w);
         } catch(const std::out_of_range& oor) {
             std::ostringstream oss;
             oss << "Weighter::ComputeVertexFactors: no secondary process weighter for secondary type "

@@ -38,10 +38,13 @@ namespace siren { namespace math { class Vector3D; } }
 namespace siren {
 namespace injection {
 
+struct VertexWeightFactors;
+
 // Class handling weight calculation for a single pair of injection and physical processes
 template<typename ProcessType>
 class ProcessWeighter {
 private:
+    friend class Weighter;
     std::shared_ptr<siren::injection::PhysicalProcess> phys_process;
     std::shared_ptr<ProcessType> inj_process;
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> unique_gen_distributions;
@@ -62,7 +65,8 @@ private:
     double PhysicalProbability(
         std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionRecord const & record,
-        siren::dataclasses::PhaseSpaceConvention const & convention) const;
+        siren::dataclasses::PhaseSpaceConvention const & convention,
+        VertexWeightFactors * factors = nullptr) const;
     double GenerationProbability(
         siren::dataclasses::InteractionTreeDatum const & datum,
         siren::dataclasses::PhaseSpaceConvention const & convention) const;
@@ -89,7 +93,7 @@ typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryPr
 
 // One tree vertex's weight factors, recorded for diagnostics. generation and
 // physical are the per-datum factors consumed by the weight. Skipped physical
-// factors are NaN and flagged; the remaining fields are observation-only.
+// factors are NaN and flagged. Disabled transport factors are unity.
 struct VertexWeightFactors {
     int injector_index = 0;
     int depth = 0;

@@ -721,6 +721,52 @@ TEST(CoreAtRest, WidthRatiosRemainFiniteForTinyWidths) {
     EXPECT_DOUBLE_EQ(siren::injection::CrossSectionProbability(detector, interactions, record), 5.0);
 }
 
+TEST(CoreAtRest, FixedWeightExplanationSkipsTransportQueries) {
+    class CountingDecay final : public TaggedDecay {
+    public:
+        using TaggedDecay::TaggedDecay;
+        mutable unsigned int transport_queries = 0;
+        double TotalDecayLengthAllFinalStates(InteractionRecord const &) const override {
+            ++transport_queries;
+            return 1.0;
+        }
+    };
+
+    using siren::dataclasses::ParticleType;
+    using siren::dataclasses::VertexWeightingMode;
+
+    auto detector = SelectionDetector();
+    auto decay = std::make_shared<CountingDecay>(1, 2.0, 5.0);
+    auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+        ParticleType::NuMu,
+        std::vector<std::shared_ptr<siren::interactions::Decay>>{decay});
+    auto process = SelectionProcess(interactions);
+    process->SetWeightingMode(VertexWeightingMode::Fixed());
+    auto injector = std::make_shared<siren::injection::Injector>(
+        1, detector, process, std::make_shared<siren::utilities::SIREN_random>(71));
+    auto physical = std::make_shared<siren::injection::PhysicalProcess>(
+        ParticleType::NuMu, interactions);
+    physical->SetWeightingMode(VertexWeightingMode::Fixed());
+    siren::injection::Weighter weighter({injector}, detector, physical);
+
+    auto record = SelectionRecord();
+    record.signature = SharedDecaySignature();
+    record.primary_mass = 2.0;
+    record.primary_momentum = {2.0, 0.0, 0.0, 0.0};
+    siren::dataclasses::InteractionTree tree;
+    tree.add_entry(record);
+
+    double scalar = weighter.EventWeight(tree);
+    EXPECT_DOUBLE_EQ(scalar, 1.0);
+    EXPECT_EQ(decay->transport_queries, 0u);
+    auto breakdown = weighter.EventWeightWithBreakdown(tree);
+    EXPECT_DOUBLE_EQ(breakdown.total, scalar);
+    ASSERT_EQ(breakdown.vertices.size(), 1u);
+    EXPECT_DOUBLE_EQ(breakdown.vertices.front().interaction_prob, 1.0);
+    EXPECT_DOUBLE_EQ(breakdown.vertices.front().position_prob, 1.0);
+    EXPECT_EQ(decay->transport_queries, 0u);
+}
+
 TEST(CoreAtRest, MaterialSelectionFailsBeforeGeometryNavigation) {
     auto detector = SelectionDetector();
     auto xs = std::make_shared<TaggedCrossSection>(1, 1.0, 1.0);

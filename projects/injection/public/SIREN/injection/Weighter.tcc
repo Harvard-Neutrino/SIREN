@@ -273,14 +273,21 @@ template<typename ProcessType>
 double ProcessWeighter<ProcessType>::PhysicalProbability(
         std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionRecord const & record,
-        PhaseSpaceConvention const & convention) const {
+        PhaseSpaceConvention const & convention,
+        VertexWeightFactors * factors) const {
 
     double physical_probability = 1.0;
     auto mode = phys_process->GetWeightingMode();
-    if (mode.compute_interaction_probability)
-        physical_probability *= InteractionProbability(bounds, record);
-    if (mode.compute_position_probability)
-        physical_probability *= NormalizedPositionProbability(bounds, record);
+    if (mode.compute_interaction_probability) {
+        double probability = InteractionProbability(bounds, record);
+        if (factors) factors->interaction_prob = probability;
+        physical_probability *= probability;
+    }
+    if (mode.compute_position_probability) {
+        double probability = NormalizedPositionProbability(bounds, record);
+        if (factors) factors->position_prob = probability;
+        physical_probability *= probability;
+    }
     physical_probability *= ProcessFinalStateProbability(
         detector_model, *phys_process, record, convention);
     if(physical_probability < 0.0 || !std::isfinite(physical_probability))
