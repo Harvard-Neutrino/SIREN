@@ -37,6 +37,11 @@ if(TARGET PYTHIA8)
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
     )
 endif()
+if(TARGET ACHILLES)
+    LIST (APPEND interactions_SOURCES
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/AchillesTrialGenerator.cxx
+    )
+endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -68,6 +73,14 @@ if(TARGET PYTHIA8)
     target_link_libraries(SIREN_interactions PUBLIC PYTHIA8)
     target_compile_definitions(SIREN_interactions PUBLIC SIREN_HAS_PYTHIA8)
 endif()
+if(TARGET ACHILLES)
+    target_link_libraries(SIREN_interactions PUBLIC ACHILLES)
+    # Achilles' headers need its own fmt and spdlog. Imported includes are
+    # system includes, searched after ordinary ones such as a Homebrew prefix
+    # with another fmt, so put Achilles' include directories first.
+    target_include_directories(SIREN_interactions BEFORE PRIVATE
+        $<TARGET_PROPERTY:achilles::Achilles,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -91,6 +104,9 @@ if(SIREN_BUILD_PYTHON_BINDINGS)
     endif()
     if(TARGET MARLEY)
         target_compile_definitions(interactions PRIVATE SIREN_HAS_MARLEY)
+    endif()
+    if(TARGET ACHILLES)
+        target_compile_definitions(interactions PRIVATE SIREN_HAS_ACHILLES)
     endif()
     #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
     #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)

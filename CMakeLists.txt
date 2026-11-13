@@ -37,6 +37,8 @@ option(SIREN_WITH_MARLEY "Enable MARLEY support if available" ON)
 option(SIREN_REQUIRE_MARLEY "Fail configure if MARLEY requested but not found" OFF)
 option(SIREN_WITH_PYTHIA8 "Enable Pythia8 support if available" OFF)
 option(SIREN_REQUIRE_PYTHIA8 "Fail configure if Pythia8 requested but not found" OFF)
+option(SIREN_WITH_ACHILLES "Enable the Achilles external generator if available" OFF)
+option(SIREN_REQUIRE_ACHILLES "Fail configure if Achilles requested but not found" OFF)
 option(SIREN_WITH_HEPMC3 "Enable HepMC3 output support if available" ON)
 option(SIREN_REQUIRE_HEPMC3 "Fail configure if HepMC3 requested but not found" OFF)
 
@@ -193,6 +195,7 @@ if(TARGET PYTHIA8)
     apply_siren_compile_options(PYTHIA8)
 endif()
 include(HepMC3)
+include(ACHILLES)
 
 # load macros for googletest
 include(testing)

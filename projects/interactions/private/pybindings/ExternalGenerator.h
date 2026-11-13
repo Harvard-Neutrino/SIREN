@@ -7,6 +7,9 @@
 
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/ExternalGenerator.h"
+#ifdef SIREN_HAS_ACHILLES
+#include "../../public/SIREN/interactions/AchillesTrialGenerator.h"
+#endif
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
@@ -133,4 +136,16 @@ void register_ExternalGenerator(pybind11::module_ & m) {
         .def("GetPossiblePrimaries", &ExternalGeneratorCrossSection::GetPossiblePrimaries)
         .def("FinalStateDensityEvaluable", &ExternalGeneratorCrossSection::FinalStateDensityEvaluable)
         .def("FinalStateSamplerKey", &ExternalGeneratorCrossSection::FinalStateSamplerKey);
+
+#ifdef SIREN_HAS_ACHILLES
+    class_<AchillesTrialGenerator, std::shared_ptr<AchillesTrialGenerator>, TrialGenerator>(
+            m, "AchillesTrialGenerator")
+        .def(init<std::string const &, std::string const &,
+                  std::vector<siren::dataclasses::InteractionSignature> const &>(),
+             arg("run_card"), arg("data_directory"), arg("channels"))
+        .def("EnergyRange", &AchillesTrialGenerator::EnergyRange);
+    m.attr("HAS_ACHILLES") = true;
+#else
+    m.attr("HAS_ACHILLES") = false;
+#endif
 }
