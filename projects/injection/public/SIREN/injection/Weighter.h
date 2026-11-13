@@ -54,6 +54,9 @@ private:
     std::vector<std::shared_ptr<typename ProcessType::InjectionType>> const & GetInjectionDistributions();
     void Initialize();
     bool MatchingInteractionContext() const;
+    struct TransportInputs;
+    TransportInputs BuildTransportInputs(
+        siren::dataclasses::InteractionRecord const & record) const;
     siren::dataclasses::PhaseSpaceConvention WeightingConvention(
         siren::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(

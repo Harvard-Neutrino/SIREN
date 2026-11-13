@@ -24,6 +24,23 @@ namespace siren { namespace dataclasses { struct InteractionSignature; } }
 namespace siren {
 namespace injection {
 
+namespace detail {
+
+void CheckPhysicalChannelArchiveVersion(std::uint32_t version, char const * channel_name);
+PhaseSpaceTopology ReadPhysicalChannelTopology(int topology, char const * channel_name);
+
+template<class Archive, class Channel, class Interaction, class Measure>
+void ArchivePhysicalChannel(
+        Archive & archive, Channel const * channel, char const * interaction_name,
+        Interaction & interaction, int & topology, Measure & measure) {
+    archive(::cereal::make_nvp(interaction_name, interaction));
+    archive(::cereal::make_nvp("Topology", topology));
+    archive(::cereal::make_nvp("Measure", measure));
+    archive(::cereal::virtual_base_class<PhaseSpaceChannel>(channel));
+}
+
+} // namespace detail
+
 // Adapts a Decay sampler and FinalStateProbability to a proposal channel.
 class PhysicalDecayChannel : public PhaseSpaceChannel {
 public:
@@ -68,41 +85,19 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 0) {
-            int topology = static_cast<int>(topology_);
-            archive(::cereal::make_nvp("Decay", decay_));
-            archive(::cereal::make_nvp("Topology", topology));
-            archive(::cereal::make_nvp("Measure", measure_));
-            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
-        } else {
-            throw std::runtime_error(
-                "PhysicalDecayChannel only supports version <= 0!");
-        }
+        detail::CheckPhysicalChannelArchiveVersion(version, "PhysicalDecayChannel");
+        int topology = static_cast<int>(topology_);
+        detail::ArchivePhysicalChannel(
+            archive, this, "Decay", decay_, topology, measure_);
     }
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            int topology;
-            archive(::cereal::make_nvp("Decay", decay_));
-            archive(::cereal::make_nvp("Topology", topology));
-            archive(::cereal::make_nvp("Measure", measure_));
-            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
-            if(topology != static_cast<int>(PhaseSpaceTopology::Decay2Body)
-               && topology != static_cast<int>(PhaseSpaceTopology::Decay3Body)
-               && topology != static_cast<int>(PhaseSpaceTopology::DecayNBody)
-               && topology != static_cast<int>(PhaseSpaceTopology::Scatter2to2)
-               && topology != static_cast<int>(PhaseSpaceTopology::Scatter2to3)
-               && topology != static_cast<int>(PhaseSpaceTopology::Unspecified)) {
-                throw std::runtime_error(
-                    "PhysicalDecayChannel: invalid PhaseSpaceTopology value "
-                    + std::to_string(topology) + " in archive");
-            }
-            topology_ = static_cast<PhaseSpaceTopology>(topology);
-        } else {
-            throw std::runtime_error(
-                "PhysicalDecayChannel only supports version <= 0!");
-        }
+        detail::CheckPhysicalChannelArchiveVersion(version, "PhysicalDecayChannel");
+        int topology;
+        detail::ArchivePhysicalChannel(
+            archive, this, "Decay", decay_, topology, measure_);
+        topology_ = detail::ReadPhysicalChannelTopology(topology, "PhysicalDecayChannel");
     }
 };
 
@@ -147,41 +142,19 @@ private:
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
-        if(version == 0) {
-            int topology = static_cast<int>(topology_);
-            archive(::cereal::make_nvp("CrossSection", cross_section_));
-            archive(::cereal::make_nvp("Topology", topology));
-            archive(::cereal::make_nvp("Measure", measure_));
-            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
-        } else {
-            throw std::runtime_error(
-                "PhysicalCrossSectionChannel only supports version <= 0!");
-        }
+        detail::CheckPhysicalChannelArchiveVersion(version, "PhysicalCrossSectionChannel");
+        int topology = static_cast<int>(topology_);
+        detail::ArchivePhysicalChannel(
+            archive, this, "CrossSection", cross_section_, topology, measure_);
     }
 
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            int topology;
-            archive(::cereal::make_nvp("CrossSection", cross_section_));
-            archive(::cereal::make_nvp("Topology", topology));
-            archive(::cereal::make_nvp("Measure", measure_));
-            archive(::cereal::virtual_base_class<PhaseSpaceChannel>(this));
-            if(topology != static_cast<int>(PhaseSpaceTopology::Decay2Body)
-               && topology != static_cast<int>(PhaseSpaceTopology::Decay3Body)
-               && topology != static_cast<int>(PhaseSpaceTopology::DecayNBody)
-               && topology != static_cast<int>(PhaseSpaceTopology::Scatter2to2)
-               && topology != static_cast<int>(PhaseSpaceTopology::Scatter2to3)
-               && topology != static_cast<int>(PhaseSpaceTopology::Unspecified)) {
-                throw std::runtime_error(
-                    "PhysicalCrossSectionChannel: invalid PhaseSpaceTopology value "
-                    + std::to_string(topology) + " in archive");
-            }
-            topology_ = static_cast<PhaseSpaceTopology>(topology);
-        } else {
-            throw std::runtime_error(
-                "PhysicalCrossSectionChannel only supports version <= 0!");
-        }
+        detail::CheckPhysicalChannelArchiveVersion(version, "PhysicalCrossSectionChannel");
+        int topology;
+        detail::ArchivePhysicalChannel(
+            archive, this, "CrossSection", cross_section_, topology, measure_);
+        topology_ = detail::ReadPhysicalChannelTopology(topology, "PhysicalCrossSectionChannel");
     }
 };
 

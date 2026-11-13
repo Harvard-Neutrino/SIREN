@@ -11,16 +11,8 @@
 namespace siren {
 namespace injection {
 
-// Kallen (triangle) function: lambda(a, b, c) = a^2 + b^2 + c^2 - 2(ab + ac + bc)
-inline double Kallen(double a, double b, double c) {
-    return siren::math::Kallen(a, b, c);
-}
-
-// Rest-frame momentum magnitude for P -> A + B
-// Returns |p*| = sqrt(lambda(M^2, mA^2, mB^2)) / (2*M)
-inline double TwoBodyRestMomentum(double M, double mA, double mB) {
-    return siren::math::TwoBodyRestMomentum(M, mA, mB);
-}
+using siren::math::Kallen;
+using siren::math::TwoBodyRestMomentum;
 
 // Rest-frame energy of daughter A in P -> A + B
 // E_A* = (M^2 + mA^2 - mB^2) / (2*M)

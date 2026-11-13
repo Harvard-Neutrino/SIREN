@@ -128,45 +128,71 @@ void ProcessWeighter<ProcessType>::Initialize() {
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::InteractionDepth(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
-    using siren::detector::DetectorPosition;
+struct ProcessWeighter<ProcessType>::TransportInputs {
+    siren::detector::DetectorPosition vertex;
+    siren::geometry::Geometry::IntersectionList intersections;
+    std::vector<siren::dataclasses::ParticleType> targets;
+    std::vector<double> total_cross_sections;
+    double total_decay_length;
+};
+
+template<typename ProcessType>
+typename ProcessWeighter<ProcessType>::TransportInputs
+ProcessWeighter<ProcessType>::BuildTransportInputs(
+        siren::dataclasses::InteractionRecord const & record) const {
     using siren::detector::DetectorDirection;
-    siren::math::Vector3D interaction_vertex(
+    using siren::detector::DetectorPosition;
+
+    DetectorPosition vertex(siren::math::Vector3D(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
-            record.interaction_vertex[2]);
-
+            record.interaction_vertex[2]));
     siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
+    auto intersections = detector_model->GetIntersections(
+        vertex, DetectorDirection(primary_direction));
+    auto const & cross_sections_by_target =
+        phys_process->GetInteractions()->GetCrossSectionsByTarget();
     std::vector<siren::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
-    double total_decay_length = phys_process->GetInteractions()->TotalDecayLengthAllFinalStates(record);
+    double total_decay_length =
+        phys_process->GetInteractions()->TotalDecayLengthAllFinalStates(record);
 
-    siren::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord target_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
-        fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
+        target_record.target_mass = detector_model->GetTargetMass(target_xs.first);
         double total_xs = 0.0;
-        for(auto const & xs : xs_list) {
-            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+        for(auto const & xs : target_xs.second) {
+            auto signatures = xs->GetPossibleSignaturesFromParents(
+                record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
-                fake_record.signature = signature;
-                // Add total cross section
-                total_xs += xs->TotalCrossSection(fake_record);
+                target_record.signature = signature;
+                total_xs += xs->TotalCrossSection(target_record);
             }
         }
         total_cross_sections.push_back(total_xs);
     }
 
-    return detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
+    return {vertex, std::move(intersections), std::move(targets),
+        std::move(total_cross_sections), total_decay_length};
+}
+
+template<typename ProcessType>
+double ProcessWeighter<ProcessType>::InteractionDepth(
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionRecord const & record) const {
+    using siren::detector::DetectorPosition;
+    auto inputs = BuildTransportInputs(record);
+    return detector_model->GetInteractionDepthInCGS(
+        inputs.intersections, DetectorPosition(std::get<0>(bounds)),
+        DetectorPosition(std::get<1>(bounds)), inputs.targets,
+        inputs.total_cross_sections, inputs.total_decay_length);
 }
 
 template<typename ProcessType>
@@ -198,48 +224,23 @@ double ProcessWeighter<ProcessType>::SurvivalProbability(std::tuple<siren::math:
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+double ProcessWeighter<ProcessType>::NormalizedPositionProbability(
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionRecord const & record) const {
     using siren::detector::DetectorPosition;
-    using siren::detector::DetectorDirection;
-    siren::math::Vector3D interaction_vertex(
-            record.interaction_vertex[0],
-            record.interaction_vertex[1],
-            record.interaction_vertex[2]);
+    auto inputs = BuildTransportInputs(record);
 
-    siren::math::Vector3D primary_direction(
-            record.primary_momentum[1],
-            record.primary_momentum[2],
-            record.primary_momentum[3]);
-    primary_direction.normalize();
-
-    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
-
-    unsigned int n_targets = cross_sections_by_target.size();
-
-    std::vector<siren::dataclasses::ParticleType> targets; targets.reserve(n_targets);
-    std::vector<double> total_cross_sections;
-    double total_decay_length = phys_process->GetInteractions()->TotalDecayLengthAllFinalStates(record);
-    siren::dataclasses::InteractionRecord fake_record = record;
-    for(auto const & target_xs : cross_sections_by_target) {
-        targets.push_back(target_xs.first);
-        fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
-        double total_xs = 0.0;
-        for(auto const & xs : xs_list) {
-            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
-            for(auto const & signature : signatures) {
-                fake_record.signature = signature;
-                // Add total cross section
-                total_xs += xs->TotalCrossSection(fake_record);
-            }
-        }
-        total_cross_sections.push_back(total_xs);
-    }
-
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length); // unitless
-    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
-    double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(
+        inputs.intersections, DetectorPosition(std::get<0>(bounds)),
+        DetectorPosition(std::get<1>(bounds)), inputs.targets,
+        inputs.total_cross_sections, inputs.total_decay_length);
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(
+        inputs.intersections, DetectorPosition(std::get<0>(bounds)),
+        inputs.vertex, inputs.targets, inputs.total_cross_sections,
+        inputs.total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(
+        inputs.intersections, inputs.vertex, inputs.targets,
+        inputs.total_cross_sections, inputs.total_decay_length); // m^-1
 
     double prob_density;
     // This is equivalent to equation 11 of the SIREN paper
