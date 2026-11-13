@@ -116,6 +116,26 @@ def test_each_process_uses_its_own_creation_point(secondary):
     )
 
 
+def test_disabled_creation_survival_skips_underflowing_upstream_path(tmp_path):
+    generator, weighter = setup(tmp_path, 800.0, False, n=1)
+    event = generator.GenerateEvent()
+    assert len(event.tree) == 1
+
+    # The upstream depth would underflow if evaluated. The same record and
+    # injection bounds must remain valid with conditional propagation.
+    scalar = weighter.EventWeight(event)
+    assert scalar == pytest.approx(-math.expm1(-160.0))
+    breakdown = weighter.EventWeightWithBreakdown(event)
+    assert breakdown.total == scalar
+    assert breakdown.vertices[0].survival == 1.0
+
+    weighter.GetPrimaryPhysicalProcess().weighting_mode = (
+        inj.VertexWeightingMode.PropagatedFromCreation()
+    )
+    with pytest.raises(utilities.WeightCalculationError, match="CreationSurvival"):
+        weighter.EventWeight(event)
+
+
 def test_survival_underflow_remains_a_visible_weight_error(tmp_path):
     generator, weighter = setup(tmp_path, 800.0, True, n=1)
     event = generator.GenerateEvent()

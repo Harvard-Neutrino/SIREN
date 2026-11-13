@@ -33,6 +33,8 @@ PhaseSpaceConvention ProcessFinalStateConvention(
 // Uses a rate-weighted probability for a propagated vertex or the channel
 // selection probability times the selected density for a fixed vertex. A
 // registered proposal replaces the interaction model's own density.
+// Set for_generation for the proposal factor in the weighter's common
+// convention, including the weighting mode's channel selection.
 double ProcessFinalStateProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     PhysicalProcess const & process,
