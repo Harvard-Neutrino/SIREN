@@ -473,9 +473,11 @@ def probe_channel_densities(mcps, signature, detector_model, random,
     Raises whatever the engine raises (MeasureCompatibilityError,
     WeightCalculationError) on failure; a passing probe returns its result.
     """
+    from . import injection as _injection
+
     template = build_template_record(signature)
-    return mcps.ValidateChannelDensities(
-        random, detector_model, template, samples_per_channel)
+    return _injection.ValidateChannelDensities(
+        mcps, random, detector_model, template, samples_per_channel)
 
 
 def _pybind_base_of(model):

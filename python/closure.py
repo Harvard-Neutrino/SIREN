@@ -111,8 +111,9 @@ def check_closure(model_or_mixture, *, primary_energy=None, target=None,
     if record is not None and (primary_energy is not None or target is not None):
         raise ValueError('record cannot be combined with primary_energy or target')
     obj = model_or_mixture
-    if hasattr(obj, 'ValidateChannelDensities') or (
-            hasattr(obj, 'compile') and hasattr(obj, 'validate')):
+    if (isinstance(obj, _injection.MultiChannelPhaseSpace)
+            or hasattr(obj, 'ValidateChannelDensities')
+            or (hasattr(obj, 'compile') and hasattr(obj, 'validate'))):
         report = ClosureReport(checks={'configuration': 'incomplete',
                                       'normalization': 'incomplete', 'shape': 'incomplete'})
         if hasattr(obj, 'validate'):

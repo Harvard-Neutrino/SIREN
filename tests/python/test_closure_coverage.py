@@ -213,6 +213,10 @@ def test_mixture_configuration_success_is_not_density_certification():
 
     bare = siren.check_closure(Unprobed())
     assert bare.status == 'incomplete'
+    native = siren.injection.MultiChannelPhaseSpace(
+        [siren.injection.Isotropic2BodyChannel(0)])
+    native_report = siren.check_closure(native)
+    assert native_report.status == 'incomplete'
     mixture = siren.check_closure(siren.channels.isotropic(0) + siren.channels.isotropic(1))
     assert mixture.checks['configuration'] == 'passed'
     assert mixture.status == 'incomplete' and not mixture.ok

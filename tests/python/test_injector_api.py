@@ -507,9 +507,7 @@ def _process_with_phase_space():
     sig = xs.GetPossibleSignatures()[0]
     ic = interactions.InteractionCollection(sig.primary_type, [xs])
     proc = injection.PrimaryInjectionProcess(sig.primary_type, ic)
-    mc = injection.MultiChannelPhaseSpace()
-    mc.channels = [injection.Isotropic2BodyChannel(0)]
-    mc.weights = [1.0]
+    mc = injection.MultiChannelPhaseSpace([injection.Isotropic2BodyChannel(0)])
     proc.SetPhaseSpace(sig, mc)
     return proc
 
@@ -630,9 +628,7 @@ def test_pickle_roundtrips_phase_space_map():
     inj._build()
     xs = interactions.DummyCrossSection()
     sig = xs.GetPossibleSignatures()[0]
-    mc = injection.MultiChannelPhaseSpace()
-    mc.channels = [injection.Isotropic2BodyChannel(0)]
-    mc.weights = [1.0]
+    mc = injection.MultiChannelPhaseSpace([injection.Isotropic2BodyChannel(0)])
     inj.primary_phase_spaces = {sig: mc}
 
     restored = pickle.loads(pickle.dumps(inj))
