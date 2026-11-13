@@ -52,10 +52,14 @@ PYBIND11_MODULE(injection,m) {
   using namespace siren::injection;
 
   // Collection-level probability diagnostics.
-  m.def("CrossSectionProbability", &CrossSectionProbability);
-  m.def("CrossSectionProbabilityWithPhaseSpace", &CrossSectionProbabilityWithPhaseSpace);
-  m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
+  m.def("CrossSectionProbability", &CrossSectionProbability,
+        arg("detector_model"), arg("interactions"), arg("record"));
+  m.def("CrossSectionProbabilityWithPhaseSpace", &CrossSectionProbabilityWithPhaseSpace,
+        arg("detector_model"), arg("interactions"), arg("record"), arg("phase_space"));
+  m.def("ChannelSelectionProbability", &ChannelSelectionProbability,
+        arg("detector_model"), arg("interactions"), arg("record"));
   m.def("FixedVertexChannelSelectionProbability", &FixedVertexChannelSelectionProbability,
+        arg("detector_model"), arg("interactions"), arg("record"),
         "Channel-selection factor a Fixed vertex charges when multiple channels "
         "compete: exactly 1.0 for a single candidate signature, else "
         "selected_rate/total_rate. Throws WeightCalculationError on a "

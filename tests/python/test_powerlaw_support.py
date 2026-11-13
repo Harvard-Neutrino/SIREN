@@ -270,6 +270,10 @@ def test_cancellation_retains_interaction_dependent_density_ratio(detector, shar
 
 
 def test_skipped_zero_rate_mixture_is_not_evaluated_for_diagnostics(detector, model):
+    class DensitySentinel(xs.CrossSection):
+        def FinalStateProbability(self, record):
+            raise AssertionError("skipped mixture density was evaluated")
+
     zero_model = xs.TrivialCrossSection(
         {NuMu: ([3.0, 4.0], [1e-38, 1e-38])}, [dc.Particle.ParticleType.Nucleon])
     injectors = [_injector(
@@ -277,14 +281,16 @@ def test_skipped_zero_rate_mixture_is_not_evaluated_for_diagnostics(detector, mo
         position=dist.SphereVolumePositionDistribution(siren.geometry.Sphere(10.0, 0.0)))
         for seed, candidate in ((13, zero_model), (14, model))]
     signature = zero_model.GetPossibleSignatures()[0]
+    density_sentinel = DensitySentinel()
     mixture = inj.MultiChannelPhaseSpace(
-        [inj.PhysicalCrossSectionChannel(zero_model, signature)], [1.0])
+        [inj.PhysicalCrossSectionChannel(density_sentinel, signature)], [1.0])
     injectors[0].GetPrimaryProcess().SetPhaseSpace(signature, mixture)
     physical = _physical(model, 1.0, 2.0)
     pooled = inj._Weighter(injectors, detector, physical)
     single = inj._Weighter([injectors[1]], detector, physical)
-    mixture.weights = [2.0]
     event = injectors[1].GenerateEvent()
+    with pytest.raises(AssertionError, match="skipped mixture density"):
+        mixture.Density(detector, event.tree[0].record)
     weight = pooled.EventWeight(event)
     assert weight == single.EventWeight(event)
     breakdown = pooled.EventWeightWithBreakdown(event)
