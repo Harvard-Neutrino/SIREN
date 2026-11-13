@@ -55,6 +55,10 @@ double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interact
     )
 }
 
+double pyDecay::ParentDecayWidth(dataclasses::InteractionRecord const & interaction) const {
+    SELF_OVERRIDE(self, Decay, double, ParentDecayWidth, "ParentDecayWidth", interaction)
+}
+
 double pyDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
     SELF_OVERRIDE_PURE(
         self,
