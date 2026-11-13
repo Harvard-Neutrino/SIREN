@@ -17,6 +17,7 @@
 #include "../../public/SIREN/injection/Weighter.h"
 #include "../../public/SIREN/injection/FinalStateProbability.h"
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
+#include "../PhaseSpaceTuning.h"
 #include "SIREN/injection/PhaseSpaceDecay.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
@@ -119,7 +120,8 @@ PYBIND11_MODULE(injection,m) {
     .value("NoPathThroughVolume", siren::utilities::FailureReason::NoPathThroughVolume)
     .value("NoTargetsOnPath", siren::utilities::FailureReason::NoTargetsOnPath)
     .value("NoColumnDepthSolution", siren::utilities::FailureReason::NoColumnDepthSolution)
-    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden);
+    .value("KinematicallyForbidden", siren::utilities::FailureReason::KinematicallyForbidden)
+    .value("UnregisteredSecondaryType", siren::utilities::FailureReason::UnregisteredSecondaryType);
 
   enum_<PhaseSpaceMeasure::Type>(m, "PhaseSpaceMeasureType")
     .value("CosThetaRest", PhaseSpaceMeasure::Type::CosThetaRest)
@@ -295,6 +297,14 @@ PYBIND11_MODULE(injection,m) {
          arg("detector_model"), arg("record"),
          "Per-channel density contributions at record, for diagnosing which "
          "channel dominates the mixture at a given point.")
+    .def("Accumulate", &MultiChannelPhaseSpace::Accumulate,
+         arg("detector"), arg("record"), arg("weight"), arg("recurse") = true)
+    .def("UpdateWeights", &MultiChannelPhaseSpace::UpdateWeights,
+         arg("rule") = "alpha_sqrt_W", arg("damping") = 0.5,
+         arg("min_weight") = 0.001, arg("recurse") = true)
+    .def("ResetAccumulators", &MultiChannelPhaseSpace::ResetAccumulators,
+         arg("recurse") = true)
+    .def_property_readonly("tuning_count", &MultiChannelPhaseSpace::TuningCount)
     .def("CommonTopology", &MultiChannelPhaseSpace::CommonTopology)
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
@@ -304,6 +314,8 @@ PYBIND11_MODULE(injection,m) {
         &(siren::serialization::pickle_load<MultiChannelPhaseSpace>)
     ))
     ;
+
+  m.def("_copy_tuned_weights", &CopyTunedWeights, arg("destination"), arg("source"));
 
   m.def("ValidateChannelDensities", &ValidateChannelDensities,
         arg("mixture"), arg("random"), arg("detector_model"), arg("template_record"),
@@ -474,6 +486,11 @@ PYBIND11_MODULE(injection,m) {
         if(snapshot->HasStoppingCondition()) snapshot->SetStoppingCondition({});
         return siren::serialization::pickle_save<Injector>(snapshot);
     }, "Internal facade pickle helper; the facade stores the callback separately.")
+    .def("_copy_without_callback", [](Injector const & self) {
+        auto snapshot = std::make_shared<Injector>(self);
+        if(snapshot->HasStoppingCondition()) snapshot->SetStoppingCondition({});
+        return snapshot;
+    }, "Internal graph snapshot helper; retains shared model identity before archiving.")
     .def("GetStoppingCondition",&Injector::GetStoppingCondition)
     .def("SetPrimaryProcess",&Injector::SetPrimaryProcess, keep_alive<1, 2>())
     .def("AddSecondaryProcess",&Injector::AddSecondaryProcess, keep_alive<1, 2>())

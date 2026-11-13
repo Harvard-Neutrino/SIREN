@@ -250,7 +250,13 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             VertexWeightFactors factors;
             factors.injector_index = static_cast<int>(idx);
             factors.vertex_pdg = static_cast<int>(datum->record.signature.primary_type);
-            factors.generation = ComputeGenerationProbability(idx, datum);
+            try {
+                factors.generation = ComputeGenerationProbability(idx, datum);
+            } catch(siren::utilities::WeightCalculationError const & e) {
+                factors.generation = std::numeric_limits<double>::quiet_NaN();
+                factors.flags.push_back(e.what());
+                reject(e.what());
+            }
             if(!datum->is_root())
                 factors.depth = static_cast<int>(datum->depth(tree));
             std::ostringstream where;
@@ -293,7 +299,14 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             auto & factors = breakdown.vertices[vertex++];
             double const density = factors.generation;
             int const depth = factors.depth;
-            factors = ComputeVertexFactors(idx, datum, with_diagnostics);
+            try {
+                factors = ComputeVertexFactors(idx, datum, with_diagnostics);
+            } catch(siren::utilities::WeightCalculationError const & e) {
+                factors.physical = factors.interaction_prob = factors.position_prob = factors.survival =
+                    std::numeric_limits<double>::quiet_NaN();
+                factors.flags.push_back(e.what());
+                reject(e.what());
+            }
             factors.generation = density;
             factors.depth = depth;
             std::ostringstream where;
@@ -307,7 +320,12 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             } else if(factors.physical == 0.0) {
                 factors.flags.push_back("outside physical support (weight 0)");
             }
-            physical *= factors.physical;
+            double product = physical * factors.physical;
+            if(physical > 0 && factors.physical > 0 && product == 0) {
+                factors.flags.push_back("physical probability product underflow");
+                reject("physical probability product underflow (not physical zero)");
+            }
+            physical = product;
         }
         std::ostringstream values;
         values << ": generation_probability=" << generation
@@ -321,7 +339,10 @@ EventWeightBreakdown Weighter::PoolEventWeight(
             zero_weight = true;
             continue;
         }
-        inv_weight += generation / physical;
+        double term = generation / physical;
+        if(term == 0)
+            breakdown.vertices.back().flags.push_back("negligible inverse weight term rounded to zero");
+        inv_weight += term;
         if(!std::isfinite(inv_weight)) {
             breakdown.vertices.back().flags.push_back("inverse weight overflow");
             reject("inverse weight overflow at " + injector_name + values.str());

@@ -28,7 +28,8 @@ enum class FailureReason {
     NoPathThroughVolume,
     NoTargetsOnPath,
     NoColumnDepthSolution,
-    KinematicallyForbidden
+    KinematicallyForbidden,
+    UnregisteredSecondaryType = 5
 };
 
 class SIREN_EXCEPTION_EXPORT InjectionFailure : public std::runtime_error {

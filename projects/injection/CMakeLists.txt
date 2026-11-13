@@ -10,6 +10,7 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDensity.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDiagnostics.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceTuning.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhysicalChannelAdapters.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
@@ -71,6 +72,7 @@ target_link_libraries(UnitTest_Injector pybind11::headers)
 target_link_libraries(UnitTest_CharmSerialization pybind11::headers)
 endif()
 package_add_test(UnitTest_TwoBodyKinematics ${PROJECT_SOURCE_DIR}/projects/injection/private/test/TwoBodyKinematics_TEST.cxx)
+package_add_test(UnitTest_PhaseSpaceTuning ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceTuning_TEST.cxx)
 package_add_test(UnitTest_PhaseSpaceChannels ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceChannels_TEST.cxx)
 package_add_test(UnitTest_PhaseSpaceSerialization ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceSerialization_TEST.cxx)
 if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)

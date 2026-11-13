@@ -194,6 +194,10 @@ def test_missing_powerlaw_proposal_support_is_an_error(detector, model, physical
     assert math.isnan(breakdown.total)
     assert any("no injector can produce" in flag
                for vertex in breakdown.vertices for flag in vertex.flags)
+    from siren.report import WeightBreakdown
+    report = WeightBreakdown.from_engine(breakdown)
+    assert report.culprit() is not None
+    assert any("no injector can produce" in flag for flag in report.culprit().flags)
 
 
 def test_powerlaw_pool_archive_preserves_zero_and_positive_weights(detector, model, tmp_path):
