@@ -40,6 +40,8 @@ void register_Decay(pybind11::module_ & m) {
         .def("Topology", &Decay::Topology)
         .def("Measure", &Decay::Measure)
         .def("TopologyForSignature", &Decay::TopologyForSignature)
-        .def("MeasureForSignature", &Decay::MeasureForSignature);
+        .def("MeasureForSignature", &Decay::MeasureForSignature)
+        .def("FinalStateDensityEvaluable", &Decay::FinalStateDensityEvaluable)
+        .def("FinalStateSamplerKey", &Decay::FinalStateSamplerKey);
 
 }

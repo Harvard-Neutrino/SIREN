@@ -26,6 +26,17 @@ PhaseSpaceConvention SelectedFinalStateConvention(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record);
 
+// Refuse a configuration in which a final-state density a model declares not
+// evaluable (see CrossSection::FinalStateDensityEvaluable) would not cancel
+// between the generation and the physical process. For each signature that an
+// opaque model produces on either side, both sides must produce it with exactly
+// one interaction, both opaque, and the same sampler: the same object or the
+// same non-empty FinalStateSamplerKey. Neither side may register a phase-space
+// proposal for it. Throws ConfigurationError naming the vertex.
+void CheckOpaqueFinalStates(
+    PhysicalProcess const & generation,
+    PhysicalProcess const & physical);
+
 PhaseSpaceConvention ResolveCommonFinalStateConvention(
     PhaseSpaceConvention const & first,
     PhaseSpaceConvention const & second);

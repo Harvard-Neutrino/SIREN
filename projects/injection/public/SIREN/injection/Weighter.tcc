@@ -114,6 +114,9 @@ void ProcessWeighter<ProcessType>::Initialize() {
         }
     }
 
+    // An opaque final-state density must cancel between the two processes.
+    CheckOpaqueFinalStates(*inj_process, *phys_process);
+
     // A proposal registered on either process must share a measure with the
     // other process's density. Check each signature now, not at the first event.
     std::set<siren::dataclasses::InteractionSignature> proposal_signatures;

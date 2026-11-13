@@ -237,5 +237,31 @@ siren::dataclasses::PhaseSpaceMeasure pyDecay::MeasureForSignature(
     )
 }
 
+bool pyDecay::FinalStateDensityEvaluable(
+    siren::dataclasses::InteractionSignature const & signature) const
+{
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        bool,
+        FinalStateDensityEvaluable,
+        "FinalStateDensityEvaluable",
+        signature
+    )
+}
+
+std::string pyDecay::FinalStateSamplerKey(
+    siren::dataclasses::InteractionSignature const & signature) const
+{
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        std::string,
+        FinalStateSamplerKey,
+        "FinalStateSamplerKey",
+        signature
+    )
+}
+
 } // namespace interactions
 } // namespace siren

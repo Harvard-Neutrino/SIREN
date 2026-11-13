@@ -91,5 +91,15 @@ siren::dataclasses::PhaseSpaceMeasure Decay::MeasureForSignature(
     return Measure();
 }
 
+bool Decay::FinalStateDensityEvaluable(
+    siren::dataclasses::InteractionSignature const &) const {
+    return true;
+}
+
+std::string Decay::FinalStateSamplerKey(
+    siren::dataclasses::InteractionSignature const &) const {
+    return std::string();
+}
+
 } // namespace interactions
 } // namespace siren

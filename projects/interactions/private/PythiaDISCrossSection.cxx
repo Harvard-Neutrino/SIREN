@@ -414,6 +414,11 @@ double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle
     return charm_xsec::FragmentationFraction(secondary);
 }
 
+bool PythiaDISCrossSection::FinalStateDensityEvaluable(
+    siren::dataclasses::InteractionSignature const &) const {
+    return has_differential_;
+}
+
 double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     // Pythia's per-event density is not analytic. With NO differential spline,
     // return a constant: in the unbiased config it cancels in the weight ratio and

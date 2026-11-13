@@ -64,6 +64,21 @@ public:
         siren::dataclasses::InteractionSignature const & signature) const;
     virtual siren::dataclasses::PhaseSpaceMeasure MeasureForSignature(
         siren::dataclasses::InteractionSignature const & signature) const;
+
+    // An opaque final state: the model samples it but cannot evaluate its
+    // density, so its FinalStateProbability for the signature is a placeholder
+    // that is only correct where it cancels. The weighter then requires the
+    // generation and physical processes to produce the signature with the same
+    // final-state sampler and nothing else, and refuses a phase-space proposal
+    // for it. FinalStateSamplerKey names the sampler: different model objects
+    // that return the same non-empty key declare that they sample the same
+    // final-state distribution (for example one generator wrapped with two
+    // total cross sections). An empty key matches only the same object.
+    virtual bool FinalStateDensityEvaluable(
+        siren::dataclasses::InteractionSignature const & signature) const;
+    virtual std::string FinalStateSamplerKey(
+        siren::dataclasses::InteractionSignature const & signature) const;
+
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {};
     template<class Archive>

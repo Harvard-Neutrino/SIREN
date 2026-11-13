@@ -154,6 +154,11 @@ public:
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
+    // Without a differential spline the final-state density is not evaluable:
+    // FinalStateProbability is a constant that must cancel, and the weighter
+    // enforces that (see CrossSection::FinalStateDensityEvaluable).
+    virtual bool FinalStateDensityEvaluable(
+        siren::dataclasses::InteractionSignature const & signature) const override;
     virtual std::vector<std::string> DensityVariables() const override;
 
     // Getters

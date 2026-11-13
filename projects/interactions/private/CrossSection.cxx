@@ -87,5 +87,15 @@ siren::dataclasses::PhaseSpaceMeasure CrossSection::MeasureForSignature(
     return Measure();
 }
 
+bool CrossSection::FinalStateDensityEvaluable(
+    siren::dataclasses::InteractionSignature const &) const {
+    return true;
+}
+
+std::string CrossSection::FinalStateSamplerKey(
+    siren::dataclasses::InteractionSignature const &) const {
+    return std::string();
+}
+
 } // namespace interactions
 } // namespace siren

@@ -44,5 +44,7 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("Measure", &CrossSection::Measure)
         .def("TopologyForSignature", &CrossSection::TopologyForSignature)
         .def("MeasureForSignature", &CrossSection::MeasureForSignature)
+        .def("FinalStateDensityEvaluable", &CrossSection::FinalStateDensityEvaluable)
+        .def("FinalStateSamplerKey", &CrossSection::FinalStateSamplerKey)
         ;
 }

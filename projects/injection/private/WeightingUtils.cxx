@@ -9,6 +9,8 @@
 #include <cstddef>                                                // for size_t
 #include <string>                                                 // for to_string
 #include <sstream>
+#include <set>
+#include <map>
 
 #include "SIREN/utilities/Errors.h"                     // for WeightCalculationError
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
@@ -175,7 +177,91 @@ double ModeledBranchFraction(
     return probability;
 }
 
+struct FinalStateProducer {
+    void const * object = nullptr;
+    std::string name;
+    bool evaluable = true;
+    std::string key;
+};
+
+using ProducerMap = std::map<siren::dataclasses::InteractionSignature,
+                             std::vector<FinalStateProducer>>;
+
+ProducerMap FinalStateProducers(PhysicalProcess const & process) {
+    ProducerMap producers;
+    auto const & interactions = process.GetInteractions();
+    if (!interactions) return producers;
+    siren::dataclasses::ParticleType const primary = process.GetPrimaryType();
+    for (auto const & xs : interactions->GetCrossSections()) {
+        for (auto const & signature : xs->GetPossibleSignatures()) {
+            if (signature.primary_type != primary) continue;
+            producers[signature].push_back({xs.get(), "cross section",
+                xs->FinalStateDensityEvaluable(signature),
+                xs->FinalStateSamplerKey(signature)});
+        }
+    }
+    for (auto const & decay : interactions->GetDecays()) {
+        for (auto const & signature : decay->GetPossibleSignatures()) {
+            if (signature.primary_type != primary) continue;
+            producers[signature].push_back({decay.get(), "decay",
+                decay->FinalStateDensityEvaluable(signature),
+                decay->FinalStateSamplerKey(signature)});
+        }
+    }
+    return producers;
+}
+
+[[noreturn]] void ThrowOpaque(siren::dataclasses::InteractionSignature const & signature,
+                              std::string const & reason) {
+    std::ostringstream oss;
+    oss << "Weighter: the vertex " << signature.primary_type << " + "
+        << signature.target_type << " ->";
+    for (auto const & type : signature.secondary_types) oss << ' ' << type;
+    oss << " has a final-state density that is not evaluable, " << reason
+        << " [siren-docs: errors#configuration]";
+    throw siren::utilities::ConfigurationError(oss.str());
+}
+
 } // anonymous namespace
+
+void CheckOpaqueFinalStates(
+    PhysicalProcess const & generation,
+    PhysicalProcess const & physical)
+{
+    ProducerMap const gen = FinalStateProducers(generation);
+    ProducerMap const phys = FinalStateProducers(physical);
+    std::set<siren::dataclasses::InteractionSignature> opaque;
+    for (auto const * side : {&gen, &phys})
+        for (auto const & entry : *side)
+            for (auto const & producer : entry.second)
+                if (!producer.evaluable) opaque.insert(entry.first);
+    for (auto const & signature : opaque) {
+        if (generation.GetPhaseSpace(signature) || physical.GetPhaseSpace(signature))
+            ThrowOpaque(signature, "so it cannot be weighted against a phase-space "
+                "proposal registered for it; remove the proposal");
+        auto const g = gen.find(signature);
+        auto const p = phys.find(signature);
+        // If one side cannot produce the signature, its density there is an
+        // exact zero and nothing needs to cancel.
+        if (g == gen.end() || p == phys.end()) continue;
+        if (g->second.size() != 1 || p->second.size() != 1)
+            ThrowOpaque(signature, "so no other interaction may produce the same "
+                "signature (" + std::to_string(g->second.size()) + " on the generation "
+                "side, " + std::to_string(p->second.size()) + " on the physical side)");
+        FinalStateProducer const & a = g->second.front();
+        FinalStateProducer const & b = p->second.front();
+        if (a.evaluable != b.evaluable)
+            ThrowOpaque(signature, std::string("so it must be opaque on both sides, but the ")
+                + (a.evaluable ? "generation" : "physical") + " " + (a.evaluable ? a.name : b.name)
+                + " evaluates its density and the other does not");
+        bool const same = a.object == b.object || (!a.key.empty() && a.key == b.key);
+        if (!same)
+            ThrowOpaque(signature, "so the generation and physical processes must use "
+                "the same final-state sampler: the same model object, or models that "
+                "return the same non-empty FinalStateSamplerKey (generation key \""
+                + a.key + "\", physical key \"" + b.key + "\")");
+    }
+}
 
 PhaseSpaceConvention SelectedFinalStateConvention(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,

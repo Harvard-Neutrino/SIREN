@@ -58,6 +58,11 @@ public:
     siren::dataclasses::PhaseSpaceMeasure MeasureForSignature(
         siren::dataclasses::InteractionSignature const & signature) const override;
 
+    bool FinalStateDensityEvaluable(
+        siren::dataclasses::InteractionSignature const & signature) const override;
+    std::string FinalStateSamplerKey(
+        siren::dataclasses::InteractionSignature const & signature) const override;
+
     Pybind11TrampolineCerealMethods(Decay, pyDecay);
 }; // class pyDecay
 

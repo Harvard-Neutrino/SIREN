@@ -255,5 +255,31 @@ siren::dataclasses::PhaseSpaceMeasure pyCrossSection::MeasureForSignature(
     )
 }
 
+bool pyCrossSection::FinalStateDensityEvaluable(
+    siren::dataclasses::InteractionSignature const & signature) const
+{
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        bool,
+        FinalStateDensityEvaluable,
+        "FinalStateDensityEvaluable",
+        signature
+    )
+}
+
+std::string pyCrossSection::FinalStateSamplerKey(
+    siren::dataclasses::InteractionSignature const & signature) const
+{
+    SELF_OVERRIDE(
+        self,
+        CrossSection,
+        std::string,
+        FinalStateSamplerKey,
+        "FinalStateSamplerKey",
+        signature
+    )
+}
+
 } // namespace interactions
 } // namespace siren
