@@ -5,6 +5,7 @@
 #include "SIREN/detector/ConstantDensityDistribution.h"
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "SIREN/geometry/BooleanGeometry.h"
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Cylinder.h"
@@ -765,6 +766,128 @@ TEST(CoreAtRest, FixedWeightExplanationSkipsTransportQueries) {
     EXPECT_DOUBLE_EQ(breakdown.vertices.front().interaction_prob, 1.0);
     EXPECT_DOUBLE_EQ(breakdown.vertices.front().position_prob, 1.0);
     EXPECT_EQ(decay->transport_queries, 0u);
+}
+
+TEST(ConcreteInteractionSelection, SecondaryExplanationUsesOnlyEnabledTransport) {
+    using siren::dataclasses::ParticleType;
+    using siren::dataclasses::VertexWeightingMode;
+    using siren::injection::PhysicalProcess;
+    using siren::injection::SecondaryInjectionProcess;
+    using siren::interactions::Decay;
+    using siren::interactions::InteractionCollection;
+    using siren::math::Vector3D;
+
+    class SecondaryDecay final : public TaggedDecay {
+    public:
+        using TaggedDecay::TaggedDecay;
+        mutable unsigned int transport_queries = 0;
+        double TotalDecayLengthAllFinalStates(InteractionRecord const &) const override {
+            ++transport_queries;
+            return 3.0;
+        }
+        std::vector<siren::dataclasses::InteractionSignature>
+        GetPossibleSignatures() const override {
+            auto signature = SharedDecaySignature();
+            signature.primary_type = ParticleType::NuE;
+            signature.secondary_types = {ParticleType::NuMu, ParticleType::NuMuBar};
+            return {signature};
+        }
+        std::vector<siren::dataclasses::InteractionSignature>
+        GetPossibleSignaturesFromParent(ParticleType parent) const override {
+            return parent == ParticleType::NuE ? GetPossibleSignatures()
+                : std::vector<siren::dataclasses::InteractionSignature>{};
+        }
+    };
+
+    // Keep the proposal position density independent of decay transport so
+    // the sentinel counts only the physical transport calls under test.
+    class SecondaryPosition final
+        : public siren::distributions::SecondaryPhysicalVertexDistribution {
+    public:
+        double GenerationProbability(
+            std::shared_ptr<siren::detector::DetectorModel const>,
+            std::shared_ptr<InteractionCollection const>,
+            InteractionRecord const &) const override { return 1.0; }
+
+        std::tuple<Vector3D, Vector3D> InjectionBounds(
+            std::shared_ptr<siren::detector::DetectorModel const>,
+            std::shared_ptr<InteractionCollection const>,
+            InteractionRecord const &) const override {
+            return {Vector3D(0.0, 0.0, 0.0), Vector3D(0.0, 0.0, 2.0)};
+        }
+    };
+
+    auto detector = SelectionDetector();
+    auto primary_decay = std::make_shared<TaggedDecay>(1, 2.0, 5.0);
+    auto primary_interactions = std::make_shared<InteractionCollection>(
+        ParticleType::NuMu, std::vector<std::shared_ptr<Decay>>{primary_decay});
+    auto primary = SelectionProcess(primary_interactions);
+    auto primary_physical = std::make_shared<PhysicalProcess>(
+        ParticleType::NuMu, primary_interactions);
+    primary->SetWeightingMode(VertexWeightingMode::Fixed());
+    primary_physical->SetWeightingMode(VertexWeightingMode::Fixed());
+
+    auto secondary_decay = std::make_shared<SecondaryDecay>(2, 1.0, 3.0);
+    auto secondary_interactions = std::make_shared<InteractionCollection>(
+        ParticleType::NuE, std::vector<std::shared_ptr<Decay>>{secondary_decay});
+    auto secondary = std::make_shared<SecondaryInjectionProcess>(
+        ParticleType::NuE, secondary_interactions);
+    secondary->AddSecondaryInjectionDistribution(std::make_shared<SecondaryPosition>());
+    secondary->SetWeightingMode(VertexWeightingMode::Fixed());
+
+    auto injector = std::make_shared<siren::injection::Injector>(
+        1, detector, primary,
+        std::vector<std::shared_ptr<SecondaryInjectionProcess>>{secondary},
+        std::make_shared<siren::utilities::SIREN_random>(71));
+
+    auto primary_record = SelectionRecord();
+    primary_record.signature = SharedDecaySignature();
+    auto secondary_record = SelectionRecord();
+    secondary_record.signature = secondary_decay->GetPossibleSignatures().front();
+    secondary_record.primary_mass = 1.0;
+    secondary_record.primary_momentum = {2.0, 0.0, 0.0, std::sqrt(3.0)};
+    secondary_record.interaction_vertex = {0.0, 0.0, 0.75};
+    siren::dataclasses::InteractionTree tree;
+    auto root = tree.add_entry(primary_record);
+    tree.add_entry(secondary_record, root);
+
+    for (bool propagated : {false, true}) {
+        SCOPED_TRACE(propagated);
+        auto secondary_physical = std::make_shared<PhysicalProcess>(
+            ParticleType::NuE, secondary_interactions);
+        secondary_physical->SetWeightingMode(propagated
+            ? VertexWeightingMode::Propagated() : VertexWeightingMode::Fixed());
+        siren::injection::Weighter weighter(
+            {injector}, detector, primary_physical, {secondary_physical});
+
+        double interaction = 1.0;
+        double position = 1.0;
+        if (propagated) {
+            siren::injection::SecondaryProcessWeighter direct(
+                secondary_physical, secondary, detector);
+            auto bounds = injector->SecondaryInjectionBounds(secondary_record);
+            interaction = direct.InteractionProbability(bounds, secondary_record);
+            position = direct.NormalizedPositionProbability(bounds, secondary_record);
+            ASSERT_GT(interaction, 0.0);
+            ASSERT_LT(interaction, 1.0);
+            ASSERT_GT(position, 0.0);
+            ASSERT_NE(position, 1.0);
+        }
+
+        secondary_decay->transport_queries = 0;
+        auto scalar = weighter.EventWeight(tree);
+        auto scalar_queries = secondary_decay->transport_queries;
+        EXPECT_EQ(scalar_queries, propagated ? 2u : 0u);
+        secondary_decay->transport_queries = 0;
+        auto breakdown = weighter.EventWeightWithBreakdown(tree);
+        EXPECT_DOUBLE_EQ(breakdown.total, scalar);
+        EXPECT_EQ(secondary_decay->transport_queries, scalar_queries);
+        ASSERT_EQ(breakdown.vertices.size(), 2u);
+        auto const & factors = breakdown.vertices.at(1);
+        ASSERT_EQ(factors.depth, 1);
+        EXPECT_DOUBLE_EQ(factors.interaction_prob, interaction);
+        EXPECT_DOUBLE_EQ(factors.position_prob, position);
+    }
 }
 
 TEST(CoreAtRest, MaterialSelectionFailsBeforeGeometryNavigation) {

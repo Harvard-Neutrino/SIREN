@@ -48,6 +48,44 @@ def test_mixture_properties_are_read_only_copies_and_weights_update_atomically()
     assert len(restored.channels) == 2
 
 
+def test_recursive_mixture_refuses_evaluation_and_pickle_load_then_recovers():
+    inner = inj.MultiChannelPhaseSpace([inj.Isotropic2BodyChannel()])
+    nested = inj.NestedMixtureChannel(inner)
+    outer = inj.MultiChannelPhaseSpace([nested])
+    record = dc.InteractionRecord()
+    record.signature.primary_type = P.N4
+    record.signature.secondary_types = [P.Gamma, P.NuMu]
+    record.primary_mass = 1.0
+    record.primary_momentum = [1.0, 0.0, 0.0, 0.0]
+    record.secondary_masses = [0.0, 0.0]
+    record.secondary_momenta = [[0.0] * 4 for _ in range(2)]
+    random = utilities.SIREN_random(7)
+
+    nested.mixture = outer
+    try:
+        operations = [
+            lambda: outer.Sample(random, None, record),
+            lambda: outer.Density(None, record),
+            outer.CommonConvention,
+            outer.ValidateChannelsDetailed,
+            lambda: inj.ValidateChannelDensities(outer, random, None, record, 1),
+        ]
+        for operation in operations:
+            with pytest.raises(utilities.ConfigurationError, match="Recursive phase-space mixture"):
+                operation()
+        archive = pickle.dumps(outer)
+        with pytest.raises(utilities.ConfigurationError):
+            pickle.loads(archive)
+    finally:
+        nested.mixture = inner
+
+    assert outer.CommonConvention() == inner.CommonConvention()
+    assert outer.ValidateChannelsDetailed() == []
+    assert outer.Sample(random, None, record) == 0
+    assert outer.Density(None, record) == inner.Density(None, record)
+    assert inj.ValidateChannelDensities(outer, random, None, record, 1) == []
+
+
 def fixed_decay_setup(model, parent, mass, n, propose=None, energy=None, direction=None):
     """Fixed-vertex decays, defaulting to E = 2 * mass and the +z direction.
 
