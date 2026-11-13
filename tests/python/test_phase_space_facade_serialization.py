@@ -49,15 +49,13 @@ def _signature_for(xs, primary_type=_NuMu):
 
 
 def _stateful_mixture(xs, signature):
-    mixture = injection.MultiChannelPhaseSpace(
+    return injection.MultiChannelPhaseSpace(
         [
             injection.PhysicalCrossSectionChannel(xs, signature),
             injection.PhysicalCrossSectionChannel(xs, signature),
         ],
         _WEIGHTS,
-        True,
     )
-    return mixture
 
 
 def _assert_mixture_state(mixture):
