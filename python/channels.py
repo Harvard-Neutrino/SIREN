@@ -1,6 +1,6 @@
 """Channel algebra compiling to siren.injection.MultiChannelPhaseSpace.
 
-Public names: Channel, Mixture, isotropic, physical.
+Public names: Channel, Mixture, isotropic, physical, Directed proposal factories.
 
 A Channel wraps one engine PhaseSpaceChannel factory that is resolved
 against a concrete InteractionSignature at compile time (daughters and
@@ -20,9 +20,11 @@ import math
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 from . import particles as _particles
+from . import directed_tiling as _tiling
 from .errors import ConfigurationError, MeasureCompatibilityError
 
-__all__ = ["Channel", "Mixture", "isotropic", "physical"]
+__all__ = ["Channel", "Mixture", "isotropic", "physical", "PairMass",
+           "toward", "toward_3body", "scatter_toward", "Tiling", "tile"]
 
 
 def _siren():
@@ -352,3 +354,239 @@ def physical() -> Channel:
             "physical(): model {!r} is neither a Decay nor a CrossSection".format(model))
 
     return Channel(factory, weight=1.0, label="physical")
+
+
+class PairMass:
+    """Invariant-mass sampling law for a 3-body directed channel's pair.
+
+    Carries the fields toward_3body maps onto the
+    DetectorDirected3BodyChannel ctor: mass_mode, resonance_mass,
+    resonance_width, power_law_nu, power_law_offset, mass_cdf_nodes,
+    mass_cdf_values.
+    """
+
+    def __init__(self, mass_mode, resonance_mass=0.0, resonance_width=0.0,
+                 power_law_nu=0.8, power_law_offset=0.0,
+                 mass_cdf_nodes=(), mass_cdf_values=()):
+        self.mass_mode = mass_mode
+        self.resonance_mass = resonance_mass
+        self.resonance_width = resonance_width
+        self.power_law_nu = power_law_nu
+        self.power_law_offset = power_law_offset
+        self.mass_cdf_nodes = list(mass_cdf_nodes)
+        self.mass_cdf_values = list(mass_cdf_values)
+
+    @classmethod
+    def uniform(cls):
+        siren = _siren()
+        return cls(siren.injection.InvariantMassMode.Uniform)
+
+    @classmethod
+    def breit_wigner(cls, m, w):
+        siren = _siren()
+        return cls(siren.injection.InvariantMassMode.BreitWigner,
+                    resonance_mass=m, resonance_width=w)
+
+    @classmethod
+    def power_law(cls, nu, offset=0.0):
+        siren = _siren()
+        return cls(siren.injection.InvariantMassMode.PowerLaw,
+                    power_law_nu=nu, power_law_offset=offset)
+
+    @classmethod
+    def tabulated(cls, nodes, values):
+        siren = _siren()
+        return cls(siren.injection.InvariantMassMode.Tabulated,
+                    mass_cdf_nodes=nodes, mass_cdf_values=values)
+
+
+def toward(daughter: Union[int, str], target, *, mode=None, volume=-1.0,
+           fraction: Optional[float] = None) -> Union[Channel, Mixture]:
+    """DetectorDirected2BodyChannel toward `target`, daughter named by particle.
+
+    If `fraction` is given and < 1, returns the mixture
+    `fraction*toward(...) + (1-fraction)*isotropic(...)` (an isotropic
+    fallback for events that miss the target); otherwise a bare directed
+    Channel.
+    """
+    siren = _siren()
+    if mode is None:
+        mode = siren.injection.DirectedMode.Volume
+
+    def factory(signature, *, detector=None, models=None):
+        idx = _resolve_index(signature, daughter, "toward(daughter=...)")
+        return siren.injection.DetectorDirected2BodyChannel(
+            target, idx, mode, volume)
+
+    label = "toward({!r})".format(daughter)
+    directed = Channel(factory, weight=1.0, label=label)
+
+    if fraction is None:
+        return directed
+    if not (0.0 <= fraction <= 1.0):
+        raise ConfigurationError(
+            "toward(fraction={!r}): fraction must be in [0, 1]".format(fraction))
+    if fraction == 1.0:
+        return directed
+    return fraction * directed + (1.0 - fraction) * isotropic(daughter)
+
+
+def toward_3body(directed: Union[int, str], target, *,
+                  spectator: Optional[Union[int, str]] = None,
+                  strategy: str = "recursive",
+                  pair_mass: Optional[PairMass] = None,
+                  mode=None, volume=-1.0) -> Channel:
+    """DetectorDirected3BodyChannel toward `target`.
+
+    strategy='direct' uses the direct ctor (directed_index only, other two
+    indices inferred ascending). strategy='recursive' uses the recursive
+    ctor (spectator/pair indices resolved per signature; `spectator`
+    selects the spectator daughter, the other two secondaries become the
+    pair, with `directed` as the directed member of the pair).
+
+    The channel topology is inferred per signature: a real target type
+    tags the channel Scatter2to3 (2->3 scattering), the Decay marker tags
+    it Decay3Body.
+    """
+    siren = _siren()
+    if mode is None:
+        mode = siren.injection.DirectedMode.Volume
+    if pair_mass is None:
+        pair_mass = PairMass.uniform()
+    if strategy not in ("recursive", "direct"):
+        raise ConfigurationError(
+            "toward_3body(strategy={!r}): must be 'recursive' or 'direct'".format(strategy))
+
+    def factory(signature, *, detector=None, models=None):
+        if len(signature.secondary_types) != 3:
+            raise ConfigurationError("toward_3body requires exactly three secondary particles")
+        directed_idx = _resolve_index(signature, directed, "toward_3body(directed=...)")
+        decay_marker = siren.dataclasses.ParticleType.Decay
+        topology = (siren.injection.PhaseSpaceTopology.Decay3Body
+                    if signature.target_type == decay_marker
+                    else siren.injection.PhaseSpaceTopology.Scatter2to3)
+        common_kwargs = dict(
+            topology=topology,
+            mass_mode=pair_mass.mass_mode,
+            resonance_mass=pair_mass.resonance_mass,
+            resonance_width=pair_mass.resonance_width,
+            power_law_nu=pair_mass.power_law_nu,
+            power_law_offset=pair_mass.power_law_offset,
+            mode=mode,
+            mass_cdf_nodes=pair_mass.mass_cdf_nodes,
+            mass_cdf_values=pair_mass.mass_cdf_values,
+            volume=volume,
+        )
+        if strategy == "direct":
+            return siren.injection.DetectorDirected3BodyChannel(
+                factorization=siren.injection.ThreeBodyMode.Direct,
+                target=target, directed_index=directed_idx, **common_kwargs)
+
+        n_sec = len(signature.secondary_types)
+        if spectator is None:
+            raise ConfigurationError(
+                "toward_3body(strategy='recursive'): spectator= is required "
+                "to resolve the pair indices")
+        spectator_idx = _resolve_index(signature, spectator, "toward_3body(spectator=...)")
+        others = [i for i in range(n_sec) if i != spectator_idx]
+        if directed_idx not in others:
+            raise ConfigurationError(
+                "toward_3body: directed index {} coincides with spectator "
+                "index {} for signature {}".format(directed_idx, spectator_idx, signature))
+        pair_first_idx, pair_second_idx = others[0], others[1]
+        return siren.injection.DetectorDirected3BodyChannel(
+            factorization=siren.injection.ThreeBodyMode.Recursive,
+            target=target, spectator_index=spectator_idx,
+            pair_first_index=pair_first_idx, pair_second_index=pair_second_idx,
+            directed_index=directed_idx, **common_kwargs)
+
+    label = "toward_3body({!r}, strategy={!r})".format(directed, strategy)
+    return Channel(factory, weight=1.0, label=label)
+
+
+def scatter_toward(target, *, daughter=None, variable=None, q2_mode=None,
+                    mediator_mass=0.0, q2_cdf_nodes=(), q2_cdf_values=(),
+                    mode=None, volume=-1.0) -> Channel:
+    """DetectorDirectedScatteringChannel toward `target`.
+
+    `daughter` names which outgoing particle is directed toward the target,
+    either as a secondary index or a particle name/ParticleType resolved
+    against the signature (the same resolution toward() uses for its
+    daughter). The default selects the index-0 secondary.
+    """
+    siren = _siren()
+    if mode is None:
+        mode = siren.injection.DirectedMode.Volume
+    if variable is None:
+        variable = siren.injection.ScatteringVariable.Q2
+    if q2_mode is None:
+        q2_mode = siren.injection.ScatteringQ2Mode.Geometry
+
+    def factory(signature, *, detector=None, models=None):
+        idx = (0 if daughter is None
+               else _resolve_index(signature, daughter,
+                                   "scatter_toward(daughter=...)"))
+        return siren.injection.DetectorDirectedScatteringChannel(
+            target, idx, variable, mode, q2_mode, mediator_mass,
+            list(q2_cdf_nodes), list(q2_cdf_values), volume)
+
+    label = ("scatter_toward" if daughter is None
+             else "scatter_toward({!r})".format(daughter))
+    return Channel(factory, weight=1.0, label=label)
+
+
+class Tiling(_MixtureNode):
+    """A grid/disjoint tiling of a geometry, treated as one Channel-like unit.
+
+    Wraps the tiles as a fixed NestedMixtureChannel and participates in
+    Mixture algebra like a Channel. Its weight belongs to the outer mixture.
+    """
+
+    def __init__(self, factory: Callable, weight: float = 1.0,
+                 label: str = "tile"):
+        self._factory = factory
+        self.weight = float(weight)
+        self.label = label
+
+    def _copy_with_weight(self, weight):
+        return Tiling(self._factory, weight, self.label)
+
+
+def tile(geometry, grid: int, method: str = "disjoint",
+         daughter: Union[int, str] = 0, mode=None,
+         volume_fn: Optional[Callable] = None) -> Tiling:
+    """Tile `geometry` into a grid of directed sub-channels.
+
+    `grid` is the number of cells per axis (an axis-aligned Box region is
+    required, matching directed_tiling.grid_cells).  method='disjoint'
+    uses the grid cells directly, since they are disjoint by construction;
+    any other method raises
+    ConfigurationError.  Grid cells of an axis-aligned Box have exact,
+    equal volumes, which the tiling supplies to the Volume-mode channels;
+    pass `volume_fn` (a callable geometry -> volume) to override.
+    """
+    if method != "disjoint":
+        raise ConfigurationError(
+            "tile(method={!r}): only 'disjoint' is supported".format(method))
+
+    def factory(signature, *, detector=None, models=None):
+        siren = _siren()
+        if mode is None:
+            resolved_mode = siren.injection.DirectedMode.Volume
+        else:
+            resolved_mode = mode
+        idx = _resolve_index(signature, daughter, "tile(daughter=...)")
+        cells = _tiling.grid_cells(geometry, grid)
+        disjoint_cells = cells
+        chan_factory = _tiling.default_2body_factory(idx, resolved_mode)
+        if volume_fn is not None:
+            tile_volume_fn = volume_fn
+        else:
+            # Disjoint grid cells retain their analytic Box volumes.
+            cell_volume = (
+                geometry.X * geometry.Y * geometry.Z) / float(len(cells))
+            tile_volume_fn = lambda _geo: cell_volume
+        return _tiling._wrap(
+            disjoint_cells, chan_factory, True, tile_volume_fn)
+
+    return Tiling(factory, weight=1.0, label="tile(grid={})".format(grid))
