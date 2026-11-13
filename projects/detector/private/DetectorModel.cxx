@@ -17,6 +17,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <array>
+#include <cstdint>
+#include <cstring>
 #include <initializer_list>
 
 #include "SIREN/math/Vector3D.h"
@@ -226,7 +229,7 @@ void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
         sector_name_map_[sectors[i].name] = i;
         sector_map_[sectors[i].level] = i;
     }
-    bvh_dirty_.store(true, std::memory_order_release);
+    MarkSectorsChanged();
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
@@ -256,7 +259,7 @@ void DetectorModel::AddSector(DetectorSector sector) {
     sector_name_map_[sector.name] = sectors_.size();
     sector_map_[sector.level] = sectors_.size();
     sectors_.push_back(sector);
-    bvh_dirty_.store(true, std::memory_order_release);
+    MarkSectorsChanged();
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
@@ -283,7 +286,7 @@ void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
     sector_name_map_.clear();
-    bvh_dirty_.store(true, std::memory_order_release);
+    MarkSectorsChanged();
 }
 
 namespace {
@@ -597,7 +600,7 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
         }
     } // end of the while loop
     in.close();
-    bvh_dirty_.store(true, std::memory_order_release);
+    MarkSectorsChanged();
 }
 
 void DetectorModel::LoadDefaultMaterials() {
@@ -813,7 +816,7 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
         ctx.BuildVolume(data.world_volume, Placement());
     }
 
-    bvh_dirty_.store(true, std::memory_order_release);
+    MarkSectorsChanged();
 
     return data.warnings;
 }
@@ -1348,7 +1351,9 @@ double DetectorModel::GetInteractionDepthInCGS(GeometryPosition const & p0, Geom
     }
     direction.normalize();
 
-    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
+    Geometry::IntersectionList intersections;
+    if(!targets.empty())
+        intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetInteractionDepthInCGS(intersections, p0, p1, targets, total_cross_sections, total_decay_length);
 }
 
@@ -1643,6 +1648,32 @@ static inline void AppendSectorIntersections(
     }
 }
 
+std::uint64_t DetectorModel::NextSectorVersion() {
+    static std::atomic<std::uint64_t> counter{0};
+    return ++counter;
+}
+
+void DetectorModel::MarkSectorsChanged() {
+    bvh_dirty_.store(true, std::memory_order_release);
+    sector_version_.store(NextSectorVersion(), std::memory_order_release);
+}
+
+namespace {
+// The last few rays traced on this thread. Sampling and weighting one event
+// trace the same ray several times; GetIntersections returns the stored copy.
+struct CachedRay {
+    DetectorModel const * model = nullptr;
+    std::uint64_t sector_version = 0;
+    double key[6] = {0, 0, 0, 0, 0, 0};
+    Geometry::IntersectionList intersections;
+};
+struct RayCache {
+    std::array<CachedRay, 8> rays;
+    size_t next = 0;
+};
+thread_local RayCache ray_cache;
+} // namespace
+
 // ---------------------------------------------------------------------------
 // GetIntersections: BVH-accelerated with iterative traversal
 //
@@ -1652,6 +1683,19 @@ static inline void AppendSectorIntersections(
 // ---------------------------------------------------------------------------
 
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
+    // Rays match only if position and direction are bitwise equal.
+    Vector3D const position_vec = p0;
+    Vector3D const direction_vec = direction;
+    double const key[6] = {position_vec.GetX(), position_vec.GetY(), position_vec.GetZ(),
+                           direction_vec.GetX(), direction_vec.GetY(), direction_vec.GetZ()};
+    std::uint64_t const version = sector_version_.load(std::memory_order_acquire);
+    for(CachedRay const & ray : ray_cache.rays) {
+        if(ray.model == this && ray.sector_version == version
+                && std::memcmp(ray.key, key, sizeof(key)) == 0) {
+            return ray.intersections;
+        }
+    }
+
     // Lazy BVH rebuild when sectors have changed
     if(bvh_dirty_.load(std::memory_order_acquire)) {
         std::lock_guard<std::mutex> lock(bvh_mutex_);
@@ -1744,6 +1788,13 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
     }
 
     SortIntersections(intersections);
+
+    CachedRay & cached = ray_cache.rays[ray_cache.next];
+    ray_cache.next = (ray_cache.next + 1) % ray_cache.rays.size();
+    cached.model = this;
+    cached.sector_version = version;
+    std::memcpy(cached.key, key, sizeof(key));
+    cached.intersections = intersections;
 
     return intersections;
 }
@@ -2033,7 +2084,9 @@ double DetectorModel::DistanceForInteractionDepthFromPoint(GeometryPosition cons
         std::vector<siren::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections;
+    if(!targets.empty())
+        intersections = GetIntersections(p0, direction);
     return DistanceForInteractionDepthFromPoint(intersections, p0, direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
