@@ -24,6 +24,7 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/QuarkDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/ExternalGenerator.cxx
 
 )
 if(TARGET MARLEY)

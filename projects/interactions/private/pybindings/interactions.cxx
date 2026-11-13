@@ -48,6 +48,7 @@
 #include "./DMesonELoss.h"
 #include "./PythiaDISCrossSection.h"
 #include "./MarleyCrossSection.h"
+#include "./ExternalGenerator.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -82,4 +83,5 @@ PYBIND11_MODULE(interactions,m) {
     register_DMesonELoss(m);
     register_PythiaDISCrossSection(m);
     register_MarleyCrossSection(m);
+    register_ExternalGenerator(m);
 }
