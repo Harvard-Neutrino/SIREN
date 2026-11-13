@@ -44,7 +44,7 @@ namespace siren { namespace distributions { class SecondaryVertexPositionDistrib
 namespace siren { namespace geometry { class Geometry; } }
 namespace siren { namespace injection { class PrimaryInjectionProcess; } }
 namespace siren { namespace injection { class SecondaryInjectionProcess; } }
-namespace siren { namespace injection { struct MultiChannelPhaseSpace; } }
+namespace siren { namespace injection { class MultiChannelPhaseSpace; } }
 namespace siren { namespace injection { class PhysicalProcess; } }
 namespace siren { namespace math { class Vector3D; } }
 namespace siren { namespace utilities { class SIREN_random; } }

@@ -4,9 +4,11 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Process.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Injector.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/InteractionSelection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/FinalStateProbability.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/TwoBodyKinematics.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDensity.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceDiagnostics.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhaseSpaceChannel.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/PhysicalChannelAdapters.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Isotropic2BodyChannel.cxx
@@ -49,9 +51,13 @@ if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
     # pybind11 headers (header-only; no Python embedding required).
     target_link_libraries(UnitTest_Weighter pybind11::headers)
 endif()
-package_add_test(UnitTest_PhaseSpaceReview ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceReview_TEST.cxx)
+package_add_test(UnitTest_InteractionSelection ${PROJECT_SOURCE_DIR}/projects/injection/private/test/InteractionSelection_TEST.cxx)
+package_add_test(UnitTest_PhaseSpaceMeasures ${PROJECT_SOURCE_DIR}/projects/injection/private/test/PhaseSpaceMeasures_TEST.cxx)
+package_add_test(UnitTest_DecayKinematics ${PROJECT_SOURCE_DIR}/projects/injection/private/test/DecayKinematics_TEST.cxx)
 if(NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
-    target_link_libraries(UnitTest_PhaseSpaceReview pybind11::headers)
+    target_link_libraries(UnitTest_InteractionSelection pybind11::headers)
+    target_link_libraries(UnitTest_PhaseSpaceMeasures pybind11::headers)
+    target_link_libraries(UnitTest_DecayKinematics pybind11::headers)
 endif()
 # Skip under cibuildwheel: package_add_test is a no-op there, so the following
 # target_link_libraries would reference a target that was never created.

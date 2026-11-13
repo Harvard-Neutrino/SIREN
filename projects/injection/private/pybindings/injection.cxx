@@ -15,7 +15,7 @@
 #include "../../public/SIREN/injection/Process.h"
 #include "../../public/SIREN/injection/Injector.h"
 #include "../../public/SIREN/injection/Weighter.h"
-#include "../../public/SIREN/injection/WeightingUtils.h"
+#include "../../public/SIREN/injection/FinalStateProbability.h"
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
@@ -51,21 +51,9 @@ using namespace pybind11;
 PYBIND11_MODULE(injection,m) {
   using namespace siren::injection;
 
-  // Utils function
-
-  m.def("CrossSectionProbability",
-        overload_cast<
-            std::shared_ptr<siren::detector::DetectorModel const>,
-            std::shared_ptr<siren::interactions::InteractionCollection const>,
-            siren::dataclasses::InteractionRecord const &>(
-            &CrossSectionProbability));
-  m.def("CrossSectionProbabilityWithPhaseSpace",
-        overload_cast<
-            std::shared_ptr<siren::detector::DetectorModel const>,
-            std::shared_ptr<siren::interactions::InteractionCollection const>,
-            siren::dataclasses::InteractionRecord const &,
-            MultiChannelPhaseSpace const &>(
-            &CrossSectionProbabilityWithPhaseSpace));
+  // Collection-level probability diagnostics.
+  m.def("CrossSectionProbability", &CrossSectionProbability);
+  m.def("CrossSectionProbabilityWithPhaseSpace", &CrossSectionProbabilityWithPhaseSpace);
   m.def("ChannelSelectionProbability", &ChannelSelectionProbability);
   m.def("FixedVertexChannelSelectionProbability", &FixedVertexChannelSelectionProbability,
         "Channel-selection factor a Fixed vertex charges when multiple channels "
@@ -266,16 +254,16 @@ PYBIND11_MODULE(injection,m) {
   }
 
   multi_channel_phase_space
-    .def(init<>())
-    .def(init<std::vector<std::shared_ptr<PhaseSpaceChannel>>, std::vector<double>, bool>(),
-         arg("channels"), arg("weights") = std::vector<double>{},
-         arg("allow_incompatible") = false)
-    .def_readwrite("channels", &MultiChannelPhaseSpace::channels,
-         "The list of PhaseSpaceChannel objects making up the mixture.")
-    .def_readwrite("weights", &MultiChannelPhaseSpace::weights,
-         "Per-channel mixture weights alpha_i; call Normalize() after assigning unnormalized values.")
-    .def("Normalize", &MultiChannelPhaseSpace::Normalize,
-         "Rescale weights in place so they sum to one.")
+    .def(init<std::vector<std::shared_ptr<PhaseSpaceChannel>>, std::vector<double>>(),
+         arg("channels"), arg("weights") = std::vector<double>{})
+    .def_property_readonly("channels", [](MultiChannelPhaseSpace const & mixture) {
+        return mixture.Channels();
+    }, "A list of the mixture's channels.")
+    .def_property_readonly("weights", [](MultiChannelPhaseSpace const & mixture) {
+        return mixture.Weights();
+    }, "A list of normalized channel weights.")
+    .def("SetWeights", &MultiChannelPhaseSpace::SetWeights, arg("weights"),
+         "Set and normalize weights. An empty list selects uniform weights.")
     .def("Sample", &MultiChannelPhaseSpace::Sample,
          "Pick a channel by weight and draw kinematics from it into record.")
     .def("Density", &MultiChannelPhaseSpace::Density,
@@ -296,14 +284,16 @@ PYBIND11_MODULE(injection,m) {
     .def("CommonMeasure", &MultiChannelPhaseSpace::CommonMeasure)
     .def("CommonConvention", &MultiChannelPhaseSpace::CommonConvention)
     .def("ValidateChannelsDetailed", &MultiChannelPhaseSpace::ValidateChannelsDetailed)
-    .def("ValidateChannelDensities", &MultiChannelPhaseSpace::ValidateChannelDensities,
-         arg("random"), arg("detector_model"), arg("template_record"),
-         arg("samples_per_channel") = 100)
     .def(pybind11::pickle(
         &(siren::serialization::pickle_save<MultiChannelPhaseSpace>),
         &(siren::serialization::pickle_load<MultiChannelPhaseSpace>)
     ))
     ;
+
+  m.def("ValidateChannelDensities", &ValidateChannelDensities,
+        arg("mixture"), arg("random"), arg("detector_model"), arg("template_record"),
+        arg("samples_per_channel") = 100,
+        "Probe peer densities at points sampled by each channel.");
 
   // A mixture used as one channel of another mixture.
   class_<NestedMixtureChannel, std::shared_ptr<NestedMixtureChannel>, PhaseSpaceChannel>(m, "NestedMixtureChannel")

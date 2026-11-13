@@ -22,6 +22,7 @@
 #include "SIREN/interactions/DummyCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/math/Vector3D.h"
+#include "SIREN/utilities/Errors.h"
 #include "SIREN/utilities/Random.h"
 
 #include <memory>
@@ -53,6 +54,21 @@ using siren::interactions::InteractionCollection;
 using siren::math::Vector3D;
 
 using ChannelPtr = std::shared_ptr<PhaseSpaceChannel>;
+
+// Version 0 accepted a compatibility bypass. Write the original wire fields
+// directly to exercise legacy archives independently of the current writer.
+struct LegacyMixture {
+    std::vector<ChannelPtr> channels;
+    std::vector<double> weights;
+    bool allow_incompatible = true;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const) const {
+        archive(::cereal::make_nvp("Channels", channels));
+        archive(::cereal::make_nvp("Weights", weights));
+        archive(::cereal::make_nvp("AllowIncompatible", allow_incompatible));
+    }
+};
 
 template<class OutputArchive, class T>
 std::string SaveToString(T const & value) {
@@ -159,8 +175,7 @@ TEST(PhaseSpaceSerialization, MultiChannelStateRoundTrips) {
         std::vector<ChannelPtr>{
             std::make_shared<Isotropic2BodyChannel>(0),
             std::make_shared<Isotropic2BodyChannel>(1)},
-        std::vector<double>{0.3, 0.7},
-        true);
+        std::vector<double>{0.3, 0.7});
 
     auto json_loaded = RoundTripEqual<
         cereal::JSONOutputArchive,
@@ -172,12 +187,36 @@ TEST(PhaseSpaceSerialization, MultiChannelStateRoundTrips) {
     auto expect_state = [&mixture](
         std::shared_ptr<MultiChannelPhaseSpace> const & loaded) {
         ASSERT_NE(loaded, nullptr);
-        EXPECT_EQ(loaded->channels.size(), mixture->channels.size());
-        EXPECT_EQ(loaded->weights, mixture->weights);
-        EXPECT_EQ(loaded->allow_incompatible_, mixture->allow_incompatible_);
+        EXPECT_EQ(loaded->Channels().size(), mixture->Channels().size());
+        EXPECT_EQ(loaded->Weights(), mixture->Weights());
     };
     expect_state(json_loaded);
     expect_state(binary_loaded);
+}
+
+TEST(PhaseSpaceSerialization, LegacyCompatibilityFlagCannotBypassValidation) {
+    auto isotropic = std::make_shared<Isotropic2BodyChannel>(0);
+    auto legacy = std::make_shared<LegacyMixture>();
+    legacy->channels = {isotropic, isotropic};
+    // Legacy readers tolerated a tiny normalization discrepancy. Preserve the
+    // exact values for continuation rather than changing the selection bounds.
+    legacy->weights = {0.3, 0.70000000001};
+    auto load = [&] {
+        return LoadFromString<cereal::BinaryInputArchive,
+                              std::shared_ptr<MultiChannelPhaseSpace>>(
+            SaveToString<cereal::BinaryOutputArchive>(legacy));
+    };
+    auto loaded = load();
+    EXPECT_EQ(loaded->Weights(), legacy->weights);
+
+    legacy->weights = {0.3, 0.3};
+    EXPECT_THROW(load(), siren::utilities::ConfigurationError);
+
+    legacy->weights = {0.3, 0.7};
+    auto cross_section = std::make_shared<DummyCrossSection>();
+    legacy->channels[1] = std::make_shared<PhysicalCrossSectionChannel>(
+        cross_section, DummySignature(ParticleType::NuE));
+    EXPECT_THROW(load(), siren::utilities::MeasureCompatibilityError);
 }
 
 TEST(PhaseSpaceSerialization, NestedMixtureRecurses) {
@@ -198,13 +237,13 @@ TEST(PhaseSpaceSerialization, NestedMixtureRecurses) {
         cereal::BinaryOutputArchive,
         cereal::BinaryInputArchive>(outer);
     ASSERT_NE(loaded, nullptr);
-    ASSERT_EQ(loaded->channels.size(), 2u);
+    ASSERT_EQ(loaded->Channels().size(), 2u);
     auto loaded_nested = std::dynamic_pointer_cast<NestedMixtureChannel>(
-        loaded->channels.at(0));
+        loaded->Channels().at(0));
     ASSERT_NE(loaded_nested, nullptr);
     ASSERT_NE(loaded_nested->mixture, nullptr);
     EXPECT_EQ(loaded_nested->label, "inner-group");
-    EXPECT_EQ(loaded_nested->mixture->weights, inner->weights);
+    EXPECT_EQ(loaded_nested->mixture->Weights(), inner->Weights());
 }
 
 TEST(PhaseSpaceSerialization, PhysicalProcessPreservesPhaseSpaceMap) {
@@ -240,8 +279,8 @@ TEST(PhaseSpaceSerialization, PhysicalProcessPreservesPhaseSpaceMap) {
     ASSERT_EQ(loaded->GetPhaseSpaceMap().size(), 2u);
     ASSERT_TRUE(loaded->HasPhaseSpace(first));
     ASSERT_TRUE(loaded->HasPhaseSpace(second));
-    EXPECT_EQ(loaded->GetPhaseSpace(first)->channels.size(), 1u);
-    EXPECT_EQ(loaded->GetPhaseSpace(second)->channels.size(), 2u);
+    EXPECT_EQ(loaded->GetPhaseSpace(first)->Channels().size(), 1u);
+    EXPECT_EQ(loaded->GetPhaseSpace(second)->Channels().size(), 2u);
 }
 
 TEST(PhaseSpaceSerialization, PhysicalProcessVersion0FixtureLoadsDefaults) {
@@ -370,9 +409,9 @@ TEST(PhaseSpaceSerialization, PhysicalProcessPreservesDecayAliasing) {
     ASSERT_EQ(loaded->GetInteractions()->GetDecays().size(), 1u);
     auto loaded_mixture = loaded->GetPhaseSpace(signature);
     ASSERT_NE(loaded_mixture, nullptr);
-    ASSERT_EQ(loaded_mixture->channels.size(), 1u);
+    ASSERT_EQ(loaded_mixture->Channels().size(), 1u);
     auto loaded_channel = std::dynamic_pointer_cast<PhysicalDecayChannel>(
-        loaded_mixture->channels.front());
+        loaded_mixture->Channels().front());
     ASSERT_NE(loaded_channel, nullptr);
     EXPECT_EQ(
         loaded->GetInteractions()->GetDecays().front().get(),

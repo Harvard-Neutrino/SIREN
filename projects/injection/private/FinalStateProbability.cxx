@@ -1,4 +1,4 @@
-#include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/injection/FinalStateProbability.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/injection/Process.h"
 #include "InteractionSelection.h"
@@ -140,7 +140,22 @@ double RateWeightedFinalStateProbability(
     return selected_final_state;
 }
 
-} // anonymous namespace
+double RateWeightedProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    CandidateRates const & rates,
+    siren::dataclasses::InteractionRecord const & record,
+    MultiChannelPhaseSpace const * phase_space,
+    PhaseSpaceConvention const & convention)
+{
+    if (rates.total == 0) return 0.0;
+    if (phase_space) {
+        if (rates.selected == 0) return 0.0;
+        double density = phase_space->DensityIn(detector_model, record, convention);
+        return (rates.selected * density) / rates.total;
+    }
+    return RateWeightedFinalStateProbability(rates.candidates, record, convention)
+        / rates.total;
+}
 
 PhaseSpaceConvention SelectedFinalStateConvention(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
@@ -174,6 +189,8 @@ PhaseSpaceConvention SelectedFinalStateConvention(
     }
     return result;
 }
+
+} // anonymous namespace
 
 PhaseSpaceConvention ResolveCommonFinalStateConvention(
     PhaseSpaceConvention const & first,
@@ -213,15 +230,7 @@ PhaseSpaceConvention ResolveCommonFinalStateConvention(
     throw siren::utilities::MeasureCompatibilityError(oss.str());
 }
 
-double SelectedFinalStateProbability(
-    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
-    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record)
-{
-    return SelectedFinalStateProbability(
-        detector_model, interactions, record,
-        SelectedFinalStateConvention(interactions, record));
-}
+namespace {
 
 double SelectedFinalStateProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
@@ -287,6 +296,8 @@ double SelectedFinalStateProbability(
     return conditional_density;
 }
 
+} // anonymous namespace
+
 double ChannelSelectionProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
@@ -335,21 +346,9 @@ double CrossSectionProbability(
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record)
 {
-    return CrossSectionProbability(
-        detector_model, interactions, record,
-        SelectedFinalStateConvention(interactions, record));
-}
-
-double CrossSectionProbability(
-    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
-    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record,
-    PhaseSpaceConvention const & convention)
-{
+    auto convention = SelectedFinalStateConvention(interactions, record);
     CandidateRates rates = AccumulateRates(detector_model, interactions, record);
-    if (rates.total == 0) return 0.0;
-    return RateWeightedFinalStateProbability(rates.candidates, record, convention)
-        / rates.total;
+    return RateWeightedProbability(detector_model, rates, record, nullptr, convention);
 }
 
 double CrossSectionProbabilityWithPhaseSpace(
@@ -358,25 +357,9 @@ double CrossSectionProbabilityWithPhaseSpace(
     siren::dataclasses::InteractionRecord const & record,
     MultiChannelPhaseSpace const & phase_space)
 {
-    return CrossSectionProbabilityWithPhaseSpace(
-        detector_model, interactions, record, phase_space,
-        phase_space.CommonConvention());
-}
-
-double CrossSectionProbabilityWithPhaseSpace(
-    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
-    std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
-    siren::dataclasses::InteractionRecord const & record,
-    MultiChannelPhaseSpace const & phase_space,
-    PhaseSpaceConvention const & convention)
-{
+    auto convention = phase_space.CommonConvention();
     CandidateRates rates = AccumulateRates(detector_model, interactions, record);
-    if (rates.total == 0 || rates.selected == 0) return 0.0;
-
-    double mc_density = phase_space.DensityIn(
-        detector_model, record, convention);
-
-    return (rates.selected * mc_density) / rates.total;
+    return RateWeightedProbability(detector_model, rates, record, &phase_space, convention);
 }
 
 PhaseSpaceConvention ProcessFinalStateConvention(
@@ -398,11 +381,9 @@ double ProcessFinalStateProbability(
     auto interactions = process.GetInteractions();
     auto phase_space = process.GetPhaseSpace(record.signature);
     if (process.GetWeightingMode().compute_interaction_probability) {
-        return phase_space
-            ? CrossSectionProbabilityWithPhaseSpace(
-                detector_model, interactions, record, *phase_space, convention)
-            : CrossSectionProbability(
-                detector_model, interactions, record, convention);
+        CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+        return RateWeightedProbability(
+            detector_model, rates, record, phase_space.get(), convention);
     }
     double density = phase_space
         ? phase_space->DensityIn(detector_model, record, convention)
@@ -410,6 +391,21 @@ double ProcessFinalStateProbability(
             detector_model, interactions, record, convention);
     return density * FixedVertexChannelSelectionProbability(
         detector_model, interactions, record);
+}
+
+double ProcessGenerationProbability(
+    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
+    PhysicalProcess const & process,
+    siren::dataclasses::InteractionRecord const & record)
+{
+    auto phase_space = process.GetPhaseSpace(record.signature);
+    auto interactions = process.GetInteractions();
+    auto convention = phase_space
+        ? phase_space->CommonConvention()
+        : SelectedFinalStateConvention(interactions, record);
+    CandidateRates rates = AccumulateRates(detector_model, interactions, record);
+    return RateWeightedProbability(
+        detector_model, rates, record, phase_space.get(), convention);
 }
 
 } // namespace injection

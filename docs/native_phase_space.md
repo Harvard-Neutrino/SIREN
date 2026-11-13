@@ -37,8 +37,16 @@ detector model.
 A channel provides `Sample`, `Density`, `Topology` and `Measure`. `Density` must
 be defined at points drawn by any other channel in the same mixture. A mixture
 draws channel *i* with probability `weights[i]` (normalized to sum to one), and
-its density at a point is the weighted sum over **all** channels. Nested mixtures and the adapters for existing `Decay` and
-`CrossSection` models follow the same rule.
+its density at a point is the weighted sum over **all** channels. Nested
+mixtures and the adapters for existing `Decay` and `CrossSection` models follow
+the same rule.
+
+Supply the channels when constructing a mixture. Omitting weights gives uniform
+probabilities. Call `mixture.SetWeights(weights)` to replace and normalize the
+weights, or pass an empty list to restore uniform probabilities. Python's
+`channels` and `weights` properties return list snapshots. Use
+`injection.ValidateChannelDensities(mixture, random, detector, record)` to probe
+how peer channels evaluate densities on one another's samples.
 
 Every density is differential in a declared measure. For example,
 `CosThetaRest` is a density per rest-frame `cos(theta)` with a uniform azimuth

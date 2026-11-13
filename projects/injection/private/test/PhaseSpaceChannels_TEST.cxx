@@ -104,6 +104,10 @@ public:
     std::string Name() const override { return "Configurable"; }
     PhaseSpaceTopology Topology() const override { return topo_; }
     PhaseSpaceMeasure Measure() const override { return meas_; }
+    void SetConvention(PhaseSpaceTopology topology, PhaseSpaceMeasure measure) {
+        topo_ = topology;
+        meas_ = measure;
+    }
 private:
     PhaseSpaceTopology topo_;
     PhaseSpaceMeasure meas_;
@@ -194,42 +198,30 @@ void ExpectConserved(InteractionRecord const & record, double tol) {
 } // namespace
 
 TEST(PhaseSpaceChannels, UnspecifiedTopologyMismatchDetected) {
-    MultiChannelPhaseSpace mc;
-    mc.channels = {
-        std::make_shared<Isotropic2BodyChannel>(0),
-        std::make_shared<CustomTestChannel>()
-    };
-    mc.weights = {0.5, 0.5};
-
-    // Mixing Decay2Body with Unspecified is a topology mismatch
-    EXPECT_THROW(mc.CommonTopology(), std::runtime_error);
+    EXPECT_THROW(
+        MultiChannelPhaseSpace({std::make_shared<Isotropic2BodyChannel>(0),
+                                std::make_shared<CustomTestChannel>()}),
+        siren::utilities::MeasureCompatibilityError);
 }
 
 TEST(ConvertDensity, ThrowsOnUnsupportedMeasurePair) {
-    MultiChannelPhaseSpace mc;
-    mc.channels = {
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2())
-    };
-    mc.weights = {0.5, 0.5};
-
     InteractionRecord record;
-    EXPECT_THROW(mc.Density(nullptr, record), std::runtime_error);
+    EXPECT_THROW(
+        siren::injection::ConvertDensity(
+            1.0, PhaseSpaceMeasure::SolidAngleRest(),
+            PhaseSpaceMeasure::MandelstamQ2(), PhaseSpaceTopology::Decay2Body, record),
+        siren::utilities::MeasureCompatibilityError);
 }
 
 TEST(ConvertDensity, SameMeasureMixtureDoesNotConvertOrThrow) {
     // When every channel shares the measure, no conversion is attempted, so
     // Density() simply sums the weighted channel densities.
-    MultiChannelPhaseSpace mc;
-    mc.channels = {
+    MultiChannelPhaseSpace mc({
         std::make_shared<ConfigurableChannel>(
             PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
         std::make_shared<ConfigurableChannel>(
             PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest())
-    };
-    mc.weights = {0.5, 0.5};
+    }, {0.5, 0.5});
 
     InteractionRecord record;
     double d = 0.0;
@@ -1049,9 +1041,7 @@ TEST(AutoConversion, Decay2BodyRestPlusLabDensityAgreesWithPureRest) {
     // Same topology
     ASSERT_EQ(rest_channel->Topology(), lab_channel->Topology());
 
-    MultiChannelPhaseSpace mc;
-    mc.channels = {rest_channel, lab_channel};
-    mc.weights = {0.5, 0.5};
+    MultiChannelPhaseSpace mc({rest_channel, lab_channel}, {0.5, 0.5});
 
     // CommonMeasure should pick SolidAngleRest (higher priority)
     EXPECT_EQ(mc.CommonMeasure(), PhaseSpaceMeasure::SolidAngleRest());
@@ -1093,9 +1083,7 @@ TEST(AutoConversion, Decay2BodyMixedWeightsClosure) {
     auto rest_channel = std::make_shared<Isotropic2BodyChannel>(0);
     auto lab_channel = std::make_shared<LabFrameIsotropicChannel>();
 
-    MultiChannelPhaseSpace mc;
-    mc.channels = {rest_channel, lab_channel};
-    mc.weights = {0.1, 0.9};
+    MultiChannelPhaseSpace mc({rest_channel, lab_channel}, {0.1, 0.9});
 
     double M = 0.5, m_A = 0.05, m_B = 0.1, E = 3.0;
     InteractionRecord record = Make2BodyRecord(M, m_A, m_B, E);
@@ -1312,19 +1300,19 @@ TwoCompatibleChannels() {
 // Empty weights -> uniform 1/N.
 TEST(MultiChannelCtor, EmptyWeightsGivesUniform) {
     MultiChannelPhaseSpace mc(TwoCompatibleChannels());
-    ASSERT_EQ(mc.weights.size(), 2u);
-    EXPECT_NEAR(mc.weights[0], 0.5, 1e-15);
-    EXPECT_NEAR(mc.weights[1], 0.5, 1e-15);
+    ASSERT_EQ(mc.Weights().size(), 2u);
+    EXPECT_NEAR(mc.Weights()[0], 0.5, 1e-15);
+    EXPECT_NEAR(mc.Weights()[1], 0.5, 1e-15);
 }
 
 // Non-unit weight sums are normalized to sum 1 while preserving ratios.
 TEST(MultiChannelCtor, NonUnitWeightsAreNormalized) {
     MultiChannelPhaseSpace mc(TwoCompatibleChannels(), {3.0, 1.0});
-    ASSERT_EQ(mc.weights.size(), 2u);
-    double sum = mc.weights[0] + mc.weights[1];
+    ASSERT_EQ(mc.Weights().size(), 2u);
+    double sum = mc.Weights()[0] + mc.Weights()[1];
     EXPECT_NEAR(sum, 1.0, 1e-12);
-    EXPECT_NEAR(mc.weights[0], 0.75, 1e-12);
-    EXPECT_NEAR(mc.weights[1], 0.25, 1e-12);
+    EXPECT_NEAR(mc.Weights()[0], 0.75, 1e-12);
+    EXPECT_NEAR(mc.Weights()[1], 0.25, 1e-12);
 }
 
 // An empty mixture is rejected with the "has no channels" message rather
@@ -1376,134 +1364,57 @@ TEST(MultiChannelCtor, NonFiniteWeightThrowsConfigurationError) {
         siren::utilities::ConfigurationError);
 }
 
-// Sample() with hand-set, un-normalized public members must throw
-// ConfigurationError (unnormalized weights would otherwise leave the leftover
-// probability mass silently absorbed by the last channel).
-TEST(MultiChannelGuards, SampleRejectsUnnormalizedWeights) {
-    MultiChannelPhaseSpace mc;                 // default ctor: assign-then-use
-    mc.channels = TwoCompatibleChannels();
-    mc.weights = {0.3, 0.3};                   // sums to 0.6, not 1
-
-    auto random = std::make_shared<siren::utilities::SIREN_random>(1);
-    InteractionRecord record;
-    record.signature.primary_type = ParticleType::N4;
-    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
-    record.primary_mass = 1.0;
-    record.primary_momentum = {5.0, 0.0, 0.0, std::sqrt(25.0 - 1.0)};
-    record.interaction_vertex = {0.0, 0.0, 0.0};
-    record.secondary_masses = {0.0, 0.0};
-    record.secondary_momenta.resize(2);
-
-    EXPECT_THROW(mc.Sample(random, nullptr, record),
-                 siren::utilities::ConfigurationError);
+TEST(MultiChannelWeights, InvalidUpdatesPreserveSamplingWeights) {
+    MultiChannelPhaseSpace mc(TwoCompatibleChannels(), {0.75, 0.25});
+    auto weights = mc.Weights();
+    for (auto const & invalid : std::vector<std::vector<double>>{
+            {1.0}, {-0.1, 1.1}, {0.0, 0.0},
+            {std::numeric_limits<double>::quiet_NaN(), 1.0}, {1e308, 1e308}}) {
+        EXPECT_THROW(mc.SetWeights(invalid), siren::utilities::ConfigurationError);
+        EXPECT_EQ(mc.Weights(), weights);
+    }
+    mc.SetWeights({1.0, 3.0});
+    EXPECT_EQ(mc.Weights(), (std::vector<double>{0.25, 0.75}));
+    mc.SetWeights({});
+    EXPECT_EQ(mc.Weights(), (std::vector<double>{0.5, 0.5}));
 }
 
-// Hand-set public-member weights that are individually negative (even though
-// they sum to 1) must make Sample throw ConfigurationError -- the guard rejects
-// per-weight sign, not only the sum.
-TEST(MultiChannelGuards, SampleRejectsNegativeWeights) {
-    MultiChannelPhaseSpace mc;
-    mc.channels = TwoCompatibleChannels();
-    mc.weights = {-0.1, 1.1};                  // sums to 1, but weight 0 < 0
-
-    auto random = std::make_shared<siren::utilities::SIREN_random>(3);
-    InteractionRecord record;
-    record.signature.primary_type = ParticleType::N4;
-    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
-    record.primary_mass = 1.0;
-    record.primary_momentum = {5.0, 0.0, 0.0, std::sqrt(25.0 - 1.0)};
-    record.interaction_vertex = {0.0, 0.0, 0.0};
-    record.secondary_masses = {0.0, 0.0};
-    record.secondary_momenta.resize(2);
-
-    EXPECT_THROW(mc.Sample(random, nullptr, record),
-                 siren::utilities::ConfigurationError);
-}
-
-// Sample() with a channels/weights length mismatch must throw
-// ConfigurationError.
-TEST(MultiChannelGuards, SampleRejectsLengthMismatch) {
-    MultiChannelPhaseSpace mc;
-    mc.channels = TwoCompatibleChannels();
-    mc.weights = {1.0};                        // one weight, two channels
-
-    auto random = std::make_shared<siren::utilities::SIREN_random>(2);
-    InteractionRecord record;
-    EXPECT_THROW(mc.Sample(random, nullptr, record),
-                 siren::utilities::ConfigurationError);
-}
-
-// Density()/ComputeContributions with un-normalized public members must throw
-// ConfigurationError.
-TEST(MultiChannelGuards, DensityRejectsUnnormalizedWeights) {
-    MultiChannelPhaseSpace mc;
-    mc.channels = TwoCompatibleChannels();
-    mc.weights = {0.5, 0.9};                   // sums to 1.4
-
-    InteractionRecord record;
-    record.signature.primary_type = ParticleType::N4;
-    record.signature.secondary_types = {ParticleType::NuLight, ParticleType::Gamma};
-    record.primary_mass = 1.0;
-    record.primary_momentum = {5.0, 0.0, 0.0, std::sqrt(25.0 - 1.0)};
-    record.secondary_masses = {0.0, 0.0};
-    record.secondary_momenta.resize(2);
-
-    EXPECT_THROW(mc.Density(nullptr, record),
-                 siren::utilities::ConfigurationError);
-}
-
-// A non-convertible measure mixture (same topology, incompatible measures)
-// must throw MeasureCompatibilityError from the validating ctor, and NOT throw
-// when allow_incompatible is set.
 TEST(MultiChannelCompat, NonConvertibleMeasuresThrow) {
-    // Two Decay2Body channels: SolidAngleRest and MandelstamQ2 are not mutually
-    // convertible within Decay2Body (MandelstamQ2 is a Scatter2to2 measure).
-    std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>> channels = {
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2()),
-    };
-
     EXPECT_THROW(
-        MultiChannelPhaseSpace(channels, {0.5, 0.5}),
+        MultiChannelPhaseSpace({
+            std::make_shared<ConfigurableChannel>(
+                PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
+            std::make_shared<ConfigurableChannel>(
+                PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2())}),
         siren::utilities::MeasureCompatibilityError);
-
-    // allow_incompatible = true opts out of the fatal-compatibility check.
-    EXPECT_NO_THROW(MultiChannelPhaseSpace(channels, {0.5, 0.5}, true));
 }
 
-// allow_incompatible defers the compatibility check from construction to
-// evaluation: density evaluation on the incompatible mixture raises the
-// typed error.
-TEST(MultiChannelCompat, AllowIncompatibleDensityThrowsTyped) {
-    std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>> channels = {
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2()),
-    };
-    MultiChannelPhaseSpace mc(channels, {0.5, 0.5}, true);
+TEST(MultiChannelCompat, RejectsChangedConventionsThroughNestedMixture) {
+    auto changing = std::make_shared<ConfigurableChannel>(
+        PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest());
+    auto peer = std::make_shared<Isotropic2BodyChannel>(0);
+    auto inner = std::make_shared<MultiChannelPhaseSpace>(
+        std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>>{changing, peer});
+    auto nested = std::make_shared<siren::injection::NestedMixtureChannel>(inner);
+    MultiChannelPhaseSpace outer({nested, peer});
+    auto random = std::make_shared<siren::utilities::SIREN_random>(42);
     InteractionRecord record = Make2BodyRecord(1.0, 0.1, 0.2, 5.0);
-
-    // The non-convertible measure pair is caught by ConvertDensity.
-    EXPECT_THROW(mc.Density(nullptr, record),
-                 siren::utilities::MeasureCompatibilityError);
-    EXPECT_THROW(mc.DensityBreakdown(nullptr, record),
-                 siren::utilities::MeasureCompatibilityError);
-}
-
-TEST(MultiChannelCompat, AllowIncompatibleTopologyMismatchDensityThrowsTyped) {
-    std::vector<std::shared_ptr<siren::injection::PhaseSpaceChannel>> channels = {
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest()),
-        std::make_shared<ConfigurableChannel>(
-            PhaseSpaceTopology::Scatter2to2, PhaseSpaceMeasure::MandelstamQ2()),
+    auto expect_incompatible = [&] {
+        EXPECT_THROW(outer.Sample(random, nullptr, record),
+                     siren::utilities::MeasureCompatibilityError);
+        EXPECT_THROW(outer.Density(nullptr, record),
+                     siren::utilities::MeasureCompatibilityError);
+        EXPECT_THROW(outer.DensityBreakdown(nullptr, record),
+                     siren::utilities::MeasureCompatibilityError);
     };
-    MultiChannelPhaseSpace mc(channels, {0.5, 0.5}, true);
-    InteractionRecord record = Make2BodyRecord(1.0, 0.1, 0.2, 5.0);
-    EXPECT_THROW(mc.Density(nullptr, record),
-                 siren::utilities::MeasureCompatibilityError);
+
+    changing->SetConvention(PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::MandelstamQ2());
+    expect_incompatible();
+    changing->SetConvention(PhaseSpaceTopology::Scatter2to2, PhaseSpaceMeasure::MandelstamQ2());
+    expect_incompatible();
+    changing->SetConvention(PhaseSpaceTopology::Decay2Body, PhaseSpaceMeasure::SolidAngleRest());
+    EXPECT_NO_THROW(outer.Sample(random, nullptr, record));
+    EXPECT_NO_THROW(outer.Density(nullptr, record));
 }
 
 TEST(MultiChannelCompat, ConvertibleMixedMeasureSamplesWithoutThrowing) {

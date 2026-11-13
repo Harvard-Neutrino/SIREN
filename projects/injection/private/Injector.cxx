@@ -26,7 +26,7 @@
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/injection/Process.h"
-#include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/injection/FinalStateProbability.h"
 #include "InteractionSelection.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/utilities/Constants.h"
@@ -292,21 +292,6 @@ void ApplySelectedInteractionTime(
         record.signature.secondary_types.size(), record.interaction_time);
 }
 
-// A process's final-state factor in its generation probability: its proposal
-// for the signature if one is registered, or else its interaction models.
-double ProcessCrossSectionProbability(
-    std::shared_ptr<siren::detector::DetectorModel const> detector_model,
-    PhysicalProcess const & process,
-    siren::dataclasses::InteractionRecord const & record)
-{
-    auto phase_space = process.GetPhaseSpace(record.signature);
-    return phase_space
-        ? CrossSectionProbabilityWithPhaseSpace(
-            detector_model, process.GetInteractions(), record, *phase_space)
-        : CrossSectionProbability(
-            detector_model, process.GetInteractions(), record);
-}
-
 } // anonymous namespace
 
 void Injector::SampleMatchingFinalState(
@@ -475,7 +460,7 @@ double Injector::SecondaryGenerationProbability(std::shared_ptr<siren::dataclass
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    probability *= ProcessCrossSectionProbability(detector_model, *process, datum->record);
+    probability *= ProcessGenerationProbability(detector_model, *process, datum->record);
     return probability;
 }
 
@@ -502,7 +487,7 @@ double Injector::GenerationProbability(std::shared_ptr<siren::dataclasses::Inter
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    probability *= ProcessCrossSectionProbability(detector_model, *process, datum->record);
+    probability *= ProcessGenerationProbability(detector_model, *process, datum->record);
     return probability;
 }
 
@@ -518,7 +503,7 @@ double Injector::GenerationProbability(siren::dataclasses::InteractionRecord con
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), record);
         probability *= prob;
     }
-    probability *= ProcessCrossSectionProbability(detector_model, *process, record);
+    probability *= ProcessGenerationProbability(detector_model, *process, record);
     return probability;
 }
 

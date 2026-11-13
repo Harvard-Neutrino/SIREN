@@ -24,6 +24,30 @@ def two_body_mixture(model):
     return propose
 
 
+def test_mixture_properties_are_read_only_copies_and_weights_update_atomically():
+    channels = [inj.Isotropic2BodyChannel(), inj.Isotropic2BodyChannel()]
+    mixture = inj.MultiChannelPhaseSpace(channels, [1.0, 3.0])
+
+    channels_snapshot = mixture.channels
+    channels_snapshot.pop()
+    assert len(mixture.channels) == 2
+    weights_snapshot = mixture.weights
+    weights_snapshot[0] = 99.0
+    assert mixture.weights == [0.25, 0.75]
+    with pytest.raises(AttributeError):
+        mixture.channels = channels_snapshot
+    with pytest.raises(AttributeError):
+        mixture.weights = weights_snapshot
+
+    with pytest.raises(utilities.ConfigurationError):
+        mixture.SetWeights([1.0, -1.0])
+    assert mixture.weights == [0.25, 0.75]
+    mixture.SetWeights([3.0, 1.0])
+    restored = pickle.loads(pickle.dumps(mixture))
+    assert restored.weights == [0.75, 0.25]
+    assert len(restored.channels) == 2
+
+
 def fixed_decay_setup(model, parent, mass, n, propose=None, energy=None, direction=None):
     """Fixed-vertex decays, defaulting to E = 2 * mass and the +z direction.
 
