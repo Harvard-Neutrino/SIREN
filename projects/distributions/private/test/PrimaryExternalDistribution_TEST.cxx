@@ -12,6 +12,13 @@
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "SIREN/distributions/primary/vertex/PrimaryBoundedVertexDistribution.h"
 #include "SIREN/distributions/primary/vertex/PrimaryPhysicalVertexDistribution.h"
+#include "SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/geometry/Placement.h"
+#include "SIREN/interactions/DummyCrossSection.h"
+#include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/utilities/Errors.h"
 #include "SIREN/geometry/Sphere.h"
 
 using namespace siren::distributions;
@@ -411,6 +418,54 @@ TEST(PrimaryExternalDistribution, CopyConstructor) {
 // ===========================================================================
 // PrimaryBoundedVertexDistribution
 // ===========================================================================
+
+// A ray that misses the fiducial volume fails the attempt and has zero
+// density, for both the primary and the secondary distribution.
+TEST(BoundedVertexDistribution, RayMissingFiducialVolumeHasNoSupport) {
+    auto detector = std::make_shared<siren::detector::DetectorModel>();
+    auto interactions = std::make_shared<siren::interactions::InteractionCollection>(
+        siren::dataclasses::ParticleType::NuMu,
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>>{
+            std::make_shared<siren::interactions::DummyCrossSection>()});
+    auto random = std::make_shared<siren::utilities::SIREN_random>(1);
+    // A unit sphere 10 m off the z axis, which the rays below travel along.
+    auto fiducial = std::make_shared<siren::geometry::Sphere>(
+        siren::geometry::Placement(siren::math::Vector3D(0, 10, 0)), 1.0, 0.0);
+    auto expect_miss = [](auto && sample) {
+        try {
+            sample();
+            ADD_FAILURE() << "expected an InjectionFailure";
+        } catch(siren::utilities::InjectionFailure const & e) {
+            EXPECT_EQ(e.reason(), siren::utilities::FailureReason::NoPathThroughVolume);
+        }
+    };
+
+    PrimaryBoundedVertexDistribution primary(fiducial, 100.0);
+    siren::dataclasses::PrimaryDistributionRecord primary_record(
+        siren::dataclasses::ParticleType::NuMu);
+    primary_record.SetInitialPosition({0, 0, 0});
+    primary_record.SetDirection({0, 0, 1});
+    expect_miss([&] { primary.Sample(random, detector, interactions, primary_record); });
+
+    siren::dataclasses::InteractionRecord parent;
+    parent.signature.secondary_types = {
+        siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::Nucleon};
+    parent.interaction_vertex = {0, 0, 0};
+    parent.secondary_ids.resize(2);
+    parent.secondary_masses = {0, 0};
+    parent.secondary_momenta = {{1, 0, 0, 1}, {1, 0, 0, -1}};
+    parent.secondary_helicities = {0, 0};
+    siren::distributions::SecondaryBoundedVertexDistribution secondary(fiducial, 100.0);
+    siren::dataclasses::SecondaryDistributionRecord secondary_record(parent, 0);
+    expect_miss([&] { secondary.Sample(random, detector, interactions, secondary_record); });
+
+    siren::dataclasses::InteractionRecord vertex;
+    vertex.primary_momentum = {1, 0, 0, 1};
+    vertex.primary_initial_position = {0, 0, 0};
+    vertex.interaction_vertex = {0, 0, 5};
+    EXPECT_EQ(primary.GenerationProbability(detector, interactions, vertex), 0.0);
+    EXPECT_EQ(secondary.GenerationProbability(detector, interactions, vertex), 0.0);
+}
 
 TEST(PrimaryBoundedVertexDistribution, EqualSameMaxLength) {
     PrimaryBoundedVertexDistribution a(100.0);

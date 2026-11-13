@@ -8,6 +8,8 @@ LIST (APPEND dataclasses_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleID.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleType.cxx
+    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/PhaseSpaceConvention.cxx
+    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/VertexWeightingMode.cxx
 )
 add_library(SIREN_dataclasses OBJECT ${dataclasses_SOURCES})
 set_property(TARGET SIREN_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -31,6 +33,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
+    PATTERN "*.def"
 )
 
 package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionSignature_TEST.cxx)

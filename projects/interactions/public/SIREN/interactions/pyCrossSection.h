@@ -42,6 +42,8 @@ public:
     double InteractionThreshold(dataclasses::InteractionRecord const & interaction) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
     double SampleInteractionTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
+    std::vector<double> SecondaryMasses(std::vector<siren::dataclasses::ParticleType> const & secondary_types) const override;
+    std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override;
@@ -49,6 +51,12 @@ public:
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
     std::vector<std::string> DensityVariables() const override;
+    siren::dataclasses::PhaseSpaceTopology Topology() const override;
+    siren::dataclasses::PhaseSpaceMeasure Measure() const override;
+    siren::dataclasses::PhaseSpaceTopology TopologyForSignature(
+        siren::dataclasses::InteractionSignature const & signature) const override;
+    siren::dataclasses::PhaseSpaceMeasure MeasureForSignature(
+        siren::dataclasses::InteractionSignature const & signature) const override;
 
     Pybind11TrampolineCerealMethods(CrossSection, pyCrossSection);
 }; // class pyCrossSection
@@ -61,4 +69,3 @@ CEREAL_REGISTER_TYPE(siren::interactions::pyCrossSection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::pyCrossSection);
 
 #endif // SIREN_pyCrossSection_H
-

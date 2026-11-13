@@ -14,6 +14,8 @@ target_include_directories(SIREN_utilities PUBLIC
 
 apply_siren_compile_options(SIREN_utilities)
 
+package_add_test(UnitTest_Random ${PROJECT_SOURCE_DIR}/projects/utilities/private/test/Random_TEST.cxx)
+
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

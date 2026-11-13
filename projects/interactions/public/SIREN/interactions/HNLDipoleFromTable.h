@@ -108,7 +108,7 @@ public:
             std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
             double _dipole_coupling;
-            HelicityChannel _channel;
+            int _channel_int;
 
             archive(::cereal::make_nvp("ZSampling", _z_samp));
             archive(::cereal::make_nvp("InvGeVUnits", _in_invGeV));
@@ -118,7 +118,12 @@ public:
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
             archive(::cereal::make_nvp("DipoleCoupling", _dipole_coupling));
-            archive(::cereal::make_nvp("HelicityChannel", _channel));
+            archive(::cereal::make_nvp("HelicityChannel", _channel_int));
+            if(_channel_int != static_cast<int>(Conserving) && _channel_int != static_cast<int>(Flipping)) {
+                throw std::runtime_error("HNLDipoleFromTable: invalid HelicityChannel value "
+                    + std::to_string(_channel_int) + " in archive");
+            }
+            HelicityChannel _channel = static_cast<HelicityChannel>(_channel_int);
             construct(_hnl_mass, _dipole_coupling, _channel, _z_samp, _in_invGeV, _inelastic, _primary_types);
             archive(::cereal::make_nvp("CrossSection", cereal::virtual_base_class<CrossSection>(construct.ptr())));
             construct.ptr()->differential = _differential;

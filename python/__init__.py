@@ -39,6 +39,8 @@ utilities.get_fiducial_volume = _util.get_fiducial_volume
 
 # Override the Injector with the python wrapper
 injection._Injector = injection.Injector
+# Rename the native class so pickle finds it under the name it is exported as.
+injection._Injector.__name__ = injection._Injector.__qualname__ = "_Injector"
 del injection.Injector
 from . import Injector
 injection.Injector = Injector.Injector
@@ -46,6 +48,8 @@ del Injector
 
 # Override the Weighter with the python wrapper
 injection._Weighter = injection.Weighter
+# Rename the native class so pickle finds it under the name it is exported as.
+injection._Weighter.__name__ = injection._Weighter.__qualname__ = "_Weighter"
 del injection.Weighter
 from . import Weighter
 injection.Weighter = Weighter.Weighter
