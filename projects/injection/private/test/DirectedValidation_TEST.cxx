@@ -21,7 +21,6 @@
 #include "SIREN/injection/PhysicalChannelAdapters.h"
 #include "SIREN/injection/Process.h"
 #include "SIREN/injection/TwoBodyKinematics.h"
-#include "SIREN/injection/WeightingUtils.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/interactions/InteractionCollection.h"
