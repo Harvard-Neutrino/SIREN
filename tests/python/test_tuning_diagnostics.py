@@ -154,6 +154,31 @@ def test_native_tuning_extreme_weights_and_pending_archive(w):
     assert restored.weights==mc.weights
 
 
+def test_tuning_floor_and_production_transfer_preserve_exact_coefficients():
+    make = siren.injection.MultiChannelPhaseSpace
+    channel = siren.injection.Isotropic2BodyChannel
+    pilot = make([channel(), channel(), channel()],
+                 [0.9811907086639537, 0.3345221322209757, 0.0])
+    production = make([channel(), channel(), channel()])
+    production_channels = production.channels
+    floor = 0.1
+    free = [max(0.0, weight - floor) for weight in pilot.weights]
+    total = free[0] + free[1] + free[2]
+    expected = [floor + (1 - 3 * floor) * (weight / total) for weight in free]
+
+    pilot.UpdateWeights(min_weight=floor)
+    assert pilot.weights == pytest.approx(expected, rel=2e-16, abs=0.0)
+    assert pilot.weights[-1] == floor
+    siren.injection._copy_tuned_weights(production, pilot)
+    assert production.weights == pilot.weights
+    assert production.channels == production_channels
+
+    pilot.Accumulate(None, record(), 1.0)
+    with pytest.raises(ValueError, match="Finish or reset"):
+        siren.injection._copy_tuned_weights(production, pilot)
+    assert production.weights == pilot.weights
+
+
 def test_native_nested_tuning_and_transactional_validation():
     inner=iso_mixture((.2,.8))
     outer=siren.injection.MultiChannelPhaseSpace(

@@ -180,6 +180,8 @@ private:
     std::vector<std::shared_ptr<PhaseSpaceChannel>> tuning_channels_;
     std::uint64_t tuning_count_ = 0;
     void CheckTuningState() const;
+    friend void CopyTunedWeights(MultiChannelPhaseSpace & destination,
+                                 MultiChannelPhaseSpace const & source);
 
     struct ConventionEvaluation {
         PhaseSpaceConvention common;

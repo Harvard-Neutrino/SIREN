@@ -17,6 +17,7 @@
 #include "../../public/SIREN/injection/Weighter.h"
 #include "../../public/SIREN/injection/FinalStateProbability.h"
 #include "../../public/SIREN/injection/PhaseSpaceChannel.h"
+#include "../PhaseSpaceTuning.h"
 #include "SIREN/injection/PhaseSpaceDecay.h"
 #include "../../public/SIREN/injection/Isotropic2BodyChannel.h"
 #include "../../public/SIREN/injection/PhysicalChannelAdapters.h"
@@ -313,6 +314,8 @@ PYBIND11_MODULE(injection,m) {
         &(siren::serialization::pickle_load<MultiChannelPhaseSpace>)
     ))
     ;
+
+  m.def("_copy_tuned_weights", &CopyTunedWeights, arg("destination"), arg("source"));
 
   m.def("ValidateChannelDensities", &ValidateChannelDensities,
         arg("mixture"), arg("random"), arg("detector_model"), arg("template_record"),

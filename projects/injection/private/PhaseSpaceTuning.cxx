@@ -1,3 +1,4 @@
+#include "PhaseSpaceTuning.h"
 #include "SIREN/injection/PhaseSpaceChannel.h"
 #include "SIREN/utilities/Errors.h"
 
@@ -131,9 +132,26 @@ void MultiChannelPhaseSpace::UpdateWeights(std::string const & rule,
         proposals.push_back(std::move(candidate));
     }
     for(std::size_t i = 0; i < mixtures.size(); ++i) {
-        mixtures[i]->SetWeights(std::move(proposals[i]));
+        mixtures[i]->weights_ = std::move(proposals[i]);
         mixtures[i]->ResetAccumulators(false);
     }
+}
+
+void CopyTunedWeights(MultiChannelPhaseSpace & destination,
+                      MultiChannelPhaseSpace const & source) {
+    if (source.tuning_count_ || destination.tuning_count_) {
+        throw std::invalid_argument("Finish or reset mixture tuning before copying weights");
+    }
+
+    auto const source_conventions = source.RequireCompatibleConvention();
+    auto const destination_conventions = destination.RequireCompatibleConvention();
+    if (!(source_conventions.common == destination_conventions.common)
+            || source_conventions.measures != destination_conventions.measures) {
+        throw std::invalid_argument("Tuned weights require matching mixture conventions and channel counts");
+    }
+    source.ValidateArchivedWeights();
+    auto weights = source.weights_;
+    destination.weights_ = std::move(weights);
 }
 
 void MultiChannelPhaseSpace::ResetAccumulators(bool recurse) {
