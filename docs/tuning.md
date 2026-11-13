@@ -9,13 +9,17 @@ with diagnostic flags, while scalar weighting raises `WeightCalculationError`.
 The event-factor callback's own exceptions propagate. Native creation-survival
 underflow, previously thrown from the breakdown method, now appears as a flagged
 NaN total there; scalar weighting still raises. A positive-factor product that underflows
-is an error, distinct from an exact zero physical factor.
+is an error, distinct from an exact zero physical factor. This checks the
+framework's probability composition; a numerical zero already returned by a model
+is outside this guarantee. Unrepresentable generation densities fail explicitly.
+A negligible positive inverse-weight contribution may round to zero when another
+pooled injector supplies a representable total.
 
 `results.explain(i)` uses the saved configuration and verifies the explanation
 against the stored weight. `results.bad()` and `results.ess()` summarize stored
 weights. Generation failures retain their typed reason in `injector.report()`.
-Terminal daughters without a registered process are counted separately in
-`report.unregistered_secondaries`. They do not discard the parent event or
+Terminal daughters encountered across all attempts, including discarded trees,
+are counted separately in `report.unregistered_secondaries`. They do not discard the parent event or
 enter failure counts. Explicit invalid expansion wiring is rejected by the compiler.
 
 ## Separate pilot and production runs
@@ -35,14 +39,17 @@ The Simulation must have an explicit production seed different from the pilot
 seed. Each pilot round makes exactly `events` attempts, including geometric
 misses. Only production events enter Results and its attempt normalization.
 Pilot weights are evaluated after the whole batch, then discarded. Production
-starts with the original production RNG state and fresh counters.
+uses a pristine clone of the original RNG and sampler state with fresh counters;
+only the finalized proposal coefficients are transferred from the pilot.
 
 For direct use, `report = siren.tune.tune(injector, weighter, seed=1729)` returns
 `report.injector` and `report.weighter`. Generate with that pair using
 `siren.generate`. The input objects are unchanged. Use fresh input counters;
 previously generated events cannot be assigned a changed proposal law.
 
-Tuning requires a serializable native configuration. Python model implementations
+Tuning requires a serializable native configuration. Separately declared
+physical models/distributions are retained in the same graph archive as the
+samplers. Picklable stopping conditions and event factors are copied independently. Python model implementations
 and unsupported live callbacks fail explicitly. A picklable `event_factor` is
 copied for the pilot/production pair; Results retains its existing archive guard.
 No pilot is silently omitted when cloning fails.
@@ -53,7 +60,9 @@ The default Kleiss–Pittau update is proportional to
 `alpha_i * sqrt(mean(w**2 * g_i/g))`. `sqrt_W` omits the old coefficient.
 Damping blends with the old proposal. Each component has a strictly positive
 floor, including a physical fallback, so tuning cannot delete its support.
-Nested channels use the outer mixture's density in the statistic, with all
+With `recurse=True`, nested channels, including U07 tiling coefficients, are
+tunable. `recurse=False` keeps their interior coefficients fixed. Nested channels
+use the outer mixture's density in the statistic, with all
 bare densities converted to the same measure. Repeated references and cycles
 in nested mixture graphs are refused. The native accumulator uses log sums to
 retain finite extreme weights without squaring overflow.

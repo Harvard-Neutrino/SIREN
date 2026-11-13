@@ -233,14 +233,17 @@ def test_tuning_retains_declared_physical_models_and_stopping_condition(chain):
     report=tune(gen,weight,events=4,rounds=1,seed=103)
     trees=report.injector.generate(5,on_failure='raise',on_shortfall='raise')
     assert all(len(t.tree)==(2 if chain else 1) for t in trees)
-    np.testing.assert_allclose(report.weighter.weight_all(trees),weight.weight_all(trees),rtol=2e-12,atol=0)
+    expected=weight.weight_all(trees)*gen.number_of_events/report.injector.injection_attempts
+    np.testing.assert_allclose(report.weighter.weight_all(trees),expected,rtol=2e-12,atol=0)
     assert report.injector.engine is report.weighter.injectors[0]
     assert gen.injection_attempts==0
 
 
-def anisotropic_pair(n=4096,seed=601,selected=False):
-    from test_native_phase_space import decay_setup
-    raw,_=decay_setup(n=n)
+def anisotropic_pair(n=4096,seed=601,selected=False,condition=None):
+    from test_native_phase_space import fixed_decay_setup,P
+    model=siren.interactions.HNLDipoleDecay(1.,[1e-6]*3,
+        siren.interactions.HNLDipoleDecay.ChiralNature.Dirac)
+    raw,_=fixed_decay_setup(model,P.N4,1.,n)
     process=raw.GetPrimaryProcess()
     model=process.interactions.GetDecays()[0]
     choices=model.GetPossibleSignaturesFromParent(siren.particles.N4)
@@ -248,7 +251,10 @@ def anisotropic_pair(n=4096,seed=601,selected=False):
         physical=list(process.distributions),weighting=siren.Fixed(),
         decay_channels=[choices[0]] if selected else None,
         kinematics=.3*siren.channels.physical()+.7*siren.channels.isotropic())
-    gen=siren.injection.Injector(events=n,seed=seed,detector=raw.GetDetectorModel(),primary=vertex)
+    secondary=[] if condition is None else [siren.Vertex(p,siren.interactions.DummyCrossSection(),
+        position=siren.dist.SecondaryPhysicalVertexDistribution()) for p in ('NuE','NuMu','NuTau')]
+    gen=siren.injection.Injector(events=n,seed=seed,detector=raw.GetDetectorModel(),
+        primary=vertex,secondaries=secondary,stopping_condition=condition)
     return gen,siren.injection.Weighter(gen)
 
 
@@ -314,3 +320,34 @@ def test_internal_positive_decay_product_does_not_become_physical_zero():
     bd=weight.EventWeightWithBreakdown(tree)
     assert math.isnan(bd.total)
     assert any('underflow' in f for v in bd.vertices for f in v.flags)
+
+
+class _AbortLaterPilot:
+    def __init__(self):
+        self.calls=0
+    def __call__(self,tree,datum,index):
+        self.calls+=1
+        if self.calls>8:
+            raise siren.errors.GenerationFailure('deliberate second-round pilot failure')
+        return True
+
+
+def test_later_pilot_failure_does_not_mutate_input_callback_or_proposal():
+    condition=_AbortLaterPilot()
+    gen,weight=anisotropic_pair(n=8,condition=condition)
+    before=[list(m.weights) for m in gen.engine.GetPrimaryProcess().GetPhaseSpaceMap().values()]
+    with pytest.raises(siren.errors.GenerationFailure):
+        tune(gen,weight,events=8,rounds=2,seed=111)
+    assert condition.calls==0
+    assert gen.injection_attempts==0
+    assert before==[list(m.weights) for m in gen.engine.GetPrimaryProcess().GetPhaseSpaceMap().values()]
+
+
+def test_production_callback_starts_from_pristine_state():
+    condition=_AbortLaterPilot()
+    gen,weight=anisotropic_pair(n=2,condition=condition)
+    report=tune(gen,weight,events=4,rounds=2,seed=112)
+    assert condition.calls==0
+    assert report.injector.stopping_condition.calls==0
+    report.injector.generate(2,on_failure='raise',on_shortfall='raise')
+    assert report.injector.stopping_condition.calls==2
