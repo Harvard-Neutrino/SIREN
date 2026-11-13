@@ -13,6 +13,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
 using siren::dataclasses::InteractionRecord;
@@ -52,18 +53,16 @@ std::shared_ptr<Geometry const> BoxAt(double x, double y, double z, double w) {
 double Closure(std::shared_ptr<PhaseSpaceChannel> directed,
                double m_chi, double E_V1, int N, unsigned seed) {
     auto iso = std::make_shared<Isotropic2BodyChannel>(0);
-    auto mc = std::make_shared<MultiChannelPhaseSpace>();
-    mc->channels = {iso, directed};
-    mc->weights = {0.5, 0.5};
+    MultiChannelPhaseSpace mc({iso, directed});
     auto rng = std::make_shared<siren::utilities::SIREN_random>(seed);
 
     double sum_w = 0.0;
     int n = 0;
     for (int i = 0; i < N; ++i) {
         InteractionRecord record = MakeV1Record(m_chi, E_V1);
-        mc->Sample(rng, nullptr, record);
+        mc.Sample(rng, nullptr, record);
         double f = iso->Density(nullptr, record);
-        double g = mc->Density(nullptr, record);
+        double g = mc.Density(nullptr, record);
         if (g > 0.0 && std::isfinite(g) && std::isfinite(f)) {
             sum_w += f / g;
             ++n;
@@ -85,7 +84,7 @@ TEST(DirectedAngularSector, FullConeClosure) {
 
 TEST(DirectedAngularSector, PartitionClosure) {
     auto target = BoxAt(0.0, 0.0, 20.0, 4.0);
-    auto inner = std::make_shared<MultiChannelPhaseSpace>();
+    std::vector<std::shared_ptr<PhaseSpaceChannel>> sectors;
     int n_theta = 2, n_phi = 4;
     for (int it = 0; it < n_theta; ++it) {
         double u_lo = double(it) / n_theta;
@@ -93,12 +92,12 @@ TEST(DirectedAngularSector, PartitionClosure) {
         for (int ip = 0; ip < n_phi; ++ip) {
             double phi_lo = kTwoPi * ip / n_phi;
             double phi_hi = kTwoPi * (ip + 1) / n_phi;
-            inner->channels.push_back(
+            sectors.push_back(
                 std::make_shared<DetectorDirectedAngularSectorChannel>(
                     target, u_lo, u_hi, phi_lo, phi_hi, 0));
         }
     }
-    inner->weights.assign(inner->channels.size(), 1.0 / inner->channels.size());
+    auto inner = std::make_shared<MultiChannelPhaseSpace>(std::move(sectors));
 
     struct Wrap : PhaseSpaceChannel {
         std::shared_ptr<MultiChannelPhaseSpace> mc;

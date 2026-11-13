@@ -494,26 +494,24 @@ TEST(MultiChannelDensity, DensityBreakdownSumsToDensity) {
     record.secondary_masses = {0.0, 0.0};
     record.secondary_momenta.resize(2);
 
-    MultiChannelPhaseSpace mc;
-    mc.channels = {
+    MultiChannelPhaseSpace mc({
         std::make_shared<Isotropic2BodyChannel>(0),
         std::make_shared<DetectorDirected2BodyChannel>(
             target, 0, DetectorDirected2BodyChannel::Mode::Volume)
-    };
-    mc.weights = {0.3, 0.7};
+    }, {0.3, 0.7});
 
     for (int s = 0; s < 200; ++s) {
         mc.Sample(random, nullptr, record);
         auto breakdown = mc.DensityBreakdown(nullptr, record);
-        ASSERT_EQ(breakdown.size(), mc.channels.size());
+        ASSERT_EQ(breakdown.size(), mc.Channels().size());
 
         double g = mc.Density(nullptr, record);
         double sum = std::accumulate(breakdown.begin(), breakdown.end(), 0.0);
         EXPECT_NEAR(sum, g, 1e-12 * std::max(1.0, std::abs(g)));
 
-        for (size_t i = 0; i < mc.channels.size(); ++i) {
-            double gi = mc.channels[i]->Density(nullptr, record);
-            EXPECT_NEAR(breakdown[i], mc.weights[i] * gi,
+        for (size_t i = 0; i < mc.Channels().size(); ++i) {
+            double gi = mc.Channels()[i]->Density(nullptr, record);
+            EXPECT_NEAR(breakdown[i], mc.Weights()[i] * gi,
                         1e-12 * std::max(1.0, std::abs(breakdown[i])));
         }
     }

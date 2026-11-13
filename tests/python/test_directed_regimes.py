@@ -65,9 +65,7 @@ def _run(target, m_chi, E_V1, N=15000, seed=21):
     """Isotropic baseline + 50/50 (isotropic, directed) mixture metrics."""
     iso = siren.injection.Isotropic2BodyChannel(0)
     directed = siren.injection.DetectorDirected2BodyChannel(target, 0)
-    mc = siren.injection.MultiChannelPhaseSpace()
-    mc.channels = [iso, directed]
-    mc.weights = [0.5, 0.5]
+    mc = siren.injection.MultiChannelPhaseSpace([iso, directed])
 
     rng_a = siren.utilities.SIREN_random(seed)
     hit_iso = 0
@@ -266,13 +264,9 @@ def test_nested_mixture_channel_closure_and_composition():
     iso = siren.injection.Isotropic2BodyChannel(0)
     dirA = siren.injection.DetectorDirected2BodyChannel(A, 0)
     dirB = siren.injection.DetectorDirected2BodyChannel(B, 0)
-    inner = siren.injection.MultiChannelPhaseSpace()
-    inner.channels = [dirA, dirB]
-    inner.weights = [0.5, 0.5]
+    inner = siren.injection.MultiChannelPhaseSpace([dirA, dirB])
     nested = siren.injection.NestedMixtureChannel(inner)
-    outer = siren.injection.MultiChannelPhaseSpace()
-    outer.channels = [iso, nested]
-    outer.weights = [0.5, 0.5]
+    outer = siren.injection.MultiChannelPhaseSpace([iso, nested])
 
     # The nested channel presents the inner common topology/measure, so the
     # outer mixture treats it like any other channel.
@@ -320,9 +314,7 @@ G = siren.geometry
 def _run_channel(directed, hit_geo, m_chi, E_V1, N=15000, seed=21):
     """Like _run, but for a pre-built directed channel (e.g. a tiling)."""
     iso = siren.injection.Isotropic2BodyChannel(0)
-    mc = siren.injection.MultiChannelPhaseSpace()
-    mc.channels = [iso, directed]
-    mc.weights = [0.5, 0.5]
+    mc = siren.injection.MultiChannelPhaseSpace([iso, directed])
 
     rng_a = siren.utilities.SIREN_random(seed)
     hit_iso = 0

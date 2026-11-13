@@ -85,9 +85,9 @@ class Channel:
 
 
 class MultiChannelPhaseSpace:
-    def __init__(self):
-        self.channels = []
-        self.weights = []
+    def __init__(self, channels):
+        self.channels = list(channels)
+        self.weights = [1.0 / len(self.channels)] * len(self.channels)
 
 
 class NestedMixtureChannel:

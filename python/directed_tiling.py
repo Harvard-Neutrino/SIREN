@@ -292,9 +292,7 @@ def _wrap(tiles: Sequence, factory, set_volume: bool, volume_fn=None):
         raise ValueError("directed tiling contains no non-empty tiles")
     if len(chans) == 1:
         return chans[0]
-    inner = inj.MultiChannelPhaseSpace()
-    inner.channels = chans
-    inner.weights = [1.0 / len(chans)] * len(chans)
+    inner = inj.MultiChannelPhaseSpace(chans)
     return inj.NestedMixtureChannel(inner)
 
 
@@ -434,9 +432,7 @@ def build_angular_tiling(target, n_theta: int = 2, n_phi: int = 4, factory=None,
             phi_lo = 2.0 * math.pi * ip / n_phi
             phi_hi = 2.0 * math.pi * (ip + 1) / n_phi
             chans.append(Sector(target, u_lo, u_hi, phi_lo, phi_hi, daughter_index))
-    inner = inj.MultiChannelPhaseSpace()
-    inner.channels = chans
-    inner.weights = [1.0 / len(chans)] * len(chans)
+    inner = inj.MultiChannelPhaseSpace(chans)
     return inj.NestedMixtureChannel(inner)
 
 
