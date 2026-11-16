@@ -24,6 +24,8 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/QuarkDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/GammaDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/third_party/cnpy/cnpy.cpp
 
 )
 if(TARGET MARLEY)
@@ -41,10 +43,12 @@ set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/cnpy/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
     ${PYTHON_INCLUDE_DIRS}
 )
 find_package(GSL REQUIRED)
+find_package(ZLIB REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
         pybind11::module
@@ -52,6 +56,7 @@ target_link_libraries(SIREN_interactions
         GSL::gslcblas
     PUBLIC
         photospline
+        ZLIB::ZLIB
         $<BUILD_INTERFACE:crundec_static>
         $<BUILD_INTERFACE:rk_static>
         $<$<TARGET_EXISTS:MARLEY>:MARLEY>

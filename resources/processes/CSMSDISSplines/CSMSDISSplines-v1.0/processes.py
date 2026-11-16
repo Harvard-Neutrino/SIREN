@@ -102,6 +102,8 @@ def load_processes(
     target_types: Optional[List[siren.dataclasses.Particle.ParticleType]] = None,
     isoscalar: Optional[bool] = None,
     process_types: Optional[List[str]] = None,
+    shower_model_path: Optional[str] = None,
+    pythia_events_path: Optional[str] = None,
     ):
 
     fetch_data()
@@ -123,7 +125,12 @@ def load_processes(
             if isoscalar:
                 dxs_file = resolve_data_path(base_path, download_dir, f"dsdxdy_{nunubar}_{process_type}_iso.fits")
                 xs_file = resolve_data_path(base_path, download_dir, f"sigma_{nunubar}_{process_type}_iso.fits")
-                xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
+                if shower_model_path is not None and pythia_events_path is not None:
+                    xs = siren.interactions.GammaDISFromSpline(
+                        dxs_file, xs_file, primaries, target_types,
+                        shower_model_path, pythia_events_path, "m")
+                else:
+                    xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
                 primary_processes.append(xs)
                 for primary_type in primaries:
                     primary_processes_dict[primary_type].append(xs)

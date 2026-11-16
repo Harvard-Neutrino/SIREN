@@ -1146,6 +1146,8 @@ def SaveEvents(events,
         "primary_momentum":[], # primary momentum of each interaction
         "secondary_momenta":[], # secondary momentum of each interaction
         "parent_idx":[], # index of the parent interaction
+        "interaction_param_keys":[],
+        "interaction_param_values":[],
     }
     for ie, event in enumerate(events):
         print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
@@ -1171,7 +1173,9 @@ def SaveEvents(events,
                   "secondary_types",
                   "primary_momentum",
                   "secondary_momenta",
-                  "parent_idx"]:
+                  "parent_idx",
+                  "interaction_param_keys",
+                  "interaction_param_values"]:
             datasets[k].append([])
         # parent index of each interaction, taken from the tree's parent edges
         parent_indices = get_parent_indices(event.tree)
@@ -1205,6 +1209,14 @@ def SaveEvents(events,
                 datasets["secondary_types"][-1][-1].append(int(sec_type))
                 datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
             datasets["num_secondaries"][-1].append(isec+1)
+
+            # the keys differ between interactions, so keys and values are stored
+            # as parallel lists
+            ip = dict(datum.record.interaction_parameters)
+            keys = sorted(ip.keys())
+            datasets["interaction_param_keys"][-1].append([str(k) for k in keys])
+            datasets["interaction_param_values"][-1].append(
+                np.array([float(ip[k]) for k in keys], dtype=float))
         datasets["num_interactions"].append(id+1)
 
     # awkward must be imported here rather than at module scope
