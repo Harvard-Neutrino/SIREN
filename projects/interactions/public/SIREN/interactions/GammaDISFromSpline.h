@@ -7,7 +7,7 @@
 // longitudinal Cherenkov profiles, sampled for each final-state hadron.
 //
 // Inputs:
-//   shower model  npz with the gamma-mixture parameter distributions per species
+//   shower model  JSON file with the gamma-mixture parameter distributions per species
 //
 // Pythia8 turns the hadronic system into hadrons (hadron level only), so the
 // class is built only with SIREN_WITH_PYTHIA8.
@@ -48,7 +48,6 @@ public:
     struct SpeciesModel {
         int pid = 0;
         std::vector<double> logE;              // [L] training grid in log10(E/GeV)
-        std::vector<double> z;                 // [Z] depth-bin centers [cm]
         std::vector<double> pm;                // [L*Kmax] p(m) over energy (row-major)
         std::vector<double> logN;              // [L] log mean yield
         std::vector<double> logNsig;           // [L] lognormal spread of the yield
@@ -125,7 +124,7 @@ public:
 
     std::string Name() const;
 
-    void LoadShowerModel(std::string const & npz_path);
+    void LoadShowerModel(std::string const & path);
     bool HasSpecies(int pid) const { return species_.count(pid) > 0; }
     double YieldMean(int pid, double E_GeV) const;
 

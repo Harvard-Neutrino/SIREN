@@ -35,7 +35,6 @@ if(TARGET PYTHIA8)
     LIST (APPEND interactions_SOURCES
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/GammaDISFromSpline.cxx
-        ${PROJECT_SOURCE_DIR}/third_party/cnpy/cnpy.cpp
     )
 endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
@@ -68,10 +67,6 @@ apply_siren_compile_options(SIREN_interactions)
 if(TARGET PYTHIA8)
     target_link_libraries(SIREN_interactions PUBLIC PYTHIA8)
     target_compile_definitions(SIREN_interactions PUBLIC SIREN_HAS_PYTHIA8)
-    # GammaDISFromSpline reads its shower model with cnpy, which needs zlib
-    find_package(ZLIB REQUIRED)
-    target_link_libraries(SIREN_interactions PUBLIC ZLIB::ZLIB)
-    target_include_directories(SIREN_interactions PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/cnpy/>)
 endif()
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"

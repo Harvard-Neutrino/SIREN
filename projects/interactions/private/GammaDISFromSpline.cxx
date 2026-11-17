@@ -3,6 +3,7 @@
 #include <math.h>   // before rk: geom3::rotationBetween calls an unqualified abs on doubles
 #include <cmath>
 #include <cctype>
+#include <fstream>
 #include <array>
 #include <memory>
 #include <string>
@@ -15,7 +16,8 @@
 
 #include <Pythia8/Pythia.h>
 
-#include "cnpy.h"
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
@@ -42,6 +44,21 @@ namespace {
     constexpr double MIN_SHOWER_SCALE  = 0.5;   // GeV
     constexpr double MIN_STRING_EXCESS = 0.3;   // GeV above the quark + diquark mass
     constexpr int    HADRONIZE_TRIES   = 20;
+
+    // one species as stored in the shower model file; 2-d arrays are flattened row-major
+    struct SpeciesFile {
+        int pid = 0;
+        std::vector<double> logE, pm, logN, logNsig;
+        std::vector<int> m;
+        std::vector<std::vector<double>> mean, cov;   // one entry per m
+        template<typename Archive>
+        void serialize(Archive & archive) {
+            archive(cereal::make_nvp("pid", pid), cereal::make_nvp("logE", logE),
+                    cereal::make_nvp("pm", pm), cereal::make_nvp("logN", logN),
+                    cereal::make_nvp("logNsig", logNsig), cereal::make_nvp("m", m),
+                    cereal::make_nvp("mean", mean), cereal::make_nvp("cov", cov));
+        }
+    };
 
     // Same check as in DISFromSpline.cxx, where it is file-local.
     bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
@@ -204,58 +221,37 @@ bool GammaDISFromSpline::equal(CrossSection const & other) const {
            DISFromSpline::equal(other);
 }
 
-void GammaDISFromSpline::LoadShowerModel(std::string const & npz_path) {
-    cnpy::npz_t npz;
-    try { npz = cnpy::npz_load(npz_path); }
-    catch(std::exception const & e) {
-        throw std::runtime_error("GammaDISFromSpline: failed to read '" + npz_path + "': " + e.what());
+void GammaDISFromSpline::LoadShowerModel(std::string const & path) {
+    std::ifstream in(path);
+    if(!in)
+        throw std::runtime_error("GammaDISFromSpline: cannot open shower model '" + path + "'");
+    std::vector<SpeciesFile> file;
+    try {
+        cereal::JSONInputArchive archive(in);
+        archive(cereal::make_nvp("Kmax", Kmax_), cereal::make_nvp("species", file));
+    } catch(std::exception const & e) {
+        throw std::runtime_error("GammaDISFromSpline: failed to read '" + path + "': " + e.what());
     }
+
     species_.clear();
-
-    auto get_d = [&](std::string const & k) -> cnpy::NpyArray & {
-        auto it = npz.find(k);
-        if(it == npz.end()) throw std::runtime_error("shower model missing key: " + k);
-        return it->second;
-    };
-
-    cnpy::NpyArray & pids_arr = get_d("pids");
-    const int64_t* pids = pids_arr.data<int64_t>();
-    Kmax_ = static_cast<int>(get_d("Kmax").data<int64_t>()[0]);
-    size_t P = pids_arr.shape[0];
-
-    for(size_t ip = 0; ip < P; ++ip) {
-        int pid = static_cast<int>(pids[ip]);
-        std::string p = std::to_string(pid);
+    for(auto & f : file) {
+        if(f.logE.empty() || f.mean.size() != f.m.size() || f.cov.size() != f.m.size())
+            throw std::runtime_error("GammaDISFromSpline: malformed shower model entry for pid "
+                                     + std::to_string(f.pid));
         SpeciesModel s;
-        s.pid = pid;
-
-        auto & logE = get_d(p + "|logE");
-        s.logE.assign(logE.data<double>(), logE.data<double>() + logE.shape[0]);
+        s.pid = f.pid;
+        s.logE = std::move(f.logE);
         s.logE_lo = s.logE.front();
         s.logE_hi = s.logE.back();
-
-        auto & z = get_d(p + "|z");
-        s.z.assign(z.data<double>(), z.data<double>() + z.shape[0]);
-
-        auto & pm = get_d(p + "|pm");       // [L, Kmax]
-        s.pm.assign(pm.data<double>(), pm.data<double>() + pm.num_vals);
-
-        auto & lN = get_d(p + "|logN");
-        s.logN.assign(lN.data<double>(), lN.data<double>() + lN.shape[0]);
-        auto & lNs = get_d(p + "|logNsig");
-        s.logNsig.assign(lNs.data<double>(), lNs.data<double>() + lNs.shape[0]);
-
-        auto & ma = get_d(p + "|m_avail");
-        const int64_t* mv = ma.data<int64_t>();
-        for(size_t j = 0; j < ma.shape[0]; ++j) {
-            int m = static_cast<int>(mv[j]);
-            s.m_avail.push_back(m);
-            auto & mean = get_d(p + "|m" + std::to_string(m) + "|mean"); // [L, 3m-1]
-            auto & cov  = get_d(p + "|m" + std::to_string(m) + "|cov");  // [L, 3m-1, 3m-1]
-            s.mean[m].assign(mean.data<double>(), mean.data<double>() + mean.num_vals);
-            s.cov[m].assign(cov.data<double>(),  cov.data<double>()  + cov.num_vals);
+        s.pm = std::move(f.pm);
+        s.logN = std::move(f.logN);
+        s.logNsig = std::move(f.logNsig);
+        s.m_avail = f.m;
+        for(size_t j = 0; j < f.m.size(); ++j) {
+            s.mean[f.m[j]] = std::move(f.mean[j]);
+            s.cov[f.m[j]] = std::move(f.cov[j]);
         }
-        species_[pid] = std::move(s);
+        species_[s.pid] = std::move(s);
     }
 }
 
