@@ -9,12 +9,14 @@
 
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/DISFromSpline.h"
-#include "../../public/SIREN/interactions/GammaDISFromSpline.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
+
+#ifdef SIREN_HAS_PYTHIA8
+#include "../../public/SIREN/interactions/GammaDISFromSpline.h"
 
 void register_GammaDISFromSpline(pybind11::module_ & m) {
     using namespace pybind11;
@@ -34,7 +36,7 @@ void register_GammaDISFromSpline(pybind11::module_ & m) {
                 arg("primary_types"),
                 arg("target_types"),
                 arg("shower_model_path"),
-                arg("pythia_events_path"),
+                arg("pythia_data_path") = std::string(""),
                 arg("units") = std::string("cm"))
         .def(init<std::string, std::string, int, double, double,
                   std::vector<siren::dataclasses::ParticleType>,
@@ -48,15 +50,23 @@ void register_GammaDISFromSpline(pybind11::module_ & m) {
                 arg("primary_types"),
                 arg("target_types"),
                 arg("shower_model_path"),
-                arg("pythia_events_path"),
+                arg("pythia_data_path") = std::string(""),
                 arg("units") = std::string("cm"))
         .def(self == self)
         .def("Name", &GammaDISFromSpline::Name)
         .def("LoadShowerModel", &GammaDISFromSpline::LoadShowerModel)
-        .def("LoadPythiaEvents", &GammaDISFromSpline::LoadPythiaEvents)
         .def("HasSpecies", &GammaDISFromSpline::HasSpecies)
         .def("YieldMean", &GammaDISFromSpline::YieldMean)
         .def("InteractionType", &GammaDISFromSpline::InteractionType)   // 1 = CC, 2 = NC
         .def("SetInteractionType", &GammaDISFromSpline::SetInteractionType)
+        .def("Hadronize", &GammaDISFromSpline::Hadronize)
         .def("SampleFinalState", &GammaDISFromSpline::SampleFinalState);
 }
+
+#else
+
+void register_GammaDISFromSpline(pybind11::module_ & m) {
+    (void)m;
+}
+
+#endif

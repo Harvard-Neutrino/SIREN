@@ -18,12 +18,12 @@
 #include "../../public/SIREN/interactions/HNLDecay.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
-#include "../../public/SIREN/interactions/GammaDISFromSpline.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay3Body.h"
 #include "../../public/SIREN/interactions/DMesonELoss.h"
 #ifdef SIREN_HAS_PYTHIA8
 #include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
+#include "../../public/SIREN/interactions/GammaDISFromSpline.h"
 #endif
 
 

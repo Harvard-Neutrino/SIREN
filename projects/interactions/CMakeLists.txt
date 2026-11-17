@@ -24,8 +24,6 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/QuarkDISFromSpline.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/GammaDISFromSpline.cxx
-    ${PROJECT_SOURCE_DIR}/third_party/cnpy/cnpy.cpp
 
 )
 if(TARGET MARLEY)
@@ -36,6 +34,8 @@ endif()
 if(TARGET PYTHIA8)
     LIST (APPEND interactions_SOURCES
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/GammaDISFromSpline.cxx
+        ${PROJECT_SOURCE_DIR}/third_party/cnpy/cnpy.cpp
     )
 endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
@@ -43,12 +43,10 @@ set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/cnpy/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
     ${PYTHON_INCLUDE_DIRS}
 )
 find_package(GSL REQUIRED)
-find_package(ZLIB REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
         pybind11::module
@@ -56,7 +54,6 @@ target_link_libraries(SIREN_interactions
         GSL::gslcblas
     PUBLIC
         photospline
-        ZLIB::ZLIB
         $<BUILD_INTERFACE:crundec_static>
         $<BUILD_INTERFACE:rk_static>
         $<$<TARGET_EXISTS:MARLEY>:MARLEY>
@@ -71,6 +68,10 @@ apply_siren_compile_options(SIREN_interactions)
 if(TARGET PYTHIA8)
     target_link_libraries(SIREN_interactions PUBLIC PYTHIA8)
     target_compile_definitions(SIREN_interactions PUBLIC SIREN_HAS_PYTHIA8)
+    # GammaDISFromSpline reads its shower model with cnpy, which needs zlib
+    find_package(ZLIB REQUIRED)
+    target_link_libraries(SIREN_interactions PUBLIC ZLIB::ZLIB)
+    target_include_directories(SIREN_interactions PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/cnpy/>)
 endif()
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"

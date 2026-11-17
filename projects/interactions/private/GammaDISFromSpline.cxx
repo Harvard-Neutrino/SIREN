@@ -1,9 +1,10 @@
 #include "SIREN/interactions/GammaDISFromSpline.h"
 
+#include <math.h>   // before rk: geom3::rotationBetween calls an unqualified abs on doubles
 #include <cmath>
 #include <cctype>
 #include <array>
-#include <tuple>
+#include <memory>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -11,6 +12,8 @@
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
+
+#include <Pythia8/Pythia.h>
 
 #include "cnpy.h"
 
@@ -21,11 +24,24 @@
 namespace siren {
 namespace interactions {
 
+// lets Pythia draw from the SIREN generator
+class GammaDISRndm : public Pythia8::RndmEngine {
+public:
+    std::shared_ptr<siren::utilities::SIREN_random> rng;
+    double flat() override { return rng->Uniform(0.0, 1.0); }
+};
+
 namespace {
     constexpr double EARLY_SIGMA = 2.5;  // reject draws this many sigma too early or too narrow
     constexpr int    MAX_TRIES   = 100;
     constexpr double COV_RIDGE  = 1e-3;  // floor on the covariance eigenvalues
     constexpr int    ELECTRON_PDG = 11;
+    // Start scale of the parton shower as a fraction of Q. 0.3 reproduces the hadron
+    // multiplicity and leading-hadron energy fraction of full Pythia DIS events.
+    constexpr double SHOWER_SCALE_FRACTION = 0.3;
+    constexpr double MIN_SHOWER_SCALE  = 0.5;   // GeV
+    constexpr double MIN_STRING_EXCESS = 0.3;   // GeV above the quark + diquark mass
+    constexpr int    HADRONIZE_TRIES   = 20;
 
     // Same check as in DISFromSpline.cxx, where it is file-local.
     bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
@@ -127,16 +143,18 @@ namespace {
 
 GammaDISFromSpline::GammaDISFromSpline() : DISFromSpline() {}
 
+GammaDISFromSpline::~GammaDISFromSpline() = default;
+
 GammaDISFromSpline::GammaDISFromSpline(
     std::string differential_filename, std::string total_filename,
     std::vector<siren::dataclasses::ParticleType> primary_types,
     std::vector<siren::dataclasses::ParticleType> target_types,
-    std::string shower_model_path, std::string pythia_events_path,
+    std::string shower_model_path, std::string pythia_data_path,
     std::string units)
     : DISFromSpline(differential_filename, total_filename,
                     primary_types, target_types, units),
       shower_model_path_(shower_model_path),
-      pythia_events_path_(pythia_events_path) {
+      pythia_data_path_(pythia_data_path) {
     // Spline files without an INTERACTION key are read as CC by the base class.
     // The CSMS splines have no such key, so the file name decides CC or NC.
     std::string base = differential_filename.substr(differential_filename.find_last_of("/\\") + 1);
@@ -145,7 +163,6 @@ GammaDISFromSpline::GammaDISFromSpline(
        (base.find("_NC_") != std::string::npos || base.find("_NC.") != std::string::npos))
         interaction_type_override_ = 2;
     LoadShowerModel(shower_model_path_);
-    LoadPythiaEvents(pythia_events_path_);
     InitializeGammaSignatures();
 }
 
@@ -166,14 +183,13 @@ GammaDISFromSpline::GammaDISFromSpline(
     int interaction, double target_mass, double minimum_Q2,
     std::vector<siren::dataclasses::ParticleType> primary_types,
     std::vector<siren::dataclasses::ParticleType> target_types,
-    std::string shower_model_path, std::string pythia_events_path,
+    std::string shower_model_path, std::string pythia_data_path,
     std::string units)
     : DISFromSpline(differential_filename, total_filename, interaction,
                     target_mass, minimum_Q2, primary_types, target_types, units),
       shower_model_path_(shower_model_path),
-      pythia_events_path_(pythia_events_path) {
+      pythia_data_path_(pythia_data_path) {
     LoadShowerModel(shower_model_path_);
-    LoadPythiaEvents(pythia_events_path_);
     InitializeGammaSignatures();
 }
 
@@ -183,7 +199,7 @@ bool GammaDISFromSpline::equal(CrossSection const & other) const {
     const GammaDISFromSpline* x = dynamic_cast<const GammaDISFromSpline*>(&other);
     if(!x) return false;
     return shower_model_path_ == x->shower_model_path_ &&
-           pythia_events_path_ == x->pythia_events_path_ &&
+           pythia_data_path_ == x->pythia_data_path_ &&
            InteractionType() == x->InteractionType() &&
            DISFromSpline::equal(other);
 }
@@ -240,71 +256,6 @@ void GammaDISFromSpline::LoadShowerModel(std::string const & npz_path) {
             s.cov[m].assign(cov.data<double>(),  cov.data<double>()  + cov.num_vals);
         }
         species_[pid] = std::move(s);
-    }
-}
-
-void GammaDISFromSpline::LoadPythiaEvents(std::string const & npz_path) {
-    cnpy::npz_t npz;
-    try { npz = cnpy::npz_load(npz_path); }
-    catch(std::exception const & e) {
-        throw std::runtime_error("GammaDISFromSpline: failed to read '" + npz_path + "': " + e.what());
-    }
-    auto get = [&](std::string const & k) -> cnpy::NpyArray & {
-        auto it = npz.find(k);
-        if(it == npz.end()) throw std::runtime_error("pythia store missing key: " + k);
-        return it->second;
-    };
-    cnpy::NpyArray & EH = get("E_had");          // [Nev]
-    cnpy::NpyArray & PD = get("top20_pids");     // [Nev, 20] int64
-    cnpy::NpyArray & EN = get("top20_energies"); // [Nev, 20] double
-    size_t Nev = EH.shape[0];
-    size_t cols = PD.shape.size() > 1 ? PD.shape[1] : 20;
-
-    const double*  eh = EH.data<double>();
-    const int64_t* pd = PD.data<int64_t>();
-    const double*  en = EN.data<double>();
-
-    pythia_Ehad_.assign(eh, eh + Nev);
-    pythia_pids_.resize(Nev);
-    pythia_energies_.resize(Nev);
-    for(size_t i = 0; i < Nev; ++i) {
-        for(size_t j = 0; j < cols; ++j) {
-            pythia_pids_[i].push_back(static_cast<int>(pd[i*cols + j]));
-            pythia_energies_[i].push_back(en[i*cols + j]);
-        }
-    }
-
-    // top20_momenta is [Nev, 20, 4] and p_had is [Nev, 4]. Without them the
-    // breakdown falls back to scaling the energies.
-    have_momenta_ = (npz.find("top20_momenta") != npz.end()) &&
-                    (npz.find("p_had") != npz.end());
-    if(have_momenta_) {
-        cnpy::NpyArray & MOM = get("top20_momenta");   // [Nev, 20, 4]
-        cnpy::NpyArray & PH  = get("p_had");           // [Nev, 4]
-        const double* mom = MOM.data<double>();
-        const double* ph  = PH.data<double>();
-        pythia_momenta_.resize(Nev);
-        pythia_phad_.resize(Nev);
-        for(size_t i = 0; i < Nev; ++i) {
-            pythia_momenta_[i].resize(cols);
-            for(size_t j = 0; j < cols; ++j)
-                for(int k = 0; k < 4; ++k)
-                    pythia_momenta_[i][j][k] = mom[(i*cols + j)*4 + k];
-            for(int k = 0; k < 4; ++k) pythia_phad_[i][k] = ph[i*4 + k];
-        }
-    }
-
-    // quantile bin edges in E_had
-    std::vector<double> sorted = pythia_Ehad_;
-    std::sort(sorted.begin(), sorted.end());
-    bin_edges_.resize(n_bins_ + 1);
-    for(int b = 0; b <= n_bins_; ++b) {
-        double q = double(b) / n_bins_;
-        double pos = q * (sorted.size() - 1);
-        size_t lo = static_cast<size_t>(std::floor(pos));
-        size_t hi = std::min(lo + 1, sorted.size() - 1);
-        double frac = pos - lo;
-        bin_edges_[b] = sorted[lo] * (1 - frac) + sorted[hi] * frac;
     }
 }
 
@@ -449,13 +400,6 @@ std::vector<GammaDISFromSpline::Component> GammaDISFromSpline::SampleShower(
     return out;
 }
 
-int GammaDISFromSpline::bin_index_(double E_had) const {
-    if(bin_edges_.empty()) return 0;
-    int b = 0;
-    while(b < n_bins_ && E_had >= bin_edges_[b+1]) ++b;
-    return std::min(std::max(b, 0), n_bins_ - 1);
-}
-
 void GammaDISFromSpline::InitializeGammaSignatures() {
     gamma_signatures_.clear();
     gamma_signatures_by_parents_.clear();
@@ -495,104 +439,139 @@ GammaDISFromSpline::GetPossibleSignaturesFromParents(
     return {};
 }
 
-// Pick a library event near E_had and Lorentz-transform its hadrons so that their
-// total 4-momentum equals p4, the hadronic system from the DIS kinematics.
-std::vector<std::pair<int,std::array<double,4>>> GammaDISFromSpline::BoostedBreakdown(
-    std::array<double,4> const & p4,
+void GammaDISFromSpline::InitializePythia() const {
+    if(pythia_data_path_.empty())
+        pythia_ = std::make_unique<Pythia8::Pythia>("../share/Pythia8/xmldoc", false);
+    else
+        pythia_ = std::make_unique<Pythia8::Pythia>(pythia_data_path_, false);
+
+    // hadron level only: Hadronize fills the event record with the partons
+    pythia_->readString("ProcessLevel:all = off");
+    pythia_->readString("111:mayDecay = off");
+    pythia_->readString("Print:quiet = on");
+    pythia_->readString("Next:numberCount = 0");
+    if(!pythia_->init())
+        throw std::runtime_error("GammaDISFromSpline: Pythia initialization failed");
+
+    // after init(), which uses Pythia's own generator
+    rndm_ = std::make_shared<GammaDISRndm>();
+    pythia_->rndm.rndmEnginePtr(rndm_);
+}
+
+std::vector<std::pair<int,std::array<double,4>>> GammaDISFromSpline::Hadronize(
+    std::array<double,4> const & p4, double Q,
+    siren::dataclasses::ParticleType primary,
+    siren::dataclasses::ParticleType target,
+    std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    using PT = siren::dataclasses::ParticleType;
+
+    if(!pythia_) InitializePythia();
+    rndm_->rng = random;
+
+    double W = std::sqrt(std::max(0.0, p4[0]*p4[0] - p4[1]*p4[1] - p4[2]*p4[2] - p4[3]*p4[3]));
+
+    // an unspecified nucleon is a proton 10 times out of 18, as in PythiaDISCrossSection
+    bool proton;
+    if(target == PT::PPlus)        proton = true;
+    else if(target == PT::Neutron) proton = false;
+    else                           proton = random->Uniform(0.0, 1.0) < 10.0 / 18.0;
+
+    bool cc = (InteractionType() == 1);
+    bool nu = static_cast<int>(primary) > 0;
+
+    // particles in the rest frame of the hadronic system: (PDG code, px, py, pz, mass)
+    std::vector<std::array<double,5>> rest;
+
+    // Valence picture: the struck quark and the diquark that is left span one string.
+    // CC nu: d -> u. CC nubar: u -> d. NC: a valence quark, flavor unchanged.
+    bool strike_u = cc ? !nu : (random->Uniform(0.0, 1.0) < (proton ? 2.0 / 3.0 : 1.0 / 3.0));
+    int quark = cc ? (nu ? 2 : 1) : (strike_u ? 2 : 1);
+    int diquark;
+    if(proton == strike_u) diquark = (random->Uniform(0.0, 1.0) < 0.75) ? 2101 : 2103;   // ud
+    else                   diquark = proton ? 2203 : 1103;                                // uu, dd
+
+    double m1 = pythia_->particleData.m0(quark);
+    double m2 = pythia_->particleData.m0(diquark);
+    if(W > m1 + m2 + MIN_STRING_EXCESS) {
+        double pz = std::sqrt((W*W - (m1+m2)*(m1+m2)) * (W*W - (m1-m2)*(m1-m2))) / (2.0 * W);
+        double scale = std::max(SHOWER_SCALE_FRACTION * Q, MIN_SHOWER_SCALE);
+        Pythia8::Event & ev = pythia_->event;
+        bool ok = false;
+        for(int tries = 0; tries < HADRONIZE_TRIES && !ok; ++tries) {
+            ev.reset();
+            // the struck quark moves along +z, which becomes the direction of p4
+            ev.append(quark,   23, 101, 0, 0.0, 0.0,  pz, std::sqrt(pz*pz + m1*m1), m1);
+            ev.append(diquark, 23, 0, 101, 0.0, 0.0, -pz, std::sqrt(pz*pz + m2*m2), m2);
+            ev[1].scale(scale);
+            ev[2].scale(scale);
+            pythia_->forceTimeShower(1, 2, scale);
+            ok = pythia_->next();
+        }
+        if(ok) {
+            for(int i = 0; i < ev.size(); ++i) {
+                if(!ev[i].isFinal()) continue;
+                rest.push_back({double(ev[i].id()), ev[i].px(), ev[i].py(), ev[i].pz(), std::max(ev[i].m(), 0.0)});
+            }
+        }
+    }
+
+    // Too light for a string: nucleon + pion, isotropic, with the charge of the system.
+    if(rest.empty()) {
+        int charge = (proton ? 1 : 0) + (cc ? (nu ? 1 : -1) : 0);
+        int nucleon, pion;
+        bool neutral_pion = random->Uniform(0.0, 1.0) < 2.0 / 3.0;
+        if(charge == 2)       { nucleon = 2212; pion = 211; }
+        else if(charge == -1) { nucleon = 2112; pion = -211; }
+        else if(charge == 1)  { nucleon = neutral_pion ? 2212 : 2112; pion = neutral_pion ? 111 : 211; }
+        else                  { nucleon = neutral_pion ? 2112 : 2212; pion = neutral_pion ? 111 : -211; }
+        double mN = pythia_->particleData.m0(nucleon);
+        double mpi = pythia_->particleData.m0(pion);
+        if(W > mN + mpi) {
+            double p = std::sqrt((W*W - (mN+mpi)*(mN+mpi)) * (W*W - (mN-mpi)*(mN-mpi))) / (2.0 * W);
+            double ct = random->Uniform(-1.0, 1.0);
+            double st = std::sqrt(1.0 - ct*ct);
+            double phi = random->Uniform(0.0, 2.0 * M_PI);
+            double px = p * st * std::cos(phi), py = p * st * std::sin(phi), pz = p * ct;
+            rest.push_back({double(nucleon),  px,  py,  pz, mN});
+            rest.push_back({double(pion),    -px, -py, -pz, mpi});
+        } else {
+            rest.push_back({double(proton ? 2212 : 2112), 0.0, 0.0, 0.0, W});
+        }
+    }
+
+    rk::P4 P(geom3::Vector3(p4[1], p4[2], p4[3]), W);
+    rk::Boost toLab = P.labBoost();
+    geom3::Rotation3 z_to_p = geom3::rotationBetween(geom3::UnitVector3::zAxis(), P.momentum().direction());
+
+    std::vector<std::pair<int,std::array<double,4>>> out;
+    out.reserve(rest.size());
+    for(auto const & r : rest) {
+        rk::P4 h(geom3::Vector3(r[1], r[2], r[3]), r[4]);
+        h.rotate(z_to_p);
+        h.boost(toLab);
+        std::array<double,4> q = {h.e(), h.px(), h.py(), h.pz()};
+        out.emplace_back(static_cast<int>(r[0]), q);
+    }
+    return out;
+}
+
+std::vector<std::pair<int,std::array<double,4>>> GammaDISFromSpline::SelectParticles(
+    std::vector<std::pair<int,std::array<double,4>>> particles, double E_had,
     std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
+    std::sort(particles.begin(), particles.end(),
+              [](auto const & a, auto const & b){ return a.second[0] > b.second[0]; });
+
     std::vector<std::pair<int,std::array<double,4>>> fs;
-    if(pythia_Ehad_.empty()) return fs;
-    double E_had = p4[0];
-
-    // nearest non-empty E_had bin, then a uniform event in it
-    int b = bin_index_(E_had);
-    std::vector<size_t> pool;
-    for(int radius = 0; radius < n_bins_ && pool.empty(); ++radius) {
-        for(int bb : {b - radius, b + radius}) {
-            if(bb < 0 || bb >= n_bins_) continue;
-            double lo = bin_edges_[bb], hi = bin_edges_[bb+1];
-            for(size_t i = 0; i < pythia_Ehad_.size(); ++i)
-                if(pythia_Ehad_[i] >= lo && (pythia_Ehad_[i] < hi || bb == n_bins_-1))
-                    pool.push_back(i);
-            if(radius == 0) break;
-        }
-    }
-    if(pool.empty()) { for(size_t i=0;i<pythia_Ehad_.size();++i) pool.push_back(i); }
-    size_t ievt = pool[std::min<size_t>(pool.size()-1,
-                      static_cast<size_t>(random->Uniform(0.0,1.0) * pool.size()))];
-
-    // ranked list of (energy, pid, boosted 4-mom [E,px,py,pz])
-    std::vector<std::tuple<double,int,std::array<double,4>>> ranked;
-    // rk::P4(E, p) takes sqrt(E^2 - p^2), which round-off can turn into NaN for
-    // massless particles, so P4 is built from the momentum and a clamped mass.
-    auto clamped_mass = [](double E, double px, double py, double pz) {
-        return std::sqrt(std::max(0.0, E*E - px*px - py*py - pz*pz));
-    };
-    // transformed 4-momentum of the library particles that are not stored
-    std::array<double,4> leftover = {0.0, 0.0, 0.0, 0.0};
-    if(have_momenta_ && !pythia_momenta_[ievt].empty()) {
-        std::array<double,4> lib_sum = {0.0, 0.0, 0.0, 0.0};   // stored particles, library frame
-        rk::P4 P_tgt(geom3::Vector3(p4[1], p4[2], p4[3]),
-                     clamped_mass(p4[0], p4[1], p4[2], p4[3]));
-        auto const & ph = pythia_phad_[ievt];
-        rk::P4 P_lib(geom3::Vector3(ph[1], ph[2], ph[3]),
-                     clamped_mass(ph[0], ph[1], ph[2], ph[3]));
-        rk::Boost toCM  = P_lib.restBoost();     // library frame -> CM
-        rk::Boost toLab = P_tgt.labBoost();      // CM -> lab
-        double Mlib = P_lib.m(), Mtgt = P_tgt.m();
-        double lam  = (Mlib > 1e-9) ? (Mtgt / Mlib) : 1.0;   // match invariant mass
-        for(size_t j = 0; j < pythia_pids_[ievt].size(); ++j) {
-            int pid = pythia_pids_[ievt][j];
-            auto const & q = pythia_momenta_[ievt][j];
-            if(pid == 0 || !(q[0] > 0.0)) continue;
-            double mj = clamped_mass(q[0], q[1], q[2], q[3]);
-            rk::P4 h(geom3::Vector3(q[1], q[2], q[3]), mj);
-            h.boost(toCM);
-            h = rk::P4(h.momentum() * lam, mj * lam);            // rescale in CM
-            h.boost(toLab);
-            std::array<double,4> hq = {h.e(), h.px(), h.py(), h.pz()};
-            for(int k = 0; k < 4; ++k) lib_sum[k] += q[k];
-            ranked.push_back({h.e(), pid, hq});
-        }
-        // p_had sums all particles but only the leading ones are stored. The rest,
-        // L = p_had - Sum(stored), gets the same transformation, so the hadrons
-        // still add up to p4.
-        double L[4] = {ph[0]-lib_sum[0], ph[1]-lib_sum[1], ph[2]-lib_sum[2], ph[3]-lib_sum[3]};
-        if(L[0] > 1e-12 * ph[0]) {
-            double mL = clamped_mass(L[0], L[1], L[2], L[3]);
-            rk::P4 hL(geom3::Vector3(L[1], L[2], L[3]), mL);
-            hL.boost(toCM);
-            hL = rk::P4(hL.momentum() * lam, mL * lam);
-            hL.boost(toLab);
-            leftover = {hL.e(), hL.px(), hL.py(), hL.pz()};
-        }
-    } else {
-        // no momenta in the library: scale the energies
-        double eh_lib = pythia_Ehad_[ievt];
-        double scale = (eh_lib > 0.0) ? (E_had / eh_lib) : 1.0;
-        for(size_t j = 0; j < pythia_pids_[ievt].size(); ++j) {
-            int pid = pythia_pids_[ievt][j];
-            double E = pythia_energies_[ievt][j] * scale;
-            if(pid == 0 || !(E > 0.0)) continue;
-            ranked.push_back({E, pid, {E, 0.0, 0.0, 0.0}});
-        }
-    }
-
-    std::sort(ranked.begin(), ranked.end(),
-              [](auto const & a, auto const & b){ return std::get<0>(a) > std::get<0>(b); });
     std::array<double,4> remainder = {0.0, 0.0, 0.0, 0.0};
     int kept = 0;
-    for(auto & t : ranked) {
-        int pid = pdg_to_model_pid(std::get<1>(t), random);
-        std::array<double,4> const & q4 = std::get<2>(t);
-        if(kept < top_k_ && HasSpecies(pid)) { fs.push_back({pid, q4}); ++kept; }
-        else for(int k = 0; k < 4; ++k) remainder[k] += q4[k];
+    for(auto const & pe : particles) {
+        int pid = pdg_to_model_pid(pe.first, random);
+        if(kept < top_k_ && HasSpecies(pid)) { fs.push_back({pid, pe.second}); ++kept; }
+        else for(int k = 0; k < 4; ++k) remainder[k] += pe.second[k];
     }
-    // the particles that are not stored go into the remainder as well
-    for(int k = 0; k < 4; ++k) remainder[k] += leftover[k];
     if(remainder[0] > 1e-9 * E_had && HasSpecies(111))
-        fs.push_back({111, remainder});   // pi0 remainder
+        fs.push_back({111, remainder});
     return fs;
 }
 
@@ -698,7 +677,8 @@ void GammaDISFromSpline::SampleFinalState(
     // The GammaSubshower secondaries carry [amplitude, alpha, beta, parent index]
     // in their 4-momentum slots.
     std::array<double,4> p4arr = {p4.e(), p4.px(), p4.py(), p4.pz()};
-    std::vector<std::pair<int,std::array<double,4>>> particles = BoostedBreakdown(p4arr, random);
+    std::vector<std::pair<int,std::array<double,4>>> particles = SelectParticles(
+        Hadronize(p4arr, std::sqrt(Q2), primary, record.signature.target_type, random), p4.e(), random);
 
     int hidx = 0;
     for(auto & pe : particles) {

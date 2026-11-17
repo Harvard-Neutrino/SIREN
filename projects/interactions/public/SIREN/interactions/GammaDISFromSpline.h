@@ -7,8 +7,10 @@
 // longitudinal Cherenkov profiles, sampled for each final-state hadron.
 //
 // Inputs:
-//   shower model    npz with the gamma-mixture parameter distributions per species
-//   PYTHIA library  npz with hadronic final states (E_had, PDG codes, 4-momenta)
+//   shower model  npz with the gamma-mixture parameter distributions per species
+//
+// Pythia8 turns the hadronic system into hadrons (hadron level only), so the
+// class is built only with SIREN_WITH_PYTHIA8.
 
 #include <set>
 #include <map>
@@ -28,12 +30,16 @@
 #include "SIREN/interactions/DISFromSpline.h"
 #include "SIREN/dataclasses/Particle.h"
 
+namespace Pythia8 { class Pythia; }
+
 namespace siren { namespace dataclasses { struct InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace interactions {
+
+class GammaDISRndm;
 
 class GammaDISFromSpline : public DISFromSpline {
 friend cereal::access;
@@ -58,23 +64,16 @@ public:
 
 private:
     std::string shower_model_path_;
-    std::string pythia_events_path_;
+    std::string pythia_data_path_;                       // Pythia xmldoc directory, empty = Pythia's default
     int    Kmax_ = 2;
     int    top_k_ = 10;
-    int    n_bins_ = 12;
 
     // shower model, keyed by PDG
     std::map<int, SpeciesModel> species_;
 
-    // PYTHIA event library (parallel arrays over events)
-    std::vector<double>              pythia_Ehad_;      // [Nev]
-    std::vector<std::vector<int>>    pythia_pids_;      // [Nev][<=20]
-    std::vector<std::vector<double>> pythia_energies_;  // [Nev][<=20]
-    // 4-momenta, used for the Lorentz transformation
-    std::vector<std::vector<std::array<double,4>>> pythia_momenta_; // [Nev][<=20][E,px,py,pz]
-    std::vector<std::array<double,4>> pythia_phad_;     // [Nev] total hadronic 4-mom
-    bool have_momenta_ = false;                          // true if the library has 4-momenta
-    std::vector<double>              bin_edges_;         // [n_bins+1] over E_had
+    // created on first use; mutable because SampleFinalState is const
+    mutable std::unique_ptr<Pythia8::Pythia> pythia_;
+    mutable std::shared_ptr<GammaDISRndm> rndm_;
 
     // lepton slot (mu, tau, NC neutrino) + kMaxSub_ GammaSubshower slots
     std::vector<dataclasses::InteractionSignature> gamma_signatures_;
@@ -93,7 +92,7 @@ public:
         std::string differential_filename, std::string total_filename,
         std::vector<siren::dataclasses::ParticleType> primary_types,
         std::vector<siren::dataclasses::ParticleType> target_types,
-        std::string shower_model_path, std::string pythia_events_path,
+        std::string shower_model_path, std::string pythia_data_path = "",
         std::string units = "cm");
 
     GammaDISFromSpline(
@@ -101,10 +100,10 @@ public:
         int interaction, double target_mass, double minimum_Q2,
         std::vector<siren::dataclasses::ParticleType> primary_types,
         std::vector<siren::dataclasses::ParticleType> target_types,
-        std::string shower_model_path, std::string pythia_events_path,
+        std::string shower_model_path, std::string pythia_data_path = "",
         std::string units = "cm");
 
-    virtual ~GammaDISFromSpline() {}
+    virtual ~GammaDISFromSpline();
 
     bool equal(CrossSection const & other) const override;
 
@@ -127,13 +126,21 @@ public:
     std::string Name() const;
 
     void LoadShowerModel(std::string const & npz_path);
-    void LoadPythiaEvents(std::string const & npz_path);
     bool HasSpecies(int pid) const { return species_.count(pid) > 0; }
     double YieldMean(int pid, double E_GeV) const;
 
     // 1 = CC, 2 = NC
     int InteractionType() const;
     void SetInteractionType(int interaction_type);
+
+    // Final-state particles (PDG code, lab 4-momentum) of a hadronic system with
+    // 4-momentum p4: Pythia showers and hadronizes a quark-diquark string of the
+    // same invariant mass. Q sets the shower scale. The 4-momenta sum to p4.
+    std::vector<std::pair<int,std::array<double,4>>> Hadronize(
+        std::array<double,4> const & p4, double Q,
+        siren::dataclasses::ParticleType primary,
+        siren::dataclasses::ParticleType target,
+        std::shared_ptr<siren::utilities::SIREN_random> random) const;
 
     // components (alpha, beta, amplitude) of one particle's shower
     std::vector<Component> SampleShower(
@@ -144,7 +151,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(::cereal::make_nvp("ShowerModelPath", shower_model_path_));
-            archive(::cereal::make_nvp("PythiaEventsPath", pythia_events_path_));
+            archive(::cereal::make_nvp("PythiaDataPath", pythia_data_path_));
             archive(::cereal::make_nvp("TopK", top_k_));
             archive(::cereal::make_nvp("InteractionTypeOverride", interaction_type_override_));
             archive(cereal::virtual_base_class<DISFromSpline>(this));
@@ -157,12 +164,11 @@ public:
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("ShowerModelPath", shower_model_path_));
-            archive(::cereal::make_nvp("PythiaEventsPath", pythia_events_path_));
+            archive(::cereal::make_nvp("PythiaDataPath", pythia_data_path_));
             archive(::cereal::make_nvp("TopK", top_k_));
             archive(::cereal::make_nvp("InteractionTypeOverride", interaction_type_override_));
             archive(cereal::virtual_base_class<DISFromSpline>(this));
             if(!shower_model_path_.empty())  LoadShowerModel(shower_model_path_);
-            if(!pythia_events_path_.empty()) LoadPythiaEvents(pythia_events_path_);
             InitializeGammaSignatures();
         } else {
             throw std::runtime_error("GammaDISFromSpline only supports version <= 0");
@@ -172,16 +178,16 @@ public:
 private:
     double interp1d_(std::vector<double> const & grid, double const * y, int ny_stride, int comp, double lq) const;
     double lq_clamped_(SpeciesModel const & s, double E) const;
-    int    bin_index_(double E_had) const;
     static void from_z_(std::vector<double> const & z, int m,
                         std::vector<double> & w, std::vector<double> & alpha, std::vector<double> & beta);
 
     void InitializeGammaSignatures();
 
-    // (pid, 4-momentum) of the final-state hadrons for a hadronic system p4: top-K
-    // hadrons and a pi0 with the rest. The 4-momenta sum to p4.
-    std::vector<std::pair<int,std::array<double,4>>> BoostedBreakdown(
-        std::array<double,4> const & p4,
+    void InitializePythia() const;
+
+    // the top-K particles with a shower model, and a pi0 that carries the rest
+    std::vector<std::pair<int,std::array<double,4>>> SelectParticles(
+        std::vector<std::pair<int,std::array<double,4>>> particles, double E_had,
         std::shared_ptr<siren::utilities::SIREN_random> random) const;
 };
 
