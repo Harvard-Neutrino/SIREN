@@ -8,7 +8,7 @@ add_library(SIREN_io OBJECT ${io_SOURCES})
 set_property(TARGET SIREN_io PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_io PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/io/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/io/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(SIREN_io

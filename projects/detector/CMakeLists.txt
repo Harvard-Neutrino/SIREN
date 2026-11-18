@@ -37,7 +37,7 @@ add_library(SIREN_detector OBJECT ${detector_SOURCES})
 set_property(TARGET SIREN_detector PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_detector PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/detector/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/detector/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(SIREN_detector

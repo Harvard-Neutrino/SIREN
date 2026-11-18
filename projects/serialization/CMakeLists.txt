@@ -6,7 +6,7 @@ LIST (APPEND serialization_SOURCES
 add_library(SIREN_serialization OBJECT ${serialization_SOURCES})
 target_include_directories(SIREN_serialization PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/serialization/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/serialization/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 apply_siren_compile_options(SIREN_serialization)
