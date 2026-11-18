@@ -2,9 +2,7 @@
 #core files
 LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/Decay.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CrossSection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/InteractionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsDecay.cxx
@@ -18,8 +16,6 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/TrivialCrossSection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
@@ -42,12 +38,10 @@ set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    "$<BUILD_INTERFACE:${PYTHON_INCLUDE_DIRS}>"
 )
 find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
-        $<BUILD_INTERFACE:pybind11::module>
         GSL::gsl
         GSL::gslcblas
     PUBLIC
@@ -62,6 +56,27 @@ target_link_libraries(SIREN_interactions
         SIREN_detector
 )
 apply_siren_compile_options(SIREN_interactions)
+
+# Trampolines that forward virtual calls to Python subclasses. They are the
+# only interactions sources that use the Python C API. The Python package
+# always contains them; the native library only with
+# SIREN_NATIVE_PYTHON_CALLBACKS.
+if(SIREN_BUILD_PYTHON_CALLBACKS)
+    add_library(SIREN_interactions_python OBJECT
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
+    )
+    set_property(TARGET SIREN_interactions_python PROPERTY POSITION_INDEPENDENT_CODE ON)
+    # pybind11 comes first: its include directory must precede those of the
+    # other dependencies, where a different pybind11 version may be installed.
+    # Trampolines and binding modules have to be compiled with the same one.
+    target_link_libraries(SIREN_interactions_python
+        PRIVATE $<BUILD_INTERFACE:pybind11::module>
+        PUBLIC SIREN_interactions)
+    apply_siren_compile_options(SIREN_interactions_python)
+endif()
 
 if(TARGET PYTHIA8)
     target_link_libraries(SIREN_interactions PUBLIC PYTHIA8)

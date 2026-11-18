@@ -1,20 +1,15 @@
 #core files
 LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/Distributions.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pyWeightableDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pyPrimaryInjectionDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pySecondaryInjectionDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/PrimaryExternalDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/PrimaryDirectionDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/pyPrimaryDirectionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/IsotropicDirection.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/FixedDirection.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/Cone.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PrimaryEnergyDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/pyPrimaryEnergyDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PowerLaw.cxx
@@ -22,7 +17,6 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PiDARNuEDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/PrimaryEnergyDirectionDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/pyPrimaryEnergyDirectionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/Tabulated2DFluxDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
@@ -34,7 +28,6 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/DepthFunction.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/LeptonDepthFunction.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/VertexPositionDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/pyVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/PointSourcePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangePositionDistribution.cxx
@@ -47,11 +40,9 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/FixedTargetPositionDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/PrimaryAreaDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/pyPrimaryAreaDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/FixedTargetAreaDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/pySecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
 )
@@ -65,7 +56,6 @@ target_include_directories(SIREN_distributions PUBLIC
 target_link_libraries(SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        $<BUILD_INTERFACE:pybind11::module>
     PUBLIC
         photospline
         SIREN_utilities
@@ -77,6 +67,30 @@ target_link_libraries(SIREN_distributions
         SIREN_interactions
 )
 apply_siren_compile_options(SIREN_distributions)
+
+# Trampolines that forward virtual calls to Python subclasses; see
+# SIREN_interactions_python.
+if(SIREN_BUILD_PYTHON_CALLBACKS)
+    add_library(SIREN_distributions_python OBJECT
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pyWeightableDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pyPrimaryInjectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/pySecondaryInjectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/direction/pyPrimaryDirectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/pyPrimaryEnergyDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/pyPrimaryEnergyDirectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/pyVertexPositionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/pyPrimaryAreaDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/pySecondaryVertexPositionDistribution.cxx
+    )
+    set_property(TARGET SIREN_distributions_python PROPERTY POSITION_INDEPENDENT_CODE ON)
+    # pybind11 comes first: its include directory must precede those of the
+    # other dependencies, where a different pybind11 version may be installed.
+    # Trampolines and binding modules have to be compiled with the same one.
+    target_link_libraries(SIREN_distributions_python
+        PRIVATE $<BUILD_INTERFACE:pybind11::module>
+        PUBLIC SIREN_distributions)
+    apply_siren_compile_options(SIREN_distributions_python)
+endif()
 
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"

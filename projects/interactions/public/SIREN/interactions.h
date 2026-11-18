@@ -16,10 +16,13 @@
 #include "SIREN/interactions/HNLDipoleFromTable.h"
 #include "SIREN/interactions/HNLDipoleDISFromSpline.h"
 #include "SIREN/interactions/HNLDISFromSpline.h"
+// The Python trampolines need the Python and pybind11 headers.
+#ifdef SIREN_HAS_PYTHON_CALLBACKS
 #include "SIREN/interactions/pyCrossSection.h"
 #include "SIREN/interactions/pyDarkNewsCrossSection.h"
 #include "SIREN/interactions/pyDarkNewsDecay.h"
 #include "SIREN/interactions/pyDecay.h"
+#endif
 
 
 #endif // SIREN_interactions_interactions_H

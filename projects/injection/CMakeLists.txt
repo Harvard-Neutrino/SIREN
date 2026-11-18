@@ -26,7 +26,6 @@ target_link_libraries(SIREN_injection
         SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        $<BUILD_INTERFACE:pybind11::module>
 )
 apply_siren_compile_options(SIREN_injection)
 

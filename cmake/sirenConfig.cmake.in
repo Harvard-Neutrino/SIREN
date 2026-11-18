@@ -3,8 +3,10 @@
 # Find the packages the exported SIREN targets refer to, then load the targets.
 include(CMakeFindDependencyMacro)
 
-# libSIREN embeds the Python runtime it was built with.
-find_dependency(Python @SIREN_CONFIG_PYTHON_VERSION@ EXACT COMPONENTS Interpreter Development)
+# With Python callbacks, libSIREN links the Python runtime it was built with.
+if(@SIREN_NATIVE_PYTHON_CALLBACKS@)
+    find_dependency(Python @SIREN_CONFIG_PYTHON_VERSION@ EXACT COMPONENTS Interpreter Development)
+endif()
 
 # photospline and delabella are installed with SIREN, under the same prefix.
 find_dependency(photospline CONFIG PATHS "${PACKAGE_PREFIX_DIR}")

@@ -33,12 +33,22 @@ set(SIREN_BUILD_PYTHON_BINDINGS OFF)
 if(SIREN_PYTHON_PACKAGE OR DEFINED SKBUILD)
     set(SIREN_BUILD_PYTHON_BINDINGS ON)
 endif()
+option(SIREN_NATIVE_PYTHON_CALLBACKS
+    "Let the native libSIREN call cross sections, decays and distributions defined in Python. Links the Python runtime."
+    OFF)
 option(SIREN_WITH_MARLEY "Enable MARLEY support if available" ON)
 option(SIREN_REQUIRE_MARLEY "Fail configure if MARLEY requested but not found" OFF)
 option(SIREN_WITH_PYTHIA8 "Enable Pythia8 support if available" OFF)
 option(SIREN_REQUIRE_PYTHIA8 "Fail configure if Pythia8 requested but not found" OFF)
 option(SIREN_WITH_HEPMC3 "Enable HepMC3 output support if available" ON)
 option(SIREN_REQUIRE_HEPMC3 "Fail configure if HepMC3 requested but not found" OFF)
+
+# The Python trampolines are compiled for the Python package, and for the
+# native library only on request.
+set(SIREN_BUILD_PYTHON_CALLBACKS OFF)
+if(SIREN_BUILD_PYTHON_BINDINGS OR SIREN_NATIVE_PYTHON_CALLBACKS)
+    set(SIREN_BUILD_PYTHON_CALLBACKS ON)
+endif()
 
 # include cmake dependencies
 include(GNUInstallDirs)
@@ -210,12 +220,16 @@ add_subdirectory(projects/injection)
 add_subdirectory(projects/io)
 
 # Compile the components once, but link separate native and Python libraries.
-# A native dlopen host needs libpython in the library's dependencies; a Python
-# wheel must resolve those symbols in its host interpreter instead.
+# Only the Python-callback components use the Python C API. The Python package
+# always holds them and resolves those symbols in its host interpreter. The
+# native library holds them only with SIREN_NATIVE_PYTHON_CALLBACKS, and then
+# needs libpython in its dependencies so that a native dlopen host can load it.
 set(SIREN_COMPONENTS
     SIREN_utilities SIREN_serialization SIREN_math SIREN_dataclasses
     SIREN_geometry SIREN_detector SIREN_interactions SIREN_distributions
     SIREN_injection SIREN_io)
+set(SIREN_PYTHON_CALLBACK_COMPONENTS
+    SIREN_interactions_python SIREN_distributions_python)
 function(siren_add_core target)
     add_library(${target} SHARED)
     set_property(TARGET ${target} PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -226,7 +240,10 @@ endfunction()
 
 if(SIREN_BUILD_PYTHON_BINDINGS)
     siren_add_core(SIREN_python)
-    target_link_libraries(SIREN_python PRIVATE pybind11::module)
+    target_link_libraries(SIREN_python
+        PUBLIC ${SIREN_PYTHON_CALLBACK_COMPONENTS}
+        PRIVATE pybind11::module)
+    target_compile_definitions(SIREN_python PUBLIC SIREN_HAS_PYTHON_CALLBACKS)
     # Retain the distinct target name on disk: loader-path overrides may contain
     # the standalone libSIREN, which links an embedding Python runtime.
     set_target_properties(SIREN_python PROPERTIES
@@ -237,11 +254,17 @@ endif()
 
 if(NOT DEFINED SKBUILD)
     siren_add_core(SIREN)
-    # Building uses the vendored pybind11. An installed SIREN names only the
-    # Python runtime; the pybind11 headers are installed next to SIREN's own.
-    target_link_libraries(SIREN PUBLIC
-        $<BUILD_INTERFACE:pybind11::embed>
-        $<INSTALL_INTERFACE:Python::Python>)
+    set(SIREN_NATIVE_TARGETS SIREN ${SIREN_COMPONENTS})
+    if(SIREN_NATIVE_PYTHON_CALLBACKS)
+        # Building uses the vendored pybind11. An installed SIREN names only the
+        # Python runtime; the pybind11 headers are installed next to SIREN's own.
+        target_link_libraries(SIREN PUBLIC
+            ${SIREN_PYTHON_CALLBACK_COMPONENTS}
+            $<BUILD_INTERFACE:pybind11::embed>
+            $<INSTALL_INTERFACE:Python::Python>)
+        target_compile_definitions(SIREN PUBLIC SIREN_HAS_PYTHON_CALLBACKS)
+        list(APPEND SIREN_NATIVE_TARGETS ${SIREN_PYTHON_CALLBACK_COMPONENTS})
+    endif()
     set_target_properties(SIREN PROPERTIES
         INSTALL_RPATH "${SIREN_RPATH_ORIGIN}"
         INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -251,6 +274,8 @@ if(NOT DEFINED SKBUILD)
 
     # This host deliberately links neither SIREN nor Python. The normal test
     # helper links SIREN and would mask a missing native Python dependency.
+    # Without SIREN_NATIVE_PYTHON_CALLBACKS the library has no such dependency,
+    # and the test then fails if any Python symbol is left in it.
     if(UNIX AND NOT CIBUILDWHEEL)
         add_executable(UnitTest_StandaloneLoad tests/native/StandaloneLoad_TEST.cxx)
         target_link_libraries(UnitTest_StandaloneLoad PRIVATE ${CMAKE_DL_LIBS})
@@ -268,14 +293,12 @@ endif()
 
 # Native development installation. Wheel builds select only PythonWheel.
 if(TARGET SIREN)
-    install(TARGETS SIREN ${SIREN_COMPONENTS}
+    install(TARGETS ${SIREN_NATIVE_TARGETS}
         EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     # SIREN's public headers include these vendored header sets.
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/cereal/include/cereal"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/pybind11/include/pybind11"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/rk/rk"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -283,6 +306,10 @@ if(TARGET SIREN)
     install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/crundec3/CRunDec3.1"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.h")
+    if(SIREN_NATIVE_PYTHON_CALLBACKS)
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/pybind11/include/pybind11"
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    endif()
 endif()
 
 # Both wheel entry points install the targets, allowing CMake to replace build
