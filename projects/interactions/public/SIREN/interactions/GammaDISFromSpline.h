@@ -10,7 +10,8 @@
 //
 // Inputs:
 //   shower model  JSON file with the gamma-mixture parameter distributions per species
-//   PDF set       LHAPDF set used by Pythia, found through LHAPDF_DATA_PATH
+//   PDF set       LHAPDF set used by Pythia, found through LHAPDF_DATA_PATH;
+//                 empty for Pythia's built-in PDF
 //
 // Built only with SIREN_WITH_PYTHIA8.
 

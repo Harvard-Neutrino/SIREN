@@ -428,17 +428,18 @@ GammaDISFromSpline::GetPossibleSignaturesFromParents(
 Pythia8::Pythia & GammaDISFromSpline::GetPythia(int beam, int target, double E_nu,
     std::shared_ptr<siren::utilities::SIREN_random> random) const {
     PythiaInstance & inst = pythia_[{beam, target}];
-    if(!inst.pythia || inst.energy != E_nu) {
-        const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
-        if(!lhapdf_path)
-            throw std::runtime_error("GammaDISFromSpline: LHAPDF_DATA_PATH is not set");
-        std::string set_name = pdf_set_.substr(pdf_set_.find(':') + 1);
-        std::string set_dir = std::string(lhapdf_path) + "/" + set_name;
-        struct stat st;
-        if(stat(set_dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
-            throw std::runtime_error("GammaDISFromSpline: PDF set '" + set_name
-                                     + "' not found under LHAPDF_DATA_PATH=" + lhapdf_path);
-
+    if(!inst.pythia) {
+        if(!pdf_set_.empty()) {
+            const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
+            if(!lhapdf_path)
+                throw std::runtime_error("GammaDISFromSpline: LHAPDF_DATA_PATH is not set");
+            std::string set_name = pdf_set_.substr(pdf_set_.find(':') + 1);
+            std::string set_dir = std::string(lhapdf_path) + "/" + set_name;
+            struct stat st;
+            if(stat(set_dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
+                throw std::runtime_error("GammaDISFromSpline: PDF set '" + set_name
+                                         + "' not found under LHAPDF_DATA_PATH=" + lhapdf_path);
+        }
         inst.pythia = std::make_unique<Pythia8::Pythia>(
             pythia_data_path_.empty() ? std::string("../share/Pythia8/xmldoc") : pythia_data_path_, false);
         Pythia8::Pythia & p = *inst.pythia;
@@ -447,11 +448,15 @@ Pythia8::Pythia & GammaDISFromSpline::GetPythia(int beam, int target, double E_n
         p.readString("Beams:frameType = 2");
         p.readString("Beams:idA = " + std::to_string(beam));
         p.readString("Beams:idB = " + std::to_string(target));
-        p.readString("Beams:eA = " + std::to_string(E_nu));
         p.readString("Beams:eB = 0.");
-        p.readString("PDF:pSet = " + pdf_set_);
-        p.readString("PDF:useHard = on");
-        p.readString("PDF:pHardSet = " + pdf_set_);
+        // An empty pdf_set uses Pythia's built-in PDF. An LHAPDF set is loaded again at
+        // every init() and that memory is not released (about 11 MB per energy change
+        // with LHAPDF 6.5), which matters when the energy changes from event to event.
+        if(!pdf_set_.empty()) {
+            p.readString("PDF:pSet = " + pdf_set_);
+            p.readString("PDF:useHard = on");
+            p.readString("PDF:pHardSet = " + pdf_set_);
+        }
         p.readString("PartonLevel:MPI = off");
         // keeps the scattered lepton's kinematics when the initial-state shower recoils
         p.readString("SpaceShower:dipoleRecoil = on");
@@ -465,12 +470,20 @@ Pythia8::Pythia & GammaDISFromSpline::GetPythia(int beam, int target, double E_n
         p.readString("15:mayDecay = off");
         p.readString("Print:quiet = on");
         p.readString("Next:numberCount = 0");
+    }
+    // Pythia cannot change the beam energy of this process after init(), so a new
+    // energy means another init() of the same object (cheaper than a new object).
+    if(inst.energy != E_nu) {
+        Pythia8::Pythia & p = *inst.pythia;
+        if(inst.rndm) inst.rndm->rng = random;
+        p.readString("Beams:eA = " + std::to_string(E_nu));
         if(!p.init())
             throw std::runtime_error("GammaDISFromSpline: Pythia initialization failed");
-
-        // after init(), which uses Pythia's own generator
-        inst.rndm = std::make_shared<GammaDISRndm>();
-        p.rndm.rndmEnginePtr(inst.rndm);
+        // the first init() uses Pythia's own generator, later ones the SIREN one
+        if(!inst.rndm) {
+            inst.rndm = std::make_shared<GammaDISRndm>();
+            p.rndm.rndmEnginePtr(inst.rndm);
+        }
         inst.energy = E_nu;
     }
     inst.rndm->rng = random;

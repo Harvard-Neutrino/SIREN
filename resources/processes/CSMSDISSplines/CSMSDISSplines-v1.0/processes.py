@@ -132,7 +132,7 @@ def load_processes(
                     xs = siren.interactions.GammaDISFromSpline(
                         dxs_file, xs_file, primaries, target_types,
                         shower_model_path, pythia_data_path or "",
-                        pdf_set or "LHAPDF6:HERAPDF20_NLO_EIG", "m")
+                        pdf_set if pdf_set is not None else "LHAPDF6:HERAPDF20_NLO_EIG", "m")
                 else:
                     xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
                 primary_processes.append(xs)
