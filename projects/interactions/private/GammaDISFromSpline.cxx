@@ -453,6 +453,8 @@ Pythia8::Pythia & GammaDISFromSpline::GetPythia(int beam, int target, double E_n
         p.readString("PDF:useHard = on");
         p.readString("PDF:pHardSet = " + pdf_set_);
         p.readString("PartonLevel:MPI = off");
+        // keeps the scattered lepton's kinematics when the initial-state shower recoils
+        p.readString("SpaceShower:dipoleRecoil = on");
         p.readString("PhaseSpace:mHatMin = 0.0");
         p.readString("PhaseSpace:Q2Min = " + std::to_string(GetMinimumQ2()));
         // Particles with c*tau below 10 mm decay. pi0 has a shower model and the tau is
