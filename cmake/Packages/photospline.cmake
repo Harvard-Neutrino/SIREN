@@ -25,3 +25,11 @@ set(TEMP_CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_POLICY_VERSION_MINIMUM})
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline)
 set(CMAKE_POLICY_VERSION_MINIMUM ${TEMP_CMAKE_POLICY_VERSION_MINIMUM})
+
+# photospline's headers use uint32_t and uint64_t without including <cstdint>.
+# The standard headers of GCC 15 no longer bring it in, so give it to
+# photospline and to every C++ source compiled against its headers.
+if(TARGET photospline AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(photospline PUBLIC
+        "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CXX>:SHELL:-include cstdint>>")
+endif()
