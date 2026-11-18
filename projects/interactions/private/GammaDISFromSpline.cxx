@@ -10,6 +10,8 @@
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
+#include <cstdlib>
+#include <sys/stat.h>
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -22,6 +24,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 #include "SIREN/utilities/Random.h"
+#include "SIREN/utilities/Errors.h"
 
 namespace siren {
 namespace interactions {
@@ -38,12 +41,7 @@ namespace {
     constexpr int    MAX_TRIES   = 100;
     constexpr double COV_RIDGE  = 1e-3;  // floor on the covariance eigenvalues
     constexpr int    ELECTRON_PDG = 11;
-    // Start scale of the parton shower as a fraction of Q. 0.3 reproduces the hadron
-    // multiplicity and leading-hadron energy fraction of full Pythia DIS events.
-    constexpr double SHOWER_SCALE_FRACTION = 0.3;
-    constexpr double MIN_SHOWER_SCALE  = 0.5;   // GeV
-    constexpr double MIN_STRING_EXCESS = 0.3;   // GeV above the quark + diquark mass
-    constexpr int    HADRONIZE_TRIES   = 20;
+    constexpr int    PYTHIA_TRIES = 100;
 
     // one species as stored in the shower model file; 2-d arrays are flattened row-major
     struct SpeciesFile {
@@ -59,17 +57,6 @@ namespace {
                     cereal::make_nvp("mean", mean), cereal::make_nvp("cov", cov));
         }
     };
-
-    // Same check as in DISFromSpline.cxx, where it is file-local.
-    bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
-        if(x > 1) return false;
-        if(x < ((m * m) / (2 * M * (E - m)))) return false;
-        double d = 2 * (1 + (M * x) / (2 * E));
-        double ad = 1 - m * m * ((1 / (2 * M * E * x)) + (1 / (2 * E * E)));
-        double term = 1 - ((m * m) / (2 * M * E * x));
-        double bd = std::sqrt(term * term - ((m * m) / (E * E)));
-        return (ad - bd) <= d * y and d * y <= (ad + bd);
-    }
 
     int charged_lepton_pdg(siren::dataclasses::ParticleType nu) {
         using PT = siren::dataclasses::ParticleType;
@@ -167,11 +154,12 @@ GammaDISFromSpline::GammaDISFromSpline(
     std::vector<siren::dataclasses::ParticleType> primary_types,
     std::vector<siren::dataclasses::ParticleType> target_types,
     std::string shower_model_path, std::string pythia_data_path,
-    std::string units)
+    std::string pdf_set, std::string units)
     : DISFromSpline(differential_filename, total_filename,
                     primary_types, target_types, units),
       shower_model_path_(shower_model_path),
-      pythia_data_path_(pythia_data_path) {
+      pythia_data_path_(pythia_data_path),
+      pdf_set_(pdf_set) {
     // Spline files without an INTERACTION key are read as CC by the base class.
     // The CSMS splines have no such key, so the file name decides CC or NC.
     std::string base = differential_filename.substr(differential_filename.find_last_of("/\\") + 1);
@@ -201,11 +189,12 @@ GammaDISFromSpline::GammaDISFromSpline(
     std::vector<siren::dataclasses::ParticleType> primary_types,
     std::vector<siren::dataclasses::ParticleType> target_types,
     std::string shower_model_path, std::string pythia_data_path,
-    std::string units)
+    std::string pdf_set, std::string units)
     : DISFromSpline(differential_filename, total_filename, interaction,
                     target_mass, minimum_Q2, primary_types, target_types, units),
       shower_model_path_(shower_model_path),
-      pythia_data_path_(pythia_data_path) {
+      pythia_data_path_(pythia_data_path),
+      pdf_set_(pdf_set) {
     LoadShowerModel(shower_model_path_);
     InitializeGammaSignatures();
 }
@@ -217,6 +206,7 @@ bool GammaDISFromSpline::equal(CrossSection const & other) const {
     if(!x) return false;
     return shower_model_path_ == x->shower_model_path_ &&
            pythia_data_path_ == x->pythia_data_path_ &&
+           pdf_set_ == x->pdf_set_ &&
            InteractionType() == x->InteractionType() &&
            DISFromSpline::equal(other);
 }
@@ -435,120 +425,54 @@ GammaDISFromSpline::GetPossibleSignaturesFromParents(
     return {};
 }
 
-void GammaDISFromSpline::InitializePythia() const {
-    if(pythia_data_path_.empty())
-        pythia_ = std::make_unique<Pythia8::Pythia>("../share/Pythia8/xmldoc", false);
-    else
-        pythia_ = std::make_unique<Pythia8::Pythia>(pythia_data_path_, false);
-
-    // hadron level only: Hadronize fills the event record with the partons
-    pythia_->readString("ProcessLevel:all = off");
-    pythia_->readString("111:mayDecay = off");
-    pythia_->readString("Print:quiet = on");
-    pythia_->readString("Next:numberCount = 0");
-    if(!pythia_->init())
-        throw std::runtime_error("GammaDISFromSpline: Pythia initialization failed");
-
-    // after init(), which uses Pythia's own generator
-    rndm_ = std::make_shared<GammaDISRndm>();
-    pythia_->rndm.rndmEnginePtr(rndm_);
-}
-
-std::vector<std::pair<int,std::array<double,4>>> GammaDISFromSpline::Hadronize(
-    std::array<double,4> const & p4, double Q,
-    siren::dataclasses::ParticleType primary,
-    siren::dataclasses::ParticleType target,
+Pythia8::Pythia & GammaDISFromSpline::GetPythia(int beam, int target, double E_nu,
     std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    using PT = siren::dataclasses::ParticleType;
+    PythiaInstance & inst = pythia_[{beam, target}];
+    if(!inst.pythia || inst.energy != E_nu) {
+        const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
+        if(!lhapdf_path)
+            throw std::runtime_error("GammaDISFromSpline: LHAPDF_DATA_PATH is not set");
+        std::string set_name = pdf_set_.substr(pdf_set_.find(':') + 1);
+        std::string set_dir = std::string(lhapdf_path) + "/" + set_name;
+        struct stat st;
+        if(stat(set_dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
+            throw std::runtime_error("GammaDISFromSpline: PDF set '" + set_name
+                                     + "' not found under LHAPDF_DATA_PATH=" + lhapdf_path);
 
-    if(!pythia_) InitializePythia();
-    rndm_->rng = random;
+        inst.pythia = std::make_unique<Pythia8::Pythia>(
+            pythia_data_path_.empty() ? std::string("../share/Pythia8/xmldoc") : pythia_data_path_, false);
+        Pythia8::Pythia & p = *inst.pythia;
+        p.readString(InteractionType() == 1 ? "WeakBosonExchange:ff2ff(t:W) = on"
+                                            : "WeakBosonExchange:ff2ff(t:gmZ) = on");
+        p.readString("Beams:frameType = 2");
+        p.readString("Beams:idA = " + std::to_string(beam));
+        p.readString("Beams:idB = " + std::to_string(target));
+        p.readString("Beams:eA = " + std::to_string(E_nu));
+        p.readString("Beams:eB = 0.");
+        p.readString("PDF:pSet = " + pdf_set_);
+        p.readString("PDF:useHard = on");
+        p.readString("PDF:pHardSet = " + pdf_set_);
+        p.readString("PartonLevel:MPI = off");
+        p.readString("PhaseSpace:mHatMin = 0.0");
+        p.readString("PhaseSpace:Q2Min = " + std::to_string(GetMinimumQ2()));
+        // Particles with c*tau below 10 mm decay. pi0 has a shower model and the tau is
+        // returned as a track, so both are kept.
+        p.readString("ParticleDecays:limitTau0 = on");
+        p.readString("ParticleDecays:tau0Max = 10.0");
+        p.readString("111:mayDecay = off");
+        p.readString("15:mayDecay = off");
+        p.readString("Print:quiet = on");
+        p.readString("Next:numberCount = 0");
+        if(!p.init())
+            throw std::runtime_error("GammaDISFromSpline: Pythia initialization failed");
 
-    double W = std::sqrt(std::max(0.0, p4[0]*p4[0] - p4[1]*p4[1] - p4[2]*p4[2] - p4[3]*p4[3]));
-
-    // an unspecified nucleon is a proton 10 times out of 18, as in PythiaDISCrossSection
-    bool proton;
-    if(target == PT::PPlus)        proton = true;
-    else if(target == PT::Neutron) proton = false;
-    else                           proton = random->Uniform(0.0, 1.0) < 10.0 / 18.0;
-
-    bool cc = (InteractionType() == 1);
-    bool nu = static_cast<int>(primary) > 0;
-
-    // particles in the rest frame of the hadronic system: (PDG code, px, py, pz, mass)
-    std::vector<std::array<double,5>> rest;
-
-    // Valence picture: the struck quark and the diquark that is left span one string.
-    // CC nu: d -> u. CC nubar: u -> d. NC: a valence quark, flavor unchanged.
-    bool strike_u = cc ? !nu : (random->Uniform(0.0, 1.0) < (proton ? 2.0 / 3.0 : 1.0 / 3.0));
-    int quark = cc ? (nu ? 2 : 1) : (strike_u ? 2 : 1);
-    int diquark;
-    if(proton == strike_u) diquark = (random->Uniform(0.0, 1.0) < 0.75) ? 2101 : 2103;   // ud
-    else                   diquark = proton ? 2203 : 1103;                                // uu, dd
-
-    double m1 = pythia_->particleData.m0(quark);
-    double m2 = pythia_->particleData.m0(diquark);
-    if(W > m1 + m2 + MIN_STRING_EXCESS) {
-        double pz = std::sqrt((W*W - (m1+m2)*(m1+m2)) * (W*W - (m1-m2)*(m1-m2))) / (2.0 * W);
-        double scale = std::max(SHOWER_SCALE_FRACTION * Q, MIN_SHOWER_SCALE);
-        Pythia8::Event & ev = pythia_->event;
-        bool ok = false;
-        for(int tries = 0; tries < HADRONIZE_TRIES && !ok; ++tries) {
-            ev.reset();
-            // the struck quark moves along +z, which becomes the direction of p4
-            ev.append(quark,   23, 101, 0, 0.0, 0.0,  pz, std::sqrt(pz*pz + m1*m1), m1);
-            ev.append(diquark, 23, 0, 101, 0.0, 0.0, -pz, std::sqrt(pz*pz + m2*m2), m2);
-            ev[1].scale(scale);
-            ev[2].scale(scale);
-            pythia_->forceTimeShower(1, 2, scale);
-            ok = pythia_->next();
-        }
-        if(ok) {
-            for(int i = 0; i < ev.size(); ++i) {
-                if(!ev[i].isFinal()) continue;
-                rest.push_back({double(ev[i].id()), ev[i].px(), ev[i].py(), ev[i].pz(), std::max(ev[i].m(), 0.0)});
-            }
-        }
+        // after init(), which uses Pythia's own generator
+        inst.rndm = std::make_shared<GammaDISRndm>();
+        p.rndm.rndmEnginePtr(inst.rndm);
+        inst.energy = E_nu;
     }
-
-    // Too light for a string: nucleon + pion, isotropic, with the charge of the system.
-    if(rest.empty()) {
-        int charge = (proton ? 1 : 0) + (cc ? (nu ? 1 : -1) : 0);
-        int nucleon, pion;
-        bool neutral_pion = random->Uniform(0.0, 1.0) < 2.0 / 3.0;
-        if(charge == 2)       { nucleon = 2212; pion = 211; }
-        else if(charge == -1) { nucleon = 2112; pion = -211; }
-        else if(charge == 1)  { nucleon = neutral_pion ? 2212 : 2112; pion = neutral_pion ? 111 : 211; }
-        else                  { nucleon = neutral_pion ? 2112 : 2212; pion = neutral_pion ? 111 : -211; }
-        double mN = pythia_->particleData.m0(nucleon);
-        double mpi = pythia_->particleData.m0(pion);
-        if(W > mN + mpi) {
-            double p = std::sqrt((W*W - (mN+mpi)*(mN+mpi)) * (W*W - (mN-mpi)*(mN-mpi))) / (2.0 * W);
-            double ct = random->Uniform(-1.0, 1.0);
-            double st = std::sqrt(1.0 - ct*ct);
-            double phi = random->Uniform(0.0, 2.0 * M_PI);
-            double px = p * st * std::cos(phi), py = p * st * std::sin(phi), pz = p * ct;
-            rest.push_back({double(nucleon),  px,  py,  pz, mN});
-            rest.push_back({double(pion),    -px, -py, -pz, mpi});
-        } else {
-            rest.push_back({double(proton ? 2212 : 2112), 0.0, 0.0, 0.0, W});
-        }
-    }
-
-    rk::P4 P(geom3::Vector3(p4[1], p4[2], p4[3]), W);
-    rk::Boost toLab = P.labBoost();
-    geom3::Rotation3 z_to_p = geom3::rotationBetween(geom3::UnitVector3::zAxis(), P.momentum().direction());
-
-    std::vector<std::pair<int,std::array<double,4>>> out;
-    out.reserve(rest.size());
-    for(auto const & r : rest) {
-        rk::P4 h(geom3::Vector3(r[1], r[2], r[3]), r[4]);
-        h.rotate(z_to_p);
-        h.boost(toLab);
-        std::array<double,4> q = {h.e(), h.px(), h.py(), h.pz()};
-        out.emplace_back(static_cast<int>(r[0]), q);
-    }
-    return out;
+    inst.rndm->rng = random;
+    return *inst.pythia;
 }
 
 std::vector<std::pair<int,std::array<double,4>>> GammaDISFromSpline::SelectParticles(
@@ -577,86 +501,87 @@ void GammaDISFromSpline::SampleFinalState(
 
     siren::dataclasses::ParticleType primary = record.signature.primary_type;
     int lep_pdg = outgoing_lepton_pdg(primary, InteractionType());
-    double m = DISFromSpline::GetLeptonMass(static_cast<siren::dataclasses::ParticleType>(lep_pdg));
     bool shower_lepton = (std::abs(lep_pdg) == ELECTRON_PDG);
 
+    double E_nu = record.primary_momentum[0];
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-    rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
-    // we assume that:
-    // the target is stationary so its energy is just its mass
-    // the incoming neutrino is massless, so its kinetic energy is its total energy
+    // an unspecified nucleon is a proton 10 times out of 18, as in PythiaDISCrossSection
+    int target_pdg;
+    if(record.signature.target_type == siren::dataclasses::ParticleType::PPlus)        target_pdg = 2212;
+    else if(record.signature.target_type == siren::dataclasses::ParticleType::Neutron) target_pdg = 2112;
+    else target_pdg = (random->Uniform(0.0, 1.0) < 10.0 / 18.0) ? 2212 : 2112;
 
-    double primary_energy = p1.e();
-    double E1_lab = p1.e();
-    double E2_lab = p2.e();
-    double m1 = record.primary_mass; 
-    double m3 = m;
+    Pythia8::Pythia & pythia = GetPythia(static_cast<int>(primary), target_pdg, E_nu, random);
+    Pythia8::Event & ev = pythia.event;
 
-    // (x, y) by Metropolis-Hastings on the differential cross section
-    double yMax = 1.0 - m / primary_energy;
-    double yMin = GetMinimumQ2() / (2.0 * E1_lab * E2_lab);
-    double xMin = GetMinimumQ2() / (2.0 * E1_lab * E2_lab * yMax);
-    auto dxs = [&](double x, double y) {
-        if(!kinematicallyAllowed(x, y, primary_energy, record.target_mass, m)) return 0.0;
-        // x*y is the Jacobian of the proposal, which is uniform in (log x, log y)
-        return x * y * DISFromSpline::DifferentialCrossSection(primary_energy, x, y, m);
-    };
-    // initial valid point
-    double x = 0.0, y = 0.0, cs = 0.0;
-    for(int tries = 0; tries < 10000 && cs <= 0.0; ++tries) {
-        x = std::pow(10.0, random->Uniform(std::log10(xMin), 0.0));
-        y = std::pow(10.0, random->Uniform(std::log10(yMin), std::log10(yMax)));
-        cs = dxs(x, y);
-    }
-    const int burnin = 40;                 // same as DISFromSpline
-    for(int j = 0; j <= burnin; ++j) {
-        double tx = std::pow(10.0, random->Uniform(std::log10(xMin), 0.0));
-        double ty = std::pow(10.0, random->Uniform(std::log10(yMin), std::log10(yMax)));
-        double tcs = dxs(tx, ty);
-        double odds = (cs > 0.0) ? (tcs / cs) : 1.0;
-        if(cs == 0.0 || odds > 1.0 || random->Uniform(0.0, 1.0) < odds) {
-            x = tx; y = ty; cs = tcs;
+    // the outgoing lepton is the most energetic final-state particle of its type
+    int i_lep = -1;
+    for(int tries = 0; tries < PYTHIA_TRIES && i_lep < 0; ++tries) {
+        if(!pythia.next()) continue;
+        double best = -1.0;
+        for(int i = 0; i < ev.size(); ++i) {
+            if(ev[i].isFinal() && ev[i].id() == lep_pdg && ev[i].e() > best) {
+                best = ev[i].e();
+                i_lep = i;
+            }
         }
     }
+    if(i_lep < 0)
+        throw siren::utilities::InjectionFailure("GammaDISFromSpline: no Pythia event with the expected lepton after "
+                                                 + std::to_string(PYTHIA_TRIES) + " attempts");
 
-    double final_x = x, final_y = y;
+    // x and y from the lepton, in Pythia's frame (neutrino along +z), as in PythiaDISCrossSection
+    Pythia8::Vec4 q = Pythia8::Vec4(0.0, 0.0, E_nu, E_nu) - ev[i_lep].p();
+    double Q2 = -q.m2Calc();
+    double y = 1.0 - ev[i_lep].e() / E_nu;
+    double x = (y > 0.0) ? Q2 / (2.0 * record.target_mass * E_nu * y) : 0.0;
     record.interaction_parameters.clear();
-    record.interaction_parameters["energy"]    = E1_lab;
-    record.interaction_parameters["bjorken_x"] = final_x;
-    record.interaction_parameters["bjorken_y"] = final_y;
+    record.interaction_parameters["energy"]     = E_nu;
+    record.interaction_parameters["bjorken_x"]  = x;
+    record.interaction_parameters["bjorken_y"]  = y;
+    record.interaction_parameters["target_pdg"] = static_cast<double>(target_pdg);
 
-    // scattered lepton p3 and hadronic system p4, as in DISFromSpline
-    double Q2 = 2.0 * E1_lab * E2_lab * final_x * final_y;
-    double p1x_lab = std::sqrt(p1.px()*p1.px() + p1.py()*p1.py() + p1.pz()*p1.pz());
-    double pqx_lab = (m1*m1 + m3*m3 + 2.0*p1x_lab*p1x_lab + Q2 + 2.0*E1_lab*E1_lab*(final_y-1.0))
-                     / (2.0 * p1x_lab);
-    double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab*E1_lab*(final_y*final_y-1.0));
-    double pqy_lab = (pqx_lab > momq_lab) ? 0.0 : std::sqrt(momq_lab*momq_lab - pqx_lab*pqx_lab);
-    double Eq_lab = E1_lab * final_y;
+    // Pythia's frame -> lab: rotate +z onto the neutrino direction
+    geom3::Rotation3 rot = geom3::rotationBetween(geom3::UnitVector3::zAxis(), p1.momentum().direction());
+    auto to_lab = [&](Pythia8::Particle const & p) {
+        geom3::Vector3 mom = rot * geom3::Vector3(p.px(), p.py(), p.pz());
+        return std::array<double,4>{p.e(), mom.x(), mom.y(), mom.z()};
+    };
 
-    geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
-    geom3::UnitVector3 p1_dir = p1.momentum().direction();
-    geom3::Rotation3 x_to_p1 = geom3::rotationBetween(x_dir, p1_dir);
-    double phi = random->Uniform(0.0, 2.0 * M_PI);
-    geom3::Rotation3 rand_rot(p1_dir, phi);
+    std::array<double,4> lep = to_lab(ev[i_lep]);
+    rk::P4 p3(geom3::Vector3(lep[1], lep[2], lep[3]), std::max(ev[i_lep].m(), 0.0));
 
-    rk::P4 pq_lab(Eq_lab, geom3::Vector3(pqx_lab, pqy_lab, 0.0));
-    pq_lab.rotate(x_to_p1);
-    pq_lab.rotate(rand_rot);
-
-    rk::P4 p3 = rk::P4((p1 - pq_lab).momentum(), m3);
-    rk::P4 p4 = p2 + pq_lab;
+    // Everything else is the hadronic system. Neutrinos from decays are invisible and
+    // are kept out of the particle list, but stay in had_* for the conservation check.
+    std::vector<std::pair<int,std::array<double,4>>> hadrons;
+    std::array<double,4> had = {0.0, 0.0, 0.0, 0.0};
+    std::array<double,4> invisible = {0.0, 0.0, 0.0, 0.0};
+    for(int i = 0; i < ev.size(); ++i) {
+        if(!ev[i].isFinal() || i == i_lep) continue;
+        std::array<double,4> h = to_lab(ev[i]);
+        for(int k = 0; k < 4; ++k) had[k] += h[k];
+        int id = std::abs(ev[i].id());
+        if(id == 12 || id == 14 || id == 16) {
+            for(int k = 0; k < 4; ++k) invisible[k] += h[k];
+            continue;
+        }
+        hadrons.emplace_back(ev[i].id(), h);
+    }
 
     // hadronic system and lepton; DifferentialCrossSection reads the lepton back
-    record.interaction_parameters["had_E"]  = p4.e();
-    record.interaction_parameters["had_px"] = p4.px();
-    record.interaction_parameters["had_py"] = p4.py();
-    record.interaction_parameters["had_pz"] = p4.pz();
+    record.interaction_parameters["had_E"]  = had[0];
+    record.interaction_parameters["had_px"] = had[1];
+    record.interaction_parameters["had_py"] = had[2];
+    record.interaction_parameters["had_pz"] = had[3];
     record.interaction_parameters["lep_E"]  = p3.e();
     record.interaction_parameters["lep_px"] = p3.px();
     record.interaction_parameters["lep_py"] = p3.py();
     record.interaction_parameters["lep_pz"] = p3.pz();
+    record.interaction_parameters["invisible_E"]  = invisible[0];
+    record.interaction_parameters["invisible_px"] = invisible[1];
+    record.interaction_parameters["invisible_py"] = invisible[2];
+    record.interaction_parameters["invisible_pz"] = invisible[3];
 
     auto & secondaries = record.GetSecondaryParticleRecords();
     size_t slot = 0;
@@ -672,9 +597,7 @@ void GammaDISFromSpline::SampleFinalState(
     // The 4-momentum of each hadron goes into interaction_parameters as hadron<i>_*.
     // The GammaSubshower secondaries carry [amplitude, alpha, beta, parent index]
     // in their 4-momentum slots.
-    std::array<double,4> p4arr = {p4.e(), p4.px(), p4.py(), p4.pz()};
-    std::vector<std::pair<int,std::array<double,4>>> particles = SelectParticles(
-        Hadronize(p4arr, std::sqrt(Q2), primary, record.signature.target_type, random), p4.e(), random);
+    std::vector<std::pair<int,std::array<double,4>>> particles = SelectParticles(hadrons, had[0], random);
 
     int hidx = 0;
     for(auto & pe : particles) {
@@ -725,8 +648,10 @@ void GammaDISFromSpline::SampleFinalState(
     }
 }
 
-// Used by the Weighter. Same x, y, Q^2 as DISFromSpline, with the lepton taken from
-// the stored lep_* parameters because the secondaries are GammaSubshowers.
+double GammaDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const &) const {
+    return 1.0;
+}
+
 double GammaDISFromSpline::DifferentialCrossSection(
     dataclasses::InteractionRecord const & interaction) const {
     using PT = siren::dataclasses::ParticleType;

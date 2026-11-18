@@ -30,18 +30,19 @@ void register_GammaDISFromSpline(pybind11::module_ & m) {
         .def(init<std::string, std::string,
                   std::vector<siren::dataclasses::ParticleType>,
                   std::vector<siren::dataclasses::ParticleType>,
-                  std::string, std::string, std::string>(),
+                  std::string, std::string, std::string, std::string>(),
                 arg("differential_xs_filename"),
                 arg("total_xs_filename"),
                 arg("primary_types"),
                 arg("target_types"),
                 arg("shower_model_path"),
                 arg("pythia_data_path") = std::string(""),
+                arg("pdf_set") = std::string("LHAPDF6:HERAPDF20_NLO_EIG"),
                 arg("units") = std::string("cm"))
         .def(init<std::string, std::string, int, double, double,
                   std::vector<siren::dataclasses::ParticleType>,
                   std::vector<siren::dataclasses::ParticleType>,
-                  std::string, std::string, std::string>(),
+                  std::string, std::string, std::string, std::string>(),
                 arg("differential_xs_filename"),
                 arg("total_xs_filename"),
                 arg("interaction"),
@@ -51,6 +52,7 @@ void register_GammaDISFromSpline(pybind11::module_ & m) {
                 arg("target_types"),
                 arg("shower_model_path"),
                 arg("pythia_data_path") = std::string(""),
+                arg("pdf_set") = std::string("LHAPDF6:HERAPDF20_NLO_EIG"),
                 arg("units") = std::string("cm"))
         .def(self == self)
         .def("Name", &GammaDISFromSpline::Name)
@@ -59,7 +61,6 @@ void register_GammaDISFromSpline(pybind11::module_ & m) {
         .def("YieldMean", &GammaDISFromSpline::YieldMean)
         .def("InteractionType", &GammaDISFromSpline::InteractionType)   // 1 = CC, 2 = NC
         .def("SetInteractionType", &GammaDISFromSpline::SetInteractionType)
-        .def("Hadronize", &GammaDISFromSpline::Hadronize)
         .def("SampleFinalState", &GammaDISFromSpline::SampleFinalState);
 }
 

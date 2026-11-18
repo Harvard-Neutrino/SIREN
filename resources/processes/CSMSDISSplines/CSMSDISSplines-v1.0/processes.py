@@ -104,6 +104,7 @@ def load_processes(
     process_types: Optional[List[str]] = None,
     shower_model_path: Optional[str] = None,
     pythia_data_path: Optional[str] = None,
+    pdf_set: Optional[str] = None,
     ):
 
     fetch_data()
@@ -130,7 +131,8 @@ def load_processes(
                         raise RuntimeError("GammaDISFromSpline requires SIREN built with SIREN_WITH_PYTHIA8=ON")
                     xs = siren.interactions.GammaDISFromSpline(
                         dxs_file, xs_file, primaries, target_types,
-                        shower_model_path, pythia_data_path or "", "m")
+                        shower_model_path, pythia_data_path or "",
+                        pdf_set or "LHAPDF6:HERAPDF20_NLO_EIG", "m")
                 else:
                     xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
                 primary_processes.append(xs)
