@@ -13,7 +13,7 @@ add_library(SIREN_dataclasses OBJECT ${dataclasses_SOURCES})
 set_property(TARGET SIREN_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_dataclasses PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/dataclasses/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/dataclasses/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(SIREN_dataclasses
@@ -31,6 +31,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
+    PATTERN "*.def"
 )
 
 package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionSignature_TEST.cxx)

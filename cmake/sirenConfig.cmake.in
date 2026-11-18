@@ -1,0 +1,30 @@
+@PACKAGE_INIT@
+
+# Find the packages the exported SIREN targets refer to, then load the targets.
+include(CMakeFindDependencyMacro)
+
+# libSIREN embeds the Python runtime it was built with.
+find_dependency(Python @SIREN_CONFIG_PYTHON_VERSION@ EXACT COMPONENTS Interpreter Development)
+
+# photospline and delabella are installed with SIREN, under the same prefix.
+find_dependency(photospline CONFIG PATHS "${PACKAGE_PREFIX_DIR}")
+find_dependency(delabella CONFIG PATHS "${PACKAGE_PREFIX_DIR}")
+find_dependency(GSL)
+
+if(@SIREN_CONFIG_HEPMC3@)
+    if(NOT "@SIREN_CONFIG_HEPMC3_DIR@" STREQUAL "")
+        find_dependency(HepMC3 @HEPMC3_MINIMUM_VERSION@ CONFIG)
+    elseif(NOT TARGET HepMC3::HepMC3)
+        # SIREN was built against a HepMC3 without a CMake package file.
+        add_library(HepMC3::HepMC3 UNKNOWN IMPORTED)
+        set_target_properties(HepMC3::HepMC3 PROPERTIES
+            IMPORTED_LOCATION "@HEPMC3_LIBRARY@"
+            INTERFACE_INCLUDE_DIRECTORIES "@HEPMC3_INCLUDE_DIR@")
+    endif()
+endif()
+if(@SIREN_CONFIG_ZLIB@)
+    find_dependency(ZLIB)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/sirenTargets.cmake")
+check_required_components(siren)

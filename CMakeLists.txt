@@ -237,7 +237,11 @@ endif()
 
 if(NOT DEFINED SKBUILD)
     siren_add_core(SIREN)
-    target_link_libraries(SIREN PUBLIC pybind11::embed)
+    # Building uses the vendored pybind11. An installed SIREN names only the
+    # Python runtime; the pybind11 headers are installed next to SIREN's own.
+    target_link_libraries(SIREN PUBLIC
+        $<BUILD_INTERFACE:pybind11::embed>
+        $<INSTALL_INTERFACE:Python::Python>)
     set_target_properties(SIREN PROPERTIES
         INSTALL_RPATH "${SIREN_RPATH_ORIGIN}"
         INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -268,6 +272,17 @@ if(TARGET SIREN)
         EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    # SIREN's public headers include these vendored header sets.
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/cereal/include/cereal"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/pybind11/include/pybind11"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/rk/rk"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.hh" PATTERN "*.icc")
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/vendor/crundec3/CRunDec3.1"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h")
 endif()
 
 # Both wheel entry points install the targets, allowing CMake to replace build
@@ -305,16 +320,38 @@ if(TARGET SIREN)
       VERSION ${PROJECT_VERSION}
       COMPATIBILITY AnyNewerVersion
     )
-    export(EXPORT ${PROJECT_NAME}Config FILE "${PROJECT_NAME}Config.cmake"
+    export(EXPORT ${PROJECT_NAME}Config FILE "${PROJECT_NAME}Targets.cmake"
            NAMESPACE ${PROJECT_NAME}::)
 
-    # Make importable from install location
+    # The package file finds what the exported targets name, then loads them.
     set(_config_dir share/${PROJECT_NAME}/cmake)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    set(SIREN_CONFIG_PYTHON_VERSION "${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
+    set(SIREN_CONFIG_HEPMC3 OFF)
+    set(SIREN_CONFIG_HEPMC3_DIR "")
+    set(SIREN_CONFIG_ZLIB OFF)
+    if(HEPMC3_FOUND)
+        set(SIREN_CONFIG_HEPMC3 ON)
+        if(HepMC3_DIR)
+            set(SIREN_CONFIG_HEPMC3_DIR "${HepMC3_DIR}")
+        endif()
+        if(HEPMC3_HAS_COMPRESSION)
+            set(SIREN_CONFIG_ZLIB ON)
+        endif()
+    endif()
+    configure_package_config_file(
+      "${PROJECT_SOURCE_DIR}/cmake/sirenConfig.cmake.in"
+      "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+      INSTALL_DESTINATION ${_config_dir}
+    )
+
+    # Make importable from install location
+    install(FILES
+      "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+      "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
       DESTINATION ${_config_dir}
     )
     install(EXPORT ${PROJECT_NAME}Config
-      FILE "${PROJECT_NAME}Config.cmake"
+      FILE "${PROJECT_NAME}Targets.cmake"
       NAMESPACE ${PROJECT_NAME}::
       DESTINATION "${_config_dir}"
     )

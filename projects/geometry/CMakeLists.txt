@@ -36,7 +36,7 @@ if(NOT MSVC)
 endif()
 target_include_directories(SIREN_geometry PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/geometry/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/geometry/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(SIREN_geometry

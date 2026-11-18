@@ -41,13 +41,13 @@ set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
-    ${PYTHON_INCLUDE_DIRS}
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    "$<BUILD_INTERFACE:${PYTHON_INCLUDE_DIRS}>"
 )
 find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
-        pybind11::module
+        $<BUILD_INTERFACE:pybind11::module>
         GSL::gsl
         GSL::gslcblas
     PUBLIC
