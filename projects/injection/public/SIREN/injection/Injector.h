@@ -32,7 +32,6 @@
 #include "SIREN/dataclasses/InteractionTree.h"    // for Interactio...
 #include "SIREN/dataclasses/Particle.h"           // for Particle
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h" // for Secondary...
-#include "SIREN/interactions/pyDarkNewsCrossSection.h"
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }

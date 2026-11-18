@@ -17,8 +17,6 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include <pybind11/pybind11.h>
-#include <pybind11/embed.h>
 
 #include "SIREN/interactions/Decay.h"   // for Decay
 #include "SIREN/dataclasses/Particle.h"  // for Particle
