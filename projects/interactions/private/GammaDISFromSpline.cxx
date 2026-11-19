@@ -90,23 +90,6 @@ namespace {
         return pid;
     }
 
-    // The shower model is parametrized in kinetic energy and the hadrons carry
-    // total energy, so the model is evaluated at E - m.
-    double rest_mass_GeV(int pid) {
-        switch(std::abs(pid)) {
-            case 11:   return 0.51099895e-3;   // e
-            case 22:   return 0.0;             // photon
-            case 111:  return 0.1349768;       // pi0
-            case 211:  return 0.13957039;      // pi+-
-            case 130: case 310: case 311:
-                       return 0.497611;        // K0 / KS / KL
-            case 321:  return 0.493677;        // K+-
-            case 2212: return 0.93827208816;   // p, pbar
-            case 2112: return 0.93956542052;   // n, nbar
-            default:   return 0.0;
-        }
-    }
-
     // Eigen-decomposition of a small symmetric matrix (cyclic Jacobi).
     // a is n x n row-major; the eigenvectors are the columns of V.
     void symmetric_eigen(std::vector<double> a, int n,
@@ -180,6 +163,7 @@ void GammaDISFromSpline::SetInteractionType(int interaction_type) {
         throw std::runtime_error("GammaDISFromSpline::SetInteractionType: use 1 (CC) or 2 (NC), got "
                                  + std::to_string(interaction_type));
     interaction_type_override_ = interaction_type;
+    pythia_.clear();   // the Pythia instances were set up for the previous process
     InitializeGammaSignatures();
 }
 
@@ -389,8 +373,8 @@ std::vector<GammaDISFromSpline::Component> GammaDISFromSpline::SampleShower(
 void GammaDISFromSpline::InitializeGammaSignatures() {
     gamma_signatures_.clear();
     gamma_signatures_by_parents_.clear();
-    // top_k hadrons + 1 pi0 remainder + 1 electron, each up to m=2 components
-    kMaxSub_ = (top_k_ + 2) * 2;
+    // top_k hadrons + 1 pi0 remainder + 1 electron, each up to Kmax components
+    kMaxSub_ = (top_k_ + 2) * Kmax_;
 
     std::vector<siren::dataclasses::ParticleType> primaries = GetPossiblePrimaries();
     std::vector<siren::dataclasses::ParticleType> targets   = GetPossibleTargets();
@@ -490,23 +474,26 @@ Pythia8::Pythia & GammaDISFromSpline::GetPythia(int beam, int target, double E_n
     return *inst.pythia;
 }
 
-std::vector<std::pair<int,std::array<double,4>>> GammaDISFromSpline::SelectParticles(
-    std::vector<std::pair<int,std::array<double,4>>> particles, double E_had,
+std::vector<GammaDISFromSpline::FinalParticle> GammaDISFromSpline::SelectParticles(
+    std::vector<FinalParticle> particles, double E_had,
     std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
     std::sort(particles.begin(), particles.end(),
-              [](auto const & a, auto const & b){ return a.second[0] > b.second[0]; });
+              [](FinalParticle const & a, FinalParticle const & b){ return a.ekin > b.ekin; });
 
-    std::vector<std::pair<int,std::array<double,4>>> fs;
-    std::array<double,4> remainder = {0.0, 0.0, 0.0, 0.0};
+    std::vector<FinalParticle> fs;
+    FinalParticle remainder{111, {0.0, 0.0, 0.0, 0.0}, 0.0};
     int kept = 0;
     for(auto const & pe : particles) {
-        int pid = pdg_to_model_pid(pe.first, random);
-        if(kept < top_k_ && HasSpecies(pid)) { fs.push_back({pid, pe.second}); ++kept; }
-        else for(int k = 0; k < 4; ++k) remainder[k] += pe.second[k];
+        int pid = pdg_to_model_pid(pe.pid, random);
+        if(kept < top_k_ && HasSpecies(pid)) { fs.push_back({pid, pe.p, pe.ekin}); ++kept; }
+        else {
+            for(int k = 0; k < 4; ++k) remainder.p[k] += pe.p[k];
+            remainder.ekin += pe.ekin;
+        }
     }
-    if(remainder[0] > 1e-9 * E_had && HasSpecies(111))
-        fs.push_back({111, remainder});
+    if(remainder.ekin > 1e-9 * E_had && HasSpecies(111))
+        fs.push_back(remainder);
     return fs;
 }
 
@@ -530,15 +517,15 @@ void GammaDISFromSpline::SampleFinalState(
     Pythia8::Pythia & pythia = GetPythia(static_cast<int>(primary), target_pdg, E_nu, random);
     Pythia8::Event & ev = pythia.event;
 
-    // the outgoing lepton is the most energetic final-state particle of its type
+    // the outgoing lepton of the hard process (status 23), followed to its final copy
     int i_lep = -1;
     for(int tries = 0; tries < PYTHIA_TRIES && i_lep < 0; ++tries) {
         if(!pythia.next()) continue;
-        double best = -1.0;
         for(int i = 0; i < ev.size(); ++i) {
-            if(ev[i].isFinal() && ev[i].id() == lep_pdg && ev[i].e() > best) {
-                best = ev[i].e();
-                i_lep = i;
+            if(ev[i].statusAbs() == 23 && ev[i].id() == lep_pdg) {
+                int j = ev[i].iBotCopyId();
+                if(ev[j].isFinal()) i_lep = j;
+                break;
             }
         }
     }
@@ -568,10 +555,12 @@ void GammaDISFromSpline::SampleFinalState(
     rk::P4 p3(geom3::Vector3(lep[1], lep[2], lep[3]), std::max(ev[i_lep].m(), 0.0));
 
     // Everything else is the hadronic system. Neutrinos from decays are invisible and
-    // are kept out of the particle list, but stay in had_* for the conservation check.
-    std::vector<std::pair<int,std::array<double,4>>> hadrons;
+    // muons from decays are tracks, so both are kept out of the particle list, but
+    // they stay in had_* for the conservation check.
+    std::vector<FinalParticle> hadrons;
     std::array<double,4> had = {0.0, 0.0, 0.0, 0.0};
     std::array<double,4> invisible = {0.0, 0.0, 0.0, 0.0};
+    std::array<double,4> muons = {0.0, 0.0, 0.0, 0.0};
     for(int i = 0; i < ev.size(); ++i) {
         if(!ev[i].isFinal() || i == i_lep) continue;
         std::array<double,4> h = to_lab(ev[i]);
@@ -581,7 +570,11 @@ void GammaDISFromSpline::SampleFinalState(
             for(int k = 0; k < 4; ++k) invisible[k] += h[k];
             continue;
         }
-        hadrons.emplace_back(ev[i].id(), h);
+        if(id == 13) {
+            for(int k = 0; k < 4; ++k) muons[k] += h[k];
+            continue;
+        }
+        hadrons.push_back({ev[i].id(), h, std::max(ev[i].e() - ev[i].m(), 0.0)});
     }
 
     // hadronic system and lepton; DifferentialCrossSection reads the lepton back
@@ -597,6 +590,10 @@ void GammaDISFromSpline::SampleFinalState(
     record.interaction_parameters["invisible_px"] = invisible[1];
     record.interaction_parameters["invisible_py"] = invisible[2];
     record.interaction_parameters["invisible_pz"] = invisible[3];
+    record.interaction_parameters["muon_E"]  = muons[0];
+    record.interaction_parameters["muon_px"] = muons[1];
+    record.interaction_parameters["muon_py"] = muons[2];
+    record.interaction_parameters["muon_pz"] = muons[3];
 
     auto & secondaries = record.GetSecondaryParticleRecords();
     size_t slot = 0;
@@ -612,25 +609,26 @@ void GammaDISFromSpline::SampleFinalState(
     // The 4-momentum of each hadron goes into interaction_parameters as hadron<i>_*.
     // The GammaSubshower secondaries carry [amplitude, alpha, beta, parent index]
     // in their 4-momentum slots.
-    std::vector<std::pair<int,std::array<double,4>>> particles = SelectParticles(hadrons, had[0], random);
+    // hadron<i>_Ekin is the energy given to the shower model.
+    std::vector<FinalParticle> particles = SelectParticles(hadrons, had[0], random);
 
     int hidx = 0;
     for(auto & pe : particles) {
-        int pid = pe.first;
-        std::array<double,4> const & q = pe.second;
+        int pid = pe.pid;
+        std::array<double,4> const & q = pe.p;
         std::string pre = "hadron" + std::to_string(hidx);
-        record.interaction_parameters[pre + "_pid"] = static_cast<double>(pid);
-        record.interaction_parameters[pre + "_E"]   = q[0];
-        record.interaction_parameters[pre + "_px"]  = q[1];
-        record.interaction_parameters[pre + "_py"]  = q[2];
-        record.interaction_parameters[pre + "_pz"]  = q[3];
+        record.interaction_parameters[pre + "_pid"]  = static_cast<double>(pid);
+        record.interaction_parameters[pre + "_E"]    = q[0];
+        record.interaction_parameters[pre + "_px"]   = q[1];
+        record.interaction_parameters[pre + "_py"]   = q[2];
+        record.interaction_parameters[pre + "_pz"]   = q[3];
+        record.interaction_parameters[pre + "_Ekin"] = pe.ekin;
         int parent_index = hidx;
         ++hidx;
 
         // parent index i refers to hadron<i>_*, -1 to the electron
-        double E_kin = q[0] - rest_mass_GeV(pid);
         std::vector<Component> comps;
-        if(E_kin > 0.0) comps = SampleShower(pid, E_kin, random);
+        if(pe.ekin > 0.0) comps = SampleShower(pid, pe.ekin, random);
         for(auto & c : comps) {
             if(slot >= secondaries.size()) break;   // the signature has kMaxSub_ slots
             secondaries[slot].SetFourMomentum(
@@ -644,7 +642,7 @@ void GammaDISFromSpline::SampleFinalState(
 
     // CC nu_e: the scattered electron showers as well
     if(shower_lepton && HasSpecies(ELECTRON_PDG)) {
-        std::vector<Component> comps = SampleShower(ELECTRON_PDG, p3.e() - rest_mass_GeV(ELECTRON_PDG), random);
+        std::vector<Component> comps = SampleShower(ELECTRON_PDG, std::max(p3.e() - p3.m(), 0.0), random);
         for(auto & c : comps) {
             if(slot >= secondaries.size()) break;
             secondaries[slot].SetFourMomentum(

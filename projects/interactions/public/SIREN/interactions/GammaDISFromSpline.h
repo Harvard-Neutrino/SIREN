@@ -64,6 +64,9 @@ public:
     // one gamma component of a sampled shower
     struct Component { double alpha; double beta; double amplitude; };
 
+    // a final-state particle in the lab frame; ekin = E - m with Pythia's mass
+    struct FinalParticle { int pid; std::array<double,4> p; double ekin; };
+
 private:
     std::string shower_model_path_;
     std::string pythia_data_path_;                       // Pythia xmldoc directory, empty = Pythia's default
@@ -195,9 +198,10 @@ private:
     Pythia8::Pythia & GetPythia(int beam, int target, double E_nu,
         std::shared_ptr<siren::utilities::SIREN_random> random) const;
 
-    // the top-K particles with a shower model, and a pi0 that carries the rest
-    std::vector<std::pair<int,std::array<double,4>>> SelectParticles(
-        std::vector<std::pair<int,std::array<double,4>>> particles, double E_had,
+    // the top-K particles with a shower model by kinetic energy, and a pi0 that
+    // carries the summed kinetic energy of the rest
+    std::vector<FinalParticle> SelectParticles(
+        std::vector<FinalParticle> particles, double E_had,
         std::shared_ptr<siren::utilities::SIREN_random> random) const;
 };
 
