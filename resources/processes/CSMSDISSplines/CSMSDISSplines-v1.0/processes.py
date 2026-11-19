@@ -102,6 +102,9 @@ def load_processes(
     target_types: Optional[List[siren.dataclasses.Particle.ParticleType]] = None,
     isoscalar: Optional[bool] = None,
     process_types: Optional[List[str]] = None,
+    shower_model_path: Optional[str] = None,
+    pythia_data_path: Optional[str] = None,
+    pdf_set: Optional[str] = None,
     ):
 
     fetch_data()
@@ -123,7 +126,15 @@ def load_processes(
             if isoscalar:
                 dxs_file = resolve_data_path(base_path, download_dir, f"dsdxdy_{nunubar}_{process_type}_iso.fits")
                 xs_file = resolve_data_path(base_path, download_dir, f"sigma_{nunubar}_{process_type}_iso.fits")
-                xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
+                if shower_model_path is not None:
+                    if not hasattr(siren.interactions, "GammaDISFromSpline"):
+                        raise RuntimeError("GammaDISFromSpline requires SIREN built with SIREN_WITH_PYTHIA8=ON")
+                    xs = siren.interactions.GammaDISFromSpline(
+                        dxs_file, xs_file, primaries, target_types,
+                        shower_model_path, pythia_data_path or "",
+                        pdf_set if pdf_set is not None else "LHAPDF6:HERAPDF20_NLO_EIG", "m")
+                else:
+                    xs = siren.interactions.DISFromSpline(dxs_file, xs_file, primaries, target_types, "m")
                 primary_processes.append(xs)
                 for primary_type in primaries:
                     primary_processes_dict[primary_type].append(xs)

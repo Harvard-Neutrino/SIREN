@@ -34,6 +34,7 @@ endif()
 if(TARGET PYTHIA8)
     LIST (APPEND interactions_SOURCES
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/GammaDISFromSpline.cxx
     )
 endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
