@@ -85,6 +85,7 @@ private:
     void Initialize();
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
+    double OneWeight(siren::dataclasses::InteractionTree const & tree) const;
     std::vector<std::shared_ptr<Injector>> const & GetInjectors() const;
     std::shared_ptr<siren::detector::DetectorModel> GetDetectorModel() const;
     std::shared_ptr<siren::injection::PhysicalProcess> GetPrimaryPhysicalProcess() const;

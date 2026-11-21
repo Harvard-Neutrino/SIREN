@@ -67,6 +67,7 @@ static const std::map<ParticleType, double> ParticleMasses = {
     {ParticleType::NuTauBar,   0.0}, // Neutrinos are massless in this context
     {ParticleType::NuLight,    0.0}, // Neutrinos are massless in this context
     {ParticleType::NuLightBar, 0.0}, // Neutrinos are massless in this context
+    {ParticleType::Hadrons,    0.0}, // Hadrons mass is not defined, set to 0 here for reference
     // ...add more as needed
 };
 

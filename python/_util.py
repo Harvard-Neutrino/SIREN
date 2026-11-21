@@ -806,6 +806,30 @@ def get_fiducial_volume(experiment):
         return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
     return None
 
+def get_volume_position_distribution_from_sector(detector_model, sector_name):
+        from . import detector as _detector
+        from . import geometry as _geometry
+        from . import distributions as _distributions
+        geo = None
+        for sector in detector_model.Sectors:
+            if sector.name==sector_name:
+                geo = sector.geo
+        if geo is None:
+            raise ValueError("Sector %s not found" % sector_name)
+        # the position is in geometry coordinates
+        # must update to detector coordintes
+        det_position = detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
+        det_rotation = geo.placement.Quaternion
+        det_placement = _geometry.Placement(det_position.get(), det_rotation)
+        if type(geo)==_geometry.Cylinder:
+            cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
+            return _distributions.CylinderVolumePositionDistribution(cylinder)
+        elif type(geo)==_geometry.Sphere:
+            sphere = _geometry.Sphere(det_placement,geo.Radius,geo.InnerRadius)
+            return _distributions.SphereVolumePositionDistribution(sphere)
+        else:
+            raise TypeError("Geometry type %s not supported for position distribution" % str(type(geo)))
+
 def list_fluxes():
     return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "fluxes"), _model_regex))
 
@@ -1087,6 +1111,9 @@ def SaveEvents(events,
                save_hdf5=True,
                save_parquet=True,
                save_siren_events=True,
+               save_int_params=False,
+               save_int_probs=False,
+               save_survival_probs=False,
                save_hepmc3=False,
                hepmc3_weights="auto",
                hepmc3_gzip=False,
@@ -1134,9 +1161,11 @@ def SaveEvents(events,
     # A dictionary containing each dataset we'd like to save
     datasets = {
         "event_weight":[], # weight of entire event
+        "event_oneweight":[], # oneweight of entire event
         "event_gen_time":[], # generation time of each event
         "event_weight_time":[], # generation time of each event
         "num_interactions":[], # number of interactions per event
+        "primary_initial_position":[], # initial position of primary in each interaction of an event
         "vertex":[], # vertex of each interaction in an event
         "in_fiducial":[], # whether or not each vertex is in the fiducial volume
         "primary_type":[], # primary type of each interaction
@@ -1147,6 +1176,10 @@ def SaveEvents(events,
         "secondary_momenta":[], # secondary momentum of each interaction
         "parent_idx":[], # index of the parent interaction
     }
+
+    if save_int_probs: datasets["int_probs"] = []
+    if save_survival_probs: datasets["survival_probs"] = []
+    if save_int_params: datasets["int_params"] = []
     for ie, event in enumerate(events):
         print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
         t0 = time.time()
@@ -1160,10 +1193,21 @@ def SaveEvents(events,
             # A siren.injection.Weighter object is not callable; it exposes
             # EventWeight (same duck-typing resolve_hepmc3_weight_policy uses).
             datasets["event_weight"].append(weighter.EventWeight(event))
+        if weighter is None:
+            datasets["event_oneweight"].append(0)
+        elif hasattr(weighter, "one_weight"):
+            datasets["event_oneweight"].append(weighter.one_weight(event))
+        else:
+            datasets["event_oneweight"].append(weighter.OneWeight(event))
+        if save_int_probs:
+            datasets["int_probs"].append(weighter.interaction_probabilities(event))
+        if save_survival_probs:
+            datasets["survival_probs"].append(weighter.survival_probabilities(event))
         datasets["event_weight_time"].append(time.time()-t0)
         datasets["event_gen_time"].append(gen_times[ie])
         # add empty lists for each per interaction dataset
         for k in ["vertex",
+                  "primary_initial_position",
                   "in_fiducial",
                   "primary_type",
                   "target_type",
@@ -1173,11 +1217,19 @@ def SaveEvents(events,
                   "secondary_momenta",
                   "parent_idx"]:
             datasets[k].append([])
+        if save_int_params:
+                datasets["int_params"].append({})
         # parent index of each interaction, taken from the tree's parent edges
         parent_indices = get_parent_indices(event.tree)
         # loop over interactions
         for id, datum in enumerate(event.tree):
+            if save_int_params:
+                for param_name, param_value in datum.record.interaction_parameters.items():
+                    if param_name not in datasets["int_params"][-1]:
+                        datasets["int_params"][-1][param_name] = []
+                    datasets["int_params"][-1][param_name].append(param_value)
             datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+            datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
 
              # primary particle stuff
             datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))

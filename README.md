@@ -253,6 +253,17 @@ siren-download --flux
 The data are stored under `resources/processes` and `resources/fluxes` in the
 SIREN installation.
 
+## Dataset download
+
+SIREN uses external datasets that need to be downloaded separately, including neutrino flux models and cross-section tables. To do this, after installing SIREN , run the following commands:
+
+```bash
+siren-download --processes
+siren-download --flux
+```
+
+These commands will download the necessary datasets to the `resources/processes` and `resources/fluxes` directories in the SIREN installation.
+
 ## Project structure
 
 The [Python API](https://github.com/Harvard-Neutrino/SIREN/tree/main/python/), [C++ modules](https://github.com/Harvard-Neutrino/SIREN/tree/main/projects/), and

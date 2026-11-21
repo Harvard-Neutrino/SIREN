@@ -159,6 +159,7 @@ PYBIND11_MODULE(injection,m) {
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>(), keep_alive<1, 2>(), keep_alive<1, 4>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::string>(), keep_alive<1, 2>())
     .def("EventWeight",&Weighter::EventWeight)
+    .def("OneWeight",&Weighter::OneWeight)
     .def("GetInjectors",&Weighter::GetInjectors)
     .def("GetDetectorModel",&Weighter::GetDetectorModel)
     .def("GetPrimaryPhysicalProcess",&Weighter::GetPrimaryPhysicalProcess)
