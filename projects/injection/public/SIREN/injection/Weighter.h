@@ -50,6 +50,7 @@ private:
     double normalization;
 public:
     double InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
+    double InteractionDepth(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double SurvivalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
@@ -85,6 +86,10 @@ private:
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
     double OneWeight(siren::dataclasses::InteractionTree const & tree) const;
+    std::vector<std::shared_ptr<Injector>> const & GetInjectors() const;
+    std::shared_ptr<siren::detector::DetectorModel> GetDetectorModel() const;
+    std::shared_ptr<siren::injection::PhysicalProcess> GetPrimaryPhysicalProcess() const;
+    std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> const & GetSecondaryPhysicalProcesses() const;
     std::vector<double> GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj = 0) const;
     std::vector<double> GetSurvivalProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj = 0) const;
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes);

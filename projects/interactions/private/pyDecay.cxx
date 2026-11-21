@@ -33,6 +33,17 @@ bool pyDecay::equal(Decay const & other) const {
     )
 }
 
+double pyDecay::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        double,
+        TotalDecayLengthAllFinalStates,
+        "TotalDecayLengthAllFinalStates",
+        interaction
+    )
+}
+
 double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
     SELF_OVERRIDE(
         self,
@@ -44,13 +55,13 @@ double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interact
     )
 }
 
-double pyDecay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-    SELF_OVERRIDE(
+double pyDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    SELF_OVERRIDE_PURE(
         self,
         Decay,
         double,
-        TotalDecayLengthForFinalState,
-        "TotalDecayLengthForFinalState",
+        TotalDecayWidthAllFinalStates,
+        "TotalDecayWidthAllFinalStates",
         interaction
     )
 }
@@ -62,17 +73,6 @@ double pyDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interacti
         double,
         TotalDecayWidth,
         "TotalDecayWidth",
-        interaction
-    )
-}
-
-double pyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-    SELF_OVERRIDE_PURE(
-        self,
-        Decay,
-        double,
-        TotalDecayWidthForFinalState,
-        "TotalDecayWidthForFinalState",
         interaction
     )
 }
@@ -111,6 +111,18 @@ void pyDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & rec
     )
 }
 
+double pyDecay::SampleDecayTime(dataclasses::CrossSectionDistributionRecord const & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    SELF_OVERRIDE_REF(
+        self,
+        Decay,
+        double,
+        SampleDecayTime,
+        "SampleDecayTime",
+        record,
+        random
+    )
+}
+
 std::vector<siren::dataclasses::InteractionSignature> pyDecay::GetPossibleSignatures() const {
     SELF_OVERRIDE_PURE(
         self,
@@ -126,8 +138,8 @@ std::vector<siren::dataclasses::InteractionSignature> pyDecay::GetPossibleSignat
         self,
         Decay,
         std::vector<siren::dataclasses::InteractionSignature>,
-        GetPossibleSignaturesFromParents,
-        "GetPossibleSignaturesFromParents",
+        GetPossibleSignaturesFromParent,
+        "GetPossibleSignaturesFromParent",
         primary_type
     )
 }

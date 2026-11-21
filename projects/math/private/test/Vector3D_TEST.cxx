@@ -218,6 +218,61 @@ TEST(Normalize, Operator)
     EXPECT_TRUE(B != C);
 }
 
+// Normalizing the zero vector must not divide by zero: stay finite and leave the
+// vector unchanged at magnitude 0 (the contract degenerate DetectorModel p1 - p0
+// directions rely on).
+TEST(Normalize, ZeroVectorDoesNotProduceNaN)
+{
+    Vector3D Z;
+    Z.SetCartesianCoordinates(0.0, 0.0, 0.0);
+    // Must not abort and must not produce NaN/Inf.
+    EXPECT_NO_THROW(Z.normalize());
+    std::array<double, 3> z = Z;
+    EXPECT_FALSE(std::isnan(z[0]));
+    EXPECT_FALSE(std::isnan(z[1]));
+    EXPECT_FALSE(std::isnan(z[2]));
+    EXPECT_TRUE(std::isfinite(z[0]));
+    EXPECT_TRUE(std::isfinite(z[1]));
+    EXPECT_TRUE(std::isfinite(z[2]));
+    // The zero vector is left unchanged (magnitude stays exactly 0).
+    EXPECT_DOUBLE_EQ(0.0, z[0]);
+    EXPECT_DOUBLE_EQ(0.0, z[1]);
+    EXPECT_DOUBLE_EQ(0.0, z[2]);
+    EXPECT_DOUBLE_EQ(0.0, Z.magnitude());
+}
+
+// normalized() is the const sibling and must also be NaN-safe on a zero vector.
+TEST(Normalize, ZeroVectorNormalizedIsFinite)
+{
+    Vector3D Z;
+    Z.SetCartesianCoordinates(0.0, 0.0, 0.0);
+    Vector3D N = Z.normalized();
+    std::array<double, 3> n = N;
+    EXPECT_FALSE(std::isnan(n[0]) || std::isnan(n[1]) || std::isnan(n[2]));
+    EXPECT_DOUBLE_EQ(0.0, N.magnitude());
+}
+
+// Boundary just above the zero-length guard: a tiny but nonzero difference of two
+// Earth-scale coordinates must normalize to a true unit vector, not be left as-is.
+TEST(Normalize, TinyEarthScaleDifferenceIsFiniteUnit)
+{
+    // 1e-7 m is exactly representable relative to 6.371e6 m, so the subtraction is
+    // exact, the magnitude nonzero, and normalize() must yield a unit vector.
+    Vector3D p0;
+    p0.SetCartesianCoordinates(6.371e6, 0.0, 0.0);
+    Vector3D p1;
+    p1.SetCartesianCoordinates(6.371e6 + 1e-7, 0.0, 0.0);
+    Vector3D direction = p1 - p0;
+    double mag = direction.magnitude();
+    ASSERT_GT(mag, 0.0);
+    direction.normalize();
+    std::array<double, 3> d = direction;
+    EXPECT_FALSE(std::isnan(d[0]) || std::isnan(d[1]) || std::isnan(d[2]));
+    // Resulting vector is unit length.
+    EXPECT_NEAR(1.0, direction.magnitude(), 1e-12);
+    EXPECT_NEAR(1.0, d[0], 1e-12);
+}
+
 TEST(CalculateSphericalCoordinates, Conversion)
 {
     Vector3D A;

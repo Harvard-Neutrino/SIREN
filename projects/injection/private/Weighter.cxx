@@ -49,6 +49,10 @@ using detector::DetectorDirection;
 //---------------
 
 void Weighter::Initialize() {
+    // Idempotent: clear any weighters from a prior Initialize() so this can be
+    // called again after LoadWeighter() or after injectors are overwritten.
+    primary_process_weighters.clear();
+    secondary_process_weighter_maps.clear();
     int i = 0;
     primary_process_weighters.reserve(injectors.size());
     secondary_process_weighter_maps.reserve(injectors.size());
@@ -112,7 +116,7 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-            if(datum->depth() == 0) {
+            if(datum->is_root()) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
                 generation_probability *= primary_process_weighters[idx]->GenerationProbability(*datum);
@@ -130,6 +134,10 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                 }
             }
         }
+        // Skip injectors that cannot produce this event; their term is 0/0
+        // where the physical density also vanishes.
+        if(generation_probability == 0.0)
+            continue;
         inv_weight += generation_probability / physical_probability;
     }
     return 1./inv_weight;
@@ -160,7 +168,7 @@ double Weighter::OneWeight(siren::dataclasses::InteractionTree const & tree) con
         double full_generation = 1.0;
         for(auto const & datum : tree.tree) {
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-            if(datum->depth() == 0) {
+            if(datum->is_root()) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 raw_physical *= primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
                 raw_physical *= primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
@@ -200,9 +208,28 @@ double Weighter::OneWeight(siren::dataclasses::InteractionTree const & tree) con
                 }
             }
         }
+        // Skip injectors that cannot produce this event (as EventWeight).
+        if(full_generation == 0.0)
+            continue;
         inv_oneweight += full_generation / raw_physical;
     }
     return 1.0 / inv_oneweight;
+}
+
+std::vector<std::shared_ptr<Injector>> const & Weighter::GetInjectors() const {
+    return injectors;
+}
+
+std::shared_ptr<siren::detector::DetectorModel> Weighter::GetDetectorModel() const {
+    return detector_model;
+}
+
+std::shared_ptr<siren::injection::PhysicalProcess> Weighter::GetPrimaryPhysicalProcess() const {
+    return primary_physical_process;
+}
+
+std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> const & Weighter::GetSecondaryPhysicalProcesses() const {
+    return secondary_physical_processes;
 }
 
 std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
@@ -213,7 +240,7 @@ std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::In
     std::vector<double> int_probs;
     for(auto const & datum : tree.tree) {
         std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-        if(datum->depth() == 0) {
+        if(datum->is_root()) {
             bounds = injectors[i_inj]->PrimaryInjectionBounds(datum->record);
             int_probs.push_back(primary_process_weighters[i_inj]->InteractionProbability(bounds, datum->record));
         }
@@ -238,7 +265,7 @@ std::vector<double> Weighter::GetSurvivalProbabilities(siren::dataclasses::Inter
     std::vector<double> survival_probs;
     for(auto const & datum : tree.tree) {
         std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
-        if(datum->depth() == 0) {
+        if(datum->is_root()) {
             std::get<0>(bounds) = datum->record.primary_initial_position;
             std::get<1>(bounds) = std::get<0>(injectors[i_inj]->PrimaryInjectionBounds(datum->record));
             survival_probs.push_back(primary_process_weighters[i_inj]->SurvivalProbability(bounds, datum->record));
@@ -264,11 +291,17 @@ void Weighter::SaveWeighter(std::string const & filename) const {
 }
 
 void Weighter::LoadWeighter(std::string const & filename) {
-    std::cout << "Weighter loading not yet supported... sorry!\n";
-    exit(0);
     std::ifstream is(filename+".siren_weighter", std::ios::binary);
     ::cereal::BinaryInputArchive archive(is);
-    //this->load(archive,0);
+    // Read members in the same order Weighter::save writes them; the polymorphic
+    // Injector / PhysicalProcess (and the cross sections and decays they hold)
+    // are reconstructed via their registered cereal load hooks. Then rebuild the
+    // per-process weighters.
+    archive(::cereal::make_nvp("Injectors", injectors));
+    archive(::cereal::make_nvp("DetectorModel", detector_model));
+    archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
+    archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+    Initialize();
 }
 
 Weighter::Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes)

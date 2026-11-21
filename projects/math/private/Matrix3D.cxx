@@ -123,13 +123,13 @@ bool Matrix3D::operator==(const Matrix3D& matrix_3d) const
 {
     return (this == &matrix_3d) or (
         xx_ == matrix_3d.xx_ and
-        xy_ == matrix_3d.yy_ and
-        xz_ == matrix_3d.zz_ and
-        yx_ == matrix_3d.xx_ and
+        xy_ == matrix_3d.xy_ and
+        xz_ == matrix_3d.xz_ and
+        yx_ == matrix_3d.yx_ and
         yy_ == matrix_3d.yy_ and
-        yz_ == matrix_3d.zz_ and
-        zx_ == matrix_3d.xx_ and
-        zy_ == matrix_3d.yy_ and
+        yz_ == matrix_3d.yz_ and
+        zx_ == matrix_3d.zx_ and
+        zy_ == matrix_3d.zy_ and
         zz_ == matrix_3d.zz_);
 }
 
@@ -333,7 +333,7 @@ Matrix3D matrix_product(const Matrix3D& mat1, const Matrix3D& mat2)
     p.xx_ = mat1.xx_ * mat2.xx_ +
             mat1.xy_ * mat2.yx_ +
             mat1.xz_ * mat2.zx_;
-    p.xx_ = mat1.xx_ * mat2.xy_ +
+    p.xy_ = mat1.xx_ * mat2.xy_ +
             mat1.xy_ * mat2.yy_ +
             mat1.xz_ * mat2.zy_;
     p.xz_ = mat1.xx_ * mat2.xz_ +
@@ -342,7 +342,7 @@ Matrix3D matrix_product(const Matrix3D& mat1, const Matrix3D& mat2)
     p.yx_ = mat1.yx_ * mat2.xx_ +
             mat1.yy_ * mat2.yx_ +
             mat1.yz_ * mat2.zx_;
-    p.yx_ = mat1.yx_ * mat2.xy_ +
+    p.yy_ = mat1.yx_ * mat2.xy_ +
             mat1.yy_ * mat2.yy_ +
             mat1.yz_ * mat2.zy_;
     p.yz_ = mat1.yx_ * mat2.xz_ +
@@ -351,7 +351,7 @@ Matrix3D matrix_product(const Matrix3D& mat1, const Matrix3D& mat2)
     p.zx_ = mat1.zx_ * mat2.xx_ +
             mat1.zy_ * mat2.yx_ +
             mat1.zz_ * mat2.zx_;
-    p.zx_ = mat1.zx_ * mat2.xy_ +
+    p.zy_ = mat1.zx_ * mat2.xy_ +
             mat1.zy_ * mat2.yy_ +
             mat1.zz_ * mat2.zy_;
     p.zz_ = mat1.zx_ * mat2.xz_ +

@@ -265,6 +265,9 @@ double Vector3D::magnitude() const
 void Vector3D::normalize()
 {
     double length   = std::sqrt(cartesian_.x_ * cartesian_.x_ + cartesian_.y_ * cartesian_.y_ + cartesian_.z_ * cartesian_.z_);
+    if(length == 0.0) {
+        return;
+    }
     cartesian_.x_              = cartesian_.x_ / length;
     cartesian_.y_              = cartesian_.y_ / length;
     cartesian_.z_              = cartesian_.z_ / length;

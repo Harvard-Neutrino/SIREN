@@ -40,7 +40,7 @@ def MergeInteractionCollections(primary_type,int_col_list):
 # Parent python class for handling event generation and weighting
 class SIREN_Controller:
 
-    def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0):
+    def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0, detector_model=None):
         """
         SIREN controller class constructor.
         :param int event_to_inject: number of events to generate
@@ -48,6 +48,9 @@ class SIREN_Controller:
         :param str detector_model_file: path to the detector model file (default None)
         :param str materials_model_file: path to the materials model file (default None)
         :param int seed: Optional random number generator seed (default 0)
+        :param detector_model: a pre-built ``DetectorModel`` to use directly (e.g.
+            a GDML composite from ``load_detector("SBN", detector=...)``); when
+            provided it overrides the experiment/file loading (default None)
         """
 
         self.global_start = time.time()
@@ -67,17 +70,30 @@ class SIREN_Controller:
 
         self.detector_model_file = detector_model_file
         self.materials_model_file = materials_model_file
-        if experiment is not None:
-            # Find the density and materials files
-            detector_dir = _util.get_detector_model_path(experiment)
-            self.materials_model_file = os.path.join(detector_dir, "materials.dat")
-            self.detector_model_file = os.path.join(detector_dir, "densities.dat")
-        elif (self.detector_model_file is None or self.materials_model_file is None):
-            raise ValueError("Must provide either an experiment name or both a detector model file and materials model file")
-
-        self.detector_model = _detector.DetectorModel()
-        self.detector_model.LoadMaterialModel(self.materials_model_file)
-        self.detector_model.LoadDetectorModel(self.detector_model_file)
+        if detector_model is not None:
+            # Use a pre-built DetectorModel directly (e.g. a GDML composite from
+            # load_detector("SBN", detector=...)). It supersedes any
+            # experiment/file configuration, so clear the file paths -- there
+            # are no densities/materials files for file-derived helpers like
+            # GetFiducialVolume() to consult.
+            self.detector_model = detector_model
+            self.detector_model_file = None
+            self.materials_model_file = None
+        else:
+            if experiment is not None:
+                # The experiment's loader builds the model; its densities.dat, if present, sets the fiducial volume.
+                self.detector_model = _util.load_detector(experiment)
+                detector_dir = _util.get_detector_model_path(experiment)
+                densities_file = os.path.join(detector_dir, "densities.dat")
+                materials_file = os.path.join(detector_dir, "materials.dat")
+                self.detector_model_file = densities_file if os.path.isfile(densities_file) else None
+                self.materials_model_file = materials_file if os.path.isfile(materials_file) else None
+            elif (self.detector_model_file is None or self.materials_model_file is None):
+                raise ValueError("Must provide either an experiment name, both a detector model file and materials model file, or a pre-built detector_model")
+            else:
+                self.detector_model = _detector.DetectorModel()
+                self.detector_model.LoadMaterialModel(self.materials_model_file)
+                self.detector_model.LoadDetectorModel(self.detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
@@ -116,39 +132,32 @@ class SIREN_Controller:
         # Define the primary injection process primary type
         self.primary_injection_process.primary_type = primary_type
 
-        # Default injection distributions
+        # Default injection distributions. The pybind Process exposes a
+        # `distributions` list property (the old Add*Distribution methods were
+        # removed upstream), so assemble the full list and assign it once.
+        primary_idist_list = []
         if "mass" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
+            primary_idist_list.append(_distributions.PrimaryMass(0))
         if "helicity" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryNeutrinoHelicityDistribution()
-            )
+            primary_idist_list.append(_distributions.PrimaryNeutrinoHelicityDistribution())
 
         # Add all injection distributions
         for _, idist in primary_injection_distributions.items():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
+            primary_idist_list.append(idist)
+        self.primary_injection_process.distributions = primary_idist_list
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
             secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_injection_process.primary_type = secondary_type
 
-            # Add all injection distributions
-            for idist in secondary_injection_distributions[i_sec]:
-                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
-
+            sec_idist_list = list(secondary_injection_distributions[i_sec])
             # Add the position distribution
             if fid_vol_secondary and self.fid_vol is not None:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-                )
+                sec_idist_list.append(_distributions.SecondaryBoundedVertexDistribution(self.fid_vol))
             else:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution()
-                )
+                sec_idist_list.append(_distributions.SecondaryPhysicalVertexDistribution())
+            secondary_injection_process.distributions = sec_idist_list
 
             self.secondary_injection_processes.append(secondary_injection_process)
 
@@ -170,30 +179,24 @@ class SIREN_Controller:
         # Define the primary physical process primary type
         self.primary_physical_process.primary_type = primary_type
 
-        # Default physical distributions
+        # Default physical distributions (assign the `distributions` list, as for
+        # the injection processes above).
+        primary_pdist_list = []
         if "mass" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
+            primary_pdist_list.append(_distributions.PrimaryMass(0))
         if "helicity" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryNeutrinoHelicityDistribution()
-            )
+            primary_pdist_list.append(_distributions.PrimaryNeutrinoHelicityDistribution())
 
         # Add all physical distributions
         for _, pdist in primary_physical_distributions.items():
-            self.primary_physical_process.AddPhysicalDistribution(pdist)
+            primary_pdist_list.append(pdist)
+        self.primary_physical_process.distributions = primary_pdist_list
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_physical_process.primary_type = secondary_type
-
-            # Add all physical distributions
-            for pdist in secondary_physical_distributions[i_sec]:
-                secondary_physical_process.AddPhysicalDistribution(pdist)
-
+            secondary_physical_process.distributions = list(secondary_physical_distributions[i_sec])
             self.secondary_physical_processes.append(secondary_physical_process)
 
     def SetProcesses(
@@ -295,15 +298,14 @@ class SIREN_Controller:
                 secondary_injection_process = _injection.SecondaryInjectionProcess()
                 secondary_injection_process.primary_type = secondary_type
 
-            # Add the secondary position distribution
+            # Add the secondary position distribution (append to whatever the
+            # process already carries; the pybind `distributions` is a list property).
+            sec_dists = list(secondary_injection_process.distributions)
             if fid_vol_secondary and self.fid_vol is not None:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-                )
+                sec_dists.append(_distributions.SecondaryBoundedVertexDistribution(self.fid_vol))
             else:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution()
-                )
+                sec_dists.append(_distributions.SecondaryPhysicalVertexDistribution())
+            secondary_injection_process.distributions = sec_dists
 
             if not inj_sec_defined:
                 self.secondary_injection_processes.append(secondary_injection_process)
@@ -365,6 +367,10 @@ class SIREN_Controller:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
+        # A pre-built detector model (e.g. a GDML composite) has no
+        # densities.dat to parse a fiducial line from.
+        if self.detector_model_file is None:
+            return None
         with open(self.detector_model_file) as file:
             fiducial_line = None
             detector_line = None
@@ -495,22 +501,22 @@ class SIREN_Controller:
                     )
 
     # set the stopping condition of the injector with a python function
-    # must accept two arguments, assumes first is datum and the second is the index of the secondary particle
+    # must accept three arguments: the tree, the parent datum, and the index of the secondary particle
     def SetInjectorStoppingCondition(self, stopping_condition):
         self.injector.SetStoppingCondition(stopping_condition)
 
     # Initialize the injector, either from an existing .siren_injector file or from controller injection objects
     def InitializeInjector(self, filenames=None):
-        if type(filenames) == str:
-            if os.path.isfile(filenames):
-                filenames = [filenames]
+        # A single filename is one injector; wrap it so the loop below does not
+        # iterate the string character by character when the file is missing.
+        if isinstance(filenames, str):
+            filenames = [filenames]
         self.injectors=[]
-        filenames = None
         if filenames is None:
             assert(self.primary_injection_process.primary_type is not None)
             # Use controller injection objects
             self.injectors.append(
-                _injection.Injector(
+                _injection._Injector(
                     self.events_to_inject,
                     self.detector_model,
                     self.primary_injection_process,
@@ -523,7 +529,7 @@ class SIREN_Controller:
             assert(len(filenames)>0) # require at least one injector filename
             for filename in filenames:
                 self.injectors.append(
-                    _injection.Injector(
+                    _injection._Injector(
                         self.events_to_inject,
                         filename,
                         self.random,
@@ -537,7 +543,7 @@ class SIREN_Controller:
         if filename is None:
             assert(self.primary_physical_process.primary_type is not None)
             # Use controller physical objects
-            self.weighter = _injection.Weighter(
+            self.weighter = _injection._Weighter(
                 self.injectors,
                 self.detector_model,
                 self.primary_physical_process,
@@ -545,7 +551,7 @@ class SIREN_Controller:
             )
         else:
             # Try initilalizing with the provided filename
-            self.weighter = _injection.Weighter(
+            self.weighter = _injection._Weighter(
                 self.injectors,
                 filename
             )
@@ -565,7 +571,15 @@ class SIREN_Controller:
         if N is None:
             N = self.events_to_inject
         count = 0
-        self.gen_times,self.global_times = [],[]
+        # self.events accumulates across calls (appended to, never reset), so
+        # gen_times/global_times must accumulate the same way: resetting them
+        # here would desync their length from self.events after a prior
+        # LoadEvents or GenerateEvents call, and SaveEvents indexes both lists
+        # by the same event index.
+        if not hasattr(self, "gen_times"):
+            self.gen_times = []
+        if not hasattr(self, "global_times"):
+            self.global_times = []
         prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
             if verbose: print("Injecting Event %d/%d  " % (count, N), end="\r")
@@ -583,18 +597,56 @@ class SIREN_Controller:
     # Load events from the custom SIREN event format
     def LoadEvents(self, filename):
         self.events = _dataclasses.LoadInteractionTrees(filename)
-        self.gen_times = np.zeros_like(self.events)
-        self.global_times = np.zeros_like(self.events)
+        # Plain lists (not np.zeros_like, which yields an ndarray with no
+        # .append) so a subsequent GenerateEvents call can append in sync with
+        # self.events instead of crashing or desyncing lengths.
+        self.gen_times = [0.0] * len(self.events)
+        self.global_times = [0.0] * len(self.events)
+
+    # Load events from a HepMC3 file written by SIREN
+    def LoadEventsFromHepMC3(self, filename, strict=True):
+        from . import hepmc3 as _hepmc3
+        self.events = _hepmc3.LoadInteractionTreesFromHepMC3(filename, strict)
+        self.gen_times = [0.0] * len(self.events)
+        self.global_times = [0.0] * len(self.events)
 
     # Save events to hdf5, parquet, and/or custom SIREN filetypes
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True, # filetypes to save events
                    save_int_probs=False,save_int_params=False,save_survival_probs=False,
-                   verbose=True):
+                   verbose=True, hepmc3=False, hepmc3_weights="auto", hepmc3_gzip=False):
+
+        # Resolve the HepMC3 weight policy up front so per-event central values are
+        # computed exactly once (BEFORE any file is written) and reused by the native
+        # file, the HepMC3 file, and the tabular datasets below. Under "auto" the
+        # controller's weighter (when present) populates the tree headers.
+        hepmc3_cv = None
+        hepmc3_state = "unweighted"
+        if hepmc3 or siren_events:
+            hepmc3_cv, hepmc3_state = _util.resolve_hepmc3_weight_policy(
+                self.events, hepmc3_weights, getattr(self, "weighter", None))
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
+        if hepmc3:
+            from . import hepmc3 as _hepmc3
+            opts = _hepmc3.HepMC3WriterOptions()
+            opts.weights_state = hepmc3_state
+            opts.gzip = bool(hepmc3_gzip)
+            # Store the generation counts (from the injector) as run metadata; used
+            # to normalize the flux-averaged cross section. Absent after LoadEvents.
+            if getattr(self, "injector", None) is not None:
+                opts.attempted_events = int(self.injector.InjectionAttempts())
+                opts.accepted_events = int(self.injector.InjectedEvents())
+                # The pooled-weighting seed N_i (EventsToInject); persisted as
+                # siren.events_to_inject so a downstream pooler can reconstruct the
+                # intended per-file event budget.
+                opts.events_to_inject = int(self.injector.EventsToInject())
+            out = filename + ".hepmc3"
+            if hepmc3_gzip and not out.endswith(".gz"):
+                out = out + ".gz"
+            _hepmc3.SaveInteractionTreesAsHepMC3(self.events, out, opts)
         # A dictionary containing each dataset we'd like to save
         datasets = {
             "event_weight":[], # weight of entire event
@@ -603,7 +655,9 @@ class SIREN_Controller:
             "event_global_time":[], # global time of each event
             "num_interactions":[], # number of interactions per event
             "vertex":[], # vertex of each interaction of an event
+            "vertex_time":[], # time of each interaction vertex of an event
             "primary_initial_position":[], # initial position of primary in each interaction of an event
+            "primary_initial_time":[], # initial time of primary in each interaction of an event
             "in_fiducial":[], # whether or not each vertex is in the fiducial volume
             "primary_type":[], # primary type of each interaction
             "target_type":[], # target type of each interaction
@@ -611,6 +665,7 @@ class SIREN_Controller:
             "secondary_types":[], # secondary type of each interaction
             "primary_momentum":[], # primary momentum of each interaction
             "secondary_momenta":[], # secondary momentum of each interaction
+            "secondary_times":[], # production time of each secondary of each interaction
             "parent_idx":[], # index of the parent interaction
             "num_daughters":[], # number of daughter interactions
         }
@@ -620,7 +675,10 @@ class SIREN_Controller:
         for ie, event in enumerate(self.events):
             if verbose: print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
-            datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
+            if hepmc3_cv is not None:
+                datasets["event_weight"].append(hepmc3_cv[ie])  # reuse the CV computed above
+            else:
+                datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
             if save_int_probs:
                 datasets["int_probs"].append(self.weighter.GetInteractionProbabilities(event)if hasattr(self,"weighter") else [])
             if save_survival_probs:
@@ -630,7 +688,9 @@ class SIREN_Controller:
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
             for k in ["vertex",
+                      "vertex_time",
                       "primary_initial_position",
+                      "primary_initial_time",
                       "in_fiducial",
                       "primary_type",
                       "target_type",
@@ -638,11 +698,14 @@ class SIREN_Controller:
                       "secondary_types",
                       "primary_momentum",
                       "secondary_momenta",
+                      "secondary_times",
                       "parent_idx",
                       "num_daughters"]:
                 datasets[k].append([])
             if save_int_params:
                 datasets["int_params"].append({})
+            # parent index of each interaction, taken from the tree's parent edges
+            parent_indices = _util.get_parent_indices(event.tree)
             # loop over interactions
             for id, datum in enumerate(event.tree):
                 if save_int_params:
@@ -651,22 +714,17 @@ class SIREN_Controller:
                             datasets["int_params"][-1][param_name] = []
                         datasets["int_params"][-1][param_name].append(param_value)
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+                datasets["vertex_time"][-1].append(datum.record.interaction_time)
                 datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
+                datasets["primary_initial_time"][-1].append(datum.record.primary_initial_time)
 
                  # primary particle stuff
                 datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
-                datasets["num_daughters"][-1].append(len(datum.daughters))
+                datasets["num_daughters"][-1].append(len(datum.daughter_indices))
 
-                # check parent idx; match on secondary momenta
-                if datum.depth()==0:
-                    datasets["parent_idx"][-1].append(-1)
-                else:
-                    for _id in range(len(datasets["secondary_momenta"][-1])):
-                        for secondary_momentum in datasets["secondary_momenta"][-1][_id]:
-                            if (datasets["primary_momentum"][-1][-1] == secondary_momentum).all():
-                                datasets["parent_idx"][-1].append(_id)
-                                break
+                # parent interaction index (from the tree's parent/daughter edges)
+                datasets["parent_idx"][-1].append(parent_indices[id])
 
                 if self.fid_vol is not None:
                     pos = _math.Vector3D(datasets["vertex"][-1][-1])
@@ -682,17 +740,31 @@ class SIREN_Controller:
                 # secondary particle stuff
                 datasets["secondary_types"][-1].append([])
                 datasets["secondary_momenta"][-1].append([])
-                for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.signature.secondary_types,
-                                                                   datum.record.secondary_momenta)):
+                datasets["secondary_times"][-1].append([])
+                # events loaded from old files predate secondary_times;
+                # fall back to the vertex time for them
+                sec_times = datum.record.secondary_times
+                if len(sec_times) != len(datum.record.secondary_momenta):
+                    sec_times = [datum.record.interaction_time] * len(datum.record.secondary_momenta)
+                for isec, (sec_type, sec_momenta, sec_time) in enumerate(zip(datum.record.signature.secondary_types,
+                                                                             datum.record.secondary_momenta,
+                                                                             sec_times)):
                     datasets["secondary_types"][-1][-1].append(int(sec_type))
                     datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
-                datasets["num_secondaries"][-1].append(isec+1)
+                    datasets["secondary_times"][-1][-1].append(sec_time)
+                datasets["num_secondaries"][-1].append(len(datum.record.secondary_momenta))
             datasets["num_interactions"].append(id+1)
 
-        # save injector and weighter
-        self.injector.SaveInjector(filename)
-        # weighter saving not yet supported
-        #self.weighter.SaveWeighter(filename)
+        # save injector and weighter (writes <filename>.siren_injector and
+        # <filename>.siren_weighter alongside the event file). These are the
+        # pybind _Injector/_Weighter objects, so use their C++ serialization
+        # methods (SaveInjector writes the literal path; SaveWeighter appends
+        # the .siren_weighter suffix). Both are optional: a load-then-save flow
+        # (LoadEvents / LoadEventsFromHepMC3 without Initialize) has neither.
+        if getattr(self, "injector", None) is not None:
+            self.injector.SaveInjector(filename + ".siren_injector")
+        if getattr(self, "weighter", None) is not None:
+            self.weighter.SaveWeighter(filename)
 
         # save events
         ak_array = ak.Array(datasets)

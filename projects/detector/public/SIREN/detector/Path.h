@@ -47,9 +47,6 @@ private:
     DetectorDirection direction_det_;
     bool set_det_points_ = false;
 
-    double column_depth_cached_;
-    bool set_column_depth_ = false;
-
     geometry::Geometry::IntersectionList intersections_;
     bool set_intersections_ = false;
 
@@ -84,7 +81,6 @@ public:
     bool HasDetectorModel();
     bool HasPoints();
     bool HasIntersections();
-    bool HasColumnDepth();
 
     std::shared_ptr<const DetectorModel> GetDetectorModel();
     DetectorPosition const & GetFirstPoint();

@@ -9,6 +9,7 @@
 #include "../../public/SIREN/interactions/DISFromSpline.h"
 #include "../../public/SIREN/interactions/DummyCrossSection.h"
 #include "../../public/SIREN/interactions/ElasticScattering.h"
+#include "../../public/SIREN/interactions/TrivialCrossSection.h"
 #include "../../public/SIREN/interactions/ElectroweakDecay.h"
 #include "../../public/SIREN/interactions/HNLDipoleDecay.h"
 #include "../../public/SIREN/interactions/HNLDipoleFromTable.h"
@@ -16,16 +17,25 @@
 #include "../../public/SIREN/interactions/HNLDISFromSpline.h"
 #include "../../public/SIREN/interactions/HNLDecay.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
+#include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
+#include "../../public/SIREN/interactions/CharmMesonDecay.h"
+#include "../../public/SIREN/interactions/CharmMesonDecay3Body.h"
+#include "../../public/SIREN/interactions/DMesonELoss.h"
+#ifdef SIREN_HAS_PYTHIA8
+#include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
+#endif
 
 
 #include "./Interaction.h"
 #include "./CrossSection.h"
 #include "./DarkNewsCrossSection.h"
 #include "./DarkNewsDecay.h"
-#include "./Decay.h"
 #include "./DISFromSpline.h"
+#include "./QuarkDISFromSpline.h"
+#include "./Decay.h"
 #include "./DummyCrossSection.h"
 //#include "./ElasticScattering.h"
+#include "./TrivialCrossSection.h"
 #include "./ElectroweakDecay.h"
 #include "./HNLDipoleDecay.h"
 #include "./HNLDipoleFromTable.h"
@@ -33,6 +43,10 @@
 #include "./HNLDISFromSpline.h"
 #include "./HNLDecay.h"
 #include "./InteractionCollection.h"
+#include "./CharmMesonDecay.h"
+#include "./CharmMesonDecay3Body.h"
+#include "./DMesonELoss.h"
+#include "./PythiaDISCrossSection.h"
 #include "./MarleyCrossSection.h"
 
 #include <pybind11/pybind11.h>
@@ -54,6 +68,7 @@ PYBIND11_MODULE(interactions,m) {
     register_DISFromSpline(m);
     register_DummyCrossSection(m);
     //register_ElasticScattering();
+    register_TrivialCrossSection(m);
     register_ElectroweakDecay(m);
     register_HNLDipoleDecay(m);
     register_HNLDipoleFromTable(m);
@@ -61,5 +76,10 @@ PYBIND11_MODULE(interactions,m) {
     register_HNLDISFromSpline(m);
     register_HNLDecay(m);
     register_InteractionCollection(m);
+    register_QuarkDISFromSpline(m);
+    register_CharmMesonDecay(m);
+    register_CharmMesonDecay3Body(m);
+    register_DMesonELoss(m);
+    register_PythiaDISCrossSection(m);
     register_MarleyCrossSection(m);
 }

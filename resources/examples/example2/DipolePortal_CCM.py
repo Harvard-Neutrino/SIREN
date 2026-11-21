@@ -92,7 +92,7 @@ for secondary_type in secondary_processes.keys():
     ]
 
 # Define stopping condition for the injector
-def stop(datum, i):
+def stop(tree, datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
     return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 
@@ -120,7 +120,8 @@ weighter.secondary_interactions = secondary_processes
 weighter.primary_physical_distributions = primary_physical_distributions
 weighter.secondary_physical_distributions = {}
 
-SaveEvents(events,weighter,gen_times,output_filename="output/CCM_Dipole")
+# save_hepmc3=True additionally writes output/CCM_Dipole.hepmc3 (HepMC3/NuHepMC).
+SaveEvents(events,weighter,gen_times,output_filename="output/CCM_Dipole",save_hepmc3=True)
 
 # save cross section tables
 SaveDarkNewsProcesses(table_dir,

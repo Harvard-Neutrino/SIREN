@@ -15,6 +15,8 @@
 #include "./CartesianAxis1D.h"
 #include "./CartesianAxisExponentialDensityDistribution.h"
 #include "./CartesianAxisPolynomialDensityDistribution.h"
+#include "./RadialAxisExponentialDensityDistribution.h"
+#include "./RadialAxisPolynomialDensityDistribution.h"
 #include "./ConstantDensityDistribution.h"
 #include "./MaterialModel.h"
 
@@ -36,6 +38,8 @@ PYBIND11_MODULE(detector,m) {
 
     register_CartesianAxisExponentialDensityDistribution(m);
     register_CartesianAxisPolynomialDensityDistribution(m);
+    register_RadialAxisExponentialDensityDistribution(m);
+    register_RadialAxisPolynomialDensityDistribution(m);
     register_ConstantDensityDistribution(m);
 
     register_MaterialModel(m);

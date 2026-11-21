@@ -98,7 +98,7 @@ public:
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<HNLDipoleFromTable> & construct, std::uint32_t version) {
+    static void load_and_construct(Archive & archive, cereal::construct<HNLDipoleFromTable> & construct, std::uint32_t version) {
         if(version == 0) {
             bool _z_samp = true;
             bool _in_invGeV = true;

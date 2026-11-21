@@ -19,12 +19,16 @@ void register_ExponentialDistribution1D(pybind11::module_ & m) {
         .def(init<>())
         .def(init<ExponentialDistribution1D>())
         .def(init<double>())
+        .def(init<double, double, double>(), arg("sigma"), arg("amplitude"), arg("x0"))
         .def("_compare", &ExponentialDistribution1D::compare)
         .def("_clone", &ExponentialDistribution1D::clone)
         .def("_create", &ExponentialDistribution1D::create)
         .def("Derivative", &ExponentialDistribution1D::Derivative)
         .def("AntiDerivative", &ExponentialDistribution1D::AntiDerivative)
         .def("Evaluate", &ExponentialDistribution1D::Evaluate)
+        .def_property_readonly("sigma", &ExponentialDistribution1D::GetSigma)
+        .def_property_readonly("amplitude", &ExponentialDistribution1D::GetAmplitude)
+        .def_property_readonly("x0", &ExponentialDistribution1D::GetX0)
         ;
 }
 

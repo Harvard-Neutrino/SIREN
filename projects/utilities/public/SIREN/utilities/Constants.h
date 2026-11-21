@@ -23,12 +23,21 @@ static const double degrees         = pi/180.; // converts degrees into radians.
 // expect angles presented in radians.
 static const double &deg            = degrees; // adding this in too...
 static const double radian          = 1.;
+static const double mrad            = 1.e-3*radian;
 
 // meter
 static const double m               = 1.;
 static const double &meter          = m;
-static const double cm              = 0.01*m;
+static const double nm              = 1.e-9*m;
+static const double &nanometer      = nm;
+static const double um              = 1.e-6*m;
+static const double &micrometer     = um;
+static const double mm              = 1.e-3*m;
+static const double &millimeter     = mm;
+static const double cm              = 1.e-2*m;
 static const double &centimeter     = cm;
+static const double km              = 1.e3*m;
+static const double &kilometer       = km;
 
 // second is a billion to be consistent with IceCube code
 static const double second          = 1.e9;
@@ -48,17 +57,12 @@ static const double lambda0Mass        = 1.1156836; // GeV
 static const double Pi0Mass            = 0.1349770; // GeV
 static const double PiPlusMass         = 0.13957039; // GeV
 static const double PiMinusMass        = 0.13957039; // GeV
-static const double K0Mass             = 0.497614; // GeV
+static const double K0Mass             = 0.497614; // GeV (PDG K0L)
 static const double KPlusMass          = 0.493677; // GeV
 static const double KMinusMass         = 0.493677; // GeV
 static const double KPrime0Mass        = 0.896; // GeV
 static const double KPrimePlusMass     = 0.89167; // GeV
 static const double KPrimeMinusMass    = 0.89167; // GeV
-static const double D0Mass             = 1.86484; // GeV
-static const double DPlusMass          = 1.86962; // GeV
-static const double DMinusMass         = 1.86962; // GeV
-static const double DsPlusMass         = 1.96835; // GeV
-static const double DsMinusMass        = 1.96835; // GeV
 static const double EtaMass            = 0.547862; // GeV
 static const double EtaPrimeMass       = 0.95778;  // GeV
 static const double Rho0Mass           = 0.77526; // GeV
@@ -66,6 +70,11 @@ static const double RhoPlusMass        = 0.77511; // GeV
 static const double RhoMinusMass       = 0.77511; // GeV
 static const double OmegaMass          = 0.78266; // GeV
 static const double PhiMass            = 1.019461; // GeV
+static const double D0Mass             = 1.86484; // GeV (PDG D0)
+static const double DPlusMass          = 1.86966; // GeV (PDG D+, 2024 PDG)
+static const double DMinusMass         = 1.86966; // GeV (PDG D-, 2024 PDG)
+static const double DsPlusMass         = 1.96835; // GeV
+static const double DsMinusMass        = 1.96835; // GeV
 static const double BPlusMass          = 5.27932; // GeV
 static const double BMinusMass         = 5.27932; // GeV
 // Quark masses from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-quark-masses.pdf
@@ -125,6 +134,9 @@ static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]
 static const double fineStructure   = 1.0/137.0; // dimensionless
 static const double hbarc           = 197.3*(1e-9)*(1e-7)*GeV*cm; // [GeV m]
 static const double gweak           = 0.64; // Pg 588 of Schwartz
+
+//hbar
+static const double hbar            = 6.58211957 * (1e-25); // GeV seconds
 
 // CKM matrix elements
 // from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-ckm-matrix.pdf

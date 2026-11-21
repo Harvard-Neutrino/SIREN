@@ -29,6 +29,7 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("DifferentialCrossSection", &CrossSection::DifferentialCrossSection)
         .def("InteractionThreshold", &CrossSection::InteractionThreshold)
         .def("SampleFinalState", (void (CrossSection::*)(siren::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const)(&CrossSection::SampleFinalState))
+        .def("SampleInteractionTime", &CrossSection::SampleInteractionTime)
         .def("GetPossibleTargets", &CrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary", &CrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries", &CrossSection::GetPossiblePrimaries)

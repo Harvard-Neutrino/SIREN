@@ -8,6 +8,9 @@
 #include "SIREN/math/Matrix3D.h"
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/math/Quaternion.h"
+#include "SIREN/math/EulerAngles.h"
+#include "SIREN/math/Conversions.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
 
 using namespace siren::math;
 
@@ -785,42 +788,121 @@ TEST(Quaternion, AllEulerConversions)
             Quaternion mat_q;
             mat_q.SetMatrix(q.GetMatrix());
 
-            EXPECT_NEAR(std::abs(q.GetX()), std::abs(mat_q.GetX()), 1e-12);
-            EXPECT_NEAR(std::abs(q.GetY()), std::abs(mat_q.GetY()), 1e-12);
-            EXPECT_NEAR(std::abs(q.GetZ()), std::abs(mat_q.GetZ()), 1e-12);
-            EXPECT_NEAR(std::abs(q.GetW()), std::abs(mat_q.GetW()), 1e-12);
+            {
+                double dp = std::abs(q.GetX()-mat_q.GetX()) + std::abs(q.GetY()-mat_q.GetY())
+                          + std::abs(q.GetZ()-mat_q.GetZ()) + std::abs(q.GetW()-mat_q.GetW());
+                double dm = std::abs(q.GetX()+mat_q.GetX()) + std::abs(q.GetY()+mat_q.GetY())
+                          + std::abs(q.GetZ()+mat_q.GetZ()) + std::abs(q.GetW()+mat_q.GetW());
+                EXPECT_LT(std::min(dp, dm), 1e-12)
+                    << "SetMatrix round-trip: quaternion differs";
+            }
 
             q.GetEulerAngles(res, order);
-
-            double alpha_diff = std::abs(angles[0] - res.GetAlpha());
-            double beta_diff = std::abs(angles[1] - res.GetBeta());
-            double beta_sum = std::abs(angles[1] + res.GetBeta());
-            double gamma_diff = std::abs(angles[2] - res.GetGamma());
-
-            bool alpha_near = alpha_diff < 1e-12;
-            bool beta_near = beta_diff < 1e-12;
-            bool gamma_near = gamma_diff < 1e-12;
-            bool near = alpha_near and beta_near and gamma_near;
-
-            bool alpha_pi = std::abs(alpha_diff - M_PI) < 1e-12;
-            bool beta_pi = std::abs(beta_sum - M_PI) < 1e-12;
-            bool beta_zero = std::abs(beta_sum) < 1e-12;
-            bool gamma_pi = std::abs(gamma_diff - M_PI) < 1e-12;
-            bool rev_near = alpha_pi and (beta_pi or beta_zero) and gamma_pi;
-
-            EXPECT_TRUE(near or rev_near) << alpha_diff << std::endl << beta_diff << std::endl << gamma_diff << std::endl << beta_sum;
-
-            //EXPECT_NEAR(angles[0], res.GetAlpha(), 1e-12);
-            //EXPECT_NEAR(angles[1], res.GetBeta(), 1e-12);
-            //EXPECT_NEAR(angles[2], res.GetGamma(), 1e-12);
 
             Quaternion qq;
             qq.SetEulerAngles(res);
 
-            EXPECT_NEAR(std::abs(q.GetX()), std::abs(qq.GetX()), 1e-12);
-            EXPECT_NEAR(std::abs(q.GetY()), std::abs(qq.GetY()), 1e-12);
-            EXPECT_NEAR(std::abs(q.GetZ()), std::abs(qq.GetZ()), 1e-12);
-            EXPECT_NEAR(std::abs(q.GetW()), std::abs(qq.GetW()), 1e-12);
+            {
+                double dp = std::abs(q.GetX()-qq.GetX()) + std::abs(q.GetY()-qq.GetY())
+                          + std::abs(q.GetZ()-qq.GetZ()) + std::abs(q.GetW()-qq.GetW());
+                double dm = std::abs(q.GetX()+qq.GetX()) + std::abs(q.GetY()+qq.GetY())
+                          + std::abs(q.GetZ()+qq.GetZ()) + std::abs(q.GetW()+qq.GetW());
+                EXPECT_LT(std::min(dp, dm), 1e-12)
+                    << "Euler round-trip: recomposed quaternion differs";
+            }
+        }
+    }
+}
+
+// Regression guard for SIREN's two XYZs Euler<->quaternion implementations:
+//   - standalone siren::math::QFromXYZs / XYZsFromQ
+//   - generic siren::math::QuaternionFromEulerAngles / EulerAnglesFromQuaternion
+// They must agree with each other and with the explicit extrinsic X-Y-Z
+// composition qz*qy*qx (the rotation Geant4's GDML GetRotationMatrix builds).
+//
+// Catches two historical defects:
+//  (a) QFromXYZs y-component sign error: sb*cc - cb*ss should be
+//      sb*cc + cb*ss. Only shows for compound rotations (>=2 nonzero axes).
+//  (b) XYZsFromQ gimbal-lock detection via sqrt(1-(wy-xz)^2): catastrophic
+//      cancellation near beta = +-pi/2 kept it off the degenerate branch
+//      and produced angles that did not recompose to the input rotation.
+TEST(Quaternion, XYZsEulerConsistency)
+{
+    auto sign_aware_diff = [](Quaternion const & a, Quaternion const & b) {
+        double dp = std::abs(a.GetX()-b.GetX()) + std::abs(a.GetY()-b.GetY())
+                  + std::abs(a.GetZ()-b.GetZ()) + std::abs(a.GetW()-b.GetW());
+        double dm = std::abs(a.GetX()+b.GetX()) + std::abs(a.GetY()+b.GetY())
+                  + std::abs(a.GetZ()+b.GetZ()) + std::abs(a.GetW()+b.GetW());
+        return std::min(dp, dm);
+    };
+    auto ref_qzqyqx = [](double rx, double ry, double rz) {
+        Quaternion qx(std::sin(rx/2), 0, 0, std::cos(rx/2));
+        Quaternion qy(0, std::sin(ry/2), 0, std::cos(ry/2));
+        Quaternion qz(0, 0, std::sin(rz/2), std::cos(rz/2));
+        return qz * qy * qx;
+    };
+
+    // Forward: compound rotations exercise the y cross term (defect a).
+    double angles[][3] = {
+        {30, 0, 60}, {90, 0, 90}, {30, 45, 60}, {10, 20, 30},
+        {-120, 35, 170}, {15, -80, -25}, {0, 0, 90}, {45, 0, 0}
+    };
+    for(auto const & a : angles) {
+        double rx = a[0]*M_PI/180, ry = a[1]*M_PI/180, rz = a[2]*M_PI/180;
+        Quaternion qstd = siren::math::QFromXYZs(rx, ry, rz);
+        Quaternion qgen = siren::math::QuaternionFromEulerAngles(
+            EulerAngles(EulerOrder::XYZs, rx, ry, rz));
+        Quaternion qref = ref_qzqyqx(rx, ry, rz);
+        EXPECT_LT(sign_aware_diff(qstd, qgen), 1e-12)
+            << "QFromXYZs disagrees with generic for ("
+            << a[0] << "," << a[1] << "," << a[2] << ")";
+        EXPECT_LT(sign_aware_diff(qstd, qref), 1e-12)
+            << "QFromXYZs disagrees with qz*qy*qx for ("
+            << a[0] << "," << a[1] << "," << a[2] << ")";
+    }
+
+    // Round-trip including explicit gimbal lock beta = +-90 deg (defect b):
+    // any valid XYZs decomposition must recompose to the original rotation.
+    for(double aa : {-150.0, -30.0, 40.0, 175.0}) {
+        for(double gg : {-160.0, -10.0, 55.0, 120.0}) {
+            for(double bb : {-90.0, -57.0, 0.0, 33.0, 90.0}) {
+                double rx = aa*M_PI/180, ry = bb*M_PI/180, rz = gg*M_PI/180;
+                Quaternion q = siren::math::QFromXYZs(rx, ry, rz);
+                EulerAngles e = siren::math::XYZsFromQ(q);
+                Quaternion q2 = siren::math::QFromXYZs(
+                    e.GetAlpha(), e.GetBeta(), e.GetGamma());
+                EXPECT_LT(sign_aware_diff(q, q2), 1e-9)
+                    << "XYZsFromQ round-trip failed at ("
+                    << aa << "," << bb << "," << gg << ")";
+
+                // XYZsFromQ must match the generic inverse.
+                EulerAngles eg = siren::math::EulerAnglesFromQuaternion(
+                    q, EulerOrder::XYZs);
+                Quaternion qg = siren::math::QFromXYZs(
+                    eg.GetAlpha(), eg.GetBeta(), eg.GetGamma());
+                EXPECT_LT(sign_aware_diff(q, qg), 1e-9)
+                    << "generic inverse round-trip failed at ("
+                    << aa << "," << bb << "," << gg << ")";
+            }
+        }
+    }
+
+    // Public API consumers (Quaternion::SetEulerAnglesXYZs / GetEulerAnglesXYZs)
+    // must round-trip too, including at gimbal lock.
+    for(double aa : {-100.0, 25.0, 160.0}) {
+        for(double bb : {-90.0, 20.0, 90.0}) {
+            for(double gg : {-140.0, 70.0}) {
+                double rx = aa*M_PI/180, ry = bb*M_PI/180, rz = gg*M_PI/180;
+                Quaternion q;
+                q.SetEulerAnglesXYZs(rx, ry, rz);
+                double oa, ob, og;
+                q.GetEulerAnglesXYZs(oa, ob, og);
+                Quaternion q2;
+                q2.SetEulerAnglesXYZs(oa, ob, og);
+                EXPECT_LT(sign_aware_diff(q, q2), 1e-9)
+                    << "SetEulerAnglesXYZs/GetEulerAnglesXYZs round-trip failed at ("
+                    << aa << "," << bb << "," << gg << ")";
+            }
         }
     }
 }

@@ -296,15 +296,18 @@ class PyDarkNewsDecay(DarkNewsDecay):
         else:
             print("%s is not a valid decay class type!" % type(self.dec_case))
             exit(0)
-        return self.dec_case.differential_width(momenta)
+        ret = self.dec_case.differential_width(momenta)
+        if hasattr(ret, "item"):
+            ret = ret.item()
+        return ret
 
-    def TotalDecayWidth(self, arg1):
+    def TotalDecayWidthAllFinalStates(self, arg1):
         if isinstance(arg1, dataclasses.InteractionRecord):
             primary = arg1.signature.primary_type
         elif isinstance(arg1, dataclasses.Particle.ParticleType):
             primary = arg1
         else:
-            print("Incorrect function call to TotalDecayWidth!")
+            print("Incorrect function call to TotalDecayWidthAllFinalStates!")
             exit(0)
         if int(primary) != self.dec_case.nu_parent:
             return 0
@@ -342,9 +345,12 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     )
             else:
                 self.total_width = self.dec_case.total_width()
-        return self.total_width
+        ret = self.total_width
+        if hasattr(ret, "item"):
+            ret = ret.item()
+        return ret
 
-    def TotalDecayWidthForFinalState(self, record):
+    def TotalDecayWidth(self, record):
         sig = self.GetPossibleSignatures()[0]
         if (
             (record.signature.primary_type != sig.primary_type)
@@ -361,6 +367,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
         ):
             return 0
         ret = self.dec_case.total_width()
+        if hasattr(ret, "item"):
+            ret = ret.item()
         return ret
 
     def DensityVariables(self):
@@ -437,7 +445,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         # Find the four-momenta associated with this point
         # Expand dims required to call DarkNews function on signle sample
         four_momenta = get_decay_momenta_from_vegas_samples(
-            np.expand_dims(PS, 0),
+            np.expand_dims(PS, 0).T,
             _FakeMCInterface(random),
             self.dec_case,
             np.expand_dims(np.array(record.primary_momentum), 0),

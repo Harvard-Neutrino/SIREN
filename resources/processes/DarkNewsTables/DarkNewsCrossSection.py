@@ -224,6 +224,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 )
                 return 0
             val = max(0, interpolator(inputs))
+            if hasattr(val, "item"):
+                val = val.item()
             if val < 0:
                 print(
                     "WARNING: negative interpolated value for %s-%s %s cross section at,"
@@ -248,7 +250,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 exit(0)
             return interp_table[closest_idx, -1]
         elif Interpolate:
-            return interpolator(inputs)
+            val = interpolator(inputs)
+            if hasattr(val, "item"):
+                val = val.item()
+            return val
         else:
             return -1
 
@@ -390,11 +395,13 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             p1p3 = interaction.primary_momentum[0] * interaction.secondary_momenta[0][
                 0
             ] - np.sum(
-                p1 * p3
-                for p1, p3 in zip(
-                    interaction.primary_momentum[1:],
-                    interaction.secondary_momenta[0][1:],
-                )
+                [
+                    p1 * p3
+                    for p1, p3 in zip(
+                        interaction.primary_momentum[1:],
+                        interaction.secondary_momenta[0][1:],
+                    )
+                ]
             )
             Q2 = -(m1sq + m3sq - 2 * p1p3)
             energy = interaction.primary_momentum[0]
@@ -477,6 +484,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         # If we have reached this block, we must compute the cross section using DarkNews
         xsec = self.ups_case.total_xsec(energy)
+        if hasattr(xsec, "item"):
+            xsec = xsec.item()
         self.total_cross_section_table = np.vstack(
             (self.total_cross_section_table, [[energy, xsec]])
         )

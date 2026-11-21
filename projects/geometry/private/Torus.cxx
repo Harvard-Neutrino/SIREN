@@ -1,0 +1,477 @@
+#include "SIREN/geometry/Torus.h"
+
+#include <cmath>
+#include <limits>
+#include <tuple>
+#include <string>
+#include <vector>
+#include <ostream>
+#include <utility>
+#include <algorithm>
+#include <stdexcept>
+
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Placement.h"
+#include "GeometryMacros.h"
+#include "PhiUtils.h"
+
+namespace siren {
+namespace geometry {
+
+namespace {
+
+using phi_utils::NormalizePhi;
+using phi_utils::PhiInRange;
+using phi_utils::InitialPhiState;
+using phi_utils::ZAxisWedgeEntering;
+using phi_utils::TWO_PI;
+
+// =========================================================================
+// Cubic and quartic solvers for ray-torus intersection
+// =========================================================================
+
+// Solve depressed cubic t^3 + p*t + q = 0 using trigonometric method.
+// Returns the number of real roots found (1 or 3).
+// Roots are stored in roots[0..n-1], unsorted.
+int SolveDepressedCubic(double p, double q, double roots[3]) {
+    double disc = -4.0 * p * p * p - 27.0 * q * q;
+
+    if(disc >= 0) {
+        // Three real roots (or repeated) -- trigonometric method
+        double mp3 = -p / 3.0;
+        if(mp3 < 0) mp3 = 0;
+        double r = std::sqrt(mp3);
+        double cos_arg = 0;
+        if(r > 0) {
+            cos_arg = -q / (2.0 * r * r * r);
+            if(cos_arg > 1.0) cos_arg = 1.0;
+            if(cos_arg < -1.0) cos_arg = -1.0;
+        }
+        double theta = std::acos(cos_arg);
+        roots[0] = 2.0 * r * std::cos(theta / 3.0);
+        roots[1] = 2.0 * r * std::cos((theta + 2.0 * M_PI) / 3.0);
+        roots[2] = 2.0 * r * std::cos((theta + 4.0 * M_PI) / 3.0);
+        return 3;
+    } else {
+        // One real root -- Cardano's formula
+        double sq = std::sqrt(q * q / 4.0 + p * p * p / 27.0);
+        double u = std::cbrt(-q / 2.0 + sq);
+        double v = std::cbrt(-q / 2.0 - sq);
+        roots[0] = u + v;
+        return 1;
+    }
+}
+
+// Solve monic quartic x^4 + a*x^3 + b*x^2 + c*x + d = 0
+// using Ferrari's method. Returns the number of real roots (0-4).
+// Roots are stored in roots[0..n-1], unsorted.
+int SolveQuartic(double a, double b, double c, double d, double roots[4]) {
+    // Depress the quartic: substitute x = t - a/4
+    // Gives t^4 + p*t^2 + q*t + r = 0
+    double a2 = a * a;
+    double p = b - 3.0 * a2 / 8.0;
+    double q = c - a * b / 2.0 + a2 * a / 8.0;
+    double r = d - a * c / 4.0 + a2 * b / 16.0 - 3.0 * a2 * a2 / 256.0;
+
+    int n_roots = 0;
+
+    // Biquadratic threshold: only use the q=0 shortcut when the linear term
+    // is genuinely negligible relative to ALL other terms. A too-loose threshold
+    // causes root loss for general ray directions where q is small but non-zero.
+    double coeff_scale = std::fmax(1.0, std::fmax(std::fabs(p), std::sqrt(std::fmax(std::fabs(r), 0.0))));
+    if(std::fabs(q) < 1e-14 * coeff_scale) {
+        // Biquadratic: t^4 + p*t^2 + r = 0
+        double disc = p * p - 4.0 * r;
+        double disc_tol = 1e-10 * std::fmax(p * p, std::fabs(r));
+        if(disc < -disc_tol) return 0;
+        if(disc < 0) disc = 0;
+        double sq = std::sqrt(disc);
+        double u1 = (-p + sq) / 2.0;
+        double u2 = (-p - sq) / 2.0;
+        double u_tol = 1e-10 * std::fmax(std::fabs(p), sq);
+        if(u1 >= -u_tol) {
+            if(u1 < 0) u1 = 0;
+            double s = std::sqrt(u1);
+            roots[n_roots++] = s - a / 4.0;
+            roots[n_roots++] = -s - a / 4.0;
+        }
+        if(u2 >= -u_tol && std::fabs(u2 - u1) > u_tol) {
+            if(u2 < 0) u2 = 0;
+            double s = std::sqrt(u2);
+            roots[n_roots++] = s - a / 4.0;
+            roots[n_roots++] = -s - a / 4.0;
+        }
+        return n_roots;
+    }
+
+    // Ferrari's resolvent cubic
+    double rp = -p / 2.0;
+    double rq = -r;
+    double rs = p * r / 2.0 - q * q / 8.0;
+    double P = rq - rp * rp / 3.0;
+    double Q = rs - rp * rq / 3.0 + 2.0 * rp * rp * rp / 27.0;
+
+    double cubic_roots[3];
+    int nc = SolveDepressedCubic(P, Q, cubic_roots);
+
+    // Pick the largest real root of the resolvent cubic
+    double y = cubic_roots[0] - rp / 3.0;
+    for(int i = 1; i < nc; ++i) {
+        double yi = cubic_roots[i] - rp / 3.0;
+        if(yi > y) y = yi;
+    }
+
+    // Factor the depressed quartic into two quadratics using y:
+    // t^4 + p*t^2 + q*t + r = (t^2 + s*t + u)(t^2 - s*t + v)
+    // where s^2 = 2*y - p, u = y - q/(2*s), v = y + q/(2*s)
+    double s2 = 2.0 * y - p;
+    if(s2 < 0) s2 = 0;
+    double s = std::sqrt(s2);
+
+    double u, v;
+    if(s > 1e-14) {
+        u = y - q / (2.0 * s);
+        v = y + q / (2.0 * s);
+    } else {
+        u = y;
+        v = y;
+        s = 0;
+    }
+
+    // Solve the two quadratics
+    double disc1 = s * s - 4.0 * u;
+    if(disc1 >= 0) {
+        double sq1 = std::sqrt(disc1);
+        roots[n_roots++] = (-s + sq1) / 2.0 - a / 4.0;
+        roots[n_roots++] = (-s - sq1) / 2.0 - a / 4.0;
+    }
+    double disc2 = s * s - 4.0 * v;
+    if(disc2 >= 0) {
+        double sq2 = std::sqrt(disc2);
+        roots[n_roots++] = (s + sq2) / 2.0 - a / 4.0;
+        roots[n_roots++] = (s - sq2) / 2.0 - a / 4.0;
+    }
+
+    return n_roots;
+}
+
+} // anonymous namespace
+
+
+// =========================================================================
+// Constructors
+// =========================================================================
+
+Torus::Torus() : Geometry("Torus"), rtor_(0), rmax_(0), rmin_(0), start_phi_(0), delta_phi_(2.0 * M_PI), has_phi_cut_(false) { RecomputeWorldAABB(); }
+Torus::Torus(double rtor, double rmax, double rmin) : Geometry("Torus"), rtor_(rtor), rmax_(rmax), rmin_(rmin), start_phi_(0), delta_phi_(2.0 * M_PI), has_phi_cut_(false) {
+    if(rtor_ <= 0) throw std::invalid_argument("Torus major radius must be positive!");
+    if(rmax_ <= 0) throw std::invalid_argument("Torus outer tube radius must be positive!");
+    if(rmin_ < 0) throw std::invalid_argument("Torus inner tube radius must be non-negative!");
+    if(rmin_ >= rmax_) throw std::invalid_argument("Torus inner tube radius must be less than outer tube radius!");
+    RecomputeWorldAABB();
+}
+Torus::Torus(Placement const & p) : Geometry("Torus", p), rtor_(0), rmax_(0), rmin_(0), start_phi_(0), delta_phi_(2.0 * M_PI), has_phi_cut_(false) { RecomputeWorldAABB(); }
+Torus::Torus(Placement const & p, double rtor, double rmax, double rmin) : Geometry("Torus", p), rtor_(rtor), rmax_(rmax), rmin_(rmin), start_phi_(0), delta_phi_(2.0 * M_PI), has_phi_cut_(false) {
+    if(rtor_ <= 0) throw std::invalid_argument("Torus major radius must be positive!");
+    if(rmax_ <= 0) throw std::invalid_argument("Torus outer tube radius must be positive!");
+    if(rmin_ < 0) throw std::invalid_argument("Torus inner tube radius must be non-negative!");
+    if(rmin_ >= rmax_) throw std::invalid_argument("Torus inner tube radius must be less than outer tube radius!");
+    RecomputeWorldAABB();
+}
+Torus::Torus(double rtor, double rmax, double rmin, double start_phi, double delta_phi) : Geometry("Torus"), rtor_(rtor), rmax_(rmax), rmin_(rmin), start_phi_(start_phi), delta_phi_(delta_phi) {
+    if(rtor_ <= 0) throw std::invalid_argument("Torus major radius must be positive!");
+    if(rmax_ <= 0) throw std::invalid_argument("Torus outer tube radius must be positive!");
+    if(rmin_ < 0) throw std::invalid_argument("Torus inner tube radius must be non-negative!");
+    if(rmin_ >= rmax_) throw std::invalid_argument("Torus inner tube radius must be less than outer tube radius!");
+    if(delta_phi_ <= 0) throw std::invalid_argument("delta_phi must be positive!"); if(delta_phi_ > 2.0 * M_PI) delta_phi_ = 2.0 * M_PI;
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    RecomputeWorldAABB();
+}
+Torus::Torus(Placement const & p, double rtor, double rmax, double rmin, double start_phi, double delta_phi) : Geometry("Torus", p), rtor_(rtor), rmax_(rmax), rmin_(rmin), start_phi_(start_phi), delta_phi_(delta_phi) {
+    if(rtor_ <= 0) throw std::invalid_argument("Torus major radius must be positive!");
+    if(rmax_ <= 0) throw std::invalid_argument("Torus outer tube radius must be positive!");
+    if(rmin_ < 0) throw std::invalid_argument("Torus inner tube radius must be non-negative!");
+    if(rmin_ >= rmax_) throw std::invalid_argument("Torus inner tube radius must be less than outer tube radius!");
+    if(delta_phi_ <= 0) throw std::invalid_argument("delta_phi must be positive!"); if(delta_phi_ > 2.0 * M_PI) delta_phi_ = 2.0 * M_PI;
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+    RecomputeWorldAABB();
+}
+Torus::Torus(const Torus& o) : Geometry(o), rtor_(o.rtor_), rmax_(o.rmax_), rmin_(o.rmin_), start_phi_(o.start_phi_), delta_phi_(o.delta_phi_), has_phi_cut_(o.has_phi_cut_) { RecomputeWorldAABB(); }
+
+SIREN_GEOMETRY_SWAP(Torus, rtor_, rmax_, rmin_, start_phi_, delta_phi_, has_phi_cut_)
+SIREN_GEOMETRY_ASSIGN(Torus)
+SIREN_GEOMETRY_EQUAL(Torus, rtor_, rmax_, rmin_, start_phi_, delta_phi_)
+SIREN_GEOMETRY_LESS(Torus, rtor_, rmax_, rmin_, start_phi_, delta_phi_)
+
+void Torus::print(std::ostream& os) const {
+    os << "Major radius: " << rtor_
+       << "\tOuter tube radius: " << rmax_
+       << "\tInner tube radius: " << rmin_;
+    if(has_phi_cut_) os << "\tStartPhi: " << start_phi_ << "\tDeltaPhi: " << delta_phi_;
+    os << '\n';
+}
+
+// =========================================================================
+// ComputeIntersections
+//
+// Ray-torus intersection. The implicit torus equation
+//   (sqrt(x^2 + y^2) - R)^2 + z^2 = r^2
+// after squaring becomes the quartic surface:
+//   (x^2 + y^2 + z^2 + R^2 - r^2)^2 = 4*R^2*(x^2 + y^2)
+//
+// Substituting ray P + t*D and expanding gives a monic quartic in t.
+// We solve it with Ferrari's method.
+// =========================================================================
+
+std::vector<Geometry::Intersection> Torus::ComputeIntersections(
+    siren::math::Vector3D const & position,
+    siren::math::Vector3D const & direction) const {
+
+    double px = position.GetX();
+    double py = position.GetY();
+    double pz = position.GetZ();
+    double dx = direction.GetX();
+    double dy = direction.GetY();
+    double dz = direction.GetZ();
+
+    double R = rtor_;
+
+    // Solve full-rotation torus surface intersections (no phi filtering).
+    // Returns validated, deduplicated roots with entering/exiting flags.
+    struct TaggedHit {
+        double distance;
+        siren::math::Vector3D position;
+        bool entering;
+        int source; // 0 = surface, 1 = wedge
+    };
+
+    TaggedHit all_hits[16]; // max: 4 outer + 4 inner + 2 wedge planes = 10
+    int n_all = 0;
+
+    auto solve_surface = [&](double r, bool invert_entering) {
+        // Shift the ray origin to the closest approach point along the ray.
+        // This keeps the quartic coefficients small for far-field rays,
+        // avoiding catastrophic cancellation in the depressed quartic.
+        double t_shift = -(px*dx + py*dy + pz*dz);
+        double qx = px + t_shift * dx;
+        double qy = py + t_shift * dy;
+        double qz = pz + t_shift * dz;
+
+        double qq = qx*qx + qy*qy + qz*qz;
+        double qd = qx*dx + qy*dy + qz*dz; // ~ 0 by construction
+        double Qxy2 = qx*qx + qy*qy;
+        double Dxy2 = dx*dx + dy*dy;
+        double QDxy = qx*dx + qy*dy;
+
+        double alpha = qq + R*R - r*r;
+
+        // Quartic coefficients: t^4 + c3*t^3 + c2*t^2 + c1*t + c0 = 0
+        double c3 = 4.0 * qd;
+        double c2 = 4.0 * qd*qd + 2.0 * alpha - 4.0 * R*R * Dxy2;
+        double c1 = 4.0 * qd * alpha - 8.0 * R*R * QDxy;
+        double c0 = alpha * alpha - 4.0 * R*R * Qxy2;
+
+        double raw_roots[4];
+        int n_raw = SolveQuartic(c3, c2, c1, c0, raw_roots);
+
+        // Polish each root with Newton-Raphson on the shifted quartic
+        // f(s) = s^4 + c3*s^3 + c2*s^2 + c1*s + c0
+        // Keep roots in the shifted frame (s) for position accuracy.
+        for(int i = 0; i < n_raw; ++i) {
+            double s = raw_roots[i];
+            for(int iter = 0; iter < 3; ++iter) {
+                double f = ((( s + c3) * s + c2) * s + c1) * s + c0;
+                double fp = ((4.0*s + 3.0*c3) * s + 2.0*c2) * s + c1;
+                if(std::fabs(fp) < 1e-30) break;
+                s -= f / fp;
+            }
+            raw_roots[i] = s; // Keep in shifted frame
+        }
+
+        // Validate, deduplicate, and emit roots.
+        // Positions are computed from the shifted origin (qx + s*dx) to avoid
+        // catastrophic cancellation when t_shift is large (far-field rays).
+        // We keep the shifted roots (s) throughout and only convert to absolute
+        // distance (t = s + t_shift) for the output.
+        std::sort(raw_roots, raw_roots + n_raw);
+        struct ValidRoot { double s; double t; };
+        ValidRoot valid[4];
+        int n = 0;
+        for(int i = 0; i < n_raw; ++i) {
+            double s = raw_roots[i];
+            double ix = qx + s * dx;
+            double iy = qy + s * dy;
+            double iz = qz + s * dz;
+            double rxy = std::sqrt(ix*ix + iy*iy);
+            double residual = (rxy - R) * (rxy - R) + iz * iz - r * r;
+            double tol = 1e-4 * (r * r + R * R);
+            if(std::fabs(residual) > tol) continue;
+            double t = s + t_shift;
+            // Deduplicate using shifted roots (s) not absolute distance (t),
+            // because at far-field |t| >> root separation and a tolerance
+            // proportional to |t| would merge distinct intersections.
+            double dedup_tol = 1e-6 * (1.0 + std::fabs(s));
+            if(n > 0 && std::fabs(s - valid[n - 1].s) < dedup_tol) continue;
+            valid[n++] = {s, t};
+        }
+
+        for(int i = 0; i < n; ++i) {
+            double t = valid[i].t;
+            double s = valid[i].s;
+            if(t > 0 && t < GEOMETRY_PRECISION) { t = 0; s = -t_shift; }
+
+            // Compute position from shifted frame (precise for far-field)
+            double ix = qx + s * dx;
+            double iy = qy + s * dy;
+            double iz = qz + s * dz;
+
+            // Entering/exiting from the torus surface normal
+            double rxy = std::sqrt(ix*ix + iy*iy);
+            double nx, ny, nz;
+            if(rxy > GEOMETRY_PRECISION) {
+                double scale = R / rxy;
+                nx = ix - scale * ix;
+                ny = iy - scale * iy;
+                nz = iz;
+            } else {
+                nx = ix;
+                ny = iy;
+                nz = iz;
+            }
+            double n_dot_d = nx * dx + ny * dy + nz * dz;
+            bool entering = n_dot_d < 0;
+            if(invert_entering) entering = !entering;
+
+            all_hits[n_all] = {t, siren::math::Vector3D(ix, iy, iz), entering, 0};
+            n_all++;
+        }
+    };
+
+    // Outer surface (full rotation, no phi filter)
+    solve_surface(rmax_, false);
+    // Inner surface (hollow torus)
+    if(rmin_ > 0) {
+        solve_surface(rmin_, true);
+    }
+
+    if(!has_phi_cut_) {
+        // No phi cut: surface hits are the final result
+        if(n_all == 0) return {};
+        std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+            return a.distance < b.distance;
+        });
+        std::vector<Intersection> result;
+        result.reserve(n_all);
+        for(int i = 0; i < n_all; ++i) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = all_hits[i].entering;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        return result;
+    }
+
+    // Phi cut: compute infinite wedge intersections (two half-planes from z-axis).
+    bool z_axis_hit_emitted = false;
+    for(int face = 0; face < 2; ++face) {
+        double alpha = start_phi_ + face * delta_phi_;
+        double ca = std::cos(alpha), sa = std::sin(alpha);
+        double nx, ny;
+        if(face == 0) { nx = sa; ny = -ca; }
+        else { nx = -sa; ny = ca; }
+        double n_dot_d = nx*dx + ny*dy;
+        if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+        double n_dot_p = nx*px + ny*py;
+        double t = -n_dot_p / n_dot_d;
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+
+        double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+        if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+
+        bool entering = (n_dot_d < 0);
+        if(hx*hx + hy*hy < GEOMETRY_PRECISION * 1e3 * GEOMETRY_PRECISION * 1e3) {
+            if(z_axis_hit_emitted) continue;
+            z_axis_hit_emitted = true;
+            entering = ZAxisWedgeEntering(dx, dy, start_phi_, delta_phi_);
+        }
+        all_hits[n_all] = {t, siren::math::Vector3D(hx, hy, hz), entering, 1};
+        n_all++;
+    }
+
+    if(n_all == 0) return {};
+
+    std::sort(all_hits, all_hits + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+        return a.distance < b.distance;
+    });
+
+    bool in_surface = false;
+    bool in_wedge = InitialPhiState(px, py, dx, dy, start_phi_, delta_phi_);
+
+    bool was_inside = in_surface && in_wedge;
+
+    std::vector<Intersection> result;
+    for(int i = 0; i < n_all; ++i) {
+        if(all_hits[i].source == 0) {
+            in_surface = all_hits[i].entering;
+        } else {
+            in_wedge = all_hits[i].entering;
+        }
+        bool now_inside = in_surface && in_wedge;
+        if(now_inside != was_inside) {
+            Intersection isect;
+            isect.distance = all_hits[i].distance;
+            isect.hierarchy = 0;
+            isect.entering = now_inside;
+            isect.position = all_hits[i].position;
+            result.push_back(isect);
+        }
+        was_inside = now_inside;
+    }
+    return result;
+}
+
+// =========================================================================
+// GetBoundingBox
+// =========================================================================
+
+AABB Torus::GetBoundingBox() const {
+    double extent_z = rmax_;
+    if(!has_phi_cut_) {
+        double extent_xy = rtor_ + rmax_;
+        return AABB(
+            math::Vector3D(-extent_xy, -extent_xy, -extent_z),
+            math::Vector3D( extent_xy,  extent_xy,  extent_z)
+        );
+    }
+    // Phi-cut: sample the tube center circle at sector boundaries and
+    // axis-aligned extrema, then expand by the tube radius.
+    AABB box;
+    double angles[] = {start_phi_, start_phi_ + delta_phi_};
+    for(double a : angles) {
+        double cx = rtor_ * std::cos(a);
+        double cy = rtor_ * std::sin(a);
+        box.ExpandToInclude(math::Vector3D(cx - rmax_, cy - rmax_, -extent_z));
+        box.ExpandToInclude(math::Vector3D(cx + rmax_, cy + rmax_,  extent_z));
+    }
+    // Check if sector spans axis-aligned extrema (0, pi/2, pi, 3pi/2)
+    double end_phi = start_phi_ + delta_phi_;
+    for(int k = 0; k < 4; ++k) {
+        double axis_angle = k * M_PI / 2.0;
+        // Normalize to check if axis_angle is within [start_phi_, end_phi]
+        double shifted = axis_angle;
+        while(shifted < start_phi_) shifted += 2.0 * M_PI;
+        if(shifted <= end_phi + 1e-12) {
+            double cx = rtor_ * std::cos(axis_angle);
+            double cy = rtor_ * std::sin(axis_angle);
+            box.ExpandToInclude(math::Vector3D(cx - rmax_, cy - rmax_, -extent_z));
+            box.ExpandToInclude(math::Vector3D(cx + rmax_, cy + rmax_,  extent_z));
+        }
+    }
+    return box;
+}
+
+} // namespace geometry
+} // namespace siren

@@ -21,7 +21,6 @@ void register_Path(pybind11::module_ & m) {
         .def("HasDetectorModel", &Path::HasDetectorModel)
         .def("HasPoints", &Path::HasPoints)
         .def("HasIntersections", &Path::HasIntersections)
-        .def("HasColumnDepth", &Path::HasColumnDepth)
 
         .def("GetDetectorModel", &Path::GetDetectorModel)
         .def("GetFirstPoint", [](Path & p)->Vector3D{return p.GetFirstPoint().get(); })

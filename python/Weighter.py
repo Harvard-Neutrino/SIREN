@@ -28,6 +28,17 @@ InteractionTree = _dataclasses.InteractionTree
 class Weighter:
     """
     A wrapper for the C++ Weighter class, handling event weight calculations.
+
+    Besides the pooled central-value weight (``__call__`` / ``event_weight``),
+    two factorized per-vertex quantities are exposed for a single chosen
+    injector: ``interaction_probabilities`` and ``survival_probabilities`` (see
+    those methods). Still finer per-vertex factors -- the individual generation
+    and physical probability terms -- are reachable through the bound
+    ``siren.injection.PrimaryProcessWeighter`` /
+    ``siren.injection.SecondaryProcessWeighter`` classes, which expose
+    ``InteractionProbability``, ``NormalizedPositionProbability``,
+    ``PhysicalProbability``, ``GenerationProbability`` and ``EventWeight`` per
+    interaction datum.
     """
 
     def __init__(self, 
@@ -341,3 +352,95 @@ class Weighter:
         if self.__weighter is None:
             self.__initialize_weighter()
         return self.__weighter.OneWeight(interaction_tree)
+
+    def interaction_probabilities(self, interaction_tree: InteractionTree, i_inj: int = 0) -> List[float]:
+        """
+        Per-vertex physical interaction probability for one chosen injector.
+
+        Returns one value per interaction datum in ``interaction_tree`` (in tree
+        order): the probability that the primary interacts within injector
+        ``i_inj``'s injection bounds -- i.e. over the segment spanning that
+        injector's PrimaryInjectionBounds (or SecondaryInjectionBounds for
+        non-root vertices). This is the interaction-region segment only.
+
+        It is DISJOINT from ``survival_probabilities`` (below): survival covers
+        the pre-injection segment leading up to the injection region, while this
+        covers the injection region itself. The two are NOT complementary
+        probabilities of one another (they integrate the column density over
+        different, non-overlapping segments), so do not expect them to sum to 1.
+
+        Args:
+            interaction_tree: The interaction tree to evaluate.
+            i_inj: Index into this weighter's injector list (default 0).
+
+        Returns:
+            List[float]: One interaction probability per interaction datum.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return list(self.__weighter.GetInteractionProbabilities(interaction_tree, i_inj))
+
+    def survival_probabilities(self, interaction_tree: InteractionTree, i_inj: int = 0) -> List[float]:
+        """
+        Per-vertex survival probability over the pre-injection segment.
+
+        Returns one value per interaction datum in ``interaction_tree`` (in tree
+        order): the probability that the primary survives (does not interact)
+        over the pre-injection segment, from ``primary_initial_position`` up to
+        the near edge of injector ``i_inj``'s injection region (the first element
+        of its PrimaryInjectionBounds / SecondaryInjectionBounds).
+
+        The value is exp(-depth) for the interaction depth over that segment, so
+        it is as accurate as the depth itself down to about 1e-308 instead of
+        being rounded to zero. A negative or NaN depth, which comes from a
+        negative or NaN decay width or cross section, raises ``RuntimeError``.
+
+        This segment is DISJOINT from the one measured by
+        ``interaction_probabilities``: survival covers everything before the
+        injection region, the interaction probability covers the injection region
+        itself. They are therefore not complementary probabilities and need not
+        sum to 1.
+
+        Args:
+            interaction_tree: The interaction tree to evaluate.
+            i_inj: Index into this weighter's injector list (default 0).
+
+        Returns:
+            List[float]: One survival probability per interaction datum.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return list(self.__weighter.GetSurvivalProbabilities(interaction_tree, i_inj))
+
+    def save(self, filename: str):
+        """
+        Serialize the weighter to ``<filename>.siren_weighter``.
+
+        Args:
+            filename: Base path; the ".siren_weighter" suffix is added.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        self.__weighter.SaveWeighter(filename)
+
+    def load(self, filename: str):
+        """
+        Restore the weighter from ``<filename>.siren_weighter``.
+
+        Constructs the underlying C++ weighter via its ``(injectors, filename)``
+        constructor, which loads the detector model and physical processes from
+        the file. The detector / interactions / distributions therefore do NOT
+        need to be configured first (unlike a freshly built weighter). Only the
+        injectors are used -- to bind the weighter to your live injection
+        processes for the generation-probability cancellation; if they were not
+        set, the injectors serialized in the file are used instead.
+
+        Args:
+            filename: Base path; the ".siren_weighter" suffix is added.
+        """
+        if self.__injectors is not None:
+            injectors = [injector._Injector__injector if isinstance(injector, _PyInjector) else injector
+                         for injector in self.__injectors]
+        else:
+            injectors = []
+        self.__weighter = _Weighter(injectors, filename)

@@ -31,15 +31,144 @@ jobs:
             libgsl-dev \
             libcfitsio-dev
 
+      - name: Read HepMC3 version
+        id: hepmc3
+        run: echo "version=$(grep '^HEPMC3_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache HepMC3 source tarball
+        # Same key and path as build_wheels.yml, so the two workflows share it.
+        uses: actions/cache@v5
+        with:
+          path: .hepmc3-cache
+          key: hepmc3-${{ steps.hepmc3.outputs.version }}-v1
+
+      - name: Build and install HepMC3 (ROOT-free, from source)
+        # Ubuntu's libhepmc3-dev is 3.2.x, which lacks the Vector*Attribute types
+        # the NuHepMC writer uses. Build the same 3.3.1 the wheels use (version
+        # single-sourced from cibw_before_all.sh, download reused from
+        # fetch_hepmc3.sh) so the distro and wheel builds stay identical.
+        run: |
+          set -euo pipefail
+          HEPMC3_VERSION="${{ steps.hepmc3.outputs.version }}"
+          TARBALL=".hepmc3-cache/HepMC3-$HEPMC3_VERSION.tar.gz"
+          echo "Building HepMC3 $HEPMC3_VERSION from source"
+          PREFIX="$RUNNER_TEMP/hepmc3-install"
+          SRC="$RUNNER_TEMP/hepmc3-src"
+          mkdir -p "$SRC"
+          [ -f "$TARBALL" ] || bash tools/wheels/fetch_hepmc3.sh "$HEPMC3_VERSION" "$TARBALL"
+          tar -xzf "$TARBALL" -C "$SRC" --strip-components=1
+          cmake -S "$SRC" -B "$SRC/build" \
+            -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+            -DHEPMC3_ENABLE_ROOTIO=OFF \
+            -DHEPMC3_ENABLE_PROTOBUFIO=OFF \
+            -DHEPMC3_ENABLE_PYTHON=OFF \
+            -DHEPMC3_ENABLE_TEST=OFF \
+            -DHEPMC3_BUILD_EXAMPLES=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          cmake --build "$SRC/build" --parallel
+          cmake --install "$SRC/build"
+          echo "HEPMC3_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PREFIX/lib:$PREFIX/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+
       - name: Install Python build dependencies
         run: |
           python -m pip install --upgrade pip
           pip install scikit-build-core pytest
+          # pyhepmc drives the external-reader validation in
+          # test_hepmc3_nuhepmc.py (importorskip-guarded). It ships its own
+          # bundled HepMC3, so it is independent of the from-source build above.
+          # Non-fatal: on platforms without a wheel the test skips instead of
+          # failing the job.
+          pip install pyhepmc || echo "pyhepmc unavailable; external-reader test will skip"
 
       - name: Build and install SIREN
         env:
-          CMAKE_PREFIX_PATH: /usr  # use apt-installed gsl/cfitsio, not the cibw paths
-        run: pip install -v .
+          # apt-installed gsl/cfitsio from /usr, plus the from-source HepMC3 3.3.1 prefix
+          CMAKE_PREFIX_PATH: /usr:${{ env.HEPMC3_PREFIX }}
+        run: pip install -v . --config-settings=cmake.define.SIREN_REQUIRE_HEPMC3=ON
+
+      - name: Build native library and test executables
+        run: |
+          cmake -S . -B native-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPython_EXECUTABLE="$(command -v python)" \
+            -DCMAKE_PREFIX_PATH="/usr;$HEPMC3_PREFIX" \
+            -DSIREN_PYTHON_PACKAGE=OFF -DSIREN_REQUIRE_HEPMC3=ON \
+            -DSIREN_WITH_MARLEY=OFF -DSIREN_WITH_PYTHIA8=OFF
+          cmake --build native-build --parallel 2
+          ctest --test-dir native-build --output-on-failure --no-tests=error \
+            -R '^UnitTest_(StandaloneLoad|Vector3D|Weighter|HepMC3Writer|HepMC3RoundTrip)$'
+          python -c 'import ctypes; ctypes.CDLL("native-build/libSIREN.so"); import siren' \
+            > native-import.log 2>&1 && exit 1
+          grep -q 'use separate processes' native-import.log
 
       - name: Run pytest
+        env:
+          # This job builds HepMC3 from source and points SIREN at it, so a
+          # find_package regression that silently falls back to the no-HepMC3
+          # stub must fail the job instead of letting the HepMC3 suite skip.
+          SIREN_TEST_REQUIRE_HEPMC3: "1"
         run: pytest tests/python -v --color=yes
+
+      # Restore the newest asset-cache entry; save a new one only when the run
+      # changed it by adding an asset or repairing a corrupt one.
+      - name: Restore pinned SBN test assets
+        uses: actions/cache/restore@v5
+        with:
+          path: .sbn-test-assets
+          key: sbn-test-assets
+          restore-keys: sbn-test-assets-
+
+      - name: Run real-geometry tests
+        id: real-geometry
+        # The step above skips network-marked tests. These read the pinned GDML
+        # through the asset cache, which fetches from SIREN-data only what is
+        # missing or corrupt (about 7 MB when empty).
+        run: |
+          fingerprint() {
+            mkdir -p .sbn-test-assets
+            (cd .sbn-test-assets && find . -type f -exec sha256sum {} + | sort) | sha256sum | cut -c1-16
+          }
+          echo "before=$(fingerprint)" >> "$GITHUB_OUTPUT"
+          pytest tests/python/test_sbn_real_geometry.py --run-network \
+            --download-cache .sbn-test-assets -v --color=yes
+          echo "after=$(fingerprint)" >> "$GITHUB_OUTPUT"
+
+      - name: Save pinned SBN test assets
+        # Cache keys are immutable, so a changed cache gets a new key.
+        if: steps.real-geometry.outputs.after != steps.real-geometry.outputs.before
+        uses: actions/cache/save@v5
+        with:
+          path: .sbn-test-assets
+          key: sbn-test-assets-${{ steps.real-geometry.outputs.after }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  packaging:
+    name: Wheel contracts on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install packaging tools
+        run: python -m pip install cmake scikit-build-core pytest packaging
+      - name: Install Linux wheel repair
+        if: runner.os == 'Linux'
+        run: python -m pip install auditwheel patchelf
+      - name: Install macOS wheel repair
+        if: runner.os == 'macOS'
+        run: python -m pip install delocate
+      - name: Test both wheel entry points and repair
+        env:
+          SIREN_TEST_REQUIRE_WHEEL_REPAIR: '1'
+        run: python -m pytest tests/packaging -v --basetemp=packaging-test-output
+      - name: Preserve packaging diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaging-diagnostics-${{ matrix.os }}
+          path: packaging-test-output/**/command-*.log

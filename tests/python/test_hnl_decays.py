@@ -112,7 +112,7 @@ class TestElectroweakDecay:
         w_had = 0.0
         for sig in sigs:
             record.signature = sig
-            w = decay.TotalDecayWidthForFinalState(record)
+            w = decay.TotalDecayWidth(record)
             if sig.secondary_types[0] in lep_types:
                 w_lep += w
             else:

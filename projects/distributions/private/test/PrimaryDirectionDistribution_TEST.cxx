@@ -23,6 +23,11 @@ using namespace siren::distributions;
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
 
+// Fixed seed so the statistical sampling tests are reproducible. Only the
+// sampling RNG needs seeding; the parameter RNG (rng_) is default-seeded and
+// already deterministic.
+static const uint64_t test_seed = 1234;
+
 double RandomDouble() {
     return uniform_distribution(rng_);
 }
@@ -63,7 +68,7 @@ TEST(Cone, SampleDistributionTheta) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -104,10 +109,18 @@ TEST(Cone, SampleDistributionTheta) {
             n_one_sigma += 1;
         }
     }
+    // Count of trials whose binned chi2 exceeds the k-sigma threshold is
+    // ~Binomial(N, p), p = 1 - central_probability: mean N*p, std sqrt(N*p*(1-p)).
+    // The 1- and 2-sigma counts are large, so p*(1 + sqrt(n)/N) bounds them with
+    // margin. The 3- and 4-sigma expected counts are tiny (2.7 and 0.06 here),
+    // where a mean-level bound rejects ordinary fluctuation, so those use a
+    // mean + 4*std control limit that still flags an anomalous tail excess.
+    double p3 = 1.0 - 0.997300203936740;
+    double p4 = 1.0 - 0.999936657516334;
     EXPECT_TRUE(double(n_one_sigma) / N <= (1.0 - 0.682689492137086) * (1.0 + sqrt(n_one_sigma)/N));
     EXPECT_TRUE(double(n_two_sigma) / N <= (1.0 - 0.954499736103642) * (1.0 + sqrt(n_two_sigma)/N));
-    EXPECT_TRUE(double(n_three_sigma) / N <= (1.0 - 0.997300203936740) * (1.0 + sqrt(n_three_sigma)/N));
-    EXPECT_TRUE(double(n_four_sigma) / N <= (1.0 - 0.999936657516334) * (1.0 + sqrt(n_four_sigma)/N));
+    EXPECT_TRUE(double(n_three_sigma) / N <= p3 + 4.0 * sqrt(p3 * (1.0 - p3) / N));
+    EXPECT_TRUE(double(n_four_sigma) / N <= p4 + 4.0 * sqrt(p4 * (1.0 - p4) / N));
 }
 
 TEST(Cone, SampleDistributionPhi) {
@@ -117,7 +130,7 @@ TEST(Cone, SampleDistributionPhi) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -167,10 +180,14 @@ TEST(Cone, SampleDistributionPhi) {
             n_one_sigma += 1;
         }
     }
+    // 3- and 4-sigma tail-count bounds use a mean + 4*std control limit; 1- and
+    // 2-sigma bound the count directly. See SampleDistributionTheta.
+    double p3 = 1.0 - 0.997300203936740;
+    double p4 = 1.0 - 0.999936657516334;
     EXPECT_TRUE(double(n_one_sigma) / N <= (1.0 - 0.682689492137086) * (1.0 + sqrt(n_one_sigma)/N));
     EXPECT_TRUE(double(n_two_sigma) / N <= (1.0 - 0.954499736103642) * (1.0 + sqrt(n_two_sigma)/N));
-    EXPECT_TRUE(double(n_three_sigma) / N <= (1.0 - 0.997300203936740) * (1.0 + sqrt(n_three_sigma)/N));
-    EXPECT_TRUE(double(n_four_sigma) / N <= (1.0 - 0.999936657516334) * (1.0 + sqrt(n_four_sigma)/N));
+    EXPECT_TRUE(double(n_three_sigma) / N <= p3 + 4.0 * sqrt(p3 * (1.0 - p3) / N));
+    EXPECT_TRUE(double(n_four_sigma) / N <= p4 + 4.0 * sqrt(p4 * (1.0 - p4) / N));
 }
 
 TEST(Cone, GenerationProbability) {
@@ -282,7 +299,7 @@ TEST(IsotropicDirection, Constructor) {
 
 TEST(IsotropicDirection, SampleDistributionTheta) {
     size_t N = 100000;
-    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     IsotropicDirection A;
     double bin_max = 1.0;
     double bin_min = -1.0;
@@ -308,7 +325,7 @@ TEST(IsotropicDirection, SampleDistributionTheta) {
 
 TEST(IsotropicDirection, SampleDistributionPhi) {
     size_t N = 100000;
-    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     IsotropicDirection A;
     double bin_max = M_PI;
     double bin_min = -M_PI;

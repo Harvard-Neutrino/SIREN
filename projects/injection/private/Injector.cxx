@@ -225,7 +225,7 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
-                fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+                fake_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
@@ -256,10 +256,26 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+    // Sample the final state, then give the selected interaction a chance to
+    // override the vertex time. The hook must run here, post-selection: which
+    // decay/cross section fires at a vertex is only chosen above (in this
+    // function), after the vertex-owning record's position has been frozen by
+    // its Finalize, so there is no reachable point before Finalize at which the
+    // concrete interaction is known. Overriding time here is coherent because
+    // the vertex position is fixed; only the interaction time shifts, and
+    // daughters inherit it through xsec_record.Finalize's back-sync.
+    double proposed_time;
     if(r <= xsec_prob) {
-        matching_cross_sections[index]->SampleFinalState(xsec_record, random);
+        std::shared_ptr<siren::interactions::CrossSection> const & selected = matching_cross_sections[index];
+        selected->SampleFinalState(xsec_record, random);
+        proposed_time = selected->SampleInteractionTime(xsec_record, random);
     } else {
-        matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
+        std::shared_ptr<siren::interactions::Decay> const & selected = matching_decays[index - matching_cross_sections.size()];
+        selected->SampleFinalState(xsec_record, random);
+        proposed_time = selected->SampleDecayTime(xsec_record, random);
+    }
+    if(proposed_time != xsec_record.GetInteractionTime()) {
+        xsec_record.SetInteractionTime(proposed_time);
     }
     xsec_record.Finalize(record);
 }
@@ -310,7 +326,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
             if(it == secondary_process_map.end()) {
                 continue;
             }
-            if(stopping_condition(parent, i)) {
+            if(stopping_condition(tree, parent, i)) {
                 continue;
             }
             secondaries.emplace_back(
@@ -330,12 +346,20 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
 
                 siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
                 std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+                // Daughter record is authoritative for its production time; keep the
+                // parent's secondary_times slot in sync (single write point, after the
+                // daughter override is finalized).
+                size_t sidx = secondary_dist->GetSecondaryIndex();
+                if(sidx < parent->record.secondary_times.size())
+                    parent->record.secondary_times[sidx] = secondary_record.primary_initial_time;
                 add_secondaries(secondary_datum);
             }
         }
     } catch(siren::utilities::InjectionFailure const & e) {
         return siren::dataclasses::InteractionTree();
     }
+    tree.header.event_number = injected_events;
+    tree.header.provenance["generator"] = "SIREN";
     injected_events += 1;
     return tree;
 }
@@ -360,7 +384,7 @@ double Injector::GenerationProbability(siren::dataclasses::InteractionTree const
     double probability = 1.0;
     std::vector<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
     while(it != tree.tree.cend()) {
-        if((*it)->depth()==0) probability *= GenerationProbability((*it));
+        if((*it)->is_root()) probability *= GenerationProbability((*it));
         else probability *= SecondaryGenerationProbability((*it));
         ++it;
     }

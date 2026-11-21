@@ -17,16 +17,28 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElectroweakDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/TrivialCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/QuarkDISFromSpline.cxx
+
 )
 if(TARGET MARLEY)
     LIST (APPEND interactions_SOURCES
         ${PROJECT_SOURCE_DIR}/projects/interactions/private/MarleyCrossSection.cxx
     )
 endif()
+if(TARGET PYTHIA8)
+    LIST (APPEND interactions_SOURCES
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
+    )
+endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
@@ -35,7 +47,7 @@ target_include_directories(SIREN_interactions PUBLIC
 find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
-        pybind11::embed
+        pybind11::module
         GSL::gsl
         GSL::gslcblas
     PUBLIC
@@ -51,6 +63,11 @@ target_link_libraries(SIREN_interactions
 )
 apply_siren_compile_options(SIREN_interactions)
 
+if(TARGET PYTHIA8)
+    target_link_libraries(SIREN_interactions PUBLIC PYTHIA8)
+    target_compile_definitions(SIREN_interactions PUBLIC SIREN_HAS_PYTHIA8)
+endif()
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -64,15 +81,54 @@ package_add_test(UnitTest_HNLDISFromSpline ${PROJECT_SOURCE_DIR}/projects/intera
 package_add_test(UnitTest_HNLDecay ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/HNLDecay_TEST.cxx)
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/ElasticScattering_TEST.cxx)
 
-pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
-target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::embed GSL::gsl GSL::gslcblas)
-if(TARGET MARLEY)
-    target_compile_definitions(interactions PRIVATE SIREN_HAS_MARLEY)
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
+    target_link_libraries(interactions PRIVATE SIREN_python photospline rk_static crundec_static pybind11::module GSL::gsl GSL::gslcblas)
+    if(TARGET PYTHIA8)
+        target_link_libraries(interactions PRIVATE PYTHIA8)
+        target_compile_definitions(interactions PRIVATE SIREN_HAS_PYTHIA8)
+    endif()
+    if(TARGET MARLEY)
+        target_compile_definitions(interactions PRIVATE SIREN_HAS_MARLEY)
+    endif()
+    #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
+    #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
+    siren_strip_module(interactions)
 endif()
-#pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
-#target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
-if(DEFINED SKBUILD)
-set_target_properties(interactions PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
+package_add_test(UnitTest_CharmMesonDecay ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmMesonDecay_TEST.cxx)
+
+# Post-selection vertex-time hooks (Decay::SampleDecayTime,
+# CrossSection::SampleInteractionTime): identity default plus override back-sync.
+package_add_test(UnitTest_InteractionTimeHook ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/InteractionTimeHook_TEST.cxx)
+
+# Charm-DIS interaction-depth closure invariant (no Pythia8 needed: uses a mock
+# that exercises the real base-class CrossSection::TotalCrossSectionAllFinalStates).
+package_add_test(UnitTest_CharmDISClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmDISClosure_TEST.cxx)
+
+# Charm-meson energy-loss and 3-body charm-meson decay (no Pythia8/spline needed;
+# both classes link only against SIREN core).
+package_add_test(UnitTest_DMesonELoss ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/DMesonELoss_TEST.cxx)
+package_add_test(UnitTest_CharmMesonDecay3Body ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/CharmMesonDecay3Body_TEST.cxx)
+
+# QuarkDISFromSpline density-variable contract tripwire + fragmentation pdf
+# normalization (no spline file needed: the no-arg ctor builds only the
+# fragmentation pdf/cdf).
+package_add_test(UnitTest_QuarkDISDensityContract ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/QuarkDISDensityContract_TEST.cxx)
+
+# Serialization round-trips for the interaction classes that use a static
+# load_and_construct (HNLDecay, ElectroweakDecay, HNLDipoleDecay,
+# ElasticScattering, HNLDipoleFromTable).
+package_add_test(UnitTest_InteractionSerialization ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/InteractionSerialization_TEST.cxx)
+
+# Real PythiaDISCrossSection charm-DIS closure/normalization regression test.
+# Only built with Pythia8 support; needs charm-DIS spline files via env vars
+# (SIREN_PYTHIA_TEST_DSDXDY, SIREN_PYTHIA_TEST_SIGMA), otherwise it SKIPs.
+if(TARGET PYTHIA8 AND NOT CIBUILDWHEEL AND NOT DEFINED SKBUILD)
+    package_add_test(UnitTest_PythiaDISCharmClosure ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/PythiaDISCharmClosure_TEST.cxx)
+    target_compile_definitions(UnitTest_PythiaDISCharmClosure PRIVATE SIREN_HAS_PYTHIA8)
+    target_link_libraries(UnitTest_PythiaDISCharmClosure PYTHIA8)
 endif()
+
+# Pass-through cross section with tabulated totals (generation stand-in /
+# generator-deferred physical totals).
+package_add_test(UnitTest_TrivialCrossSection ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/TrivialCrossSection_TEST.cxx)

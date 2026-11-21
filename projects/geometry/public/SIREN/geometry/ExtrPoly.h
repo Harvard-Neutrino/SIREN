@@ -111,15 +111,22 @@ public:
     ExtrPoly& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
     std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
+    AABB GetBoundingBox() const override;
 
     // Getter & Setter
     std::vector<std::vector<double>> GetPolygon() const { return polygon_; }
     std::vector<ZSection> GetZSections() const { return zsections_; }
 
-    void SetPolygon(std::vector<std::vector<double>> polygon ) { polygon_=polygon; }
-    void SetZSections(std::vector<ZSection> zsections) { zsections_=zsections; }
+    void SetPolygon(std::vector<std::vector<double>> polygon ) {
+        polygon_ = polygon;
+        // planes_ is derived from polygon_ vertex coordinates; the old planes
+        // are stale (wrong winding, wrong vertex count) once the polygon
+        // changes, and ComputeIntersections reads planes_ directly.
+        ComputeLateralPlanes();
+        RecomputeWorldAABB();
+    }
+    void SetZSections(std::vector<ZSection> zsections) { zsections_=zsections; RecomputeWorldAABB(); }
 
     void ComputeLateralPlanes();
 

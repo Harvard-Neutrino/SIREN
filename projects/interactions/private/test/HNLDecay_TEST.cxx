@@ -336,7 +336,7 @@ TEST(HNLDecay, MesonChannelsZeroBelowThreshold) {
                         s1 == ParticleType::KPlus || s1 == ParticleType::Eta);
         if (!is_meson) continue;
         record.signature = sig;
-        EXPECT_EQ(decay.TotalDecayWidthForFinalState(record), 0.0)
+        EXPECT_EQ(decay.TotalDecayWidth(record), 0.0)
             << "Sub-threshold meson channel returned non-zero width for secondary " << static_cast<int>(s1);
     }
 }
@@ -348,7 +348,7 @@ TEST(HNLDecay, AllPartialWidthsNonNegative) {
     record.primary_mass = 0.5;
     for (auto const & sig : sigs) {
         record.signature = sig;
-        double w = decay.TotalDecayWidthForFinalState(record);
+        double w = decay.TotalDecayWidth(record);
         EXPECT_GE(w, 0.0);
         EXPECT_TRUE(std::isfinite(w));
     }
@@ -577,7 +577,7 @@ TEST(ElectroweakDecay, WHadronicToLeptonicRatio) {
     record.primary_mass = siren::utilities::Constants::wMass;
     for (auto const & sig : sigs) {
         record.signature = sig;
-        double w = decay.TotalDecayWidthForFinalState(record);
+        double w = decay.TotalDecayWidth(record);
         ParticleType s0 = sig.secondary_types[0];
         bool is_lep = (s0 == ParticleType::EPlus || s0 == ParticleType::MuPlus || s0 == ParticleType::TauPlus);
         if (is_lep) w_lep += w;
@@ -604,8 +604,8 @@ TEST(ElectroweakDecay, ZHadronicToLeptonicColorFactor) {
     record_l.signature.primary_type = ParticleType::Z0;
     record_l.signature.secondary_types = {ParticleType::EMinus, ParticleType::EPlus};
 
-    double w_d = decay.TotalDecayWidthForFinalState(record_d);
-    double w_l = decay.TotalDecayWidthForFinalState(record_l);
+    double w_d = decay.TotalDecayWidth(record_d);
+    double w_l = decay.TotalDecayWidth(record_l);
     EXPECT_GT(w_d, 0.0);
     EXPECT_GT(w_l, 0.0);
     // Width ratio depends on cV,cA; the color factor of 3 should make w_d > w_l
@@ -621,10 +621,10 @@ TEST(ElectroweakDecay, ZMismatchedFinalStateZero) {
     record.primary_mass = siren::utilities::Constants::zMass;
     record.signature.primary_type = ParticleType::Z0;
     record.signature.secondary_types = {ParticleType::EMinus, ParticleType::MuPlus};
-    EXPECT_EQ(decay.TotalDecayWidthForFinalState(record), 0.0);
+    EXPECT_EQ(decay.TotalDecayWidth(record), 0.0);
 
     record.signature.secondary_types = {ParticleType::d, ParticleType::sBar};
-    EXPECT_EQ(decay.TotalDecayWidthForFinalState(record), 0.0);
+    EXPECT_EQ(decay.TotalDecayWidth(record), 0.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -814,7 +814,7 @@ TEST(HNLDecay, HadronicSubtractionNonNegative) {
         double total_width = 0;
         for (auto const & sig : sigs) {
             record.signature = sig;
-            double w = decay.TotalDecayWidthForFinalState(record);
+            double w = decay.TotalDecayWidth(record);
             EXPECT_GE(w, 0.0) << "Negative partial width at M_N = " << m_N
                                << " GeV for channel with "
                                << sig.secondary_types.size() << " secondaries";

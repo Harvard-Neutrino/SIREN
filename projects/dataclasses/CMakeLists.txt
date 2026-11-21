@@ -25,6 +25,7 @@ target_link_libraries(SIREN_dataclasses
 )
 apply_siren_compile_options(SIREN_dataclasses)
 
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
@@ -36,10 +37,8 @@ package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/da
 package_add_test(UnitTest_InteractionRecord ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionRecord_TEST.cxx)
 package_add_test(UnitTest_InteractionTree ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionTree_TEST.cxx)
 
-pybind11_add_module(dataclasses ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
-target_link_libraries(dataclasses PRIVATE SIREN)
-if(DEFINED SKBUILD)
-set_target_properties(dataclasses PROPERTIES
-        BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
+if(SIREN_BUILD_PYTHON_BINDINGS)
+    pybind11_add_module(dataclasses ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
+    target_link_libraries(dataclasses PRIVATE SIREN_python)
+    siren_strip_module(dataclasses)
 endif()

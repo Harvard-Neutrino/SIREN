@@ -1,0 +1,167 @@
+#include "SIREN/geometry/EllipticalTube.h"
+
+#include <cmath>
+#include <tuple>
+#include <string>
+#include <vector>
+#include <ostream>
+#include <utility>
+#include <algorithm>
+#include <stdexcept>
+
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Placement.h"
+#include "GeometryMacros.h"
+
+namespace siren {
+namespace geometry {
+
+EllipticalTube::EllipticalTube() : Geometry("EllipticalTube"), dx_(0), dy_(0), dz_(0) { RecomputeWorldAABB(); }
+EllipticalTube::EllipticalTube(double dx, double dy, double dz) : Geometry("EllipticalTube"), dx_(dx), dy_(dy), dz_(dz) {
+    if(dx_ <= 0 || dy_ <= 0 || dz_ <= 0) throw std::invalid_argument("EllipticalTube: dx, dy, dz must all be positive!");
+    RecomputeWorldAABB();
+}
+EllipticalTube::EllipticalTube(Placement const & p) : Geometry("EllipticalTube", p), dx_(0), dy_(0), dz_(0) { RecomputeWorldAABB(); }
+EllipticalTube::EllipticalTube(Placement const & p, double dx, double dy, double dz) : Geometry("EllipticalTube", p), dx_(dx), dy_(dy), dz_(dz) {
+    if(dx_ <= 0 || dy_ <= 0 || dz_ <= 0) throw std::invalid_argument("EllipticalTube: dx, dy, dz must all be positive!");
+    RecomputeWorldAABB();
+}
+EllipticalTube::EllipticalTube(const EllipticalTube& o) : Geometry(o), dx_(o.dx_), dy_(o.dy_), dz_(o.dz_) { RecomputeWorldAABB(); }
+
+SIREN_GEOMETRY_SWAP(EllipticalTube, dx_, dy_, dz_)
+SIREN_GEOMETRY_ASSIGN(EllipticalTube)
+SIREN_GEOMETRY_EQUAL(EllipticalTube, dx_, dy_, dz_)
+SIREN_GEOMETRY_LESS(EllipticalTube, dx_, dy_, dz_)
+
+void EllipticalTube::print(std::ostream& os) const {
+    os << "EllipticalTube(" << dx_ << ", " << dy_ << ", " << dz_ << ")\n";
+}
+
+// ------------------------------------------------------------------------- //
+std::vector<Geometry::Intersection> EllipticalTube::ComputeIntersections(
+        siren::math::Vector3D const & position,
+        siren::math::Vector3D const & direction) const {
+
+    double px = position.GetX();
+    double py = position.GetY();
+    double pz = position.GetZ();
+    double dirx = direction.GetX();
+    double diry = direction.GetY();
+    double dirz = direction.GetZ();
+
+    Intersection hits[4];
+    int nhits = 0;
+
+    double idx2 = 1.0 / (dx_ * dx_);
+    double idy2 = 1.0 / (dy_ * dy_);
+
+    // Origin shift: move to closest approach point to reduce magnitudes and
+    // prevent catastrophic cancellation in the discriminant at far-field.
+    double t_shift = -(px*dirx + py*diry + pz*dirz);
+    double qx = px + t_shift * dirx;
+    double qy = py + t_shift * diry;
+
+    // Elliptical barrel: (x/dx)^2 + (y/dy)^2 = 1
+    // Substituting x = qx + t*dirx, y = qy + t*diry (shifted origin):
+    // A*t^2 + 2*B*t + C = 0
+    double A = dirx * dirx * idx2 + diry * diry * idy2;
+    double B = qx * dirx * idx2 + qy * diry * idy2;
+    double C = qx * qx * idx2 + qy * qy * idy2 - 1.0;
+
+    double disc = B * B - A * C;
+
+    if(disc > 0 && A > GEOMETRY_PRECISION * GEOMETRY_PRECISION) {
+        double sqrt_disc = std::sqrt(disc);
+        double inv_A = 1.0 / A;
+
+        double t1 = (-B - sqrt_disc) * inv_A + t_shift;
+        double t2 = (-B + sqrt_disc) * inv_A + t_shift;
+
+        // Check t1
+        {
+            double iz = pz + t1 * dirz;
+            if(std::fabs(iz) <= dz_ + GEOMETRY_PRECISION) {
+                double ix = px + t1 * dirx;
+                double iy = py + t1 * diry;
+                // Outward normal on ellipse: (x/dx^2, y/dy^2, 0)
+                double ndot = ix * dirx * idx2 + iy * diry * idy2;
+                bool entering = (ndot < 0);
+                hits[nhits].distance = t1;
+                hits[nhits].hierarchy = 0;
+                hits[nhits].entering = entering;
+                hits[nhits].position = siren::math::Vector3D(ix, iy, iz);
+                ++nhits;
+            }
+        }
+
+        // Check t2
+        {
+            double iz = pz + t2 * dirz;
+            if(std::fabs(iz) <= dz_ + GEOMETRY_PRECISION) {
+                double ix = px + t2 * dirx;
+                double iy = py + t2 * diry;
+                double ndot = ix * dirx * idx2 + iy * diry * idy2;
+                bool entering = (ndot < 0);
+                hits[nhits].distance = t2;
+                hits[nhits].hierarchy = 0;
+                hits[nhits].entering = entering;
+                hits[nhits].position = siren::math::Vector3D(ix, iy, iz);
+                ++nhits;
+            }
+        }
+    }
+
+    // Endcaps: z = +dz and z = -dz
+    if(std::fabs(dirz) > GEOMETRY_PRECISION) {
+        // Top cap: z = +dz
+        {
+            double t = (dz_ - pz) / dirz;
+            double ix = px + t * dirx;
+            double iy = py + t * diry;
+            double ellipse_val = ix * ix * idx2 + iy * iy * idy2;
+            if(ellipse_val <= 1.0 + GEOMETRY_PRECISION) {
+                bool entering = (dirz < 0);
+                hits[nhits].distance = t;
+                hits[nhits].hierarchy = 0;
+                hits[nhits].entering = entering;
+                hits[nhits].position = siren::math::Vector3D(ix, iy, dz_);
+                ++nhits;
+            }
+        }
+        // Bottom cap: z = -dz
+        {
+            double t = (-dz_ - pz) / dirz;
+            double ix = px + t * dirx;
+            double iy = py + t * diry;
+            double ellipse_val = ix * ix * idx2 + iy * iy * idy2;
+            if(ellipse_val <= 1.0 + GEOMETRY_PRECISION) {
+                bool entering = (dirz > 0);
+                hits[nhits].distance = t;
+                hits[nhits].hierarchy = 0;
+                hits[nhits].entering = entering;
+                hits[nhits].position = siren::math::Vector3D(ix, iy, -dz_);
+                ++nhits;
+            }
+        }
+    }
+
+    if(nhits == 0) return {};
+
+    std::sort(hits, hits + nhits, [](Intersection const & a, Intersection const & b) {
+        return a.distance < b.distance;
+    });
+
+    return std::vector<Intersection>(hits, hits + nhits);
+}
+
+// ------------------------------------------------------------------------- //
+AABB EllipticalTube::GetBoundingBox() const {
+    return AABB(
+        siren::math::Vector3D(-dx_, -dy_, -dz_),
+        siren::math::Vector3D( dx_,  dy_,  dz_)
+    );
+}
+
+} // namespace geometry
+} // namespace siren

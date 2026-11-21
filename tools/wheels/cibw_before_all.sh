@@ -12,8 +12,6 @@ if [[ $RUNNER_OS == "Linux" ]] ; then
     CI_DOWNLOAD_PATH=/tmp/downloads
 elif [[ $RUNNER_OS == "macOS" ]]; then
     CI_DOWNLOAD_PATH=/tmp/downloads
-elif [[ $RUNNER_OS == "Windows" ]]; then
-    CI_DOWNLOAD_PATH=C:/Users/AppData/Local/Temp/downloads
 else
     echo "Unknown runner OS: $RUNNER_OS" 1>&2
     exit 1
@@ -28,7 +26,7 @@ DYLD_LIBRARY_PATH=$CI_INSTALL_PREFIX/lib64:$DYLD_LIBRARY_PATH
 PHOTOSPLINE_COMMIT="1faf62b8ad7116fbfcdf1ac7ade763ab9e547402"
 CFITSIO_VERSION="4.6.3"
 GSL_VERSION="2.8"
-ZLIB_VERSION="1.3.1"
+HEPMC3_VERSION="3.3.1"
 
 mkdir -p $CI_INSTALL_PREFIX
 
@@ -66,18 +64,6 @@ elif [[ $RUNNER_OS == "macOS" ]]; then
     ./configure --prefix="$CI_INSTALL_PREFIX"
     make -j$(sysctl -n hw.ncpu)
     make install
-elif [[ $RUNNER_OS == "Windows" ]]; then
-    mkdir -p $CI_DOWNLOAD_PATH
-    cd $CI_DOWNLOAD_PATH
-    curl https://www.zlib.net/zlib-$ZLIB_VERSION.tar.gz --output zlib-$ZLIB_VERSION.tar.gz
-    tar -xvf zlib-$ZLIB_VERSION.tar.gz
-    mkdir -p zlib-$ZLIB_VERSION.build
-    cd zlib-$ZLIB_VERSION.build
-    cmake ../zlib-$ZLIB_VERSION -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
-    cmake --build . --config Release
-    cmake --install .
-
-    pip install delvewheel
 else
     echo "Unknown runner OS: $RUNNER_OS" 1>&2
     exit 1
@@ -88,7 +74,7 @@ pip install scikit-build-core
 pip install tomli-w
 
 CFITSIO_TARBALL="cfitsio-$CFITSIO_VERSION.tar.gz"
-# Cache dir lives under the project tree so the workflow's populate_cache
+# Cache dir lives under the project tree so the workflow's populate_caches
 # job can populate it before this script runs and restore it for every
 # matrix job. The fetch is delegated to fetch_cfitsio.sh (also called
 # directly by the workflow) so the mirror list and retry logic live in
@@ -120,19 +106,48 @@ if [[ $RUNNER_OS == "Linux" || $RUNNER_OS == "macOS" ]]; then
     cmake ../ -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
     cmake --build . --config Release
     cmake --install .
-elif [[ $RUNNER_OS == "Windows" ]]; then
-    mkdir -p "$CI_DOWNLOAD_PATH/cfitsio-$CFITSIO_VERSION"
-    tar -xzf "$CFITSIO_CACHE_DIR/$CFITSIO_TARBALL" \
-        -C "$CI_DOWNLOAD_PATH/cfitsio-$CFITSIO_VERSION" --strip-components=1
-    mkdir -p "$CI_DOWNLOAD_PATH/cfitsio-$CFITSIO_VERSION.build"
-    cd "$CI_DOWNLOAD_PATH/cfitsio-$CFITSIO_VERSION.build"
-    cmake "../cfitsio-$CFITSIO_VERSION" -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
-    cmake --build . --config Release
-    cmake --install .
 else
     echo "Unknown runner OS: $RUNNER_OS" 1>&2
     exit 1
 fi
+
+# HepMC3 (ROOT-free) for the optional siren.io HepMC3 export module. Built from
+# source with cmake on every platform; the tarball is cached under the project
+# tree by the workflow's populate_caches job (fetch logic in
+# fetch_hepmc3.sh). ROOT/protobuf/python/tests/examples are all disabled so the
+# build has no third-party dependencies (C1: never link ROOT).
+HEPMC3_TARBALL="HepMC3-$HEPMC3_VERSION.tar.gz"
+HEPMC3_CACHE_DIR="$PROJECT_DIR/.hepmc3-cache"
+
+mkdir -p "$HEPMC3_CACHE_DIR"
+if [ -f "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" ] && \
+   tar -tzf "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" >/dev/null 2>&1; then
+    echo "Using cached $HEPMC3_CACHE_DIR/$HEPMC3_TARBALL"
+else
+    if [ -f "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" ]; then
+        echo "Cached HepMC3 tarball is corrupt; re-downloading"
+        rm -f "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL"
+    else
+        echo "HepMC3 tarball not in cache; downloading"
+    fi
+    bash "$PROJECT_DIR/tools/wheels/fetch_hepmc3.sh" \
+        "$HEPMC3_VERSION" "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL"
+fi
+
+mkdir -p "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION"
+tar -xzf "$HEPMC3_CACHE_DIR/$HEPMC3_TARBALL" \
+    -C "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION" --strip-components=1
+mkdir -p "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION/build"
+cd "$CI_DOWNLOAD_PATH/hepmc3-$HEPMC3_VERSION/build"
+cmake ../ -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX \
+    -DHEPMC3_ENABLE_ROOTIO=OFF \
+    -DHEPMC3_ENABLE_PROTOBUFIO=OFF \
+    -DHEPMC3_ENABLE_PYTHON=OFF \
+    -DHEPMC3_ENABLE_TEST=OFF \
+    -DHEPMC3_BUILD_EXAMPLES=OFF \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+cmake --build . --config Release --parallel
+cmake --install . --config Release
 
 #cd $CI_DOWNLOAD_PATH
 #mkdir -p $CI_DOWNLOAD_PATH/photopline

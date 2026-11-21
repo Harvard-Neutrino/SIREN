@@ -14,6 +14,10 @@
 using namespace siren::distributions;
 using siren::geometry::Cylinder;
 
+// Fixed seed so the uniform-sampling chi2 tests are reproducible; an unseeded
+// draw exceeds the 3-sigma tolerance ~0.27% of runs.
+static const uint64_t test_seed = 1234;
+
 
 TEST(CylinderVolumePositionDistribution, Constructor) {
     Cylinder cylinder(10.0, 1.0, 4.0);
@@ -88,7 +92,7 @@ TEST(CylinderVolumePositionDistribution, SamplingIsUniformInRadius) {
     double height = 4.0;
     CylinderVolumePositionDistribution dist(Cylinder(outer, inner, height));
 
-    auto rand = std::make_shared<siren::utilities::SIREN_random>();
+    auto rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     size_t N = 100000;
     size_t n_bins = 20;
     DistributionTest test(inner*inner, outer*outer, n_bins);
@@ -116,7 +120,7 @@ TEST(CylinderVolumePositionDistribution, SamplingIsUniformInZ) {
     double height = 4.0;
     CylinderVolumePositionDistribution dist(Cylinder(outer, inner, height));
 
-    auto rand = std::make_shared<siren::utilities::SIREN_random>();
+    auto rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     size_t N = 100000;
     size_t n_bins = 20;
     DistributionTest test(-height/2.0, height/2.0, n_bins);

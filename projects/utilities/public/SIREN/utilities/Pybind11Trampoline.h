@@ -3,6 +3,7 @@
 #define SIREN_Pybind11Trampoline_H
 
 #include <sstream>
+#include <functional>
 #include <cxxabi.h>
 
 #include <cereal/cereal.hpp>
@@ -21,57 +22,235 @@
 #include <pybind11/embed.h>
 
 #define SELF_OVERRIDE_PURE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        const BaseType * ref; \
-        if(selfname) { \
-            ref = selfname.cast<BaseType *>(); \
-        } else { \
-            ref = this; \
-        } \
         do { \
-            do { \
-                pybind11::gil_scoped_acquire gil; \
-                pybind11::function override \
-                    = pybind11::get_override(static_cast<const BaseType *>(ref), pyfuncname); \
-                if (override) { \
-                    auto o = override(__VA_ARGS__); \
-                    if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
-                        static pybind11::detail::override_caster_t<returnType> caster; \
-                        return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
+            pybind11::gil_scoped_acquire gil; \
+            if(!selfname) { \
+                auto *_tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
+                if(_tinfo) { \
+                    pybind11::handle _h = pybind11::detail::get_object_handle(static_cast<const BaseType *>(this), _tinfo); \
+                    if(_h) { \
+                        selfname = pybind11::reinterpret_borrow<pybind11::object>(_h); \
                     } \
-                    return pybind11::detail::cast_safe<returnType>(std::move(o)); \
                 } \
-            } while (false); \
+            } \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), pyfuncname); \
+            if (override) { \
+                auto o = override(__VA_ARGS__); \
+                if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
+                    static pybind11::detail::override_caster_t<returnType> caster; \
+                    return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
+                } \
+                return pybind11::detail::cast_safe<returnType>(std::move(o)); \
+            } \
             pybind11::pybind11_fail( \
                 "Tried to call pure virtual function \"" PYBIND11_STRINGIFY(BaseType) "::" #cfuncname "\""); \
         } while (false);
 
 #define SELF_OVERRIDE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        const BaseType * ref; \
-        if(selfname) { \
-            ref = selfname.cast<BaseType *>(); \
-        } else { \
-            ref = this; \
-        } \
         do { \
-            do { \
-                pybind11::gil_scoped_acquire gil; \
-                pybind11::function override \
-                    = pybind11::get_override(static_cast<const BaseType *>(ref), pyfuncname); \
-                if (override) { \
-                    auto o = override(__VA_ARGS__); \
-                    if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
-                        static pybind11::detail::override_caster_t<returnType> caster; \
-                        return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
+            pybind11::gil_scoped_acquire gil; \
+            if(!selfname) { \
+                auto *_tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
+                if(_tinfo) { \
+                    pybind11::handle _h = pybind11::detail::get_object_handle(static_cast<const BaseType *>(this), _tinfo); \
+                    if(_h) { \
+                        selfname = pybind11::reinterpret_borrow<pybind11::object>(_h); \
                     } \
-                    return pybind11::detail::cast_safe<returnType>(std::move(o)); \
                 } \
-            } while (false); \
-            return BaseType::cfuncname(__VA_ARGS__); \
+            } \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), pyfuncname); \
+            if (override) { \
+                auto o = override(__VA_ARGS__); \
+                if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
+                    static pybind11::detail::override_caster_t<returnType> caster; \
+                    return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
+                } \
+                return pybind11::detail::cast_safe<returnType>(std::move(o)); \
+            } \
+        } while (false); \
+        return BaseType::cfuncname(__VA_ARGS__);
+
+#define SELF_OVERRIDE_PURE_REF(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
+        do { \
+            pybind11::gil_scoped_acquire gil; \
+            if(!selfname) { \
+                auto *_tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
+                if(_tinfo) { \
+                    pybind11::handle _h = pybind11::detail::get_object_handle(static_cast<const BaseType *>(this), _tinfo); \
+                    if(_h) { \
+                        selfname = pybind11::reinterpret_borrow<pybind11::object>(_h); \
+                    } \
+                } \
+            } \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), pyfuncname); \
+            if (override) { \
+                auto o = override.operator()<pybind11::return_value_policy::reference>(__VA_ARGS__); \
+                if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
+                    static pybind11::detail::override_caster_t<returnType> caster; \
+                    return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
+                } \
+                return pybind11::detail::cast_safe<returnType>(std::move(o)); \
+            } \
+            pybind11::pybind11_fail( \
+                "Tried to call pure virtual function \"" PYBIND11_STRINGIFY(BaseType) "::" #cfuncname "\""); \
+        } while (false);
+
+#define SELF_OVERRIDE_REF(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
+        do { \
+            pybind11::gil_scoped_acquire gil; \
+            if(!selfname) { \
+                auto *_tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
+                if(_tinfo) { \
+                    pybind11::handle _h = pybind11::detail::get_object_handle(static_cast<const BaseType *>(this), _tinfo); \
+                    if(_h) { \
+                        selfname = pybind11::reinterpret_borrow<pybind11::object>(_h); \
+                    } \
+                } \
+            } \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), pyfuncname); \
+            if (override) { \
+                auto o = override.operator()<pybind11::return_value_policy::reference>(__VA_ARGS__); \
+                if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
+                    static pybind11::detail::override_caster_t<returnType> caster; \
+                    return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
+                } \
+                return pybind11::detail::cast_safe<returnType>(std::move(o)); \
+            } \
+        } while (false); \
+        return BaseType::cfuncname(__VA_ARGS__);
+
+// Recover the python half of a trampoline instance into `selfname` when it
+// has not been cached yet. Used by the SELF_OVERRIDE family and by trampoline
+// methods that provide their own C++ defaults.
+#define SELF_RECOVER(selfname, BaseType) \
+        if(!selfname) { \
+            auto *_tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
+            if(_tinfo) { \
+                pybind11::handle _h = pybind11::detail::get_object_handle(static_cast<const BaseType *>(this), _tinfo); \
+                if(_h) { \
+                    selfname = pybind11::reinterpret_borrow<pybind11::object>(_h); \
+                } \
+            } \
+        }
+
+// Dispatch Name() to a python override when one exists; otherwise report the
+// python class name, falling back to the C++ base type name when the
+// instance has no python half.
+#define SELF_OVERRIDE_NAME_CLASSNAME_DEFAULT(selfname, BaseType) \
+        do { \
+            pybind11::gil_scoped_acquire gil; \
+            SELF_RECOVER(selfname, BaseType) \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), "Name"); \
+            if (override) { \
+                return override().cast<std::string>(); \
+            } \
+            if(selfname) { \
+                return selfname.attr("__class__").attr("__name__").cast<std::string>(); \
+            } \
+            return std::string(PYBIND11_STRINGIFY(BaseType)); \
+        } while (false);
+
+// Dispatch equal() to a python override when one exists; otherwise compare
+// object identity. The framework deduplicates distributions by shared
+// pointer identity, so identity is the safe default for python subclasses.
+#define SELF_OVERRIDE_EQUAL_IDENTITY_DEFAULT(selfname, BaseType, CompareType, other) \
+        do { \
+            pybind11::gil_scoped_acquire gil; \
+            SELF_RECOVER(selfname, BaseType) \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), "equal"); \
+            if (override) { \
+                return override(other).cast<bool>(); \
+            } \
+            return static_cast<CompareType const *>(this) == &other; \
+        } while (false);
+
+// Dispatch less() to a python override when one exists; otherwise order by
+// object address so that python subclasses have a consistent total order
+// within a process.
+#define SELF_OVERRIDE_LESS_IDENTITY_DEFAULT(selfname, BaseType, CompareType, other) \
+        do { \
+            pybind11::gil_scoped_acquire gil; \
+            SELF_RECOVER(selfname, BaseType) \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), "less"); \
+            if (override) { \
+                return override(other).cast<bool>(); \
+            } \
+            return std::less<CompareType const *>()(static_cast<CompareType const *>(this), &other); \
+        } while (false);
+
+// Dispatch clone() to a python override when one exists; otherwise fail with
+// an instructive error. Nothing in the framework calls clone(), so python
+// subclasses only need to define it when they use cloning themselves.
+#define SELF_OVERRIDE_CLONE_REQUIRED(selfname, BaseType, ReturnElementType) \
+        do { \
+            pybind11::gil_scoped_acquire gil; \
+            SELF_RECOVER(selfname, BaseType) \
+            const BaseType * ref; \
+            if(selfname) { \
+                ref = selfname.cast<BaseType *>(); \
+            } else { \
+                ref = this; \
+            } \
+            pybind11::function override \
+                = pybind11::get_override(static_cast<const BaseType *>(ref), "clone"); \
+            if (override) { \
+                return override().cast<std::shared_ptr<ReturnElementType>>(); \
+            } \
+            throw std::runtime_error("clone() is not implemented for this python-defined distribution; define clone(self) returning a fresh instance to enable cloning"); \
         } while (false);
 
 #define Pybind11TrampolineCerealMethods(BaseType, TrampolineType) \
 public: \
-    pybind11::object self; \
+    mutable pybind11::object self; \
     pybind11::object get_representation() { \
         const BaseType * ref; \
         if(self) { \
@@ -114,7 +293,11 @@ public: \
         return d; \
     } \
     static pybind11::tuple pickle_save(BaseType & cpp_obj) { \
-        pybind11::object x = dynamic_cast<TrampolineType*>(&cpp_obj)->get_representation(); \
+        TrampolineType * trampoline = dynamic_cast<TrampolineType*>(&cpp_obj); \
+        if(!trampoline) { \
+            throw std::runtime_error("Cannot pickle a C++-defined instance through the python trampoline; pickling is only supported for python-defined subclasses"); \
+        } \
+        pybind11::object x = trampoline->get_representation(); \
         return pybind11::make_tuple(x); \
     } \
     static std::pair<std::unique_ptr<BaseType>, pybind11::dict> pickle_load(const pybind11::tuple &t) { \

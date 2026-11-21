@@ -89,23 +89,23 @@ class _SIRENResourcesMetaPathImporter(object):
 
     def find_module(self, fullname, path=None):
         logger.debug("Finding module %r with path %r", fullname, path)
-        mod = self.__get_module(fullname)
-        return self
         try:
-            mod = self.__get_module(fullname)
+            self.__get_module(fullname)
             return self
         except ImportError:
+            # Not a resource this importer owns; decline so the normal import
+            # machinery continues to the next finder.
             return None
-        return None
 
     def find_spec(self, fullname, path, target=None):
         logger.debug("Finding spec for %r with path %r and target %r", fullname, path, target)
-        mod = self.__get_module(fullname)
-        return spec_from_loader(fullname, self)
         try:
-            mod = self.__get_module(fullname)
+            self.__get_module(fullname)
             return spec_from_loader(fullname, self)
         except ImportError:
+            # Not a resource this importer owns; decline (return None) so the
+            # normal machinery keeps searching and ultimately raises the
+            # standard ModuleNotFoundError instead of this importer's ImportError.
             return None
 
     def __get_module(self, fullname):

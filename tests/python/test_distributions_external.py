@@ -47,6 +47,22 @@ def csv_full(tmp_path):
 
 
 @pytest.fixture
+def csv_vertex(tmp_path):
+    """CSV with interaction vertex, momentum, energy, and mass."""
+    p = tmp_path / "vertex.csv"
+    p.write_text("E,m,x,y,z,px,py,pz\n"
+                 "10.0,0.5,1.0,2.0,3.0,4.0,5.0,6.0\n")
+    return str(p)
+
+@pytest.fixture
+def csv_with_time(tmp_path):
+    """CSV with an initial-time column."""
+    p = tmp_path / "time.csv"
+    p.write_text("E,t0\n10.0,16.678\n")
+    return str(p)
+
+
+@pytest.fixture
 def csv_custom_params(tmp_path):
     """CSV with a custom interaction parameter column."""
     p = tmp_path / "custom.csv"
@@ -143,6 +159,33 @@ class TestPrimaryExternalDistributionSampling:
             dist.Sample(rand, None, None, record)
             assert record.energy >= emin
 
+    def test_sample_sets_interaction_vertex_from_xyz(
+            self, distributions, dataclasses, utilities, csv_vertex):
+        dist = distributions.PrimaryExternalDistribution(csv_vertex)
+        rand = utilities.SIREN_random()
+        record = dataclasses.PrimaryDistributionRecord(
+            dataclasses.ParticleType.Pi0)
+        dist.Sample(rand, None, None, record)
+        assert record.interaction_vertex == pytest.approx([1.0, 2.0, 3.0])
+        assert record.initial_position == pytest.approx([1.0, 2.0, 3.0])
+
+    def test_sample_sets_initial_time(self, distributions, dataclasses,
+                                      utilities, csv_with_time):
+        dist = distributions.PrimaryExternalDistribution(csv_with_time)
+        rand = utilities.SIREN_random()
+        record = dataclasses.PrimaryDistributionRecord(
+            dataclasses.ParticleType.NuMu)
+        dist.Sample(rand, None, None, record)
+        assert record.initial_time == pytest.approx(16.678)
+
+    def test_no_time_column_leaves_default(self, distributions, dataclasses,
+                                           utilities, csv_basic):
+        dist = distributions.PrimaryExternalDistribution(csv_basic)
+        rand = utilities.SIREN_random()
+        record = dataclasses.PrimaryDistributionRecord(
+            dataclasses.ParticleType.NuMu)
+        dist.Sample(rand, None, None, record)
+        assert record.initial_time == 0.0
 
 # ---------------------------------------------------------------------------
 # GenerationProbability

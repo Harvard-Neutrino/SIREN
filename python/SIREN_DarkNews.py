@@ -380,6 +380,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 print("Requested interpolation at %2.2f GeV below table boundary. Requring calculation"%inputs[0])
                 return 0
             val = max(0,interpolator(inputs))
+            if hasattr(val, "item"): val = val.item()
             if val<0:
                 print("WARNING: negative interpolated value for %s-%s %s cross section at,"%(self.ups_case.nuclear_target.name,
                                                                                              self.ups_case.scattering_regime,
@@ -396,7 +397,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 exit(0)
             return interp_table[closest_idx, -1]
         elif Interpolate:
-            return interpolator(inputs)
+            val = interpolator(inputs)
+            return val.item() if hasattr(val, "item") else val
         else:
             return -1
 
@@ -631,6 +633,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         # If we have reached this block, we must compute the cross section using DarkNews
         xsec = self.ups_case.total_xsec(energy)
+        if hasattr(xsec, "item"): xsec = xsec.item()
         self.total_cross_section_table = np.append(
             self.total_cross_section_table, [[energy, xsec]], axis=0
         )
@@ -802,7 +805,9 @@ class PyDarkNewsDecay(DarkNewsDecay):
         else:
             print("%s is not a valid decay class type!" % type(self.dec_case))
             exit(0)
-        return self.dec_case.differential_width(momenta)
+        ret = self.dec_case.differential_width(momenta)
+        if hasattr(ret, "item"): ret = ret.item()
+        return ret
 
     def TotalDecayWidth(self, arg1):
         if type(arg1) == dataclasses.InteractionRecord:
@@ -835,7 +840,9 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     )
             else:
                 self.total_width = self.dec_case.total_width()
-        return self.total_width
+        ret = self.total_width
+        if hasattr(ret, "item"): ret = ret.item()
+        return ret
 
     def TotalDecayWidthForFinalState(self, record):
         sig = self.GetPossibleSignatures()[0]

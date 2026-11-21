@@ -6,6 +6,40 @@ from pathlib import Path
 import pytest
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-network",
+        action="store_true",
+        default=False,
+        help="run tests that require network access")
+    parser.addoption(
+        "--download-cache",
+        metavar="DIR",
+        default=None,
+        help="serve pinned downloads from DIR and store new ones there")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "network: test requires network access")
+    cache = config.getoption("--download-cache")
+    if cache:
+        import siren.download
+        from download_cache import cached_ensure_files
+
+        siren.download.ensure_files = cached_ensure_files(
+            siren.download.ensure_files, Path(cache))
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--run-network"):
+        return
+    skip_network = pytest.mark.skip(reason="requires --run-network")
+    for item in items:
+        if "network" in item.keywords:
+            item.add_marker(skip_network)
+
+
 @pytest.fixture(scope="session")
 def project_root() -> Path:
     here = Path(__file__).resolve()

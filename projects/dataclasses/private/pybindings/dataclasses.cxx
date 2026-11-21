@@ -75,6 +75,20 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("primary_type",&InteractionSignature::primary_type)
         .def_readwrite("target_type",&InteractionSignature::target_type)
         .def_readwrite("secondary_types",&InteractionSignature::secondary_types)
+        .def(py::self == py::self)
+        .def(py::self != py::self)
+        .def(py::self < py::self)
+        .def("__hash__", [](InteractionSignature const & s) {
+            std::size_t h = 146527;
+            auto mix = [&h](ParticleType t) {
+                h = h * 31 + static_cast<std::size_t>(
+                    static_cast<uint32_t>(static_cast<int32_t>(t)));
+            };
+            mix(s.primary_type);
+            mix(s.target_type);
+            for(ParticleType const & st : s.secondary_types) mix(st);
+            return h;
+        })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionSignature>),
             &(siren::serialization::pickle_load<InteractionSignature>)
@@ -101,6 +115,8 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_property("initial_position", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialPosition)), &PrimaryDistributionRecord::SetInitialPosition)
         .def_property("interaction_vertex", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionVertex)), &PrimaryDistributionRecord::SetInteractionVertex)
         .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
+        .def_property("initial_time", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialTime)), &PrimaryDistributionRecord::SetInitialTime)
+        .def_property("interaction_time", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionTime)), &PrimaryDistributionRecord::SetInteractionTime)
         .def("finalize", &PrimaryDistributionRecord::Finalize);
 
     py::class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
@@ -122,6 +138,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_property("three_momentum", ((std::array<double, 3> const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetThreeMomentum)), &SecondaryParticleRecord::SetThreeMomentum)
         .def_property("four_momentum", ((std::array<double, 4> (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetFourMomentum)), &SecondaryParticleRecord::SetFourMomentum)
         .def_property("helicity", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetHelicity)), &SecondaryParticleRecord::SetHelicity)
+        .def_property("time", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetTime)), &SecondaryParticleRecord::SetTime)
         .def("finalize", &SecondaryParticleRecord::Finalize)
         ;
 
@@ -147,6 +164,7 @@ PYBIND11_MODULE(dataclasses, m) {
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {double h = cdr.primary_helicity; return h;})
         .def_property_readonly("interaction_vertex",
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> iv = cdr.interaction_vertex; return iv;})
+        .def_property("interaction_time", ((double const & (siren::dataclasses::CrossSectionDistributionRecord::*)() const)(&siren::dataclasses::CrossSectionDistributionRecord::GetInteractionTime)), &siren::dataclasses::CrossSectionDistributionRecord::SetInteractionTime)
         .def_property_readonly("target_id",
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::ParticleID id = cdr.target_id; return id;})
         .def_property_readonly("target_type",
@@ -166,6 +184,32 @@ PYBIND11_MODULE(dataclasses, m) {
         .def("finalize", &CrossSectionDistributionRecord::Finalize)
         ;
 
+    py::class_<SecondaryDistributionRecord, std::shared_ptr<SecondaryDistributionRecord>>(m, "SecondaryDistributionRecord")
+        .def(py::init<InteractionRecord &>())
+        .def(py::init<InteractionRecord const &, size_t>())
+        .def("__str__", [](SecondaryDistributionRecord const & sdr) { return to_str(sdr); })
+        .def("__repr__", [](SecondaryDistributionRecord const & sdr) { return to_repr(sdr); })
+        .def_property_readonly("secondary_index", &SecondaryDistributionRecord::GetSecondaryIndex)
+        .def_property_readonly("id",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {siren::dataclasses::ParticleID id = sdr.id; return id;})
+        .def_property_readonly("type",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {siren::dataclasses::ParticleType pt = sdr.type; return pt;})
+        .def_property_readonly("mass",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {double m = sdr.mass; return m;})
+        .def_property_readonly("direction",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {std::array<double, 3> d = sdr.direction; return d;})
+        .def_property_readonly("momentum",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {std::array<double, 4> p = sdr.momentum; return p;})
+        .def_property_readonly("helicity",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {double h = sdr.helicity; return h;})
+        .def_property_readonly("initial_position",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {std::array<double, 3> ip = sdr.initial_position; return ip;})
+        .def_property_readonly("initial_time",
+            [](siren::dataclasses::SecondaryDistributionRecord const & sdr) {double t = sdr.initial_time; return t;})
+        .def_property("length", ((double const & (SecondaryDistributionRecord::*)() const)(&SecondaryDistributionRecord::GetLength)), &SecondaryDistributionRecord::SetLength)
+        .def_property("interaction_time", ((double const & (SecondaryDistributionRecord::*)() const)(&SecondaryDistributionRecord::GetInteractionTime)), &SecondaryDistributionRecord::SetInteractionTime)
+        .def("finalize", &SecondaryDistributionRecord::Finalize)
+        ;
 
     py::class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
         .def(py::init<>())
@@ -174,6 +218,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("signature",&InteractionRecord::signature)
         .def_readwrite("primary_id",&InteractionRecord::primary_id)
         .def_readwrite("primary_initial_position",&InteractionRecord::primary_initial_position)
+        .def_readwrite("primary_initial_time",&InteractionRecord::primary_initial_time)
         .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
         .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
         .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
@@ -181,10 +226,12 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("target_mass",&InteractionRecord::target_mass)
         .def_readwrite("target_helicity",&InteractionRecord::target_helicity)
         .def_readwrite("interaction_vertex",&InteractionRecord::interaction_vertex)
+        .def_readwrite("interaction_time",&InteractionRecord::interaction_time)
         .def_readwrite("secondary_ids",&InteractionRecord::secondary_ids)
         .def_readwrite("secondary_masses",&InteractionRecord::secondary_masses)
         .def_readwrite("secondary_momenta",&InteractionRecord::secondary_momenta)
         .def_readwrite("secondary_helicities",&InteractionRecord::secondary_helicities)
+        .def_readwrite("secondary_times",&InteractionRecord::secondary_times)
         .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters)
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionRecord>),
@@ -195,20 +242,38 @@ PYBIND11_MODULE(dataclasses, m) {
     py::class_<InteractionTreeDatum, std::shared_ptr<InteractionTreeDatum>>(m, "InteractionTreeDatum")
         .def(py::init<InteractionRecord&>())
         .def_readwrite("record",&InteractionTreeDatum::record)
-        .def_readwrite("parent",&InteractionTreeDatum::parent)
-        .def_readwrite("daughters",&InteractionTreeDatum::daughters)
-        .def("depth",&InteractionTreeDatum::depth)
+        .def_readonly("node_id",&InteractionTreeDatum::node_id)
+        .def_readonly("parent_index",&InteractionTreeDatum::parent_index)
+        .def_readwrite("daughter_indices",&InteractionTreeDatum::daughter_indices)
+        .def("is_root",&InteractionTreeDatum::is_root)
+        .def("depth",&InteractionTreeDatum::depth, pybind11::arg("tree"))
+        .def("__str__", [](InteractionTreeDatum const & d){ return to_str(d); })
+        .def("__repr__", [](InteractionTreeDatum const & d){ return to_repr(d); })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionTreeDatum>),
             &(siren::serialization::pickle_load<InteractionTreeDatum>)
         ))
         ;
 
+    py::class_<InteractionTreeHeader, std::shared_ptr<InteractionTreeHeader>>(m, "InteractionTreeHeader")
+        .def(py::init<>())
+        .def_readwrite("event_number", &InteractionTreeHeader::event_number)
+        .def_readwrite("weights", &InteractionTreeHeader::weights)
+        .def_readwrite("provenance", &InteractionTreeHeader::provenance)
+        .def("__str__", [](InteractionTreeHeader const & h){ return to_str(h); })
+        .def("__repr__", [](InteractionTreeHeader const & h){ return to_repr(h); })
+        ;
+
     py::class_<InteractionTree, std::shared_ptr<InteractionTree>>(m, "InteractionTree")
         .def(py::init<>())
         .def_readwrite("tree",&InteractionTree::tree)
+        .def_readwrite("header", &InteractionTree::header)
+        .def("at", &InteractionTree::at, pybind11::arg("node_id"))
+        .def("depth", &InteractionTree::depth, pybind11::arg("node_id"))
         .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionTreeDatum&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
         .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionRecord&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
+        .def("__str__", [](InteractionTree const & t){ return to_str(t); })
+        .def("__repr__", [](InteractionTree const & t){ return to_repr(t); })
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<InteractionTree>),
             &(siren::serialization::pickle_load<InteractionTree>)
@@ -216,7 +281,8 @@ PYBIND11_MODULE(dataclasses, m) {
         ;
 
     m.def("SaveInteractionTrees",&SaveInteractionTrees);
-    m.def("LoadInteractionTrees",&LoadInteractionTrees, py::return_value_policy::reference);
+    m.def("LoadInteractionTrees",&LoadInteractionTrees);
+    m.attr("kNoParent") = pybind11::int_(siren::dataclasses::kNoParent);
 
     m.def("GetParticleMass", &GetParticleMass, py::arg("particle_type"));
 

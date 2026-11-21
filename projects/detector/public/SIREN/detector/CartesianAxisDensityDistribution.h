@@ -122,9 +122,16 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
 
         double dist_integral = integral * dxdt;
 
+        // This closed form solves in absolute axis coordinates: x is a point
+        // on the axis and a is the coordinate of the segment start. This
+        // differs from the generic InverseIntegral implementations, whose
+        // integration variable is already the distance along the path. The
+        // constant (decay) term must therefore scale with the distance
+        // traveled from the start, x - a, never with x itself.
         double Ia = dist.AntiDerivative(a);
         std::function<double(double)> F = [&](double x)->double {
-            return (dist.AntiDerivative(x) - Ia) + constant*x - dist_integral;
+            return (dist.AntiDerivative(x) - Ia)
+                + constant * (x - a) - dist_integral;
         };
 
         std::function<double(double)> dF = [&](double x)->double {

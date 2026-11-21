@@ -2,8 +2,10 @@
 #include <tuple>
 #include <math.h>
 #include <random>
+#include <limits>
 #include <iostream>
 #include <algorithm>
+#include <stdexcept>
 
 #include <gtest/gtest.h>
 
@@ -22,6 +24,11 @@ using namespace siren::dataclasses;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
+
+// Fixed seed so the statistical sampling tests are reproducible. Only the
+// sampling RNG needs seeding; the parameter RNG (rng_) is default-seeded and
+// already deterministic.
+static const uint64_t test_seed = 1234;
 
 double RandomDouble() {
     return uniform_distribution(rng_);
@@ -120,7 +127,7 @@ TEST(PowerLaw, SampleDistribution) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
     for(size_t i=0; i<N; ++i) {
         double gamma = (RandomDouble() - 0.5) + 1;
         double energyMin = RandomDouble() * 100 + 10;
@@ -173,10 +180,18 @@ TEST(PowerLaw, SampleDistribution) {
             n_one_sigma += 1;
         }
     }
+    // Count of trials whose binned chi2 exceeds the k-sigma threshold is
+    // ~Binomial(N, p), p = 1 - central_probability: mean N*p, std sqrt(N*p*(1-p)).
+    // The 1- and 2-sigma counts are large, so p*(1 + sqrt(n)/N) bounds them with
+    // margin. The 3- and 4-sigma expected counts are tiny (2.7 and 0.06 here),
+    // where a mean-level bound rejects ordinary fluctuation, so those use a
+    // mean + 4*std control limit that still flags an anomalous tail excess.
+    double p3 = 1.0 - 0.997300203936740;
+    double p4 = 1.0 - 0.999936657516334;
     EXPECT_TRUE(double(n_one_sigma) / N <= (1.0 - 0.682689492137086) * (1.0 + sqrt(n_one_sigma)/N));
     EXPECT_TRUE(double(n_two_sigma) / N <= (1.0 - 0.954499736103642) * (1.0 + sqrt(n_two_sigma)/N));
-    EXPECT_TRUE(double(n_three_sigma) / N <= (1.0 - 0.997300203936740) * (1.0 + sqrt(n_three_sigma)/N));
-    EXPECT_TRUE(double(n_four_sigma) / N <= (1.0 - 0.999936657516334) * (1.0 + sqrt(n_four_sigma)/N));
+    EXPECT_TRUE(double(n_three_sigma) / N <= p3 + 4.0 * sqrt(p3 * (1.0 - p3) / N));
+    EXPECT_TRUE(double(n_four_sigma) / N <= p4 + 4.0 * sqrt(p4 * (1.0 - p4) / N));
 }
 
 TEST(PowerLaw, GenerationProbability) {
@@ -207,6 +222,77 @@ TEST(PowerLaw, GenerationProbability) {
             double expected_density = std::pow(test_energy, -gamma) / total_integral;
             EXPECT_NEAR(density, expected_density, expected_density * 1e-8);
         }
+    }
+}
+
+TEST(PowerLaw, ConstructorRejectsInvalidBounds) {
+    double const nan = std::numeric_limits<double>::quiet_NaN();
+    double const inf = std::numeric_limits<double>::infinity();
+    EXPECT_THROW(PowerLaw A(2, 4, 1), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(2, -1, 1), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(2, nan, 1), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(2, 1, nan), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(nan, 1, 2), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(2, inf, inf), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(1, 0, 2), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(2, 0, 2), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(1, 1, inf), std::invalid_argument);
+    EXPECT_THROW(PowerLaw A(0.5, 1, inf), std::invalid_argument);
+    EXPECT_NO_THROW(PowerLaw A(0.5, 0, 2));
+    EXPECT_NO_THROW(PowerLaw A(2, 1, inf));
+}
+
+TEST(PowerLaw, DensityVanishesOutsideSupport) {
+    for(double gamma : {0.0, 0.5, 1.0, 2.0}) {
+        PowerLaw A(gamma, 1.0, 2.0);
+        EXPECT_GT(A.pdf(1.0), 0.0);
+        EXPECT_GT(A.pdf(2.0), 0.0);
+        EXPECT_EQ(A.pdf(std::nextafter(1.0, 0.0)), 0.0);
+        EXPECT_EQ(A.pdf(std::nextafter(2.0, 3.0)), 0.0);
+        EXPECT_EQ(A.pdf(0.0), 0.0);
+        EXPECT_EQ(A.pdf(std::numeric_limits<double>::infinity()), 0.0);
+        EXPECT_EQ(A.pdf(std::numeric_limits<double>::quiet_NaN()), 0.0);
+    }
+}
+
+TEST(PowerLaw, SingleEnergyTolerance) {
+    PowerLaw A(2.0, 3.0, 3.0);
+    EXPECT_EQ(A.pdf(3.0), 1.0);
+    EXPECT_EQ(A.pdf(3.0 * (1 + 1e-9)), 1.0);
+    EXPECT_EQ(A.pdf(3.0 * (1 - 1e-9)), 1.0);
+    EXPECT_EQ(A.pdf(3.0 * (1 + 1e-5)), 0.0);
+    EXPECT_EQ(A.pdf(3.0 * (1 - 1e-5)), 0.0);
+}
+
+TEST(PowerLaw, NormalizationAtOutsideReference) {
+    for(double reference : {0.5, 1.5, 4.0}) {
+        PowerLaw A(2.0, 1.0, 2.0);
+        A.SetNormalizationAtEnergy(7.0, reference);
+        double physical = A.GetNormalization() * A.pdf(1.5);
+        double expected = 7.0 * std::pow(reference / 1.5, 2.0);
+        EXPECT_NEAR(physical, expected, expected * 1e-12);
+    }
+}
+
+TEST(PowerLaw, EndpointSamplesStayInSupport) {
+    // Without the clamp, inverse-CDF rounding puts many samples outside this
+    // four-ulp interval (all of them for index 1.01).
+    double energyMin = 30.0;
+    double energyMax = energyMin;
+    for(int i=0; i<4; ++i)
+        energyMax = std::nextafter(energyMax, 100.0);
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>(test_seed);
+    for(double gamma : {1.0, 1.01, 2.58}) {
+        PowerLaw A(gamma, energyMin, energyMax);
+        size_t outside = 0;
+        for(size_t j=0; j<1000; ++j) {
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
+            A.Sample(rand, nullptr, nullptr, record);
+            double energy = record.GetEnergy();
+            if(energy < energyMin || energy > energyMax || !(A.pdf(energy) > 0.0))
+                ++outside;
+        }
+        EXPECT_EQ(outside, 0u) << "gamma = " << gamma;
     }
 }
 

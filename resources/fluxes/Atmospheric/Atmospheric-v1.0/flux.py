@@ -1,4 +1,49 @@
 import os
+import numpy as np
+from siren.download import (atomic_output_path, ensure_files,
+                            resolve_data_path, writable_data_dir)
+
+_INSTALL_DIR = os.path.dirname(os.path.abspath(__file__))
+
+_DATA_BASE = (
+    "https://raw.githubusercontent.com/SIREN-Generator/SIREN-data/"
+    "main/fluxes/Atmospheric/Atmospheric-v1.0"
+)
+
+MODELS = ["bartol", "daemonflux", "H3a_SIBYLL21", "H3a_SIBYLL23C", "honda2006"]
+PARTICLES = ["nue", "numu", "nuebar", "numubar", "nutau", "nutaubar"]
+OSC_STATES = ["osc", "unosc"]
+
+_NPZ_SHA256 = {
+    "bartol": "af0806ea7a6dae9fd0e8196aa4d3896ca33f19638bc9a5e688921f9aa4c12ee4",
+    "daemonflux": "40fcec18c4f66ff556b7c725b2ff84559f7e9a7cd6e150efe7fd120285af57a9",
+    "H3a_SIBYLL21": "9f3280c76c1f3558a4522647a395131cb9f84020dfd18f128fc2b7bc612bfc96",
+    "H3a_SIBYLL23C": "e291e782a2d149a7e979c7332b63e479130c801db6b355d7b140b06968fd84ae",
+    "honda2006": "9afe3fe86e67e6653e95ae1e9629964a73d1063c5abaf6e39eabf5444c964559",
+}
+
+_ABS_DIR = None
+
+def _get_abs_dir():
+    global _ABS_DIR
+    if _ABS_DIR is None:
+        _ABS_DIR = writable_data_dir(_INSTALL_DIR)
+    return _ABS_DIR
+
+
+def fetch_data():
+    """Download all atmospheric flux npz files."""
+    abs_dir = _get_abs_dir()
+    ensure_files([
+        {
+            "path": os.path.join(abs_dir, f"{model}.npz"),
+            "url": f"{_DATA_BASE}/{model}.npz",
+            "sha256": _NPZ_SHA256[model],
+        }
+        for model in MODELS
+    ])
+
+
 def load_flux(tag):
     '''
     Accepts the following tags:
@@ -7,51 +52,57 @@ def load_flux(tag):
         osc_status is one of {osc,unosc}
         particlei is one of {nue,numu,nuebar,numubar,nutau,nutaubar}
     '''
-    fields = tag.split("_")
-    if len(fields) < 3:
-        print("Tag %s is not valid. It should be of the form {model}_{osc_status}_{particle1}_{particle2}_...{particleN}"%tag)
-        exit(0)
-    model, osc_status = fields[0], fields[1]
-    particles = fields[2:]
-    if model not in ["bartol","daemonflux","H3a_SIBYLL21","H3a_SIBYLL23C","honda2006"]:
-        print("%s model specified in tag %s is not valid"%(model,tag))
-        exit(0)
-    if osc_status not in ["osc","unosc"]:
-        print("%s osc_status specified in tag %s is not valid"%(osc_status,tag))
-        exit(0)
-    if not all(p in ["nue","numu","nuebar","numubar","nutau","nutaubar"] for p in particles):
-        print("%s particles specified in tag %s are not valid"%(particles,tag))
-        exit(0)
+    # Match model by longest known prefix (handles underscores in names
+    # like H3a_SIBYLL21)
+    model = None
+    for m in sorted(MODELS, key=len, reverse=True):
+        if tag.startswith(m + "_"):
+            model = m
+            break
+    if model is None:
+        raise ValueError(
+            f"Tag '{tag}' does not start with a known model. "
+            f"Expected one of: {', '.join(MODELS)}")
+    rest = tag[len(model) + 1:]
+    parts = rest.split("_")
+    if len(parts) < 2:
+        raise ValueError(
+            f"Tag '{tag}' is not valid. Expected "
+            "{{model}}_{{osc_status}}_{{particle1}}_{{particle2}}_...")
+    osc_status = parts[0]
+    particles = parts[1:]
+    if osc_status not in OSC_STATES:
+        raise ValueError(f"Unknown osc_status '{osc_status}' in tag '{tag}'")
+    for p in particles:
+        if p not in PARTICLES:
+            raise ValueError(f"Unknown particle '{p}' in tag '{tag}'")
 
-    abs_flux_dir = os.path.dirname(__file__)
-    output_flux_file = os.path.join(abs_flux_dir,
-                                    "Atmospheric_%s_flux.txt"%(tag))
+    fetch_data()
+
+    abs_dir = _get_abs_dir()
+    output_flux_file = os.path.join(abs_dir, f"Atmospheric_{tag}_flux.txt")
     if os.path.isfile(output_flux_file):
         return output_flux_file
-    else:
-        with open(output_flux_file,"w") as fout:
-            tot_flux = {}
-            key_list = []
-            for particle in particles:
-                input_flux_file = os.path.join(abs_flux_dir,
-                                               "%s/%s_%s_flux.txt"%(model,particle,osc_status))
-                with open(input_flux_file,"r") as fin:
-                    all_lines = fin.readlines()
-                    data = [line.strip().split() for line in all_lines]
 
-                    for row in data:
-                        Energy,CosTheta,flux = float(row[0]),float(row[1]),float(row[2])
-                        Energy_key = "%3.3e"%Energy
-                        CosTheta_key = "%3.3e"%CosTheta
-                        key = (Energy_key,CosTheta_key)
-                        if key not in tot_flux:
-                            tot_flux[key] = 0.
-                            key_list.append(key)
-                        tot_flux[key] += flux
-            for key in key_list:
-                Energy_key, CosTheta_key = key
-                Energy = float(Energy_key)
-                CosTheta = float(CosTheta_key)
-                flux = tot_flux[key] # already in nu/m^2/GeV/POT
-                print(Energy,CosTheta,flux,file=fout)
+    npz_path = resolve_data_path(_INSTALL_DIR, abs_dir, f"{model}.npz")
+    with np.load(npz_path) as npz:
+        energy = npz["energy"]
+        cos_theta = npz["cos_theta"]
+
+        tot_flux = None
+        for particle in particles:
+            key = f"{particle}_{osc_status}"
+            if key not in npz:
+                raise ValueError(f"Variant '{key}' not found in {model}.npz")
+            grid = npz[key].astype(np.float64)
+            if tot_flux is None:
+                tot_flux = grid.copy()
+            else:
+                tot_flux += grid
+
+    ee, cc = np.meshgrid(energy, cos_theta, indexing='ij')
+    with atomic_output_path(output_flux_file) as tmp:
+        np.savetxt(tmp,
+                   np.column_stack([ee.ravel(), cc.ravel(), tot_flux.ravel()]))
+
     return output_flux_file

@@ -17,6 +17,7 @@
 #include "SIREN/dataclasses/Particle.h"
 #include "SIREN/dataclasses/ParticleID.h"
 #include "SIREN/dataclasses/ParticleType.h"
+#include "SIREN/utilities/Constants.h"
 
 using namespace siren::dataclasses;
 
@@ -39,6 +40,7 @@ InteractionRecord MakePopulatedInteractionRecord() {
 
     r.primary_id = ParticleID(1, 1);
     r.primary_initial_position = {1.0, 2.0, 3.0};
+    r.primary_initial_time = 0.5;
     r.primary_mass = 8.0;
     r.primary_momentum = {10.0, 6.0, 0.0, 0.0};
     r.primary_helicity = 0.5;
@@ -48,6 +50,7 @@ InteractionRecord MakePopulatedInteractionRecord() {
     r.target_helicity = -0.5;
 
     r.interaction_vertex = {4.0, 2.0, 3.0};
+    r.interaction_time = 17.0;
 
     r.secondary_ids = {ParticleID(3, 3), ParticleID(4, 4)};
     r.secondary_masses = {0.5, 0.25};
@@ -56,6 +59,7 @@ InteractionRecord MakePopulatedInteractionRecord() {
         std::array<double, 4>{2.0, 0.0, 0.0, 2.0},
     };
     r.secondary_helicities = {1.0, -1.0};
+    r.secondary_times = {17.0, 21.0};
 
     r.interaction_parameters = {{"alpha", 1.0}, {"beta", 2.0}};
     return r;
@@ -99,6 +103,11 @@ TEST(InteractionRecord_Comparison, Equality_CoversAllFields) {
     B.primary_initial_position = {1.0, 2.0, 3.0};
     EXPECT_TRUE(A == B);
 
+    A.primary_initial_time = 1.0;
+    EXPECT_FALSE(A == B);
+    B.primary_initial_time = 1.0;
+    EXPECT_TRUE(A == B);
+
     A.primary_mass = 1.0;
     EXPECT_FALSE(A == B);
     B.primary_mass = 1.0;
@@ -136,6 +145,11 @@ TEST(InteractionRecord_Comparison, Equality_CoversAllFields) {
     B.interaction_vertex = {1.0, 2.0, 3.0};
     EXPECT_TRUE(A == B);
 
+    A.interaction_time = 1.0;
+    EXPECT_FALSE(A == B);
+    B.interaction_time = 1.0;
+    EXPECT_TRUE(A == B);
+
     // secondaries: ids + masses + momenta + helicities
     A.secondary_ids.push_back(ParticleID(7, 7));
     EXPECT_FALSE(A == B);
@@ -155,6 +169,11 @@ TEST(InteractionRecord_Comparison, Equality_CoversAllFields) {
     A.secondary_helicities.push_back(1.0);
     EXPECT_FALSE(A == B);
     B.secondary_helicities.push_back(1.0);
+    EXPECT_TRUE(A == B);
+
+    A.secondary_times.push_back(1.0);
+    EXPECT_FALSE(A == B);
+    B.secondary_times.push_back(1.0);
     EXPECT_TRUE(A == B);
 
     // interaction parameters
@@ -239,7 +258,7 @@ TEST(InteractionRecord_Serialization, SaveUnsupportedVersionThrows) {
     std::stringstream ss;
     cereal::JSONOutputArchive oar(ss);
 
-    EXPECT_THROW(r.save(oar, 1), std::runtime_error);
+    EXPECT_THROW(r.save(oar, 2), std::runtime_error);
 }
 
 TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
@@ -249,7 +268,47 @@ TEST(InteractionRecord_Serialization, LoadUnsupportedVersionThrows) {
     ss << "{}";
     cereal::JSONInputArchive iar(ss);
 
-    EXPECT_THROW(r.load(iar, 1), std::runtime_error);
+    EXPECT_THROW(r.load(iar, 2), std::runtime_error);
+}
+
+TEST(InteractionRecord_Serialization, Version0_LoadsWithDefaultTimes) {
+    InteractionRecord in = MakePopulatedInteractionRecord();
+
+    // Write a version 0 archive (pre-time format) directly.
+    std::stringstream ss;
+    {
+        cereal::JSONOutputArchive oar(ss);
+        in.save(oar, 0);
+    }
+
+    // The version 0 format must not contain any of the new time fields.
+    std::string v0_json = ss.str();
+    EXPECT_EQ(v0_json.find("PrimaryInitialTime"), std::string::npos);
+    EXPECT_EQ(v0_json.find("InteractionTime"), std::string::npos);
+    EXPECT_EQ(v0_json.find("SecondaryTimes"), std::string::npos);
+
+    InteractionRecord out;
+    out.primary_initial_time = 123.0;
+    out.interaction_time = 456.0;
+    out.secondary_times = {789.0};
+    {
+        cereal::JSONInputArchive iar(ss);
+        out.load(iar, 0);
+    }
+
+    // All non-time fields survive; times revert to their defaults, with
+    // secondary_times sized to match the other secondary vectors.
+    EXPECT_EQ(out.signature.primary_type, in.signature.primary_type);
+    EXPECT_EQ(out.primary_id, in.primary_id);
+    ExpectArrayNear<3>(out.primary_initial_position, in.primary_initial_position);
+    ExpectArrayNear<3>(out.interaction_vertex, in.interaction_vertex);
+    EXPECT_EQ(out.secondary_ids, in.secondary_ids);
+    EXPECT_EQ(out.interaction_parameters, in.interaction_parameters);
+    EXPECT_DOUBLE_EQ(out.primary_initial_time, 0.0);
+    EXPECT_DOUBLE_EQ(out.interaction_time, 0.0);
+    ASSERT_EQ(out.secondary_times.size(), in.secondary_momenta.size());
+    EXPECT_DOUBLE_EQ(out.secondary_times.at(0), 0.0);
+    EXPECT_DOUBLE_EQ(out.secondary_times.at(1), 0.0);
 }
 
 TEST(InteractionRecord_Strings, ToStrAndToReprAreNonEmpty) {
@@ -538,12 +597,14 @@ TEST(SecondaryParticleRecord, FinalizeWritesIntoPreSizedVectors) {
     InteractionRecord parent;
     parent.signature.secondary_types = {ParticleType::EMinus};
     parent.interaction_vertex = {0.0, 0.0, 0.0};
+    parent.interaction_time = 7.0;
 
     // SecondaryParticleRecord::Finalize uses .at(), so parent must be sized.
     parent.secondary_ids.resize(1);
     parent.secondary_masses.resize(1);
     parent.secondary_momenta.resize(1);
     parent.secondary_helicities.resize(1);
+    parent.secondary_times.resize(1);
 
     SecondaryParticleRecord sr(parent, 0);
     sr.SetMass(8.0);
@@ -556,6 +617,14 @@ TEST(SecondaryParticleRecord, FinalizeWritesIntoPreSizedVectors) {
     EXPECT_NEAR(parent.secondary_masses.at(0), 8.0, 1e-12);
     ExpectArrayNear<4>(parent.secondary_momenta.at(0), {10.0, 6.0, 0.0, 0.0});
     EXPECT_NEAR(parent.secondary_helicities.at(0), 1.0, 1e-12);
+    // Default production time is the vertex time of the record being written.
+    EXPECT_NEAR(parent.secondary_times.at(0), 7.0, 1e-12);
+
+    // An explicit per-particle time overrides the default.
+    sr.SetTime(11.0);
+    EXPECT_NEAR(sr.GetTime(), 11.0, 1e-12);
+    sr.Finalize(parent);
+    EXPECT_NEAR(parent.secondary_times.at(0), 11.0, 1e-12);
 }
 
 ///////////////////////////////////////////////
@@ -764,6 +833,195 @@ TEST(RecordStrings, PrimaryAndSecondaryReprsAreNonEmpty) {
     std::stringstream sr_os;
     sr_os << sr;
     EXPECT_FALSE(sr_os.str().empty());
+}
+
+///////////////////////////////////////////////
+// Time propagation
+///////////////////////////////////////////////
+
+TEST(TimePropagation, PrimaryRecordComputesFlightTime) {
+    using siren::utilities::Constants::c;
+
+    PrimaryDistributionRecord pr(ParticleType::EMinus);
+    pr.SetMass(8.0);
+    pr.SetEnergy(10.0);  // |p| = 6 -> beta = 0.6
+    pr.SetDirection({1.0, 0.0, 0.0});
+    pr.SetInitialPosition({1.0, 2.0, 3.0});
+    pr.SetInteractionVertex({4.0, 2.0, 3.0});  // distance = 3 (internal meters)
+
+    double const flight = 3.0 / (0.6 * c);
+
+    // Automatic rule: initial time defaults to 0.
+    EXPECT_DOUBLE_EQ(pr.GetInitialTime(), 0.0);
+    EXPECT_NEAR(pr.GetInteractionTime(), flight, 1e-9);
+
+    InteractionRecord out;
+    pr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.primary_initial_time, 0.0);
+    EXPECT_NEAR(out.interaction_time, flight, 1e-9);
+}
+
+TEST(TimePropagation, PrimaryRecordInitialTimeShiftsInteractionTime) {
+    using siren::utilities::Constants::c;
+
+    PrimaryDistributionRecord pr(ParticleType::EMinus);
+    pr.SetMass(8.0);
+    pr.SetEnergy(10.0);
+    pr.SetDirection({1.0, 0.0, 0.0});
+    pr.SetInitialPosition({1.0, 2.0, 3.0});
+    pr.SetInteractionVertex({4.0, 2.0, 3.0});
+    pr.SetInitialTime(2.5);
+
+    double const flight = 3.0 / (0.6 * c);
+
+    InteractionRecord out;
+    pr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.primary_initial_time, 2.5);
+    EXPECT_NEAR(out.interaction_time, 2.5 + flight, 1e-9);
+}
+
+TEST(TimePropagation, PrimaryRecordInteractionTimeOverride) {
+    PrimaryDistributionRecord pr(ParticleType::EMinus);
+    pr.SetMass(8.0);
+    pr.SetEnergy(10.0);
+    pr.SetDirection({1.0, 0.0, 0.0});
+    pr.SetInitialPosition({1.0, 2.0, 3.0});
+    pr.SetInteractionVertex({4.0, 2.0, 3.0});
+    pr.SetInteractionTime(42.0);
+
+    InteractionRecord out;
+    pr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.interaction_time, 42.0);
+}
+
+TEST(TimePropagation, PrimaryRecordAtRestHasZeroFlightTime) {
+    PrimaryDistributionRecord pr(ParticleType::MuMinus);
+    pr.SetMass(0.105);
+    pr.SetThreeMomentum({0.0, 0.0, 0.0});
+    pr.SetInitialPosition({1.0, 2.0, 3.0});
+    pr.SetInteractionVertex({1.0, 2.0, 3.0});
+    pr.SetInitialTime(4.0);
+
+    InteractionRecord out;
+    pr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.interaction_time, 4.0);
+}
+
+TEST(TimePropagation, CrossSectionRecordFillsSecondaryTimesFromVertexTime) {
+    InteractionRecord in = MakePopulatedInteractionRecord();
+    in.interaction_time = 17.0;
+
+    CrossSectionDistributionRecord csr(in);
+    EXPECT_DOUBLE_EQ(csr.GetInteractionTime(), 17.0);
+
+    auto & s0 = csr.GetSecondaryParticleRecord(0);
+    s0.SetMass(0.5);
+    s0.SetFourMomentum({1.0, 0.0, 1.0, 0.0});
+    s0.SetHelicity(1.0);
+    auto & s1 = csr.GetSecondaryParticleRecord(1);
+    s1.SetMass(0.25);
+    s1.SetFourMomentum({2.0, 0.0, 0.0, 2.0});
+    s1.SetHelicity(-1.0);
+
+    InteractionRecord out = in;
+    csr.Finalize(out);
+    ASSERT_EQ(out.secondary_times.size(), 2u);
+    EXPECT_DOUBLE_EQ(out.secondary_times.at(0), 17.0);
+    EXPECT_DOUBLE_EQ(out.secondary_times.at(1), 17.0);
+}
+
+TEST(TimePropagation, CrossSectionRecordVertexTimeOverridePropagatesToSecondaries) {
+    InteractionRecord in = MakePopulatedInteractionRecord();
+    in.interaction_time = 17.0;
+
+    CrossSectionDistributionRecord csr(in);
+    csr.SetInteractionTime(20.0);
+    EXPECT_DOUBLE_EQ(csr.GetInteractionTime(), 20.0);
+    // The secondaries' default production times follow the override.
+    EXPECT_DOUBLE_EQ(csr.GetSecondaryParticleRecord(0).GetTime(), 20.0);
+
+    auto & s0 = csr.GetSecondaryParticleRecord(0);
+    s0.SetMass(0.5);
+    s0.SetFourMomentum({1.0, 0.0, 1.0, 0.0});
+    s0.SetHelicity(1.0);
+    auto & s1 = csr.GetSecondaryParticleRecord(1);
+    s1.SetMass(0.25);
+    s1.SetFourMomentum({2.0, 0.0, 0.0, 2.0});
+    s1.SetHelicity(-1.0);
+    // A per-particle time takes precedence over the vertex time.
+    s1.SetTime(25.0);
+
+    InteractionRecord out = in;
+    csr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.interaction_time, 20.0);
+    ASSERT_EQ(out.secondary_times.size(), 2u);
+    EXPECT_DOUBLE_EQ(out.secondary_times.at(0), 20.0);
+    EXPECT_DOUBLE_EQ(out.secondary_times.at(1), 25.0);
+}
+
+TEST(TimePropagation, SecondaryRecordThreadsProductionTimeFromParent) {
+    using siren::utilities::Constants::c;
+
+    InteractionRecord parent;
+    parent.signature.primary_type = ParticleType::EMinus;
+    parent.signature.secondary_types = {ParticleType::EMinus};
+    parent.interaction_vertex = {10.0, 0.0, 0.0};
+    parent.interaction_time = 17.0;
+    parent.secondary_ids = {ParticleID(42, 7)};
+    parent.secondary_masses = {0.0};
+    parent.secondary_momenta = {std::array<double, 4>{5.0, 3.0, 4.0, 0.0}};  // beta = 1
+    parent.secondary_helicities = {1.0};
+    parent.secondary_times = {21.0};
+
+    SecondaryDistributionRecord sdr(parent, 0);
+    EXPECT_DOUBLE_EQ(sdr.initial_time, 21.0);
+
+    // Interaction time requires the length.
+    EXPECT_THROW(sdr.GetInteractionTime(), std::runtime_error);
+    sdr.SetLength(10.0);
+    EXPECT_NEAR(sdr.GetInteractionTime(), 21.0 + 10.0 / c, 1e-9);
+
+    InteractionRecord out;
+    sdr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.primary_initial_time, 21.0);
+    EXPECT_NEAR(out.interaction_time, 21.0 + 10.0 / c, 1e-9);
+}
+
+TEST(TimePropagation, SecondaryRecordFallsBackToParentVertexTime) {
+    InteractionRecord parent;
+    parent.signature.primary_type = ParticleType::EMinus;
+    parent.signature.secondary_types = {ParticleType::EMinus};
+    parent.interaction_vertex = {10.0, 0.0, 0.0};
+    parent.interaction_time = 17.0;
+    parent.secondary_ids = {ParticleID(42, 7)};
+    parent.secondary_masses = {0.0};
+    parent.secondary_momenta = {std::array<double, 4>{5.0, 3.0, 4.0, 0.0}};
+    parent.secondary_helicities = {1.0};
+    // No secondary_times, as for records loaded from version 0 archives.
+
+    SecondaryDistributionRecord sdr(parent, 0);
+    EXPECT_DOUBLE_EQ(sdr.initial_time, 17.0);
+}
+
+TEST(TimePropagation, SecondaryRecordInteractionTimeOverride) {
+    InteractionRecord parent;
+    parent.signature.primary_type = ParticleType::EMinus;
+    parent.signature.secondary_types = {ParticleType::EMinus};
+    parent.interaction_vertex = {10.0, 0.0, 0.0};
+    parent.interaction_time = 17.0;
+    parent.secondary_ids = {ParticleID(42, 7)};
+    parent.secondary_masses = {0.0};
+    parent.secondary_momenta = {std::array<double, 4>{5.0, 3.0, 4.0, 0.0}};
+    parent.secondary_helicities = {1.0};
+    parent.secondary_times = {21.0};
+
+    SecondaryDistributionRecord sdr(parent, 0);
+    sdr.SetLength(10.0);
+    sdr.SetInteractionTime(99.0);
+
+    InteractionRecord out;
+    sdr.Finalize(out);
+    EXPECT_DOUBLE_EQ(out.interaction_time, 99.0);
 }
 
 int main(int argc, char** argv) {

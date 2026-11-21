@@ -258,19 +258,27 @@ Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
 
     double w0, x0, y0, z0;
 
-    double norm = magnitude();
-
-    if(inv) {
-        w0 = w_ / norm;
-        x0 = -x_ / norm;
-        y0 = -y_ / norm;
-        z0 = -z_ / norm;
-    }
-    else {
-        w0 = w_ / norm;
-        x0 = x_ / norm;
-        y0 = y_ / norm;
-        z0 = z_ / norm;
+    // Fast path: skip sqrt when already unit-length (the common case
+    // since Placement always normalizes its quaternion).
+    double normsq = magnitudesq();
+    if(std::fabs(normsq - 1.0) < 1e-12) {
+        w0 = w_;
+        x0 = inv ? -x_ : x_;
+        y0 = inv ? -y_ : y_;
+        z0 = inv ? -z_ : z_;
+    } else {
+        double inv_norm = 1.0 / std::sqrt(normsq);
+        if(inv) {
+            w0 = w_ * inv_norm;
+            x0 = -x_ * inv_norm;
+            y0 = -y_ * inv_norm;
+            z0 = -z_ * inv_norm;
+        } else {
+            w0 = w_ * inv_norm;
+            x0 = x_ * inv_norm;
+            y0 = y_ * inv_norm;
+            z0 = z_ * inv_norm;
+        }
     }
 
     double x1 = p.GetX();

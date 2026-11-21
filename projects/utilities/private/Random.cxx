@@ -3,7 +3,7 @@
 #include <mutex>
 #include <atomic>
 #include <random>
-#include <cstdint>                                      // for uint32_t
+#include <cstdint>                                      // for uint64_t
 #include <utility>
 #include <unistd.h>
 
@@ -15,7 +15,7 @@ namespace siren {
 namespace utilities {
 
     SIREN_random::SIREN_random() {
-        // default to boring seed
+        // default to a generated seed (hashed from time/pid/host)
         seed   = generate_seed();
         configuration       = std::mt19937_64(seed);
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0);
