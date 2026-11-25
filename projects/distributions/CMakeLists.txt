@@ -59,13 +59,13 @@ add_library(SIREN_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET SIREN_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_distributions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/distributions/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/distributions/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        pybind11::module
+        $<BUILD_INTERFACE:pybind11::module>
     PUBLIC
         photospline
         SIREN_utilities

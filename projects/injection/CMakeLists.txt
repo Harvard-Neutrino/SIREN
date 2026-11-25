@@ -10,7 +10,7 @@ add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_injection PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/injection/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/injection/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 target_link_libraries(SIREN_injection
@@ -26,7 +26,7 @@ target_link_libraries(SIREN_injection
         SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        pybind11::module
+        $<BUILD_INTERFACE:pybind11::module>
 )
 apply_siren_compile_options(SIREN_injection)
 
