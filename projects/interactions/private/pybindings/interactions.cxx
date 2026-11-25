@@ -23,6 +23,7 @@
 #include "../../public/SIREN/interactions/DMesonELoss.h"
 #ifdef SIREN_HAS_PYTHIA8
 #include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
+#include "../../public/SIREN/interactions/GammaDISFromSpline.h"
 #endif
 
 
@@ -32,6 +33,7 @@
 #include "./DarkNewsDecay.h"
 #include "./DISFromSpline.h"
 #include "./QuarkDISFromSpline.h"
+#include "./GammaDISFromSpline.h"
 #include "./Decay.h"
 #include "./DummyCrossSection.h"
 //#include "./ElasticScattering.h"
@@ -77,6 +79,7 @@ PYBIND11_MODULE(interactions,m) {
     register_HNLDecay(m);
     register_InteractionCollection(m);
     register_QuarkDISFromSpline(m);
+    register_GammaDISFromSpline(m);
     register_CharmMesonDecay(m);
     register_CharmMesonDecay3Body(m);
     register_DMesonELoss(m);
