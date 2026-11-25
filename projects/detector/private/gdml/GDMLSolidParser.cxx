@@ -38,6 +38,11 @@ namespace gdml {
 namespace {
 
 static constexpr double ANG_TOL = 1e-6;
+// arb8 vertex tolerance: 1e-12 m, as in Geant4, and 1e-12 m^2 on convexity.
+static constexpr double ARB8_TOL = 1e-12;
+// Side faces of an arb8 out of plane by less than this (m) count as planar,
+// since written coordinates are rounded.
+static constexpr double ARB8_TWIST_TOL = 1e-6;
 
 struct SolidContext {
     rapidxml::xml_node<>* node;
@@ -77,6 +82,58 @@ double D(SolidContext const & ctx, const char* attr) {
 
 bool HasPhiCut(GDMLPhiRange const & phi) {
     return std::fabs(phi.start) > ANG_TOL || std::fabs(phi.delta - 2.0 * M_PI) > ANG_TOL;
+}
+
+void WarnSolid(SolidContext const & ctx, std::string const & msg) {
+    EmitWarning(ctx.data, ctx.options, ctx.tag + " '" + ctx.name + "' " + msg);
+}
+
+// Twice the signed area of the triangle abc, positive if counterclockwise.
+double Orient2D(Vector3D const & a, Vector3D const & b, Vector3D const & c) {
+    return (b.GetX() - a.GetX()) * (c.GetY() - a.GetY())
+         - (b.GetY() - a.GetY()) * (c.GetX() - a.GetX());
+}
+
+// True if p, on the line through a and b, is between them.
+bool Between2D(Vector3D const & a, Vector3D const & b, Vector3D const & p) {
+    return std::min(a.GetX(), b.GetX()) <= p.GetX() && p.GetX() <= std::max(a.GetX(), b.GetX())
+        && std::min(a.GetY(), b.GetY()) <= p.GetY() && p.GetY() <= std::max(a.GetY(), b.GetY());
+}
+
+// True if segments ab and cd have a point in common, end points included.
+bool SegmentsMeet2D(Vector3D const & a, Vector3D const & b,
+                    Vector3D const & c, Vector3D const & d) {
+    auto sign = [](double x) { return (x > 0) - (x < 0); };
+    int abc = sign(Orient2D(a, b, c));
+    int abd = sign(Orient2D(a, b, d));
+    int cda = sign(Orient2D(c, d, a));
+    int cdb = sign(Orient2D(c, d, b));
+    if(abc * abd < 0 && cda * cdb < 0) return true;
+    return (abc == 0 && Between2D(a, b, c)) || (abd == 0 && Between2D(a, b, d))
+        || (cda == 0 && Between2D(c, d, a)) || (cdb == 0 && Between2D(c, d, b));
+}
+
+// True if two edges of a closed outline that are not neighbors meet.
+// Repeated consecutive vertices count once.
+bool OutlineMeetsItself(std::vector<std::vector<double>> const & polygon) {
+    std::vector<Vector3D> v;
+    for(size_t i = 0; i < polygon.size(); ++i) {
+        auto const & p = polygon[i];
+        auto const & next = polygon[(i + 1) % polygon.size()];
+        if(p[0] != next[0] || p[1] != next[1]) v.emplace_back(p[0], p[1], 0);
+    }
+    size_t n = v.size();
+    for(size_t i = 0; i < n; ++i) {
+        Vector3D const & a = v[i];
+        Vector3D const & b = v[(i + 1) % n];
+        for(size_t j = i + 2; j < n; ++j) {
+            if(i == 0 && j == n - 1) continue;
+            Vector3D const & c = v[j];
+            Vector3D const & d = v[(j + 1) % n];
+            if(SegmentsMeet2D(a, b, c, d)) return true;
+        }
+    }
+    return false;
 }
 
 BooleanOperation BooleanOperationFromTag(std::string const & tag) {
@@ -218,13 +275,32 @@ std::shared_ptr<Geometry> ParseXtru(SolidContext const & ctx) {
         double zpos = ReadLengthAttr(sec, "zPosition", ctx.lscale, ctx.data.constants);
         double xoff = ReadLengthAttr(sec, "xOffset", ctx.lscale, ctx.data.constants);
         double yoff = ReadLengthAttr(sec, "yOffset", ctx.lscale, ctx.data.constants);
-        double scale = ReadDoubleAttr(sec, "scalingFactor", ctx.data.constants);
-        if(scale == 0.0) scale = 1.0;
+        double scale = 1.0;
+        if(SafeAttrVal(sec, "scalingFactor")[0] != '\0') {
+            scale = ReadDoubleAttr(sec, "scalingFactor", ctx.data.constants);
+        }
+        if(scale < 0) {
+            WarnSolid(ctx, "has a negative scalingFactor, which is not supported; skipping");
+            return nullptr;
+        }
         double offset[2] = {xoff, yoff};
         zsections.push_back(ExtrPoly::ZSection(zpos, offset, scale));
     }
 
     if(polygon.empty() || zsections.empty()) return nullptr;
+
+    if(zsections.size() < 2) {
+        WarnSolid(ctx, "has fewer than two sections and is empty");
+    }
+    for(size_t i = 0; i + 1 < zsections.size(); ++i) {
+        if(!(zsections[i].zpos < zsections[i + 1].zpos)) {
+            WarnSolid(ctx, "has sections that do not increase in zPosition; these are empty");
+            break;
+        }
+    }
+    if(OutlineMeetsItself(polygon)) {
+        WarnSolid(ctx, "has an outline that crosses or touches itself; using the even-odd rule");
+    }
     return ExtrPoly(polygon, zsections).create();
 }
 
@@ -352,13 +428,68 @@ std::shared_ptr<Geometry> ParseArb8(SolidContext const & ctx) {
             z);
     }
 
+    // Twice the signed areas at the bottom, middle and top, from the diagonals.
+    // Negative is clockwise seen from +z, the order Geant4 asks for; it accepts
+    // the other. End faces may collapse to an edge or a point, so the sign of
+    // the volume (by Simpson's rule, exact here) gives the order.
+    math::Vector3D diag[4] = {verts[2] - verts[0], verts[3] - verts[1],
+                              verts[6] - verts[4], verts[7] - verts[5]};
+    double tol = 0;
+    for(auto const & d : diag) tol = std::max(tol, ARB8_TOL * d.magnitude());
+    auto doubleArea = [&](math::Vector3D const & d1, math::Vector3D const & d2) {
+        double area = d1.GetX() * d2.GetY() - d1.GetY() * d2.GetX();
+        return std::fabs(area) <= tol ? 0.0 : area;
+    };
+    double bottom = doubleArea(diag[0], diag[1]);
+    double top = doubleArea(diag[2], diag[3]);
+    double middle = doubleArea((diag[0] + diag[2]) * 0.5, (diag[1] + diag[3]) * 0.5);
+    if(bottom * top < 0) {
+        WarnSolid(ctx, "has end faces with opposite vertex orders; skipping");
+        return nullptr;
+    }
+    double volume = bottom + 4 * middle + top;
+    if(volume == 0) {
+        WarnSolid(ctx, "has no volume; skipping");
+        return nullptr;
+    }
+    if(volume < 0) {
+        std::swap(verts[1], verts[3]);
+        std::swap(verts[5], verts[7]);
+    }
+
+    // The vertices are now counterclockwise seen from +z.
+    for(int i = 0; i < 4; ++i) {
+        int j = (i + 1) % 4;
+        int k = (i + 2) % 4;
+        if(Orient2D(verts[i], verts[j], verts[k]) < -ARB8_TOL
+           || Orient2D(verts[i + 4], verts[j + 4], verts[k + 4]) < -ARB8_TOL) {
+            WarnSolid(ctx, "has an end face that is not convex; skipping");
+            return nullptr;
+        }
+    }
+    for(int i = 0; i < 4; ++i) {
+        int j = (i + 1) % 4;
+        math::Vector3D e1 = verts[j] - verts[i];
+        math::Vector3D e2 = verts[j + 4] - verts[i + 4];
+        double twist = e1.GetX() * e2.GetY() - e1.GetY() * e2.GetX();
+        if(std::fabs(twist) > ARB8_TWIST_TOL * std::max(e1.magnitude(), e2.magnitude())) {
+            WarnSolid(ctx, "has a twisted side face, approximated by two triangles");
+            break;
+        }
+    }
+
     std::vector<std::array<math::Vector3D, 3>> triangles;
     triangles.reserve(12);
 
+    auto addTriangle = [&](math::Vector3D const & a, math::Vector3D const & b,
+                           math::Vector3D const & c) {
+        if(a == b || b == c || c == a) return;
+        triangles.push_back({{a, b, c}});
+    };
     auto addQuad = [&](math::Vector3D const & a, math::Vector3D const & b,
                        math::Vector3D const & c, math::Vector3D const & d) {
-        triangles.push_back({{a, b, c}});
-        triangles.push_back({{a, c, d}});
+        addTriangle(a, b, c);
+        addTriangle(a, c, d);
     };
 
     // Bottom face (outward normal in -z): v4, v3, v2, v1.
@@ -467,9 +598,13 @@ void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDMLParseO
             bool is_boolean = (tag == "subtraction" || tag == "union" || tag == "intersection");
 
             if(!is_boolean) {
+                size_t n_warnings = data.warnings.size();
                 auto geo = ParsePrimitiveSolid(MakeSolidContext(node, data, options));
                 if(geo) {
                     storeSolid(name, geo);
+                } else if(data.warnings.size() == n_warnings) {
+                    EmitWarning(data, options, tag + " '" + name
+                        + "' has missing or invalid dimensions; skipping");
                 }
                 continue;
             }

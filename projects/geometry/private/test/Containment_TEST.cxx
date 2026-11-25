@@ -610,6 +610,257 @@ TEST(Containment, ExtrPolyTapered) {
     }, 8, 10000, "ExtrPolyTapered");
 }
 
+// An L in the xy plane: [0,4]x[0,4] without the corner x > 1, y > 1.
+static const std::vector<std::vector<double>> L_OUTLINE =
+    {{0,0},{4,0},{4,1},{1,1},{1,4},{0,4}};
+
+static bool InsideL(double x, double y) {
+    return x > 0 && y > 0 && x < 4 && y < 4 && (x < 1 || y < 1);
+}
+
+static bool InsideLPrism(Vector3D const & p) {
+    return InsideL(p.GetX(), p.GetY()) && std::fabs(p.GetZ()) < 2;
+}
+
+static ExtrPoly MakeLPrism() {
+    double off[2] = {0, 0};
+    return ExtrPoly(L_OUTLINE, {ExtrPoly::ZSection(-2, off, 1), ExtrPoly::ZSection(2, off, 1)});
+}
+
+TEST(Containment, ExtrPolyConcave) {
+    ExtrPoly ccw = MakeLPrism();
+    ValidateContainment(ccw, InsideLPrism, 5, 20000, "ExtrPolyConcave ccw");
+
+    std::vector<std::vector<double>> reversed(L_OUTLINE.rbegin(), L_OUTLINE.rend());
+    ExtrPoly cw(reversed, ccw.GetZSections());
+    ValidateContainment(cw, InsideLPrism, 5, 20000, "ExtrPolyConcave cw");
+
+    Quaternion q(std::cos(0.4), std::sin(0.4)*INV_SQRT3, std::sin(0.4)*INV_SQRT3, std::sin(0.4)*INV_SQRT3);
+    ExtrPoly placed(Placement(Vector3D(1, -2, 0.5), q), L_OUTLINE, ccw.GetZSections());
+    ValidateContainment(placed, InsideLPrism, 8, 20000, "ExtrPolyConcave placed");
+}
+
+TEST(Containment, ExtrPolyConcaveTaperedSections) {
+    // Two sections with different tapers and offsets
+    double off0[2] = {-1, 0.5}, off1[2] = {0.5, 0}, off2[2] = {0, -1};
+    ExtrPoly ep(L_OUTLINE, {ExtrPoly::ZSection(-3, off0, 1.5),
+                            ExtrPoly::ZSection(0, off1, 0.5),
+                            ExtrPoly::ZSection(2, off2, 1.25)});
+    ValidateContainment(ep, [](Vector3D const & p) {
+        double z = p.GetZ();
+        if(z <= -3 || z >= 2) return false;
+        double f = z < 0 ? (z + 3) / 3 : z / 2;
+        double s = z < 0 ? 1.5 - 1.0 * f : 0.5 + 0.75 * f;
+        double ox = z < 0 ? -1 + 1.5 * f : 0.5 - 0.5 * f;
+        double oy = z < 0 ? 0.5 - 0.5 * f : -f;
+        return InsideL((p.GetX() - ox) / s, (p.GetY() - oy) / s);
+    }, 7, 30000, "ExtrPolyConcaveTaperedSections");
+}
+
+TEST(Containment, ExtrPolyConcaveApex) {
+    // Scale 0 at the top: a pyramid over the L with its apex at (0,0,2)
+    double off[2] = {0, 0};
+    ExtrPoly ep(L_OUTLINE, {ExtrPoly::ZSection(-2, off, 1), ExtrPoly::ZSection(2, off, 0)});
+    ValidateContainment(ep, [](Vector3D const & p) {
+        double s = (2 - p.GetZ()) / 4;
+        return s > 0 && s < 1 && InsideL(p.GetX() / s, p.GetY() / s);
+    }, 5, 30000, "ExtrPolyConcaveApex");
+}
+
+TEST(Containment, ExtrPolyConcaveComb) {
+    // A comb with three teeth: a ray across the teeth enters three times
+    std::vector<std::vector<double>> comb =
+        {{0,0},{5,0},{5,3},{4,3},{4,1},{3,1},{3,3},{2,3},{2,1},{1,1},{1,3},{0,3}};
+    double off[2] = {0, 0};
+    ExtrPoly ep(comb, {ExtrPoly::ZSection(-1, off, 1), ExtrPoly::ZSection(1, off, 1)});
+    ValidateContainment(ep, [](Vector3D const & p) {
+        double x = p.GetX(), y = p.GetY();
+        if(x <= 0 || x >= 5 || y <= 0 || y >= 3 || std::fabs(p.GetZ()) >= 1) return false;
+        return y < 1 || static_cast<int>(x) % 2 == 0;
+    }, 5, 20000, "ExtrPolyConcaveComb");
+
+    auto hits = ep.Intersections(Vector3D(-1, 2, 0), Vector3D(1, 0, 0));
+    ASSERT_EQ(hits.size(), 6u);
+    for(size_t i = 0; i < hits.size(); ++i) {
+        EXPECT_NEAR(hits[i].distance, 1.0 + i, 1e-12);
+        EXPECT_EQ(hits[i].entering, i % 2 == 0);
+    }
+}
+
+TEST(Containment, ExtrPolyConcaveThroughVerticesAndFaces) {
+    // Rays on a lattice with the vertices pass through edges and along faces.
+    // Every list must alternate, and every stretch must lie in the solid.
+    ExtrPoly ep = MakeLPrism();
+    auto in_closed = [](Vector3D const & p) {
+        double e = 1e-9, x = p.GetX(), y = p.GetY();
+        return x >= -e && y >= -e && x <= 4 + e && y <= 4 + e
+            && (x <= 1 + e || y <= 1 + e) && std::fabs(p.GetZ()) <= 2 + e;
+    };
+    for(int x = -1; x <= 5; ++x) for(int y = -1; y <= 5; ++y) for(int z = -3; z <= 3; ++z)
+    for(int dx = -2; dx <= 2; ++dx) for(int dy = -2; dy <= 2; ++dy) for(int dz = -2; dz <= 2; ++dz) {
+        if(dx == 0 && dy == 0 && dz == 0) continue;
+        Vector3D dir(dx, dy, dz);
+        dir.normalize();
+        Vector3D pos(x, y, z);
+        auto hits = ep.Intersections(pos, dir);
+        auto back = ep.Intersections(pos, -dir);
+        ASSERT_EQ(hits.size() % 2, 0u);
+        ASSERT_EQ(hits.size(), back.size())
+            << "at " << x << " " << y << " " << z << " along " << dx << " " << dy << " " << dz;
+        for(size_t i = 0; i < hits.size(); ++i) {
+            ASSERT_EQ(hits[i].entering, i % 2 == 0);
+            ASSERT_NEAR(hits[i].distance, -back[hits.size() - 1 - i].distance, 1e-9);
+        }
+        for(size_t i = 0; i + 1 < hits.size(); i += 2) {
+            ASSERT_TRUE(in_closed(pos + dir * (0.5 * (hits[i].distance + hits[i + 1].distance))));
+        }
+    }
+}
+
+TEST(Containment, ExtrPolyConcaveBooleanOperands) {
+    auto l_prism = MakeLPrism().create();
+    auto box = Box(Placement(Vector3D(1, 1, 0)), 2, 2, 2).create(); // [0,2]x[0,2]x[-1,1]
+    auto in_box = [](Vector3D const & p) {
+        return p.GetX() > 0 && p.GetX() < 2 && p.GetY() > 0 && p.GetY() < 2 && std::fabs(p.GetZ()) < 1;
+    };
+    BooleanGeometry l_minus_box(BooleanOperation::SUBTRACTION, l_prism, box);
+    ValidateContainment(l_minus_box, [&](Vector3D const & p) {
+        return InsideLPrism(p) && !in_box(p);
+    }, 5, 20000, "L minus box");
+    BooleanGeometry box_minus_l(BooleanOperation::SUBTRACTION, box, l_prism);
+    ValidateContainment(box_minus_l, [&](Vector3D const & p) {
+        return in_box(p) && !InsideLPrism(p);
+    }, 3, 20000, "box minus L");
+    BooleanGeometry l_or_box(BooleanOperation::UNION, l_prism, box);
+    ValidateContainment(l_or_box, [&](Vector3D const & p) {
+        return InsideLPrism(p) || in_box(p);
+    }, 5, 20000, "L or box");
+    BooleanGeometry box_or_l(BooleanOperation::UNION, box, l_prism);
+    ValidateContainment(box_or_l, [&](Vector3D const & p) {
+        return InsideLPrism(p) || in_box(p);
+    }, 5, 20000, "box or L");
+    BooleanGeometry l_and_box(BooleanOperation::INTERSECTION, l_prism, box);
+    ValidateContainment(l_and_box, [&](Vector3D const & p) {
+        return InsideLPrism(p) && in_box(p);
+    }, 3, 20000, "L and box");
+    BooleanGeometry box_and_l(BooleanOperation::INTERSECTION, box, l_prism);
+    ValidateContainment(box_and_l, [&](Vector3D const & p) {
+        return InsideLPrism(p) && in_box(p);
+    }, 3, 20000, "box and L");
+}
+
+TEST(Containment, ExtrPolyReciprocalScales) {
+    // The L drawn s times larger, with section scales 1 / s, straight and tapered
+    for(double s : {1e-14, 1e-9, 1., 1e9, 1e14}) {
+        std::vector<std::vector<double>> outline = L_OUTLINE;
+        for(auto & v : outline) {
+            v[0] *= s;
+            v[1] *= s;
+        }
+        double off[2] = {0, 0};
+        std::string label = "ExtrPolyReciprocalScales " + std::to_string(std::log10(s));
+        ExtrPoly straight(outline, {ExtrPoly::ZSection(-2, off, 1 / s), ExtrPoly::ZSection(2, off, 1 / s)});
+        ValidateContainment(straight, InsideLPrism, 5, 5000, label + " straight");
+        ExtrPoly pyramid(outline, {ExtrPoly::ZSection(-2, off, 1 / s), ExtrPoly::ZSection(2, off, 0)});
+        ValidateContainment(pyramid, [](Vector3D const & p) {
+            double f = (2 - p.GetZ()) / 4;
+            return f > 0 && f < 1 && InsideL(p.GetX() / f, p.GetY() / f);
+        }, 5, 5000, label + " pyramid");
+
+        for(double x0 : {-1., 0.5}) {
+            auto hits = straight.Intersections(Vector3D(x0, 0.5, 0), Vector3D(1, 0, 0));
+            ASSERT_EQ(hits.size(), 2u) << label;
+            EXPECT_NEAR(hits[0].distance, -x0, 1e-9) << label;
+            EXPECT_NEAR(hits[1].distance, 4 - x0, 1e-9) << label;
+        }
+        auto up = straight.Intersections(Vector3D(0.5, 2, 0), Vector3D(0, 0, 1));
+        ASSERT_EQ(up.size(), 2u) << label;
+        EXPECT_NEAR(up[0].distance, -2, 1e-9) << label;
+        EXPECT_NEAR(up[1].distance, 2, 1e-9) << label;
+    }
+}
+
+TEST(Containment, ExtrPolyCompensatedTranslation) {
+    // Moving the outline by K and the section offsets back by scale * K is the
+    // same solid.
+    auto make = [](std::vector<std::vector<double>> outline, double K) {
+        for(auto & v : outline) {
+            v[0] += K;
+            v[1] -= K;
+        }
+        double off0[2] = {-K, K}, off1[2] = {-2 * K, 2 * K}, off2[2] = {1 - 0.5 * K, 0.5 * K};
+        return ExtrPoly(outline, {ExtrPoly::ZSection(-1, off0, 1), ExtrPoly::ZSection(1, off1, 2),
+                                  ExtrPoly::ZSection(3, off2, 0.5)});
+    };
+    for(double K : {1e3, -1e6, 1e9}) {
+        ExtrPoly square = make({{0,0},{1,0},{1,1},{0,1}}, K);
+        auto two_sections = square.GetZSections();
+        two_sections.pop_back();
+        square.SetZSections(two_sections);
+        auto hits = square.Intersections(Vector3D(0.5, 0.5, 0), Vector3D(0.36, 0.48, 0.8));
+        ASSERT_EQ(hits.size(), 2u) << K;
+        EXPECT_NEAR(hits[0].distance, -1.0 / 0.96, 1e-12) << K;
+        EXPECT_NEAR(hits[1].distance, 1.25, 1e-12) << K;
+
+        ExtrPoly here = make(L_OUTLINE, 0);
+        ExtrPoly moved = make(L_OUTLINE, K);
+        for(int i = 0; i < 5000; ++i) {
+            Vector3D pos = RandomPoint(8);
+            // Along the axes, along the shear of the upper section, and random
+            Vector3D dir = i % 5 == 0 ? Vector3D(0, 0, 1) : i % 5 == 1 ? Vector3D(0, -1, 0)
+                         : i % 5 == 2 ? Vector3D(1, 0, 2) : RandomDirection();
+            dir.normalize();
+            auto a = here.Intersections(pos, dir);
+            auto b = moved.Intersections(pos, dir);
+            ASSERT_EQ(a.size(), b.size()) << K;
+            for(size_t k = 0; k < a.size(); ++k) {
+                ASSERT_NEAR(a[k].distance, b[k].distance, 1e-9) << K;
+                ASSERT_EQ(a[k].entering, b[k].entering) << K;
+            }
+        }
+    }
+}
+
+TEST(Containment, ExtrPolyTowardApex) {
+    // Rays through the apex (0,0,2), from near and far, stay in the pyramid
+    double off[2] = {0, 0};
+    ExtrPoly ep(L_OUTLINE, {ExtrPoly::ZSection(-2, off, 1), ExtrPoly::ZSection(2, off, 0)});
+    Vector3D apex(0, 0, 2);
+    for(int i = 0; i < 2000; ++i) {
+        double x = 4 * uniform01(rng_), y = 4 * uniform01(rng_);
+        Vector3D base(x, y, -2);
+        double length = (apex - base).magnitude();
+        Vector3D dir = apex - base;
+        dir.normalize();
+        for(double back : {0.5, 1e3, 1e6}) {
+            auto hits = ep.Intersections(base - dir * back, dir);
+            // Far from the solid the ray misses the apex by a rounding error,
+            // so only the length inside is fixed.
+            double inside = 0;
+            for(size_t k = 0; k + 1 < hits.size(); k += 2) {
+                ASSERT_TRUE(std::isfinite(hits[k].distance) && std::isfinite(hits[k + 1].distance));
+                inside += hits[k + 1].distance - hits[k].distance;
+            }
+            double edge = std::min({x, y, 4 - x, 4 - y, std::fabs(x - 1), std::fabs(y - 1)});
+            if(edge < 1e-3) continue;
+            ASSERT_NEAR(inside, InsideL(x, y) ? length : 0, 1e-4) << x << " " << y << " " << back;
+        }
+    }
+}
+
+TEST(Containment, ExtrPolyRayOnSectionPlane) {
+    // A horizontal ray in the plane shared by two sections is in both
+    double off[2] = {0, 0};
+    ExtrPoly ep(L_OUTLINE, {ExtrPoly::ZSection(-2, off, 1), ExtrPoly::ZSection(0, off, 1),
+                            ExtrPoly::ZSection(2, off, 1)});
+    auto hits = ep.Intersections(Vector3D(-1, 0.5, 0), Vector3D(1, 0, 0));
+    ASSERT_EQ(hits.size(), 2u);
+    EXPECT_TRUE(hits[0].entering);
+    EXPECT_NEAR(hits[0].distance, 1, 1e-12);
+    EXPECT_FALSE(hits[1].entering);
+    EXPECT_NEAR(hits[1].distance, 5, 1e-12);
+}
+
 // =========================================================================
 // Rotated shapes
 // =========================================================================

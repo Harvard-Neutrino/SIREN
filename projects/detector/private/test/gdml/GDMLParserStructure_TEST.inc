@@ -1340,3 +1340,58 @@ TEST(GDMLParser, FileScopeParentShadowsInternal) {
     EXPECT_EQ(MaterialAt(*dm, 0.3, 0, 0), "Lead")
         << "SharedVol should resolve to the parent's definition";
 }
+
+
+TEST(GDMLParser, XtruAndArb8Densities) {
+    // Iron solids in air: three concave ones 1 m apart along y, and an arb8 in
+    // each vertex order at x = +-2 m
+    std::string structure;
+    std::string physvols;
+    auto place = [&](std::string const & solid, double x, double y) {
+        structure += R"(<volume name="v_)" + solid + R"("><materialref ref="Iron"/><solidref ref=")"
+            + solid + R"("/></volume>)";
+        physvols += R"(<physvol><volumeref ref="v_)" + solid + R"("/><position unit="m" x=")"
+            + std::to_string(x) + R"(" y=")" + std::to_string(y) + R"("/></physvol>)";
+    };
+    place("ell", 0, -1);
+    place("ell_minus_block", 0, 0);
+    place("block_minus_ell", 0, 1);
+    place("ccw", 2, 0);
+    place("cw", -2, 0);
+    auto dm = LoadGDMLFromString(GDMLFull("", kAirIron,
+        R"(<box name="world_box" x="10" y="10" z="10" lunit="m"/>)" + kXtruLBooleans
+            + Arb8Taper("ccw", true) + Arb8Taper("cw", false),
+        structure + R"(<volume name="World"><materialref ref="Air"/><solidref ref="world_box"/>)"
+            + physvols + "</volume>", "World"));
+
+    double const iron = 7.874, air = 0.00129;
+    auto density = [&](double x, double y, double z) {
+        return dm->GetMassDensity(DetectorPosition(siren::math::Vector3D(x, y, z)));
+    };
+    auto depth = [&](siren::math::Vector3D const & a, siren::math::Vector3D const & b) {
+        return dm->GetColumnDepthInCGS(DetectorPosition(a), DetectorPosition(b));
+    };
+    EXPECT_NEAR(density(0.05, -0.7, 0), iron, 1e-9);
+    EXPECT_NEAR(density(0.3, -0.95, 0), iron, 1e-9);
+    EXPECT_NEAR(density(0.3, -0.7, 0), air, 1e-9);
+    EXPECT_NEAR(density(0.05, 0.05, 0), air, 1e-9);
+    EXPECT_NEAR(density(0.05, 0.05, 0.07), iron, 1e-9);
+    EXPECT_NEAR(density(0.3, 0.05, 0), iron, 1e-9);
+    EXPECT_NEAR(density(0.05, 1.05, 0), air, 1e-9);
+    EXPECT_NEAR(density(0.12, 1.12, 0), iron, 1e-9);
+    EXPECT_NEAR(density(-0.1, 1, 0), iron, 1e-9);
+    for(double x0 : {-2., 2.}) {
+        EXPECT_NEAR(density(x0, 0, 0), iron, 1e-9);
+        EXPECT_NEAR(density(x0 - 0.9, 0.9, -0.95), iron, 1e-9);
+        EXPECT_NEAR(density(x0 - 0.5, 0, 0.9), air, 1e-9);
+        EXPECT_NEAR(density(x0, 0, 1.1), air, 1e-9);
+        // Through the middle, where the arb8 is 1.5 m wide in y
+        EXPECT_NEAR(depth({x0, -2, 0}, {x0, 2, 0}), 100 * (1.5 * iron + 2.5 * air), 1e-6);
+    }
+    // Across the L at y = 0.05 m: 0.4 m of iron; at y = 0.25 m: 0.1 m
+    EXPECT_NEAR(depth({-0.5, -0.95, 0}, {0.5, -0.95, 0}), 100 * (0.4 * iron + 0.6 * air), 1e-6);
+    EXPECT_NEAR(depth({-0.5, -0.75, 0}, {0.5, -0.75, 0}), 100 * (0.1 * iron + 0.9 * air), 1e-6);
+    // Diagonally through both arms
+    EXPECT_NEAR(depth({0.55, -1.15, 0}, {-0.15, -0.45, 0}),
+                100 * std::sqrt(2.) * (0.2 * iron + 0.5 * air), 1e-6);
+}
