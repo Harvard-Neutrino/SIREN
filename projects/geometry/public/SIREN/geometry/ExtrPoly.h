@@ -135,6 +135,7 @@ protected:
     virtual bool less(const Geometry&) const override;
 private:
     void print(std::ostream&) const override;
+    bool InsidePolygon(double x, double y) const;
 
     std::vector<std::vector<double>> polygon_; //!< vector of (x,y) pairs denoting vertices of polygon
     std::vector<ZSection> zsections_; //!< vector of z sections describing z extent of polygon

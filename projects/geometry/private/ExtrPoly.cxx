@@ -18,6 +18,15 @@
 namespace siren {
 namespace geometry {
 
+namespace {
+
+// A ray moving slower than this across the polygon is along the extrusion.
+constexpr double PARALLEL_PRECISION = 1e-14;
+// Below this rate of approach a lateral plane fixes the crossing poorly.
+constexpr double CROSSING_PRECISION = 1e-6;
+
+} // namespace
+
 ExtrPoly::ExtrPoly() : Geometry("ExtrPoly"), polygon_({}), zsections_({}) { RecomputeWorldAABB(); }
 ExtrPoly::ExtrPoly(const std::vector<std::vector<double>>& polygon, const std::vector<ExtrPoly::ZSection>& zsections)
     : Geometry("ExtrPoly"), polygon_(polygon), zsections_(zsections) {
@@ -79,15 +88,24 @@ void ExtrPoly::ComputeLateralPlanes()
 
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
-    // Full-line slab intersection with an extruded convex polygon.
+    // Full-line intersection with an extruded polygon, convex or not.
     //
-    // Between each pair of adjacent z-sections, the cross-section is a convex
-    // polygon whose vertices are scaled and offset: v' = v * scale(z) + offset(z).
-    // The lateral face plane coefficients vary linearly with z (and hence with
-    // ray parameter t), giving a linear equation for each face intersection.
+    // Between adjacent z-sections the cross-section is the polygon scaled and
+    // offset: v' = v * scale(z) + offset(z). Undoing that map takes the ray to
+    // the line U(t) = (x - offset_x, y - offset_y, scale) in the homogeneous
+    // coordinates of the polygon plane, with every component linear in t.
+    //
+    // Each vertex is assigned to one side of that line, and an outline edge is
+    // crossed exactly when its end points are on different sides. The side is
+    // a function of the vertex alone, so a closed outline always has an even
+    // number of crossings, including for rays through vertices, and
+    // consecutive crossings bound the stretches inside the outline.
 
     int Nz = zsections_.size();
-    if(Nz < 2 || planes_.empty()) return {};
+    int Nv = planes_.size();
+    if(Nz < 2 || Nv < 3) return {};
+
+    double const inf = std::numeric_limits<double>::infinity();
 
     double px = position.GetX();
     double py = position.GetY();
@@ -96,35 +114,9 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
-    int np = planes_.size();
-
-    static constexpr int STACK_CAPACITY = 64;
-    Intersection stack_hits[STACK_CAPACITY];
-    std::vector<Intersection> heap_hits;
-    int n_hits = 0;
-    bool using_heap = false;
-
-    auto add_hit = [&](double dist, int hierarchy, bool entering,
-                       double hx, double hy, double hz) {
-        Intersection isect;
-        isect.distance = dist;
-        isect.hierarchy = hierarchy;
-        isect.entering = entering;
-        isect.position = siren::math::Vector3D(hx, hy, hz);
-        if(!using_heap) {
-            if(n_hits < STACK_CAPACITY) {
-                stack_hits[n_hits++] = isect;
-            } else {
-                using_heap = true;
-                heap_hits.assign(stack_hits, stack_hits + STACK_CAPACITY);
-                heap_hits.push_back(isect);
-                n_hits++;
-            }
-        } else {
-            heap_hits.push_back(isect);
-            n_hits++;
-        }
-    };
+    // Pieces of the ray inside the solid, over all z-sections
+    std::vector<std::pair<double, double>> pieces;
+    std::vector<double> crossings;
 
     for(int k = 0; k + 1 < Nz; ++k) {
         double zk = zsections_[k].zpos;
@@ -132,24 +124,19 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
         double dzk = zk1 - zk;
         if(dzk <= 0) continue;
 
-        double t_enter = -std::numeric_limits<double>::infinity();
-        double t_exit = std::numeric_limits<double>::infinity();
-
         // Z-slab for this section
+        double t_min = -inf;
+        double t_max = inf;
+        double t_mid = 0;
         if(std::fabs(dz) > GEOMETRY_PRECISION) {
-            double t_z0 = (zk - pz) / dz;
-            double t_z1 = (zk1 - pz) / dz;
-            if(t_z0 > t_z1) std::swap(t_z0, t_z1);
-            t_enter = std::max(t_enter, t_z0);
-            t_exit = std::min(t_exit, t_z1);
+            t_min = (zk - pz) / dz;
+            t_max = (zk1 - pz) / dz;
+            if(t_min > t_max) std::swap(t_min, t_max);
+            t_mid = 0.5 * (t_min + t_max);
         } else {
             if(pz < zk || pz > zk1) continue;
         }
 
-        // Scale and offset at the ray origin's z, interpolated within this
-        // section. The effective plane constant at parameter t is:
-        //   D(t) = scale(z(t)) * d - a * offset_x(z(t)) - b * offset_y(z(t))
-        // which is linear in t.
         double inv_dzk = 1.0 / dzk;
         double frac_pz = (pz - zk) * inv_dzk;
 
@@ -160,84 +147,119 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
         double oyk = zsections_[k].offset[1];
         double oyk1 = zsections_[k + 1].offset[1];
 
-        // Linear coefficients: value(t) = val0 + val1 * t
-        double s0 = sk + (sk1 - sk) * frac_pz;
-        double s1 = (sk1 - sk) * inv_dzk * dz;
-        double ox0 = oxk + (oxk1 - oxk) * frac_pz;
-        double ox1 = (oxk1 - oxk) * inv_dzk * dz;
-        double oy0 = oyk + (oyk1 - oyk) * frac_pz;
-        double oy1 = (oyk1 - oyk) * inv_dzk * dz;
+        // U(t) = U0 + U1 * t
+        double w0 = sk + (sk1 - sk) * frac_pz;
+        double w1 = (sk1 - sk) * inv_dzk * dz;
+        double ux0 = px - (oxk + (oxk1 - oxk) * frac_pz);
+        double ux1 = dx - (oxk1 - oxk) * inv_dzk * dz;
+        double uy0 = py - (oyk + (oyk1 - oyk) * frac_pz);
+        double uy1 = dy - (oyk1 - oyk) * inv_dzk * dz;
 
-        bool missed = false;
-        for(int i = 0; i < np; ++i) {
-            double a = planes_[i].a;
-            double b = planes_[i].b;
-            double d = planes_[i].d;
+        double w_mid = w0 + w1 * t_mid;
+        if(!(w_mid > 0)) continue;
 
-            // Effective plane equation along the ray:
-            //   a*(px + t*dx - ox(t)) + b*(py + t*dy - oy(t)) + d*s(t) = 0
-            // => cosa*t + dist = 0
-            // Normals point OUTWARD, so interior is dist + cosa*t < 0.
-            double cosa = a * (dx - ox1) + b * (dy - oy1) + d * s1;
-            double dist = a * (px - ox0) + b * (py - oy0) + d * s0;
+        // The line through U0 and U1 is nx * x + ny * y + nw = 0.
+        double nx = uy0 * w1 - w0 * uy1;
+        double ny = w0 * ux1 - ux0 * w1;
+        double nw = ux0 * uy1 - uy0 * ux1;
 
-            if(std::fabs(cosa) > GEOMETRY_PRECISION) {
-                double t = -dist / cosa;
-                if(cosa < 0) {
-                    // Interior for t > -dist/cosa (entering)
-                    t_enter = std::max(t_enter, t);
-                } else {
-                    // Interior for t < -dist/cosa (exiting)
-                    t_exit = std::min(t_exit, t);
-                }
-            } else {
-                if(dist >= 0) {
-                    // Entirely outside this half-plane
-                    missed = true;
-                    break;
-                }
+        if(std::max(std::fabs(nx), std::fabs(ny)) <= PARALLEL_PRECISION * w_mid * w_mid) {
+            // Along the extrusion: a single point in the polygon plane.
+            if(InsidePolygon((ux0 + ux1 * t_mid) / w_mid, (uy0 + uy1 * t_mid) / w_mid)) {
+                pieces.emplace_back(t_min, t_max);
             }
+            continue;
         }
 
-        if(missed || t_enter >= t_exit - GEOMETRY_PRECISION) continue;
-
-        add_hit(t_enter, 0, true,
-                px + dx * t_enter, py + dy * t_enter, pz + dz * t_enter);
-        add_hit(t_exit, 0, false,
-                px + dx * t_exit, py + dy * t_exit, pz + dz * t_exit);
-    }
-
-    auto cmp = [](Intersection const & a, Intersection const & b) {
-        return a.distance < b.distance;
-    };
-
-    // Sort, then remove consecutive pairs at the same distance where the
-    // entering flags differ. These arise at shared z-section boundaries
-    // where adjacent sections each produce an intersection at the same t.
-    auto dedup = [](Intersection* arr, int& count) {
-        int write = 0;
-        for(int read = 0; read < count; ) {
-            if(read + 1 < count
-               && arr[read].entering != arr[read + 1].entering
-               && std::fabs(arr[read].distance - arr[read + 1].distance) < GEOMETRY_PRECISION) {
-                read += 2;
-            } else {
-                arr[write++] = arr[read++];
-            }
+        // Fix the sign of the line so that the side of a vertex exactly on it
+        // does not depend on the direction of travel.
+        if(nx < 0 || (nx == 0 && ny < 0)) {
+            nx = -nx;
+            ny = -ny;
+            nw = -nw;
         }
-        count = write;
-    };
 
-    if(using_heap) {
-        std::sort(heap_hits.begin(), heap_hits.end(), cmp);
-        int sz = (int)heap_hits.size();
-        dedup(heap_hits.data(), sz);
-        heap_hits.resize(sz);
-        return heap_hits;
+        crossings.clear();
+        double side_prev = nx * polygon_[Nv - 1][0] + ny * polygon_[Nv - 1][1] + nw;
+        for(int i = 0, prev = Nv - 1; i < Nv; prev = i++) {
+            double side_a = side_prev;
+            double side_b = nx * polygon_[i][0] + ny * polygon_[i][1] + nw;
+            side_prev = side_b;
+            if((side_a >= 0) == (side_b >= 0)) continue;
+
+            // Lateral plane along the ray: dist + cosa * t = 0
+            plane const & pl = planes_[i];
+            double cosa = pl.a * ux1 + pl.b * uy1 + pl.d * w1;
+            double t;
+            if(std::fabs(cosa) > CROSSING_PRECISION) {
+                t = -(pl.a * ux0 + pl.b * uy0 + pl.d * w0) / cosa;
+            } else {
+                // Nearly in the plane of the face, which then fixes t poorly:
+                // take the point where the edge meets the line instead.
+                double f = side_a / (side_a - side_b);
+                double x = polygon_[prev][0] + f * (polygon_[i][0] - polygon_[prev][0]);
+                double y = polygon_[prev][1] + f * (polygon_[i][1] - polygon_[prev][1]);
+                double ax = ux1 - x * w1;
+                double ay = uy1 - y * w1;
+                t = (ax * (x * w0 - ux0) + ay * (y * w0 - uy0)) / (ax * ax + ay * ay);
+            }
+            // The section only exists where the scale is positive. Other
+            // crossings lie past the apex that the scale extrapolates to.
+            if(w0 + w1 * t > 0) crossings.push_back(t);
+        }
+
+        // Pair the crossings starting from the apex, which is outside. On the
+        // far end the line may stay inside forever; the z-slab bounds it.
+        std::sort(crossings.begin(), crossings.end());
+        if(crossings.size() % 2 == 1) {
+            if(w1 < 0) crossings.insert(crossings.begin(), -inf);
+            else crossings.push_back(inf);
+        }
+        for(size_t i = 0; i + 1 < crossings.size(); i += 2) {
+            double lo = std::max(crossings[i], t_min);
+            double hi = std::min(crossings[i + 1], t_max);
+            if(lo < hi) pieces.emplace_back(lo, hi);
+        }
     }
-    std::sort(stack_hits, stack_hits + n_hits, cmp);
-    dedup(stack_hits, n_hits);
-    return {stack_hits, stack_hits + n_hits};
+
+    // Join pieces that overlap or touch, which happens where adjacent
+    // sections meet, and drop what is too short to resolve.
+    std::sort(pieces.begin(), pieces.end());
+    std::vector<Intersection> hits;
+    auto add_hit = [&](double t, bool entering) {
+        Intersection isect;
+        isect.distance = t;
+        isect.hierarchy = 0;
+        isect.entering = entering;
+        isect.matID = 0;
+        isect.position = siren::math::Vector3D(px + dx * t, py + dy * t, pz + dz * t);
+        hits.push_back(isect);
+    };
+    for(size_t i = 0; i < pieces.size(); ) {
+        double lo = pieces[i].first;
+        double hi = pieces[i].second;
+        for(++i; i < pieces.size() && pieces[i].first <= hi + GEOMETRY_PRECISION; ++i) {
+            hi = std::max(hi, pieces[i].second);
+        }
+        if(hi - lo <= GEOMETRY_PRECISION) continue;
+        add_hit(lo, true);
+        add_hit(hi, false);
+    }
+    return hits;
+}
+
+// ------------------------------------------------------------------------- //
+bool ExtrPoly::InsidePolygon(double x, double y) const {
+    // Even-odd rule on half-open edges, so that a vertex is counted once.
+    bool inside = false;
+    int Nv = polygon_.size();
+    for(int i = 0, k = Nv - 1; i < Nv; k = i++) {
+        double xi = polygon_[i][0], yi = polygon_[i][1];
+        double xk = polygon_[k][0], yk = polygon_[k][1];
+        if((yi > y) == (yk > y)) continue;
+        if(x < xi + (y - yi) * (xk - xi) / (yk - yi)) inside = !inside;
+    }
+    return inside;
 }
 
 // ------------------------------------------------------------------------- //
