@@ -10,6 +10,7 @@ from siren import visualization
 visualization.view("detector.gdml")
 visualization.view(model, screenshot="detector.png")   # off-screen PNG, full detail
 visualization.view("detector.gdml", timings=True)      # print phase times on return
+visualization.view("detector.gdml", presets="views.json", section="Front")
 ```
 
 The window opens immediately with a loading status. A worker process meshes a
@@ -31,7 +32,12 @@ the pyg4ometry import, so on-demand loads take a few seconds to start.
 | `hidden_volumes` | `()` | Logical-volume name globs to defer; **v** loads and restores them. Their children keep their placements. |
 | `instancing` | `True` | Repeated placements share GPU prototypes; reflections and shear use exact matrix actors. |
 | `display` | `"full"` | `"exterior"` shows only outward faces of annotated region shells (below). |
-| `cutter`, `clipper` | `False` | Section outlines / clipping widget (**k**), with `clip_origin` in mm and `clip_normal`; the negative side is displayed. Both force `display="full"`. |
+| `presets` | `None` | Mapping or JSON file with colours, layers, sections and the opening view (below). |
+| `section` | `None` | Section to start with: the label of a preset section, or a mapping with `origin` and `normal` in metres. |
+| `panel` | `True` | Side panel in interactive windows; off for screenshots and `display="exterior"`. |
+| `edges` | `True` | Dark lines along sharp edges. |
+| `clipper` | `False` | Start with a section through `clip_origin` (mm) with normal `clip_normal`, and a plane to drag. |
+| `cutter` | `False` | Coloured outlines in the x, y and z planes. Sections and outlines force `display="full"`. |
 | `coloured`, `axes`, `legend`, `bounding_box`, `picker`, `near_frac` | | Usual display controls. |
 
 Cache files are disposable numeric NPZ files (no pickles), keyed by input and
@@ -43,6 +49,49 @@ pyg4ometry's reader but are never cached (a warning says so). Files using
 replicas, divisions or parameterised placements use pyg4ometry's eager
 meshing, which limits deferral and cache savings. `<file>` references resolve
 against the working directory, as in pyg4ometry.
+
+## Sections
+
+A section removes everything on the positive side of a plane. Each volume it
+cuts is filled in its material's colour and the surfaces behind are paler. A
+volume fills only the part that none of its daughters occupies, so hiding a
+daughter leaves an opening rather than its mother's material. In a SIREN model,
+where sectors overlap, the sector with the highest level is the one filled, as
+in `DetectorModel`. The fill follows the display meshes, so round surfaces are
+as fine as `mesh_slices`: the Earth drawn with 48 facets is up to 14 km off at
+its surface. Gases are never filled. Sectors drawn directly as `TriangularMesh`
+are clipped but not filled. Sectors that `to_gdml` writes as bounding boxes are
+cut in their exact shape when pyvista is installed and left out of the cut, with
+a warning, otherwise; their uncut surfaces are still drawn as boxes.
+
+The panel lists the preset sections, a slider that cuts across x, y or z within
+the part of the model in view, and **Other side**, which keeps the other half. **k** shows a plane to drag and turn.
+Right-clicking a filled face identifies the volume there.
+
+## Presets
+
+Presets describe a model for display only; nothing detector-specific is built
+in: without presets the colours follow density, solids are slightly transparent
+and the panel offers the axis cuts and the materials. Lengths are metres in the
+geometry frame and every entry is optional.
+
+```python
+presets = {
+    "title": "Detector hall", "note": "z is up.", "up": [0, 0, 1], "opacity": 1.0,
+    "home": {"centre": [0, 0, 0], "direction": [1, 1, 1], "width": 20, "height": 10},
+    "hidden_volumes": ["Ground*"],          # not meshed until v is pressed
+    "materials": [{"label": "Steel", "match": ["*Steel*", "G4_Fe"], "colour": "#b04030"}],
+    "layers": [{"label": "Roof", "match": ["Roof*"], "shown": True, "edges": True}],
+    "sections": [{"label": "Front", "origin": [0, 0, 0], "normal": [0, -1, 0],
+                  "centre": [0, 0, 2], "width": 12, "height": 6}],
+}
+```
+
+`match` holds name globs; Geant4's `0x...` suffixes are ignored and the first
+match wins. Materials without a row keep their density colour. A layer matches placed or logical volume names, and daughters belong to
+their mother's layer unless they match one themselves. A section is viewed along
+its normal; `up`, `centre`, `width` and `height` set the view, and the whole cut
+is framed without them.
 
 ## Exterior display of region shells
 
@@ -73,8 +122,9 @@ solids; use `display="full"` for volume inspection.
 - Left drag orbits, scroll zooms; arrow keys pan and fly, shift-up/down moves vertically.
 - Right-click identifies the placed volume (name, material, density; a supplied
   SIREN model adds its sector query); shift-right-click hides that material.
+- In the panel, click to cut or to show and hide layers and materials; the wheel scrolls it.
 - **g** gas volumes, **v** restore all, **n/m** opacity, **c** section outlines,
-  **k** clip widget, **l** legend, **b** bounding box, **o** orientation cube,
+  **k** plane to drag, **p** panel, **l** legend, **b** bounding box, **o** orientation cube,
   **h** help, **q**/**e** quit.
 
 ## Timings

@@ -294,12 +294,13 @@ def scene_structure(reg, pg, region_auxtype=None):
             sources[key] = (lv, mesh)
         return key
 
-    def walk(lv, matrix, path, ancestors):
+    def walk(lv, matrix, path, ancestors, parent):
         if id(lv) in ancestors:
             raise ValueError("cyclic logical volume hierarchy")
         if lv.type == "logical":
             key = prototype(lv.name, lv)
-            instances.append(dict(prototype=key, name=path, matrix=matrix.tolist()))
+            instances.append(dict(prototype=key, name=path, matrix=matrix.tolist(), parent=parent))
+            parent = len(instances) - 1  # an assembly's parts belong to its mother
         for pv in lv.daughterVolumes:
             if pv.type == "placement":
                 local = np.eye(4)
@@ -307,7 +308,8 @@ def scene_structure(reg, pg, region_auxtype=None):
                 if pv.scale:
                     local[:3, :3] = local[:3, :3] @ np.diag(pv.scale.eval())
                 local[:3, 3] = pv.position.eval()
-                walk(pv.logicalVolume, matrix @ local, path + "/" + pv.name, ancestors | {id(lv)})
+                walk(pv.logicalVolume, matrix @ local, path + "/" + pv.name, ancestors | {id(lv)},
+                     parent)
             elif pv.type in ("replica", "division", "parametrised"):
                 for i, (mesh, transform) in enumerate(zip(pv.meshes, pv.transforms)):
                     rotation, position = transform
@@ -318,12 +320,12 @@ def scene_structure(reg, pg, region_auxtype=None):
                     local[:3, 3] = position
                     key = prototype(pv.name + "#" + str(i), pv.logicalVolume, mesh.localmesh)
                     instances.append(dict(prototype=key, name=path + "/" + pv.name + "#" + str(i),
-                                          matrix=(matrix @ local).tolist()))
+                                          matrix=(matrix @ local).tolist(), parent=parent))
             else:
                 raise ValueError("unsupported display placement: %s" % pv.type)
 
     world = reg.getWorldVolume()
-    walk(world, np.eye(4), world.name, set())
+    walk(world, np.eye(4), world.name, set(), -1)
     return dict(prototypes=prototypes, instances=instances, world=world.name), sources
 
 
@@ -346,9 +348,26 @@ def selected_prototypes(scene, show_gas=False, hidden_volumes=(), display="full"
     return selected
 
 
+def section_holes(scene, selected, overlapping=False):
+    """Undrawn daughters of drawn solids: a section needs their shapes as openings.
+
+    In an *overlapping* scene (an exported SIREN model) any volume may be one.
+    """
+    from .visualization import _LOW_DENSITY
+    if overlapping:
+        return sorted({row["prototype"] for row in scene["instances"] if row["parent"] >= 0} -
+                      set(selected))
+    instances = scene["instances"]
+    chosen = {name for name in selected if scene["prototypes"][name]["density"] > _LOW_DENSITY}
+    drawn = set(selected)
+    return sorted({row["prototype"] for row in instances
+                   if row["prototype"] not in drawn and row["parent"] >= 0 and
+                   instances[row["parent"]]["prototype"] in chosen})
+
+
 def cached_scene_available(path, *, mesh_slices=48, cache=True, cache_dir=None,
                            show_gas=False, hidden_volumes=(), display="full", only=None,
-                           regions=None):
+                           regions=None, overlapping=False):
     """Skip preview work when all requested full-detail prototypes are cached."""
     if not cache:
         return False
@@ -364,9 +383,11 @@ def cached_scene_available(path, *, mesh_slices=48, cache=True, cache_dir=None,
         registry = pg.gdml.Reader(str(path)).getRegistry()
         metadata, _ = scene_structure(registry, pg, regions and regions["auxtype"])
         directory = (Path(cache_dir) if cache_dir is not None else default_cache_dir()) / key
-        keys = {metadata['prototypes'][name]['mesh_key'] for name in
-                selected_prototypes(metadata, show_gas, hidden_volumes, display, only,
-                                    regions["hidden"] if regions else ())}
+        selected = selected_prototypes(metadata, show_gas, hidden_volumes, display, only,
+                                       regions["hidden"] if regions else ())
+        if display == "full" and only is None:
+            selected += section_holes(metadata, selected, overlapping)
+        keys = {metadata['prototypes'][name]['mesh_key'] for name in selected}
         # Validate content: a truncated or corrupt entry is a miss, so the
         # preview still runs instead of waiting for full-detail recovery.
         for mesh_key in keys:
@@ -380,7 +401,7 @@ def cached_scene_available(path, *, mesh_slices=48, cache=True, cache_dir=None,
 
 def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=None,
                   show_gas=False, hidden_volumes=(), display="full", only=None,
-                  regions=None, emit=None, stage="detail"):
+                  regions=None, overlapping=False, emit=None, stage="detail"):
     """Prepare selected meshes and emit small JSON events plus numeric files.
 
     Ordinary hidden volumes are never meshed merely to traverse their children.
@@ -428,7 +449,9 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
                 prototype['mesh_key'] = 'logical:' + name
         selected = selected_prototypes(scene, show_gas, hidden_volumes, display, only,
                                        regions["hidden"] if regions else ())
-        scene.update(selected=selected, eager_fallback=eager, cache_key=key, stage=stage)
+        holes = (section_holes(scene, selected, overlapping)
+                 if display == "full" and only is None else [])
+        scene.update(selected=selected, holes=holes, eager_fallback=eager, cache_key=key, stage=stage)
         emit(dict(kind="structure", scene=scene))
         hits, misses, failed = 0, 0, []
         prepared, outputs = {}, {}
@@ -436,7 +459,7 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
         pending_cache = []
         start = time.perf_counter()
         with _cached_solid_meshes(reg):
-            for index, name in enumerate(selected):
+            for index, name in enumerate(selected + holes):
                 lv, explicit = sources[name]
                 mesh_key = scene['prototypes'][name]['mesh_key']
                 token = hashlib.sha256(mesh_key.encode()).hexdigest()
@@ -472,9 +495,11 @@ def prepare_scene(path, output_dir, *, mesh_slices=48, cache=True, cache_dir=Non
                         outputs[variant] = (dest, len(f))
                     dest, face_count = outputs[variant]
                     emit(dict(kind="mesh", prototype=name, path=str(dest), stage=stage,
-                              completed=index + 1, total=len(selected), faces=face_count, vertices=len(v)))
+                              completed=index + 1, total=len(selected) + len(holes), faces=face_count, vertices=len(v)))
                 except Exception as exc:
-                    if stage != "preview":
+                    if stage != "preview" and name in holes:
+                        warn("section opening %s could not be meshed: %s" % (name, exc))
+                    elif stage != "preview":
                         raise RuntimeError("meshing %s failed: %s" % (name, exc)) from exc
                     failed.append(name)
                     emit(dict(kind="preview_skip", prototype=name, message=str(exc)))
