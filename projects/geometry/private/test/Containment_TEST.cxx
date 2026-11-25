@@ -780,6 +780,47 @@ TEST(Containment, ExtrPolyReciprocalScales) {
     }
 }
 
+TEST(Containment, ExtrPolyCompensatedTranslation) {
+    // Moving the outline by K and the section offsets back by scale * K is the
+    // same solid.
+    auto make = [](std::vector<std::vector<double>> outline, double K) {
+        for(auto & v : outline) {
+            v[0] += K;
+            v[1] -= K;
+        }
+        double off0[2] = {-K, K}, off1[2] = {-2 * K, 2 * K}, off2[2] = {1 - 0.5 * K, 0.5 * K};
+        return ExtrPoly(outline, {ExtrPoly::ZSection(-1, off0, 1), ExtrPoly::ZSection(1, off1, 2),
+                                  ExtrPoly::ZSection(3, off2, 0.5)});
+    };
+    for(double K : {1e3, -1e6, 1e9}) {
+        ExtrPoly square = make({{0,0},{1,0},{1,1},{0,1}}, K);
+        auto two_sections = square.GetZSections();
+        two_sections.pop_back();
+        square.SetZSections(two_sections);
+        auto hits = square.Intersections(Vector3D(0.5, 0.5, 0), Vector3D(0.36, 0.48, 0.8));
+        ASSERT_EQ(hits.size(), 2u) << K;
+        EXPECT_NEAR(hits[0].distance, -1.0 / 0.96, 1e-12) << K;
+        EXPECT_NEAR(hits[1].distance, 1.25, 1e-12) << K;
+
+        ExtrPoly here = make(L_OUTLINE, 0);
+        ExtrPoly moved = make(L_OUTLINE, K);
+        for(int i = 0; i < 5000; ++i) {
+            Vector3D pos = RandomPoint(8);
+            // Along the axes, along the shear of the upper section, and random
+            Vector3D dir = i % 5 == 0 ? Vector3D(0, 0, 1) : i % 5 == 1 ? Vector3D(0, -1, 0)
+                         : i % 5 == 2 ? Vector3D(1, 0, 2) : RandomDirection();
+            dir.normalize();
+            auto a = here.Intersections(pos, dir);
+            auto b = moved.Intersections(pos, dir);
+            ASSERT_EQ(a.size(), b.size()) << K;
+            for(size_t k = 0; k < a.size(); ++k) {
+                ASSERT_NEAR(a[k].distance, b[k].distance, 1e-9) << K;
+                ASSERT_EQ(a[k].entering, b[k].entering) << K;
+            }
+        }
+    }
+}
+
 TEST(Containment, ExtrPolyTowardApex) {
     // Rays through the apex (0,0,2), from near and far, stay in the pyramid
     double off[2] = {0, 0};

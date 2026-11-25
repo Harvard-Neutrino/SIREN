@@ -114,6 +114,11 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
+    // The polygon plane is taken relative to the first vertex, so an outline far
+    // from its origin loses nothing to cancellation.
+    double ref_x = polygon_[0][0];
+    double ref_y = polygon_[0][1];
+
     // Pieces of the ray inside the solid, over all z-sections
     std::vector<std::pair<double, double>> pieces;
     std::vector<double> crossings;
@@ -142,10 +147,10 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
 
         double sk = zsections_[k].scale;
         double sk1 = zsections_[k + 1].scale;
-        double oxk = zsections_[k].offset[0];
-        double oxk1 = zsections_[k + 1].offset[0];
-        double oyk = zsections_[k].offset[1];
-        double oyk1 = zsections_[k + 1].offset[1];
+        double oxk = zsections_[k].offset[0] + sk * ref_x;
+        double oxk1 = zsections_[k + 1].offset[0] + sk1 * ref_x;
+        double oyk = zsections_[k].offset[1] + sk * ref_y;
+        double oyk1 = zsections_[k + 1].offset[1] + sk1 * ref_y;
 
         // U(t) = U0 + U1 * t
         double w0 = sk + (sk1 - sk) * frac_pz;
@@ -188,25 +193,28 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
         }
 
         crossings.clear();
-        double side_prev = nx * polygon_[Nv - 1][0] + ny * polygon_[Nv - 1][1] + nw;
-        for(int i = 0, prev = Nv - 1; i < Nv; prev = i++) {
-            double side_a = side_prev;
-            double side_b = nx * polygon_[i][0] + ny * polygon_[i][1] + nw;
-            side_prev = side_b;
+        double xb = polygon_[Nv - 1][0] - ref_x;
+        double yb = polygon_[Nv - 1][1] - ref_y;
+        double side_b = nx * xb + ny * yb + nw;
+        for(int i = 0; i < Nv; ++i) {
+            double xa = xb, ya = yb, side_a = side_b;
+            xb = polygon_[i][0] - ref_x;
+            yb = polygon_[i][1] - ref_y;
+            side_b = nx * xb + ny * yb + nw;
             if((side_a >= 0) == (side_b >= 0)) continue;
 
             // Lateral plane along the ray: dist + cosa * t = 0
             plane const & pl = planes_[i];
-            double cosa = pl.a * ux1 + pl.b * uy1 + pl.d * w1;
+            double cosa = pl.a * (ux1 - xb * w1) + pl.b * (uy1 - yb * w1);
             double t;
             if(std::fabs(cosa) > CROSSING_PRECISION) {
-                t = -(pl.a * ux0 + pl.b * uy0 + pl.d * w0) / cosa;
+                t = -(pl.a * (ux0 - xb * w0) + pl.b * (uy0 - yb * w0)) / cosa;
             } else {
                 // Nearly in the plane of the face, which then fixes t poorly:
                 // take the point where the edge meets the line instead.
                 double f = side_a / (side_a - side_b);
-                double x = polygon_[prev][0] + f * (polygon_[i][0] - polygon_[prev][0]);
-                double y = polygon_[prev][1] + f * (polygon_[i][1] - polygon_[prev][1]);
+                double x = xa + f * (xb - xa);
+                double y = ya + f * (yb - ya);
                 double ax = ux1 - x * w1;
                 double ay = uy1 - y * w1;
                 t = (ax * (x * w0 - ux0) + ay * (y * w0 - uy0)) / (ax * ax + ay * ay);
@@ -259,11 +267,12 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
 // ------------------------------------------------------------------------- //
 bool ExtrPoly::InsidePolygon(double x, double y) const {
     // Even-odd rule on half-open edges, so that a vertex is counted once.
+    // The point is relative to the first vertex.
     bool inside = false;
     int Nv = polygon_.size();
     for(int i = 0, k = Nv - 1; i < Nv; k = i++) {
-        double xi = polygon_[i][0], yi = polygon_[i][1];
-        double xk = polygon_[k][0], yk = polygon_[k][1];
+        double xi = polygon_[i][0] - polygon_[0][0], yi = polygon_[i][1] - polygon_[0][1];
+        double xk = polygon_[k][0] - polygon_[0][0], yk = polygon_[k][1] - polygon_[0][1];
         if((yi > y) == (yk > y)) continue;
         if(x < xi + (y - yi) * (xk - xi) / (yk - yi)) inside = !inside;
     }
