@@ -20,7 +20,7 @@ namespace geometry {
 
 namespace {
 
-// A ray moving slower than this across the polygon is along the extrusion.
+// A unit ray moving sideways slower than this is along the extrusion.
 constexpr double PARALLEL_PRECISION = 1e-14;
 // Below this rate of approach a lateral plane fixes the crossing poorly.
 constexpr double CROSSING_PRECISION = 1e-6;
@@ -163,7 +163,15 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::
         double ny = w0 * ux1 - ux0 * w1;
         double nw = ux0 * uy1 - uy0 * ux1;
 
-        if(std::max(std::fabs(nx), std::fabs(ny)) <= PARALLEL_PRECISION * w_mid * w_mid) {
+        // The ray moves sideways at |n| / w_mid in the middle of the slab. Like n,
+        // the bounds below scale with w, so the outline and the sections may be
+        // rescaled reciprocally. The second terms are the rounding error of n.
+        double eps = 4 * std::numeric_limits<double>::epsilon();
+        double tol = PARALLEL_PRECISION * w_mid;
+        bool parallel =
+            std::fabs(nx) <= tol + eps * (std::fabs(uy0 * w1) + std::fabs(w0 * uy1)) &&
+            std::fabs(ny) <= tol + eps * (std::fabs(w0 * ux1) + std::fabs(ux0 * w1));
+        if(parallel && std::isfinite(t_min)) {
             // Along the extrusion: a single point in the polygon plane.
             if(InsidePolygon((ux0 + ux1 * t_mid) / w_mid, (uy0 + uy1 * t_mid) / w_mid)) {
                 pieces.emplace_back(t_min, t_max);

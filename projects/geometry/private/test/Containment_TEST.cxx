@@ -749,6 +749,64 @@ TEST(Containment, ExtrPolyConcaveBooleanOperands) {
     }, 3, 20000, "box and L");
 }
 
+TEST(Containment, ExtrPolyReciprocalScales) {
+    // The L drawn s times larger, with section scales 1 / s, straight and tapered
+    for(double s : {1e-14, 1e-9, 1., 1e9, 1e14}) {
+        std::vector<std::vector<double>> outline = L_OUTLINE;
+        for(auto & v : outline) {
+            v[0] *= s;
+            v[1] *= s;
+        }
+        double off[2] = {0, 0};
+        std::string label = "ExtrPolyReciprocalScales " + std::to_string(std::log10(s));
+        ExtrPoly straight(outline, {ExtrPoly::ZSection(-2, off, 1 / s), ExtrPoly::ZSection(2, off, 1 / s)});
+        ValidateContainment(straight, InsideLPrism, 5, 5000, label + " straight");
+        ExtrPoly pyramid(outline, {ExtrPoly::ZSection(-2, off, 1 / s), ExtrPoly::ZSection(2, off, 0)});
+        ValidateContainment(pyramid, [](Vector3D const & p) {
+            double f = (2 - p.GetZ()) / 4;
+            return f > 0 && f < 1 && InsideL(p.GetX() / f, p.GetY() / f);
+        }, 5, 5000, label + " pyramid");
+
+        for(double x0 : {-1., 0.5}) {
+            auto hits = straight.Intersections(Vector3D(x0, 0.5, 0), Vector3D(1, 0, 0));
+            ASSERT_EQ(hits.size(), 2u) << label;
+            EXPECT_NEAR(hits[0].distance, -x0, 1e-9) << label;
+            EXPECT_NEAR(hits[1].distance, 4 - x0, 1e-9) << label;
+        }
+        auto up = straight.Intersections(Vector3D(0.5, 2, 0), Vector3D(0, 0, 1));
+        ASSERT_EQ(up.size(), 2u) << label;
+        EXPECT_NEAR(up[0].distance, -2, 1e-9) << label;
+        EXPECT_NEAR(up[1].distance, 2, 1e-9) << label;
+    }
+}
+
+TEST(Containment, ExtrPolyTowardApex) {
+    // Rays through the apex (0,0,2), from near and far, stay in the pyramid
+    double off[2] = {0, 0};
+    ExtrPoly ep(L_OUTLINE, {ExtrPoly::ZSection(-2, off, 1), ExtrPoly::ZSection(2, off, 0)});
+    Vector3D apex(0, 0, 2);
+    for(int i = 0; i < 2000; ++i) {
+        double x = 4 * uniform01(rng_), y = 4 * uniform01(rng_);
+        Vector3D base(x, y, -2);
+        double length = (apex - base).magnitude();
+        Vector3D dir = apex - base;
+        dir.normalize();
+        for(double back : {0.5, 1e3, 1e6}) {
+            auto hits = ep.Intersections(base - dir * back, dir);
+            // Far from the solid the ray misses the apex by a rounding error,
+            // so only the length inside is fixed.
+            double inside = 0;
+            for(size_t k = 0; k + 1 < hits.size(); k += 2) {
+                ASSERT_TRUE(std::isfinite(hits[k].distance) && std::isfinite(hits[k + 1].distance));
+                inside += hits[k + 1].distance - hits[k].distance;
+            }
+            double edge = std::min({x, y, 4 - x, 4 - y, std::fabs(x - 1), std::fabs(y - 1)});
+            if(edge < 1e-3) continue;
+            ASSERT_NEAR(inside, InsideL(x, y) ? length : 0, 1e-4) << x << " " << y << " " << back;
+        }
+    }
+}
+
 TEST(Containment, ExtrPolyRayOnSectionPlane) {
     // A horizontal ray in the plane shared by two sections is in both
     double off[2] = {0, 0};
