@@ -2,6 +2,7 @@
 #ifndef SIREN_PrimaryDirectionDistribution_H
 #define SIREN_PrimaryDirectionDistribution_H
 
+#include <set>                                           // for set
 #include <string>                                        // for string
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
@@ -9,6 +10,7 @@
 #include <stdexcept>                                     // for runtime_error
 
 #include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/DistributionVariable.h"
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -52,6 +54,7 @@ private:
 public:
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override = 0;
+    virtual std::set<DistributionVariable> SetVariables() const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override = 0;
     template<typename Archive>

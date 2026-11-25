@@ -153,6 +153,13 @@ class InitialTimeShift(distributions.PrimaryInjectionDistribution):
     def GenerationProbability(self, detector_model, interactions, record):
         return 1.0
 
+    def SetVariables(self):
+        # The declaration vocabulary has no member for the initial time;
+        # an empty set is the honest declaration for a time-only stamp.
+        # Subclassing the generic base makes SetVariables mandatory (it is
+        # pure there); the typed bases inherit their C++ declarations.
+        return set()
+
 
 class UnitWeightable(distributions.WeightableDistribution):
     """Physical-side distribution contributing a constant factor."""

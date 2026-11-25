@@ -16,6 +16,7 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"
+#include "SIREN/distributions/DistributionVariable.h"
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "SIREN/distributions/primary/vertex/DepthFunction.h"
 #include "SIREN/math/Vector3D.h"
@@ -46,6 +47,7 @@ public:
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> GetSamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record); 
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function);
+    virtual std::set<DistributionVariable> RequiredVariables() const override;
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;

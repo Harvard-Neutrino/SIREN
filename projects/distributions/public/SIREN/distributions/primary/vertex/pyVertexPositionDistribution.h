@@ -2,7 +2,8 @@
 #ifndef SIREN_pyVertexPositionDistribution_H
 #define SIREN_pyVertexPositionDistribution_H
 
-#include <memory>                                 // for shared_ptr
+#include <memory>
+#include <set>                                 // for shared_ptr
 #include <string>                                 // for string
 #include <tuple>                                  // for tuple
 #include <vector>                                 // for vector
@@ -38,6 +39,8 @@ public:
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     std::vector<std::string> DensityVariables() const override;
+    std::set<DistributionVariable> SetVariables() const override;
+    std::set<DistributionVariable> RequiredVariables() const override;
     std::string Name() const override;
     std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
