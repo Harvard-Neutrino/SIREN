@@ -672,6 +672,14 @@ TEST(GDMLParser, XtruUnsupportedWarns) {
     auto xtru = [](std::string const & name, std::string const & vertices, std::string const & sections) {
         return R"(<xtru name=")" + name + R"(" lunit="m">)" + vertices + sections + "</xtru>\n";
     };
+    auto outline = [](std::vector<std::pair<int, int>> const & points) {
+        std::string s;
+        for(auto const & p : points) {
+            s += R"(<twoDimVertex x=")" + std::to_string(p.first)
+                + R"(" y=")" + std::to_string(p.second) + R"("/>)";
+        }
+        return s;
+    };
     std::string square = R"(<twoDimVertex x="0" y="0"/><twoDimVertex x="1" y="0"/>
       <twoDimVertex x="1" y="1"/><twoDimVertex x="0" y="1"/>)";
     std::string bowtie = R"(<twoDimVertex x="0" y="0"/><twoDimVertex x="1" y="0"/>
@@ -680,11 +688,21 @@ TEST(GDMLParser, XtruUnsupportedWarns) {
     GDMLData data = ParseGDMLWithSolids(
         R"(<box name="w" x="1" y="1" z="1"/>)"
         + xtru("bowtie", bowtie, up)
+        + xtru("vertex_on_edge", outline({{0,0},{2,2},{4,0},{2,0},{2,3}}), up)
+        + xtru("shared_vertex", outline({{0,0},{2,0},{1,1},{2,2},{0,2},{1,1}}), up)
+        + xtru("overlap", outline({{0,0},{4,0},{4,1},{3,0},{1,0},{0,1}}), up)
+        + xtru("closed", outline({{0,0},{1,0},{1,0},{1,1},{0,1},{0,0}}), up)
+        + xtru("collinear", outline({{0,0},{1,0},{2,0},{3,0},{3,1},{0,1}}), up)
         + xtru("single", square, R"(<section zPosition="-1"/>)")
         + xtru("descending", square, R"(<section zPosition="1"/><section zPosition="-1"/>)")
         + xtru("negative", square, R"(<section zPosition="-1"/><section zPosition="1" scalingFactor="-1"/>)")
         + xtru("empty", "", up), "w");
-    EXPECT_TRUE(HasWarning(data, "bowtie", "crosses itself"));
+    EXPECT_TRUE(HasWarning(data, "bowtie", "touches itself"));
+    EXPECT_TRUE(HasWarning(data, "vertex_on_edge", "touches itself"));
+    EXPECT_TRUE(HasWarning(data, "shared_vertex", "touches itself"));
+    EXPECT_TRUE(HasWarning(data, "overlap", "touches itself"));
+    ExpectNoWarningContaining(data, "closed");
+    ExpectNoWarningContaining(data, "collinear");
     EXPECT_TRUE(HasWarning(data, "single", "fewer than two sections"));
     EXPECT_TRUE(HasWarning(data, "descending", "do not increase"));
     EXPECT_TRUE(HasWarning(data, "negative", "negative scalingFactor"));

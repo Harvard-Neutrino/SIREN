@@ -94,10 +94,34 @@ double Orient2D(Vector3D const & a, Vector3D const & b, Vector3D const & c) {
          - (b.GetY() - a.GetY()) * (c.GetX() - a.GetX());
 }
 
-// True if two edges of a closed outline that share no vertex cross.
-bool OutlineCrossesItself(std::vector<std::vector<double>> const & polygon) {
+// True if p, on the line through a and b, is between them.
+bool Between2D(Vector3D const & a, Vector3D const & b, Vector3D const & p) {
+    return std::min(a.GetX(), b.GetX()) <= p.GetX() && p.GetX() <= std::max(a.GetX(), b.GetX())
+        && std::min(a.GetY(), b.GetY()) <= p.GetY() && p.GetY() <= std::max(a.GetY(), b.GetY());
+}
+
+// True if segments ab and cd have a point in common, end points included.
+bool SegmentsMeet2D(Vector3D const & a, Vector3D const & b,
+                    Vector3D const & c, Vector3D const & d) {
+    auto sign = [](double x) { return (x > 0) - (x < 0); };
+    int abc = sign(Orient2D(a, b, c));
+    int abd = sign(Orient2D(a, b, d));
+    int cda = sign(Orient2D(c, d, a));
+    int cdb = sign(Orient2D(c, d, b));
+    if(abc * abd < 0 && cda * cdb < 0) return true;
+    return (abc == 0 && Between2D(a, b, c)) || (abd == 0 && Between2D(a, b, d))
+        || (cda == 0 && Between2D(c, d, a)) || (cdb == 0 && Between2D(c, d, b));
+}
+
+// True if two edges of a closed outline that are not neighbors meet.
+// Repeated consecutive vertices count once.
+bool OutlineMeetsItself(std::vector<std::vector<double>> const & polygon) {
     std::vector<Vector3D> v;
-    for(auto const & p : polygon) v.emplace_back(p[0], p[1], 0);
+    for(size_t i = 0; i < polygon.size(); ++i) {
+        auto const & p = polygon[i];
+        auto const & next = polygon[(i + 1) % polygon.size()];
+        if(p[0] != next[0] || p[1] != next[1]) v.emplace_back(p[0], p[1], 0);
+    }
     size_t n = v.size();
     for(size_t i = 0; i < n; ++i) {
         Vector3D const & a = v[i];
@@ -106,10 +130,7 @@ bool OutlineCrossesItself(std::vector<std::vector<double>> const & polygon) {
             if(i == 0 && j == n - 1) continue;
             Vector3D const & c = v[j];
             Vector3D const & d = v[(j + 1) % n];
-            if(Orient2D(a, b, c) * Orient2D(a, b, d) < 0
-               && Orient2D(c, d, a) * Orient2D(c, d, b) < 0) {
-                return true;
-            }
+            if(SegmentsMeet2D(a, b, c, d)) return true;
         }
     }
     return false;
@@ -277,8 +298,8 @@ std::shared_ptr<Geometry> ParseXtru(SolidContext const & ctx) {
             break;
         }
     }
-    if(OutlineCrossesItself(polygon)) {
-        WarnSolid(ctx, "has an outline that crosses itself; using the even-odd rule");
+    if(OutlineMeetsItself(polygon)) {
+        WarnSolid(ctx, "has an outline that crosses or touches itself; using the even-odd rule");
     }
     return ExtrPoly(polygon, zsections).create();
 }
