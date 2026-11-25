@@ -7,6 +7,7 @@
 #include <random>
 #include <string>
 #include <memory>
+#include <new>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -250,6 +251,79 @@ TEST(BVH, SingleVolume) {
         DetectorDirection(Vector3D(0, 0, 1)));
 
     EXPECT_EQ(result.intersections.size(), 2u);
+}
+
+// =========================================================================
+// Repeated rays: GetIntersections returns a stored copy for a ray it has
+// just traced, which must be identical and must follow sector changes.
+// =========================================================================
+
+namespace {
+
+DetectorSector SphereSector(std::string const & name, int level, Vector3D const & center, double radius) {
+    DetectorSector sector;
+    sector.name = name;
+    sector.material_id = level;
+    sector.level = level;
+    sector.geo = Sphere(Placement(center), radius, 0).create();
+    sector.density = ConstantDensityDistribution(1.0).create();
+    return sector;
+}
+
+void ExpectIdentical(Geometry::IntersectionList const & a, Geometry::IntersectionList const & b) {
+    ASSERT_EQ(a.intersections.size(), b.intersections.size());
+    for(size_t j = 0; j < a.intersections.size(); ++j) {
+        EXPECT_EQ(a.intersections[j].distance, b.intersections[j].distance);
+        EXPECT_EQ(a.intersections[j].hierarchy, b.intersections[j].hierarchy);
+        EXPECT_EQ(a.intersections[j].matID, b.intersections[j].matID);
+        EXPECT_EQ(a.intersections[j].entering, b.intersections[j].entering);
+        EXPECT_EQ(a.intersections[j].position, b.intersections[j].position);
+    }
+}
+
+} // namespace
+
+TEST(BVH, RepeatedRayReturnsIdenticalIntersections) {
+    DetectorModel dm;
+    BuildTestModel(dm, 50);
+    Vector3D position(-80, 3, 1);
+    Vector3D direction = Vector3D(1, 0.1, -0.05).normalized();
+
+    auto first = dm.GetIntersections(DetectorPosition(position), DetectorDirection(direction));
+    auto second = dm.GetIntersections(DetectorPosition(position), DetectorDirection(direction));
+    ExpectIdentical(first, second);
+    EXPECT_TRUE(CompareIntersectionLists(second, BruteForceIntersections(dm, position, direction)));
+}
+
+TEST(BVH, RepeatedRaySeesAddedSector) {
+    DetectorModel dm;
+    dm.ClearSectors();
+    dm.AddSector(SphereSector("world", 0, Vector3D(0, 0, 0), 100));
+    DetectorPosition position(Vector3D(0, 0, -50));
+    DetectorDirection direction(Vector3D(0, 0, 1));
+
+    EXPECT_EQ(dm.GetIntersections(position, direction).intersections.size(), 2u);
+    dm.AddSector(SphereSector("inner", 1, Vector3D(0, 0, 10), 5));
+    EXPECT_EQ(dm.GetIntersections(position, direction).intersections.size(), 4u);
+}
+
+TEST(BVH, RepeatedRayInNewModelAtSameAddress) {
+    DetectorPosition position(Vector3D(0, 0, -50));
+    DetectorDirection direction(Vector3D(0, 0, 1));
+    alignas(DetectorModel) unsigned char storage[sizeof(DetectorModel)];
+
+    DetectorModel * dm = new (storage) DetectorModel();
+    dm->ClearSectors();
+    dm->AddSector(SphereSector("world", 0, Vector3D(0, 0, 0), 100));
+    EXPECT_EQ(dm->GetIntersections(position, direction).intersections.size(), 2u);
+    dm->~DetectorModel();
+
+    dm = new (storage) DetectorModel();
+    dm->ClearSectors();
+    dm->AddSector(SphereSector("world", 0, Vector3D(0, 0, 0), 100));
+    dm->AddSector(SphereSector("inner", 1, Vector3D(0, 0, 10), 5));
+    EXPECT_EQ(dm->GetIntersections(position, direction).intersections.size(), 4u);
+    dm->~DetectorModel();
 }
 
 TEST(BVH, EmptyModel) {

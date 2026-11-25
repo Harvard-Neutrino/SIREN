@@ -30,6 +30,34 @@ using detector::GeometryPosition;
 using detector::GeometryDirection;
 
 namespace {
+// The part of the ray from endcap_0 where vertices may lie: the crossing of the
+// fiducial volume within max_length if there is one, otherwise the part inside
+// the detector's outer bounds. Finding the outer bounds traces the ray through
+// every sector, so it is done only when the fiducial crossing is not used.
+siren::detector::Path BoundedPath(
+        std::shared_ptr<siren::detector::DetectorModel const> const & detector_model,
+        std::shared_ptr<siren::geometry::Geometry> const & fiducial_volume,
+        double max_length,
+        siren::math::Vector3D const & endcap_0,
+        siren::math::Vector3D const & dir) {
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
+    if(fiducial_volume) {
+        std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
+        // The crossing must start before max_length and end in front of endcap_0.
+        if(!fid_intersections.empty()
+                && fid_intersections.front().distance < max_length
+                && fid_intersections.back().distance > 0) {
+            siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
+            DetectorPosition first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
+            DetectorPosition last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
+            path.SetPoints(first_point, last_point);
+            return path;
+        }
+    }
+    path.ClipToOuterBounds();
+    return path;
+}
+
 double log_one_minus_exp_of_negative(double x) {
     if(x < 1e-1) {
         return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
@@ -57,27 +85,7 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
     siren::math::Vector3D dir = record.direction;
 
     siren::math::Vector3D endcap_0 = pos;
-    siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
-
-    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
-    path.ClipToOuterBounds();
-
-    // Check if fiducial volume is provided
-    if(fiducial_volume) {
-        std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
-        // If the path intersects the fiducial volume, restrict position to that volume
-        if(!fid_intersections.empty()) {
-            // make sure the first intersection happens before the maximum generation length
-            // and the last intersection happens in front of the generation point
-            bool update_path = (fid_intersections.front().distance < max_length
-                    && fid_intersections.back().distance > 0);
-            if(update_path) {
-                siren::math::Vector3D first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
-                siren::math::Vector3D last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
-                path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
-            }
-        }
-    }
+    siren::detector::Path path = BoundedPath(detector_model, fiducial_volume, max_length, endcap_0, dir);
 
     std::vector<siren::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
@@ -121,27 +129,7 @@ double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr
     siren::math::Vector3D vertex(record.interaction_vertex);
 
     siren::math::Vector3D endcap_0 = record.primary_initial_position;
-    siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
-
-    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
-    path.ClipToOuterBounds();
-
-    // Check if fiducial volume is provided
-    if(fiducial_volume) {
-        std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
-        // If the path intersects the fiducial volume, restrict position to that volume
-        if(!fid_intersections.empty()) {
-            // make sure the first intersection happens before the maximum generation length
-            // and the last intersection happens in front of the generation point
-            bool update_path = (fid_intersections.front().distance < max_length
-                    && fid_intersections.back().distance > 0);
-            if(update_path) {
-                DetectorPosition first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
-                DetectorPosition last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
-                path.SetPoints(first_point, last_point);
-            }
-        }
-    }
+    siren::detector::Path path = BoundedPath(detector_model, fiducial_volume, max_length, endcap_0, dir);
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
@@ -200,27 +188,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SecondaryBoundedVertexD
     siren::math::Vector3D vertex(record.interaction_vertex);
 
     siren::math::Vector3D endcap_0 = record.primary_initial_position;
-    siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
-
-    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
-    path.ClipToOuterBounds();
-
-    // Check if fiducial volume is provided
-    if(fiducial_volume) {
-        std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
-        // If the path intersects the fiducial volume, restrict position to that volume
-        if(!fid_intersections.empty()) {
-            // make sure the first intersection happens before the maximum generation length
-            // and the last intersection happens in front of the generation point
-            bool update_path = (fid_intersections.front().distance < max_length
-                    && fid_intersections.back().distance > 0);
-            if(update_path) {
-                DetectorPosition first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
-                DetectorPosition last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
-                path.SetPoints(first_point, last_point);
-            }
-        }
-    }
+    siren::detector::Path path = BoundedPath(detector_model, fiducial_volume, max_length, endcap_0, dir);
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(siren::math::Vector3D(0, 0, 0), siren::math::Vector3D(0, 0, 0));
