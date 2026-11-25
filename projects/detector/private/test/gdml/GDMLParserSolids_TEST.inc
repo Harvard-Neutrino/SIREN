@@ -495,6 +495,205 @@ TEST(GDMLParser, Arb8Watertight) {
 }
 
 
+// An arb8 of half-length 1 m: bottom square 2 m wide, top square 1 m wide and
+// shifted by +0.5 m in x, listed counterclockwise (as seen from +z) or not.
+static std::string Arb8Taper(std::string const & name, bool counterclockwise) {
+    std::string second = R"(v2x="1" v2y="-1" v6x="1" v6y="-0.5")";
+    std::string fourth = R"(v4x="-1" v4y="1" v8x="0" v8y="0.5")";
+    if(!counterclockwise) {
+        second = R"(v2x="-1" v2y="1" v6x="0" v6y="0.5")";
+        fourth = R"(v4x="1" v4y="-1" v8x="1" v8y="-0.5")";
+    }
+    return R"(<arb8 name=")" + name + R"(" lunit="m" dz="1" v1x="-1" v1y="-1" v5x="0" v5y="-0.5" )"
+        + second + R"( v3x="1" v3y="1" v7x="1" v7y="0.5" )" + fourth + "/>\n";
+}
+
+// True if a warning mentions both strings.
+static bool HasWarning(GDMLData const & data, std::string const & a, std::string const & b) {
+    for(auto const & w : data.warnings) {
+        if(w.find(a) != std::string::npos && w.find(b) != std::string::npos) return true;
+    }
+    return false;
+}
+
+TEST(GDMLParser, Arb8BothVertexOrders) {
+    GDMLData data = ParseGDMLWithSolids(
+        Arb8Taper("ccw", true) + Arb8Taper("cw", false), "ccw");
+    ExpectNoWarningContaining(data, "arb8");
+    auto ccw = RequireSolid(data, "ccw");
+    auto cw = RequireSolid(data, "cw");
+    ASSERT_NE(ccw, nullptr);
+    ASSERT_NE(cw, nullptr);
+
+    std::vector<siren::math::Vector3D> dirs = {
+        {0, 0, 1}, {0, 0, -1}, {1, 0, 0}, {0, -1, 0},
+        {0.36, 0.48, 0.8}, {-0.6, 0.64, -0.48}};
+    int n_inside = 0;
+    for(double x = -1.4537; x < 1.5; x += 0.1)
+    for(double y = -1.4371; y < 1.5; y += 0.1)
+    for(double z = -1.3719; z < 1.4; z += 0.13) {
+        double f = 0.5 * (z + 1);
+        double half = 1 - 0.5 * f;
+        bool inside = std::fabs(z) < 1 && std::fabs(x - 0.5 * f) < half && std::fabs(y) < half;
+        n_inside += inside;
+        for(auto const & dir : dirs) {
+            ASSERT_EQ(ccw->IsInside({x, y, z}, dir), inside) << x << " " << y << " " << z;
+            ASSERT_EQ(cw->IsInside({x, y, z}, dir), inside) << x << " " << y << " " << z;
+        }
+    }
+    EXPECT_GT(n_inside, 1000);
+}
+
+
+TEST(GDMLParser, Arb8ClockwiseCollapsedFaces) {
+    // Clockwise, as Geant4 requires; a pyramid, a wedge and a triangular prism
+    std::string base = R"( lunit="m" dz="1" v1x="-1" v1y="-1" v2x="-1" v2y="1" v3x="1" v3y="1" )";
+    GDMLData data = ParseGDMLWithSolids(
+        R"(<arb8 name="pyramid")" + base + R"(v4x="1" v4y="-1"/>
+    <arb8 name="wedge")" + base + R"(v4x="1" v4y="-1" v5x="-1" v6x="-1" v7x="1" v8x="1"/>
+    <arb8 name="prism")" + base + R"(v4x="1" v4y="1" v5x="-1" v5y="-1" v6x="-1" v6y="1"
+      v7x="1" v7y="1" v8x="1" v8y="1"/>
+)", "pyramid");
+    ExpectNoWarningContaining(data, "arb8");
+    auto pyramid = RequireSolid(data, "pyramid");
+    auto wedge = RequireSolid(data, "wedge");
+    auto prism = RequireSolid(data, "prism");
+    ASSERT_TRUE(pyramid && wedge && prism);
+
+    // Both end faces collapsed to crossed edges: a tetrahedron, in both orders
+    for(std::string top : {R"(v5y="-1" v6y="1" v7y="1" v8y="-1"/>)", R"(v5y="1" v6y="-1" v7y="-1" v8y="1"/>)"}) {
+        GDMLData tet_data = ParseGDMLWithSolids(
+            R"(<arb8 name="tet" lunit="m" dz="1" v1x="-1" v2x="-1" v3x="1" v4x="1" )" + top, "tet");
+        ExpectNoWarningContaining(tet_data, "arb8");
+        auto tet = RequireSolid(tet_data, "tet");
+        ASSERT_NE(tet, nullptr);
+        for(double x = -1.1537; x < 1.2; x += 0.1)
+        for(double y = -1.1371; y < 1.2; y += 0.1)
+        for(double z = -1.1219; z < 1.2; z += 0.19) {
+            ASSERT_EQ(tet->IsInside({x, y, z}, {0.36, 0.48, 0.8}),
+                      std::fabs(x) < 0.5 * (1 - z) && std::fabs(y) < 0.5 * (1 + z));
+        }
+    }
+    for(double x = -1.1537; x < 1.2; x += 0.1)
+    for(double y = -1.1371; y < 1.2; y += 0.1)
+    for(double z = -1.1219; z < 1.2; z += 0.19) {
+        double s = 0.5 * (1 - z);
+        bool zin = std::fabs(z) < 1;
+        siren::math::Vector3D p(x, y, z), dir(0.36, 0.48, 0.8);
+        ASSERT_EQ(pyramid->IsInside(p, dir), zin && std::fabs(x) < s && std::fabs(y) < s);
+        ASSERT_EQ(wedge->IsInside(p, dir), zin && std::fabs(x) < 1 && std::fabs(y) < s);
+        ASSERT_EQ(prism->IsInside(p, dir), zin && x > -1 && y < 1 && y > x);
+    }
+}
+
+
+TEST(GDMLParser, Arb8UnsupportedWarns) {
+    GDMLData data = ParseGDMLWithSolids(R"(
+    <box name="w" x="1" y="1" z="1"/>
+    <arb8 name="opposite" lunit="m" dz="1" v1x="-1" v1y="-1" v2x="-1" v2y="1" v3x="1" v3y="1" v4x="1" v4y="-1"
+      v5x="-1" v5y="-1" v6x="1" v6y="-1" v7x="1" v7y="1" v8x="-1" v8y="1"/>
+    <arb8 name="flat" lunit="m" dz="1" v1x="-1" v2x="1" v3x="2" v4x="3"/>
+    <arb8 name="dart" lunit="m" dz="1" v1x="-1" v1y="-1" v2x="0" v2y="0" v3x="-1" v3y="1" v4x="1" v4y="0"
+      v5x="-1" v5y="-1" v6x="0" v6y="0" v7x="-1" v7y="1" v8x="1" v8y="0"/>
+    <arb8 name="twisted" lunit="m" dz="1" v1x="-1" v1y="-1" v2x="-1" v2y="1" v3x="1" v3y="1" v4x="1" v4y="-1"
+      v5x="-1.2" v5y="-0.8" v6x="-0.8" v6y="1.2" v7x="1.2" v7y="0.8" v8x="0.8" v8y="-1.2"/>
+    <arb8 name="thin" lunit="m" v1x="-1" v1y="-1" v2x="-1" v2y="1" v3x="1" v3y="1" v4x="1" v4y="-1"/>
+)", "w");
+    EXPECT_TRUE(HasWarning(data, "opposite", "vertex orders"));
+    EXPECT_TRUE(HasWarning(data, "flat", "no volume"));
+    EXPECT_TRUE(HasWarning(data, "dart", "not convex"));
+    EXPECT_TRUE(HasWarning(data, "twisted", "twisted"));
+    EXPECT_TRUE(HasWarning(data, "thin", "dimensions"));
+    EXPECT_EQ(data.solids.count("opposite"), 0u);
+    EXPECT_EQ(data.solids.count("flat"), 0u);
+    EXPECT_EQ(data.solids.count("dart"), 0u);
+    EXPECT_EQ(data.solids.count("thin"), 0u);
+    ASSERT_EQ(data.solids.count("twisted"), 1u);
+    EXPECT_TRUE(IsInside(data.solids.at("twisted"), 0, 0, 0));
+}
+
+
+// An L-shaped prism, 0.4 m arms 0.1 m wide and 0.2 m thick.
+static const std::string kXtruL = R"(
+    <xtru name="ell" lunit="mm">
+      <twoDimVertex x="0" y="0"/><twoDimVertex x="400" y="0"/>
+      <twoDimVertex x="400" y="100"/><twoDimVertex x="100" y="100"/>
+      <twoDimVertex x="100" y="400"/><twoDimVertex x="0" y="400"/>
+      <section zOrder="0" zPosition="-100" xOffset="0" yOffset="0" scalingFactor="1"/>
+      <section zOrder="1" zPosition="100" xOffset="0" yOffset="0" scalingFactor="1"/>
+    </xtru>)";
+
+static const std::string kXtruLBooleans = kXtruL + R"(
+    <box name="block" x="300" y="300" z="100" lunit="mm"/>
+    <subtraction name="ell_minus_block"><first ref="ell"/><second ref="block"/></subtraction>
+    <subtraction name="block_minus_ell"><first ref="block"/><second ref="ell"/></subtraction>
+    <union name="ell_union_block"><first ref="ell"/><second ref="block"/></union>
+    <intersection name="block_and_ell"><first ref="block"/><second ref="ell"/></intersection>)";
+
+TEST(GDMLParser, XtruConcave) {
+    GDMLData data = ParseGDMLWithSolids(kXtruLBooleans, "ell");
+    EXPECT_TRUE(data.warnings.empty());
+    for(double x = -0.195; x < 0.45; x += 0.03)
+    for(double y = -0.185; y < 0.45; y += 0.03)
+    for(double z = -0.115; z < 0.12; z += 0.023) {
+        bool ell = x > 0 && y > 0 && x < 0.4 && y < 0.4 && (x < 0.1 || y < 0.1) && std::fabs(z) < 0.1;
+        bool block = std::fabs(x) < 0.15 && std::fabs(y) < 0.15 && std::fabs(z) < 0.05;
+        for(auto const & dir : {siren::math::Vector3D(0, 0, 1), siren::math::Vector3D(-1, 0, 0),
+                                siren::math::Vector3D(0.36, 0.48, 0.8)}) {
+            siren::math::Vector3D p(x, y, z);
+            ASSERT_EQ(data.solids.at("ell")->IsInside(p, dir), ell);
+            ASSERT_EQ(data.solids.at("ell_minus_block")->IsInside(p, dir), ell && !block);
+            ASSERT_EQ(data.solids.at("block_minus_ell")->IsInside(p, dir), block && !ell);
+            ASSERT_EQ(data.solids.at("ell_union_block")->IsInside(p, dir), ell || block);
+            ASSERT_EQ(data.solids.at("block_and_ell")->IsInside(p, dir), ell && block);
+        }
+    }
+}
+
+
+TEST(GDMLParser, XtruDefaultScalingFactor) {
+    GDMLData data = ParseGDMLWithSolids(R"(
+    <xtru name="default" lunit="m">
+      <twoDimVertex x="0" y="0"/><twoDimVertex x="1" y="0"/><twoDimVertex x="0" y="1"/>
+      <section zOrder="0" zPosition="-1"/><section zOrder="1" zPosition="1"/>
+    </xtru>
+    <xtru name="apex" lunit="m">
+      <twoDimVertex x="0" y="0"/><twoDimVertex x="1" y="0"/><twoDimVertex x="0" y="1"/>
+      <section zOrder="0" zPosition="-1"/><section zOrder="1" zPosition="1" scalingFactor="0"/>
+    </xtru>)", "default");
+    EXPECT_TRUE(data.warnings.empty());
+    EXPECT_TRUE(IsInside(data.solids.at("default"), 0.4, 0.4, 0.9));
+    EXPECT_FALSE(IsInside(data.solids.at("apex"), 0.4, 0.4, 0.9));
+    EXPECT_TRUE(IsInside(data.solids.at("apex"), 0.4, 0.4, -0.9));
+}
+
+
+TEST(GDMLParser, XtruUnsupportedWarns) {
+    auto xtru = [](std::string const & name, std::string const & vertices, std::string const & sections) {
+        return R"(<xtru name=")" + name + R"(" lunit="m">)" + vertices + sections + "</xtru>\n";
+    };
+    std::string square = R"(<twoDimVertex x="0" y="0"/><twoDimVertex x="1" y="0"/>
+      <twoDimVertex x="1" y="1"/><twoDimVertex x="0" y="1"/>)";
+    std::string bowtie = R"(<twoDimVertex x="0" y="0"/><twoDimVertex x="1" y="0"/>
+      <twoDimVertex x="0" y="1"/><twoDimVertex x="1" y="1"/>)";
+    std::string up = R"(<section zPosition="-1"/><section zPosition="1"/>)";
+    GDMLData data = ParseGDMLWithSolids(
+        R"(<box name="w" x="1" y="1" z="1"/>)"
+        + xtru("bowtie", bowtie, up)
+        + xtru("single", square, R"(<section zPosition="-1"/>)")
+        + xtru("descending", square, R"(<section zPosition="1"/><section zPosition="-1"/>)")
+        + xtru("negative", square, R"(<section zPosition="-1"/><section zPosition="1" scalingFactor="-1"/>)")
+        + xtru("empty", "", up), "w");
+    EXPECT_TRUE(HasWarning(data, "bowtie", "crosses itself"));
+    EXPECT_TRUE(HasWarning(data, "single", "fewer than two sections"));
+    EXPECT_TRUE(HasWarning(data, "descending", "do not increase"));
+    EXPECT_TRUE(HasWarning(data, "negative", "negative scalingFactor"));
+    EXPECT_TRUE(HasWarning(data, "empty", "dimensions"));
+    EXPECT_EQ(data.solids.count("negative"), 0u);
+    EXPECT_EQ(data.solids.count("empty"), 0u);
+}
+
+
 TEST(GDMLParser, TessellatedCmUnitConversion) {
     // Tessellated solid referencing positions defined in <define> with
     // non-default units (cm). Verifies unit conversion to SIREN meters.
