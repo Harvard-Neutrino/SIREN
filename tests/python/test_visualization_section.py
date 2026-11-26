@@ -354,13 +354,6 @@ def test_materials_keep_density_colors_unless_a_preset_names_them():
     assert named['MANTLE'].colour == plain['MANTLE'].colour
 
 
-def test_region_styles_take_either_spelling():
-    from siren._visualization_scene import normalize_regions
-    for key in ('color', 'colour'):
-        regions = normalize_regions(dict(auxtype='region', styles={'shell': {key: [.1, .2, .3]}}))
-        assert regions['styles']['shell']['colour'] == [.1, .2, .3]
-
-
 def test_presets_override_colors(tmp_path):
     rows = dict(title='T', materials=[dict(label='Mine', match=['*Fe'], color='#102030')],
                 sections=[dict(label='Middle', origin=[0, 0, 1], normal=[0, 0, 1])])

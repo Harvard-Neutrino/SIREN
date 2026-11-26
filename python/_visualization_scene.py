@@ -26,8 +26,7 @@ def normalize_regions(regions):
 
     ``regions`` is a mapping with ``auxtype`` (the GDML ``<auxiliary auxtype=...>``
     key whose value names a logical volume's region), ``styles`` (region name ->
-    ``{"label", "color", "alpha"}``, where ``"colour"`` is accepted for ``"color"``;
-    these regions must be shells of revolution
+    ``{"label", "color", "alpha"}``; these regions must be shells of revolution
     about their local z axis, of which only outward faces are displayed) and an
     optional ``hidden`` list of region names dropped from the exterior display.
     Detector-specific names belong to the caller, not to this module. Returns a
@@ -43,11 +42,11 @@ def normalize_regions(regions):
     out = {"auxtype": auxtype, "styles": {},
            "hidden": [str(role) for role in regions.get("hidden", ())]}
     for role, style in styles.items():
-        color = [float(c) for c in style["color" if "color" in style else "colour"]]
+        color = [float(c) for c in style["color"]]
         if len(color) != 3:
             raise ValueError("region %r color must have three components" % role)
         out["styles"][str(role)] = {"label": str(style.get("label", role)),
-                                    "colour": color, "alpha": float(style.get("alpha", 1.0))}
+                                    "color": color, "alpha": float(style.get("alpha", 1.0))}
     return out
 
 
@@ -253,9 +252,9 @@ def exterior_faces(vertices, faces, role, regions):
         return faces
     tri = vertices[faces]
     normals = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
-    centres = tri.mean(axis=1)
-    radial = (normals[:, :2] * centres[:, :2]).sum(axis=1)
-    tolerance = np.linalg.norm(normals, axis=1) * np.linalg.norm(centres[:, :2], axis=1) * 1e-10
+    centers = tri.mean(axis=1)
+    radial = (normals[:, :2] * centers[:, :2]).sum(axis=1)
+    tolerance = np.linalg.norm(normals, axis=1) * np.linalg.norm(centers[:, :2], axis=1) * 1e-10
     result = faces[radial > tolerance]
     if not len(result):
         raise ValueError("region shell %r has no outward radial faces" % role)

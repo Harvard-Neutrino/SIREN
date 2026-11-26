@@ -87,10 +87,10 @@ _MIN_EDGE_SIZE = .01
 
 
 class SceneRenderer:
-    def __init__(self, viewer, *, coloured=True, instancing=True, display="full", regions=None,
+    def __init__(self, viewer, *, colored=True, instancing=True, display="full", regions=None,
                  presets=None, edges=True):
         self.viewer = viewer
-        self.coloured = coloured
+        self.colored = colored
         self.instancing = instancing
         self.display = display
         # Normalized surface-region mapping (see _visualization_scene.normalize_regions).
@@ -200,12 +200,12 @@ class SceneRenderer:
         import copy
         from pyg4ometry.visualisation import VisualisationOptions
         p = self.scene["prototypes"][name]
-        vo = copy.copy(self.options[p["material"]]) if self.coloured else VisualisationOptions(colour=[.6, .6, .6])
+        vo = copy.copy(self.options[p["material"]]) if self.colored else VisualisationOptions(colour=[.6, .6, .6])
         if self.display == "exterior" and self.regions and p["role"] in self.regions["styles"]:
-            # Caller-supplied display colours, not measured optical coefficients.
+            # Caller-supplied display colors, not measured optical coefficients.
             style = self.regions["styles"][p["role"]]
-            if self.coloured:
-                vo.colour = list(style["colour"])
+            if self.colored:
+                vo.colour = list(style["color"])
             vo.alpha = style["alpha"]
         return vo
 
@@ -220,7 +220,7 @@ class SceneRenderer:
     def style(self, material, layer=None, volume=None, prototype=None):
         """(color, opacity): a volume's own choice, else its layer's, else its material's."""
         from .visualization import _LOW_DENSITY
-        if not self.coloured or (prototype is not None and self.display == "exterior" and self.regions
+        if not self.colored or (prototype is not None and self.display == "exterior" and self.regions
                                  and self.scene["prototypes"][prototype]["role"] in self.regions["styles"]):
             vo = self.vis_option(prototype)
             return tuple(vo.colour), (vo.alpha if self.opacity_override is None else self.opacity_override)
@@ -302,7 +302,7 @@ class SceneRenderer:
 
     def _remember(self, actor, name, instances, glyph=False):
         prop = actor.GetProperty()
-        if self.coloured:
+        if self.colored:
             prop.SetInterpolationToFlat()
             prop.SetAmbient(.5)
             prop.SetDiffuse(.55)
@@ -465,7 +465,7 @@ class SceneRenderer:
     def _build_edges(self):
         import numpy as np
         self._forget(self.line_actors)
-        if not self.edges or not self.coloured:
+        if not self.edges or not self.colored:
             return
         from .visualization import _LOW_DENSITY
         from .visualization import _scene_bounds

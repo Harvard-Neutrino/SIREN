@@ -2,7 +2,7 @@
 
 Entry points (all with deferred heavy imports so ``import siren`` stays light):
 
-* :func:`plot_cross_sections` -- matplotlib material-coloured 2-D slices through
+* :func:`plot_cross_sections` -- matplotlib material-colored 2-D slices through
   the geometry (samples ``GetMassDensity``; needs only matplotlib).
 * :func:`to_gdml` -- export the sectors to a single, self-contained, *standard*
   GDML file viewable in ROOT (``TGeoManager::Import``), pyg4ometry, Geant4, or a
@@ -10,7 +10,7 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
   named after its sector and every material carries its name + density, so a
   picking-capable viewer shows what you click on.
 * :func:`view` -- interactive 3-D (or off-screen PNG) render via pyg4ometry,
-  coloured by material, with a SIREN-backed right-click picker (robust where
+  colored by material, with a SIREN-backed right-click picker (robust where
   pyg4ometry's own picker segfaults) and keyboard controls for fly/pan
   navigation, the legend, bounding box, section outlines, per-material
   visibility, and opacity.
@@ -23,7 +23,7 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
 * :func:`describe` -- print a material summary (name, density, sector count) for
   headless inspection.
 
-Units/conventions: SIREN geometry is in metres; ``Cylinder``/``Cone`` store the
+Units/conventions: SIREN geometry is in meters; ``Cylinder``/``Cone`` store the
 *full* z-extent, so the exported GDML uses the standard convention
 (``<tube>`` z = full length) and renders correctly in external tools -- unlike
 SIREN's own hand-written sub-GDMLs, whose parser treats ``<tube>`` z as a half.
@@ -56,7 +56,7 @@ def _material_name(model, mid):
 
 
 def _sector_density(s):
-    """Scalar density (g/cm^3) of a sector, evaluated at its geo centre."""
+    """Scalar density (g/cm^3) of a sector, evaluated at its geo center."""
     try:
         return float(s.density.Evaluate(s.geo.placement.Position))
     except Exception:
@@ -69,14 +69,14 @@ def _sector_density(s):
 def plot_cross_sections(model, center=(0.0, 0.0, 0.0), half=15.0,
                         planes=("yz", "xy"), n=240, path=None, show=False,
                         title=None):
-    """Plot material-coloured 2-D cross-sections of *model*.
+    """Plot material-colored 2-D cross-sections of *model*.
 
     Samples the detector mass density on an ``n x n`` grid in each requested
-    plane and colours each cell by its material. The legend lists only the
+    plane and colors each cell by its material. The legend lists only the
     materials that actually appear in the slices.
 
-    :param center: (x, y, z) in metres (detector-local) about which to slice.
-    :param half: half-width of each slice in metres.
+    :param center: (x, y, z) in meters (detector-local) about which to slice.
+    :param half: half-width of each slice in meters.
     :param planes: any of ``"yz"``, ``"xy"``, ``"xz"``.
     :param path: if given, save the figure (PNG).
     :param show: open an interactive window.
@@ -256,11 +256,11 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
     universe-boundary sphere) are skipped.
 
     :param region: if given, a half-size (m) of a cube about *region_center* --
-        only sectors whose centre is inside are exported. Use this to drop the
+        only sectors whose center is inside are exported. Use this to drop the
         huge site-geology blocks / far beamline and keep just the detector
         region (much smaller, faster, and avoids a pyg4ometry picker crash on
         very large volumes).
-    :param region_center: (x, y, z) in geometry coords for the crop centre;
+    :param region_center: (x, y, z) in geometry coords for the crop center;
         defaults to the model's ``DetectorOrigin``.
     :returns: dict with ``n_sectors``, ``n_exact``, ``n_bbox``, ``n_skipped``,
         ``n_cropped``, ``n_solids`` (distinct), ``n_materials``, ``path`` and
@@ -335,7 +335,7 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
         else:
             # _bbox returns HALF-extents; GDML <box> x/y/z are FULL lengths, so
             # double them -- else bbox-approximated solids (booleans, etc.) render
-            # at half size, shrunk toward their centre and visibly misaligned with
+            # at half size, shrunk toward their center and visibly misaligned with
             # the full-size exact solids around them.
             (cx, cy, cz), (hx, hy, hz) = bb
             xml = '<box name="TMP" lunit="m" x="%s" y="%s" z="%s"/>' % (
@@ -361,7 +361,7 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
 
     if hi[0] < lo[0]:
         lo, hi = [-1, -1, -1], [1, 1, 1]
-    # World box is centred at the origin, so its half-extent on each axis must
+    # World box is centerd at the origin, so its half-extent on each axis must
     # reach the farthest sector (plus a margin). GDML <box> x/y/z are FULL
     # lengths, so double it -- else the world is half the size it needs to be and
     # the outer sectors poke out of it.
@@ -432,12 +432,12 @@ def at(model, x, y, z, printout=True):
 
 
 def list_volumes(model, sort="size", n=40, printout=True):
-    """List the model's sectors: name, material, density, centre, size (m).
+    """List the model's sectors: name, material, density, center, size (m).
 
     Sorted by *sort* -- ``"size"`` (largest first, the default) is handy for
     verifying the big outer volumes (site geology, beamline enclosures) by their
     numbers instead of the crash-prone 3-D picker; ``"name"`` sorts
-    alphabetically. Positions/sizes are in geometry-frame metres.
+    alphabetically. Positions/sizes are in geometry-frame meters.
     :returns: list of dicts (name, material, density, center, size, maxdim).
     """
     rows = []
@@ -458,7 +458,7 @@ def list_volumes(model, sort="size", n=40, printout=True):
     shown = rows if n is None else rows[:n]
     if printout:
         print("%-26s %-16s %9s  %-26s %-24s" %
-              ("volume", "material", "rho", "centre (m)", "size  L x W x H (m)"))
+              ("volume", "material", "rho", "center (m)", "size  L x W x H (m)"))
         print("-" * 108)
         for r in shown:
             c, sz = r["center"], r["size"]
@@ -474,8 +474,8 @@ def list_volumes(model, sort="size", n=40, printout=True):
 # 4. pyg4ometry 3-D view
 # ---------------------------------------------------------------------------
 def _material_vis_options(registry, VisOpt, rows=(), opacity=0.9):
-    """Map every material in *registry* to a colour so the viewer is not all
-    grey (the predefined-material viewer only colours known names like G4_*).
+    """Map every material in *registry* to a color so the viewer is not all
+    gray (the predefined-material viewer only colors known names like G4_*).
 
     Color runs by log-density (blue = low -> red = high) unless the caller's
     preset *rows* name one, and gases (rho < 0.05) are made semi-transparent so
@@ -501,7 +501,7 @@ def _material_vis_options(registry, VisOpt, rows=(), opacity=0.9):
     return out
 
 
-# pyg4ometry/VTK work in millimetres; SIREN geometry is in metres. The exported
+# pyg4ometry/VTK work in millimeters; SIREN geometry is in meters. The exported
 # GDML carries lunit="m", which the reader scales by this factor when meshing, so
 # a VTK world coordinate divided by this is a SIREN geometry-frame metre.
 _GDML_MM_PER_M = 1000.0
@@ -517,7 +517,7 @@ _MESH_SLICES = 48
 # Near/far clipping is driven by the camera's distance to its focal point
 # (cam.GetDistance()), NOT by the scene's total extent. VTK's default ties the
 # near plane to the far plane (near ~ tol x far); with an Earth-sized model far
-# is thousands of km, so even a tiny tolerance leaves the near plane kilometres
+# is thousands of km, so even a tiny tolerance leaves the near plane kilometers
 # out and you cannot zoom into metre- (let alone mm-) scale features. We instead
 # put the near plane at this fraction of the view distance, so zooming in (which
 # shrinks that distance) shrinks the near plane in lockstep. Depth resolution at
@@ -638,14 +638,14 @@ def _load_registry(model, gdml_path, skip_geo_types=("TriangularMesh",)):
     return vis, reg, reg.getWorldVolume(), path
 
 
-def _build_viewer(model, gdml_path=None, coloured=True):
+def _build_viewer(model, gdml_path=None, colored=True):
     """Export+load *model* and return (vis, viewer, registry, path, mvo) with the
     world logical volume added. The append pipeline is *not* built yet."""
     vis, reg, world, path = _load_registry(model, gdml_path)
-    mvo = _material_vis_options(reg, vis.VisualisationOptions) if coloured else None
-    if coloured:
-        v = vis.VtkViewerColouredNew(materialVisOptions=mvo,
-                                     defaultColour=[0.6, 0.6, 0.6])
+    mvo = _material_vis_options(reg, vis.VisualisationOptions) if colored else None
+    if colored:
+        v = vis.VtkViewerColoredNew(materialVisOptions=mvo,
+                                     defaultColor=[0.6, 0.6, 0.6])
     else:
         v = vis.VtkViewerNew()
     v.addLogicalVolume(world)
@@ -736,7 +736,7 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
     """Render TriangularMesh sectors straight to *renderer*, bypassing pyg4ometry.
 
     Mesh sectors are skipped in the GDML (see _load_registry); here their triangles
-    (TriangularMesh.GetTriangles(), via pyvista PolyData) become VTK actors coloured
+    (TriangularMesh.GetTriangles(), via pyvista PolyData) become VTK actors colored
     on the same log-density scale as _material_vis_options.
     """
     import colorsys
@@ -753,7 +753,7 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
     hi = math.log(max(dens)) if dens else 0.0
     lo = math.log(1e-4)
 
-    def colour_for(name, d):
+    def color_for(name, d):
         if mvo is not None and name in mvo:
             try:
                 return tuple(mvo[name].getColour())
@@ -771,7 +771,7 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
         mapper.ScalarVisibilityOff()
         a = vtk.vtkActor()
         a.SetMapper(mapper)
-        a.GetProperty().SetColor(*colour_for(mat, max(_sector_density(s), 1e-30)))
+        a.GetProperty().SetColor(*color_for(mat, max(_sector_density(s), 1e-30)))
         a._siren_material = mat
         a._siren_density = _sector_density(s)
         renderer.AddActor(a)
@@ -995,7 +995,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     for a in (pick_txt, help_txt, hint_txt):
         ren.AddViewProp(a)
 
-    # ---- material -> body-actor map (coloured viewer only) --------------
+    # ---- material -> body-actor map (colored viewer only) --------------
     # buildPipelinesAppend keys each merged body actor by str(visOptions); since
     # we built mvo, mvo[name] is that exact options object, so str() matches.
     mat_actors, body_actors, gas_actors, orig_opacity = {}, [], [], {}
@@ -1124,7 +1124,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         """Translate the camera: arrows pan left/right and fly forward/back
         (up/down); shift+up/down pans vertically. The step scales with the view
         distance so it feels the same zoomed in or out. Both the camera and its
-        focal point move together (true fly/pan, not a dolly toward the centre),
+        focal point move together (true fly/pan, not a dolly toward the center),
         so orientation is preserved. Returns True if the camera moved."""
         cam = ren.GetActiveCamera()
         pos, fp = cam.GetPosition(), cam.GetFocalPoint()
@@ -1319,7 +1319,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     return state
 
 
-def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
+def view(model, gdml_path=None, screenshot=None, colored=True, axes=True,
          cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
          clip_normal=(1.0, 0.0, 0.0), legend=True, bounding_box=False,
          picker=True, interactive=True, mesh_slices=_MESH_SLICES,
@@ -1363,7 +1363,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
 
     ``display='exterior'`` shows only the outer faces of annotated region shells
     and needs ``regions``: a mapping with ``auxtype`` (the GDML auxiliary key
-    naming a volume's region), ``styles`` (region -> ``label``/``colour``/``alpha``
+    naming a volume's region), ``styles`` (region -> ``label``/``color``/``alpha``
     for shells of revolution about local z) and optional ``hidden`` regions.
     Detector-specific region names are supplied by the caller. These open
     display surfaces never alter GDML; sections/clipping select ``display='full'``.
@@ -1371,7 +1371,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     Supply a dictionary as ``timings`` to receive phase times, actual first-frame
     times, cache counts and prototype/placement statistics; True prints them.
     ``progress`` controls the loading overlay. ``preview_slices`` sets preview
-    resolution (None disables the preview). ``coloured``, ``axes``, ``legend``,
+    resolution (None disables the preview). ``colored``, ``axes``, ``legend``,
     ``bounding_box``, ``picker`` and ``near_frac`` control the usual display.
     Right-click identifies placed GDML volumes or queries a supplied SIREN
     model; shift-right-click hides that material. 'h' shows keyboard controls.
@@ -1384,7 +1384,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     if backend != "pyg4ometry":
         raise ValueError("unknown viewer backend: %s" % backend)
     from ._visualization_view import ViewSession
-    return ViewSession(model, gdml_path, screenshot=screenshot, coloured=coloured,
+    return ViewSession(model, gdml_path, screenshot=screenshot, colored=colored,
         axes=axes, cutter=cutter, clipper=clipper, clip_origin=clip_origin,
         clip_normal=clip_normal, legend=legend, bounding_box=bounding_box,
         picker=picker, interactive=interactive, mesh_slices=mesh_slices,
@@ -1974,7 +1974,7 @@ def _pv_csg_split(mesh, dist, curve, eps_len, max_depth=6):
     sign test alone is insufficient, and vice versa) are midpoint-subdivided
     until smaller than *eps_len*; remaining sign-straddlers are cut along the
     interpolated zero of *dist*. The midpoint splits leave zero-width
-    T-junctions against unrefined neighbours -- invisible and harmless for
+    T-junctions against unrefined neighbors -- invisible and harmless for
     rendering, picking, and reuse as a nested CSG operand. Returns (n, 3, 3).
     """
     import numpy as np
@@ -2217,7 +2217,7 @@ def _pv_sector_mesh(geo, mc_res=48):
     return m if m is not None else _pv_marching(geo, mc_res)
 
 
-def _pv_material_colours(model):
+def _pv_material_colors(model):
     """material name -> (rgb, alpha) on the same log-density scale as the legend."""
     import colorsys
     dens = {}
@@ -2244,9 +2244,9 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
     hollow/phi-cut solids and booleans (operand surfaces combined by CSG);
     marching cubes on SIREN's IsInside (*mc_res* grid) remains only as a
     fallback for unknown types or failed builds, and a summary line reports
-    how many sectors needed it. Coloured by material (log-density); gases
+    how many sectors needed it. Colored by material (log-density); gases
     semi-transparent. Right-click (press 'p' over a surface) identifies the
-    volume via SIREN. *region*/*region_center* (half-width, centre) or
+    volume via SIREN. *region*/*region_center* (half-width, center) or
     *max_extent* drop huge background volumes (PREM shells, world boxes).
     *z_exag* applies a vertical exaggeration (terrain).
     """
@@ -2254,7 +2254,7 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
     from siren.math import Vector3D
     from siren.detector import DetectorPosition
     mc0 = dict(_MC_FALLBACKS)
-    cols = _pv_material_colours(model)
+    cols = _pv_material_colors(model)
     crop = None
     if region is not None:
         if region_center is None:
@@ -2332,7 +2332,7 @@ def to_web(model, path, gdml_path=None, single_instance=False):
     The *path* extension selects the format:
 
     * ``.gltf`` / ``.glb`` -- a glTF scene (``exportGLTFScene``). Geometry and
-      structure are exact; note pyg4ometry assigns *random* PBR colours here.
+      structure are exact; note pyg4ometry assigns *random* PBR colors here.
     * ``.html`` -- a self-contained three.js page (``exportThreeJSScene``,
       which also emits the ``.gltf`` and ``.css`` beside it).
 
@@ -2341,7 +2341,7 @@ def to_web(model, path, gdml_path=None, single_instance=False):
     :func:`view`, this needs no display, so it works headless.
     :returns: *path*.
     """
-    vis, v, reg, gpath, mvo = _build_viewer(model, gdml_path, coloured=True)
+    vis, v, reg, gpath, mvo = _build_viewer(model, gdml_path, colored=True)
     low = str(path).lower()
     if low.endswith((".gltf", ".glb")):
         try:

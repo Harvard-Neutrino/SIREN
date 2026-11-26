@@ -15,7 +15,7 @@ from .visualization import _GDML_MM_PER_M, _LOW_DENSITY
 
 
 class ViewSession:
-    def __init__(self, model, gdml_path=None, *, screenshot=None, coloured=True,
+    def __init__(self, model, gdml_path=None, *, screenshot=None, colored=True,
                  axes=True, cutter=False, clipper=False, clip_origin=(0., 0., 0.),
                  clip_normal=(1., 0., 0.), legend=True, bounding_box=False,
                  picker=True, interactive=True, mesh_slices=48, near_frac=1e-3,
@@ -109,15 +109,15 @@ class ViewSession:
         style = vtk.vtkInteractorStyleTrackballCamera()
         style.AddObserver('StartInteractionEvent', self._camera_changed)
         self.viewer.iren.SetInteractorStyle(style)
-        self.coloured = bool(coloured)
-        self.renderer = SceneRenderer(self.viewer, coloured=coloured, instancing=instancing,
+        self.colored = bool(colored)
+        self.renderer = SceneRenderer(self.viewer, colored=colored, instancing=instancing,
                                       display=self.options["display"], regions=regions,
                                       presets=self.presets, edges=edges)
         self.presets = self.renderer.presets
         self.viewer.layer_visible = self.renderer.shown
         self.viewer.exact_shapes = self._exact_shapes
         self.panel = None
-        if panel and self.interactive and coloured and self.options["display"] == "full":
+        if panel and self.interactive and colored and self.options["display"] == "full":
             self.viewer.renWin.SetSize(1400, 900)
             if getattr(self.viewer, "axesWidget", None) is not None:
                 self.viewer.axesWidget.SetViewport(.88, 0., 1., .18)
@@ -682,7 +682,7 @@ class ViewSession:
             self.direct_meshes_added = True
             try:
                 self.vis._add_mesh_actors(self.vtk, v.ren, v.actors, self.model,
-                                          self.renderer.options if self.coloured else None,
+                                          self.renderer.options if self.colored else None,
                                           self.renderer.registry)
             except Exception as exc:
                 # TriangularMesh sectors need the optional pyvista dependency. The
@@ -713,10 +713,10 @@ class ViewSession:
                 caption.GetCaptionTextProperty().SetColor(.15, .15, .15)
             self.axes_added = True
         if self.controls is None:
-            # coloured=False is the plain single-colour viewer: no material legend.
+            # colored=False is the plain single-color viewer: no material legend.
             self.controls = self.vis._install_controls(
                 self.vtk, v, self.renderer.registry,
-                self.renderer.options if self.coloured else None,
+                self.renderer.options if self.colored else None,
                 self.model if self.picker else None, bounds,
                 legend=self.legend and self.panel is None,
                 bounding_box=self.bounding_box, near_frac=self.near_frac,

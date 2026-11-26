@@ -39,7 +39,7 @@ the pyg4ometry import, so on-demand loads take a few seconds to start.
 | `save_to` | presets file | Where **Save settings** writes; `./siren-view.json` without a presets file. |
 | `clipper` | `False` | Start with a section through `clip_origin` (mm) with normal `clip_normal`, and a plane to drag. |
 | `cutter` | `False` | Colored outlines in the x, y and z planes. Sections and outlines force `display="full"`. |
-| `coloured`, `axes`, `legend`, `bounding_box`, `picker`, `near_frac` | | Usual display controls. |
+| `colored`, `axes`, `legend`, `bounding_box`, `picker`, `near_frac` | | Usual display controls. |
 
 Cache files are disposable numeric NPZ files (no pickles), keyed by input and
 included-file contents, resolution, backend and library versions. Corrupt
@@ -139,7 +139,7 @@ visualization.view("detector-cad.gdml", display="exterior", regions=regions,
 ```
 
 Unannotated volumes are rendered normally. Colors are display choices, not
-optical properties; `"colour"` is accepted for `"color"`. These open surfaces never alter the GDML or simulation
+optical properties. These open surfaces never alter the GDML or simulation
 solids; use `display="full"` for volume inspection.
 
 ## Controls
