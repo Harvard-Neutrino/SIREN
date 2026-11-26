@@ -1,4 +1,5 @@
 import os
+import math
 from typing import List, Optional
 import siren
 import collections
@@ -84,10 +85,6 @@ def load_processes(
     dipole_couplings: Optional[List[float]] = None,
     ):
 
-    fetch_data()
-
-    _, download_dir = _get_dirs()
-
     primary_types = _get_primary_types(primary_types)
     isoscalar = _get_isoscalar(isoscalar)
     target_types = _get_target_types(isoscalar, target_types)
@@ -95,8 +92,19 @@ def load_processes(
     if m4_MeV is None:
         raise ValueError("m4_MeV requires a floating point number but is currently set to None")
 
+    try:
+        dipole_couplings = [float(value) for value in dipole_couplings]
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ValueError("dipole_couplings requires three finite coupling values") from error
+    if len(dipole_couplings) != 3 or not all(math.isfinite(value) for value in dipole_couplings):
+        raise ValueError("dipole_couplings requires three finite coupling values")
+
     m4_str = f"{int(m4_MeV):07d}"
     m4_GeV = float(m4_MeV) * 1e-3
+
+    fetch_data()
+
+    _, download_dir = _get_dirs()
 
     primary_processes_dict = collections.defaultdict(list)
 
