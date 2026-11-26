@@ -264,9 +264,14 @@ double MultiChannelPhaseSpace::ComputeDensity(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     siren::dataclasses::InteractionRecord const & record,
     ConventionEvaluation const & conventions,
-    std::vector<double> * weighted) const
+    std::vector<double> * weighted,
+    std::vector<double> * bare) const
 {
     if (weighted) weighted->reserve(channels_.size());
+    if (bare) {
+        bare->clear();
+        bare->reserve(channels_.size());
+    }
     double density = 0.0;
     for (std::size_t i = 0; i < channels_.size(); ++i) {
         double d = channels_[i]->Density(detector_model, record);
@@ -277,6 +282,7 @@ double MultiChannelPhaseSpace::ComputeDensity(
         d = ConvertDensity(
             d, conventions.measures[i], conventions.common.measure,
             conventions.common.topology, record);
+        if (bare) bare->push_back(d);
         double contribution = weights_[i] * d;
         if (weighted) weighted->push_back(contribution);
         density += contribution;

@@ -544,3 +544,14 @@ TEST(WeighterGuards, SharedObjectWithSeparatePhysicalDensityDoesNotCancel) {
         }
     }
 }
+
+TEST(WeighterGuards, NegligiblePooledTermDoesNotRejectRepresentableWeight) {
+    auto first = BuildWeighterGuardFixture(1, 1e300, 1.0);
+    auto second = BuildWeighterGuardFixture(1, 1e300, 1e-100);
+    Weighter pooled({first.injector, second.injector},
+                    first.weighter->GetDetectorModel(),
+                    first.weighter->GetPrimaryPhysicalProcess());
+    double expected = first.weighter->EventWeight(first.tree);
+    EXPECT_DOUBLE_EQ(pooled.EventWeight(first.tree), expected);
+    EXPECT_DOUBLE_EQ(pooled.EventWeightWithBreakdown(first.tree).total, expected);
+}

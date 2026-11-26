@@ -143,6 +143,17 @@ public:
         siren::dataclasses::InteractionRecord const & record
     ) const;
 
+    // Accumulate w^2 g_i/g in the common measure. Nested mixtures share the
+    // outer density denominator.
+    void Accumulate(std::shared_ptr<siren::detector::DetectorModel const> detector,
+                    siren::dataclasses::InteractionRecord const & record,
+                    double weight, bool recurse = true);
+    void UpdateWeights(std::string const & rule = "alpha_sqrt_W",
+                       double damping = 0.5, double min_weight = 0.001,
+                       bool recurse = true);
+    void ResetAccumulators(bool recurse = true);
+    std::uint64_t TuningCount() const { return tuning_count_; }
+
     // Return the convention shared by, or convertible from, all channels.
     // Throws MeasureCompatibilityError if no common convention exists.
     PhaseSpaceTopology CommonTopology() const;
@@ -164,6 +175,14 @@ private:
     std::vector<std::shared_ptr<PhaseSpaceChannel>> channels_;
     std::vector<double> weights_;
 
+    std::vector<double> tuning_log_sums_;
+    std::vector<double> tuning_weights_;
+    std::vector<std::shared_ptr<PhaseSpaceChannel>> tuning_channels_;
+    std::uint64_t tuning_count_ = 0;
+    void CheckTuningState() const;
+    friend void CopyTunedWeights(MultiChannelPhaseSpace & destination,
+                                 MultiChannelPhaseSpace const & source);
+
     struct ConventionEvaluation {
         PhaseSpaceConvention common;
         std::vector<PhaseSpaceMeasure> measures;
@@ -178,12 +197,16 @@ private:
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
         siren::dataclasses::InteractionRecord const & record,
         ConventionEvaluation const & conventions,
-        std::vector<double> * weighted = nullptr
+        std::vector<double> * weighted = nullptr,
+        std::vector<double> * bare = nullptr
     ) const;
 
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if (version == 0) {
+            if (tuning_count_ != 0) {
+                throw std::runtime_error("Finish or reset mixture tuning before serialization");
+            }
             archive(::cereal::make_nvp("Channels", channels_));
             archive(::cereal::make_nvp("Weights", weights_));
             // Retain the version-0 wire field for existing readers.

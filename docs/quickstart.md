@@ -81,3 +81,6 @@ The script `resources/examples/authoring_vertex.py` runs the same analytic
 acceptance example. Its live Python model supports stored event export; it
 cannot be archived as a native Results configuration. See [Results](results.md)
 for the native snapshot/reweighting path, pooling and attempt normalization.
+
+For independent pilot optimization and per-event weight explanations, see
+[Diagnostics and proposal tuning](tuning.md).

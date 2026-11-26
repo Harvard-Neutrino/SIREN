@@ -142,8 +142,9 @@ def test_survival_underflow_remains_a_visible_weight_error(tmp_path):
     assert len(event.tree) == 1
     with pytest.raises(RuntimeError, match="CreationSurvival"):
         weighter.EventWeight(event)
-    with pytest.raises(RuntimeError, match="CreationSurvival"):
-        weighter.EventWeightWithBreakdown(event)
+    breakdown = weighter.EventWeightWithBreakdown(event)
+    assert math.isnan(breakdown.total)
+    assert any("CreationSurvival" in flag for v in breakdown.vertices for flag in v.flags)
 
 
 @pytest.mark.parametrize(
