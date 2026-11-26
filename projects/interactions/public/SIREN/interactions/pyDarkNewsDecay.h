@@ -41,6 +41,7 @@ public:
     pyDarkNewsDecay(DarkNewsDecay && parent);
     pyDarkNewsDecay(DarkNewsDecay const & parent);
 
+    bool equal(Decay const & other) const override;
     double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
@@ -51,6 +52,8 @@ public:
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<std::string> DensityVariables() const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
+    std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const override;
+    std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const override;
 
     Pybind11TrampolineCerealMethods(DarkNewsDecay, pyDarkNewsDecay);
 
@@ -64,4 +67,3 @@ CEREAL_REGISTER_TYPE(siren::interactions::pyDarkNewsDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::DarkNewsDecay, siren::interactions::pyDarkNewsDecay);
 
 #endif // SIREN_pyDarkNewsDecay_H
-

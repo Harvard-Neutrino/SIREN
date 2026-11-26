@@ -2,6 +2,7 @@
 
 #include <array>                                           // for array
 #include <tuple>                                           // for tie, opera...
+#include <cmath>
 #include <string>                                          // for basic_string
 #include <stdlib.h>                                        // for abs
 
@@ -24,6 +25,12 @@ siren::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<siren::uti
 }
 
 double FixedDirection::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    if(record.primary_momentum[1] == 0.0 && record.primary_momentum[2] == 0.0
+       && record.primary_momentum[3] == 0.0) {
+        // At rest every sampled direction gives the same momentum.
+        return std::isfinite(record.primary_mass) && record.primary_mass > 0.0
+            && record.primary_momentum[0] == record.primary_mass ? 1.0 : 0.0;
+    }
     siren::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
     if(abs(1.0 - siren::math::scalar_product(dir, event_dir)) < 1e-9)

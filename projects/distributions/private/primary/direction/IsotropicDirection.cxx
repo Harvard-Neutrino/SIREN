@@ -1,8 +1,10 @@
 #include "SIREN/distributions/primary/direction/IsotropicDirection.h"
 
 #include <math.h>                                        // for M_PI, cos, sin
+#include <cmath>
 #include <string>                                        // for basic_string
 
+#include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/math/Vector3D.h"                // for Vector3D
 #include "SIREN/utilities/Random.h"             // for SIREN_random
@@ -29,6 +31,12 @@ siren::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<siren:
 }
 
 double IsotropicDirection::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    if(record.primary_momentum[1] == 0.0 && record.primary_momentum[2] == 0.0
+       && record.primary_momentum[3] == 0.0) {
+        // At rest every sampled direction gives the same momentum.
+        return std::isfinite(record.primary_mass) && record.primary_mass > 0.0
+            && record.primary_momentum[0] == record.primary_mass ? 1.0 : 0.0;
+    }
     return 1.0 / (4.0 * M_PI);
 }
 

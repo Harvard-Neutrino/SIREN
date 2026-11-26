@@ -37,6 +37,10 @@ double Monoenergetic::GenerationProbability(std::shared_ptr<siren::detector::Det
     return pdf(record.primary_momentum[0]);
 }
 
+std::vector<std::string> Monoenergetic::DensityVariables() const {
+    return {};
+}
+
 std::string Monoenergetic::Name() const {
     return "Monoenergetic";
 }

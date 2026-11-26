@@ -104,6 +104,14 @@ public:
     std::pair<rk::P4,rk::P4> ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & PhiRot_HNLRest) const;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
+    // Two-body FinalStateProbability is per rest-frame cos(theta), uniform in
+    // azimuth. Three-body values are not normalized in a declared measure.
+    dataclasses::PhaseSpaceMeasure MeasureForSignature(
+            dataclasses::InteractionSignature const & signature) const override {
+        if (signature.secondary_types.size() == 2)
+            return dataclasses::PhaseSpaceMeasure::CosThetaRest();
+        return dataclasses::PhaseSpaceMeasure::Unspecified();
+    }
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -129,6 +137,10 @@ public:
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
             archive(::cereal::make_nvp("Mixing", _mixing));
             archive(::cereal::make_nvp("ChiralNature", _nature_int));
+            if(_nature_int != static_cast<int>(Dirac) && _nature_int != static_cast<int>(Majorana)) {
+                throw std::runtime_error("HNLDecay: invalid ChiralNature value "
+                    + std::to_string(_nature_int) + " in archive");
+            }
             _nature = static_cast<ChiralNature>(_nature_int);
             construct(_hnl_mass, _mixing, _nature, _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));

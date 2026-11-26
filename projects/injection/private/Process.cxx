@@ -1,5 +1,7 @@
 #include "SIREN/injection/Process.h"
 
+#include "SIREN/utilities/Errors.h"
+
 #include <tuple>
 
 namespace siren {
@@ -54,30 +56,27 @@ bool Process::operator==(Process const & other) const {
 
 bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
     return primary_type==other->primary_type;
-    // return std::tie(
-    //     primary_type,
-    //     interactions)
-    //     ==
-    //     std::tie(
-    //     other->primary_type,
-    //     other->interactions);
 }
 
 PhysicalProcess::PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions), phase_space_map_(other.phase_space_map_), weighting_mode_(other.weighting_mode_) {};
 
-PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(other.physical_distributions) {};
+PhysicalProcess::PhysicalProcess(PhysicalProcess && other) : Process(other), physical_distributions(std::move(other.physical_distributions)), phase_space_map_(std::move(other.phase_space_map_)), weighting_mode_(other.weighting_mode_) {};
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess const & other) {
     Process::operator=(other);
     physical_distributions = other.physical_distributions;
+    phase_space_map_ = other.phase_space_map_;
+    weighting_mode_ = other.weighting_mode_;
     return *this;
 };
 
 PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess && other) {
     Process::operator=(other);
-    physical_distributions = other.physical_distributions;
+    physical_distributions = std::move(other.physical_distributions);
+    phase_space_map_ = std::move(other.phase_space_map_);
+    weighting_mode_ = other.weighting_mode_;
     return *this;
 };
 
@@ -101,6 +100,43 @@ void PhysicalProcess::SetPhysicalDistributions(std::vector<std::shared_ptr<distr
         }
     }
     physical_distributions = distributions;
+}
+
+void PhysicalProcess::SetPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig,
+    std::shared_ptr<MultiChannelPhaseSpace> ps)
+{
+    // Only the mixture itself is checked here. Whether its measure is
+    // compatible depends on the other process it is weighted against, so the
+    // weighter checks that pair when it is constructed.
+    if (ps) {
+        for (auto const & diagnostic : ps->ValidateChannelsDetailed()) {
+            if (diagnostic.severity ==
+                MultiChannelPhaseSpace::ChannelDiagnostic::Severity::Fatal) {
+                throw siren::utilities::MeasureCompatibilityError(
+                    diagnostic.message);
+            }
+        }
+    }
+    phase_space_map_[sig] = ps;
+}
+
+std::shared_ptr<MultiChannelPhaseSpace> PhysicalProcess::GetPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig) const
+{
+    auto it = phase_space_map_.find(sig);
+    if (it != phase_space_map_.end()) return it->second;
+    return nullptr;
+}
+
+bool PhysicalProcess::HasPhaseSpace(
+    siren::dataclasses::InteractionSignature const & sig) const
+{
+    return phase_space_map_.find(sig) != phase_space_map_.end();
+}
+
+bool PhysicalProcess::HasAnyPhaseSpace() const {
+    return !phase_space_map_.empty();
 }
 
 PrimaryInjectionProcess::PrimaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};

@@ -39,6 +39,10 @@ pyDarkNewsCrossSection::pyDarkNewsCrossSection(DarkNewsCrossSection const & pare
     self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsCrossSection)))));
 }
 
+bool pyDarkNewsCrossSection::equal(CrossSection const & other) const {
+    SELF_OVERRIDE(self, DarkNewsCrossSection, bool, equal, "equal", other)
+}
+
 double pyDarkNewsCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
     SELF_OVERRIDE(
             self,
@@ -243,4 +247,3 @@ double pyDarkNewsCrossSection::FinalStateProbability(dataclasses::InteractionRec
 
 } // namespace interactions
 } // namespace siren
-

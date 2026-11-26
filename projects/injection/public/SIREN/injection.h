@@ -4,6 +4,6 @@
 #include "SIREN/injection/Injector.h"
 #include "SIREN/injection/Process.h"
 #include "SIREN/injection/Weighter.h"
-#include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/injection/FinalStateProbability.h"
 
 #endif // SIREN_injection_injection_H

@@ -2,6 +2,7 @@
 
 #include <array>                                           // for array
 #include <math.h>                                          // for acos, cos
+#include <cmath>
 #include <string>                                          // for basic_string
 #include <stdlib.h>                                        // for abs
 
@@ -43,6 +44,12 @@ siren::math::Vector3D Cone::SampleDirection(std::shared_ptr<siren::utilities::SI
 }
 
 double Cone::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    if(record.primary_momentum[1] == 0.0 && record.primary_momentum[2] == 0.0
+       && record.primary_momentum[3] == 0.0) {
+        // At rest every sampled direction gives the same momentum.
+        return std::isfinite(record.primary_mass) && record.primary_mass > 0.0
+            && record.primary_momentum[0] == record.primary_mass ? 1.0 : 0.0;
+    }
     siren::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
     double c = siren::math::scalar_product(dir, event_dir);

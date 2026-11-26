@@ -15,6 +15,10 @@
 namespace siren {
 namespace interactions {
 
+std::vector<double> TrivialCrossSection::SecondaryMasses(dataclasses::InteractionRecord const & record) const {
+    return {record.primary_mass, record.target_mass};
+}
+
 TrivialCrossSection::TrivialCrossSection(double cross_section_cm2,
         std::vector<siren::dataclasses::ParticleType> primary_types,
         std::vector<siren::dataclasses::ParticleType> target_types)

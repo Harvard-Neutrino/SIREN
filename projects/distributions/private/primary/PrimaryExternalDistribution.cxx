@@ -3,6 +3,7 @@
 #include <algorithm>                                       // for min
 #include <array>                                           // for array
 #include <fstream>                                         // for ifstream
+#include <set>                                             // for set
 #include <sstream>                                         // for stringstream
 #include <string>                                          // for basic_string
 #include <stdexcept>                                       // for runtime_error
@@ -100,6 +101,29 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
     if (input_data.empty()) {
         throw std::runtime_error("No valid data rows in " + filename);
     }
+
+    ComputeProvidedVariables();
+}
+
+void PrimaryExternalDistribution::ComputeProvidedVariables() {
+    // Compute provided_variables_ from the CSV columns
+    provided_variables_.clear();
+    for (auto const & k : keys) {
+        if (k == "E") {
+            provided_variables_.insert(DistributionVariable::PrimaryEnergy);
+        } else if (k == "m") {
+            provided_variables_.insert(DistributionVariable::PrimaryMass);
+        } else if (k == "px" || k == "py" || k == "pz") {
+            provided_variables_.insert(DistributionVariable::PrimaryDirection);
+            provided_variables_.insert(DistributionVariable::PrimaryEnergy);
+        } else if (k == "x" || k == "y" || k == "z") {
+            provided_variables_.insert(DistributionVariable::InteractionVertex);
+        } else if (k == "x0" || k == "y0" || k == "z0") {
+            provided_variables_.insert(DistributionVariable::InitialPosition);
+        } else {
+            provided_variables_.insert(DistributionVariable::InteractionParameters);
+        }
+    }
 }
 
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename) : emin(0)
@@ -175,6 +199,10 @@ void PrimaryExternalDistribution::Sample(
         record.SetInteractionVertex(_vertex);
         if(!init_pos_set) record.SetInitialPosition(_vertex);
     }
+}
+
+std::set<DistributionVariable> PrimaryExternalDistribution::ProvidedVariables() const {
+    return provided_variables_;
 }
 
 std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {
