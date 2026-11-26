@@ -152,8 +152,11 @@ class Panel:
                 x, used = x + w + gap, used + span
             y[0] -= height
 
-        def check(label, on, action, swatch=None, clear=False, kind=None):
-            """A row: shown box, colour swatch (hollow if none), name, see-through mark."""
+        def check(label, on, action, swatch=None, clear=False, kind=None, toggle=None):
+            """A row: shown box, colour swatch (hollow if none), name, see-through mark.
+
+            The box always shows or hides (*toggle*); the rest of the row runs *action*.
+            """
             middle, box = down(10), 6 * s
             self._rect(left, middle - box, left + 2 * box, middle + box, ACCENT if on else PANEL)
             if on:
@@ -171,6 +174,8 @@ class Panel:
                 self._text("see-through", right, middle, 10, SOFT, right=True)
                 end -= 56 * s
             self._text(self._fit(label, end - start, 12), start, middle, 12, INK if on else SOFT)
+            if toggle is not None:
+                self.targets.append((left - 4 * s, middle - 10 * s, left + 17 * s, middle + 10 * s, toggle))
             self.targets.append((left, middle - 10 * s, right, middle + 10 * s, action))
             down(10)
             if kind is not None and session.palette == kind:
@@ -190,7 +195,8 @@ class Panel:
             down(6)
 
         def item(kind, key, label, on, colour, clear):
-            check(label, on, lambda: session.row_clicked(kind, key), colour, clear, (kind, key))
+            check(label, on, lambda: session.row_clicked(kind, key), colour, clear, (kind, key),
+                  lambda: session.row_clicked(kind, key, "show"))
 
         if session.presets["title"]:
             self._text(self._fit(session.presets["title"], right - left, 17), left, down(10), 17, bold=True)
@@ -225,10 +231,14 @@ class Panel:
         buttons([(label, session.tool == tool, lambda tool=tool: session.set_tool(tool), 1)
                  for label, tool in (("Show/hide", "show"), ("See-through", "clear"),
                                      ("Recolour", "colour"))], 3)
+        if session.anything_hidden():
+            down(_GAP)
+            buttons([("Show everything hidden", False, session.show_everything, 3)], 3)
         heading("Volumes")
         volumes = session.volume_rows()
         if not volumes:
-            for line in self._wrap("Right-click a volume to list it here and change it on its own.",
+            for line in self._wrap("Right-click a volume to list it here and change it on its own; "
+                                   "shift+right-click hides it.",
                                    right - left, 11):
                 self._text(line, left, down(7), 11, SOFT)
                 down(8)

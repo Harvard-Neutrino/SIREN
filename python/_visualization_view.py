@@ -424,11 +424,12 @@ class ViewSession:
         self.tool, self.palette = tool, None
         self._after_cut()
 
-    def row_clicked(self, kind, key):
+    def row_clicked(self, kind, key, tool=None):
         """A click on a material, layer or volume row does what the chosen tool says."""
-        if self.tool == "colour":
+        tool = tool or self.tool
+        if tool == "colour":
             self.palette = None if self.palette == (kind, key) else (kind, key)
-        elif self.tool == "show":
+        elif tool == "show":
             if kind == "layer":
                 self.renderer.layers[key] = not self.renderer.layers.get(key, True)
             elif kind == "material":
@@ -439,6 +440,25 @@ class ViewSession:
             clear = (self.renderer.volume_style(key)[1] if kind == "volume" else
                      self.row_surface(kind, key) == "see-through")
             self.renderer.set_style(kind, key, opacity="solid" if clear else "see-through")
+        self._after_cut()
+
+    def hide_volume(self, prototype):
+        """Hide one logical volume, all its copies; its row under Volumes brings it back."""
+        self.picked = prototype
+        self.renderer.set_volume(prototype, shown=False)
+        self._after_cut()
+
+    def anything_hidden(self):
+        renderer = self.renderer
+        return bool(not all(renderer.layers.values()) or
+                    any(s.get("shown") is False for s in renderer.styles.values()) or
+                    (self.controls is not None and self.controls["hidden"]))
+
+    def show_everything(self):
+        """Show every hidden layer, material and volume; deferred volumes stay unloaded."""
+        if self.controls is not None:
+            self.controls["hidden"].clear()
+        self.show_all_layers()
         self._after_cut()
 
     def pick_colour(self, colour):

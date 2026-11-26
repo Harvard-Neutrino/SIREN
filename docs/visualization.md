@@ -146,8 +146,10 @@ solids; use `display="full"` for volume inspection.
 
 - Left drag orbits, scroll zooms; arrow keys pan and fly, shift-up/down moves vertically.
 - Right-click identifies the placed volume (name, material, density; a supplied
-  SIREN model adds its sector query); shift-right-click hides that material.
-- In the panel, click to cut and to change rows (above); the wheel scrolls it.
+  SIREN model adds its sector query); shift-right-click hides that volume, in all
+  its copies, and lists it under **Volumes**, where its box shows it again.
+- In the panel, click to cut and to change rows (above); a row's box always shows
+  or hides it, and **Show everything hidden** shows all at once. The wheel scrolls it.
 - **g** gas volumes, **v** show everything hidden, **n/m** opacity of every surface, **c** section outlines,
   **k** plane to drag, **p** panel, **l** legend, **b** bounding box, **o** orientation cube,
   **h** help, **q**/**e** quit.

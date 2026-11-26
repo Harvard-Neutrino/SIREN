@@ -533,7 +533,7 @@ _HELP_TEXT = (
     "  arrow keys        pan L/R; fly in/out (up/down)\n"
     "  shift+up/down     pan up / down\n"
     "  right-click       identify volume (name / material / density)\n"
-    "  shift+right-click hide the clicked material\n"
+    "  shift+right-click hide the clicked volume (all copies)\n"
     "  v                 show everything hidden; undo n / m\n"
     "  g                 toggle gas / low-density volumes\n"
     "  n / m             less / more opacity (see inside)\n"
@@ -1154,6 +1154,17 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         _update_clip()
         return True
 
+    def hide(picked, material):
+        """Shift+right-click: hide the clicked volume, or its material without a panel."""
+        if session is not None and picked and "prototype" in picked:
+            session.hide_volume(picked["prototype"])
+            return "\nhidden: tick it under Volumes in the panel to show it again"
+        if material in mat_actors:
+            state["hidden"].add(material)
+            refresh_materials()
+            return "\nmaterial hidden: press v to show it again"
+        return ""
+
     def on_right(obj, event):
         x, y = iren.GetEventPosition()
         pick_scene = getattr(viewer, "pick_scene", None)
@@ -1174,10 +1185,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             if picked and "name" in picked:
                 label += "\n%s\n%s" % (picked["name"], picked["material"])
                 if iren.GetShiftKey():
-                    state["hidden"].add(picked["material"])
-                    refresh_materials()
-                    if session is not None:
-                        session.panel_changed()
+                    label += hide(picked, picked["material"])
             else:
                 label += "\n(no model: identify unavailable)"
             pick_txt.SetInput(label)
@@ -1201,11 +1209,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
               % (gx, gy, gz, name, material, density))
         pick_txt.SetInput("picked  (%.2f, %.2f, %.2f) m\nvolume    %s\nmaterial  %s\n"
                           "density   %.4g g/cm^3" % (gx, gy, gz, name, material, density))
-        if iren.GetShiftKey() and material in mat_actors:
-            state["hidden"].add(material)
-            refresh_materials()
-            if session is not None:
-                session.panel_changed()
+        if iren.GetShiftKey():
+            pick_txt.SetInput(pick_txt.GetInput() + hide(picked, material))
         render()
 
     def on_key(obj, event):

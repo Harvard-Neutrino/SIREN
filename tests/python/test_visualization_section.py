@@ -449,5 +449,31 @@ def test_native_panel_clicks_cut_hide_and_restore(tmp_path):
         saved = json.loads((tmp_path / 'saved.json').read_text())
         assert saved['colour_mode'] == 'density' and saved['materials'][0]['label'] == 'Steel'
         assert [row.get('opacity') for row in saved['layers']] == ['see-through']
+        # Shift+right-click hides the clicked volume; its box brings it back under any tool.
+        click('Whole model')
+        ren = session.viewer.ren
+        ren.SetWorldPoint(-10, 0, 3, 1)
+        ren.WorldToDisplay()
+        x, y, _ = ren.GetDisplayPoint()
+        iren.SetEventInformation(round(x), round(y), 0, 1)
+        session.viewer.interactorStyle.InvokeEvent('RightButtonPressEvent')
+        iren.SetEventInformation(0, 0, 0, 0)
+        assert session.renderer.volume_style('cube')[2] is False
+        assert not any(a.GetVisibility() for a in session.renderer.actor_instances
+                       if session.renderer.actor_prototype[a] == 'cube')
+        assert 'Volumes' in session.controls['pick'].GetInput()
+        click('Recolour')
+        box = next(a for a in panel._props if a.IsA('vtkTextActor') and a.GetInput() == 'cube')
+        iren.SetEventInformation(int(panel.scale * 20), int(box.GetPosition()[1]), 0, 0)
+        iren.LeftButtonPressEvent()
+        iren.LeftButtonReleaseEvent()
+        assert session.renderer.volume_style('cube')[2] and session.palette is None
+        assert all(a.GetVisibility() for a in session.renderer.actor_instances
+                   if session.renderer.actor_prototype[a] == 'cube')
+        session.row_clicked('layer', 'Turned', 'show')
+        session.row_clicked('material', 'Steel', 'show')
+        click('Show everything hidden')
+        assert not session.anything_hidden()
+        assert 'Show everything hidden' not in [a.GetInput() for a in panel._props if a.IsA('vtkTextActor')]
     finally:
         session.viewer.renWin.Finalize()
