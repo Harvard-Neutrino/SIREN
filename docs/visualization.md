@@ -36,6 +36,7 @@ the pyg4ometry import, so on-demand loads take a few seconds to start.
 | `section` | `None` | Section to start with: the label of a preset section, or a mapping with `origin` and `normal` in metres. |
 | `panel` | `True` | Side panel in interactive windows; off for screenshots and `display="exterior"`. |
 | `edges` | `True` | Dark lines along sharp edges. |
+| `save_to` | presets file | Where **Save settings** writes; `./siren-view.json` without a presets file. |
 | `clipper` | `False` | Start with a section through `clip_origin` (mm) with normal `clip_normal`, and a plane to drag. |
 | `cutter` | `False` | Coloured outlines in the x, y and z planes. Sections and outlines force `display="full"`. |
 | `coloured`, `axes`, `legend`, `bounding_box`, `picker`, `near_frac` | | Usual display controls. |
@@ -65,8 +66,24 @@ cut in their exact shape when pyvista is installed and left out of the cut, with
 a warning, otherwise; their uncut surfaces are still drawn as boxes.
 
 The panel lists the preset sections, a slider that cuts across x, y or z within
-the part of the model in view, and **Other side**, which keeps the other half. **k** shows a plane to drag and turn.
-Right-clicking a filled face identifies the volume there.
+the part of the model in view, and **Other side**, which keeps the other half.
+**k** shows a plane to drag and turn. Right-clicking a filled face identifies
+the volume there.
+
+## Colours and surfaces
+
+The panel switches between custom colours and density colours, and makes every
+surface solid or see-through. Rows for materials, layers and volumes show each
+one's colour, and a click on a row shows or hides it, makes it see-through or
+solid, or opens a palette, as the three buttons above the rows choose.
+Right-clicking a volume lists its logical volume under **Volumes**, where it can
+be changed apart from other volumes, in all its copies. A volume's own choice
+beats its layer's, and a layer's beats its material's; the all-solid and
+all-see-through buttons apply where none is made. Density colours ignore custom
+colours but keep the other choices. Right-clicks pass through see-through
+surfaces when something solid is behind them. **Save settings** writes the
+presets with these choices, the current view first in the section list and the
+camera as the opening view; a file it replaces is kept as `NAME.bak`.
 
 ## Presets
 
@@ -77,19 +94,27 @@ geometry frame and every entry is optional.
 
 ```python
 presets = {
-    "title": "Detector hall", "note": "z is up.", "up": [0, 0, 1], "opacity": 1.0,
+    "title": "Detector hall", "note": "z is up.", "up": [0, 0, 1],
+    "opacity": 1.0, "see_through": 0.25,    # of solid and of see-through surfaces
+    "colour_mode": "custom", "surfaces": "solid",
     "home": {"centre": [0, 0, 0], "direction": [1, 1, 1], "width": 20, "height": 10},
     "hidden_volumes": ["Ground*"],          # not meshed until v is pressed
     "materials": [{"label": "Steel", "match": ["*Steel*", "G4_Fe"], "colour": "#b04030"}],
-    "layers": [{"label": "Roof", "match": ["Roof*"], "shown": True, "edges": True}],
+    "layers": [{"label": "Roof", "match": ["Roof*"], "shown": True, "edges": True,
+                "opacity": "see-through"}],
+    "volumes": [{"match": ["Cryostat*"], "colour": "#3f9bd1", "shown": True}],
     "sections": [{"label": "Front", "origin": [0, 0, 0], "normal": [0, -1, 0],
                   "centre": [0, 0, 2], "width": 12, "height": 6}],
 }
 ```
 
 `match` holds name globs; Geant4's `0x...` suffixes are ignored and the first
-match wins. Materials without a row keep their density colour. A layer matches placed or logical volume names, and daughters belong to
-their mother's layer unless they match one themselves. A section is viewed along
+match wins. Materials, layers and volumes each take an optional `colour`,
+`opacity` (`"solid"` or `"see-through"`) and `shown`; materials without a colour
+keep their density colour. A layer matches placed or logical volume names, and
+daughters belong to their mother's layer unless they match one themselves. A
+volume rule matches the same names but not daughters; its `label` defaults to
+its first glob. A section is viewed along
 its normal; `up`, `centre`, `width` and `height` set the view, and the whole cut
 is framed without them.
 
@@ -122,8 +147,8 @@ solids; use `display="full"` for volume inspection.
 - Left drag orbits, scroll zooms; arrow keys pan and fly, shift-up/down moves vertically.
 - Right-click identifies the placed volume (name, material, density; a supplied
   SIREN model adds its sector query); shift-right-click hides that material.
-- In the panel, click to cut or to show and hide layers and materials; the wheel scrolls it.
-- **g** gas volumes, **v** restore all, **n/m** opacity, **c** section outlines,
+- In the panel, click to cut and to change rows (above); the wheel scrolls it.
+- **g** gas volumes, **v** show everything hidden, **n/m** opacity of every surface, **c** section outlines,
   **k** plane to drag, **p** panel, **l** legend, **b** bounding box, **o** orientation cube,
   **h** help, **q**/**e** quit.
 

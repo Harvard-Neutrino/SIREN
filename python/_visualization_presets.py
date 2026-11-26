@@ -43,6 +43,23 @@ def material_row(name, rows):
                  if any(fnmatch.fnmatchcase(plain, glob) for glob in row["match"])), None)
 
 
+SURFACES = ("solid", "see-through")
+
+
+def _choice(value, allowed, name):
+    if value not in allowed:
+        raise ValueError("%s must be one of %s, not %r" % (name, ", ".join(allowed), value))
+    return value
+
+
+def _look(row):
+    """Colour, solid or see-through, and shown: each optional in a row."""
+    return dict(colour=rgb(row["colour"]) if row.get("colour") is not None else None,
+                opacity=(_choice(row["opacity"], SURFACES, "opacity")
+                         if row.get("opacity") is not None else None),
+                shown=bool(row.get("shown", True)))
+
+
 def _vector(value, name, size=3):
     v = np.asarray(value, dtype=float)
     if v.shape != (size,) or not np.isfinite(v).all():
@@ -82,17 +99,20 @@ def load_presets(presets):
         presets = {}
     elif isinstance(presets, (str, os.PathLike)):
         presets = json.loads(Path(presets).read_text())
-    _known(presets, ("title", "note", "up", "home", "opacity", "materials", "layers", "sections",
-                     "hidden_volumes"),
+    _known(presets, ("title", "note", "up", "home", "opacity", "see_through", "colour_mode",
+                     "surfaces", "materials", "layers", "volumes", "sections", "hidden_volumes"),
            "preset")
     out = dict(title=str(presets.get("title", "")), note=str(presets.get("note", "")),
                up=_vector(presets.get("up", (0., 0., 1.)), "up"), home=None,
                hidden_volumes=_globs(presets.get("hidden_volumes", ())))
     if not np.any(out["up"]):
         raise ValueError("preset 'up' must be a nonzero vector")
-    out["opacity"] = float(presets.get("opacity", .9))
-    if not 0 < out["opacity"] <= 1:
-        raise ValueError("preset opacity must be above 0 and at most 1")
+    for key, default in (("opacity", .9), ("see_through", .25)):
+        out[key] = float(presets.get(key, default))
+        if not 0 < out[key] <= 1:
+            raise ValueError("preset %s must be above 0 and at most 1" % key)
+    out["colour_mode"] = _choice(presets.get("colour_mode", "custom"), ("custom", "density"), "colour_mode")
+    out["surfaces"] = _choice(presets.get("surfaces", "solid"), SURFACES, "surfaces")
     home = presets.get("home")
     if home is not None:
         _known(home, ("centre", "direction", "width", "height"), "home")
@@ -101,20 +121,65 @@ def load_presets(presets):
                            width=float(home["width"]), height=float(home["height"]))
     out["materials"] = []
     for row in presets.get("materials", ()):
-        _known(row, ("label", "match", "colour"), "material")
-        out["materials"].append(dict(label=str(row["label"]), match=_globs(row["match"]),
-                                     colour=rgb(row["colour"])))
+        _known(row, ("label", "match", "colour", "opacity", "shown"), "material")
+        out["materials"].append(dict(label=str(row["label"]), match=_globs(row["match"]), **_look(row)))
     out["layers"] = []
     for row in presets.get("layers", ()):
-        _known(row, ("label", "match", "shown", "edges"), "layer")
+        _known(row, ("label", "match", "shown", "edges", "colour", "opacity"), "layer")
         out["layers"].append(dict(label=str(row["label"]), match=_globs(row["match"]),
-                                  shown=bool(row.get("shown", True)),
-                                  edges=bool(row.get("edges", True))))
+                                  edges=bool(row.get("edges", True)), **_look(row)))
+    out["volumes"] = []
+    for row in presets.get("volumes", ()):
+        _known(row, ("label", "match", "colour", "opacity", "shown"), "volume")
+        globs = _globs(row["match"])
+        out["volumes"].append(dict(label=str(row.get("label", globs[0])), match=globs, **_look(row)))
     out["sections"] = [normalize_section(row) for row in presets.get("sections", ())]
-    for key in ("layers", "sections"):
+    for key in ("materials", "layers", "volumes", "sections"):
         labels = [row["label"] for row in out[key]]
         if len(set(labels)) != len(labels):
             raise ValueError("preset %s need different labels" % key)
+    return out
+
+
+def to_json(presets):
+    """A normalized preset as JSON-ready data, without the defaults."""
+    def colour(c):
+        return "#%02x%02x%02x" % tuple(int(round(255 * x)) for x in c)
+
+    def looks(row, *keys):
+        out = {k: row[k] for k in ("label", "match") + keys}
+        if row.get("colour") is not None:
+            out["colour"] = colour(row["colour"])
+        if row.get("opacity") is not None:
+            out["opacity"] = row["opacity"]
+        if not row.get("shown", True):
+            out["shown"] = False
+        return out
+    out = {k: presets[k] for k in ("title", "note", "up", "opacity", "see_through", "colour_mode",
+                                   "surfaces", "hidden_volumes")}
+    if presets["home"] is not None:
+        out["home"] = presets["home"]
+    out["materials"] = [looks(row) for row in presets["materials"]]
+    out["layers"] = [dict(looks(row), shown=row["shown"], **({} if row["edges"] else {"edges": False}))
+                     for row in presets["layers"]]
+    out["volumes"] = [looks(row) for row in presets["volumes"]]
+    out["sections"] = [{k: v for k, v in row.items() if v is not None} for row in presets["sections"]]
+    return {k: v for k, v in out.items() if v not in ([], "")}
+
+
+def assign_volumes(scene, volumes):
+    """The first volume rule naming each instance (placed or logical name), or None."""
+    def match(name):
+        return next((row["label"] for row in volumes for glob in row["match"]
+                     if fnmatch.fnmatchcase(name, glob)), None)
+    cache = {}
+    out = []
+    for row in scene["instances"]:
+        key = (row["name"].rsplit("/", 1)[-1], row["prototype"])
+        if key not in cache:
+            cache[key] = (match(clean_name(key[0])) or
+                          match(clean_name(scene["prototypes"][row["prototype"]]["name"])))
+        out.append(cache[key])
     return out
 
 

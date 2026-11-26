@@ -8,7 +8,7 @@ import time
 
 from ._visualization_job import MeshJob
 from ._visualization_panel import Panel
-from ._visualization_presets import BACKGROUND, OTHER, load_presets, normalize_section
+from ._visualization_presets import BACKGROUND, OTHER, clean_name, load_presets, normalize_section
 from ._visualization_render import SceneRenderer
 from ._visualization_scene import normalize_regions, prepare_scene, read_mesh
 from .visualization import _GDML_MM_PER_M, _LOW_DENSITY
@@ -22,7 +22,7 @@ class ViewSession:
                  cache=True, cache_dir=None, progressive=True, preview_slices=12,
                  instancing=True, display="full", regions=None, show_gas=False,
                  hidden_volumes=(), timings=None, progress=True, presets=None,
-                 section=None, panel=True, edges=True):
+                 section=None, panel=True, edges=True, save_to=None):
         self.started = time.perf_counter()
         self.metrics = {"stages": []}
         self.timings = timings
@@ -59,6 +59,10 @@ class ViewSession:
         if isinstance(hidden_volumes, str):
             hidden_volumes = [hidden_volumes]
         self.presets = load_presets(presets)
+        # "Save settings" writes back to the caller's file, else to the working directory.
+        self.save_to = Path(save_to if save_to is not None else
+                            presets if isinstance(presets, (str, os.PathLike)) else "siren-view.json")
+        self.tool, self.palette, self.picked, self.save_message = "show", None, None, ""
         hidden_volumes = list(hidden_volumes) + self.presets["hidden_volumes"]
         if section is not None and not isinstance(section, str):
             section = normalize_section(section)
@@ -90,7 +94,14 @@ class ViewSession:
         self.metrics["imports_seconds"] = time.perf_counter() - self.started
         self.viewer = VtkViewerNew(defaultCutters=bool(cutter), axisCubeWidget=bool(axes))
         self.viewer.ren.SetBackground(*BACKGROUND)
-        self.viewer.renWin.SetMultiSamples(8)
+        # See-through surfaces need depth peeling to blend in the right order,
+        # and VTK peels only without multisampling: smooth edges come from FXAA.
+        self.viewer.renWin.SetMultiSamples(0)
+        self.viewer.renWin.SetAlphaBitPlanes(1)
+        self.viewer.ren.SetUseDepthPeeling(True)
+        self.viewer.ren.SetMaximumNumberOfPeels(8)
+        self.viewer.ren.SetOcclusionRatio(0.)
+        self.viewer.ren.SetUseFXAA(True)
         self._set_lights()
         # pyg4ometry's default style has a crash-prone right-click picker; a
         # plain trackball style guards the loading phase until _install_controls
@@ -103,8 +114,7 @@ class ViewSession:
                                       display=self.options["display"], regions=regions,
                                       presets=self.presets, edges=edges)
         self.presets = self.renderer.presets
-        self.viewer.layer_visible = lambda actor: self.renderer.layers.get(
-            self.renderer.actor_layer.get(actor), True)
+        self.viewer.layer_visible = self.renderer.shown
         self.viewer.exact_shapes = self._exact_shapes
         self.panel = None
         if panel and self.interactive and coloured and self.options["display"] == "full":
@@ -352,10 +362,14 @@ class ViewSession:
     def show_all_layers(self):
         for label in self.renderer.layers:
             self.renderer.layers[label] = True
+        for style in self.renderer.styles.values():
+            if style.get("shown") is False:
+                style["shown"] = True
+        self.renderer.apply_styles()
         self.panel_changed()
 
     def material_rows(self):
-        """(label, colour, shown) of the drawn materials, densest first."""
+        """(label, colour, shown, see-through) of the drawn materials, densest first."""
         renderer, rows = self.renderer, {}
         if not renderer.scene or self.controls is None:
             return []
@@ -366,12 +380,141 @@ class ViewSession:
             density = float(renderer.registry.materialDict[material].density)
             if density <= _LOW_DENSITY:
                 continue
-            row = rows.setdefault(renderer.labels.get(material, material),
-                                  [density, renderer.options[material].colour, False])
-            row[0] = max(row[0], density)
+            label = renderer.labels.get(material, material)
+            row = rows.setdefault(label, [density, renderer.material_colour(material), False])
+            if density > row[0]:
+                row[:2] = density, renderer.material_colour(material)
             row[2] = row[2] or material not in hidden
-        return [(label, tuple(colour), on) for label, (_, colour, on)
-                in sorted(rows.items(), key=lambda item: -item[1][0])]
+        return [(label, tuple(colour), on, self.row_surface("material", label) == "see-through")
+                for label, (_, colour, on) in sorted(rows.items(), key=lambda item: -item[1][0])]
+
+    # ---- colours, surfaces and the rows' tool ----------------------------
+    def row_surface(self, kind, key):
+        own = self.renderer.styles.get((kind, key), {})
+        return own.get("opacity") or self.renderer.surface
+
+    def layer_row(self, label):
+        """(colour or None, see-through) of a layer row."""
+        own = self.renderer.styles.get(("layer", label), {})
+        colour = own.get("colour") if self.renderer.colour_mode == "custom" else None
+        return colour, self.row_surface("layer", label) == "see-through"
+
+    def volume_rows(self):
+        """(logical name, label, colour, see-through, shown): picked first, then changed ones."""
+        names = ([self.picked] if self.picked else []) + sorted(self.renderer._separate - {self.picked})
+        prototypes = self.renderer.scene["prototypes"] if self.renderer.scene else {}
+        return [(name, clean_name(prototypes[name]["name"])) + self.renderer.volume_style(name)
+                for name in names if name in prototypes]
+
+    def note_pick(self, picked):
+        self.picked = picked["prototype"]
+        self.panel_changed()
+
+    def set_colour_mode(self, mode):
+        self.renderer.colour_mode = mode
+        self.renderer.apply_styles()
+        self._after_cut()
+
+    def set_surfaces(self, mode):
+        self.renderer.surface = mode
+        self.renderer.apply_styles()
+        self._after_cut()
+
+    def set_tool(self, tool):
+        self.tool, self.palette = tool, None
+        self._after_cut()
+
+    def row_clicked(self, kind, key):
+        """A click on a material, layer or volume row does what the chosen tool says."""
+        if self.tool == "colour":
+            self.palette = None if self.palette == (kind, key) else (kind, key)
+        elif self.tool == "show":
+            if kind == "layer":
+                self.renderer.layers[key] = not self.renderer.layers.get(key, True)
+            elif kind == "material":
+                return self.toggle_material(key)
+            else:
+                self.renderer.set_volume(key, shown=not self.renderer.volume_style(key)[2])
+        else:
+            clear = (self.renderer.volume_style(key)[1] if kind == "volume" else
+                     self.row_surface(kind, key) == "see-through")
+            self.renderer.set_style(kind, key, opacity="solid" if clear else "see-through")
+        self._after_cut()
+
+    def pick_colour(self, colour):
+        """Colour the row whose palette is open; None returns it to the default."""
+        (kind, key), self.palette = self.palette, None
+        self.renderer.set_style(kind, key, colour=colour)
+        if colour is not None:
+            self.renderer.colour_mode = "custom"
+            self.renderer.apply_styles()
+        self._after_cut()
+
+    def current_presets(self):
+        """The presets with the choices made in the window, as load_presets returns them."""
+        import copy
+        import math
+        renderer, out = self.renderer, copy.deepcopy(self.presets)
+        out.update(colour_mode=renderer.colour_mode, surfaces=renderer.surface)
+        camera = self.viewer.ren.GetActiveCamera()
+        size, port = self.viewer.renWin.GetSize(), self.viewer.ren.GetViewport()
+        aspect = size[0] * (port[2] - port[0]) / max(size[1] * (port[3] - port[1]), 1)
+        height = 2 * camera.GetDistance() * math.tan(math.radians(camera.GetViewAngle()) / 2)
+        out["home"] = dict(centre=[c / _GDML_MM_PER_M for c in camera.GetFocalPoint()],
+                           direction=[(p - f) / camera.GetDistance() for p, f in
+                                      zip(camera.GetPosition(), camera.GetFocalPoint())],
+                           width=aspect * height / _GDML_MM_PER_M, height=height / _GDML_MM_PER_M)
+        hidden = self.controls["hidden"] if self.controls is not None else set()
+        materials = {}
+        for name, label in renderer.labels.items():
+            materials.setdefault(label, set()).add(name)
+        rows = {row["label"]: row for row in out["materials"]}
+        for label, names in materials.items():
+            style = renderer.styles.get(("material", label), {})
+            shown = not names <= hidden
+            if label not in rows and (style.get("colour") is not None or style.get("opacity") or not shown):
+                rows[label] = dict(label=label, match=sorted(clean_name(n) for n in names))
+                out["materials"].insert(0, rows[label])
+            if label in rows:
+                rows[label].update(colour=style.get("colour"), opacity=style.get("opacity"), shown=shown)
+        for row in out["layers"]:
+            style = renderer.styles.get(("layer", row["label"]), {})
+            row.update(shown=renderer.layers.get(row["label"], True), colour=style.get("colour"),
+                       opacity=style.get("opacity"))
+        for row in out["volumes"]:
+            row.update(renderer.styles.get(("volume", row["label"]), {}))
+        prototypes = renderer.scene["prototypes"] if renderer.scene else {}
+        own = []
+        for name in sorted(renderer._separate):
+            plain = clean_name(prototypes[name]["name"])
+            style = renderer.styles["volume", "lv:" + name]
+            own.append(dict(label=plain, match=[plain], colour=style.get("colour"),
+                            opacity=style.get("opacity"), shown=style.get("shown", True) is not False))
+        # A volume changed in the window comes before the rules it was taken from.
+        taken = {row["label"] for row in own}
+        out["volumes"] = own + [row for row in out["volumes"] if row["label"] not in taken]
+        if self.current_section:
+            out["sections"].sort(key=lambda row: row["label"] != self.current_section)
+        return out
+
+    def save_settings(self):
+        """Write the presets with the window's choices; the old file is kept beside it."""
+        import json
+        from ._visualization_presets import to_json
+        data = to_json(self.current_presets())
+        load_presets(data)  # what is written must load
+        path = self.save_to
+        try:
+            if path.exists():
+                path.with_name(path.name + ".bak").write_bytes(path.read_bytes())
+            temporary = path.with_name(path.name + ".partial")
+            temporary.write_text(json.dumps(data, indent=1) + "\n")
+            os.replace(temporary, path)
+            self.save_message = "Saved to %s" % path
+        except OSError as exc:
+            self.save_message = "Could not save: %s" % exc
+        self.panel_changed()
+        self.viewer.renWin.Render()
 
     def toggle_material(self, label):
         hidden = self.controls["hidden"]
@@ -559,6 +702,9 @@ class ViewSession:
                 bounding_box=self.bounding_box, near_frac=self.near_frac,
                 gas_visible=self.show_gas, session=self)
             v.interactorStyle.AddObserver('StartInteractionEvent', self._camera_changed)
+            hidden = {label for (kind, label), style in self.renderer.styles.items()
+                      if kind == "material" and style.get("shown") is False}
+            self.controls["hidden"] |= {m for m, label in self.renderer.labels.items() if label in hidden}
 
     def receive(self, event):
         if self._closing():

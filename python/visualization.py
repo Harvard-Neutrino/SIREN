@@ -495,7 +495,7 @@ def _material_vis_options(registry, VisOpt, rows=(), opacity=0.9):
     for nm, d in dens.items():
         t = 0.5 if hi <= lo else min(max((math.log(d) - lo) / (hi - lo), 0.0), 1.0)
         row = material_row(nm, rows)
-        colour = row["colour"] if row else colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
+        colour = row["colour"] if row and row["colour"] is not None else colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
         out[nm] = VisOpt(colour=[round(c, 3) for c in colour],
                          alpha=(0.12 if d < _LOW_DENSITY else opacity))
     return out
@@ -534,7 +534,7 @@ _HELP_TEXT = (
     "  shift+up/down     pan up / down\n"
     "  right-click       identify volume (name / material / density)\n"
     "  shift+right-click hide the clicked material\n"
-    "  v                 restore all materials and opacity\n"
+    "  v                 show everything hidden; undo n / m\n"
     "  g                 toggle gas / low-density volumes\n"
     "  n / m             less / more opacity (see inside)\n"
     "  c                 toggle x/y/z section outlines\n"
@@ -1092,8 +1092,11 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                 actor.SetVisibility(bool(material not in state["hidden"] and
                                          (not gas or state["gas_visible"]) and
                                          (layer is None or layer(actor))))
-                if state["opacity"] != 1.0:
+                if state["opacity"] != 1.0 and session is None:
                     actor.GetProperty().SetOpacity(state["opacity"])
+        if session is not None:
+            session.renderer.opacity_override = None if state["opacity"] == 1.0 else state["opacity"]
+            session.renderer.apply_styles()
         cutter_actors[:] = [a for k, a in viewer.actors.items()
                            if k.endswith(("_yz", "_xz", "_xy"))]
         for actor in cutter_actors:
@@ -1163,6 +1166,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             pick_txt.SetInput("(nothing under cursor)")
             render()
             return
+        if session is not None and picked and "prototype" in picked:
+            session.note_pick(picked)
         wx, wy, wz = picked["position"] if picked else state["picker"].GetPickPosition()
         if model is None:
             label = "point  (%.2f, %.2f, %.2f) m" % (wx / _GDML_MM_PER_M, wy / _GDML_MM_PER_M, wz / _GDML_MM_PER_M)
@@ -1223,12 +1228,14 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             refresh_materials()
         elif key in ("n", "m"):
             state["opacity"] = min(1.0, max(0.05, state["opacity"] + (0.15 if key == "m" else -0.15)))
-            for a in body_actors:
+            if session is not None:
+                refresh_materials()
+            for a in body_actors if session is None else ():
                 a.GetProperty().SetOpacity(state["opacity"])
         elif key == "v":
             if hasattr(viewer, "request_geometry"):
                 viewer.request_geometry("all")
-            for a in body_actors:
+            for a in body_actors if session is None else ():
                 a.GetProperty().SetOpacity(orig_opacity.get(a, 1.0))
             state.update(opacity=1.0, gas_visible=True)
             state["hidden"].clear()
@@ -1315,7 +1322,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
          cache=True, cache_dir=None, progressive=True, preview_slices=12,
          instancing=True, display="full", regions=None, show_gas=False,
          hidden_volumes=(), timings=None, progress=True, presets=None,
-         section=None, panel=True, edges=True):
+         section=None, panel=True, edges=True, save_to=None):
     """Open a responsive detector viewer with reusable display meshes.
 
     ``model`` is a DetectorModel or a GDML path. The pyg4ometry backend opens a
@@ -1345,7 +1352,9 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     sections, a movable cut along each axis, and the layers and materials to
     show. ``presets`` is a mapping or JSON file with material colours, named
     layers, sections and the opening view; see docs/visualization.md. ``edges``
-    draws the sharp edges of solids. ``cutter`` draws x, y and z outlines.
+    draws the sharp edges of solids. ``cutter`` draws x, y and z outlines. The
+    panel's "Save settings" writes the presets with the choices made in the
+    window to ``save_to``, by default the presets file or ./siren-view.json.
 
     ``display='exterior'`` shows only the outer faces of annotated region shells
     and needs ``regions``: a mapping with ``auxtype`` (the GDML auxiliary key
@@ -1378,7 +1387,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
         preview_slices=preview_slices, instancing=instancing, display=display,
         regions=regions, show_gas=show_gas, hidden_volumes=hidden_volumes,
         timings=timings, progress=progress, presets=presets, section=section,
-        panel=panel, edges=edges).run()
+        panel=panel, edges=edges, save_to=save_to).run()
 
 
 # ---------------------------------------------------------------------------

@@ -3,6 +3,11 @@ from ._visualization_presets import ACCENT, INK, OTHER, PANEL, RULE, SOFT, clean
 
 WIDTH = 270     # panel width in points; scaled by the display's pixel density
 _PAD, _GAP = 14, 5
+# Colours offered for a row; "Default" returns to the settings or density colour.
+PALETTE = [(.753, .278, .227), (.878, .569, .227), (.890, .765, .294), (.561, .769, .420),
+           (.184, .612, .471), (.247, .608, .820), (.294, .384, .788), (.482, .408, .722),
+           (.659, .345, .604), (.851, .478, .608), (.541, .353, .235), (.796, .741, .549),
+           (.655, .678, .698), (.349, .376, .420), (.910, .875, .816), (.110, .165, .200)]
 
 
 class Panel:
@@ -147,22 +152,45 @@ class Panel:
                 x, used = x + w + gap, used + span
             y[0] -= height
 
-        def check(label, on, action, swatch=None):
+        def check(label, on, action, swatch=None, clear=False, kind=None):
+            """A row: shown box, colour swatch (hollow if none), name, see-through mark."""
             middle, box = down(10), 6 * s
-            if swatch is None:
-                self._rect(left, middle - box, left + 2 * box, middle + box, ACCENT if on else PANEL)
-                if on:
-                    self._tick(left, middle, box)
-                else:
-                    self._rect(left, middle - box, left + 2 * box, middle + box, SOFT, filled=False)
+            self._rect(left, middle - box, left + 2 * box, middle + box, ACCENT if on else PANEL)
+            if on:
+                self._tick(left, middle, box)
             else:
-                if on:
-                    self._rect(left, middle - box, left + 2 * box, middle + box, swatch)
                 self._rect(left, middle - box, left + 2 * box, middle + box, SOFT, filled=False)
             start = left + 20 * s
-            self._text(self._fit(label, right - start, 12), start, middle, 12, INK if on else SOFT)
+            if kind is not None:
+                if swatch is not None:
+                    self._rect(start, middle - box, start + 2 * box, middle + box, swatch)
+                self._rect(start, middle - box, start + 2 * box, middle + box, SOFT, filled=False)
+                start += 18 * s
+            end = right
+            if clear:
+                self._text("see-through", right, middle, 10, SOFT, right=True)
+                end -= 56 * s
+            self._text(self._fit(label, end - start, 12), start, middle, 12, INK if on else SOFT)
             self.targets.append((left, middle - 10 * s, right, middle + 10 * s, action))
             down(10)
+            if kind is not None and session.palette == kind:
+                palette()
+
+        def palette():
+            down(4)
+            gap, size = _GAP * s, (right - left - 7 * _GAP * s) / 8
+            for i, colour in enumerate(PALETTE):
+                x0 = left + (i % 8) * (size + gap)
+                top = y[0] - (i // 8) * (size + gap)
+                self._rect(x0, top - size, x0 + size, top, colour)
+                self.targets.append((x0, top - size, x0 + size, top,
+                                     lambda colour=colour: session.pick_colour(colour)))
+            y[0] -= 2 * size + 2 * gap
+            buttons([("Default colour", False, lambda: session.pick_colour(None), 2)], 4)
+            down(6)
+
+        def item(kind, key, label, on, colour, clear):
+            check(label, on, lambda: session.row_clicked(kind, key), colour, clear, (kind, key))
 
         if session.presets["title"]:
             self._text(self._fit(session.presets["title"], right - left, 17), left, down(10), 17, bold=True)
@@ -183,19 +211,46 @@ class Panel:
                  for axis in "xyz"] + [("Other side", False, session.flip_section, 2)], 5)
         self._slider(left, right, down(22))
         down(8)
+        renderer = session.renderer
+        heading("Colours and surfaces")
+        buttons([("Custom colours", renderer.colour_mode == "custom",
+                  lambda: session.set_colour_mode("custom"), 2),
+                 ("Density colours", renderer.colour_mode == "density",
+                  lambda: session.set_colour_mode("density"), 2),
+                 ("All solid", renderer.surface == "solid", lambda: session.set_surfaces("solid"), 2),
+                 ("All see-through", renderer.surface == "see-through",
+                  lambda: session.set_surfaces("see-through"), 2)], 4)
+        self._text("A click on a row below:", left, down(16), 11, SOFT)
+        down(8)
+        buttons([(label, session.tool == tool, lambda tool=tool: session.set_tool(tool), 1)
+                 for label, tool in (("Show/hide", "show"), ("See-through", "clear"),
+                                     ("Recolour", "colour"))], 3)
+        heading("Volumes")
+        volumes = session.volume_rows()
+        if not volumes:
+            for line in self._wrap("Right-click a volume to list it here and change it on its own.",
+                                   right - left, 11):
+                self._text(line, left, down(7), 11, SOFT)
+                down(8)
+        for name, label, colour, clear, on in volumes:
+            item("volume", name, label, on, colour, clear)
         if session.presets["layers"]:
-            heading("Show")
-            names = [row["label"] for row in session.presets["layers"]]
+            heading("Layers")
+            names = [layer["label"] for layer in session.presets["layers"]]
             if OTHER in session.used_layers():
                 names.append(OTHER)
             for name in names:
-                check(name, session.renderer.layers.get(name, True),
-                      lambda name=name: session.toggle_layer(name))
+                item("layer", name, name, renderer.layers.get(name, True), *session.layer_row(name))
         materials = session.material_rows()
         if materials and session.legend:
             heading("Materials")
-            for label, colour, on in materials:
-                check(clean_name(label), on, lambda label=label: session.toggle_material(label), colour)
+            for label, colour, on, clear in materials:
+                item("material", label, clean_name(label), on, colour, clear)
+        down(10)
+        buttons([("Save settings", False, session.save_settings, 4)], 4)
+        for line in self._wrap(session.save_message, right - left, 10) if session.save_message else ():
+            self._text(line, left, down(7), 10, SOFT)
+            down(7)
         self.height = (window_height + self.scroll - y[0]) + 14 * s
 
     def _tick(self, left, middle, box):

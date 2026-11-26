@@ -257,6 +257,75 @@ def test_one_volume_can_be_placed_in_two_layers():
     assert renderer.pick_ray([10, 0, 50], [10, 0, -50]) is None
 
 
+def styled_renderer(rows=None):
+    scene = scene_of(('outer', 'Concrete', 2.3, np.eye(4), -1), ('inner', 'Steel', 7.8, np.eye(4), 0),
+                     ('bolt', 'Steel', 7.8, shifted(20), -1))
+    renderer = SceneRenderer(viewer(), presets=rows or dict(
+        materials=[dict(label='Steel', match='Steel', colour='#ff0000')],
+        layers=[dict(label='Core', match='inner', colour='#00ff00', opacity='see-through')]))
+    renderer.set_structure(scene)
+    for name, size in (('outer', 10), ('inner', 4), ('bolt', 2)):
+        renderer.add_mesh(name, *solid('Box', size, size, size))
+    renderer.finish_stage()
+    return renderer
+
+
+def colour_of(renderer, prototype):
+    actor = next(a for a in renderer.actor_instances if renderer.actor_prototype[a] == prototype)
+    return renderer.actor_style(actor)
+
+
+def test_a_volumes_choice_beats_its_layers_and_its_materials():
+    renderer = styled_renderer()
+    density = tuple(renderer.options['Steel'].colour)
+    assert colour_of(renderer, 'bolt') == ((1, 0, 0), .9)          # material
+    assert colour_of(renderer, 'inner') == ((0, 1, 0), .25)        # layer
+    renderer.set_volume('inner', colour=(0, 0, 1), opacity='solid')
+    assert colour_of(renderer, 'inner') == ((0, 0, 1), .9)         # volume
+    assert colour_of(renderer, 'bolt') == ((1, 0, 0), .9)          # same solid, not changed
+    renderer.colour_mode = 'density'
+    assert colour_of(renderer, 'inner')[0] == density and colour_of(renderer, 'bolt')[0] == density
+    renderer.colour_mode, renderer.surface = 'custom', 'see-through'
+    assert colour_of(renderer, 'outer')[1] == .25 and colour_of(renderer, 'inner')[1] == .9
+    renderer.opacity_override = .4  # the n and m keys
+    assert colour_of(renderer, 'inner')[1] == .4
+
+
+def test_hiding_one_volume_keeps_the_others_with_the_same_solid():
+    renderer = styled_renderer()
+    renderer.set_section((0, 0, 0), (0, 0, 1))
+    renderer.set_volume('inner', shown=False)
+    hidden = [a for a in renderer.actor_instances if renderer.actor_prototype[a] == 'inner']
+    assert hidden and not any(renderer.shown(a) for a in hidden)
+    assert all(renderer.shown(a) for a in renderer.actor_instances if a not in hidden)
+    assert [renderer.visible(a) for a in renderer.cap_actors if renderer.actor_prototype[a] == 'inner'] == [False]
+    assert renderer.pick_ray([1, 1, 50], [1, 1, -50]) is None or renderer.pick_ray(
+        [1, 1, 50], [1, 1, -50])['name'] != 'world/inner'
+    # Changes survive the next stage's structure.
+    scene = dict(renderer.scene, instances=[dict(row) for row in renderer.scene['instances']])
+    renderer.set_structure(scene)
+    assert [row['volume'] for row in renderer.placements['inner']] == ['lv:inner']
+
+
+def test_picks_pass_through_see_through_surfaces():
+    renderer = styled_renderer(dict(layers=[dict(label='Shell', match='outer', opacity='see-through')]))
+    assert renderer.pick_ray([1, 1, 50], [1, 1, -50])['name'] == 'world/inner'
+    assert renderer.pick_ray([4.5, 4.5, 50], [4.5, 4.5, -50])['name'] == 'world/outer'  # nothing behind
+
+
+def test_volume_rules_and_saved_presets_round_trip():
+    rows = dict(colour_mode='density', surfaces='see-through', see_through=.3,
+                materials=[dict(label='Steel', match='*Fe', opacity='solid', shown=False)],
+                layers=[dict(label='Core', match='inner', colour=[0, .2, 1])],  # whole steps of 1/255
+                volumes=[dict(match=['bolt*'], colour='#00ff00', opacity='see-through', shown=False)])
+    loaded = presets.load_presets(rows)
+    assert loaded['volumes'][0]['label'] == 'bolt*' and loaded['materials'][0]['colour'] is None
+    again = presets.load_presets(presets.to_json(loaded))
+    assert again == loaded
+    scene = scene_of(('bolt', 'Steel', 7.8, np.eye(4), -1), ('nut', 'Steel', 7.8, np.eye(4), -1))
+    assert presets.assign_volumes(scene, loaded['volumes']) == ['bolt*', None]
+
+
 def test_daughters_inherit_their_mothers_layer_but_not_the_worlds():
     scene = scene_of(('world', 'Air', .001, np.eye(4), -1), ('hall', 'Concrete', 2.3, np.eye(4), 0),
                      ('bolt', 'Steel', 7.8, np.eye(4), 1), ('loose', 'Steel', 7.8, np.eye(4), 0))
@@ -302,7 +371,9 @@ def test_presets_override_colours(tmp_path):
     (dict(sections=[dict(origin=[0, 0, 0])]), 'normal'),
     (dict(sections=[dict(origin=[0, 0, 0], normal=[0, 0, 0])]), 'nonzero'),
     (dict(materials=[dict(label='a', match='*', colour='red')]), 'rrggbb'),
-    (dict(layers=[dict(label='a', match='*'), dict(label='a', match='b')]), 'different labels')])
+    (dict(layers=[dict(label='a', match='*'), dict(label='a', match='b')]), 'different labels'),
+    (dict(colour_mode='rainbow'), 'colour_mode'), (dict(surfaces='glass'), 'surfaces'),
+    (dict(volumes=[dict(match='a', opacity='half')]), 'opacity'), (dict(see_through=2), 'see_through')])
 def test_bad_presets_are_refused(bad, message):
     with pytest.raises(ValueError, match=message):
         presets.load_presets(bad)
@@ -320,7 +391,7 @@ def test_native_panel_clicks_cut_hide_and_restore(tmp_path):
     rows = dict(title='Fixture', layers=[dict(label='Turned', match='rotated')],
                 sections=[dict(label='Middle', origin=[0, 0, 0], normal=[0, 0, 1])])
     session = ViewSession(fixture_gdml(tmp_path / 'a.gdml'), axes=False, presets=rows,
-                          cache_dir=tmp_path / 'cache')
+                          cache_dir=tmp_path / 'cache', save_to=tmp_path / 'saved.json')
     try:
         prepare_scene(session.path, tmp_path / 'out', emit=session.receive, **session.options)
         iren, panel = session.viewer.iren, session.panel
@@ -359,5 +430,24 @@ def test_native_panel_clicks_cut_hide_and_restore(tmp_path):
         assert session.viewer.ren.GetActiveCamera().GetPosition() == camera
         click('Whole model')
         assert session.renderer.plane is None and not session.renderer.cap_actors
+        click('See-through')
+        click('Turned')
+        assert session.layer_row('Turned')[1] and session.renderer.actor_style(
+            next(a for a in session.renderer.actor_instances
+                 if session.renderer.actor_layer[a] == 'Turned'))[1] == .25
+        click('Recolour')
+        click('Steel')
+        chip = next(t for t in panel.targets if getattr(t[4], '__defaults__', None)
+                    and isinstance(t[4].__defaults__[0], tuple))
+        iren.SetEventInformation(int(chip[0]) + 3, int(chip[1]) + 3, 0, 0)
+        iren.LeftButtonPressEvent()
+        iren.LeftButtonReleaseEvent()
+        assert session.renderer.material_colour('Steel') == chip[4].__defaults__[0]
+        click('Density colours')
+        assert session.renderer.material_colour('Steel') == tuple(session.renderer.options['Steel'].colour)
+        click('Save settings')
+        saved = json.loads((tmp_path / 'saved.json').read_text())
+        assert saved['colour_mode'] == 'density' and saved['materials'][0]['label'] == 'Steel'
+        assert [row.get('opacity') for row in saved['layers']] == ['see-through']
     finally:
         session.viewer.renWin.Finalize()

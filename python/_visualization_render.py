@@ -1,7 +1,8 @@
 """VTK prototype rendering and placement-aware picking (UI thread only)."""
 from collections import defaultdict
 
-from ._visualization_presets import BACKGROUND, INK, assign_layers, clean_name, load_presets, material_row
+from ._visualization_presets import (BACKGROUND, INK, assign_layers, assign_volumes, clean_name,
+                                     load_presets, material_row)
 
 
 def polydata(vertices, faces):
@@ -98,7 +99,16 @@ class SceneRenderer:
         self.edges = edges
         self.scene = None
         self.layers = {row["label"]: row["shown"] for row in self.presets["layers"]}
-        self.actor_layer, self.actor_material = {}, {}
+        # Colour, opacity ("solid" or "see-through") and shown, by kind and key:
+        # ("material", label), ("layer", label), ("volume", rule label or "lv:" + logical name).
+        self.styles = {}
+        for kind in ("materials", "layers", "volumes"):
+            for row in self.presets[kind]:
+                self.styles[kind[:-1], row["label"]] = {k: row[k] for k in ("colour", "opacity", "shown")}
+        self.colour_mode, self.surface = self.presets["colour_mode"], self.presets["surfaces"]
+        self.opacity_override = None
+        self._separate = set()  # logical volumes styled on their own
+        self.actor_layer, self.actor_material, self.actor_volume, self.actor_prototype = {}, {}, {}, {}
         self.line_actors, self.cap_actors = [], []
         self._edge_pairs = {}
         self.plane, self.section, self._sections = None, None, None
@@ -150,22 +160,28 @@ class SceneRenderer:
         self.placements.clear()
         materials = {}
         self._sections = None
-        for instance, layer in zip(scene["instances"], assign_layers(scene, self.presets["layers"])):
+        for instance, layer, volume in zip(scene["instances"], assign_layers(scene, self.presets["layers"]),
+                                           assign_volumes(scene, self.presets["volumes"])):
             instance["layer"] = layer
+            instance["volume"] = ("lv:" + instance["prototype"]
+                                  if instance["prototype"] in self._separate else volume)
             self.placements[instance["prototype"]].append(instance)
             self.inverses[instance["name"]] = np.linalg.inv(instance["matrix"])
         for p in scene["prototypes"].values():
             materials[p["material"]] = SimpleNamespace(density=p["density"])
         self.registry = SimpleNamespace(materialDict=materials)
+        # Density colours; the caller's colours come through self.styles.
         self.options = _material_vis_options(self.registry, VisualisationOptions,
-                                             self.presets["materials"], self.presets["opacity"])
+                                             (), self.presets["opacity"])
         rows = {name: material_row(name, self.presets["materials"]) for name in materials}
         self.labels = {name: row["label"] if row else clean_name(name) for name, row in rows.items()}
         legend_options, legend_materials = {}, {}
         for name in {p["material"] for k, p in scene["prototypes"].items() if k in self._drawn}:
             label, density = self.labels[name], materials[name].density
             if label not in legend_materials or density > legend_materials[label].density:
-                legend_options[label], legend_materials[label] = self.options[name], materials[name]
+                legend_options[label] = VisualisationOptions(colour=list(self.material_colour(name)),
+                                                             alpha=self.options[name].alpha)
+                legend_materials[label] = materials[name]
         styles = self.regions['styles'] if self.display == 'exterior' and self.regions else {}
         if styles:
             for material in materials:
@@ -193,21 +209,114 @@ class SceneRenderer:
             vo.alpha = style["alpha"]
         return vo
 
+    # ---- colours and surfaces -------------------------------------------
+    def material_colour(self, material):
+        """A material's colour under the current colour choice."""
+        own = self.styles.get(("material", self.labels.get(material, material)))
+        if self.colour_mode == "custom" and own and own.get("colour") is not None:
+            return tuple(own["colour"])
+        return tuple(self.options[material].colour)
+
+    def style(self, material, layer=None, volume=None, prototype=None):
+        """(colour, opacity): a volume's own choice, else its layer's, else its material's."""
+        from .visualization import _LOW_DENSITY
+        if not self.coloured or (prototype is not None and self.display == "exterior" and self.regions
+                                 and self.scene["prototypes"][prototype]["role"] in self.regions["styles"]):
+            vo = self.vis_option(prototype)
+            return tuple(vo.colour), (vo.alpha if self.opacity_override is None else self.opacity_override)
+        chain = [s for s in (self.styles.get(("volume", volume)) if volume else None,
+                             self.styles.get(("layer", layer)),
+                             self.styles.get(("material", self.labels.get(material, material)))) if s]
+        colour = self.material_colour(material)
+        if self.colour_mode == "custom":
+            colour = next((tuple(s["colour"]) for s in chain if s.get("colour") is not None), colour)
+        if self.opacity_override is not None:
+            return colour, self.opacity_override
+        if self.registry.materialDict[material].density <= _LOW_DENSITY:
+            return colour, self.options[material].alpha
+        surface = next((s["opacity"] for s in chain if s.get("opacity")), self.surface)
+        return colour, self.presets["opacity"] if surface == "solid" else self.presets["see_through"]
+
+    def actor_style(self, actor):
+        return self.style(self.actor_material[actor], self.actor_layer.get(actor),
+                          self.actor_volume.get(actor), self.actor_prototype.get(actor))
+
+    def apply_styles(self):
+        """Colour and opacity of every surface, cut face and edge line."""
+        keep = 1. if self.plane is None else .5  # surfaces behind a cut are paler
+        for actor in self.actor_instances:
+            colour, alpha = self.actor_style(actor)
+            colour = tuple(keep * c + (1 - keep) * b for c, b in zip(colour, BACKGROUND))
+            prop = actor.GetProperty()
+            if max(abs(a - b) for a, b in zip(prop.GetColor(), colour)) > 1e-9:
+                prop.SetColor(*colour)
+                if self._actor_is_glyph[actor]:
+                    actor.GetMapper().Modified()  # glyph colours are cached per instance
+            prop.SetOpacity(alpha)
+        for actor in self.cap_actors:
+            colour, alpha = self.actor_style(actor)
+            actor.GetProperty().SetColor(*colour)
+            actor.GetProperty().SetOpacity(alpha)
+        for actor in self.line_actors:
+            actor.GetProperty().SetOpacity(.38 if self.actor_style(actor)[1] >= .5 else .12)
+
+    def set_style(self, kind, key, **change):
+        """Change the colour, opacity or shown of a material, layer or logical volume."""
+        if kind == "volume":
+            return self.set_volume(key, **change)
+        self.styles.setdefault((kind, key), {}).update(change)
+        self.apply_styles()
+
+    def set_volume(self, prototype, **change):
+        """Style one logical volume (all its copies) apart from its neighbours."""
+        key = "lv:" + prototype
+        if prototype not in self._separate:
+            rows = self.placements[prototype]
+            first = rows[0].get("volume") if rows else None
+            self.styles["volume", key] = dict(self.styles.get(("volume", first), {}))
+            self._separate.add(prototype)
+            for row in rows:
+                row["volume"] = key
+            p = self.scene["prototypes"][prototype]
+            group = (p.get("mesh_key", prototype), p["material"], p["role"])
+            name = self._group_representatives.get(group)
+            if name is not None and name in self.meshes:
+                self.add_mesh(name, *self.meshes[name], force=True)
+            self._build_edges()
+            if self.plane is not None:
+                self.build_caps()
+        self.styles["volume", key].update(change)
+        self.apply_styles()
+        self.refresh_overlays()
+
+    def volume_style(self, prototype):
+        """(colour, see-through, shown) of a logical volume as drawn."""
+        rows = self.placements.get(prototype)
+        if not rows:
+            return None, False, True
+        row = rows[0]
+        p = self.scene["prototypes"][prototype]
+        colour, alpha = self.style(p["material"], row["layer"], row.get("volume"))
+        own = self.styles.get(("volume", row.get("volume")), {})
+        return colour, alpha < self.presets["opacity"] - 1e-6, own.get("shown") is not False
+
     def _remember(self, actor, name, instances, glyph=False):
-        vo = self.vis_option(name)
         prop = actor.GetProperty()
-        prop.SetColor(*vo.colour)
-        prop.SetOpacity(vo.alpha)
         if self.coloured:
             prop.SetInterpolationToFlat()
             prop.SetAmbient(.5)
             prop.SetDiffuse(.55)
         if self.plane is not None:
             actor.GetMapper().AddClippingPlane(self.plane)
-            self._shade(actor, name)
         self.actor_layer[actor] = instances[0].get("layer")
+        self.actor_volume[actor] = instances[0].get("volume")
+        self.actor_prototype[actor] = name
         self.actor_material[actor] = self.scene["prototypes"][name]["material"]
-        actor.SetVisibility(self.layers.get(self.actor_layer[actor], True))
+        colour, alpha = self.actor_style(actor)
+        keep = 1. if self.plane is None else .5
+        prop.SetColor(*(keep * c + (1 - keep) * b for c, b in zip(colour, BACKGROUND)))
+        prop.SetOpacity(alpha)
+        actor.SetVisibility(self.shown(actor))
         key = name + "#" + str(len(self.prototype_actors[name]))
         self.prototype_actors[name].append((key, actor))
         self.viewer.actors[key] = actor
@@ -216,7 +325,7 @@ class SceneRenderer:
         self.actor_instances[actor] = instances
         self._actor_is_glyph[actor] = glyph
 
-    def add_mesh(self, name, vertices, faces):
+    def add_mesh(self, name, vertices, faces, force=False):
         import numpy as np
         import vtk
         from vtk.util.numpy_support import numpy_to_vtk, numpy_to_vtkIdTypeArray
@@ -224,7 +333,7 @@ class SceneRenderer:
         group = (p.get('mesh_key', name), p['material'], p['role'])
         aliases = self._groups[group]
         previous = self._group_loaded.get(group)
-        if (previous is not None and previous[0] is vertices and
+        if (not force and previous is not None and previous[0] is vertices and
                 previous[1] is faces and previous[2] is aliases):
             return
         # Shared geometry becomes available for every selected alias at once.
@@ -246,8 +355,8 @@ class SceneRenderer:
             self.viewer.actors.pop(key, None)
             self.actor_instances.pop(actor, None)
             self._actor_is_glyph.pop(actor, None)
-            self.actor_layer.pop(actor, None)
-            self.actor_material.pop(actor, None)
+            for table in (self.actor_layer, self.actor_material, self.actor_volume, self.actor_prototype):
+                table.pop(actor, None)
             self.material_actors[material].remove(actor)
         self.prototype_actors[name] = []
         source_key = (id(vertices), id(faces))
@@ -271,7 +380,7 @@ class SceneRenderer:
             if components is None:
                 matrices.append(instance)
             else:
-                by_layer[instance["layer"]].append((instance, components))
+                by_layer[instance["layer"], instance.get("volume")].append((instance, components))
         for glyphs in by_layer.values():
             points = vtk.vtkPoints()
             points.SetData(numpy_to_vtk(np.array([np.asarray(i["matrix"])[:3, 3] for i, _ in glyphs]), deep=True))
@@ -323,7 +432,8 @@ class SceneRenderer:
         self.update_stats()
 
     # ---- edge lines and section outlines --------------------------------
-    def _add_lines(self, pairs, colour, width, opacity, layer=None, material=None, clip=True):
+    def _add_lines(self, pairs, colour, width, opacity, layer=None, material=None, clip=True,
+                   volume=None):
         import vtk
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(line_polydata(pairs))
@@ -341,15 +451,15 @@ class SceneRenderer:
         actor.PickableOff()
         if clip and self.plane is not None:
             mapper.AddClippingPlane(self.plane)
-        self.actor_layer[actor], self.actor_material[actor] = layer, material
+        self.actor_layer[actor], self.actor_material[actor], self.actor_volume[actor] = layer, material, volume
         self.viewer.ren.AddActor(actor)
         return actor
 
     def _forget(self, actors):
         for actor in actors:
             self.viewer.ren.RemoveActor(actor)
-            self.actor_layer.pop(actor, None)
-            self.actor_material.pop(actor, None)
+            for table in (self.actor_layer, self.actor_material, self.actor_volume, self.actor_prototype):
+                table.pop(actor, None)
         actors.clear()
 
     def _build_edges(self):
@@ -380,10 +490,13 @@ class SceneRenderer:
                 continue
             for instance in placements:
                 m = np.asarray(instance["matrix"])
-                batches[instance["layer"], p["material"]].append(pairs @ m[:3, :3].T + m[:3, 3])
+                batches[instance["layer"], p["material"], instance.get("volume")].append(
+                    pairs @ m[:3, :3].T + m[:3, 3])
         self._edge_pairs = kept
-        for (layer, material), rows in batches.items():
-            self.line_actors.append(self._add_lines(np.concatenate(rows), INK, 1., .38, layer, material))
+        for (layer, material, volume), rows in batches.items():
+            self.line_actors.append(self._add_lines(np.concatenate(rows), INK, 1., .38, layer, material,
+                                                    volume=volume))
+        self.apply_styles()
 
     def _build_outlines(self):
         """Coloured outlines in the viewer's fixed x, y and z planes (``cutter=True``)."""
@@ -406,12 +519,6 @@ class SceneRenderer:
                                            exact(self.scene["instances"]) if exact else None)
         return self._sections
 
-    def _shade(self, actor, name):
-        """Fade surfaces behind a section so that the cut faces stand out."""
-        vo = self.vis_option(name)
-        keep = 1. if self.plane is None else .5
-        actor.GetProperty().SetColor(*(keep * c + (1 - keep) * b for c, b in zip(vo.colour, BACKGROUND)))
-
     def _clipped_actors(self):
         # Caps lie in the plane and fixed outlines have their own planes.
         return list(self.actor_instances) + self.line_actors + list(self.external_actors.values())
@@ -432,7 +539,7 @@ class SceneRenderer:
         if fresh:
             for actor in self._clipped_actors():
                 actor.GetMapper().AddClippingPlane(self.plane)
-            self._shade_all()
+            self.apply_styles()
         if caps:
             self.build_caps()
         else:
@@ -446,12 +553,7 @@ class SceneRenderer:
             actor.GetMapper().RemoveClippingPlane(self.plane)
         self.plane = self.section = None
         self._forget(self.cap_actors)
-        self._shade_all()
-
-    def _shade_all(self):
-        for name, actors in self.prototype_actors.items():
-            for _, actor in actors:
-                self._shade(actor, name)
+        self.apply_styles()
 
     def build_caps(self):
         import numpy as np
@@ -467,8 +569,9 @@ class SceneRenderer:
         groups = defaultdict(list)
         for index in self.section.pieces:
             row = instances[index]
-            groups[row["layer"], self.scene["prototypes"][row["prototype"]]["material"]].append(index)
-        for (layer, material), rows in groups.items():
+            groups[row["layer"], self.scene["prototypes"][row["prototype"]]["material"],
+                   row.get("volume")].append(index)
+        for (layer, material, volume), rows in groups.items():
             quads = np.concatenate([self.section.pieces[i] for i in rows])
             points = self.section.to_world(quads).reshape(-1, 3)
             base = 4 * np.arange(len(quads))[:, None]
@@ -479,19 +582,25 @@ class SceneRenderer:
             actor = vtk.vtkActor()
             actor.SetMapper(mapper)
             actor.GetProperty().LightingOff()
-            actor.GetProperty().SetColor(*self.vis_option(instances[rows[0]]["prototype"]).colour)
             actor.PickableOff()
-            self.actor_layer[actor], self.actor_material[actor] = layer, material
+            self.actor_layer[actor], self.actor_material[actor], self.actor_volume[actor] = layer, material, volume
+            self.actor_prototype[actor] = instances[rows[0]]["prototype"]
             self.viewer.ren.AddActor(actor)
             self.cap_actors.append(actor)
+        self.apply_styles()
         self.refresh_overlays()
 
     # ---- visibility -----------------------------------------------------
     hidden_materials = frozenset()
 
+    def shown(self, actor):
+        """Shown by the layer and volume choices (materials and gases are the controls')."""
+        own = self.styles.get(("volume", self.actor_volume.get(actor)))
+        return bool(self.layers.get(self.actor_layer.get(actor), True) and
+                    (own is None or own.get("shown") is not False))
+
     def visible(self, actor):
-        return (self.layers.get(self.actor_layer.get(actor), True) and
-                self.actor_material.get(actor) not in self.hidden_materials)
+        return self.shown(actor) and self.actor_material.get(actor) not in self.hidden_materials
 
     def refresh_overlays(self, hidden=None):
         """Edge lines and caps follow the layer and material choices."""
@@ -539,18 +648,22 @@ class SceneRenderer:
                     if index is not None:
                         row = self.scene["instances"][index]
                         p = self.scene["prototypes"][row["prototype"]]
-                        if (self.layers.get(row["layer"], True) and
+                        own = self.styles.get(("volume", row.get("volume")), {})
+                        if (self.layers.get(row["layer"], True) and own.get("shown") is not False and
                                 p["material"] not in self.hidden_materials):
                             return dict(position=crossing.tolist(), name=row["name"],
-                                        material=p["material"], density=p["density"], section=True)
+                                        prototype=row["prototype"], material=p["material"],
+                                        density=p["density"], section=True)
                 else:
                     end = crossing
+        # See-through surfaces are picked only when nothing solid is behind them.
         candidates = []
         for actor, rows in self.actor_instances.items():
-            if actor.GetVisibility() and actor.GetProperty().GetOpacity() > 0:
-                candidates.extend(rows)
-        best, result = float('inf'), None
-        for row in candidates:
+            opacity = actor.GetProperty().GetOpacity()
+            if actor.GetVisibility() and opacity > 0:
+                candidates.extend((row, opacity < .5) for row in rows)
+        best, result = [float('inf')] * 2, [None, None]
+        for row, faint in candidates:
             name = row['prototype']
             p = self.scene['prototypes'][name]
             key = (p.get('mesh_key', name), p['role'] if self.display == 'exterior' else '')
@@ -573,10 +686,11 @@ class SceneRenderer:
             # local parameter t is affine-invariant too, but this is explicit.)
             world = (matrix @ np.r_[hit, 1.])[:3]
             distance = float(np.linalg.norm(world - start))
-            if distance < best:
-                best = distance
-                result = dict(position=world.tolist(), name=row['name'],
-                              material=p['material'], density=p['density'])
+            if distance < best[faint]:
+                best[faint] = distance
+                result[faint] = dict(position=world.tolist(), name=row['name'], prototype=name,
+                                     material=p['material'], density=p['density'])
+        best, result = (best[0], result[0]) if result[0] is not None else (best[1], result[1])
         for name, actor in self.external_actors.items():
             if not actor.GetVisibility() or actor.GetProperty().GetOpacity() <= 0:
                 continue
