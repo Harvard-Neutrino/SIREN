@@ -99,13 +99,13 @@ class SceneRenderer:
         self.edges = edges
         self.scene = None
         self.layers = {row["label"]: row["shown"] for row in self.presets["layers"]}
-        # Colour, opacity ("solid" or "see-through") and shown, by kind and key:
+        # Color, opacity ("solid" or "see-through") and shown, by kind and key:
         # ("material", label), ("layer", label), ("volume", rule label or "lv:" + logical name).
         self.styles = {}
         for kind in ("materials", "layers", "volumes"):
             for row in self.presets[kind]:
-                self.styles[kind[:-1], row["label"]] = {k: row[k] for k in ("colour", "opacity", "shown")}
-        self.colour_mode, self.surface = self.presets["colour_mode"], self.presets["surfaces"]
+                self.styles[kind[:-1], row["label"]] = {k: row[k] for k in ("color", "opacity", "shown")}
+        self.color_mode, self.surface = self.presets["color_mode"], self.presets["surfaces"]
         self.opacity_override = None
         self._separate = set()  # logical volumes styled on their own
         self.actor_layer, self.actor_material, self.actor_volume, self.actor_prototype = {}, {}, {}, {}
@@ -170,7 +170,7 @@ class SceneRenderer:
         for p in scene["prototypes"].values():
             materials[p["material"]] = SimpleNamespace(density=p["density"])
         self.registry = SimpleNamespace(materialDict=materials)
-        # Density colours; the caller's colours come through self.styles.
+        # Density colors; the caller's colors come through self.styles.
         self.options = _material_vis_options(self.registry, VisualisationOptions,
                                              (), self.presets["opacity"])
         rows = {name: material_row(name, self.presets["materials"]) for name in materials}
@@ -179,7 +179,7 @@ class SceneRenderer:
         for name in {p["material"] for k, p in scene["prototypes"].items() if k in self._drawn}:
             label, density = self.labels[name], materials[name].density
             if label not in legend_materials or density > legend_materials[label].density:
-                legend_options[label] = VisualisationOptions(colour=list(self.material_colour(name)),
+                legend_options[label] = VisualisationOptions(colour=list(self.material_color(name)),
                                                              alpha=self.options[name].alpha)
                 legend_materials[label] = materials[name]
         styles = self.regions['styles'] if self.display == 'exterior' and self.regions else {}
@@ -209,16 +209,16 @@ class SceneRenderer:
             vo.alpha = style["alpha"]
         return vo
 
-    # ---- colours and surfaces -------------------------------------------
-    def material_colour(self, material):
-        """A material's colour under the current colour choice."""
+    # ---- colors and surfaces -------------------------------------------
+    def material_color(self, material):
+        """A material's color under the current color choice."""
         own = self.styles.get(("material", self.labels.get(material, material)))
-        if self.colour_mode == "custom" and own and own.get("colour") is not None:
-            return tuple(own["colour"])
+        if self.color_mode == "custom" and own and own.get("color") is not None:
+            return tuple(own["color"])
         return tuple(self.options[material].colour)
 
     def style(self, material, layer=None, volume=None, prototype=None):
-        """(colour, opacity): a volume's own choice, else its layer's, else its material's."""
+        """(color, opacity): a volume's own choice, else its layer's, else its material's."""
         from .visualization import _LOW_DENSITY
         if not self.coloured or (prototype is not None and self.display == "exterior" and self.regions
                                  and self.scene["prototypes"][prototype]["role"] in self.regions["styles"]):
@@ -227,48 +227,48 @@ class SceneRenderer:
         chain = [s for s in (self.styles.get(("volume", volume)) if volume else None,
                              self.styles.get(("layer", layer)),
                              self.styles.get(("material", self.labels.get(material, material)))) if s]
-        colour = self.material_colour(material)
-        if self.colour_mode == "custom":
-            colour = next((tuple(s["colour"]) for s in chain if s.get("colour") is not None), colour)
+        color = self.material_color(material)
+        if self.color_mode == "custom":
+            color = next((tuple(s["color"]) for s in chain if s.get("color") is not None), color)
         if self.opacity_override is not None:
-            return colour, self.opacity_override
+            return color, self.opacity_override
         if self.registry.materialDict[material].density <= _LOW_DENSITY:
-            return colour, self.options[material].alpha
+            return color, self.options[material].alpha
         surface = next((s["opacity"] for s in chain if s.get("opacity")), self.surface)
-        return colour, self.presets["opacity"] if surface == "solid" else self.presets["see_through"]
+        return color, self.presets["opacity"] if surface == "solid" else self.presets["see_through"]
 
     def actor_style(self, actor):
         return self.style(self.actor_material[actor], self.actor_layer.get(actor),
                           self.actor_volume.get(actor), self.actor_prototype.get(actor))
 
     def apply_styles(self):
-        """Colour and opacity of every surface, cut face and edge line."""
+        """Color and opacity of every surface, cut face and edge line."""
         keep = 1. if self.plane is None else .5  # surfaces behind a cut are paler
         for actor in self.actor_instances:
-            colour, alpha = self.actor_style(actor)
-            colour = tuple(keep * c + (1 - keep) * b for c, b in zip(colour, BACKGROUND))
+            color, alpha = self.actor_style(actor)
+            color = tuple(keep * c + (1 - keep) * b for c, b in zip(color, BACKGROUND))
             prop = actor.GetProperty()
-            if max(abs(a - b) for a, b in zip(prop.GetColor(), colour)) > 1e-9:
-                prop.SetColor(*colour)
+            if max(abs(a - b) for a, b in zip(prop.GetColor(), color)) > 1e-9:
+                prop.SetColor(*color)
                 if self._actor_is_glyph[actor]:
-                    actor.GetMapper().Modified()  # glyph colours are cached per instance
+                    actor.GetMapper().Modified()  # glyph colors are cached per instance
             prop.SetOpacity(alpha)
         for actor in self.cap_actors:
-            colour, alpha = self.actor_style(actor)
-            actor.GetProperty().SetColor(*colour)
+            color, alpha = self.actor_style(actor)
+            actor.GetProperty().SetColor(*color)
             actor.GetProperty().SetOpacity(alpha)
         for actor in self.line_actors:
             actor.GetProperty().SetOpacity(.38 if self.actor_style(actor)[1] >= .5 else .12)
 
     def set_style(self, kind, key, **change):
-        """Change the colour, opacity or shown of a material, layer or logical volume."""
+        """Change the color, opacity or shown of a material, layer or logical volume."""
         if kind == "volume":
             return self.set_volume(key, **change)
         self.styles.setdefault((kind, key), {}).update(change)
         self.apply_styles()
 
     def set_volume(self, prototype, **change):
-        """Style one logical volume (all its copies) apart from its neighbours."""
+        """Style one logical volume (all its copies) apart from its neighbors."""
         key = "lv:" + prototype
         if prototype not in self._separate:
             rows = self.placements[prototype]
@@ -290,15 +290,15 @@ class SceneRenderer:
         self.refresh_overlays()
 
     def volume_style(self, prototype):
-        """(colour, see-through, shown) of a logical volume as drawn."""
+        """(color, see-through, shown) of a logical volume as drawn."""
         rows = self.placements.get(prototype)
         if not rows:
             return None, False, True
         row = rows[0]
         p = self.scene["prototypes"][prototype]
-        colour, alpha = self.style(p["material"], row["layer"], row.get("volume"))
+        color, alpha = self.style(p["material"], row["layer"], row.get("volume"))
         own = self.styles.get(("volume", row.get("volume")), {})
-        return colour, alpha < self.presets["opacity"] - 1e-6, own.get("shown") is not False
+        return color, alpha < self.presets["opacity"] - 1e-6, own.get("shown") is not False
 
     def _remember(self, actor, name, instances, glyph=False):
         prop = actor.GetProperty()
@@ -312,9 +312,9 @@ class SceneRenderer:
         self.actor_volume[actor] = instances[0].get("volume")
         self.actor_prototype[actor] = name
         self.actor_material[actor] = self.scene["prototypes"][name]["material"]
-        colour, alpha = self.actor_style(actor)
+        color, alpha = self.actor_style(actor)
         keep = 1. if self.plane is None else .5
-        prop.SetColor(*(keep * c + (1 - keep) * b for c, b in zip(colour, BACKGROUND)))
+        prop.SetColor(*(keep * c + (1 - keep) * b for c, b in zip(color, BACKGROUND)))
         prop.SetOpacity(alpha)
         actor.SetVisibility(self.shown(actor))
         key = name + "#" + str(len(self.prototype_actors[name]))
@@ -432,20 +432,20 @@ class SceneRenderer:
         self.update_stats()
 
     # ---- edge lines and section outlines --------------------------------
-    def _add_lines(self, pairs, colour, width, opacity, layer=None, material=None, clip=True,
+    def _add_lines(self, pairs, color, width, opacity, layer=None, material=None, clip=True,
                    volume=None):
         import vtk
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(line_polydata(pairs))
         mapper.ScalarVisibilityOff()
-        # VTK's default line offset (-1, -4) is metres in a building-size view.
+        # VTK's default line offset (-1, -4) is meters in a building-size view.
         mapper.SetRelativeCoincidentTopologyLineOffsetParameters(0., 3.8)
         mapper.SetResolveCoincidentTopologyToPolygonOffset()
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         prop = actor.GetProperty()
         prop.LightingOff()
-        prop.SetColor(*colour)
+        prop.SetColor(*color)
         prop.SetLineWidth(width)
         prop.SetOpacity(opacity)
         actor.PickableOff()
@@ -499,7 +499,7 @@ class SceneRenderer:
         self.apply_styles()
 
     def _build_outlines(self):
-        """Coloured outlines in the viewer's fixed x, y and z planes (``cutter=True``)."""
+        """Colored outlines in the viewer's fixed x, y and z planes (``cutter=True``)."""
         import numpy as np
         self._forget([self.viewer.actors.pop(k) for k in list(self.viewer.actors)
                       if k.startswith("section_")])

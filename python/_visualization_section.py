@@ -238,10 +238,10 @@ class SceneSections:
         # The plane n.(Mx + t) = c in each instance's own coordinates.
         local = np.einsum("kji,j->ki", self.matrices[:, :3, :3], section.normal)
         offsets = section.offset - self.matrices[:, :3, 3] @ section.normal
-        centre = (local * (self.low + self.high)).sum(axis=1) / 2 - offsets
+        center = (local * (self.low + self.high)).sum(axis=1) / 2 - offsets
         reach = (np.abs(local) * (self.high - self.low)).sum(axis=1) / 2
         segments = {}
-        for row in np.flatnonzero(np.abs(centre) <= reach + 1e-9):
+        for row in np.flatnonzero(np.abs(center) <= reach + 1e-9):
             index = int(self.known[row])
             if index in self.exact:
                 shape = self.exact[index]()

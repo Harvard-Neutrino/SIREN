@@ -3,7 +3,7 @@ from ._visualization_presets import ACCENT, INK, OTHER, PANEL, RULE, SOFT, clean
 
 WIDTH = 270     # panel width in points; scaled by the display's pixel density
 _PAD, _GAP = 14, 5
-# Colours offered for a row; "Default" returns to the settings or density colour.
+# Colors offered for a row; "Default" returns to the settings or density color.
 PALETTE = [(.753, .278, .227), (.878, .569, .227), (.890, .765, .294), (.561, .769, .420),
            (.184, .612, .471), (.247, .608, .820), (.294, .384, .788), (.482, .408, .722),
            (.659, .345, .604), (.851, .478, .608), (.541, .353, .235), (.796, .741, .549),
@@ -53,7 +53,7 @@ class Panel:
         return self.visible and x < self.pixel_width()
 
     # ---- drawing --------------------------------------------------------
-    def _rect(self, x0, y0, x1, y1, colour, filled=True):
+    def _rect(self, x0, y0, x1, y1, color, filled=True):
         vtk = self.vtk
         points, cells = vtk.vtkPoints(), vtk.vtkCellArray()
         for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
@@ -69,23 +69,23 @@ class Panel:
         mapper.SetInputData(data)
         actor = vtk.vtkActor2D()
         actor.SetMapper(mapper)
-        actor.GetProperty().SetColor(*colour)
+        actor.GetProperty().SetColor(*color)
         self._add(actor)
 
     def _add(self, prop):
         self.ren.AddViewProp(prop)
         self._props.append(prop)
 
-    def _text(self, text, x, y, size=12, colour=INK, bold=False, centre=False, right=False):
-        key = (size, colour, bold, centre, right)
+    def _text(self, text, x, y, size=12, color=INK, bold=False, center=False, right=False):
+        key = (size, color, bold, center, right)
         if key not in self._fonts:
             style = self.vtk.vtkTextProperty()
             style.SetFontFamilyToArial()
             style.SetFontSize(size)
-            style.SetColor(*colour)
+            style.SetColor(*color)
             style.SetBold(bold)
             style.SetVerticalJustificationToCentered()
-            if centre:
+            if center:
                 style.SetJustificationToCentered()
             elif right:
                 style.SetJustificationToRight()
@@ -114,7 +114,7 @@ class Panel:
         if not pressed:
             self._rect(x0, y0, x1, y1, RULE, filled=False)
         self._text(self._fit(label, x1 - x0 - 6, 11), (x0 + x1) / 2, (y0 + y1) / 2, 11,
-                   (1., 1., 1.) if pressed else INK, centre=True)
+                   (1., 1., 1.) if pressed else INK, center=True)
         self.targets.append((x0, y0, x1, y1, action))
 
     def rebuild(self):
@@ -153,7 +153,7 @@ class Panel:
             y[0] -= height
 
         def check(label, on, action, swatch=None, clear=False, kind=None, toggle=None):
-            """A row: shown box, colour swatch (hollow if none), name, see-through mark.
+            """A row: shown box, color swatch (hollow if none), name, see-through mark.
 
             The box always shows or hides (*toggle*); the rest of the row runs *action*.
             """
@@ -184,18 +184,18 @@ class Panel:
         def palette():
             down(4)
             gap, size = _GAP * s, (right - left - 7 * _GAP * s) / 8
-            for i, colour in enumerate(PALETTE):
+            for i, color in enumerate(PALETTE):
                 x0 = left + (i % 8) * (size + gap)
                 top = y[0] - (i // 8) * (size + gap)
-                self._rect(x0, top - size, x0 + size, top, colour)
+                self._rect(x0, top - size, x0 + size, top, color)
                 self.targets.append((x0, top - size, x0 + size, top,
-                                     lambda colour=colour: session.pick_colour(colour)))
+                                     lambda color=color: session.pick_color(color)))
             y[0] -= 2 * size + 2 * gap
-            buttons([("Default colour", False, lambda: session.pick_colour(None), 2)], 4)
+            buttons([("Default color", False, lambda: session.pick_color(None), 2)], 4)
             down(6)
 
-        def item(kind, key, label, on, colour, clear):
-            check(label, on, lambda: session.row_clicked(kind, key), colour, clear, (kind, key),
+        def item(kind, key, label, on, color, clear):
+            check(label, on, lambda: session.row_clicked(kind, key), color, clear, (kind, key),
                   lambda: session.row_clicked(kind, key, "show"))
 
         if session.presets["title"]:
@@ -218,11 +218,11 @@ class Panel:
         self._slider(left, right, down(22))
         down(8)
         renderer = session.renderer
-        heading("Colours and surfaces")
-        buttons([("Custom colours", renderer.colour_mode == "custom",
-                  lambda: session.set_colour_mode("custom"), 2),
-                 ("Density colours", renderer.colour_mode == "density",
-                  lambda: session.set_colour_mode("density"), 2),
+        heading("Colors and surfaces")
+        buttons([("Custom colors", renderer.color_mode == "custom",
+                  lambda: session.set_color_mode("custom"), 2),
+                 ("Density colors", renderer.color_mode == "density",
+                  lambda: session.set_color_mode("density"), 2),
                  ("All solid", renderer.surface == "solid", lambda: session.set_surfaces("solid"), 2),
                  ("All see-through", renderer.surface == "see-through",
                   lambda: session.set_surfaces("see-through"), 2)], 4)
@@ -230,7 +230,7 @@ class Panel:
         down(8)
         buttons([(label, session.tool == tool, lambda tool=tool: session.set_tool(tool), 1)
                  for label, tool in (("Show/hide", "show"), ("See-through", "clear"),
-                                     ("Recolour", "colour"))], 3)
+                                     ("Recolor", "color"))], 3)
         if session.anything_hidden():
             down(_GAP)
             buttons([("Show everything hidden", False, session.show_everything, 3)], 3)
@@ -242,8 +242,8 @@ class Panel:
                                    right - left, 11):
                 self._text(line, left, down(7), 11, SOFT)
                 down(8)
-        for name, label, colour, clear, on in volumes:
-            item("volume", name, label, on, colour, clear)
+        for name, label, color, clear, on in volumes:
+            item("volume", name, label, on, color, clear)
         if session.presets["layers"]:
             heading("Layers")
             names = [layer["label"] for layer in session.presets["layers"]]
@@ -254,8 +254,8 @@ class Panel:
         materials = session.material_rows()
         if materials and session.legend:
             heading("Materials")
-            for label, colour, on, clear in materials:
-                item("material", label, clean_name(label), on, colour, clear)
+            for label, color, on, clear in materials:
+                item("material", label, clean_name(label), on, color, clear)
         down(10)
         buttons([("Save settings", False, session.save_settings, 4)], 4)
         for line in self._wrap(session.save_message, right - left, 10) if session.save_message else ():

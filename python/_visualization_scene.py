@@ -26,7 +26,8 @@ def normalize_regions(regions):
 
     ``regions`` is a mapping with ``auxtype`` (the GDML ``<auxiliary auxtype=...>``
     key whose value names a logical volume's region), ``styles`` (region name ->
-    ``{"label", "colour", "alpha"}``; these regions must be shells of revolution
+    ``{"label", "color", "alpha"}``, where ``"colour"`` is accepted for ``"color"``;
+    these regions must be shells of revolution
     about their local z axis, of which only outward faces are displayed) and an
     optional ``hidden`` list of region names dropped from the exterior display.
     Detector-specific names belong to the caller, not to this module. Returns a
@@ -42,11 +43,11 @@ def normalize_regions(regions):
     out = {"auxtype": auxtype, "styles": {},
            "hidden": [str(role) for role in regions.get("hidden", ())]}
     for role, style in styles.items():
-        colour = [float(c) for c in style["colour"]]
-        if len(colour) != 3:
-            raise ValueError("region %r colour must have three components" % role)
+        color = [float(c) for c in style["color" if "color" in style else "colour"]]
+        if len(color) != 3:
+            raise ValueError("region %r color must have three components" % role)
         out["styles"][str(role)] = {"label": str(style.get("label", role)),
-                                    "colour": colour, "alpha": float(style.get("alpha", 1.0))}
+                                    "colour": color, "alpha": float(style.get("alpha", 1.0))}
     return out
 
 

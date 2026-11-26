@@ -477,7 +477,7 @@ def _material_vis_options(registry, VisOpt, rows=(), opacity=0.9):
     """Map every material in *registry* to a colour so the viewer is not all
     grey (the predefined-material viewer only colours known names like G4_*).
 
-    Colour runs by log-density (blue = low -> red = high) unless the caller's
+    Color runs by log-density (blue = low -> red = high) unless the caller's
     preset *rows* name one, and gases (rho < 0.05) are made semi-transparent so
     you can see through air to the volumes inside.
     """
@@ -495,8 +495,8 @@ def _material_vis_options(registry, VisOpt, rows=(), opacity=0.9):
     for nm, d in dens.items():
         t = 0.5 if hi <= lo else min(max((math.log(d) - lo) / (hi - lo), 0.0), 1.0)
         row = material_row(nm, rows)
-        colour = row["colour"] if row and row["colour"] is not None else colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
-        out[nm] = VisOpt(colour=[round(c, 3) for c in colour],
+        color = row["color"] if row and row["color"] is not None else colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
+        out[nm] = VisOpt(colour=[round(c, 3) for c in color],
                          alpha=(0.12 if d < _LOW_DENSITY else opacity))
     return out
 
@@ -823,9 +823,9 @@ def _text_actor(vtk, text, nx, ny, size=14, color=(0.0, 0.0, 0.0), anchor="bl"):
 
 
 def _legend_actor(vtk, reg, mvo, max_entries=18):
-    """A ``vtkLegendBoxActor`` of material -> colour swatch, densest first, or None.
+    """A ``vtkLegendBoxActor`` of material -> color swatch, densest first, or None.
 
-    Materials of one colour share an entry under the name of the densest.
+    Materials of one color share an entry under the name of the densest.
     """
     from ._visualization_presets import INK, PANEL, RULE, clean_name
     items, seen = [], set()
@@ -851,14 +851,14 @@ def _legend_actor(vtk, reg, mvo, max_entries=18):
         leg.SetEntryString(i, "%-.20s %.3g" % (name, d))
         leg.SetEntryColor(i, *INK)
     for i, (name, d, col) in enumerate(items):
-        # Coloured symbols with dark text, readable on the light panel.
+        # Colored symbols with dark text, readable on the light panel.
         swatch = vtk.vtkPolyData()
         swatch.DeepCopy(sym)
-        colours = vtk.vtkUnsignedCharArray()
-        colours.SetNumberOfComponents(3)
+        colors = vtk.vtkUnsignedCharArray()
+        colors.SetNumberOfComponents(3)
         for _ in range(swatch.GetNumberOfCells()):
-            colours.InsertNextTuple3(*(int(round(255 * c)) for c in col))
-        swatch.GetCellData().SetScalars(colours)
+            colors.InsertNextTuple3(*(int(round(255 * c)) for c in col))
+        swatch.GetCellData().SetScalars(colors)
         leg.SetEntrySymbol(i, swatch)
     leg.ScalarVisibilityOn()
     leg.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
@@ -1350,12 +1350,12 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     or reflected placements use exact matrix actors.
 
     A plane section removes everything on the positive side of the plane and
-    fills each volume it cuts in its material's colour. Start with one using
+    fills each volume it cuts in its material's color. Start with one using
     ``section``, the label of a preset section or a mapping with ``origin`` and
-    ``normal`` (metres), or with ``clipper``, ``clip_origin`` and ``clip_normal``
-    (millimetres). The side panel (``panel``) has buttons for the preset
+    ``normal`` (meters), or with ``clipper``, ``clip_origin`` and ``clip_normal``
+    (millimeters). The side panel (``panel``) has buttons for the preset
     sections, a movable cut along each axis, and the layers and materials to
-    show. ``presets`` is a mapping or JSON file with material colours, named
+    show. ``presets`` is a mapping or JSON file with material colors, named
     layers, sections and the opening view; see docs/visualization.md. ``edges``
     draws the sharp edges of solids. ``cutter`` draws x, y and z outlines. The
     panel's "Save settings" writes the presets with the choices made in the

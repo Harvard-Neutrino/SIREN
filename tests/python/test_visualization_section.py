@@ -15,8 +15,8 @@ pg = pytest.importorskip('pyg4ometry')
 vtk = pytest.importorskip('vtk')
 
 
-def rectangle(a, b, centre=(0, 0)):
-    x, y = centre
+def rectangle(a, b, center=(0, 0)):
+    x, y = center
     p = np.array([(x - a/2, y - b/2), (x + a/2, y - b/2), (x + a/2, y + b/2), (x - a/2, y + b/2)])
     return np.stack((p, np.roll(p, -1, axis=0)), axis=1)
 
@@ -174,12 +174,12 @@ def test_cuts_through_models_agree_with_siren(detectors_dir, tmp_path, detector,
     meshes = {e['prototype']: scenes.read_mesh(e['path']) for e in events if e['kind'] == 'mesh'}
     cutter = section.SceneSections(scene['instances'], meshes, session._exact_shapes(scene['instances']))
     origin = model.DetectorOrigin.get()
-    centre = np.array([origin.GetX(), origin.GetY(), origin.GetZ()])
+    center = np.array([origin.GetX(), origin.GetY(), origin.GetZ()])
     names = {s.level: s.name for s in model.Sectors}
     rng = np.random.default_rng(1)
     for normal in ((1, 0, 0), (0, 0, 1), (.3, .5, .8)):
         offset = half * np.array([.0007, .0011, .0013])  # off any exact face
-        cut = cutter.cut((centre + offset) * 1000, normal, drawn=set(scene['selected']))
+        cut = cutter.cut((center + offset) * 1000, normal, drawn=set(scene['selected']))
         differ = 0
         points = cut.to_world((rng.random((300, 2)) - .5) * 2000 * half)
         for p in points:
@@ -261,8 +261,8 @@ def styled_renderer(rows=None):
     scene = scene_of(('outer', 'Concrete', 2.3, np.eye(4), -1), ('inner', 'Steel', 7.8, np.eye(4), 0),
                      ('bolt', 'Steel', 7.8, shifted(20), -1))
     renderer = SceneRenderer(viewer(), presets=rows or dict(
-        materials=[dict(label='Steel', match='Steel', colour='#ff0000')],
-        layers=[dict(label='Core', match='inner', colour='#00ff00', opacity='see-through')]))
+        materials=[dict(label='Steel', match='Steel', color='#ff0000')],
+        layers=[dict(label='Core', match='inner', color='#00ff00', opacity='see-through')]))
     renderer.set_structure(scene)
     for name, size in (('outer', 10), ('inner', 4), ('bolt', 2)):
         renderer.add_mesh(name, *solid('Box', size, size, size))
@@ -270,7 +270,7 @@ def styled_renderer(rows=None):
     return renderer
 
 
-def colour_of(renderer, prototype):
+def color_of(renderer, prototype):
     actor = next(a for a in renderer.actor_instances if renderer.actor_prototype[a] == prototype)
     return renderer.actor_style(actor)
 
@@ -278,17 +278,17 @@ def colour_of(renderer, prototype):
 def test_a_volumes_choice_beats_its_layers_and_its_materials():
     renderer = styled_renderer()
     density = tuple(renderer.options['Steel'].colour)
-    assert colour_of(renderer, 'bolt') == ((1, 0, 0), .9)          # material
-    assert colour_of(renderer, 'inner') == ((0, 1, 0), .25)        # layer
-    renderer.set_volume('inner', colour=(0, 0, 1), opacity='solid')
-    assert colour_of(renderer, 'inner') == ((0, 0, 1), .9)         # volume
-    assert colour_of(renderer, 'bolt') == ((1, 0, 0), .9)          # same solid, not changed
-    renderer.colour_mode = 'density'
-    assert colour_of(renderer, 'inner')[0] == density and colour_of(renderer, 'bolt')[0] == density
-    renderer.colour_mode, renderer.surface = 'custom', 'see-through'
-    assert colour_of(renderer, 'outer')[1] == .25 and colour_of(renderer, 'inner')[1] == .9
+    assert color_of(renderer, 'bolt') == ((1, 0, 0), .9)          # material
+    assert color_of(renderer, 'inner') == ((0, 1, 0), .25)        # layer
+    renderer.set_volume('inner', color=(0, 0, 1), opacity='solid')
+    assert color_of(renderer, 'inner') == ((0, 0, 1), .9)         # volume
+    assert color_of(renderer, 'bolt') == ((1, 0, 0), .9)          # same solid, not changed
+    renderer.color_mode = 'density'
+    assert color_of(renderer, 'inner')[0] == density and color_of(renderer, 'bolt')[0] == density
+    renderer.color_mode, renderer.surface = 'custom', 'see-through'
+    assert color_of(renderer, 'outer')[1] == .25 and color_of(renderer, 'inner')[1] == .9
     renderer.opacity_override = .4  # the n and m keys
-    assert colour_of(renderer, 'inner')[1] == .4
+    assert color_of(renderer, 'inner')[1] == .4
 
 
 def test_hiding_one_volume_keeps_the_others_with_the_same_solid():
@@ -314,12 +314,12 @@ def test_picks_pass_through_see_through_surfaces():
 
 
 def test_volume_rules_and_saved_presets_round_trip():
-    rows = dict(colour_mode='density', surfaces='see-through', see_through=.3,
+    rows = dict(color_mode='density', surfaces='see-through', see_through=.3,
                 materials=[dict(label='Steel', match='*Fe', opacity='solid', shown=False)],
-                layers=[dict(label='Core', match='inner', colour=[0, .2, 1])],  # whole steps of 1/255
-                volumes=[dict(match=['bolt*'], colour='#00ff00', opacity='see-through', shown=False)])
+                layers=[dict(label='Core', match='inner', color=[0, .2, 1])],  # whole steps of 1/255
+                volumes=[dict(match=['bolt*'], color='#00ff00', opacity='see-through', shown=False)])
     loaded = presets.load_presets(rows)
-    assert loaded['volumes'][0]['label'] == 'bolt*' and loaded['materials'][0]['colour'] is None
+    assert loaded['volumes'][0]['label'] == 'bolt*' and loaded['materials'][0]['color'] is None
     again = presets.load_presets(presets.to_json(loaded))
     assert again == loaded
     scene = scene_of(('bolt', 'Steel', 7.8, np.eye(4), -1), ('nut', 'Steel', 7.8, np.eye(4), -1))
@@ -341,38 +341,45 @@ def test_feature_lines_skip_facets_of_round_surfaces():
     assert len(feature_lines(*tube)) == 96  # the two rims, none along the side
 
 
-def test_materials_keep_density_colours_unless_a_preset_names_them():
+def test_materials_keep_density_colors_unless_a_preset_names_them():
     from siren.visualization import _material_vis_options
     registry = SimpleNamespace(materialDict={n: SimpleNamespace(density=d) for n, d in
                                              [('AIR', .001), ('MANTLE', 4.), ('ROCK', 2.65), ('CORE', 12.)]})
     plain = _material_vis_options(registry, pg.visualisation.VisualisationOptions)
     assert len({tuple(v.colour) for v in plain.values()}) == 4
     assert [plain[n].alpha for n in ('AIR', 'ROCK')] == [.12, .9]
-    rows = presets.load_presets(dict(materials=[dict(label='Rock', match='RO*', colour='#ff0000')]))['materials']
+    rows = presets.load_presets(dict(materials=[dict(label='Rock', match='RO*', color='#ff0000')]))['materials']
     named = _material_vis_options(registry, pg.visualisation.VisualisationOptions, rows, 1.)
     assert named['ROCK'].colour == [1, 0, 0] and named['ROCK'].alpha == 1
     assert named['MANTLE'].colour == plain['MANTLE'].colour
 
 
-def test_presets_override_colours(tmp_path):
-    rows = dict(title='T', materials=[dict(label='Mine', match=['*Fe'], colour='#102030')],
+def test_region_styles_take_either_spelling():
+    from siren._visualization_scene import normalize_regions
+    for key in ('color', 'colour'):
+        regions = normalize_regions(dict(auxtype='region', styles={'shell': {key: [.1, .2, .3]}}))
+        assert regions['styles']['shell']['colour'] == [.1, .2, .3]
+
+
+def test_presets_override_colors(tmp_path):
+    rows = dict(title='T', materials=[dict(label='Mine', match=['*Fe'], color='#102030')],
                 sections=[dict(label='Middle', origin=[0, 0, 1], normal=[0, 0, 1])])
     path = tmp_path / 'p.json'
     path.write_text(json.dumps(rows))
     loaded = presets.load_presets(path)
     row = presets.material_row('G4_Fe0xabc', loaded['materials'])
-    assert row['label'] == 'Mine' and row['colour'] == pytest.approx((16/255, 32/255, 48/255))
+    assert row['label'] == 'Mine' and row['color'] == pytest.approx((16/255, 32/255, 48/255))
     assert presets.material_row('G4_Al', loaded['materials']) is None
     assert presets.load_presets(loaded) == loaded  # already normalized
 
 
 @pytest.mark.parametrize('bad,message', [
-    (dict(colour='red'), 'unknown preset'), (dict(up=[0, 0, 0]), 'nonzero'), (dict(opacity=0), 'opacity'),
+    (dict(color='red'), 'unknown preset'), (dict(up=[0, 0, 0]), 'nonzero'), (dict(opacity=0), 'opacity'),
     (dict(sections=[dict(origin=[0, 0, 0])]), 'normal'),
     (dict(sections=[dict(origin=[0, 0, 0], normal=[0, 0, 0])]), 'nonzero'),
-    (dict(materials=[dict(label='a', match='*', colour='red')]), 'rrggbb'),
+    (dict(materials=[dict(label='a', match='*', color='red')]), 'rrggbb'),
     (dict(layers=[dict(label='a', match='*'), dict(label='a', match='b')]), 'different labels'),
-    (dict(colour_mode='rainbow'), 'colour_mode'), (dict(surfaces='glass'), 'surfaces'),
+    (dict(color_mode='rainbow'), 'color_mode'), (dict(surfaces='glass'), 'surfaces'),
     (dict(volumes=[dict(match='a', opacity='half')]), 'opacity'), (dict(see_through=2), 'see_through')])
 def test_bad_presets_are_refused(bad, message):
     with pytest.raises(ValueError, match=message):
@@ -435,19 +442,19 @@ def test_native_panel_clicks_cut_hide_and_restore(tmp_path):
         assert session.layer_row('Turned')[1] and session.renderer.actor_style(
             next(a for a in session.renderer.actor_instances
                  if session.renderer.actor_layer[a] == 'Turned'))[1] == .25
-        click('Recolour')
+        click('Recolor')
         click('Steel')
         chip = next(t for t in panel.targets if getattr(t[4], '__defaults__', None)
                     and isinstance(t[4].__defaults__[0], tuple))
         iren.SetEventInformation(int(chip[0]) + 3, int(chip[1]) + 3, 0, 0)
         iren.LeftButtonPressEvent()
         iren.LeftButtonReleaseEvent()
-        assert session.renderer.material_colour('Steel') == chip[4].__defaults__[0]
-        click('Density colours')
-        assert session.renderer.material_colour('Steel') == tuple(session.renderer.options['Steel'].colour)
+        assert session.renderer.material_color('Steel') == chip[4].__defaults__[0]
+        click('Density colors')
+        assert session.renderer.material_color('Steel') == tuple(session.renderer.options['Steel'].colour)
         click('Save settings')
         saved = json.loads((tmp_path / 'saved.json').read_text())
-        assert saved['colour_mode'] == 'density' and saved['materials'][0]['label'] == 'Steel'
+        assert saved['color_mode'] == 'density' and saved['materials'][0]['label'] == 'Steel'
         assert [row.get('opacity') for row in saved['layers']] == ['see-through']
         # Shift+right-click hides the clicked volume; its box brings it back under any tool.
         click('Whole model')
@@ -462,7 +469,7 @@ def test_native_panel_clicks_cut_hide_and_restore(tmp_path):
         assert not any(a.GetVisibility() for a in session.renderer.actor_instances
                        if session.renderer.actor_prototype[a] == 'cube')
         assert 'Volumes' in session.controls['pick'].GetInput()
-        click('Recolour')
+        click('Recolor')
         box = next(a for a in panel._props if a.IsA('vtkTextActor') and a.GetInput() == 'cube')
         iren.SetEventInformation(int(panel.scale * 20), int(box.GetPosition()[1]), 0, 0)
         iren.LeftButtonPressEvent()

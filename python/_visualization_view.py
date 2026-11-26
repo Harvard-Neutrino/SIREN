@@ -223,8 +223,8 @@ class ViewSession:
             self.panel.rebuild()
             self.viewer.renWin.Render()
 
-    def _aim(self, centre, direction, up, width, height, angle):
-        """Look at *centre* along -direction so that width x height (mm) fits."""
+    def _aim(self, center, direction, up, width, height, angle):
+        """Look at *center* along -direction so that width x height (mm) fits."""
         import math
         ren = self.viewer.ren
         # The renderer's own size is not known before its first frame.
@@ -235,15 +235,15 @@ class ViewSession:
         length = math.sqrt(sum(c * c for c in direction))
         camera = ren.GetActiveCamera()
         camera.SetViewAngle(angle)
-        camera.SetFocalPoint(*centre)
-        camera.SetPosition(*(c + distance * d / length for c, d in zip(centre, direction)))
+        camera.SetFocalPoint(*center)
+        camera.SetPosition(*(c + distance * d / length for c, d in zip(center, direction)))
         camera.SetViewUp(*up)
         ren.ResetCameraClippingRange()
 
     def go_home(self):
         home = self.presets["home"]
         if home is not None:
-            self._aim([c * _GDML_MM_PER_M for c in home["centre"]], home["direction"], self.presets["up"],
+            self._aim([c * _GDML_MM_PER_M for c in home["center"]], home["direction"], self.presets["up"],
                       home["width"] * _GDML_MM_PER_M, home["height"] * _GDML_MM_PER_M, 32.)
             return
         self.viewer.ren.GetActiveCamera().SetViewAngle(30.)
@@ -269,19 +269,19 @@ class ViewSession:
     def _aim_section(self, row, origin):
         import numpy as np
         section = self.renderer.section
-        centre = [c * _GDML_MM_PER_M for c in row["centre"]] if row["centre"] is not None else None
+        center = [c * _GDML_MM_PER_M for c in row["center"]] if row["center"] is not None else None
         width, height = ((row[k] * _GDML_MM_PER_M if row[k] is not None else None)
                          for k in ("width", "height"))
         pieces = list(section.pieces.values()) if section is not None else []
-        if pieces and None in (centre, width, height):
+        if pieces and None in (center, width, height):
             points = np.concatenate([q.reshape(-1, 2) for q in pieces])
             low, high = points.min(axis=0), points.max(axis=0)
-            if centre is None:
-                centre = section.to_world((low + high) / 2).tolist()
+            if center is None:
+                center = section.to_world((low + high) / 2).tolist()
             width, height = width or 1.1 * (high[0] - low[0]), height or 1.1 * (high[1] - low[1])
         if section is None or None in (width, height):
             return
-        self._aim(centre or origin, section.normal.tolist(), section.w.tolist(), width, height, 9.)
+        self._aim(center or origin, section.normal.tolist(), section.w.tolist(), width, height, 9.)
 
     def _after_cut(self):
         if self.controls is not None:
@@ -369,7 +369,7 @@ class ViewSession:
         self.panel_changed()
 
     def material_rows(self):
-        """(label, colour, shown, see-through) of the drawn materials, densest first."""
+        """(label, color, shown, see-through) of the drawn materials, densest first."""
         renderer, rows = self.renderer, {}
         if not renderer.scene or self.controls is None:
             return []
@@ -381,26 +381,26 @@ class ViewSession:
             if density <= _LOW_DENSITY:
                 continue
             label = renderer.labels.get(material, material)
-            row = rows.setdefault(label, [density, renderer.material_colour(material), False])
+            row = rows.setdefault(label, [density, renderer.material_color(material), False])
             if density > row[0]:
-                row[:2] = density, renderer.material_colour(material)
+                row[:2] = density, renderer.material_color(material)
             row[2] = row[2] or material not in hidden
-        return [(label, tuple(colour), on, self.row_surface("material", label) == "see-through")
-                for label, (_, colour, on) in sorted(rows.items(), key=lambda item: -item[1][0])]
+        return [(label, tuple(color), on, self.row_surface("material", label) == "see-through")
+                for label, (_, color, on) in sorted(rows.items(), key=lambda item: -item[1][0])]
 
-    # ---- colours, surfaces and the rows' tool ----------------------------
+    # ---- colors, surfaces and the rows' tool ----------------------------
     def row_surface(self, kind, key):
         own = self.renderer.styles.get((kind, key), {})
         return own.get("opacity") or self.renderer.surface
 
     def layer_row(self, label):
-        """(colour or None, see-through) of a layer row."""
+        """(color or None, see-through) of a layer row."""
         own = self.renderer.styles.get(("layer", label), {})
-        colour = own.get("colour") if self.renderer.colour_mode == "custom" else None
-        return colour, self.row_surface("layer", label) == "see-through"
+        color = own.get("color") if self.renderer.color_mode == "custom" else None
+        return color, self.row_surface("layer", label) == "see-through"
 
     def volume_rows(self):
-        """(logical name, label, colour, see-through, shown): picked first, then changed ones."""
+        """(logical name, label, color, see-through, shown): picked first, then changed ones."""
         names = ([self.picked] if self.picked else []) + sorted(self.renderer._separate - {self.picked})
         prototypes = self.renderer.scene["prototypes"] if self.renderer.scene else {}
         return [(name, clean_name(prototypes[name]["name"])) + self.renderer.volume_style(name)
@@ -410,8 +410,8 @@ class ViewSession:
         self.picked = picked["prototype"]
         self.panel_changed()
 
-    def set_colour_mode(self, mode):
-        self.renderer.colour_mode = mode
+    def set_color_mode(self, mode):
+        self.renderer.color_mode = mode
         self.renderer.apply_styles()
         self._after_cut()
 
@@ -427,7 +427,7 @@ class ViewSession:
     def row_clicked(self, kind, key, tool=None):
         """A click on a material, layer or volume row does what the chosen tool says."""
         tool = tool or self.tool
-        if tool == "colour":
+        if tool == "color":
             self.palette = None if self.palette == (kind, key) else (kind, key)
         elif tool == "show":
             if kind == "layer":
@@ -461,12 +461,12 @@ class ViewSession:
         self.show_all_layers()
         self._after_cut()
 
-    def pick_colour(self, colour):
-        """Colour the row whose palette is open; None returns it to the default."""
+    def pick_color(self, color):
+        """Color the row whose palette is open; None returns it to the default."""
         (kind, key), self.palette = self.palette, None
-        self.renderer.set_style(kind, key, colour=colour)
-        if colour is not None:
-            self.renderer.colour_mode = "custom"
+        self.renderer.set_style(kind, key, color=color)
+        if color is not None:
+            self.renderer.color_mode = "custom"
             self.renderer.apply_styles()
         self._after_cut()
 
@@ -475,12 +475,12 @@ class ViewSession:
         import copy
         import math
         renderer, out = self.renderer, copy.deepcopy(self.presets)
-        out.update(colour_mode=renderer.colour_mode, surfaces=renderer.surface)
+        out.update(color_mode=renderer.color_mode, surfaces=renderer.surface)
         camera = self.viewer.ren.GetActiveCamera()
         size, port = self.viewer.renWin.GetSize(), self.viewer.ren.GetViewport()
         aspect = size[0] * (port[2] - port[0]) / max(size[1] * (port[3] - port[1]), 1)
         height = 2 * camera.GetDistance() * math.tan(math.radians(camera.GetViewAngle()) / 2)
-        out["home"] = dict(centre=[c / _GDML_MM_PER_M for c in camera.GetFocalPoint()],
+        out["home"] = dict(center=[c / _GDML_MM_PER_M for c in camera.GetFocalPoint()],
                            direction=[(p - f) / camera.GetDistance() for p, f in
                                       zip(camera.GetPosition(), camera.GetFocalPoint())],
                            width=aspect * height / _GDML_MM_PER_M, height=height / _GDML_MM_PER_M)
@@ -492,14 +492,14 @@ class ViewSession:
         for label, names in materials.items():
             style = renderer.styles.get(("material", label), {})
             shown = not names <= hidden
-            if label not in rows and (style.get("colour") is not None or style.get("opacity") or not shown):
+            if label not in rows and (style.get("color") is not None or style.get("opacity") or not shown):
                 rows[label] = dict(label=label, match=sorted(clean_name(n) for n in names))
                 out["materials"].insert(0, rows[label])
             if label in rows:
-                rows[label].update(colour=style.get("colour"), opacity=style.get("opacity"), shown=shown)
+                rows[label].update(color=style.get("color"), opacity=style.get("opacity"), shown=shown)
         for row in out["layers"]:
             style = renderer.styles.get(("layer", row["label"]), {})
-            row.update(shown=renderer.layers.get(row["label"], True), colour=style.get("colour"),
+            row.update(shown=renderer.layers.get(row["label"], True), color=style.get("color"),
                        opacity=style.get("opacity"))
         for row in out["volumes"]:
             row.update(renderer.styles.get(("volume", row["label"]), {}))
@@ -508,7 +508,7 @@ class ViewSession:
         for name in sorted(renderer._separate):
             plain = clean_name(prototypes[name]["name"])
             style = renderer.styles["volume", "lv:" + name]
-            own.append(dict(label=plain, match=[plain], colour=style.get("colour"),
+            own.append(dict(label=plain, match=[plain], color=style.get("color"),
                             opacity=style.get("opacity"), shown=style.get("shown", True) is not False))
         # A volume changed in the window comes before the rules it was taken from.
         taken = {row["label"] for row in own}
