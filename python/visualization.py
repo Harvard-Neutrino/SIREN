@@ -2,7 +2,7 @@
 
 Entry points (all with deferred heavy imports so ``import siren`` stays light):
 
-* :func:`plot_cross_sections` -- matplotlib material-coloured 2-D slices through
+* :func:`plot_cross_sections` -- matplotlib material-colored 2-D slices through
   the geometry (samples ``GetMassDensity``; needs only matplotlib).
 * :func:`to_gdml` -- export the sectors to a single, self-contained, *standard*
   GDML file viewable in ROOT (``TGeoManager::Import``), pyg4ometry, Geant4, or a
@@ -10,7 +10,7 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
   named after its sector and every material carries its name + density, so a
   picking-capable viewer shows what you click on.
 * :func:`view` -- interactive 3-D (or off-screen PNG) render via pyg4ometry,
-  coloured by material, with a SIREN-backed right-click picker (robust where
+  colored by material, with a SIREN-backed right-click picker (robust where
   pyg4ometry's own picker segfaults) and keyboard controls for fly/pan
   navigation, the legend, bounding box, section outlines, per-material
   visibility, and opacity.
@@ -23,7 +23,7 @@ Entry points (all with deferred heavy imports so ``import siren`` stays light):
 * :func:`describe` -- print a material summary (name, density, sector count) for
   headless inspection.
 
-Units/conventions: SIREN geometry is in metres; ``Cylinder``/``Cone`` store the
+Units/conventions: SIREN geometry is in meters; ``Cylinder``/``Cone`` store the
 *full* z-extent, so the exported GDML uses the standard convention
 (``<tube>`` z = full length) and renders correctly in external tools -- unlike
 SIREN's own hand-written sub-GDMLs, whose parser treats ``<tube>`` z as a half.
@@ -56,7 +56,7 @@ def _material_name(model, mid):
 
 
 def _sector_density(s):
-    """Scalar density (g/cm^3) of a sector, evaluated at its geo centre."""
+    """Scalar density (g/cm^3) of a sector, evaluated at its geo center."""
     try:
         return float(s.density.Evaluate(s.geo.placement.Position))
     except Exception:
@@ -69,14 +69,14 @@ def _sector_density(s):
 def plot_cross_sections(model, center=(0.0, 0.0, 0.0), half=15.0,
                         planes=("yz", "xy"), n=240, path=None, show=False,
                         title=None):
-    """Plot material-coloured 2-D cross-sections of *model*.
+    """Plot material-colored 2-D cross-sections of *model*.
 
     Samples the detector mass density on an ``n x n`` grid in each requested
-    plane and colours each cell by its material. The legend lists only the
+    plane and colors each cell by its material. The legend lists only the
     materials that actually appear in the slices.
 
-    :param center: (x, y, z) in metres (detector-local) about which to slice.
-    :param half: half-width of each slice in metres.
+    :param center: (x, y, z) in meters (detector-local) about which to slice.
+    :param half: half-width of each slice in meters.
     :param planes: any of ``"yz"``, ``"xy"``, ``"xz"``.
     :param path: if given, save the figure (PNG).
     :param show: open an interactive window.
@@ -256,14 +256,15 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
     universe-boundary sphere) are skipped.
 
     :param region: if given, a half-size (m) of a cube about *region_center* --
-        only sectors whose centre is inside are exported. Use this to drop the
+        only sectors whose center is inside are exported. Use this to drop the
         huge site-geology blocks / far beamline and keep just the detector
         region (much smaller, faster, and avoids a pyg4ometry picker crash on
         very large volumes).
-    :param region_center: (x, y, z) in geometry coords for the crop centre;
+    :param region_center: (x, y, z) in geometry coords for the crop center;
         defaults to the model's ``DetectorOrigin``.
     :returns: dict with ``n_sectors``, ``n_exact``, ``n_bbox``, ``n_skipped``,
-        ``n_cropped``, ``n_solids`` (distinct), ``n_materials``, ``path``.
+        ``n_cropped``, ``n_solids`` (distinct), ``n_materials``, ``path`` and
+        ``bbox_sectors``, the indices of the sectors written as bounding boxes.
     """
     import re
     sectors = _sectors(model)
@@ -281,7 +282,7 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
     structs, physvols = [], []
     lo, hi = [1e30] * 3, [-1e30] * 3
     stats = dict(n_sectors=len(sectors), n_exact=0, n_bbox=0, n_skipped=0,
-                 n_cropped=0, n_mesh=0)
+                 n_cropped=0, n_mesh=0, bbox_sectors=[])
 
     def share_solid(xml_tmp):
         sig = re.sub(r'\sname="[^"]*"', "", xml_tmp, count=1)
@@ -334,13 +335,14 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
         else:
             # _bbox returns HALF-extents; GDML <box> x/y/z are FULL lengths, so
             # double them -- else bbox-approximated solids (booleans, etc.) render
-            # at half size, shrunk toward their centre and visibly misaligned with
+            # at half size, shrunk toward their center and visibly misaligned with
             # the full-size exact solids around them.
             (cx, cy, cz), (hx, hy, hz) = bb
             xml = '<box name="TMP" lunit="m" x="%s" y="%s" z="%s"/>' % (
                 _fmt(2 * hx), _fmt(2 * hy), _fmt(2 * hz))
             pos, rot = (cx, cy, cz), None
             stats["n_bbox"] += 1
+            stats["bbox_sectors"].append(i)
         sname = share_solid(xml)
         base = _sanitize(s.name)
         rxml = ('<rotation unit="rad" x="%s" y="%s" z="%s"/>'
@@ -359,7 +361,7 @@ def to_gdml(model, path, world_margin=2.0, region=None, region_center=None,
 
     if hi[0] < lo[0]:
         lo, hi = [-1, -1, -1], [1, 1, 1]
-    # World box is centred at the origin, so its half-extent on each axis must
+    # World box is centerd at the origin, so its half-extent on each axis must
     # reach the farthest sector (plus a margin). GDML <box> x/y/z are FULL
     # lengths, so double it -- else the world is half the size it needs to be and
     # the outer sectors poke out of it.
@@ -430,12 +432,12 @@ def at(model, x, y, z, printout=True):
 
 
 def list_volumes(model, sort="size", n=40, printout=True):
-    """List the model's sectors: name, material, density, centre, size (m).
+    """List the model's sectors: name, material, density, center, size (m).
 
     Sorted by *sort* -- ``"size"`` (largest first, the default) is handy for
     verifying the big outer volumes (site geology, beamline enclosures) by their
     numbers instead of the crash-prone 3-D picker; ``"name"`` sorts
-    alphabetically. Positions/sizes are in geometry-frame metres.
+    alphabetically. Positions/sizes are in geometry-frame meters.
     :returns: list of dicts (name, material, density, center, size, maxdim).
     """
     rows = []
@@ -456,7 +458,7 @@ def list_volumes(model, sort="size", n=40, printout=True):
     shown = rows if n is None else rows[:n]
     if printout:
         print("%-26s %-16s %9s  %-26s %-24s" %
-              ("volume", "material", "rho", "centre (m)", "size  L x W x H (m)"))
+              ("volume", "material", "rho", "center (m)", "size  L x W x H (m)"))
         print("-" * 108)
         for r in shown:
             c, sz = r["center"], r["size"]
@@ -471,32 +473,35 @@ def list_volumes(model, sort="size", n=40, printout=True):
 # ---------------------------------------------------------------------------
 # 4. pyg4ometry 3-D view
 # ---------------------------------------------------------------------------
-def _material_vis_options(registry, VisOpt):
-    """Map every material in *registry* to a colour so the viewer is not all
-    grey (the predefined-material viewer only colours known names like G4_*).
+def _material_vis_options(registry, VisOpt, rows=(), opacity=0.9):
+    """Map every material in *registry* to a color so the viewer is not all
+    gray (the predefined-material viewer only colors known names like G4_*).
 
-    Colour runs by log-density (blue = low -> red = high) and gases (rho < 0.05)
-    are made semi-transparent so you can see through air to the volumes inside.
+    Color runs by log-density (blue = low -> red = high) unless the caller's
+    preset *rows* name one, and gases (rho < 0.05) are made semi-transparent so
+    you can see through air to the volumes inside.
     """
     import colorsys
+    from ._visualization_presets import material_row
     dens = {}
     for nm, mt in registry.materialDict.items():
         try:
             dens[nm] = max(float(mt.density), 1e-30)
         except Exception:
             dens[nm] = 1.0
-    hi = math.log(max(dens.values()))
+    hi = math.log(max(dens.values(), default=1.0))
     lo = math.log(1e-4)  # ~below air; vacuum/gases clamp to the blue end
     out = {}
     for nm, d in dens.items():
         t = 0.5 if hi <= lo else min(max((math.log(d) - lo) / (hi - lo), 0.0), 1.0)
-        r, g, b = colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
-        out[nm] = VisOpt(colour=[round(r, 3), round(g, 3), round(b, 3)],
-                         alpha=(0.12 if d < 0.05 else 0.9))
+        row = material_row(nm, rows)
+        color = row["color"] if row and row["color"] is not None else colorsys.hsv_to_rgb(0.66 * (1.0 - t), 0.85, 0.95)
+        out[nm] = VisOpt(colour=[round(c, 3) for c in color],
+                         alpha=(0.12 if d < _LOW_DENSITY else opacity))
     return out
 
 
-# pyg4ometry/VTK work in millimetres; SIREN geometry is in metres. The exported
+# pyg4ometry/VTK work in millimeters; SIREN geometry is in meters. The exported
 # GDML carries lunit="m", which the reader scales by this factor when meshing, so
 # a VTK world coordinate divided by this is a SIREN geometry-frame metre.
 _GDML_MM_PER_M = 1000.0
@@ -512,7 +517,7 @@ _MESH_SLICES = 48
 # Near/far clipping is driven by the camera's distance to its focal point
 # (cam.GetDistance()), NOT by the scene's total extent. VTK's default ties the
 # near plane to the far plane (near ~ tol x far); with an Earth-sized model far
-# is thousands of km, so even a tiny tolerance leaves the near plane kilometres
+# is thousands of km, so even a tiny tolerance leaves the near plane kilometers
 # out and you cannot zoom into metre- (let alone mm-) scale features. We instead
 # put the near plane at this fraction of the view distance, so zooming in (which
 # shrinks that distance) shrinks the near plane in lockstep. Depth resolution at
@@ -528,15 +533,16 @@ _HELP_TEXT = (
     "  arrow keys        pan L/R; fly in/out (up/down)\n"
     "  shift+up/down     pan up / down\n"
     "  right-click       identify volume (name / material / density)\n"
-    "  shift+right-click hide the clicked material\n"
-    "  v                 restore all materials and opacity\n"
+    "  shift+right-click hide the clicked volume (all copies)\n"
+    "  v                 show everything hidden; undo n / m\n"
     "  g                 toggle gas / low-density volumes\n"
     "  n / m             less / more opacity (see inside)\n"
     "  c                 toggle x/y/z section outlines\n"
+    "  p                 toggle the side panel\n"
     "  b                 toggle world bounding box\n"
     "  l                 toggle material legend\n"
     "  o                 toggle orientation cube\n"
-    "  k                 toggle clip-plane widget\n"
+    "  k                 cut with a plane you can drag and turn\n"
     "  w / s             wireframe / surface\n"
     "  r                 reset camera\n"
     "  e / q             quit\n"
@@ -632,14 +638,14 @@ def _load_registry(model, gdml_path, skip_geo_types=("TriangularMesh",)):
     return vis, reg, reg.getWorldVolume(), path
 
 
-def _build_viewer(model, gdml_path=None, coloured=True):
+def _build_viewer(model, gdml_path=None, colored=True):
     """Export+load *model* and return (vis, viewer, registry, path, mvo) with the
     world logical volume added. The append pipeline is *not* built yet."""
     vis, reg, world, path = _load_registry(model, gdml_path)
-    mvo = _material_vis_options(reg, vis.VisualisationOptions) if coloured else None
-    if coloured:
-        v = vis.VtkViewerColouredNew(materialVisOptions=mvo,
-                                     defaultColour=[0.6, 0.6, 0.6])
+    mvo = _material_vis_options(reg, vis.VisualisationOptions) if colored else None
+    if colored:
+        v = vis.VtkViewerColoredNew(materialVisOptions=mvo,
+                                     defaultColor=[0.6, 0.6, 0.6])
     else:
         v = vis.VtkViewerNew()
     v.addLogicalVolume(world)
@@ -693,11 +699,44 @@ def _mesh_sector_polydata(model, top_only=False):
         yield s, _material_name(model, int(s.material_id)), pd
 
 
+def _exact_shape(geo, matrix=None):
+    """A SIREN solid as (vertices in mm, triangles) or (operation, left, right).
+
+    Used for sections through sectors that to_gdml can only write as boxes.
+    None if a part has no parametric mesh (those need pyvista).
+    """
+    import numpy as np
+    if type(geo).__name__ != "BooleanGeometry":
+        try:
+            mesh = _pv_parametric(geo)
+        except Exception:
+            return None
+        if mesh is None or mesh.n_cells == 0:
+            return None
+        mesh = mesh.triangulate()
+        points = np.asarray(mesh.points, dtype=float)
+        if matrix is not None:
+            points = points @ matrix[:3, :3].T + matrix[:3, 3]
+        faces = np.asarray(mesh.faces).reshape(-1, 4)[:, 1:].astype(np.int64)
+        return points * _GDML_MM_PER_M, faces
+    # Operands are placed in the Boolean's own frame.
+    place = geo.placement
+    position = place.Position
+    own = _euler_transform(place.Quaternion.GetEulerAnglesXYZs(),
+                           (position.GetX(), position.GetY(), position.GetZ()))
+    matrix = own if matrix is None else matrix @ own
+    name = str(geo.Operation)
+    operation = ("union" if "UNION" in name else
+                 "subtraction" if "SUBTRACTION" in name else "intersection")
+    left, right = _exact_shape(geo.Left, matrix), _exact_shape(geo.Right, matrix)
+    return None if left is None or right is None else (operation, left, right)
+
+
 def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
     """Render TriangularMesh sectors straight to *renderer*, bypassing pyg4ometry.
 
     Mesh sectors are skipped in the GDML (see _load_registry); here their triangles
-    (TriangularMesh.GetTriangles(), via pyvista PolyData) become VTK actors coloured
+    (TriangularMesh.GetTriangles(), via pyvista PolyData) become VTK actors colored
     on the same log-density scale as _material_vis_options.
     """
     import colorsys
@@ -714,7 +753,7 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
     hi = math.log(max(dens)) if dens else 0.0
     lo = math.log(1e-4)
 
-    def colour_for(name, d):
+    def color_for(name, d):
         if mvo is not None and name in mvo:
             try:
                 return tuple(mvo[name].getColour())
@@ -732,7 +771,7 @@ def _add_mesh_actors(vtk, renderer, actors, model, mvo, reg):
         mapper.ScalarVisibilityOff()
         a = vtk.vtkActor()
         a.SetMapper(mapper)
-        a.GetProperty().SetColor(*colour_for(mat, max(_sector_density(s), 1e-30)))
+        a.GetProperty().SetColor(*color_for(mat, max(_sector_density(s), 1e-30)))
         a._siren_material = mat
         a._siren_density = _sector_density(s)
         renderer.AddActor(a)
@@ -784,8 +823,12 @@ def _text_actor(vtk, text, nx, ny, size=14, color=(0.0, 0.0, 0.0), anchor="bl"):
 
 
 def _legend_actor(vtk, reg, mvo, max_entries=18):
-    """A ``vtkLegendBoxActor`` of material -> colour swatch, densest first, or None."""
-    items = []
+    """A ``vtkLegendBoxActor`` of material -> color swatch, densest first, or None.
+
+    Materials of one color share an entry under the name of the densest.
+    """
+    from ._visualization_presets import INK, PANEL, RULE, clean_name
+    items, seen = [], set()
     for name, vo in mvo.items():
         if name == "WORLD_VAC":
             continue
@@ -793,9 +836,9 @@ def _legend_actor(vtk, reg, mvo, max_entries=18):
             d = float(reg.materialDict[name].density)
         except Exception:
             d = 0.0
-        items.append((name, d, list(vo.getColour())))
+        items.append((clean_name(name), d, list(vo.getColour())))
     items.sort(key=lambda t: -t[1])
-    items = items[:max_entries]
+    items = [t for t in items if not (tuple(t[2]) in seen or seen.add(tuple(t[2])))][:max_entries]
     if not items:
         return None
     cube = vtk.vtkCubeSource()
@@ -804,14 +847,28 @@ def _legend_actor(vtk, reg, mvo, max_entries=18):
     leg = vtk.vtkLegendBoxActor()
     leg.SetNumberOfEntries(len(items))
     for i, (name, d, col) in enumerate(items):
-        leg.SetEntry(i, sym, "%-.20s %.3g" % (name, d), col)
+        leg.SetEntrySymbol(i, sym)
+        leg.SetEntryString(i, "%-.20s %.3g" % (name, d))
+        leg.SetEntryColor(i, *INK)
+    for i, (name, d, col) in enumerate(items):
+        # Colored symbols with dark text, readable on the light panel.
+        swatch = vtk.vtkPolyData()
+        swatch.DeepCopy(sym)
+        colors = vtk.vtkUnsignedCharArray()
+        colors.SetNumberOfComponents(3)
+        for _ in range(swatch.GetNumberOfCells()):
+            colors.InsertNextTuple3(*(int(round(255 * c)) for c in col))
+        swatch.GetCellData().SetScalars(colors)
+        leg.SetEntrySymbol(i, swatch)
+    leg.ScalarVisibilityOn()
     leg.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
     leg.GetPositionCoordinate().SetValue(0.8, 0.05)
     leg.GetPosition2Coordinate().SetCoordinateSystemToNormalizedViewport()
-    leg.GetPosition2Coordinate().SetValue(0.2, min(0.8, 0.03 + 0.035 * len(items)))
+    leg.GetPosition2Coordinate().SetValue(0.19, min(0.8, 0.03 + 0.035 * len(items)))
     leg.UseBackgroundOn()
-    leg.SetBackgroundColor(0.12, 0.12, 0.12)
-    leg.SetBackgroundOpacity(0.6)
+    leg.SetBackgroundColor(*PANEL)
+    leg.SetBackgroundOpacity(0.9)
+    leg.GetBoxProperty().SetColor(*RULE)
     leg.BorderOn()
     return leg
 
@@ -874,7 +931,7 @@ def _world_to_sector(model, wx_mm, wy_mm, wz_mm, inward=None):
 
 def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                       legend=True, bounding_box=False, clipper_widget=None,
-                      near_frac=_NEAR_DIST_FRAC, gas_visible=True):
+                      near_frac=_NEAR_DIST_FRAC, gas_visible=True, session=None):
     """Attach overlays + a robust interactor style to an already-built *viewer*.
 
     Installs a custom ``vtkInteractorStyleTrackballCamera`` that (a) replaces
@@ -884,6 +941,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     None to disable identification (right-click then just reports the 3-D point).
     Returns the state dict (mostly for testing).
     """
+    from ._visualization_presets import INK as _INK
     ren, iren = viewer.ren, viewer.iren
 
     # ---- distance-based near/far clipping -------------------------------
@@ -897,6 +955,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
              if bounds is not None else 1000.0)
     _scene_R = 0.5 * _span
     _clip_busy = [False]
+    state = dict(bbox_bounds=bounds)
 
     def _update_clip(obj=None, event=None):
         if _clip_busy[0] or not near_frac or near_frac <= 0:
@@ -906,6 +965,14 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         if not math.isfinite(d) or d <= 0:
             d = max(_scene_R, 1.0)
         near = max(d * near_frac, _NEAR_FLOOR_MM)
+        if state["bbox_bounds"] is not None:
+            # From outside the scene nothing is nearer than its box, and a
+            # later near plane resolves depth much better.
+            b, p = state["bbox_bounds"], cam.GetPosition()
+            forward = cam.GetDirectionOfProjection()
+            nearest = sum(min((b[2 * i] - p[i]) * forward[i], (b[2 * i + 1] - p[i]) * forward[i])
+                          for i in range(3))
+            near = max(near, .95 * nearest)
         far = d + 2.0 * _scene_R + near    # always reaches the far side of the scene
         cur = cam.GetClippingRange()
         if abs(cur[0] - near) <= 1e-6 * near and abs(cur[1] - far) <= 1e-6 * far:
@@ -918,15 +985,17 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
 
     # ---- overlay actors -------------------------------------------------
     pick_txt = _text_actor(vtk, "right-click a volume to identify it",
-                           0.01, 0.01, size=15, anchor="bl")
+                           0.01, 0.01, size=13, color=_INK, anchor="bl")
     help_txt = _text_actor(vtk, _HELP_TEXT, 0.01, 0.99, size=14, anchor="tl")
     help_txt.SetVisibility(False)
     hint_txt = _text_actor(vtk, "h: help   right-click: identify",
-                           0.99, 0.99, size=13, color=(0.3, 0.3, 0.3), anchor="tr")
+                           0.99, 0.99, size=12, color=_INK, anchor="tr")
+    for a in (pick_txt, hint_txt):
+        a.GetTextProperty().SetFontFamilyToArial()
     for a in (pick_txt, help_txt, hint_txt):
         ren.AddViewProp(a)
 
-    # ---- material -> body-actor map (coloured viewer only) --------------
+    # ---- material -> body-actor map (colored viewer only) --------------
     # buildPipelinesAppend keys each merged body actor by str(visOptions); since
     # we built mvo, mvo[name] is that exact options object, so str() matches.
     mat_actors, body_actors, gas_actors, orig_opacity = {}, [], [], {}
@@ -974,7 +1043,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     picker = vtk.vtkCellPicker()
     picker.SetTolerance(0.0005)
 
-    state = dict(pick=pick_txt, help=help_txt, hint=hint_txt, legend=legend_actor,
+    state.update(pick=pick_txt, help=help_txt, hint=hint_txt, legend=legend_actor,
                  bbox=bbox_actor, bbox_bounds=bounds, cutters=cutter_actors, mat_actors=mat_actors,
                  body_actors=body_actors, gas_actors=gas_actors,
                  orig_opacity=orig_opacity, hidden=set(), opacity=1.0,
@@ -1019,14 +1088,21 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
                                        else actor.GetProperty().GetOpacity())
                 if gas:
                     gas_actors.append(actor)
-                actor.SetVisibility(material not in state["hidden"] and
-                                    (not gas or state["gas_visible"]))
-                if state["opacity"] != 1.0:
+                layer = getattr(viewer, "layer_visible", None)
+                actor.SetVisibility(bool(material not in state["hidden"] and
+                                         (not gas or state["gas_visible"]) and
+                                         (layer is None or layer(actor))))
+                if state["opacity"] != 1.0 and session is None:
                     actor.GetProperty().SetOpacity(state["opacity"])
+        if session is not None:
+            session.renderer.opacity_override = None if state["opacity"] == 1.0 else state["opacity"]
+            session.renderer.apply_styles()
         cutter_actors[:] = [a for k, a in viewer.actors.items()
                            if k.endswith(("_yz", "_xz", "_xy"))]
         for actor in cutter_actors:
             actor.SetVisibility(state["cutters_visible"])
+        if session is not None:
+            session.renderer.refresh_overlays(frozenset(state["hidden"]))
         _update_clip()
 
     state["refresh"] = refresh_materials
@@ -1048,7 +1124,7 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         """Translate the camera: arrows pan left/right and fly forward/back
         (up/down); shift+up/down pans vertically. The step scales with the view
         distance so it feels the same zoomed in or out. Both the camera and its
-        focal point move together (true fly/pan, not a dolly toward the centre),
+        focal point move together (true fly/pan, not a dolly toward the center),
         so orientation is preserved. Returns True if the camera moved."""
         cam = ren.GetActiveCamera()
         pos, fp = cam.GetPosition(), cam.GetFocalPoint()
@@ -1073,8 +1149,21 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         cam.SetFocalPoint(*(fp[i] + d[i] * step for i in range(3)))
         if hasattr(viewer, "camera_moved"):
             viewer.camera_moved()
+        if session is not None:
+            session.view_moved()
         _update_clip()
         return True
+
+    def hide(picked, material):
+        """Shift+right-click: hide the clicked volume, or its material without a panel."""
+        if session is not None and picked and "prototype" in picked:
+            session.hide_volume(picked["prototype"])
+            return "\nhidden: tick it under Volumes in the panel to show it again"
+        if material in mat_actors:
+            state["hidden"].add(material)
+            refresh_materials()
+            return "\nmaterial hidden: press v to show it again"
+        return ""
 
     def on_right(obj, event):
         x, y = iren.GetEventPosition()
@@ -1088,15 +1177,15 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             pick_txt.SetInput("(nothing under cursor)")
             render()
             return
+        if session is not None and picked and "prototype" in picked:
+            session.note_pick(picked)
         wx, wy, wz = picked["position"] if picked else state["picker"].GetPickPosition()
         if model is None:
             label = "point  (%.2f, %.2f, %.2f) m" % (wx / _GDML_MM_PER_M, wy / _GDML_MM_PER_M, wz / _GDML_MM_PER_M)
             if picked and "name" in picked:
                 label += "\n%s\n%s" % (picked["name"], picked["material"])
                 if iren.GetShiftKey():
-                    state["hidden"].add(picked["material"])
-                    for actor in mat_actors.get(picked["material"], []):
-                        actor.SetVisibility(False)
+                    label += hide(picked, picked["material"])
             else:
                 label += "\n(no model: identify unavailable)"
             pick_txt.SetInput(label)
@@ -1120,10 +1209,8 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
               % (gx, gy, gz, name, material, density))
         pick_txt.SetInput("picked  (%.2f, %.2f, %.2f) m\nvolume    %s\nmaterial  %s\n"
                           "density   %.4g g/cm^3" % (gx, gy, gz, name, material, density))
-        if iren.GetShiftKey() and material in mat_actors:
-            for actor in mat_actors[material]:
-                actor.SetVisibility(False)
-            state["hidden"].add(material)
+        if iren.GetShiftKey():
+            pick_txt.SetInput(pick_txt.GetInput() + hide(picked, material))
         render()
 
     def on_key(obj, event):
@@ -1143,30 +1230,31 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
             state["gas_visible"] = not state["gas_visible"]
             if state["gas_visible"] and hasattr(viewer, "request_geometry"):
                 viewer.request_geometry("gas")
-            for a in gas_actors:
-                a.SetVisibility(state["gas_visible"])
+            refresh_materials()
         elif key in ("n", "m"):
             state["opacity"] = min(1.0, max(0.05, state["opacity"] + (0.15 if key == "m" else -0.15)))
-            for a in body_actors:
+            if session is not None:
+                refresh_materials()
+            for a in body_actors if session is None else ():
                 a.GetProperty().SetOpacity(state["opacity"])
         elif key == "v":
             if hasattr(viewer, "request_geometry"):
                 viewer.request_geometry("all")
-            for a in body_actors:
-                a.SetVisibility(True)
+            for a in body_actors if session is None else ():
                 a.GetProperty().SetOpacity(orig_opacity.get(a, 1.0))
             state.update(opacity=1.0, gas_visible=True)
             state["hidden"].clear()
+            if session is not None:
+                session.show_all_layers()
+            refresh_materials()
         elif key == "o":
             w = getattr(viewer, "axesWidget", None)
             if w is not None:
                 w.EnabledOff() if w.GetEnabled() else w.EnabledOn()
-        elif key == "k" and state["clipper_widget"] is not None:
-            try:
-                widget = state["clipper_widget"]
-                widget.Off() if widget.GetEnabled() else widget.On()
-            except Exception:
-                pass
+        elif key == "k" and session is not None:
+            session.toggle_plane_widget()
+        elif key == "p" and session is not None:
+            session.toggle_panel()
         elif key in ("up", "down", "left", "right"):
             changed = navigate(key, bool(iren.GetShiftKey()))
         else:
@@ -1181,6 +1269,40 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
         def __init__(self):
             self.AddObserver("RightButtonPressEvent", on_right)
             self.AddObserver("KeyPressEvent", on_key)
+            if session is not None and session.panel is not None:
+                self.AddObserver("LeftButtonPressEvent", self.left_down)
+                self.AddObserver("LeftButtonReleaseEvent", self.left_up)
+                self.AddObserver("MouseMoveEvent", self.moved)
+                self.AddObserver("MouseWheelForwardEvent", self.wheel_forward)
+                self.AddObserver("MouseWheelBackwardEvent", self.wheel_backward)
+
+        # The panel sees the mouse first; the camera gets what it leaves.
+        def left_down(self, obj, event):
+            if not session.panel.press(*iren.GetEventPosition()):
+                self.OnLeftButtonDown()
+
+        def left_up(self, obj, event):
+            if not session.panel.release(iren.GetEventPosition()[0]):
+                self.OnLeftButtonUp()
+                session.view_moved()
+
+        def moved(self, obj, event):
+            if not session.panel.move(iren.GetEventPosition()[0]):
+                self.OnMouseMove()
+
+        def wheel_forward(self, obj, event):
+            if session.panel.wheel(iren.GetEventPosition()[0], 1):
+                render()
+            else:
+                self.OnMouseWheelForward()
+                session.view_moved()
+
+        def wheel_backward(self, obj, event):
+            if session.panel.wheel(iren.GetEventPosition()[0], -1):
+                render()
+            else:
+                self.OnMouseWheelBackward()
+                session.view_moved()
 
     style = _SirenInteractorStyle()
     style.SetDefaultRenderer(ren)
@@ -1197,14 +1319,15 @@ def _install_controls(vtk, viewer, reg, mvo, model, bounds,
     return state
 
 
-def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
+def view(model, gdml_path=None, screenshot=None, colored=True, axes=True,
          cutter=False, clipper=False, clip_origin=(0.0, 0.0, 0.0),
          clip_normal=(1.0, 0.0, 0.0), legend=True, bounding_box=False,
          picker=True, interactive=True, mesh_slices=_MESH_SLICES,
          near_frac=_NEAR_DIST_FRAC, backend="pyg4ometry", *,
          cache=True, cache_dir=None, progressive=True, preview_slices=12,
          instancing=True, display="full", regions=None, show_gas=False,
-         hidden_volumes=(), timings=None, progress=True):
+         hidden_volumes=(), timings=None, progress=True, presets=None,
+         section=None, panel=True, edges=True, save_to=None):
     """Open a responsive detector viewer with reusable display meshes.
 
     ``model`` is a DetectorModel or a GDML path. The pyg4ometry backend opens a
@@ -1224,11 +1347,23 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     Replicas/divisions/parameterised placements use eager meshing compatibility.
 
     ``instancing=True`` shares GPU prototypes for repeated placements. Sheared
-    or reflected placements use exact matrix actors. Sections (``cutter``) and
-    clipping (``clipper``, ``clip_origin``, ``clip_normal``) use expanded meshes.
+    or reflected placements use exact matrix actors.
+
+    A plane section removes everything on the positive side of the plane and
+    fills each volume it cuts in its material's color. Start with one using
+    ``section``, the label of a preset section or a mapping with ``origin`` and
+    ``normal`` (meters), or with ``clipper``, ``clip_origin`` and ``clip_normal``
+    (millimeters). The side panel (``panel``) has buttons for the preset
+    sections, a movable cut along each axis, and the layers and materials to
+    show. ``presets`` is a mapping or JSON file with material colors, named
+    layers, sections and the opening view; see docs/visualization.md. ``edges``
+    draws the sharp edges of solids. ``cutter`` draws x, y and z outlines. The
+    panel's "Save settings" writes the presets with the choices made in the
+    window to ``save_to``, by default the presets file or ./siren-view.json.
+
     ``display='exterior'`` shows only the outer faces of annotated region shells
     and needs ``regions``: a mapping with ``auxtype`` (the GDML auxiliary key
-    naming a volume's region), ``styles`` (region -> ``label``/``colour``/``alpha``
+    naming a volume's region), ``styles`` (region -> ``label``/``color``/``alpha``
     for shells of revolution about local z) and optional ``hidden`` regions.
     Detector-specific region names are supplied by the caller. These open
     display surfaces never alter GDML; sections/clipping select ``display='full'``.
@@ -1236,7 +1371,7 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     Supply a dictionary as ``timings`` to receive phase times, actual first-frame
     times, cache counts and prototype/placement statistics; True prints them.
     ``progress`` controls the loading overlay. ``preview_slices`` sets preview
-    resolution (None disables the preview). ``coloured``, ``axes``, ``legend``,
+    resolution (None disables the preview). ``colored``, ``axes``, ``legend``,
     ``bounding_box``, ``picker`` and ``near_frac`` control the usual display.
     Right-click identifies placed GDML volumes or queries a supplied SIREN
     model; shift-right-click hides that material. 'h' shows keyboard controls.
@@ -1249,14 +1384,15 @@ def view(model, gdml_path=None, screenshot=None, coloured=True, axes=True,
     if backend != "pyg4ometry":
         raise ValueError("unknown viewer backend: %s" % backend)
     from ._visualization_view import ViewSession
-    return ViewSession(model, gdml_path, screenshot=screenshot, coloured=coloured,
+    return ViewSession(model, gdml_path, screenshot=screenshot, colored=colored,
         axes=axes, cutter=cutter, clipper=clipper, clip_origin=clip_origin,
         clip_normal=clip_normal, legend=legend, bounding_box=bounding_box,
         picker=picker, interactive=interactive, mesh_slices=mesh_slices,
         near_frac=near_frac, cache=cache, cache_dir=cache_dir, progressive=progressive,
         preview_slices=preview_slices, instancing=instancing, display=display,
         regions=regions, show_gas=show_gas, hidden_volumes=hidden_volumes,
-        timings=timings, progress=progress).run()
+        timings=timings, progress=progress, presets=presets, section=section,
+        panel=panel, edges=edges, save_to=save_to).run()
 
 
 # ---------------------------------------------------------------------------
@@ -1838,7 +1974,7 @@ def _pv_csg_split(mesh, dist, curve, eps_len, max_depth=6):
     sign test alone is insufficient, and vice versa) are midpoint-subdivided
     until smaller than *eps_len*; remaining sign-straddlers are cut along the
     interpolated zero of *dist*. The midpoint splits leave zero-width
-    T-junctions against unrefined neighbours -- invisible and harmless for
+    T-junctions against unrefined neighbors -- invisible and harmless for
     rendering, picking, and reuse as a nested CSG operand. Returns (n, 3, 3).
     """
     import numpy as np
@@ -2081,7 +2217,7 @@ def _pv_sector_mesh(geo, mc_res=48):
     return m if m is not None else _pv_marching(geo, mc_res)
 
 
-def _pv_material_colours(model):
+def _pv_material_colors(model):
     """material name -> (rgb, alpha) on the same log-density scale as the legend."""
     import colorsys
     dens = {}
@@ -2108,9 +2244,9 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
     hollow/phi-cut solids and booleans (operand surfaces combined by CSG);
     marching cubes on SIREN's IsInside (*mc_res* grid) remains only as a
     fallback for unknown types or failed builds, and a summary line reports
-    how many sectors needed it. Coloured by material (log-density); gases
+    how many sectors needed it. Colored by material (log-density); gases
     semi-transparent. Right-click (press 'p' over a surface) identifies the
-    volume via SIREN. *region*/*region_center* (half-width, centre) or
+    volume via SIREN. *region*/*region_center* (half-width, center) or
     *max_extent* drop huge background volumes (PREM shells, world boxes).
     *z_exag* applies a vertical exaggeration (terrain).
     """
@@ -2118,7 +2254,7 @@ def view_pv(model, screenshot=None, region=None, region_center=None, max_extent=
     from siren.math import Vector3D
     from siren.detector import DetectorPosition
     mc0 = dict(_MC_FALLBACKS)
-    cols = _pv_material_colours(model)
+    cols = _pv_material_colors(model)
     crop = None
     if region is not None:
         if region_center is None:
@@ -2196,7 +2332,7 @@ def to_web(model, path, gdml_path=None, single_instance=False):
     The *path* extension selects the format:
 
     * ``.gltf`` / ``.glb`` -- a glTF scene (``exportGLTFScene``). Geometry and
-      structure are exact; note pyg4ometry assigns *random* PBR colours here.
+      structure are exact; note pyg4ometry assigns *random* PBR colors here.
     * ``.html`` -- a self-contained three.js page (``exportThreeJSScene``,
       which also emits the ``.gltf`` and ``.css`` beside it).
 
@@ -2205,7 +2341,7 @@ def to_web(model, path, gdml_path=None, single_instance=False):
     :func:`view`, this needs no display, so it works headless.
     :returns: *path*.
     """
-    vis, v, reg, gpath, mvo = _build_viewer(model, gdml_path, coloured=True)
+    vis, v, reg, gpath, mvo = _build_viewer(model, gdml_path, colored=True)
     low = str(path).lower()
     if low.endswith((".gltf", ".glb")):
         try:

@@ -2,23 +2,27 @@
 from collections import deque
 import os
 from pathlib import Path
+import re
 import tempfile
 import time
 
 from ._visualization_job import MeshJob
+from ._visualization_panel import Panel
+from ._visualization_presets import BACKGROUND, OTHER, clean_name, load_presets, normalize_section
 from ._visualization_render import SceneRenderer
 from ._visualization_scene import normalize_regions, prepare_scene, read_mesh
-from .visualization import _LOW_DENSITY
+from .visualization import _GDML_MM_PER_M, _LOW_DENSITY
 
 
 class ViewSession:
-    def __init__(self, model, gdml_path=None, *, screenshot=None, coloured=True,
+    def __init__(self, model, gdml_path=None, *, screenshot=None, colored=True,
                  axes=True, cutter=False, clipper=False, clip_origin=(0., 0., 0.),
                  clip_normal=(1., 0., 0.), legend=True, bounding_box=False,
                  picker=True, interactive=True, mesh_slices=48, near_frac=1e-3,
                  cache=True, cache_dir=None, progressive=True, preview_slices=12,
                  instancing=True, display="full", regions=None, show_gas=False,
-                 hidden_volumes=(), timings=None, progress=True):
+                 hidden_volumes=(), timings=None, progress=True, presets=None,
+                 section=None, panel=True, edges=True, save_to=None):
         self.started = time.perf_counter()
         self.metrics = {"stages": []}
         self.timings = timings
@@ -54,13 +58,34 @@ class ViewSession:
             raise ValueError("preview_slices must be an integer >= 4 or None")
         if isinstance(hidden_volumes, str):
             hidden_volumes = [hidden_volumes]
+        self.presets = load_presets(presets)
+        # "Save settings" writes back to the caller's file, else to the working directory.
+        self.save_to = Path(save_to if save_to is not None else
+                            presets if isinstance(presets, (str, os.PathLike)) else "siren-view.json")
+        self.tool, self.palette, self.picked, self.save_message = "show", None, None, ""
+        hidden_volumes = list(hidden_volumes) + self.presets["hidden_volumes"]
+        if section is not None and not isinstance(section, str):
+            section = normalize_section(section)
+            self.presets["sections"] = [r for r in self.presets["sections"]
+                                        if r["label"] != section["label"]] + [section]
+            section = section["label"]
+        if section is not None and section not in [r["label"] for r in self.presets["sections"]]:
+            raise ValueError("no preset section called %r" % section)
+        if clipper and section is not None:
+            raise ValueError("give either section or clipper, not both")
+        self.first_section = section
+        self.first_plane = (list(clip_origin), list(clip_normal)) if clipper else None
+        self.current_section, self.slider_axis, self.slider_value = None, "x", 0.
+        self.plane_widget = None
+        cutaway = bool(cutter or clipper or section)
         self.options = dict(mesh_slices=mesh_slices, cache=bool(cache),
                             cache_dir=None if cache_dir is None else str(cache_dir),
-                            display="full" if cutter or clipper else display,
+                            display="full" if cutaway else display,
                             regions=regions, show_gas=show_gas,
-                            hidden_volumes=list(hidden_volumes))
+                            hidden_volumes=list(hidden_volumes),
+                            overlapping=self.model is not None)
         self.metrics["display"] = self.options["display"]
-        self.metrics["cutaway_full_detail"] = bool((cutter or clipper) and display != "full")
+        self.metrics["cutaway_full_detail"] = bool(cutaway and display != "full")
         import vtk
         from pyg4ometry.visualisation import VtkViewerNew
         from . import visualization as vis
@@ -68,17 +93,38 @@ class ViewSession:
         self.vis = vis
         self.metrics["imports_seconds"] = time.perf_counter() - self.started
         self.viewer = VtkViewerNew(defaultCutters=bool(cutter), axisCubeWidget=bool(axes))
+        self.viewer.ren.SetBackground(*BACKGROUND)
+        # See-through surfaces need depth peeling to blend in the right order,
+        # and VTK peels only without multisampling: smooth edges come from FXAA.
+        self.viewer.renWin.SetMultiSamples(0)
+        self.viewer.renWin.SetAlphaBitPlanes(1)
+        self.viewer.ren.SetUseDepthPeeling(True)
+        self.viewer.ren.SetMaximumNumberOfPeels(8)
+        self.viewer.ren.SetOcclusionRatio(0.)
+        self.viewer.ren.SetUseFXAA(True)
+        self._set_lights()
         # pyg4ometry's default style has a crash-prone right-click picker; a
         # plain trackball style guards the loading phase until _install_controls
         # replaces it. Each style carries its own camera observer while live.
         style = vtk.vtkInteractorStyleTrackballCamera()
         style.AddObserver('StartInteractionEvent', self._camera_changed)
         self.viewer.iren.SetInteractorStyle(style)
-        if clipper:
-            self.viewer.addClipper(list(clip_origin), list(clip_normal), True)
-        self.coloured = bool(coloured)
-        self.renderer = SceneRenderer(self.viewer, coloured=coloured, instancing=instancing,
-                                      display=self.options["display"], regions=regions)
+        self.colored = bool(colored)
+        self.renderer = SceneRenderer(self.viewer, colored=colored, instancing=instancing,
+                                      display=self.options["display"], regions=regions,
+                                      presets=self.presets, edges=edges)
+        self.presets = self.renderer.presets
+        self.viewer.layer_visible = self.renderer.shown
+        self.viewer.exact_shapes = self._exact_shapes
+        self.panel = None
+        if panel and self.interactive and colored and self.options["display"] == "full":
+            self.viewer.renWin.SetSize(1400, 900)
+            if getattr(self.viewer, "axesWidget", None) is not None:
+                self.viewer.axesWidget.SetViewport(.88, 0., 1., .18)
+            self.panel = Panel(vtk, self.viewer.renWin, self)
+            self.panel.place(self.viewer.ren)
+            self.viewer.renWin.AddObserver("ModifiedEvent", self._resized)
+            self._size = None
         if not picker:
             # picker=False keeps the point-only right-click of the plain viewer.
             self.viewer.pick_scene = None
@@ -101,13 +147,470 @@ class ViewSession:
                     with tempfile.NamedTemporaryFile(suffix=".gdml", delete=False) as out:
                         gdml_path = out.name
                 self.path = str(Path(gdml_path).resolve())
-                vis.to_gdml(model, self.path, skip_geo_types=("TriangularMesh",))
+                stats = vis.to_gdml(model, self.path, skip_geo_types=("TriangularMesh",))
+                self.boxed = set(stats["bbox_sectors"])
         except BaseException:
             # run() never starts, so its window teardown must happen here.
             self.closed = True
             self._release_window()
             raise
         self.metrics["export_seconds"] = time.perf_counter() - before
+
+    boxed = frozenset()
+
+    def _sector_index(self, row):
+        """Index of the sector behind an instance, from the name to_gdml gave it."""
+        found = re.search(r"__(\d+)$", row["prototype"])
+        return int(found.group(1)) if found else None
+
+    def _exact_shapes(self, instances):
+        """Shapes for cutting the sectors that the GDML holds only as boxes."""
+        from functools import partial
+        return {k: partial(self._exact_shape, i) for k, row in enumerate(instances)
+                for i in [self._sector_index(row)] if i in self.boxed}
+
+    def _exact_shape(self, index):
+        shapes = self.__dict__.setdefault("_shapes", {})
+        if index not in shapes:
+            sector = self.vis._sectors(self.model)[index]
+            shapes[index] = self.vis._exact_shape(sector.geo)
+            if shapes[index] is None:
+                import warnings
+                warnings.warn("sector %s has no exact shape to cut and is left out of sections "
+                              "(is pyvista installed?)" % sector.name, RuntimeWarning)
+        return shapes[index]
+
+    def _set_levels(self, scene):
+        """Sector levels decide which of a model's overlapping sectors is cut."""
+        if self.model is None:
+            return
+        levels = [s.level for s in self.vis._sectors(self.model)]
+        for row in scene["instances"]:
+            index = self._sector_index(row)
+            if index is not None and index < len(levels):
+                row["level"] = levels[index]
+
+    # ---- views, sections and the panel ----------------------------------
+    def _set_lights(self):
+        """Soft lights that move with the camera, so every face is readable."""
+        ren = self.viewer.ren
+        ren.AutomaticLightCreationOff()
+        ren.RemoveAllLights()
+        for position, intensity in (((.5, 1., 1.), .75), ((-1., .2, .6), .35)):
+            light = self.vtk.vtkLight()
+            light.SetLightTypeToCameraLight()
+            light.SetPosition(*position)
+            light.SetFocalPoint(0, 0, 0)
+            light.SetIntensity(intensity)
+            ren.AddLight(light)
+
+    def _resized(self, *args):
+        size = self.viewer.renWin.GetSize()
+        if self.panel is None or size == self._size or self._closing():
+            return
+        self._size = size
+        self.panel.place(self.viewer.ren)
+        self.panel.rebuild()
+
+    def panel_changed(self):
+        if self.panel is not None:
+            self.panel.rebuild()
+
+    def toggle_panel(self):
+        if self.panel is not None:
+            self.panel.visible = not self.panel.visible
+            self.panel.place(self.viewer.ren)
+            self.panel.rebuild()
+            self.viewer.renWin.Render()
+
+    def _aim(self, center, direction, up, width, height, angle):
+        """Look at *center* along -direction so that width x height (mm) fits."""
+        import math
+        ren = self.viewer.ren
+        # The renderer's own size is not known before its first frame.
+        size, port = self.viewer.renWin.GetSize(), ren.GetViewport()
+        aspect = size[0] * (port[2] - port[0]) / max(size[1] * (port[3] - port[1]), 1)
+        half = math.tan(math.radians(angle) / 2)
+        distance = max(height, width / max(aspect, 1e-6)) / 2 / half
+        length = math.sqrt(sum(c * c for c in direction))
+        camera = ren.GetActiveCamera()
+        camera.SetViewAngle(angle)
+        camera.SetFocalPoint(*center)
+        camera.SetPosition(*(c + distance * d / length for c, d in zip(center, direction)))
+        camera.SetViewUp(*up)
+        ren.ResetCameraClippingRange()
+
+    def go_home(self):
+        home = self.presets["home"]
+        if home is not None:
+            self._aim([c * _GDML_MM_PER_M for c in home["center"]], home["direction"], self.presets["up"],
+                      home["width"] * _GDML_MM_PER_M, home["height"] * _GDML_MM_PER_M, 32.)
+            return
+        self.viewer.ren.GetActiveCamera().SetViewAngle(30.)
+        self.viewer.ren.ResetCamera()
+
+    def show_section(self, label, aim=True):
+        """Cut along a preset section, or show the whole model for None."""
+        self.current_section = label
+        self._drop_plane_widget()
+        row = next((r for r in self.presets["sections"] if r["label"] == label), None)
+        if row is None:
+            self.renderer.clear_section()
+            if aim:
+                self.go_home()
+        else:
+            origin = [c * _GDML_MM_PER_M for c in row["origin"]]
+            up = row["up"] if row["up"] is not None else self.presets["up"]
+            self.renderer.set_section(origin, row["normal"], up)
+            if aim:
+                self._aim_section(row, origin)
+        self._after_cut()
+
+    def _aim_section(self, row, origin):
+        import numpy as np
+        section = self.renderer.section
+        center = [c * _GDML_MM_PER_M for c in row["center"]] if row["center"] is not None else None
+        width, height = ((row[k] * _GDML_MM_PER_M if row[k] is not None else None)
+                         for k in ("width", "height"))
+        pieces = list(section.pieces.values()) if section is not None else []
+        if pieces and None in (center, width, height):
+            points = np.concatenate([q.reshape(-1, 2) for q in pieces])
+            low, high = points.min(axis=0), points.max(axis=0)
+            if center is None:
+                center = section.to_world((low + high) / 2).tolist()
+            width, height = width or 1.1 * (high[0] - low[0]), height or 1.1 * (high[1] - low[1])
+        if section is None or None in (width, height):
+            return
+        self._aim(center or origin, section.normal.tolist(), section.w.tolist(), width, height, 9.)
+
+    def _after_cut(self):
+        if self.controls is not None:
+            self.controls["refresh"]()
+        self.panel_changed()
+        if not self._closing():
+            self.viewer.renWin.Render()
+
+    def slider_range(self):
+        """Reach of the slider: the part of the model in view, so zooming refines it."""
+        import math
+        bounds = self.vis._scene_bounds(self.viewer)
+        if bounds is None:
+            return -1., 1.
+        i = "xyz".index(self.slider_axis)
+        camera = self.viewer.ren.GetActiveCamera()
+        reach = 2 * camera.GetDistance() * math.tan(math.radians(camera.GetViewAngle()) / 2)
+        focus = camera.GetFocalPoint()[i]
+        low, high = max(bounds[2 * i], focus - reach), min(bounds[2 * i + 1], focus + reach)
+        if low >= high:
+            low, high = bounds[2 * i], bounds[2 * i + 1]
+        return low / _GDML_MM_PER_M, high / _GDML_MM_PER_M
+
+    def view_moved(self):
+        self.panel_changed()
+
+    def cut_axis(self, axis):
+        """Cut across one axis, removing the side the camera is on."""
+        self.slider_axis = axis
+        i = "xyz".index(axis)
+        low, high = self.slider_range()
+        self.slider_value = min(max(self.slider_value, low), high)
+        camera = self.viewer.ren.GetActiveCamera()
+        focus, distance = camera.GetFocalPoint(), camera.GetDistance()
+        view = [(p - f) / distance for p, f in zip(camera.GetPosition(), focus)]
+        self.slider_sign = 1. if view[i] >= 0 else -1.
+        if abs(view[i]) < .35:
+            # Nearly edge-on: turn until the cut face can be seen.
+            view = [.35 * v for v in view]
+            view[i] = .94 * self.slider_sign
+            length = sum(v * v for v in view) ** .5
+            up = self.presets["up"]
+            if abs(sum(u * v for u, v in zip(up, view))) > .9 * length * sum(u * u for u in up) ** .5:
+                up = camera.GetViewUp()
+            camera.SetPosition(*(f + distance * v / length for f, v in zip(focus, view)))
+            camera.SetViewUp(*up)
+            self.viewer.ren.ResetCameraClippingRange()
+        self.slide(self.slider_value, True)
+
+    slider_sign = 1.
+
+    def slide(self, value, done=False):
+        self.current_section, self.slider_value = "", value
+        self._drop_plane_widget()
+        i = "xyz".index(self.slider_axis)
+        origin, normal = [0.] * 3, [0.] * 3
+        origin[i], normal[i] = value * _GDML_MM_PER_M, self.slider_sign
+        self.renderer.set_section(origin, normal, self.presets["up"])
+        self._after_cut()
+
+    def flip_section(self):
+        """Keep the other half of the model at the current plane."""
+        if self.renderer.plane is None:
+            return
+        self.slider_sign = -self.slider_sign
+        self.renderer.set_section(self.renderer.section_origin,
+                                  [-c for c in self.renderer.section_normal], self.renderer._section_up)
+        self._after_cut()
+
+    def used_layers(self):
+        return {row.get("layer", OTHER) for row in self.renderer.scene["instances"]
+                if row["prototype"] in self.renderer._drawn} if self.renderer.scene else set()
+
+    def toggle_layer(self, label):
+        self.renderer.layers[label] = not self.renderer.layers.get(label, True)
+        self._after_cut()
+
+    def show_all_layers(self):
+        for label in self.renderer.layers:
+            self.renderer.layers[label] = True
+        for style in self.renderer.styles.values():
+            if style.get("shown") is False:
+                style["shown"] = True
+        self.renderer.apply_styles()
+        self.panel_changed()
+
+    def material_rows(self):
+        """(label, color, shown, see-through) of the drawn materials, densest first."""
+        renderer, rows = self.renderer, {}
+        if not renderer.scene or self.controls is None:
+            return []
+        hidden = self.controls["hidden"]
+        for material, actors in renderer.material_actors.items():
+            if not actors or material not in renderer.options:
+                continue
+            density = float(renderer.registry.materialDict[material].density)
+            if density <= _LOW_DENSITY:
+                continue
+            label = renderer.labels.get(material, material)
+            row = rows.setdefault(label, [density, renderer.material_color(material), False])
+            if density > row[0]:
+                row[:2] = density, renderer.material_color(material)
+            row[2] = row[2] or material not in hidden
+        return [(label, tuple(color), on, self.row_surface("material", label) == "see-through")
+                for label, (_, color, on) in sorted(rows.items(), key=lambda item: -item[1][0])]
+
+    # ---- colors, surfaces and the rows' tool ----------------------------
+    def row_surface(self, kind, key):
+        own = self.renderer.styles.get((kind, key), {})
+        return own.get("opacity") or self.renderer.surface
+
+    def layer_row(self, label):
+        """(color or None, see-through) of a layer row."""
+        own = self.renderer.styles.get(("layer", label), {})
+        color = own.get("color") if self.renderer.color_mode == "custom" else None
+        return color, self.row_surface("layer", label) == "see-through"
+
+    def volume_rows(self):
+        """(logical name, label, color, see-through, shown): picked first, then changed ones."""
+        names = ([self.picked] if self.picked else []) + sorted(self.renderer._separate - {self.picked})
+        prototypes = self.renderer.scene["prototypes"] if self.renderer.scene else {}
+        return [(name, clean_name(prototypes[name]["name"])) + self.renderer.volume_style(name)
+                for name in names if name in prototypes]
+
+    def note_pick(self, picked):
+        self.picked = picked["prototype"]
+        self.panel_changed()
+
+    def set_color_mode(self, mode):
+        self.renderer.color_mode = mode
+        self.renderer.apply_styles()
+        self._after_cut()
+
+    def set_surfaces(self, mode):
+        self.renderer.surface = mode
+        self.renderer.apply_styles()
+        self._after_cut()
+
+    def set_tool(self, tool):
+        self.tool, self.palette = tool, None
+        self._after_cut()
+
+    def row_clicked(self, kind, key, tool=None):
+        """A click on a material, layer or volume row does what the chosen tool says."""
+        tool = tool or self.tool
+        if tool == "color":
+            self.palette = None if self.palette == (kind, key) else (kind, key)
+        elif tool == "show":
+            if kind == "layer":
+                self.renderer.layers[key] = not self.renderer.layers.get(key, True)
+            elif kind == "material":
+                return self.toggle_material(key)
+            else:
+                self.renderer.set_volume(key, shown=not self.renderer.volume_style(key)[2])
+        else:
+            clear = (self.renderer.volume_style(key)[1] if kind == "volume" else
+                     self.row_surface(kind, key) == "see-through")
+            self.renderer.set_style(kind, key, opacity="solid" if clear else "see-through")
+        self._after_cut()
+
+    def hide_volume(self, prototype):
+        """Hide one logical volume, all its copies; its row under Volumes brings it back."""
+        self.picked = prototype
+        self.renderer.set_volume(prototype, shown=False)
+        self._after_cut()
+
+    def anything_hidden(self):
+        renderer = self.renderer
+        return bool(not all(renderer.layers.values()) or
+                    any(s.get("shown") is False for s in renderer.styles.values()) or
+                    (self.controls is not None and self.controls["hidden"]))
+
+    def show_everything(self):
+        """Show every hidden layer, material and volume; deferred volumes stay unloaded."""
+        if self.controls is not None:
+            self.controls["hidden"].clear()
+        self.show_all_layers()
+        self._after_cut()
+
+    def pick_color(self, color):
+        """Color the row whose palette is open; None returns it to the default."""
+        (kind, key), self.palette = self.palette, None
+        self.renderer.set_style(kind, key, color=color)
+        if color is not None:
+            self.renderer.color_mode = "custom"
+            self.renderer.apply_styles()
+        self._after_cut()
+
+    def current_presets(self):
+        """The presets with the choices made in the window, as load_presets returns them."""
+        import copy
+        import math
+        renderer, out = self.renderer, copy.deepcopy(self.presets)
+        out.update(color_mode=renderer.color_mode, surfaces=renderer.surface)
+        camera = self.viewer.ren.GetActiveCamera()
+        size, port = self.viewer.renWin.GetSize(), self.viewer.ren.GetViewport()
+        aspect = size[0] * (port[2] - port[0]) / max(size[1] * (port[3] - port[1]), 1)
+        height = 2 * camera.GetDistance() * math.tan(math.radians(camera.GetViewAngle()) / 2)
+        out["home"] = dict(center=[c / _GDML_MM_PER_M for c in camera.GetFocalPoint()],
+                           direction=[(p - f) / camera.GetDistance() for p, f in
+                                      zip(camera.GetPosition(), camera.GetFocalPoint())],
+                           width=aspect * height / _GDML_MM_PER_M, height=height / _GDML_MM_PER_M)
+        hidden = self.controls["hidden"] if self.controls is not None else set()
+        materials = {}
+        for name, label in renderer.labels.items():
+            materials.setdefault(label, set()).add(name)
+        rows = {row["label"]: row for row in out["materials"]}
+        for label, names in materials.items():
+            style = renderer.styles.get(("material", label), {})
+            shown = not names <= hidden
+            if label not in rows and (style.get("color") is not None or style.get("opacity") or not shown):
+                rows[label] = dict(label=label, match=sorted(clean_name(n) for n in names))
+                out["materials"].insert(0, rows[label])
+            if label in rows:
+                rows[label].update(color=style.get("color"), opacity=style.get("opacity"), shown=shown)
+        for row in out["layers"]:
+            style = renderer.styles.get(("layer", row["label"]), {})
+            row.update(shown=renderer.layers.get(row["label"], True), color=style.get("color"),
+                       opacity=style.get("opacity"))
+        for row in out["volumes"]:
+            row.update(renderer.styles.get(("volume", row["label"]), {}))
+        prototypes = renderer.scene["prototypes"] if renderer.scene else {}
+        own = []
+        for name in sorted(renderer._separate):
+            plain = clean_name(prototypes[name]["name"])
+            style = renderer.styles["volume", "lv:" + name]
+            own.append(dict(label=plain, match=[plain], color=style.get("color"),
+                            opacity=style.get("opacity"), shown=style.get("shown", True) is not False))
+        # A volume changed in the window comes before the rules it was taken from.
+        taken = {row["label"] for row in own}
+        out["volumes"] = own + [row for row in out["volumes"] if row["label"] not in taken]
+        if self.current_section:
+            out["sections"].sort(key=lambda row: row["label"] != self.current_section)
+        return out
+
+    def save_settings(self):
+        """Write the presets with the window's choices; the old file is kept beside it."""
+        import json
+        from ._visualization_presets import to_json
+        data = to_json(self.current_presets())
+        load_presets(data)  # what is written must load
+        path = self.save_to
+        try:
+            if path.exists():
+                path.with_name(path.name + ".bak").write_bytes(path.read_bytes())
+            temporary = path.with_name(path.name + ".partial")
+            temporary.write_text(json.dumps(data, indent=1) + "\n")
+            os.replace(temporary, path)
+            self.save_message = "Saved to %s" % path
+        except OSError as exc:
+            self.save_message = "Could not save: %s" % exc
+        self.panel_changed()
+        self.viewer.renWin.Render()
+
+    def toggle_material(self, label):
+        hidden = self.controls["hidden"]
+        names = {m for m in self.renderer.material_actors
+                 if self.renderer.labels.get(m, m) == label}
+        if names <= hidden:
+            hidden -= names
+        else:
+            hidden |= names
+        self._after_cut()
+
+    def toggle_plane_widget(self):
+        """Show a plane to drag and turn; its cut follows it."""
+        if self.plane_widget is not None:
+            self._drop_plane_widget()
+            return
+        bounds = self.vis._scene_bounds(self.viewer)
+        if bounds is None:
+            return
+        if self.renderer.plane is None:
+            camera = self.viewer.ren.GetActiveCamera()
+            middle = [(bounds[2 * i] + bounds[2 * i + 1]) / 2 for i in range(3)]
+            normal = [p - f for p, f in zip(camera.GetPosition(), camera.GetFocalPoint())]
+            self._widget_cut(middle, normal, True)
+        vtk = self.vtk
+        representation = vtk.vtkImplicitPlaneRepresentation()
+        representation.SetPlaceFactor(1.)
+        representation.PlaceWidget(bounds)
+        representation.SetOrigin(*self.renderer.section_origin)
+        representation.SetNormal(*self.renderer.section_normal)
+        representation.DrawPlaneOff()
+        representation.OutlineTranslationOff()
+        representation.ScaleEnabledOff()
+        widget = vtk.vtkImplicitPlaneWidget2()
+        widget.SetInteractor(self.viewer.iren)
+        widget.SetDefaultRenderer(self.viewer.ren)
+        widget.SetRepresentation(representation)
+        def moved(*args):
+            self._widget_cut(representation.GetOrigin(), representation.GetNormal(), False)
+        def settled(*args):
+            self._widget_cut(representation.GetOrigin(), representation.GetNormal(), True)
+            self.viewer.renWin.Render()
+        widget.AddObserver("InteractionEvent", moved)
+        widget.AddObserver("EndInteractionEvent", settled)
+        widget.On()
+        self.plane_widget = widget
+        if self.controls is not None:
+            self.controls["clipper_widget"] = widget
+
+    def _widget_cut(self, origin, normal, caps):
+        self.current_section = ""
+        self.renderer.set_section(list(origin), list(normal), self.presets["up"], caps=caps)
+        if caps:
+            self._after_cut()
+
+    def _drop_plane_widget(self):
+        widget, self.plane_widget = self.plane_widget, None
+        if widget is not None:
+            widget.Off()
+            widget.RemoveAllObservers()
+            widget.SetInteractor(None)
+        if self.controls is not None:
+            self.controls["clipper_widget"] = None
+
+    def _open_view(self):
+        """The first view, once there is geometry to look at."""
+        if self.first_plane is not None:
+            (origin, normal), self.first_plane = self.first_plane, None
+            self._widget_cut(origin, normal, True)
+            if self.interactive:
+                self.toggle_plane_widget()
+        if self.first_section is not None:
+            label, self.first_section = self.first_section, None
+            self.show_section(label, aim=not self.camera_dirty)
+        elif self.current_section is None and not self.camera_dirty:
+            self.go_home()
 
     def _camera_changed(self, *args):
         self.camera_dirty = True
@@ -131,7 +634,9 @@ class ViewSession:
         v = self.viewer
         v.iren.Disable()
         v.iren.EnableRenderOff()
-        for name in ("axesWidget", "clipperPlaneWidget"):
+        self._drop_plane_widget()
+        v.renWin.RemoveAllObservers()
+        for name in ("axesWidget",):
             widget = getattr(v, name, None)
             if widget is not None:
                 widget.SetEnabled(0)
@@ -177,7 +682,7 @@ class ViewSession:
             self.direct_meshes_added = True
             try:
                 self.vis._add_mesh_actors(self.vtk, v.ren, v.actors, self.model,
-                                          self.renderer.options if self.coloured else None,
+                                          self.renderer.options if self.colored else None,
                                           self.renderer.registry)
             except Exception as exc:
                 # TriangularMesh sectors need the optional pyvista dependency. The
@@ -196,7 +701,7 @@ class ViewSession:
                 if actor not in self.renderer.material_actors[material]:
                     self.renderer.material_actors[material].append(actor)
         bounds = self.vis._scene_bounds(v)
-        if self.axes and not self.axes_added and bounds is not None:
+        if self.axes and self.panel is None and not self.axes_added and bounds is not None:
             span = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
             v.addAxes(length=.12 * span, origin=[(bounds[i] + bounds[i+1]) / 2 for i in (0, 2, 4)])
             for getter in (v.axes[-1].GetXAxisCaptionActor2D,
@@ -208,19 +713,18 @@ class ViewSession:
                 caption.GetCaptionTextProperty().SetColor(.15, .15, .15)
             self.axes_added = True
         if self.controls is None:
-            # coloured=False is the plain single-colour viewer: no material legend.
+            # colored=False is the plain single-color viewer: no material legend.
             self.controls = self.vis._install_controls(
                 self.vtk, v, self.renderer.registry,
-                self.renderer.options if self.coloured else None,
-                self.model if self.picker else None, bounds, legend=self.legend,
+                self.renderer.options if self.colored else None,
+                self.model if self.picker else None, bounds,
+                legend=self.legend and self.panel is None,
                 bounding_box=self.bounding_box, near_frac=self.near_frac,
-                gas_visible=self.show_gas)
+                gas_visible=self.show_gas, session=self)
             v.interactorStyle.AddObserver('StartInteractionEvent', self._camera_changed)
-        if v.bClipper and v.clipperPlaneWidget is None and v.clippers:
-            v.addClipperWidget()
-            v.clipperPlaneWidget.On()
-            # The controls' state and key handler share this mutable handle.
-            self.controls["clipper_widget"] = v.clipperPlaneWidget
+            hidden = {label for (kind, label), style in self.renderer.styles.items()
+                      if kind == "material" and style.get("shown") is False}
+            self.controls["hidden"] |= {m for m, label in self.renderer.labels.items() if label in hidden}
 
     def receive(self, event):
         if self._closing():
@@ -228,6 +732,7 @@ class ViewSession:
         kind = event["kind"]
         if kind == "structure":
             self._mesh_files.clear()
+            self._set_levels(event["scene"])
             self.renderer.set_structure(event["scene"])
             self.status.SetInput("Loading %s geometry..." % event["scene"]["stage"])
         elif kind == "mesh":
@@ -237,13 +742,13 @@ class ViewSession:
                 self._mesh_files[path] = read_mesh(path)
             self.renderer.add_mesh(event["prototype"], *self._mesh_files[path])
             self.metrics["scene_build_seconds"] = self.metrics.get("scene_build_seconds", 0.) + time.perf_counter() - before
-            if event["stage"] == "detail":
+            if event["stage"] == "detail" and event["prototype"] in self.renderer._drawn:
                 self.loaded.add(event["prototype"])
             self.status.SetInput("%s: %d / %d shapes" % (event["stage"].capitalize(), event["completed"], event["total"]))
             if not self.camera_fitted and self.viewer.actors:
                 # Input on the loading window already placed the camera; keep it.
                 if not self.camera_dirty:
-                    self.viewer.ren.ResetCamera()
+                    self.go_home()
                 self.camera_fitted = True
         elif kind == "stage_done":
             before = time.perf_counter()
@@ -251,8 +756,9 @@ class ViewSession:
             self.metrics["scene_build_seconds"] = self.metrics.get("scene_build_seconds", 0.) + time.perf_counter() - before
             self.metrics["stages"].append(event)
             self._setup_controls()
-            if not self.camera_dirty and not self.detail_ready:
-                self.viewer.ren.ResetCamera()
+            if not self.detail_ready:
+                self._open_view()
+            self.panel_changed()
             if event["stage"] == "detail":
                 self.detail_ready = True
                 self.status.SetInput("Ready")

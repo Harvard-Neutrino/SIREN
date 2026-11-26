@@ -16,10 +16,10 @@ pg = pytest.importorskip("pyg4ometry")
 REGIONS = {
     "auxtype": "pmt_region",
     "styles": {
-        "external_tpb": {"label": "PMT TPB", "colour": [.95, .94, .82], "alpha": 1.},
-        "photocathode_inner_surface": {"label": "PMT photocathode", "colour": [.65, .42, .16], "alpha": 1.},
-        "reflector_inner_surface": {"label": "PMT reflector", "colour": [.8, .82, .85], "alpha": 1.},
-        "bare_transparent_glass": {"label": "PMT bare glass", "colour": [.72, .88, .94], "alpha": .25},
+        "external_tpb": {"label": "PMT TPB", "color": [.95, .94, .82], "alpha": 1.},
+        "photocathode_inner_surface": {"label": "PMT photocathode", "color": [.65, .42, .16], "alpha": 1.},
+        "reflector_inner_surface": {"label": "PMT reflector", "color": [.8, .82, .85], "alpha": 1.},
+        "bare_transparent_glass": {"label": "PMT bare glass", "color": [.72, .88, .94], "alpha": .25},
     },
     "hidden": ["vacuum"],
 }

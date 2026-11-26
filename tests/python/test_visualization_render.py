@@ -176,7 +176,7 @@ def test_direct_mesh_actor_is_pickable_without_expanding_prototypes():
     assert renderer.pick_ray([50, 0, 10], [50, 0, -10]) is None
 
 
-def test_exterior_legend_matches_region_colours():
+def test_exterior_legend_matches_region_colors():
     viewer = SimpleNamespace(ren=vtk.vtkRenderer(), actors={}, cutterOrigins={}, bClipper=False)
     renderer = SceneRenderer(viewer, display='exterior', regions=normalize_regions(REGIONS))
     renderer.set_structure(dict(prototypes={
@@ -193,11 +193,11 @@ native_window = pytest.mark.skipif(os.environ.get('SIREN_TEST_VTK_RENDER') != '1
 
 
 @native_window
-@pytest.mark.parametrize('coloured', [True, False])
-def test_native_glyph_pick_and_controls(tmp_path, coloured):
+@pytest.mark.parametrize('colored', [True, False])
+def test_native_glyph_pick_and_controls(tmp_path, colored):
     from siren._visualization_view import ViewSession
     session = ViewSession(fixture_gdml(tmp_path / 'a.gdml'), axes=False, legend=False,
-                          interactive=False, coloured=coloured, cache_dir=tmp_path / 'cache')
+                          interactive=False, colored=colored, cache_dir=tmp_path / 'cache')
     from siren._visualization_scene import prepare_scene
     try:
         prepare_scene(session.path, tmp_path / 'out', emit=session.receive, **session.options)
@@ -220,7 +220,7 @@ def test_native_glyph_pick_and_controls(tmp_path, coloured):
                    for a in session.renderer.material_actors['Steel'])
         v.iren.SetKeyEventInformation(0, 0, 'v', 0, 'v')
         v.interactorStyle.InvokeEvent('KeyPressEvent')
-        assert all(a.GetProperty().GetOpacity() == pytest.approx(.9 if coloured else .5)
+        assert all(a.GetProperty().GetOpacity() == pytest.approx(.9 if colored else .5)
                    for a in session.renderer.material_actors['Steel'])
     finally:
         if session.job is not None:
@@ -230,30 +230,28 @@ def test_native_glyph_pick_and_controls(tmp_path, coloured):
 
 @native_window
 @pytest.mark.parametrize('cutter,clipper', [(True, False), (False, True), (True, True)])
-def test_native_sections_and_clipping_use_full_meshes(tmp_path, cutter, clipper):
+def test_native_sections_and_clipping_keep_instances(tmp_path, cutter, clipper):
     from siren._visualization_view import ViewSession
     from siren._visualization_scene import prepare_scene
     session = ViewSession(fixture_gdml(tmp_path / 'a.gdml'), axes=False, legend=False,
-                          interactive=False, cutter=cutter, clipper=clipper,
+                          interactive=False, cutter=cutter, clipper=clipper, clip_origin=(-10, 0, 0),
                           display='exterior', regions=REGIONS, cache_dir=tmp_path / 'cache')
     try:
         prepare_scene(session.path, tmp_path / 'out', emit=session.receive, **session.options)
         assert session.options['display'] == 'full'
-        assert session.renderer.stats['glyph_instances'] == 0
-        if cutter:
-            assert {'xy', 'xz', 'yz'} <= session.viewer.cutters.keys()
-            assert session.viewer.getCutterPolydata('xy').GetNumberOfPoints() > 0
+        assert session.renderer.stats['glyph_instances'] == 2
+        outlines = {k for k in session.viewer.actors if k.startswith('section_')}
+        assert outlines == ({'section_xy', 'section_xz'} if cutter else set())  # nothing at x = 0
         if clipper:
-            assert session.viewer.clippers and session.controls['clipper_widget'] is not None
-            for clip in session.viewer.clippers:
-                clip.Update()
-                # ClippedOutput retains unused source points; inspect cells.
-                output = clip.GetClippedOutput()
-                assert output.GetNumberOfCells() > 0
-                assert all(output.GetCell(i).GetBounds()[1] <= 1e-8
-                           for i in range(output.GetNumberOfCells()))
-            session.viewer.setClipper([0, 0, 0], [0, 1, 0])
-            assert tuple(session.viewer.clippers[0].GetClipFunction().GetNormal()) == (0, 1, 0)
+            # The positive side of the default normal +x is removed.
+            assert session.renderer.plane.GetNormal() == (-1, 0, 0)
+            assert session.renderer.cap_actors
+            assert all(a.GetMapper().GetNumberOfClippingPlanes() == 1
+                       for a in session.renderer.actor_instances)
+            session.toggle_plane_widget()
+            assert session.controls['clipper_widget'] is not None
+            session.toggle_plane_widget()
+            assert session.controls['clipper_widget'] is None
     finally:
         session.viewer.renWin.Finalize()
 
@@ -366,7 +364,7 @@ def test_native_plain_viewer_has_no_legend_and_point_only_picking(tmp_path):
     from siren._visualization_view import ViewSession
     from siren._visualization_scene import prepare_scene
     session = ViewSession(fixture_gdml(tmp_path / 'a.gdml'), axes=False, legend=True,
-                          interactive=False, coloured=False, picker=False,
+                          interactive=False, colored=False, picker=False,
                           cache_dir=tmp_path / 'cache')
     try:
         prepare_scene(session.path, tmp_path / 'out', emit=session.receive, **session.options)
@@ -380,8 +378,8 @@ def test_pick_orders_hits_by_world_distance_across_scaled_placements():
     viewer = SimpleNamespace(ren=vtk.vtkRenderer(), actors={}, cutterOrigins={}, bClipper=False)
     renderer = SceneRenderer(viewer)
     near, far = np.eye(4), np.eye(4)
-    near[2, 3] = 20                      # unit box centred at z=20
-    far[:3, :3] = np.diag([1, 1, 10])    # stretched box centred at z=0, top at z=+30
+    near[2, 3] = 20                      # unit box centerd at z=20
+    far[:3, :3] = np.diag([1, 1, 10])    # stretched box centerd at z=0, top at z=+30
     proto = {'box': dict(name='box', material='Steel', density=7.8, role='')}
     renderer.set_structure(dict(prototypes=proto, instances=[
         dict(prototype='box', name='far', matrix=far.tolist()),
@@ -415,7 +413,7 @@ def test_refinement_releases_preview_polydata():
     assert len(renderer._source_data) == 1 and renderer._source_users[next(iter(renderer._source_data))] == 1
 
 
-def test_finish_stage_does_not_accumulate_pipeline_bookkeeping():
+def test_finish_stage_does_not_accumulate_actors():
     from pyg4ometry.visualisation import VtkViewerNew
     viewer = VtkViewerNew(defaultCutters=True, axisCubeWidget=False)
     renderer = SceneRenderer(viewer)
@@ -423,9 +421,13 @@ def test_finish_stage_does_not_accumulate_pipeline_bookkeeping():
     arrays = mesh_arrays(pg.geant4.solid.Box('b', 2, 4, 6, reg).mesh())
     renderer.set_structure(dict(prototypes={'box': dict(name='box', material='Steel', density=7.8, role='')},
                                 instances=[dict(prototype='box', name='c%d' % i, matrix=np.eye(4).tolist()) for i in range(3)]))
+    counts = []
     for _ in range(3):  # preview, detail, deferred load
         renderer.add_mesh('box', *(a.copy() for a in arrays))
         renderer.finish_stage()
-    assert len(viewer.instanceNameDict) == 3 and len(viewer.polydata) == 1
+        counts.append((viewer.ren.GetActors().GetNumberOfItems(), len(renderer.actor_layer),
+                       len(renderer._edge_pairs)))
+    assert counts[0] == counts[1] == counts[2]
     assert len(renderer.material_actors['Steel']) == 1
+    assert {'section_xy', 'section_xz', 'section_yz'} <= viewer.actors.keys()
     viewer.renWin.Finalize()
